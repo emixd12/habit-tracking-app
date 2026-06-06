@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "agents:check": "node scripts/check-agents.mjs",
+    "resolvers:check": "node scripts/check-resolvers.mjs",
+    "supabase": "supabase",
+    "sequenzy": "sequenzy"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
@@ -17,12 +21,14 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@sequenzy/cli": "^0.0.34",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
+    "supabase": "^2.105.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.8"

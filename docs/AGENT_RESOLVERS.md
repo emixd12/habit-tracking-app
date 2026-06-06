@@ -1,182 +1,109 @@
-# Agent Resolver Guide
+# Agent Resolver Registry
 
-This project uses resolver-first development.
+This project uses resolver-first development. Every future agent should identify the owning resolver before touching UI, API routes, cron/process routes, or provider integrations.
 
-When implementing any task, identify the affected resolver before touching UI.
+Run this drift check before considering resolver-affecting work complete:
 
-## Resolver map
+```bash
+npm run resolvers:check
+```
 
-### Recurrence work
+## Registry
 
-Use:
-- `/lib/resolvers/recurrence.resolver.ts`
-- `/tests/recurrence.resolver.test.ts`
-- `/docs/RECURRENCE_RULES.md`
+| Domain | Owner resolver | Allowed callers | Forbidden bypasses | Source docs | Required test | Drift check |
+|---|---|---|---|---|---|---|
+| Recurrence expansion | `lib/resolvers/recurrence.resolver.ts` | `lib/services/occurrence.service.ts`, resolver tests | React components, API routes, Supabase repositories, provider adapters, direct `Date` arithmetic | `docs/RECURRENCE_RULES.md`, `docs/DATETIME_STRATEGY.md` | `tests/recurrence.resolver.test.ts` | Resolver must not import React, Next, Supabase, browser globals, provider clients, or env vars. |
+| Occurrence generation planning | `lib/resolvers/occurrence.resolver.ts` | `lib/services/occurrence.service.ts`, resolver tests | Database inserts inside resolver, UI deciding future occurrence windows, API routes deduplicating occurrences | `docs/DATA_MODEL.md`, `docs/RECURRENCE_RULES.md` | `tests/occurrence.resolver.test.ts` | Generated occurrence plan must be pure; repository owns persistence and unique constraints. |
+| Timeline grouping | `lib/resolvers/timeline.resolver.ts` | `lib/services/timeline.service.ts`, Timeline UI via service output, resolver tests | Components deriving Needs decision, components filtering prior unresolved items, stored `needs_decision` status | `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, `docs/DATETIME_STRATEGY.md` | `tests/timeline.resolver.test.ts` | UI must receive grouped data or call a service; no `/dashboard` model. |
+| Status transitions | `lib/resolvers/status.resolver.ts` | `lib/services/occurrence.service.ts`, resolver tests | Buttons mutating status rules directly, automatic missed state, repositories deciding status semantics | `docs/USER_FLOWS.md`, `docs/DATA_MODEL.md`, `docs/DECISIONS.md` | `tests/status.resolver.test.ts` | Stored status remains `unresolved`, `done`, or `not_done`; Needs decision remains derived. |
+| Reminder delivery planning | `lib/resolvers/reminder.resolver.ts` | `lib/services/reminder.service.ts`, resolver tests | Sending email/push in resolver, provider SDK imports, API routes calculating delivery offsets | `docs/NOTIFICATION_SPEC.md`, `docs/SEQUENZY_WORKFLOW.md` | `tests/reminder.resolver.test.ts` | Resolver returns delivery records only; services send and record results idempotently. |
+| Analytics calculations | `lib/resolvers/analytics.resolver.ts` | `lib/services/analytics.service.ts`, Analytics UI via service output, resolver tests | Components calculating adherence, unresolved counted as failed completion, gamified streak logic | `docs/UI_SPEC.md`, `docs/PRODUCT_SPEC.md`, `docs/DATA_MODEL.md` | `tests/analytics.resolver.test.ts` | Unresolved is separate and excluded from final adherence unless docs change. |
+| Export formatting | `lib/resolvers/export.resolver.ts` | `lib/services/export.service.ts`, export API routes via service output, resolver tests | API routes hand-formatting CSV/JSONL, UI building export records, repositories deciding export shape | `docs/EXPORT_FORMATS.md`, `docs/DATA_MODEL.md` | `tests/export.resolver.test.ts` | JSONL, CSV, full JSON, and AI summary stay doc-compatible. |
 
-Examples:
-- Daily behavior scheduling
-- Weekly recurrence
-- Every N days
-- Monthly recurrence
-- Timezone behavior
-- Midnight boundary
+## Current implementation state
 
-### Occurrence generation work
+The registry is authoritative even before the resolver files exist. Ticket 001 created the scaffold only. Future tickets should add resolver files and paired tests as they reach each domain.
 
-Use:
-- `/lib/resolvers/occurrence.resolver.ts`
-- `/lib/services/occurrence.service.ts`
-- `/lib/db/occurrences.repo.ts`
+`npm run resolvers:check` currently enforces the registry shape and becomes stricter as resolver files appear.
 
-Examples:
-- Creating future occurrences
-- Avoiding duplicate occurrences
-- Refreshing upcoming occurrences after editing behavior
+## Layer ownership
 
-### Timeline work
+Repositories in `lib/db`:
 
-Use:
-- `/lib/resolvers/timeline.resolver.ts`
-- `/components/timeline/*`
-- `/docs/UI_SPEC.md`
+- Query and mutate Supabase.
+- Enforce SQL-level constraints through migrations and RLS.
+- Do not perform business calculations.
 
-Examples:
-- Needs decision group
-- Current-day ordered timeline
-- Resolved items
-- Future preview
+Services in `lib/services`:
 
-### Status work
+- Orchestrate repositories and resolvers.
+- Enforce auth and user scoping.
+- Prepare data for UI, API routes, and cron/process routes.
+- Own external side effects such as Sequenzy and Web Push adapters.
 
-Use:
-- `/lib/resolvers/status.resolver.ts`
-- `/lib/services/occurrence.service.ts`
-- `/components/timeline/StatusButtons.tsx`
+Resolvers in `lib/resolvers`:
 
-Examples:
-- Completed
-- Not Completed
-- Editing note
-- Changing a previous decision
+- Own calculations, grouping, state planning, and formatting.
+- Are pure or nearly pure.
+- Receive clock/timezone context explicitly.
+- Are unit-tested.
 
-### Reminder work
+UI components and pages:
 
-Use:
-- `/lib/resolvers/reminder.resolver.ts`
-- `/lib/services/reminder.service.ts`
-- `/lib/db/reminders.repo.ts`
-- `/app/api/reminders/process/route.ts`
-- `/docs/NOTIFICATION_SPEC.md`
+- Display data.
+- Call server actions/services.
+- Do not duplicate recurrence, reminder, analytics, export, or status logic.
 
-Examples:
-- Browser reminder
-- Email reminder
-- Reminder offset
-- Cancelling pending reminders
-- Failed reminder log
+API and cron/process routes:
 
-### Analytics work
-
-Use:
-- `/lib/resolvers/analytics.resolver.ts`
-- `/components/analytics/*`
-- `/docs/UI_SPEC.md`
-
-Examples:
-- Completion rate
-- Category summary
-- Done / not_done / unresolved counts
-
-### Export work
-
-Use:
-- `/lib/resolvers/export.resolver.ts`
-- `/app/api/export/*`
-- `/docs/EXPORT_FORMATS.md`
-
-Examples:
-- JSONL export
-- CSV export
-- Full JSON backup
-- AI-readable summary
-
-### Future PWA/offline work
-
-PWA caching and offline behavior are deferred from v1.
-
-Use `/docs/FUTURE_UPDATES.md` before implementing this work.
-
-Use:
-- `/lib/resolvers/cache.resolver.ts`
-- service worker / PWA config files
-- `/docs/UI_SPEC.md`
-
-Examples:
-- Cached upcoming items
-- Offline timeline
-- Local pending action queue
-- Sync conflict handling
-
-## Development rule
-
-Do not implement business logic in React components.
-
-If a React component needs non-trivial logic, move the logic into a resolver and test it.
+- Validate request/auth/secret.
+- Call services.
+- Return responses.
+- Do not duplicate business logic.
 
 ## Review rule
 
 Before finalizing a task, inspect whether logic was duplicated across:
+
 - UI
 - API routes
 - Services
-- Cron jobs
+- Cron/process routes
+- Repositories
 
-If duplicated, centralize in a resolver or service.
+If duplicated, centralize in a resolver or service and update tests.
 
 ## Source-of-truth resolution
 
 When files disagree, resolve in this order:
 
 1. `AGENTS.md`
-2. `/docs/DECISIONS.md`
-3. `/docs/PRODUCT_SPEC.md`
-4. `/docs/DATA_MODEL.md`
-5. `/docs/RECURRENCE_RULES.md`
-6. `/docs/UI_SPEC.md`
-7. `/docs/USER_FLOWS.md`
-8. `/docs/NOTIFICATION_SPEC.md`
-9. `/docs/EXPORT_FORMATS.md`
-10. Existing tests
-11. Existing implementation
-12. Current ticket prompt
+2. `STATUS.md` for current implementation state only
+3. `docs/DECISIONS.md`
+4. `docs/DATETIME_STRATEGY.md`
+5. `docs/SUPABASE_WORKFLOW.md` and `docs/SEQUENZY_WORKFLOW.md` for provider operations
+6. `docs/PRODUCT_SPEC.md`
+7. `docs/DATA_MODEL.md`
+8. `docs/RECURRENCE_RULES.md`
+9. `docs/UI_SPEC.md`
+10. `docs/USER_FLOWS.md`
+11. `docs/NOTIFICATION_SPEC.md`
+12. `docs/EXPORT_FORMATS.md`
+13. Existing tests
+14. Existing implementation
+15. Current ticket prompt, when it intentionally changes scope
 
-`/docs/FUTURE_UPDATES.md` describes deferred work and must not override v1 source-of-truth docs unless a future task explicitly moves that work into scope.
+`docs/FUTURE_UPDATES.md` describes deferred work and must not override v1 source-of-truth docs unless a future task explicitly moves that work into scope.
 
 If a current user prompt intentionally changes the product, update the relevant docs in the same task.
 
-## Service/repository separation
+## Adding a resolver
 
-Repositories:
-- Query and mutate Supabase.
-- Do not perform business calculations.
+When adding a resolver:
 
-Services:
-- Orchestrate repositories and resolvers.
-- Enforce auth/user scoping.
-- Prepare data for UI/API routes.
-
-Resolvers:
-- Own calculations and state planning.
-- Are pure or nearly pure.
-- Are unit-tested.
-
-UI:
-- Displays data.
-- Calls server actions/services.
-- Does not duplicate business logic.
-
-API/cron routes:
-- Validate request.
-- Call services.
-- Return response.
-- Do not duplicate business logic.
+1. Create the resolver file listed in the registry.
+2. Create the paired test file listed in the registry.
+3. Keep inputs/outputs serializable unless Temporal values are explicitly part of the local resolver contract.
+4. Keep Supabase calls, provider SDK calls, browser APIs, and env reads out of the resolver.
+5. Add or update service/repository code only after the resolver contract is clear.
+6. Run `npm run resolvers:check`, `npm run test`, `npm run typecheck`, and `npm run build`.

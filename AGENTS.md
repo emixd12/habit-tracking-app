@@ -17,13 +17,33 @@ This is not a general productivity app, not a social habit tracker, not a medica
 - Supabase Row Level Security
 - Tailwind CSS
 - shadcn-style components where useful
-- Resend for email reminders
+- Sequenzy for email reminders
 - Web Push for browser notifications
 - Vitest for resolver tests
 
+## Agent operating model
+
+Before implementing a task, read in this order:
+
+1. `AGENTS.md`
+2. `STATUS.md`
+3. `docs/OPERATIONS.md`
+4. Provider or governance docs relevant to the task:
+   - `docs/SUPABASE_WORKFLOW.md`
+   - `docs/SEQUENZY_WORKFLOW.md`
+   - `docs/DATETIME_STRATEGY.md`
+   - `docs/ROUTE_MAP.md`
+   - `docs/AGENT_RESOLVERS.md`
+5. Product source-of-truth docs relevant to the task.
+6. Existing tests and implementation.
+
+`STATUS.md` is a current-state ledger. Update it when a ticket starts, completes, becomes blocked, is reopened, or materially changes scope. Do not use it to expand product scope.
+
+If a user prompt conflicts with the docs, report the conflict before editing. If the user intentionally changes product direction, update the relevant docs in the same task.
+
 ## Source-of-truth documents
 
-Before implementing a task, inspect the relevant docs:
+Product and implementation docs:
 
 1. `/docs/PRODUCT_SPEC.md`
 2. `/docs/DATA_MODEL.md`
@@ -33,11 +53,14 @@ Before implementing a task, inspect the relevant docs:
 6. `/docs/NOTIFICATION_SPEC.md`
 7. `/docs/EXPORT_FORMATS.md`
 8. `/docs/AGENT_RESOLVERS.md`
-9. `/docs/TICKETS.md`
-10. `/docs/DECISIONS.md`
-11. `/docs/FUTURE_UPDATES.md`
-
-If a user prompt conflicts with the docs, report the conflict before editing.
+9. `/docs/ROUTE_MAP.md`
+10. `/docs/DATETIME_STRATEGY.md`
+11. `/docs/SUPABASE_WORKFLOW.md`
+12. `/docs/SEQUENZY_WORKFLOW.md`
+13. `/docs/OPERATIONS.md`
+14. `/docs/TICKETS.md`
+15. `/docs/DECISIONS.md`
+16. `/docs/FUTURE_UPDATES.md`
 
 ## Product constraints
 
@@ -97,6 +120,7 @@ Resolvers should be pure or nearly pure functions. They should not:
 - Send email
 - Send push notifications
 - Read browser APIs
+- Read environment variables
 - Mutate global state
 
 Repositories in `/lib/db` own database access.
@@ -105,7 +129,9 @@ Services in `/lib/services` orchestrate repositories and resolvers.
 
 UI components call services/server actions. UI components must not implement recurrence, reminder, analytics, or export logic.
 
-API routes and cron routes must call services. They must not duplicate resolver logic.
+API routes and cron/process routes must call services. They must not duplicate resolver logic.
+
+Run `npm run resolvers:check` after resolver, service, API route, cron/process, or UI logic changes.
 
 ## Required resolver modules
 
@@ -118,6 +144,8 @@ Implement and preserve these modules:
 - `/lib/resolvers/reminder.resolver.ts`
 - `/lib/resolvers/analytics.resolver.ts`
 - `/lib/resolvers/export.resolver.ts`
+
+The registry, allowed callers, forbidden bypasses, and paired tests live in `/docs/AGENT_RESOLVERS.md`.
 
 ## Status rules
 
@@ -136,6 +164,19 @@ Rules:
 - Needs decision is derived from `status === "unresolved"` and `local_date` before the current local date.
 - Unresolved is shown separately and excluded from final adherence calculations.
 
+## Date and time rules
+
+Use the user's timezone, defaulting to America/New_York.
+
+The day boundary is local midnight.
+
+Date/time implementation details are locked in `docs/DATETIME_STRATEGY.md`:
+
+- Use Temporal for timezone-aware recurrence and day-boundary logic when implementation begins.
+- Store both UTC instants (`timestamptz`) and local calendar dates (`local_date`).
+- Inject `now` into resolvers. Do not call `new Date()` inside resolvers.
+- Do not parse `YYYY-MM-DD` with JavaScript `Date`.
+
 ## Recurrence rules
 
 Supported v1 recurrence types:
@@ -145,10 +186,6 @@ Supported v1 recurrence types:
 - Weekly on selected weekdays
 - Every N weeks on selected weekdays
 - Monthly on day N
-
-Use the user's timezone, defaulting to America/New_York.
-
-The day boundary is local midnight.
 
 Monthly day rule:
 - If a behavior is scheduled for day 31 and a month has no day 31, schedule it on the last day of that month.
@@ -168,6 +205,8 @@ Email reminders:
 - Disabled by default.
 - Can be enabled per behavior.
 - Can use a reminder offset, such as 1 day before or 3 days before.
+- Use Sequenzy as the provider.
+- Use the Sequenzy CLI workflow in `docs/SEQUENZY_WORKFLOW.md` for provider setup, template inspection, and test sends.
 
 Reminder delivery rules:
 - Reminders should be stored in `reminder_deliveries`.
@@ -176,17 +215,23 @@ Reminder delivery rules:
 - Reminder processing should be idempotent.
 - Reminder processing must avoid duplicate sends.
 
-## Offline and PWA rules
+## Supabase CLI rules
 
-Offline behavior and PWA caching are deferred from v1.
+Supabase is CLI-first in this repo. Use `docs/SUPABASE_WORKFLOW.md` rather than rediscovering provider steps.
 
-Do not implement offline mutation in v1.
+Project-local command form:
 
-Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
+```bash
+npm run supabase -- <command>
+```
 
-## Data rules
-
-Use Supabase migrations for schema changes.
+Rules:
+- Use Supabase migrations for schema changes.
+- Never change the hosted database directly.
+- Keep local and hosted schema congruent through git-tracked migrations.
+- Run `npm run supabase -- db reset` to verify migrations from a clean local database.
+- Use `npm run supabase -- db push` for hosted deployment only after user authorization.
+- Generate database types after schema changes.
 
 Never change the database schema without:
 - A migration file
@@ -199,6 +244,47 @@ All user-owned tables must include `user_id`.
 All user-owned tables must have RLS policies.
 
 Even though this is single-user, do not bypass RLS in normal app code.
+
+## Sequenzy CLI rules
+
+Sequenzy is CLI-first for provider operations in this repo. Use `docs/SEQUENZY_WORKFLOW.md`.
+
+Project-local command form:
+
+```bash
+npm run sequenzy -- <command>
+```
+
+Rules:
+- Use `npm run sequenzy -- whoami` before provider operations that require auth.
+- Use `npm run sequenzy -- login` when the user authorizes login.
+- Do not send real emails without an explicit user-approved test recipient or production send instruction.
+- Keep `SEQUENZY_API_KEY` server-only.
+- Do not expose Sequenzy secrets to the browser.
+- Keep provider calls in services/adapters, not resolvers.
+
+## Route rules
+
+The Timeline screen is the main screen.
+
+Primary screens:
+- Timeline: `/timeline`
+- Behaviors: `/behaviors`
+- Analytics: `/analytics`
+- Export: `/export`
+- Settings: `/settings`
+
+Do not create `/dashboard` in v1.
+
+Route ownership and planned API routes live in `docs/ROUTE_MAP.md`.
+
+## Offline and PWA rules
+
+Offline behavior and PWA caching are deferred from v1.
+
+Do not implement offline mutation in v1.
+
+Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 
 ## Testing rules
 
@@ -217,6 +303,8 @@ Minimum tests:
 Before considering a ticket complete, run:
 
 ```bash
+npm run agents:check
+npm run resolvers:check
 npm run lint
 npm run typecheck
 npm run test
@@ -225,18 +313,9 @@ npm run build
 
 If a command does not exist yet, either add it or state clearly that it is not available.
 
-## UI rules
+## UI and design rules
 
 The interface should be sparse.
-
-Primary screens:
-- Timeline
-- Behaviors
-- Analytics
-- Export
-- Settings
-
-The Timeline screen is the main screen.
 
 Occurrence rows should expose:
 - Completed
@@ -251,19 +330,32 @@ Avoid:
 - Excessive modals
 - Complex settings
 
+For UI/design work, use the project-local impeccable workflow before editing UI:
+
+```bash
+node .agents/skills/impeccable/scripts/context.mjs
+```
+
+Then read `.agents/skills/impeccable/reference/product.md`. If a specific impeccable command is relevant, read the matching reference file.
+
+`DESIGN.md` is seeded. After real UI exists beyond the scaffold, update it from actual code rather than intentions.
+
 ## Completion criteria for any coding task
 
 A task is complete only when:
 
 1. The implementation matches the relevant docs.
-2. Resolver logic is tested.
-3. TypeScript passes.
-4. Lint passes.
-5. Build passes.
-6. Schema changes include migrations.
-7. UI changes are mobile-responsive.
-8. No out-of-scope features were added.
-9. The final response explains:
+2. Resolver logic is tested when resolver logic exists or changes.
+3. Agent drift checks pass.
+4. TypeScript passes.
+5. Lint passes.
+6. Tests pass.
+7. Build passes.
+8. Schema changes include migrations.
+9. UI changes are mobile-responsive.
+10. No out-of-scope features were added.
+11. `STATUS.md` is updated if ticket state changed.
+12. The final response explains:
    - What changed
    - Files changed
    - Tests run
@@ -286,6 +378,7 @@ Do not expand scope to solve speculative future requirements.
 - Never commit `.env` files or secrets.
 - Never expose service-role keys to the browser.
 - Use server-side code for privileged operations.
+- Treat provider CLI login output, API keys, and approval codes as secrets.
 
 ## Style rules
 

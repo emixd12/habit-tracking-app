@@ -51,8 +51,27 @@ Current evidence:
 - `app/`, `components/`, `lib/`, and `tests/` application directories exist.
 - Placeholder app routes exist for Timeline, Behaviors, Analytics, Export, and Settings.
 - No database, Supabase auth, migrations, or product feature logic has been implemented yet.
+- Supabase and Sequenzy CLIs are installed as dev dependencies and exposed through `npm run supabase -- ...` and `npm run sequenzy -- ...`.
+- Agent operations docs now include Supabase CLI workflow, Sequenzy CLI workflow, date/time strategy, route map, and deterministic drift checks.
 - The next implementation step is Ticket 002 from `docs/TICKETS.md`.
 - Project-local design workflow files exist under `.agents/skills/impeccable/` and should be used for UI/design work after the scaffold exists.
+
+## Agent operations update
+
+This governance update added CLI-first Supabase and Sequenzy workflows, route/date-time/resolver registry docs, project-local CLI scripts, and deterministic drift checks.
+
+Verification run for this update:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Pass: `npm run supabase -- --version` returned `2.105.0`
+- Pass: `npm run sequenzy -- --version` returned `0.0.34`
+- Pass: `npm audit --omit=dev` found 0 vulnerabilities
+
+Supabase is not initialized yet because no schema ticket has started. Run `npm run supabase -- init` during Ticket 002/003 when local Supabase work begins.
 
 ## Ticket status
 
@@ -67,12 +86,14 @@ Current evidence:
 | 007: Timeline | not_started | No timeline screen or grouping resolver yet. | Not run. | Depends on occurrence generation and status model. |
 | 008: Status marking and notes | not_started | No status resolver, buttons, or note editing yet. | Not run. | Depends on occurrences and timeline surface. |
 | 009: Browser push | not_started | No push subscription or browser notification implementation yet. | Not run. | Depends on auth, schema, and reminder service shape. |
-| 010: Email reminders | not_started | No Resend integration or reminder processing route yet. | Not run. | Depends on reminder resolver/service and protected process route decision. |
+| 010: Email reminders | not_started | No Sequenzy integration or reminder processing route yet. CLI workflow and provider decision are documented. | Not run. | Depends on reminder resolver/service and protected process route decision. |
 | 011: Analytics | not_started | No analytics resolver or screen yet. | Not run. | Depends on occurrence/status history. |
 | 012: Export | not_started | No export resolver, service, or API routes yet. | Not run. | Depends on data model and occurrence/history records. |
 
 ## Handoff notes
 
 - For the next coding agent: begin with Ticket 002 unless a user explicitly asks for a different docs-only task.
+- Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.
+- Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.
 - Keep v1 small. Do not implement deferred PWA/offline behavior from `docs/FUTURE_UPDATES.md` unless the active docs are updated first.
 - Preserve the resolver-first architecture: core logic belongs in `lib/resolvers`, database access in `lib/db`, orchestration in `lib/services`, and UI/API routes should not duplicate resolver logic.

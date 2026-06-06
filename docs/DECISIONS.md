@@ -81,6 +81,42 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 
 Use Google login through Supabase Auth unless implementation complexity becomes disproportionate.
 
+## Supabase operations
+
+Use the Supabase CLI as the standard pathway for database and hosted project operations.
+
+- Use project-local commands through `npm run supabase -- <command>`.
+- Use migrations for all schema changes.
+- Keep local and hosted schema congruent through git-tracked migrations.
+- Do not change the hosted database directly outside migrations.
+- Use `docs/SUPABASE_WORKFLOW.md` for command details.
+
+## Email provider
+
+Use Sequenzy for v1 email reminders.
+
+- Use the Sequenzy CLI as the standard agent pathway for provider operations.
+- Use project-local commands through `npm run sequenzy -- <command>`.
+- Keep runtime email sending server-only.
+- Do not expose `SEQUENZY_API_KEY` to the browser.
+- Use `docs/SEQUENZY_WORKFLOW.md` for command details.
+
+## Date and time implementation
+
+Use the strategy in `docs/DATETIME_STRATEGY.md`.
+
+- Default timezone remains `America/New_York`.
+- Use local midnight for day boundaries.
+- Store `scheduled_for` as `timestamptz` and `local_date` as the local calendar date.
+- Use Temporal for timezone-aware implementation when recurrence logic begins.
+- Inject `now` into resolvers; do not read the system clock inside resolver logic.
+
+## Agent drift checks
+
+Run `npm run agents:check` and `npm run resolvers:check` before considering any coding task complete.
+
+These checks are part of the repository contract and should be extended when new drift risks appear.
+
 ## Product direction
 
 Build a custom MVP.

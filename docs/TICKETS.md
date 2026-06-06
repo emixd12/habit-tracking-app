@@ -258,7 +258,7 @@ Suggested files:
 
 ## Ticket 010: Email reminders
 
-Implement Resend email reminders.
+Implement Sequenzy email reminders.
 
 Acceptance criteria:
 - Email reminders only send when enabled on behavior
@@ -267,11 +267,14 @@ Acceptance criteria:
 - Failed reminders logged
 - No duplicate sends
 - Reminder processing route is protected by a secret or appropriate server-only mechanism
+- Sequenzy provider setup, template inspection, and test sends use the CLI workflow in `docs/SEQUENZY_WORKFLOW.md`
+- Runtime sending uses server-only code and never exposes `SEQUENZY_API_KEY` to the browser
 
 Suggested files:
 - `lib/resolvers/reminder.resolver.ts`
 - `lib/services/reminder.service.ts`
 - `lib/db/reminders.repo.ts`
+- `lib/services/sequenzy.service.ts`
 - `app/api/reminders/process/route.ts`
 - `tests/reminder.resolver.test.ts`
 

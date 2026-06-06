@@ -5,7 +5,7 @@
 The app supports two reminder channels:
 
 1. Browser push
-2. Email
+2. Email through Sequenzy
 
 Browser reminders default to on for every behavior.
 
@@ -27,6 +27,12 @@ Default:
 - `true`
 
 ## Email reminders
+
+Provider:
+- Use Sequenzy.
+- Use `docs/SEQUENZY_WORKFLOW.md` for CLI login, template inspection, test sends, and provider operations.
+- Keep runtime sending in server-only services/adapters.
+- Do not send from resolvers, UI components, or client-side code.
 
 Behavior fields:
 - `email_reminder_enabled`
@@ -73,6 +79,7 @@ Browser reminders:
 
 Email reminders:
 - Generate if `email_reminder_enabled = true`
+- Use Sequenzy only at the service/provider boundary after a pending email delivery is due and still valid.
 
 ## Cancellation
 
@@ -103,6 +110,8 @@ A scheduled backend process should periodically:
 4. Mark as sent or failed.
 5. Store error text for failed sends.
 
+The process route must be protected by `REMINDER_PROCESS_SECRET` or an equivalent server-only mechanism.
+
 ## Resolver contract
 
 Reminder logic belongs in:
@@ -130,3 +139,4 @@ Sending belongs in services/API routes.
 - No delivery generated for resolved occurrence if resolver receives status information.
 - Pending reminders are cancelled when occurrence is resolved.
 - Duplicate delivery protection is handled by service/repository layer.
+- Sequenzy provider errors are recorded as failed deliveries by the service layer.

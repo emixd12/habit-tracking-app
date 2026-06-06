@@ -8,6 +8,10 @@ All user-owned tables must have Row Level Security policies.
 
 Use migrations for all schema changes.
 
+Schema operations are CLI-first. Use `docs/SUPABASE_WORKFLOW.md` for local stack, migration, hosted deployment, and local/hosted congruence rules. Do not change the hosted database directly outside git-tracked migrations.
+
+After schema changes, regenerate TypeScript database types from Supabase CLI output and commit them with the migration.
+
 ## Tables
 
 ### `profiles`
