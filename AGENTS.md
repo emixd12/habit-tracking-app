@@ -1,0 +1,319 @@
+# AGENTS.md
+
+## Project
+
+This repository contains a single-user personal behavior tracker web app.
+
+The app lets one user create recurring behaviors, view scheduled occurrences in a timeline, and manually mark each occurrence as Completed or Not Completed. Unmarked occurrences remain Unresolved, and prior-day unresolved occurrences are grouped under Needs decision.
+
+This is not a general productivity app, not a social habit tracker, not a medical dosing app, and not a multi-user SaaS product.
+
+## Primary stack
+
+- Next.js App Router
+- TypeScript
+- Supabase Postgres
+- Supabase Auth with Google login
+- Supabase Row Level Security
+- Tailwind CSS
+- shadcn-style components where useful
+- Resend for email reminders
+- Web Push for browser notifications
+- Vitest for resolver tests
+
+## Source-of-truth documents
+
+Before implementing a task, inspect the relevant docs:
+
+1. `/docs/PRODUCT_SPEC.md`
+2. `/docs/DATA_MODEL.md`
+3. `/docs/RECURRENCE_RULES.md`
+4. `/docs/UI_SPEC.md`
+5. `/docs/USER_FLOWS.md`
+6. `/docs/NOTIFICATION_SPEC.md`
+7. `/docs/EXPORT_FORMATS.md`
+8. `/docs/AGENT_RESOLVERS.md`
+9. `/docs/TICKETS.md`
+10. `/docs/DECISIONS.md`
+11. `/docs/FUTURE_UPDATES.md`
+
+If a user prompt conflicts with the docs, report the conflict before editing.
+
+## Product constraints
+
+Keep the app small.
+
+In scope:
+- Google login
+- Behavior CRUD
+- Category CRUD or simple category selection
+- Recurrence rules
+- Occurrence generation
+- Timeline-first interface
+- Manual statuses: unresolved, done, not_done
+- Notes on occurrences
+- Browser reminders enabled by default
+- Optional email reminders per behavior
+- Basic analytics
+- JSONL/CSV/full JSON export
+
+Out of scope for v1:
+- Multi-user collaboration
+- Social features
+- Gamification
+- Native mobile apps
+- Apple Health / Google Fit integration
+- Structured measurement templates
+- Medication dose tracking
+- Supply/refill inventory
+- AI coaching inside the app
+- Calendar sync
+- Payment/subscription infrastructure
+- Admin dashboards
+- PWA offline cache
+- Offline writes or sync conflict handling
+- Automatic missed status
+
+## Domain language
+
+Use these terms consistently:
+
+- Behavior: a recurring thing the user wants to track.
+- Occurrence: one scheduled instance of a behavior.
+- Unresolved: an occurrence that has not been manually marked.
+- Done: stored status meaning the behavior was completed. Display as Completed in the UI.
+- Not done: stored status meaning the user explicitly says it was not completed. Display as Not Completed in the UI.
+- Needs decision: UI group and derived state for unresolved occurrences before today. It is not a stored status.
+
+Do not use “missed” as a stored status in v1.
+
+## Architecture rule: resolver-first
+
+Core logic must live in `/lib/resolvers`.
+
+Resolvers should be pure or nearly pure functions. They should not:
+- Render UI
+- Query Supabase directly
+- Send email
+- Send push notifications
+- Read browser APIs
+- Mutate global state
+
+Repositories in `/lib/db` own database access.
+
+Services in `/lib/services` orchestrate repositories and resolvers.
+
+UI components call services/server actions. UI components must not implement recurrence, reminder, analytics, or export logic.
+
+API routes and cron routes must call services. They must not duplicate resolver logic.
+
+## Required resolver modules
+
+Implement and preserve these modules:
+
+- `/lib/resolvers/recurrence.resolver.ts`
+- `/lib/resolvers/occurrence.resolver.ts`
+- `/lib/resolvers/timeline.resolver.ts`
+- `/lib/resolvers/status.resolver.ts`
+- `/lib/resolvers/reminder.resolver.ts`
+- `/lib/resolvers/analytics.resolver.ts`
+- `/lib/resolvers/export.resolver.ts`
+
+## Status rules
+
+Stored statuses:
+
+```ts
+type OccurrenceStatus = "unresolved" | "done" | "not_done";
+```
+
+Rules:
+- New occurrences start as unresolved.
+- The system must not automatically mark unresolved items as missed.
+- At midnight, unresolved items from prior days move into the Needs decision UI group.
+- The user can change a resolved status later.
+- Notes can be added or edited.
+- Needs decision is derived from `status === "unresolved"` and `local_date` before the current local date.
+- Unresolved is shown separately and excluded from final adherence calculations.
+
+## Recurrence rules
+
+Supported v1 recurrence types:
+
+- Daily
+- Every N days
+- Weekly on selected weekdays
+- Every N weeks on selected weekdays
+- Monthly on day N
+
+Use the user's timezone, defaulting to America/New_York.
+
+The day boundary is local midnight.
+
+Monthly day rule:
+- If a behavior is scheduled for day 31 and a month has no day 31, schedule it on the last day of that month.
+
+Do not implement natural-language recurrence in v1.
+
+Do not expose raw cron syntax in the user interface.
+
+## Reminder rules
+
+Browser reminders:
+- Enabled by default for every behavior.
+- Only work after the user grants browser notification permission and registers a push subscription.
+- If push is unavailable or denied, the app still works.
+
+Email reminders:
+- Disabled by default.
+- Can be enabled per behavior.
+- Can use a reminder offset, such as 1 day before or 3 days before.
+
+Reminder delivery rules:
+- Reminders should be stored in `reminder_deliveries`.
+- Pending reminders should be cancelled when an occurrence is resolved before the reminder sends.
+- Failed reminders should be logged.
+- Reminder processing should be idempotent.
+- Reminder processing must avoid duplicate sends.
+
+## Offline and PWA rules
+
+Offline behavior and PWA caching are deferred from v1.
+
+Do not implement offline mutation in v1.
+
+Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
+
+## Data rules
+
+Use Supabase migrations for schema changes.
+
+Never change the database schema without:
+- A migration file
+- Updated `/docs/DATA_MODEL.md`
+- Updated TypeScript types if needed
+- Tests or manual QA notes
+
+All user-owned tables must include `user_id`.
+
+All user-owned tables must have RLS policies.
+
+Even though this is single-user, do not bypass RLS in normal app code.
+
+## Testing rules
+
+Every resolver must have tests.
+
+Minimum tests:
+- Recurrence generation
+- Monthly day 31 fallback
+- Weekly and every-other-week scheduling
+- Midnight day boundary
+- Timeline grouping for prior unresolved items
+- Status transitions
+- Reminder delivery generation
+- Export formatting
+
+Before considering a ticket complete, run:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+If a command does not exist yet, either add it or state clearly that it is not available.
+
+## UI rules
+
+The interface should be sparse.
+
+Primary screens:
+- Timeline
+- Behaviors
+- Analytics
+- Export
+- Settings
+
+The Timeline screen is the main screen.
+
+Occurrence rows should expose:
+- Completed
+- Not Completed
+- Note
+
+Avoid:
+- Dense dashboards
+- Gamified streaks
+- Social language
+- Productivity-app sprawl
+- Excessive modals
+- Complex settings
+
+## Completion criteria for any coding task
+
+A task is complete only when:
+
+1. The implementation matches the relevant docs.
+2. Resolver logic is tested.
+3. TypeScript passes.
+4. Lint passes.
+5. Build passes.
+6. Schema changes include migrations.
+7. UI changes are mobile-responsive.
+8. No out-of-scope features were added.
+9. The final response explains:
+   - What changed
+   - Files changed
+   - Tests run
+   - Any remaining risks or TODOs
+
+## How to handle ambiguity
+
+If ambiguity blocks implementation, ask a narrow question.
+
+If ambiguity does not block implementation, make the simplest assumption consistent with the docs and document it in the final response.
+
+Do not expand scope to solve speculative future requirements.
+
+## Security rules
+
+- Use Supabase Auth.
+- Use Google login.
+- Restrict app data to the authenticated user.
+- Use RLS on all user-owned tables.
+- Never commit `.env` files or secrets.
+- Never expose service-role keys to the browser.
+- Use server-side code for privileged operations.
+
+## Style rules
+
+- Prefer simple TypeScript.
+- Prefer explicit types.
+- Prefer small functions.
+- Prefer boring UI.
+- Do not introduce unnecessary state-management libraries.
+- Do not add a component library unless requested.
+- Do not add analytics/tracking scripts unrelated to this app's internal behavior tracking.
+
+## Implementation strategy
+
+Implement in small vertical slices.
+
+Do not attempt to build the whole application in one pass.
+
+Recommended sequence:
+1. Project scaffold
+2. Supabase auth and schema
+3. Behavior CRUD
+4. Recurrence resolver
+5. Occurrence generation
+6. Timeline
+7. Status marking
+8. Notes
+9. Reminder scheduling
+10. Browser push
+11. Email reminders
+12. Analytics
+13. Exports
