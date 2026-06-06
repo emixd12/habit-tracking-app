@@ -6,11 +6,13 @@ It does **not** contain application code yet. It contains the instructions and p
 
 ## How to use
 
-1. Create a new empty repo folder.
-2. Copy these files into the repo root.
-3. Start Codex from that folder.
-4. Paste the prompt in `CODEX_FIRST_PROMPT.md`.
-5. After Codex confirms the architecture and missing blockers, begin with Ticket 001 from `docs/TICKETS.md`.
+1. Start the coding agent from this repository root.
+2. Have the agent read `AGENTS.md`, then `STATUS.md`, then the relevant files under `docs/`.
+3. Use `STATUS.md` to confirm what has already been implemented, verified, blocked, or deferred.
+4. Use `docs/TICKETS.md` for ticket scope and acceptance criteria. For a fresh build, begin with Ticket 001.
+5. Update `STATUS.md` whenever a ticket starts, completes, becomes blocked, or materially changes scope.
+
+If these bootstrap files are copied into a new repository, copy the full project-definition layer, including `AGENTS.md`, `STATUS.md`, `PRODUCT.md`, `DESIGN.md`, `.env.example`, `.agents/`, and `docs/`.
 
 ## Intended app
 
