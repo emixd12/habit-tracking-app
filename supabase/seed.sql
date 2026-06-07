@@ -1,0 +1,2 @@
+-- Default categories are created per auth user by public.handle_new_user().
+-- This local seed file is intentionally empty because there is no global app data.

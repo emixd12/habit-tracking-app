@@ -241,6 +241,8 @@ Never change the database schema without:
 
 All user-owned tables must include `user_id`.
 
+Exception: `profiles` uses `id` as the authenticated user's id (`auth.users.id`) instead of a separate `user_id`; its RLS ownership rule is `id = auth.uid()`.
+
 All user-owned tables must have RLS policies.
 
 Even though this is single-user, do not bypass RLS in normal app code.

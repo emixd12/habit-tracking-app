@@ -4,6 +4,8 @@ Use Supabase Postgres.
 
 All user-owned tables must include `user_id`.
 
+Exception: `profiles` uses `id` as the authenticated user's id (`auth.users.id`) instead of a separate `user_id`; its RLS ownership rule is `id = auth.uid()`.
+
 All user-owned tables must have Row Level Security policies.
 
 Use migrations for all schema changes.
@@ -160,6 +162,8 @@ For every user-owned table:
 - Insert only where `user_id = auth.uid()`
 - Update only where `user_id = auth.uid()`
 - Delete only where `user_id = auth.uid()`
+
+For `profiles`, use `id = auth.uid()` because the primary key is the authenticated user's id.
 
 Normal app code should use the authenticated user context.
 
