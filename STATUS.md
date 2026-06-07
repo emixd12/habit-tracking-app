@@ -43,7 +43,7 @@ When updating a ticket row:
 
 ## Current repository state
 
-This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, and the project-definition and agent-bootstrap layer.
+This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, and the project-definition and agent-bootstrap layer.
 
 Current evidence:
 
@@ -56,9 +56,10 @@ Current evidence:
 - Auth user onboarding creates a profile and default categories; migration backfills existing auth users.
 - Supabase database types are generated in `lib/db/database.types.ts`, with hand-written domain aliases in `lib/types/database.ts`.
 - A pure Temporal-based recurrence resolver exists in `lib/resolvers/recurrence.resolver.ts`, with recurrence domain types in `lib/types/recurrence.ts` and paired tests in `tests/recurrence.resolver.test.ts`.
+- Behavior CRUD exists on `/behaviors` with server actions, service/repository access through the authenticated Supabase user, category selection, recurrence editing, scheduled time, browser/email reminder settings, active/archive handling, and active/archived lists.
 - Supabase and Sequenzy CLIs are installed as dev dependencies and exposed through `npm run supabase -- ...` and `npm run sequenzy -- ...`.
 - Agent operations docs now include Supabase CLI workflow, Sequenzy CLI workflow, date/time strategy, route map, and deterministic drift checks.
-- The next implementation step is Ticket 005 from `docs/TICKETS.md`.
+- The next implementation step is Ticket 006 from `docs/TICKETS.md`.
 - Project-local design workflow files exist under `.agents/skills/impeccable/` and should be used for UI/design work after the scaffold exists.
 
 ## Agent operations update
@@ -86,7 +87,7 @@ Supabase is initialized for local development. Ticket 003 added the first produc
 | 002: Add Supabase Auth | complete | Added `@supabase/ssr` and `@supabase/supabase-js`; created browser/server Supabase clients; initialized `supabase/config.toml`; added Google login at `/login`, OAuth callback exchange at `/auth/callback`, Next 16 `proxy.ts` session refresh/redirect handling, server-side app layout auth guard, sanitized auth redirect helpers, env docs, and auth redirect tests. No service-role key is used in browser code. | Pass: `npm run agents:check`; `npm run resolvers:check`; `npm run lint`; `npm run typecheck`; `npm run test`; `npm run build`; HTTP QA for `/`, `/timeline`, `/login`, and `/auth/callback`; browser QA for `/login` at desktop and 390px mobile plus protected `/timeline` redirect. | Start Ticket 003: Create database schema. Google OAuth still requires real Supabase project/provider credentials in local/deployed environment. |
 | 003: Create database schema | complete | Added initial Supabase schema migration for profiles, categories, behaviors, occurrences, reminder_deliveries, and push_subscriptions; enabled owner-scoped RLS policies; added updated_at triggers, relationship ownership constraints, reminder/subscription idempotence constraints, auth-user profile/default-category onboarding, existing-user backfill, empty local seed placeholder, generated Supabase database types, and domain aliases for status/channel literals. Clarified that `profiles.id` is the profile ownership key instead of a separate `user_id`. Local Supabase ports moved to 5532x to avoid an existing local stack conflict. | Pass: `npm run supabase -- db reset`; Pass: SQL smoke check for default categories, profile/category RLS, cross-user insert rejection, and cross-user category-link rejection; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`. | Start Ticket 004: Recurrence resolver. Hosted Supabase deployment still requires explicit user authorization before `npm run supabase -- db push`. |
 | 004: Recurrence resolver | complete | Added `@js-temporal/polyfill`, recurrence rule/domain types, and a pure Temporal-based `resolveOccurrenceSchedule` resolver covering daily, every-N-days, weekly, every-N-weeks, monthly day-N with last-day fallback, local scheduled times, explicit timezones, optional local anchor dates for interval phase, and DST disambiguation. Updated `docs/RECURRENCE_RULES.md` so the resolver contract matches the locked Temporal strategy. | Pass: `npx vitest run tests/recurrence.resolver.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`. | Start Ticket 005: Behavior CRUD. Future occurrence services should pass a stable local anchor date, such as behavior created/start date, for interval-based rules. |
-| 005: Behavior CRUD | not_started | No behavior UI/service/repository implementation yet. | Not run. | Depends on schema and app shell. |
+| 005: Behavior CRUD | complete | Added behavior repository/service/server actions; implemented `/behaviors` create/edit/archive UI with category selection, recurrence editor, scheduled time, browser/email reminder settings, active toggle, active/archived sections, and preserved-history archive semantics via `active=false` plus `archived_at`. Updated `DESIGN.md` from the implemented behavior form/card patterns. | Pass: `npx vitest run tests/behavior-form.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass after one relationship-select fix: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: `/behaviors` redirected to `/login?next=%2Fbehaviors` at desktop and 390px mobile with no console errors and no mobile overflow on the visible login route. | Start Ticket 006: Occurrence generation. Full authenticated visual/form QA still needs a signed-in local session. |
 | 006: Occurrence generation | not_started | No occurrence resolver/service/repository implementation yet. | Not run. | Depends on recurrence resolver and schema. |
 | 007: Timeline | not_started | No timeline screen or grouping resolver yet. | Not run. | Depends on occurrence generation and status model. |
 | 008: Status marking and notes | not_started | No status resolver, buttons, or note editing yet. | Not run. | Depends on occurrences and timeline surface. |
@@ -97,7 +98,7 @@ Supabase is initialized for local development. Ticket 003 added the first produc
 
 ## Handoff notes
 
-- For the next coding agent: begin with Ticket 005 unless a user explicitly asks for a different docs-only task.
+- For the next coding agent: begin with Ticket 006 unless a user explicitly asks for a different docs-only task.
 - Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.
 - Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.
 - Keep v1 small. Do not implement deferred PWA/offline behavior from `docs/FUTURE_UPDATES.md` unless the active docs are updated first.

@@ -53,13 +53,25 @@ components:
     textColor: "{colors.background}"
     typography: "{typography.label}"
     rounded: "{rounded.none}"
-    padding: "16px 24px"
+    padding: "12px 20px"
   button-secondary:
     backgroundColor: "{colors.background}"
     textColor: "{colors.text}"
     typography: "{typography.label}"
     rounded: "{rounded.none}"
-    padding: "16px 24px"
+    padding: "12px 20px"
+  input-field:
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.text}"
+    typography: "{typography.body}"
+    rounded: "{rounded.none}"
+    padding: "8px 12px"
+  behavior-card:
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.text}"
+    typography: "{typography.title}"
+    rounded: "{rounded.none}"
+    padding: "20px"
   timeline-row:
     backgroundColor: "{colors.background}"
     textColor: "{colors.text}"
@@ -71,10 +83,8 @@ components:
     textColor: "{colors.background}"
     typography: "{typography.label}"
     rounded: "{rounded.none}"
-    padding: "16px 24px"
+    padding: "12px"
 ---
-
-<!-- SEED: re-run /impeccable document once there is application code to capture the actual tokens and components. -->
 
 # Design System: Cadence Tracker
 
@@ -82,7 +92,7 @@ components:
 
 **Creative North Star: "The Quiet Ledger"**
 
-The interface should feel like a private field log: square, calm, legible, and exact. It borrows the stark mono type, heavy rules, broad whitespace, and muted blue blocks from the reference screens, but the product structure comes from the habit tracker docs.
+The interface is a private field log: square, calm, legible, and exact. It uses Courier type, heavy rules, broad whitespace, muted blue action blocks, and compact form controls across the implemented auth shell and Behaviors screen.
 
 This is product UI, not a poster. The look can be distinctive, but every screen must still work quickly for marking occurrences, reading Needs decision, editing behaviors, checking basic analytics, and exporting records.
 
@@ -90,7 +100,7 @@ This is product UI, not a poster. The look can be distinctive, but every screen 
 
 - Courier-only typography.
 - Bleached off-white background with stark black borders.
-- Muted blue used for active navigation, selected states, completed cells, and primary actions.
+- Muted blue used for active navigation, selected recurrence presets, completed cells, and primary actions.
 - Rust red used rarely for warnings, destructive actions, or errors.
 - Square corners, no shadows, no blur, no rounded cards.
 - Spacious desktop rhythm with compact, stackable mobile layouts.
@@ -160,7 +170,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 ### Buttons
 
 - **Shape:** Square corners (0px).
-- **Primary:** Monolith Blue fill, Bleached Newsprint text, 2px Ink Black border, Label typography, and 16px 24px padding.
+- **Primary:** Monolith Blue fill, Bleached Newsprint text, 2px Ink Black border, Label typography, and 12px 20px padding.
 - **Secondary:** Bleached Newsprint fill, Ink Black text, 2px Ink Black border, same padding.
 - **Destructive:** Rust Signal fill only for destructive or risky actions. Not Completed is not destructive by default.
 - **Hover / Focus:** Hover may invert or fill with Monolith Blue. Focus must use a visible 2px outline with offset.
@@ -176,13 +186,20 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Background:** Bleached Newsprint for normal rows; Cold Surface for empty states, expanded details, and low-emphasis panels.
 - **Shadow Strategy:** No shadows.
 - **Border:** 2px Ink Black for occurrence rows, behavior rows, and important panels. Use 1px Ash Line for internal dividers.
-- **Internal Padding:** 24px for ordinary rows, 64px for major page sections on desktop, 24px or less on mobile.
+- **Internal Padding:** 20px for behavior rows, 24px for ordinary rows, 64px for major page sections on desktop, 24px or less on mobile.
 
 ### Inputs / Fields
 
-- **Style:** Bleached Newsprint background, 2px Ink Black border, square corners, Courier body text.
+- **Style:** Bleached Newsprint background, 2px Ink Black border, square corners, Courier body text, and 8px 12px padding.
 - **Focus:** Keep the square geometry and add a visible outline or border shift.
 - **Error / Disabled:** Errors use Rust Signal text or border. Disabled states use Cold Surface and Readable Ash.
+
+### Behavior Management
+
+- **Form layout:** Full-width page section with 2px Ink Black border, stacked field groups, and a two-column desktop rhythm that collapses to one column on mobile.
+- **Recurrence presets:** Segmented radio labels use Monolith Blue fill only for the selected preset. Weekday choices use square bordered checkbox chips.
+- **Behavior cards:** Active and archived records use flat 2px bordered rows, 20px padding, visible schedule/reminder metadata, and inline disclosure for editing.
+- **Archive action:** Archive uses a factual button treatment with Rust Signal only on hover. Archived records stay visible with a neutral square label.
 
 ### Navigation
 
