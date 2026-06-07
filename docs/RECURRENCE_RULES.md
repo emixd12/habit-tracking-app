@@ -98,6 +98,13 @@ Running generation twice must not create duplicates.
 The unique key is:
 `behavior_id + scheduled_for`
 
+## Interval anchor
+
+Interval-based rules need a stable local calendar anchor. The resolver accepts
+an optional `anchorDate` as `YYYY-MM-DD` in the behavior timezone. Services
+should pass the behavior's stable local start or created date when available.
+If omitted, the resolver uses the local `rangeStart` date.
+
 ## Resolver contract
 
 Implement recurrence expansion in:
@@ -107,14 +114,17 @@ Implement recurrence expansion in:
 Function shape:
 
 ```ts
+import type { Temporal } from "@js-temporal/polyfill";
+
 export function resolveOccurrenceSchedule(input: {
   recurrenceRule: RecurrenceRule;
   scheduledTime: string;
   timezone: string;
+  anchorDate?: string;
   rangeStart: Date;
   rangeEnd: Date;
 }): Array<{
-  scheduledFor: Date;
+  scheduledFor: Temporal.Instant;
   localDate: string;
 }>;
 ```
