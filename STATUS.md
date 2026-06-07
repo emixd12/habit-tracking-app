@@ -43,17 +43,18 @@ When updating a ticket row:
 
 ## Current repository state
 
-This repository now contains the Ticket 001 Next.js application scaffold plus the project-definition and agent-bootstrap layer.
+This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, and the project-definition and agent-bootstrap layer.
 
 Current evidence:
 
 - `package.json` and `package-lock.json` exist with Next.js App Router, TypeScript, Tailwind, ESLint, and Vitest scripts.
 - `app/`, `components/`, `lib/`, and `tests/` application directories exist.
 - Placeholder app routes exist for Timeline, Behaviors, Analytics, Export, and Settings.
-- No database, Supabase auth, migrations, or product feature logic has been implemented yet.
+- Supabase SSR auth utilities exist under `lib/supabase/`, with Google login at `/login`, OAuth callback handling at `/auth/callback`, and protected app routes guarded by `proxy.ts` plus the app layout.
+- Supabase CLI has been initialized with `supabase/config.toml`; no migrations or product database schema exist yet.
 - Supabase and Sequenzy CLIs are installed as dev dependencies and exposed through `npm run supabase -- ...` and `npm run sequenzy -- ...`.
 - Agent operations docs now include Supabase CLI workflow, Sequenzy CLI workflow, date/time strategy, route map, and deterministic drift checks.
-- The next implementation step is Ticket 002 from `docs/TICKETS.md`.
+- The next implementation step is Ticket 003 from `docs/TICKETS.md`.
 - Project-local design workflow files exist under `.agents/skills/impeccable/` and should be used for UI/design work after the scaffold exists.
 
 ## Agent operations update
@@ -71,15 +72,15 @@ Verification run for this update:
 - Pass: `npm run sequenzy -- --version` returned `0.0.34`
 - Pass: `npm audit --omit=dev` found 0 vulnerabilities
 
-Supabase is not initialized yet because no schema ticket has started. Run `npm run supabase -- init` during Ticket 002/003 when local Supabase work begins.
+Supabase is initialized for local development. No database migrations have been added yet; create migrations during Ticket 003.
 
 ## Ticket status
 
 | Ticket | Status | Implementation summary | Verification | Blockers / next action |
 |---|---|---|---|---|
 | 001: Initialize app | complete | Added Next.js App Router TypeScript scaffold with Tailwind v4, ESLint, Vitest, a responsive app shell, `/timeline`, `/behaviors`, `/analytics`, `/export`, and `/settings` placeholder routes, and a navigation smoke test. No database, auth, schema, or product feature logic added. | Pass: `npm run lint`; `npm run typecheck`; `npm run test`; `npm run build`; browser QA at desktop width and 390px mobile viewport; `npm audit --omit=dev` found 0 vulnerabilities. | Start Ticket 002: Add Supabase Auth. |
-| 002: Add Supabase Auth | not_started | No auth implementation yet. | Not run. | Start only after Ticket 001 is complete. |
-| 003: Create database schema | not_started | No migrations or Supabase schema yet. | Not run. | Start only after scaffold/auth context is ready. |
+| 002: Add Supabase Auth | complete | Added `@supabase/ssr` and `@supabase/supabase-js`; created browser/server Supabase clients; initialized `supabase/config.toml`; added Google login at `/login`, OAuth callback exchange at `/auth/callback`, Next 16 `proxy.ts` session refresh/redirect handling, server-side app layout auth guard, sanitized auth redirect helpers, env docs, and auth redirect tests. No service-role key is used in browser code. | Pass: `npm run agents:check`; `npm run resolvers:check`; `npm run lint`; `npm run typecheck`; `npm run test`; `npm run build`; HTTP QA for `/`, `/timeline`, `/login`, and `/auth/callback`; browser QA for `/login` at desktop and 390px mobile plus protected `/timeline` redirect. | Start Ticket 003: Create database schema. Google OAuth still requires real Supabase project/provider credentials in local/deployed environment. |
+| 003: Create database schema | not_started | No migrations or Supabase schema yet. | Not run. | Start after scaffold/auth context is ready. |
 | 004: Recurrence resolver | not_started | No resolver implementation yet. | Not run. | Start after TypeScript test setup exists. |
 | 005: Behavior CRUD | not_started | No behavior UI/service/repository implementation yet. | Not run. | Depends on schema and app shell. |
 | 006: Occurrence generation | not_started | No occurrence resolver/service/repository implementation yet. | Not run. | Depends on recurrence resolver and schema. |
@@ -92,7 +93,7 @@ Supabase is not initialized yet because no schema ticket has started. Run `npm r
 
 ## Handoff notes
 
-- For the next coding agent: begin with Ticket 002 unless a user explicitly asks for a different docs-only task.
+- For the next coding agent: begin with Ticket 003 unless a user explicitly asks for a different docs-only task.
 - Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.
 - Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.
 - Keep v1 small. Do not implement deferred PWA/offline behavior from `docs/FUTURE_UPDATES.md` unless the active docs are updated first.

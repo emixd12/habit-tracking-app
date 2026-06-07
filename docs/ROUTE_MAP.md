@@ -6,12 +6,20 @@ This file keeps route names stable across agents. Add routes here before or duri
 
 | Route | Status | Purpose | Notes |
 |---|---|---|---|
-| `/` | scaffolded | Redirects or links into the app entry surface | Should lead to `/timeline` once auth flow is active. |
-| `/timeline` | scaffolded placeholder | Primary screen for today's occurrences, prior unresolved Needs decision items, and future preview | This is the main screen. |
-| `/behaviors` | scaffolded placeholder | Behavior and category management | Keep CRUD simple. |
-| `/analytics` | scaffolded placeholder | Basic completion counts and adherence | No gamified streak language. |
-| `/export` | scaffolded placeholder | JSONL, CSV, full JSON backup, and AI-readable summary export | Export logic belongs in `export.resolver.ts`. |
-| `/settings` | scaffolded placeholder | Timezone, notification permission, email reminder settings, and categories as needed | Browser notification permission is requested here. |
+| `/` | implemented | Auth-aware entry route | Redirects authenticated users to `/timeline` and unauthenticated users to `/login`. |
+| `/login` | implemented | Google sign-in screen | Uses Supabase OAuth and returns through `/auth/callback`. |
+| `/auth/callback` | implemented | Supabase OAuth code exchange route | Exchanges the OAuth code for a cookie-backed Supabase session and redirects to a sanitized local `next` path. |
+| `/timeline` | scaffolded placeholder, protected | Primary screen for today's occurrences, prior unresolved Needs decision items, and future preview | This is the main screen. |
+| `/behaviors` | scaffolded placeholder, protected | Behavior and category management | Keep CRUD simple. |
+| `/analytics` | scaffolded placeholder, protected | Basic completion counts and adherence | No gamified streak language. |
+| `/export` | scaffolded placeholder, protected | JSONL, CSV, full JSON backup, and AI-readable summary export | Export logic belongs in `export.resolver.ts`. |
+| `/settings` | scaffolded placeholder, protected | Timezone, notification permission, email reminder settings, and categories as needed | Browser notification permission is requested here. |
+
+## Auth route protection
+
+Next.js 16 uses `proxy.ts` instead of the deprecated `middleware.ts` convention. This app uses root-level `proxy.ts` to refresh Supabase auth cookies and redirect unauthenticated requests for the protected app routes listed above.
+
+The protected app layout also verifies the Supabase user server-side before rendering the app shell. Do not rely on client-only checks for protected app screens.
 
 ## Forbidden route
 

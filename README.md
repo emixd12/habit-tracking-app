@@ -43,6 +43,30 @@ Provider workflows are CLI-first:
 - Supabase: `docs/SUPABASE_WORKFLOW.md`
 - Sequenzy: `docs/SEQUENZY_WORKFLOW.md`
 
+## Supabase auth setup
+
+Ticket 002 adds Supabase SSR auth with Google login.
+
+Local `.env.local` needs:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID=
+SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET=
+```
+
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` is still supported as a legacy fallback for older Supabase projects. Do not expose or use the service-role key in browser code.
+
+For Google OAuth, configure the Supabase provider with the app callback URL:
+
+```text
+http://localhost:3000/auth/callback
+```
+
+For local Supabase CLI auth testing, `supabase/config.toml` reads the Google client ID and secret from the `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` environment variables.
+
 ## Important
 
 The app should stay small. It is not a general task manager, not a medical dosing app, not a quantified-self analytics platform, and not a multi-user SaaS product.

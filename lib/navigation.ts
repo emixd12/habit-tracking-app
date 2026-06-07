@@ -40,3 +40,9 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     description: "Timezone, notifications, and categories",
   },
 ];
+
+export function isProtectedAppRoute(pathname: string) {
+  return APP_NAV_ITEMS.some(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
+}

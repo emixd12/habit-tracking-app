@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { APP_NAV_ITEMS, DEFAULT_APP_ROUTE } from "../lib/navigation";
+import {
+  APP_NAV_ITEMS,
+  DEFAULT_APP_ROUTE,
+  isProtectedAppRoute,
+} from "../lib/navigation";
 
 describe("app navigation", () => {
   it("uses the documented primary screens", () => {
@@ -18,5 +22,12 @@ describe("app navigation", () => {
 
   it("does not introduce a dashboard route", () => {
     expect(APP_NAV_ITEMS.map((item) => item.href)).not.toContain("/dashboard");
+  });
+
+  it("treats documented app routes as protected", () => {
+    expect(isProtectedAppRoute("/timeline")).toBe(true);
+    expect(isProtectedAppRoute("/timeline/day")).toBe(true);
+    expect(isProtectedAppRoute("/login")).toBe(false);
+    expect(isProtectedAppRoute("/auth/callback")).toBe(false);
   });
 });
