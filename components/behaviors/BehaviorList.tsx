@@ -152,6 +152,7 @@ function BehaviorCard({
         </summary>
         <div className="border-t border-line p-5">
           <BehaviorForm
+            key={`${behavior.id}-${behavior.updatedAt}`}
             mode="edit"
             action={updateAction}
             categories={categories}

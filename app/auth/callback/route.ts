@@ -8,8 +8,15 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
+  const callbackError = requestUrl.searchParams.get("error");
   const code = requestUrl.searchParams.get("code");
   const nextPath = normalizeRedirectPath(requestUrl.searchParams.get("next"));
+
+  if (callbackError) {
+    return NextResponse.redirect(
+      new URL(buildLoginPath(nextPath, "auth_callback_failed"), request.url),
+    );
+  }
 
   if (!code) {
     return NextResponse.redirect(
