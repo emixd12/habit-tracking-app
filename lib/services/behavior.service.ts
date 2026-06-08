@@ -9,6 +9,7 @@ import {
   type BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
 import { createClient } from "@/lib/supabase/server";
+import { syncBehaviorOccurrences } from "@/lib/services/occurrence.service";
 import type {
   BehaviorPageData,
   BehaviorView,
@@ -78,7 +79,9 @@ export async function createBehaviorFromFormData(
     archived_at: null,
   };
 
-  await createBehavior(supabase, behavior);
+  const createdBehavior = await createBehavior(supabase, behavior);
+
+  await syncBehaviorOccurrences(supabase, userId, createdBehavior);
 }
 
 export async function updateBehaviorFromFormData(
@@ -123,6 +126,8 @@ export async function updateBehaviorFromFormData(
   if (!updatedBehavior) {
     throw new Error("Behavior not found.");
   }
+
+  await syncBehaviorOccurrences(supabase, userId, updatedBehavior);
 }
 
 export async function archiveBehaviorFromFormData(
@@ -139,6 +144,8 @@ export async function archiveBehaviorFromFormData(
   if (!updatedBehavior) {
     throw new Error("Behavior not found.");
   }
+
+  await syncBehaviorOccurrences(supabase, userId, updatedBehavior);
 }
 
 function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {

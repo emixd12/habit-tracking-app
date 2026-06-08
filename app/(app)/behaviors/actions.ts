@@ -17,6 +17,7 @@ export async function createBehaviorAction(
   try {
     await createBehaviorFromFormData(formData);
     revalidatePath("/behaviors");
+    revalidatePath("/timeline");
 
     return {
       status: "success",
@@ -34,6 +35,7 @@ export async function updateBehaviorAction(
   try {
     await updateBehaviorFromFormData(formData);
     revalidatePath("/behaviors");
+    revalidatePath("/timeline");
 
     return {
       status: "success",
@@ -51,6 +53,7 @@ export async function archiveBehaviorAction(
   try {
     await archiveBehaviorFromFormData(formData);
     revalidatePath("/behaviors");
+    revalidatePath("/timeline");
 
     return {
       status: "success",

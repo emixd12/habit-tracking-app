@@ -10,8 +10,8 @@ export type ResolveOccurrenceScheduleInput = {
   recurrenceRule: RecurrenceRule;
   scheduledTime: string;
   timezone?: string;
-  rangeStart: Date;
-  rangeEnd: Date;
+  rangeStart: Date | Temporal.Instant;
+  rangeEnd: Date | Temporal.Instant;
   anchorDate?: string;
 };
 
@@ -240,7 +240,14 @@ function parsePlainDate(
   return Temporal.PlainDate.from(value);
 }
 
-function dateToInstant(value: Date, fieldName: string): Temporal.Instant {
+function dateToInstant(
+  value: Date | Temporal.Instant,
+  fieldName: string,
+): Temporal.Instant {
+  if (value instanceof Temporal.Instant) {
+    return value;
+  }
+
   const epochMilliseconds = value.getTime();
 
   if (!Number.isFinite(epochMilliseconds)) {
