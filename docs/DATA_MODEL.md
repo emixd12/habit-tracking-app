@@ -114,6 +114,7 @@ create table reminder_deliveries (
   channel text not null check (channel in ('browser_push', 'email')),
   scheduled_send_at timestamptz not null,
   sent_at timestamptz,
+  processing_started_at timestamptz,
   status text not null default 'pending'
     check (status in ('pending', 'sent', 'failed', 'cancelled')),
 

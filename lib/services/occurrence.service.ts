@@ -24,6 +24,10 @@ import {
   type StatusResolverOccurrence,
 } from "@/lib/resolvers/status.resolver";
 import { normalizeRecurrenceRule, normalizeScheduledTime } from "@/lib/services/behavior-form";
+import {
+  cancelReminderDeliveriesForResolvedOccurrence,
+  syncReminderDeliveriesForBehavior,
+} from "@/lib/services/reminder.service";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Behavior,
@@ -95,6 +99,9 @@ export async function syncBehaviorOccurrences(
     userId,
     plan.deleteUnresolvedIds,
   );
+  await syncReminderDeliveriesForBehavior(supabase, userId, behavior, {
+    scheduledFrom: generationWindow.rangeStart.toString(),
+  });
 
   return plan;
 }
@@ -122,6 +129,12 @@ export async function markOccurrenceStatusFromFormData(
   if (!updatedOccurrence) {
     throw new Error("Occurrence not found.");
   }
+
+  await cancelReminderDeliveriesForResolvedOccurrence(
+    supabase,
+    userId,
+    updatedOccurrence,
+  );
 }
 
 export async function updateOccurrenceNoteFromFormData(

@@ -92,7 +92,7 @@ components:
 
 **Creative North Star: "The Quiet Ledger"**
 
-The interface is a private field log: square, calm, legible, and exact. It uses Courier type, heavy rules, broad whitespace, muted blue action blocks, and compact form controls across the implemented auth shell, Behaviors screen, and Timeline screen.
+The interface is a private field log: square, calm, legible, and exact. It uses Courier type, heavy rules, broad whitespace, muted blue action blocks, and compact form controls across the implemented auth shell, Behaviors screen, Timeline screen, and Settings screen.
 
 This is product UI, not a poster. The look can be distinctive, but every screen must still work quickly for marking occurrences, reading Needs decision, editing behaviors, checking basic analytics, and exporting records.
 
@@ -221,6 +221,12 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Not done cells:** Background fill with Ink Black border and a simple diagonal mark if useful.
 - **Unresolved cells:** Cold Surface or background with a neutral border. Do not imply failure.
 - **Grid:** Square cells, consistent gutters, no gradients, no rounded cells.
+
+### Settings Panels
+
+- **Profile and timezone:** Use compact 2px bordered panels with label/value rows. Keep values readable and avoid explanatory prose unless the state needs it.
+- **Notification permission:** Use one 2px bordered panel with Permission and Browser push values plus a single primary action. Permission prompts must be triggered by the user, not on page load.
+- **Unavailable states:** Use factual muted text for denied, unsupported, or unconfigured browser push. Rust Signal is only for an actual save error.
 
 ## 6. Do's and Don'ts
 

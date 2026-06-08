@@ -257,6 +257,7 @@ export type Database = {
           error: string | null
           id: string
           occurrence_id: string
+          processing_started_at: string | null
           scheduled_send_at: string
           sent_at: string | null
           status: string
@@ -269,6 +270,7 @@ export type Database = {
           error?: string | null
           id?: string
           occurrence_id: string
+          processing_started_at?: string | null
           scheduled_send_at: string
           sent_at?: string | null
           status?: string
@@ -281,6 +283,7 @@ export type Database = {
           error?: string | null
           id?: string
           occurrence_id?: string
+          processing_started_at?: string | null
           scheduled_send_at?: string
           sent_at?: string | null
           status?: string

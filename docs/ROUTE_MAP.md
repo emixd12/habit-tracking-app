@@ -13,7 +13,7 @@ This file keeps route names stable across agents. Add routes here before or duri
 | `/behaviors` | scaffolded placeholder, protected | Behavior and category management | Keep CRUD simple. |
 | `/analytics` | scaffolded placeholder, protected | Basic completion counts and adherence | No gamified streak language. |
 | `/export` | scaffolded placeholder, protected | JSONL, CSV, full JSON backup, and AI-readable summary export | Export logic belongs in `export.resolver.ts`. |
-| `/settings` | scaffolded placeholder, protected | Timezone, notification permission, email reminder settings, and categories as needed | Browser notification permission is requested here. |
+| `/settings` | implemented, protected | Profile, timezone, and browser notification permission/subscription settings | Browser notification permission is requested here; category editing and any global email settings remain future Settings work. |
 
 ## Auth route protection
 
@@ -29,8 +29,8 @@ Do not create `/dashboard` in v1. The locked primary route is `/timeline`.
 
 | Route | Earliest ticket | Purpose | Required ownership |
 |---|---:|---|---|
-| `/api/push/subscribe` | 009 | Store browser push subscriptions | Route validates request and calls a service/repository. |
-| `/api/reminders/process` | 010 | Protected process route for due reminder deliveries | Route validates secret/auth and calls `reminder.service.ts`. |
+| `/api/push/subscribe` | implemented in 009 | Store browser push subscriptions | Route validates request shape, requires the authenticated Supabase user, and calls a service/repository. |
+| `/api/reminders/process` | implemented in 010 | Protected process route for due email reminder deliveries | Route validates `REMINDER_PROCESS_SECRET` and calls `reminder.service.ts`. |
 | `/api/export/jsonl` | 012 | JSONL export | Route calls export service/resolver. |
 | `/api/export/csv` | 012 | CSV export | Route calls export service/resolver. |
 | `/api/export/json` | 012 | Full JSON backup | Route calls export service/resolver. |

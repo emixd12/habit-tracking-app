@@ -58,6 +58,7 @@ Fields:
 - channel
 - scheduled_send_at
 - sent_at
+- processing_started_at (internal claim timestamp for idempotent processing)
 - status
 - error
 
@@ -98,6 +99,7 @@ Reminder processing must be idempotent.
 Rules:
 - Do not create duplicate pending deliveries for the same occurrence/channel/scheduled_send_at.
 - Do not send the same reminder twice.
+- Claim a due pending delivery before provider calls so overlapping process runs skip already-claimed work.
 - If a send fails, log the failure.
 - A retry strategy may be added later, but v1 only needs to avoid duplicate sends.
 

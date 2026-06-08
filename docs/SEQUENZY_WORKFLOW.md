@@ -36,6 +36,17 @@ npm run sequenzy -- whoami
 npm run sequenzy -- logout
 ```
 
+The Sequenzy CLI does not automatically load Next.js `.env.local`. If `SEQUENZY_API_KEY` is present in `.env.local` but `npm run sequenzy -- whoami` reports that authentication is required, load the env file into the command shell first:
+
+```bash
+set -a
+source .env.local
+set +a
+npm run sequenzy -- whoami
+```
+
+Use the same pattern before template inspection or approved test sends when relying on `.env.local` for `SEQUENZY_API_KEY`. Do not print or echo the key.
+
 CLI config storage from the docs:
 
 - macOS/Linux: `~/.config/sequenzy/config.json`
