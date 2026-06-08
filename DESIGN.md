@@ -92,7 +92,7 @@ components:
 
 **Creative North Star: "The Quiet Ledger"**
 
-The interface is a private field log: square, calm, legible, and exact. It uses Courier type, heavy rules, broad whitespace, muted blue action blocks, and compact form controls across the implemented auth shell, Behaviors screen, Timeline screen, and Settings screen.
+The interface is a private field log: square, calm, legible, and exact. It uses Courier type, heavy rules, broad whitespace, muted blue action blocks, compact form controls, and small heatmap cells across the implemented auth shell, Behaviors screen, Timeline screen, Analytics screen, Export screen, and Settings screen.
 
 This is product UI, not a poster. The look can be distinctive, but every screen must still work quickly for marking occurrences, reading Needs decision, editing behaviors, checking basic analytics, and exporting records.
 
@@ -217,10 +217,20 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 ### Analytics Heatmaps
 
+- **Analytics structure:** Overall adherence sits first in a single bordered section with the active range selector beside it. The overall calendar, selected-day Not Completed list, behavior counts, and category counts stack as separate page sections, not nested dashboards.
 - **Done cells:** Monolith Blue fill with Ink Black cell borders.
 - **Not done cells:** Background fill with Ink Black border and a simple diagonal mark if useful.
 - **Unresolved cells:** Cold Surface or background with a neutral border. Do not imply failure.
 - **Grid:** Square cells, consistent gutters, no gradients, no rounded cells.
+- **Behavior rows:** Behavior counts use flat bordered rows with title, category chip, adherence label, counts, and a compact seven-column heatmap. Full completion is filled blue; partial and not completed states use factual diagonal marks.
+- **Selected day:** Not Completed inspection uses the same occurrence-row vocabulary: scheduled time chip, category chip, title, and note when present.
+
+### Export Panels
+
+- **Export structure:** Options, current export counts, downloads, and AI summary stack as separate sections. Keep range and archived-behavior controls at the top so every download reflects the same selected state.
+- **Range controls:** Use square segmented radio choices for 7 days, 30 days, 90 days, and All time. Selected range uses Monolith Blue fill. The archived-behavior option uses a plain checkbox.
+- **Download actions:** JSONL, CSV, and full JSON backup use flat 2px bordered action rows with a download icon and file extension. Avoid explanatory card grids or restore/import promises in the UI.
+- **AI summary:** Show a Markdown preview in a Cold Surface preformatted panel, with Copy summary and Download .md controls above it. The preview uses resolver-produced content; the UI does not calculate adherence or format export rows.
 
 ### Settings Panels
 

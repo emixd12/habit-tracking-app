@@ -332,6 +332,62 @@ Suggested files:
 
 ---
 
+## Ticket 013: Vercel production deployment
+
+Deploy the completed v1 app to the existing Vercel project and harden the production runtime.
+
+Current Vercel context:
+- Existing Vercel project: `cadence` under team `Emi's projects`.
+- Connected GitHub repository: `emixd12/habit-tracking-app` on `main`.
+- At draft time, the latest production deployment in Vercel was ready but pointed at commit `d2c4c4985bb1a5a141713e4e38fa3c65193f3fd9` (`Implement browser push and email reminders`), before the completed Analytics and Export work in Tickets 011 and 012. Treat the completed Ticket 012 repo state as the deployment target.
+
+Acceptance criteria:
+- Use the Vercel plugin or Vercel CLI to confirm the existing `cadence` project is still connected to `emixd12/habit-tracking-app`; do not create a duplicate Vercel project.
+- Confirm project settings for the Next.js app, including framework detection, repository root, Node runtime, build command, and production branch.
+- Configure Vercel production and preview environment variables for the current app:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or the supported legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - `NEXT_PUBLIC_SITE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `SEQUENZY_API_KEY`
+  - `SEQUENZY_REMINDER_TEMPLATE_SLUG`
+  - `SEQUENZY_API_URL` only if the default needs an override
+  - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+  - `VAPID_PRIVATE_KEY`
+  - `REMINDER_PROCESS_SECRET`
+- Keep server-only secrets server-only; never expose service-role, Sequenzy, VAPID private, or reminder process secrets to browser code.
+- Configure Supabase Auth for the production app URL, including the production `/auth/callback` redirect URL. Add preview callback URLs only if preview OAuth QA is intentionally supported.
+- Add Vercel Cron configuration for due email reminder processing, or document a different scheduled trigger if Vercel Cron is not used.
+- Verify `/api/reminders/process` is compatible with the scheduled trigger. If Vercel Cron is used, add the route method and tests needed for Vercel's scheduled request behavior while preserving the existing protected manual invocation path.
+- Deploy the completed v1 code through Ticket 012 to production and confirm the latest Vercel deployment points at the expected Git commit.
+- Smoke test the production app:
+  - `/login`
+  - `/timeline`
+  - `/behaviors`
+  - `/settings`
+  - `/analytics`
+  - `/export`
+  - desktop viewport
+  - narrow mobile viewport around 390px
+- Run an authenticated production smoke test for Google login, behavior/timeline status marking, settings notification state, analytics render, and export download links.
+- Verify reminder processing in production with a safe manual or scheduled run. Do not send real emails unless the user explicitly approves the recipient.
+- Verify browser push subscription behavior with production `NEXT_PUBLIC_VAPID_PUBLIC_KEY` where browser permission allows it. Do not add PWA offline caching, route caching, background sync, or offline writes.
+- Inspect Vercel deployment status/logs and record any runtime warnings or failures.
+- Document the deployment workflow, canonical production URL, environment-variable ownership, and rollback path.
+- Update `STATUS.md` with the production deployment URL, verification results, known risks, and any follow-up items.
+
+Suggested files:
+- `vercel.json`
+- `docs/VERCEL_WORKFLOW.md`
+- `docs/OPERATIONS.md`
+- `.env.example`
+- `.gitignore`
+- `app/api/reminders/process/route.ts`
+- `tests/reminder-process-route.test.ts`
+- `STATUS.md`
+
+---
+
 ## Deferred work
 
 PWA caching, offline timeline access, local pending status changes, and sync conflict handling are not part of the v1 ticket sequence.

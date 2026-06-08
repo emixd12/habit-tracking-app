@@ -9,10 +9,10 @@ This file keeps route names stable across agents. Add routes here before or duri
 | `/` | implemented | Auth-aware entry route | Redirects authenticated users to `/timeline` and unauthenticated users to `/login`. |
 | `/login` | implemented | Google sign-in screen | Uses Supabase OAuth and returns through `/auth/callback`. |
 | `/auth/callback` | implemented | Supabase OAuth code exchange route | Exchanges the OAuth code for a cookie-backed Supabase session and redirects to a sanitized local `next` path. |
-| `/timeline` | scaffolded placeholder, protected | Primary screen for today's occurrences, prior unresolved Needs decision items, and future preview | This is the main screen. |
-| `/behaviors` | scaffolded placeholder, protected | Behavior and category management | Keep CRUD simple. |
-| `/analytics` | scaffolded placeholder, protected | Basic completion counts and adherence | No gamified streak language. |
-| `/export` | scaffolded placeholder, protected | JSONL, CSV, full JSON backup, and AI-readable summary export | Export logic belongs in `export.resolver.ts`. |
+| `/timeline` | implemented, protected | Primary screen for today's occurrences, prior unresolved Needs decision items, and future preview | This is the main screen. |
+| `/behaviors` | implemented, protected | Behavior and category management | Keep CRUD simple. |
+| `/analytics` | implemented, protected | Basic completion counts, adherence, heatmaps, and selected-day Not Completed inspection | No gamified streak language. |
+| `/export` | implemented, protected | JSONL, CSV, full JSON backup, and Markdown AI-readable summary export | Export logic belongs in `export.resolver.ts`; the page supports range and archived-behavior options. |
 | `/settings` | implemented, protected | Profile, timezone, and browser notification permission/subscription settings | Browser notification permission is requested here; category editing and any global email settings remain future Settings work. |
 
 ## Auth route protection
@@ -31,9 +31,9 @@ Do not create `/dashboard` in v1. The locked primary route is `/timeline`.
 |---|---:|---|---|
 | `/api/push/subscribe` | implemented in 009 | Store browser push subscriptions | Route validates request shape, requires the authenticated Supabase user, and calls a service/repository. |
 | `/api/reminders/process` | implemented in 010 | Protected process route for due email reminder deliveries | Route validates `REMINDER_PROCESS_SECRET` and calls `reminder.service.ts`. |
-| `/api/export/jsonl` | 012 | JSONL export | Route calls export service/resolver. |
-| `/api/export/csv` | 012 | CSV export | Route calls export service/resolver. |
-| `/api/export/json` | 012 | Full JSON backup | Route calls export service/resolver. |
+| `/api/export/jsonl` | implemented in 012 | JSONL export | Route calls export service/resolver. |
+| `/api/export/csv` | implemented in 012 | CSV export | Route calls export service/resolver. |
+| `/api/export/json` | implemented in 012 | Full JSON backup | Route calls export service/resolver. |
 
 Do not add API routes that duplicate resolver logic. API routes are request/response adapters.
 

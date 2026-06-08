@@ -1,21 +1,55 @@
 import type { Metadata } from "next";
-import { PlaceholderPanel, ScreenFrame } from "@/components/layout/ScreenFrame";
+
+import { AnalyticsScreen } from "@/components/analytics/AnalyticsScreen";
+import { ScreenFrame } from "@/components/layout/ScreenFrame";
+import { getAnalyticsPageData } from "@/lib/services/analytics.service";
 
 export const metadata: Metadata = {
   title: "Analytics",
 };
 
-export default function AnalyticsPage() {
+export const dynamic = "force-dynamic";
+
+type AnalyticsPageProps = Readonly<{
+  searchParams?: Promise<{
+    range?: string | string[];
+    day?: string | string[];
+  }>;
+}>;
+
+export default async function AnalyticsPage({
+  searchParams,
+}: AnalyticsPageProps) {
+  const params = await searchParams;
+  const analytics = await getAnalyticsPageData({
+    rangeDays: parseNumberParam(params?.range),
+    selectedDayLocalDate: parseStringParam(params?.day),
+  });
+
   return (
-    <ScreenFrame title="Analytics">
-      <div className="grid gap-5 md:grid-cols-2">
-        <PlaceholderPanel title="Overall adherence">
-          <p>No resolved occurrences yet.</p>
-        </PlaceholderPanel>
-        <PlaceholderPanel title="Last 30 days">
-          <p>No occurrence history yet.</p>
-        </PlaceholderPanel>
-      </div>
+    <ScreenFrame
+      title="Analytics"
+      description={`Local day boundary: ${analytics.timezone}.`}
+    >
+      <AnalyticsScreen analytics={analytics} />
     </ScreenFrame>
   );
+}
+
+function parseNumberParam(value: string | string[] | undefined): number | undefined {
+  const rawValue = parseStringParam(value);
+
+  if (!rawValue) {
+    return undefined;
+  }
+
+  const parsedValue = Number(rawValue);
+
+  return Number.isFinite(parsedValue) ? parsedValue : undefined;
+}
+
+function parseStringParam(value: string | string[] | undefined): string | undefined {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+
+  return rawValue || undefined;
 }

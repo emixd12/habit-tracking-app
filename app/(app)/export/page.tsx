@@ -1,35 +1,47 @@
 import type { Metadata } from "next";
-import { PlaceholderPanel, ScreenFrame } from "@/components/layout/ScreenFrame";
+
+import { ExportPanel } from "@/components/export/ExportPanel";
+import { ScreenFrame } from "@/components/layout/ScreenFrame";
+import { getExportPageData } from "@/lib/services/export.service";
 
 export const metadata: Metadata = {
   title: "Export",
 };
 
-const exportActions = [
-  "Export JSONL",
-  "Export CSV",
-  "Export full JSON backup",
-  "Copy AI summary",
-  "Download AI summary",
-];
+export const dynamic = "force-dynamic";
 
-export default function ExportPage() {
+type ExportPageProps = Readonly<{
+  searchParams?: Promise<{
+    range?: string | string[];
+    include_archived?: string | string[];
+  }>;
+}>;
+
+export default async function ExportPage({ searchParams }: ExportPageProps) {
+  const params = await searchParams;
+  const exportData = await getExportPageData({
+    range: parseStringParam(params?.range),
+    includeArchived: parseBooleanParam(params?.include_archived),
+  });
+
   return (
-    <ScreenFrame title="Export">
-      <PlaceholderPanel title="Formats">
-        <div className="flex flex-wrap gap-3">
-          {exportActions.map((label) => (
-            <button
-              key={label}
-              type="button"
-              disabled
-              className="border-2 border-foreground bg-surface px-4 py-3 text-sm font-bold text-muted-readable"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </PlaceholderPanel>
+    <ScreenFrame
+      title="Export"
+      description={`Local day boundary: ${exportData.timezone}.`}
+    >
+      <ExportPanel exportData={exportData} />
     </ScreenFrame>
   );
+}
+
+function parseStringParam(value: string | string[] | undefined): string | undefined {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+
+  return rawValue || undefined;
+}
+
+function parseBooleanParam(value: string | string[] | undefined): boolean {
+  const rawValue = parseStringParam(value);
+
+  return rawValue === "1" || rawValue === "true" || rawValue === "on";
 }

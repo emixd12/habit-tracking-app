@@ -1,0 +1,536 @@
+import { Temporal } from "@js-temporal/polyfill";
+
+import type {
+  AnalyticsAdherence,
+  AnalyticsBehaviorDayCell,
+  AnalyticsBehaviorDayState,
+  AnalyticsBehaviorSummary,
+  AnalyticsCategorySummary,
+  AnalyticsDayCell,
+  AnalyticsOccurrenceInput,
+  AnalyticsOverallDayState,
+  AnalyticsRangeDays,
+  AnalyticsSelectedDay,
+  AnalyticsStatus,
+  AnalyticsStatusCounts,
+  AnalyticsSummary,
+  AnalyticsView,
+} from "@/lib/types/analytics";
+import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
+
+export const ANALYTICS_RANGE_OPTIONS: AnalyticsRangeDays[] = [7, 30, 90];
+export const ANALYTICS_DEFAULT_RANGE_DAYS: AnalyticsRangeDays = 30;
+
+export type AnalyticsDateRange = {
+  timezone: string;
+  rangeDays: AnalyticsRangeDays;
+  startLocalDate: string;
+  endLocalDate: string;
+};
+
+export type ResolveAnalyticsInput = {
+  occurrences: AnalyticsOccurrenceInput[];
+  now: Temporal.Instant;
+  timezone?: string;
+  rangeDays?: number;
+  selectedDayLocalDate?: string | null;
+};
+
+export function resolveAnalytics(input: ResolveAnalyticsInput): AnalyticsView {
+  const dateRange = resolveAnalyticsDateRange(input);
+  const selectedDayLocalDate = resolveSelectedDayLocalDate({
+    selectedDayLocalDate: input.selectedDayLocalDate,
+    fallbackLocalDate: dateRange.endLocalDate,
+    startLocalDate: dateRange.startLocalDate,
+    endLocalDate: dateRange.endLocalDate,
+  });
+  const dates = listLocalDates(dateRange.startLocalDate, dateRange.endLocalDate);
+  const rangeOccurrences = input.occurrences
+    .filter((occurrence) =>
+      isWithinLocalDateRange(
+        occurrence.localDate,
+        dateRange.startLocalDate,
+        dateRange.endLocalDate,
+      ),
+    )
+    .sort(compareOccurrences);
+  const summary = toAnalyticsSummary(countOccurrences(rangeOccurrences));
+
+  return {
+    timezone: dateRange.timezone,
+    rangeDays: dateRange.rangeDays,
+    rangeOptions: [...ANALYTICS_RANGE_OPTIONS],
+    rangeStartLocalDate: dateRange.startLocalDate,
+    rangeEndLocalDate: dateRange.endLocalDate,
+    rangeLabel: `Last ${dateRange.rangeDays} days`,
+    summary,
+    overallHeatmap: resolveOverallHeatmap({
+      dates,
+      occurrences: rangeOccurrences,
+      selectedDayLocalDate,
+    }),
+    behaviorSummaries: resolveBehaviorSummaries({
+      dates,
+      occurrences: rangeOccurrences,
+    }),
+    categorySummaries: resolveCategorySummaries(rangeOccurrences),
+    selectedDay: resolveSelectedDay({
+      selectedDayLocalDate,
+      occurrences: rangeOccurrences,
+    }),
+  };
+}
+
+export function resolveAnalyticsDateRange(input: {
+  now: Temporal.Instant;
+  timezone?: string;
+  rangeDays?: number;
+}): AnalyticsDateRange {
+  const timezone = input.timezone || DEFAULT_TIMEZONE;
+  const rangeDays = normalizeAnalyticsRangeDays(input.rangeDays);
+  const endDate = input.now.toZonedDateTimeISO(timezone).toPlainDate();
+  const startDate = endDate.subtract({ days: rangeDays - 1 });
+
+  return {
+    timezone,
+    rangeDays,
+    startLocalDate: startDate.toString(),
+    endLocalDate: endDate.toString(),
+  };
+}
+
+export function normalizeAnalyticsRangeDays(
+  value: number | undefined,
+): AnalyticsRangeDays {
+  if (value === undefined || !Number.isFinite(value)) {
+    return ANALYTICS_DEFAULT_RANGE_DAYS;
+  }
+
+  const roundedValue = Math.trunc(value);
+
+  return isAnalyticsRangeDays(roundedValue)
+    ? roundedValue
+    : ANALYTICS_DEFAULT_RANGE_DAYS;
+}
+
+function resolveOverallHeatmap(input: {
+  dates: Temporal.PlainDate[];
+  occurrences: AnalyticsOccurrenceInput[];
+  selectedDayLocalDate: string;
+}): AnalyticsDayCell[] {
+  return input.dates.map((date) => {
+    const localDate = date.toString();
+    const counts = countOccurrences(
+      input.occurrences.filter((occurrence) => occurrence.localDate === localDate),
+    );
+    const state = resolveOverallDayState(counts);
+    const stateLabel = overallDayStateLabel(state);
+
+    return {
+      key: `overall-${localDate}`,
+      localDate,
+      label: formatDateLabel(date),
+      shortLabel: formatShortDateLabel(date),
+      isSelected: localDate === input.selectedDayLocalDate,
+      state,
+      stateLabel,
+      counts,
+      ariaLabel: `${formatDateLabel(date)}: ${stateLabel}; ${countsLabel(
+        counts,
+      )}`,
+    };
+  });
+}
+
+function resolveBehaviorSummaries(input: {
+  dates: Temporal.PlainDate[];
+  occurrences: AnalyticsOccurrenceInput[];
+}): AnalyticsBehaviorSummary[] {
+  const behaviorGroups = new Map<string, AnalyticsOccurrenceInput[]>();
+
+  for (const occurrence of input.occurrences) {
+    const existing = behaviorGroups.get(occurrence.behaviorId) ?? [];
+    existing.push(occurrence);
+    behaviorGroups.set(occurrence.behaviorId, existing);
+  }
+
+  return Array.from(behaviorGroups.entries())
+    .map(([behaviorId, occurrences]) => {
+      const firstOccurrence = occurrences[0];
+      const counts = countOccurrences(occurrences);
+      const adherence = calculateAdherence(counts);
+
+      return {
+        behaviorId,
+        title: firstOccurrence?.behaviorTitle ?? "Untitled behavior",
+        categoryName: firstOccurrence?.categoryName ?? "No category",
+        ...counts,
+        ...adherence,
+        dailyCells: input.dates.map((date) =>
+          resolveBehaviorDayCell(date, occurrences),
+        ),
+      };
+    })
+    .sort((left, right) => left.title.localeCompare(right.title));
+}
+
+function resolveBehaviorDayCell(
+  date: Temporal.PlainDate,
+  occurrences: AnalyticsOccurrenceInput[],
+): AnalyticsBehaviorDayCell {
+  const localDate = date.toString();
+  const counts = countOccurrences(
+    occurrences.filter((occurrence) => occurrence.localDate === localDate),
+  );
+  const state = resolveBehaviorDayState(counts);
+  const stateLabel = behaviorDayStateLabel(state);
+
+  return {
+    key: `behavior-${localDate}`,
+    localDate,
+    label: formatDateLabel(date),
+    shortLabel: formatShortDateLabel(date),
+    state,
+    stateLabel,
+    counts,
+    ariaLabel: `${formatDateLabel(date)}: ${stateLabel}; ${countsLabel(counts)}`,
+  };
+}
+
+function resolveCategorySummaries(
+  occurrences: AnalyticsOccurrenceInput[],
+): AnalyticsCategorySummary[] {
+  const categoryGroups = new Map<string, AnalyticsOccurrenceInput[]>();
+
+  for (const occurrence of occurrences) {
+    const existing = categoryGroups.get(occurrence.categoryName) ?? [];
+    existing.push(occurrence);
+    categoryGroups.set(occurrence.categoryName, existing);
+  }
+
+  return Array.from(categoryGroups.entries())
+    .map(([categoryName, categoryOccurrences]) => {
+      const counts = countOccurrences(categoryOccurrences);
+
+      return {
+        categoryName,
+        ...counts,
+        ...calculateAdherence(counts),
+      };
+    })
+    .sort((left, right) => left.categoryName.localeCompare(right.categoryName));
+}
+
+function resolveSelectedDay(input: {
+  selectedDayLocalDate: string;
+  occurrences: AnalyticsOccurrenceInput[];
+}): AnalyticsSelectedDay {
+  const date = Temporal.PlainDate.from(input.selectedDayLocalDate);
+  const notDoneOccurrences = input.occurrences
+    .filter(
+      (occurrence) =>
+        occurrence.localDate === input.selectedDayLocalDate &&
+        occurrence.status === "not_done",
+    )
+    .sort(compareOccurrences)
+    .map((occurrence) => ({
+      id: occurrence.id,
+      behaviorId: occurrence.behaviorId,
+      title: occurrence.behaviorTitle,
+      categoryName: occurrence.categoryName,
+      scheduledFor: occurrence.scheduledFor,
+      scheduledTimeLabel: formatInstantTimeLabel(
+        occurrence.scheduledFor,
+        occurrence.timezone,
+      ),
+      note: occurrence.note,
+    }));
+
+  return {
+    localDate: input.selectedDayLocalDate,
+    label: formatDateLabel(date),
+    notDoneOccurrences,
+    emptyMessage: "No Not Completed occurrences on this day.",
+  };
+}
+
+function countOccurrences(
+  occurrences: AnalyticsOccurrenceInput[],
+): AnalyticsStatusCounts {
+  const counts = emptyCounts();
+
+  for (const occurrence of occurrences) {
+    incrementCounts(counts, occurrence.status);
+  }
+
+  return counts;
+}
+
+function emptyCounts(): AnalyticsStatusCounts {
+  return {
+    doneCount: 0,
+    notDoneCount: 0,
+    unresolvedCount: 0,
+    resolvedCount: 0,
+    totalCount: 0,
+  };
+}
+
+function incrementCounts(
+  counts: AnalyticsStatusCounts,
+  status: AnalyticsStatus,
+): void {
+  counts.totalCount += 1;
+
+  switch (status) {
+    case "done":
+      counts.doneCount += 1;
+      counts.resolvedCount += 1;
+      return;
+    case "not_done":
+      counts.notDoneCount += 1;
+      counts.resolvedCount += 1;
+      return;
+    case "unresolved":
+      counts.unresolvedCount += 1;
+      return;
+  }
+}
+
+function toAnalyticsSummary(counts: AnalyticsStatusCounts): AnalyticsSummary {
+  return {
+    ...counts,
+    ...calculateAdherence(counts),
+  };
+}
+
+function calculateAdherence(
+  counts: AnalyticsStatusCounts,
+): AnalyticsAdherence {
+  if (counts.resolvedCount === 0) {
+    return {
+      rate: null,
+      percentLabel: "No resolved occurrences",
+      detailLabel: "0 resolved",
+    };
+  }
+
+  const rate = counts.doneCount / counts.resolvedCount;
+
+  return {
+    rate,
+    percentLabel: `${formatPercent(rate)}%`,
+    detailLabel: `${counts.doneCount} of ${counts.resolvedCount} resolved Completed`,
+  };
+}
+
+function resolveOverallDayState(
+  counts: AnalyticsStatusCounts,
+): AnalyticsOverallDayState {
+  if (counts.totalCount === 0) {
+    return "empty";
+  }
+
+  if (counts.resolvedCount === 0) {
+    return "unresolved";
+  }
+
+  if (counts.notDoneCount > 0) {
+    return "not_completed";
+  }
+
+  return "completed";
+}
+
+function resolveBehaviorDayState(
+  counts: AnalyticsStatusCounts,
+): AnalyticsBehaviorDayState {
+  if (counts.totalCount === 0) {
+    return "empty";
+  }
+
+  if (counts.unresolvedCount === counts.totalCount) {
+    return "unresolved";
+  }
+
+  if (counts.doneCount === counts.totalCount) {
+    return "full";
+  }
+
+  if (counts.doneCount > 0) {
+    return "partial";
+  }
+
+  if (counts.notDoneCount > 0) {
+    return "not_done";
+  }
+
+  return "unresolved";
+}
+
+function overallDayStateLabel(state: AnalyticsOverallDayState): string {
+  switch (state) {
+    case "completed":
+      return "Completed";
+    case "not_completed":
+      return "Not Completed";
+    case "unresolved":
+      return "Unresolved";
+    case "empty":
+      return "No occurrences";
+  }
+}
+
+function behaviorDayStateLabel(state: AnalyticsBehaviorDayState): string {
+  switch (state) {
+    case "full":
+      return "Full";
+    case "partial":
+      return "Partial";
+    case "not_done":
+      return "Not Completed";
+    case "unresolved":
+      return "Unresolved";
+    case "empty":
+      return "No occurrences";
+  }
+}
+
+function resolveSelectedDayLocalDate(input: {
+  selectedDayLocalDate?: string | null;
+  fallbackLocalDate: string;
+  startLocalDate: string;
+  endLocalDate: string;
+}): string {
+  if (!input.selectedDayLocalDate) {
+    return input.fallbackLocalDate;
+  }
+
+  try {
+    const selectedDate = Temporal.PlainDate.from(input.selectedDayLocalDate);
+    const normalizedSelectedDate = selectedDate.toString();
+
+    return isWithinLocalDateRange(
+      normalizedSelectedDate,
+      input.startLocalDate,
+      input.endLocalDate,
+    )
+      ? normalizedSelectedDate
+      : input.fallbackLocalDate;
+  } catch {
+    return input.fallbackLocalDate;
+  }
+}
+
+function listLocalDates(
+  startLocalDate: string,
+  endLocalDate: string,
+): Temporal.PlainDate[] {
+  const dates: Temporal.PlainDate[] = [];
+  let cursor = Temporal.PlainDate.from(startLocalDate);
+  const endDate = Temporal.PlainDate.from(endLocalDate);
+
+  while (Temporal.PlainDate.compare(cursor, endDate) <= 0) {
+    dates.push(cursor);
+    cursor = cursor.add({ days: 1 });
+  }
+
+  return dates;
+}
+
+function isWithinLocalDateRange(
+  localDate: string,
+  startLocalDate: string,
+  endLocalDate: string,
+): boolean {
+  return (
+    compareLocalDate(localDate, startLocalDate) >= 0 &&
+    compareLocalDate(localDate, endLocalDate) <= 0
+  );
+}
+
+function compareLocalDate(left: string, right: string): number {
+  return Temporal.PlainDate.compare(
+    Temporal.PlainDate.from(left),
+    Temporal.PlainDate.from(right),
+  );
+}
+
+function compareOccurrences(
+  left: AnalyticsOccurrenceInput,
+  right: AnalyticsOccurrenceInput,
+): number {
+  const instantComparison = Temporal.Instant.compare(
+    Temporal.Instant.from(left.scheduledFor),
+    Temporal.Instant.from(right.scheduledFor),
+  );
+
+  if (instantComparison !== 0) {
+    return instantComparison;
+  }
+
+  return left.behaviorTitle.localeCompare(right.behaviorTitle);
+}
+
+function isAnalyticsRangeDays(value: number): value is AnalyticsRangeDays {
+  return ANALYTICS_RANGE_OPTIONS.some((option) => option === value);
+}
+
+function formatPercent(rate: number): string {
+  const percent = rate * 100;
+  const rounded = Math.round(percent * 10) / 10;
+
+  return Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1);
+}
+
+function countsLabel(counts: AnalyticsStatusCounts): string {
+  return `${counts.doneCount} Completed, ${counts.notDoneCount} Not Completed, ${counts.unresolvedCount} Unresolved`;
+}
+
+function formatInstantTimeLabel(value: string, timezone: string): string {
+  const time = Temporal.Instant.from(value)
+    .toZonedDateTimeISO(timezone || DEFAULT_TIMEZONE)
+    .toPlainTime();
+  const period = time.hour >= 12 ? "PM" : "AM";
+  const hour12 = time.hour % 12 || 12;
+  const minute = time.minute.toString().padStart(2, "0");
+
+  return `${hour12}:${minute} ${period}`;
+}
+
+const WEEKDAY_LABELS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+] as const;
+
+const SHORT_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+const MONTH_LABELS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+function formatDateLabel(date: Temporal.PlainDate): string {
+  return `${WEEKDAY_LABELS[date.dayOfWeek - 1]}, ${
+    MONTH_LABELS[date.month - 1]
+  } ${date.day}`;
+}
+
+function formatShortDateLabel(date: Temporal.PlainDate): string {
+  return `${SHORT_WEEKDAY_LABELS[date.dayOfWeek - 1]} ${date.month}/${date.day}`;
+}
