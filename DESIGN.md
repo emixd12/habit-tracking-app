@@ -92,7 +92,7 @@ components:
 
 **Creative North Star: "The Quiet Ledger"**
 
-The interface is a private field log: square, calm, legible, and exact. It uses Courier type, heavy rules, broad whitespace, muted blue action blocks, and compact form controls across the implemented auth shell and Behaviors screen.
+The interface is a private field log: square, calm, legible, and exact. It uses Courier type, heavy rules, broad whitespace, muted blue action blocks, and compact form controls across the implemented auth shell, Behaviors screen, and Timeline screen.
 
 This is product UI, not a poster. The look can be distinctive, but every screen must still work quickly for marking occurrences, reading Needs decision, editing behaviors, checking basic analytics, and exporting records.
 
@@ -209,9 +209,11 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 ### Timeline Rows
 
-- **Collapsed unresolved:** Scheduled time, behavior title, Completed button, Not Completed button.
+- **Timeline structure:** Needs decision is a Cold Surface section above the forward timeline. The current day is the first forward section and uses the strongest date treatment. Future days stack as bordered sections, including explicit empty states.
+- **Collapsed unresolved:** Scheduled time, status chip, behavior title, Completed button, and Not Completed button. Primary status actions are visible for Needs decision and current-day unresolved rows.
+- **Expanded details:** Native disclosure reveals description, category, schedule summary, and note. Category and description remain hidden until expanded.
 - **Resolved:** Keep the row visible with a distinct state. Hide primary action buttons and show Completed or Not Completed plainly.
-- **Needs decision:** Highlight with a full-row treatment such as Cold Surface plus heavy border or Monolith Blue header text. Do not use a stored status or a red error treatment.
+- **Needs decision:** Highlight with Cold Surface plus heavy borders, never red error styling. Do not write or imply a stored Needs decision status.
 
 ### Analytics Heatmaps
 

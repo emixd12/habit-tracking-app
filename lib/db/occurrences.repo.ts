@@ -22,6 +22,49 @@ export async function listBehaviorOccurrencesFrom(
   return data ?? [];
 }
 
+export async function listUnresolvedOccurrencesBeforeLocalDate(
+  supabase: AppSupabaseClient,
+  userId: string,
+  localDate: string,
+): Promise<Occurrence[]> {
+  const { data, error } = await supabase
+    .from("occurrences")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "unresolved")
+    .lt("local_date", localDate)
+    .order("local_date", { ascending: false })
+    .order("scheduled_for", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function listOccurrencesBetweenLocalDates(
+  supabase: AppSupabaseClient,
+  userId: string,
+  startLocalDate: string,
+  endLocalDate: string,
+): Promise<Occurrence[]> {
+  const { data, error } = await supabase
+    .from("occurrences")
+    .select("*")
+    .eq("user_id", userId)
+    .gte("local_date", startLocalDate)
+    .lte("local_date", endLocalDate)
+    .order("local_date", { ascending: true })
+    .order("scheduled_for", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
 export async function createMissingOccurrences(
   supabase: AppSupabaseClient,
   occurrences: NewOccurrence[],
