@@ -3,6 +3,10 @@ import type { Metadata } from "next";
 import { ScreenFrame } from "@/components/layout/ScreenFrame";
 import { Timeline } from "@/components/timeline/Timeline";
 import { getTimelinePageData } from "@/lib/services/timeline.service";
+import {
+  markOccurrenceStatusAction,
+  updateOccurrenceNoteAction,
+} from "./actions";
 
 export const metadata: Metadata = {
   title: "Timeline",
@@ -27,7 +31,11 @@ export default async function TimelinePage({ searchParams }: TimelinePageProps) 
       title="Timeline"
       description={`Current day starts at local midnight in ${timeline.timezone}.`}
     >
-      <Timeline timeline={timeline} />
+      <Timeline
+        timeline={timeline}
+        statusAction={markOccurrenceStatusAction}
+        noteAction={updateOccurrenceNoteAction}
+      />
     </ScreenFrame>
   );
 }

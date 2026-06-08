@@ -144,6 +144,7 @@ function toOccurrenceView(
     ...occurrence,
     statusLabel: statusLabel(occurrence.status),
     statusDetail: statusDetail(occurrence.status),
+    expandedStatusActionLabel: expandedStatusActionLabel(occurrence.status),
     visualTone: visualTone(occurrence.status, isPriorUnresolved),
     showDecisionActions: isPriorUnresolved || isTodayUnresolved,
   };
@@ -168,6 +169,16 @@ function statusDetail(status: TimelineStatus): string {
       return "Resolved as Not Completed";
     case "unresolved":
       return "Awaiting decision";
+  }
+}
+
+function expandedStatusActionLabel(status: TimelineStatus): string {
+  switch (status) {
+    case "done":
+    case "not_done":
+      return "Change status";
+    case "unresolved":
+      return "Set status";
   }
 }
 

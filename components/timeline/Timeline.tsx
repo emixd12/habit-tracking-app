@@ -2,13 +2,19 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
-import type { TimelineView } from "@/lib/types/timeline";
+import type { OccurrenceFormAction, TimelineView } from "@/lib/types/timeline";
 
 type TimelineProps = Readonly<{
   timeline: TimelineView;
+  statusAction: OccurrenceFormAction;
+  noteAction: OccurrenceFormAction;
 }>;
 
-export function Timeline({ timeline }: TimelineProps) {
+export function Timeline({
+  timeline,
+  statusAction,
+  noteAction,
+}: TimelineProps) {
   return (
     <div className="grid gap-8">
       <section
@@ -41,7 +47,12 @@ export function Timeline({ timeline }: TimelineProps) {
         ) : (
           <div className="mt-4 grid gap-4">
             {timeline.needsDecision.daySections.map((section) => (
-              <TimelineGroup key={section.key} section={section} />
+              <TimelineGroup
+                key={section.key}
+                section={section}
+                statusAction={statusAction}
+                noteAction={noteAction}
+              />
             ))}
           </div>
         )}
@@ -49,7 +60,12 @@ export function Timeline({ timeline }: TimelineProps) {
 
       <div className="grid gap-5">
         {timeline.daySections.map((section) => (
-          <TimelineGroup key={section.key} section={section} />
+          <TimelineGroup
+            key={section.key}
+            section={section}
+            statusAction={statusAction}
+            noteAction={noteAction}
+          />
         ))}
       </div>
 

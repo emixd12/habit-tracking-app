@@ -30,6 +30,7 @@ export type TimelineOccurrenceView = {
   status: TimelineStatus;
   statusLabel: string;
   statusDetail: string;
+  expandedStatusActionLabel: string;
   visualTone: TimelineVisualTone;
   showDecisionActions: boolean;
   description: string;
@@ -66,3 +67,16 @@ export type TimelineView = {
   needsDecision: TimelineNeedsDecisionGroup;
   daySections: TimelineDaySection[];
 };
+
+export type OccurrenceActionField = "occurrence_id" | "status" | "note";
+
+export type OccurrenceActionState = {
+  status: "idle" | "success" | "error";
+  message: string;
+  fieldErrors?: Partial<Record<OccurrenceActionField, string>>;
+};
+
+export type OccurrenceFormAction = (
+  previousState: OccurrenceActionState,
+  formData: FormData,
+) => Promise<OccurrenceActionState>;

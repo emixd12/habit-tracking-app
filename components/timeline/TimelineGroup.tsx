@@ -1,8 +1,13 @@
-import type { TimelineDaySection } from "@/lib/types/timeline";
+import type {
+  OccurrenceFormAction,
+  TimelineDaySection,
+} from "@/lib/types/timeline";
 import { OccurrenceRow } from "@/components/timeline/OccurrenceRow";
 
 type TimelineGroupProps = Readonly<{
   section: TimelineDaySection;
+  statusAction: OccurrenceFormAction;
+  noteAction: OccurrenceFormAction;
 }>;
 
 const SECTION_CLASSES: Record<TimelineDaySection["kind"], string> = {
@@ -11,7 +16,11 @@ const SECTION_CLASSES: Record<TimelineDaySection["kind"], string> = {
   needs_decision_day: "border-foreground bg-surface p-4 sm:p-5",
 };
 
-export function TimelineGroup({ section }: TimelineGroupProps) {
+export function TimelineGroup({
+  section,
+  statusAction,
+  noteAction,
+}: TimelineGroupProps) {
   const isEmpty = section.occurrences.length === 0;
 
   return (
@@ -50,7 +59,12 @@ export function TimelineGroup({ section }: TimelineGroupProps) {
       ) : (
         <div className="mt-4 grid gap-3">
           {section.occurrences.map((occurrence) => (
-            <OccurrenceRow key={occurrence.id} occurrence={occurrence} />
+            <OccurrenceRow
+              key={occurrence.id}
+              occurrence={occurrence}
+              statusAction={statusAction}
+              noteAction={noteAction}
+            />
           ))}
         </div>
       )}

@@ -1,9 +1,14 @@
-import { Check, X } from "lucide-react";
-
-import type { TimelineOccurrenceView } from "@/lib/types/timeline";
+import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
+import { StatusButtons } from "@/components/timeline/StatusButtons";
+import type {
+  OccurrenceFormAction,
+  TimelineOccurrenceView,
+} from "@/lib/types/timeline";
 
 type OccurrenceRowProps = Readonly<{
   occurrence: TimelineOccurrenceView;
+  statusAction: OccurrenceFormAction;
+  noteAction: OccurrenceFormAction;
 }>;
 
 const ROW_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
@@ -20,7 +25,11 @@ const STATUS_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> 
   not_done: "border-foreground bg-background text-foreground",
 };
 
-export function OccurrenceRow({ occurrence }: OccurrenceRowProps) {
+export function OccurrenceRow({
+  occurrence,
+  statusAction,
+  noteAction,
+}: OccurrenceRowProps) {
   return (
     <article
       className={[
@@ -53,22 +62,43 @@ export function OccurrenceRow({ occurrence }: OccurrenceRowProps) {
             </h3>
           </summary>
 
-          <dl className="mt-5 grid gap-4 border-t border-line bg-surface p-4 text-sm leading-6 text-muted-readable">
+          <div className="mt-5 grid gap-4 border-t border-line bg-surface p-4 text-sm leading-6 text-muted-readable">
             <DetailItem
               label="Description"
               value={occurrence.description || "No description."}
             />
             <DetailItem label="Category" value={occurrence.categoryName} />
             <DetailItem label="Schedule" value={occurrence.scheduleSummary} />
-            <DetailItem label="Note" value={occurrence.note || "No note."} />
-          </dl>
+
+            {!occurrence.showDecisionActions ? (
+              <div className="grid gap-2">
+                <h4 className="font-bold text-foreground">
+                  {occurrence.expandedStatusActionLabel}
+                </h4>
+                <StatusButtons
+                  occurrenceId={occurrence.id}
+                  currentStatus={occurrence.status}
+                  action={statusAction}
+                  compact
+                />
+              </div>
+            ) : null}
+
+            <OccurrenceNoteForm
+              key={`${occurrence.id}-${occurrence.note}`}
+              occurrenceId={occurrence.id}
+              note={occurrence.note}
+              action={noteAction}
+            />
+          </div>
         </details>
 
         {occurrence.showDecisionActions ? (
-          <div className="grid grid-cols-2 gap-2 sm:min-w-72">
-            <DecisionButton label="Completed" kind="completed" />
-            <DecisionButton label="Not Completed" kind="not_completed" />
-          </div>
+          <StatusButtons
+            occurrenceId={occurrence.id}
+            currentStatus={occurrence.status}
+            action={statusAction}
+          />
         ) : (
           <p className="border-2 border-foreground bg-background px-3 py-2 text-sm font-bold leading-6 text-foreground sm:max-w-56">
             {occurrence.statusDetail}
@@ -76,34 +106,6 @@ export function OccurrenceRow({ occurrence }: OccurrenceRowProps) {
         )}
       </div>
     </article>
-  );
-}
-
-function DecisionButton({
-  label,
-  kind,
-}: Readonly<{
-  label: string;
-  kind: "completed" | "not_completed";
-}>) {
-  const Icon = kind === "completed" ? Check : X;
-  const className =
-    kind === "completed"
-      ? "bg-primary text-primary-foreground hover:bg-foreground"
-      : "bg-background text-foreground hover:bg-surface";
-
-  return (
-    <button
-      type="button"
-      disabled
-      className={[
-        "inline-flex min-h-11 items-center justify-center gap-2 border-2 border-foreground px-3 py-2 text-sm font-bold transition-colors disabled:opacity-70",
-        className,
-      ].join(" ")}
-    >
-      <Icon aria-hidden="true" size={16} strokeWidth={2.5} />
-      <span>{label}</span>
-    </button>
   );
 }
 
@@ -116,8 +118,8 @@ function DetailItem({
 }>) {
   return (
     <div className="grid gap-1">
-      <dt className="font-bold text-foreground">{label}</dt>
-      <dd className="break-words">{value}</dd>
+      <h4 className="font-bold text-foreground">{label}</h4>
+      <p className="break-words">{value}</p>
     </div>
   );
 }

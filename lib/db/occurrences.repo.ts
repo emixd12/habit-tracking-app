@@ -1,5 +1,9 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
-import type { NewOccurrence, Occurrence } from "@/lib/types/database";
+import type {
+  NewOccurrence,
+  Occurrence,
+  OccurrenceUpdate,
+} from "@/lib/types/database";
 
 export async function listBehaviorOccurrencesFrom(
   supabase: AppSupabaseClient,
@@ -65,6 +69,25 @@ export async function listOccurrencesBetweenLocalDates(
   return data ?? [];
 }
 
+export async function getOccurrenceById(
+  supabase: AppSupabaseClient,
+  userId: string,
+  occurrenceId: string,
+): Promise<Occurrence | null> {
+  const { data, error } = await supabase
+    .from("occurrences")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", occurrenceId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
 export async function createMissingOccurrences(
   supabase: AppSupabaseClient,
   occurrences: NewOccurrence[],
@@ -83,6 +106,27 @@ export async function createMissingOccurrences(
   if (error) {
     throw error;
   }
+}
+
+export async function updateOccurrenceById(
+  supabase: AppSupabaseClient,
+  userId: string,
+  occurrenceId: string,
+  occurrence: OccurrenceUpdate,
+): Promise<Occurrence | null> {
+  const { data, error } = await supabase
+    .from("occurrences")
+    .update(occurrence)
+    .eq("user_id", userId)
+    .eq("id", occurrenceId)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
 }
 
 export async function deleteUnresolvedOccurrencesById(
