@@ -42,6 +42,7 @@ Provider workflows are CLI-first:
 
 - Supabase: `docs/SUPABASE_WORKFLOW.md`
 - Sequenzy: `docs/SEQUENZY_WORKFLOW.md`
+- Vercel: `docs/VERCEL_WORKFLOW.md`
 
 ## Supabase auth setup
 

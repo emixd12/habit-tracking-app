@@ -112,7 +112,7 @@ A scheduled backend process should periodically:
 4. Mark as sent or failed.
 5. Store error text for failed sends.
 
-The process route must be protected by `REMINDER_PROCESS_SECRET` or an equivalent server-only mechanism.
+The process route must be protected by `REMINDER_PROCESS_SECRET`, `CRON_SECRET`, or an equivalent server-only mechanism.
 
 ## Resolver contract
 

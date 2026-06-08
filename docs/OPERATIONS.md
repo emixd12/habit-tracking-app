@@ -4,7 +4,7 @@ Use this file after `AGENTS.md` and `STATUS.md` to run the repository consistent
 
 ## Current state
 
-The repository contains the Ticket 001 Next.js App Router scaffold and the project-definition layer. Product features, Supabase auth, database migrations, and resolver implementations have not started yet unless `STATUS.md` says otherwise.
+The repository contains the v1 app implementation through Ticket 012 plus the project-definition layer. `STATUS.md` remains the detailed implementation ledger and should be checked before starting or continuing any ticket.
 
 ## Setup
 
@@ -66,6 +66,7 @@ If docs conflict, report and fix the conflict before implementing product code.
 
 - Supabase: `docs/SUPABASE_WORKFLOW.md`
 - Sequenzy: `docs/SEQUENZY_WORKFLOW.md`
+- Vercel: `docs/VERCEL_WORKFLOW.md`
 
 Use those files instead of searching repeatedly for provider setup.
 

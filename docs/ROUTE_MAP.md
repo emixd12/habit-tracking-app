@@ -30,7 +30,7 @@ Do not create `/dashboard` in v1. The locked primary route is `/timeline`.
 | Route | Earliest ticket | Purpose | Required ownership |
 |---|---:|---|---|
 | `/api/push/subscribe` | implemented in 009 | Store browser push subscriptions | Route validates request shape, requires the authenticated Supabase user, and calls a service/repository. |
-| `/api/reminders/process` | implemented in 010 | Protected process route for due email reminder deliveries | Route validates `REMINDER_PROCESS_SECRET` and calls `reminder.service.ts`. |
+| `/api/reminders/process` | implemented in 010; Vercel Cron GET support added in 013 | Protected process route for due email reminder deliveries | Route validates `REMINDER_PROCESS_SECRET` or `CRON_SECRET`, supports Vercel Cron `GET` and manual protected `POST`, and calls `reminder.service.ts`. |
 | `/api/export/jsonl` | implemented in 012 | JSONL export | Route calls export service/resolver. |
 | `/api/export/csv` | implemented in 012 | CSV export | Route calls export service/resolver. |
 | `/api/export/json` | implemented in 012 | Full JSON backup | Route calls export service/resolver. |

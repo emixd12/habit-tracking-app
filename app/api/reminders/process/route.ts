@@ -6,14 +6,24 @@ import { processDueEmailReminders } from "@/lib/services/reminder.service";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest) {
-  const configuredSecret = process.env.REMINDER_PROCESS_SECRET?.trim();
+export async function GET(request: NextRequest) {
+  return processReminderRequest(request);
+}
 
-  if (!configuredSecret) {
+export async function POST(request: NextRequest) {
+  return processReminderRequest(request);
+}
+
+async function processReminderRequest(request: NextRequest) {
+  const configuredSecrets = readConfiguredSecrets();
+
+  if (configuredSecrets.length === 0) {
     return jsonError("Reminder processing is not configured.", 503);
   }
 
-  if (!secretMatches(readRequestSecret(request), configuredSecret)) {
+  const requestSecret = readRequestSecret(request);
+
+  if (!configuredSecrets.some((secret) => secretMatches(requestSecret, secret))) {
     return jsonError("Unauthorized reminder processing request.", 401);
   }
 
@@ -29,6 +39,18 @@ export async function POST(request: NextRequest) {
   } catch {
     return jsonError("Unable to process reminders.", 500);
   }
+}
+
+function readConfiguredSecrets(): string[] {
+  const secrets = [
+    process.env.REMINDER_PROCESS_SECRET,
+    process.env.CRON_SECRET,
+  ].flatMap((value) => {
+    const normalized = value?.trim();
+    return normalized ? [normalized] : [];
+  });
+
+  return Array.from(new Set(secrets));
 }
 
 function readRequestSecret(request: NextRequest): string | null {
