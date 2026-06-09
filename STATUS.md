@@ -373,6 +373,32 @@ Verification:
 Remaining risk:
 - Authenticated `/behaviors` browser QA is currently blocked by the connected Supabase schema/cache returning `PGRST200` for the `behaviors` to `behavior_schedule_slots` relationship. The migration and docs exist locally, but the connected database was not updated in this task because hosted schema deployment requires explicit authorization.
 
+### Hosted schedule-slot schema deployment and embed repair
+
+Status: complete.
+
+Implementation summary:
+- Pushed hosted Supabase migration `20260609202707_add_behavior_schedule_slots.sql`, bringing the connected remote schema back in line with local migrations.
+- Confirmed the hosted schema now has `behavior_schedule_slots` and occurrence schedule snapshot columns.
+- Fixed `lib/db/behaviors.repo.ts` to embed `schedule_slots` through the explicit owner-scoped `behavior_schedule_slots_behavior_owner_fkey` relationship, resolving PostgREST `PGRST201` ambiguity after the schema migration was deployed.
+- Triggered a production Vercel redeploy with empty commit `c9989b8` (`chore: trigger Vercel redeploy`) before making the code repair, then verified deployment `dpl_F7zEzJBMshqwAA6DkJRHSUus6u4R` reached `READY`.
+
+Verification:
+- Pass: `npm run supabase -- db push --linked --yes`
+- Pass: `npm run supabase -- migration list --linked`
+- Pass: remote Supabase probe for `behavior_schedule_slots`, occurrence schedule columns, and explicit behavior schedule-slot embed
+- Pass: unauthenticated local `/timeline` redirects to `/login?next=%2Ftimeline`
+- Pass: authenticated in-app browser `/timeline` renders without the runtime overlay or warning/error logs
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+
+Remaining risk:
+- None known for the hosted schedule-slot schema and behavior schedule-slot embed issue.
+
 ## Handoff notes
 
 - For the next coding agent: continue Ticket 013 from the Vercel environment/deployment blocker. Do not start deferred offline/PWA or future restore/import work unless the product docs change or the user explicitly brings it into scope.

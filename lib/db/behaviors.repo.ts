@@ -19,7 +19,7 @@ export type BehaviorWithCategory = Behavior & {
 };
 
 const BEHAVIOR_WITH_CATEGORY_SELECT =
-  "*, category:categories!behaviors_category_id_fkey(id, name), schedule_slots:behavior_schedule_slots(*)";
+  "*, category:categories!behaviors_category_id_fkey(id, name), schedule_slots:behavior_schedule_slots!behavior_schedule_slots_behavior_owner_fkey(*)";
 
 export async function listBehaviorCategories(
   supabase: AppSupabaseClient,
