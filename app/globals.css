@@ -4,7 +4,7 @@
   --background: oklch(99.16% 0.0017 67.8);
   --foreground: oklch(14.89% 0.0027 248.1);
   --surface: oklch(96.97% 0.0017 247.8);
-  --primary: oklch(51.12% 0.0661 237.9);
+  --primary: #3572b3;
   --primary-foreground: oklch(99.16% 0.0017 67.8);
   --muted: oklch(60.81% 0.0181 245.2);
   --muted-readable: oklch(52.59% 0.0187 245.3);
@@ -23,8 +23,8 @@
   --color-muted-readable: var(--muted-readable);
   --color-accent: var(--accent);
   --color-line: var(--line);
-  --font-mono: "Courier", "Courier New", monospace;
-  --font-sans: "Courier", "Courier New", monospace;
+  --font-mono: var(--font-ibm-plex-sans), "IBM Plex Sans", Arial, Helvetica, sans-serif;
+  --font-sans: var(--font-ibm-plex-sans), "IBM Plex Sans", Arial, Helvetica, sans-serif;
 }
 
 * {
@@ -41,7 +41,7 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: "Courier", "Courier New", monospace;
+  font-family: var(--font-ibm-plex-sans), "IBM Plex Sans", Arial, Helvetica, sans-serif;
   text-rendering: optimizeLegibility;
 }
 

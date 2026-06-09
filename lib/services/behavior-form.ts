@@ -7,6 +7,18 @@ import type {
 } from "@/lib/types/behavior";
 import type { RecurrenceRule, Weekday } from "@/lib/types/recurrence";
 import { WEEKDAYS } from "@/lib/types/recurrence";
+import {
+  formatClockTimeLabel,
+  formatScheduleSlotLabel,
+  isValidTime,
+  normalizeTime,
+  timeRangePresetToSlot,
+} from "@/lib/services/schedule";
+import {
+  TIME_RANGE_PRESETS,
+  type ScheduleSlotInput,
+  type TimeRangePreset,
+} from "@/lib/types/schedule";
 
 export type ParsedBehaviorFormData = {
   behaviorId: string;
@@ -15,6 +27,7 @@ export type ParsedBehaviorFormData = {
   categoryId: string | null;
   recurrenceRule: RecurrenceRule;
   scheduledTime: string;
+  scheduleSlots: ScheduleSlotInput[];
   browserReminderEnabled: boolean;
   emailReminderEnabled: boolean;
   reminderOffsetMinutes: number;
@@ -42,6 +55,7 @@ export class BehaviorValidationError extends Error {
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SCHEDULED_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const MAX_SCHEDULE_SLOTS = 8;
 const ALLOWED_REMINDER_OFFSETS = new Set([0, 15, 60, 1440, 4320]);
 const WEEKDAY_LABELS: Record<Weekday, string> = {
   monday: "Monday",
@@ -62,7 +76,6 @@ export function parseBehaviorFormData(
   const title = getOptionalString(formData, "title").trim();
   const description = getOptionalString(formData, "description").trim();
   const categoryId = getOptionalString(formData, "category_id").trim();
-  const scheduledTime = getOptionalString(formData, "scheduled_time").trim();
 
   if (options.mode === "update" && !UUID_PATTERN.test(behaviorId)) {
     fieldErrors.behavior_id = "Choose an existing behavior to edit.";
@@ -88,11 +101,8 @@ export function parseBehaviorFormData(
     fieldErrors.category_id = "Choose one of your categories.";
   }
 
-  if (!SCHEDULED_TIME_PATTERN.test(scheduledTime)) {
-    fieldErrors.scheduled_time = "Choose a scheduled time.";
-  }
-
   const recurrenceRule = parseRecurrenceRuleFromForm(formData, fieldErrors);
+  const scheduleSlots = parseScheduleSlotsFromForm(formData, fieldErrors);
   const reminderOffsetMinutes = parseReminderOffset(formData, fieldErrors);
 
   if (Object.keys(fieldErrors).length > 0) {
@@ -105,7 +115,8 @@ export function parseBehaviorFormData(
     description: description || null,
     categoryId: categoryId || null,
     recurrenceRule,
-    scheduledTime,
+    scheduledTime: scheduleSlots[0]?.startTime ?? "09:00",
+    scheduleSlots,
     browserReminderEnabled: getCheckboxValue(formData, "browser_reminder"),
     emailReminderEnabled: getCheckboxValue(formData, "email_reminder"),
     reminderOffsetMinutes,
@@ -236,18 +247,14 @@ export function summarizeRecurrenceRule(recurrenceRule: RecurrenceRule): string 
 }
 
 export function normalizeScheduledTime(value: string): string {
-  return value.slice(0, 5);
+  return normalizeTime(value);
 }
 
 export function formatScheduledTimeLabel(value: string): string {
-  const normalized = normalizeScheduledTime(value);
-  const [hourValue, minuteValue] = normalized.split(":");
-  const hour = Number(hourValue);
-  const period = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 || 12;
-
-  return `${hour12}:${minuteValue} ${period}`;
+  return formatClockTimeLabel(value);
 }
+
+export { formatScheduleSlotLabel };
 
 export function summarizeReminders(input: {
   browserReminderEnabled: boolean;
@@ -269,7 +276,7 @@ export function summarizeReminders(input: {
 export function formatReminderOffset(minutes: number): string {
   switch (minutes) {
     case 0:
-      return "at scheduled time";
+      return "at scheduled start";
     case 15:
       return "15 minutes before";
     case 60:
@@ -407,6 +414,151 @@ function parseReminderOffset(
   return value;
 }
 
+function parseScheduleSlotsFromForm(
+  formData: FormData,
+  fieldErrors: Partial<Record<BehaviorFormField, string>>,
+): ScheduleSlotInput[] {
+  const rawCount = getOptionalString(formData, "schedule_slot_count");
+
+  if (!rawCount) {
+    return [parseLegacyScheduledTimeSlot(formData, fieldErrors)];
+  }
+
+  const count = Number(rawCount);
+
+  if (!Number.isInteger(count) || count < 1) {
+    fieldErrors.schedule = "Add at least one scheduled time or range.";
+    return [
+      {
+        id: null,
+        kind: "exact",
+        preset: null,
+        startTime: "09:00",
+        endTime: null,
+        sortOrder: 0,
+      },
+    ];
+  }
+
+  if (count > MAX_SCHEDULE_SLOTS) {
+    fieldErrors.schedule = `Use ${MAX_SCHEDULE_SLOTS} or fewer scheduled times or ranges.`;
+  }
+
+  const slots: ScheduleSlotInput[] = [];
+  const seenStartTimes = new Set<string>();
+  const upperBound = Math.min(count, MAX_SCHEDULE_SLOTS);
+
+  for (let index = 0; index < upperBound; index += 1) {
+    const slot = parseScheduleSlotAtIndex(formData, index, fieldErrors);
+
+    if (seenStartTimes.has(slot.startTime)) {
+      fieldErrors.schedule = "Use each scheduled start time only once.";
+    }
+
+    seenStartTimes.add(slot.startTime);
+    slots.push({
+      ...slot,
+      sortOrder: index,
+    });
+  }
+
+  if (slots.length === 0) {
+    fieldErrors.schedule = "Add at least one scheduled time or range.";
+  }
+
+  return slots;
+}
+
+function parseLegacyScheduledTimeSlot(
+  formData: FormData,
+  fieldErrors: Partial<Record<BehaviorFormField, string>>,
+): ScheduleSlotInput {
+  const scheduledTime = getOptionalString(formData, "scheduled_time").trim();
+
+  if (!SCHEDULED_TIME_PATTERN.test(scheduledTime) || !isValidTime(scheduledTime)) {
+    fieldErrors.schedule = "Choose a scheduled time.";
+    return {
+      id: null,
+      kind: "exact",
+      preset: null,
+      startTime: "09:00",
+      endTime: null,
+      sortOrder: 0,
+    };
+  }
+
+  return {
+    id: null,
+    kind: "exact",
+    preset: null,
+    startTime: normalizeTime(scheduledTime),
+    endTime: null,
+    sortOrder: 0,
+  };
+}
+
+function parseScheduleSlotAtIndex(
+  formData: FormData,
+  index: number,
+  fieldErrors: Partial<Record<BehaviorFormField, string>>,
+): ScheduleSlotInput {
+  const id = getOptionalString(formData, `schedule_slot_id_${index}`).trim();
+  const kind = getOptionalString(formData, `schedule_kind_${index}`);
+
+  if (id && !UUID_PATTERN.test(id)) {
+    fieldErrors.schedule = "Choose one of this behavior's schedule rows.";
+  }
+
+  if (kind === "range") {
+    const preset = getOptionalString(formData, `schedule_range_preset_${index}`);
+
+    if (isTimeRangePreset(preset)) {
+      return timeRangePresetToSlot({
+        id: id || null,
+        preset,
+        sortOrder: index,
+      });
+    }
+
+    fieldErrors.schedule = "Choose a time range.";
+    return timeRangePresetToSlot({
+      id: id || null,
+      preset: "morning",
+      sortOrder: index,
+    });
+  }
+
+  if (kind !== "exact") {
+    fieldErrors.schedule = "Choose exact time or time range.";
+  }
+
+  const startTime = getOptionalString(
+    formData,
+    `schedule_exact_time_${index}`,
+  ).trim();
+
+  if (!SCHEDULED_TIME_PATTERN.test(startTime) || !isValidTime(startTime)) {
+    fieldErrors.schedule = "Choose a scheduled time.";
+    return {
+      id: id || null,
+      kind: "exact",
+      preset: null,
+      startTime: "09:00",
+      endTime: null,
+      sortOrder: index,
+    };
+  }
+
+  return {
+    id: id || null,
+    kind: "exact",
+    preset: null,
+    startTime: normalizeTime(startTime),
+    endTime: null,
+    sortOrder: index,
+  };
+}
+
 function parsePositiveIntegerField(
   formData: FormData,
   fieldName: string,
@@ -492,6 +644,10 @@ function requireWeekdays(value: unknown): Weekday[] {
 
 function isWeekday(value: string): value is Weekday {
   return WEEKDAYS.includes(value as Weekday);
+}
+
+function isTimeRangePreset(value: string): value is TimeRangePreset {
+  return value in TIME_RANGE_PRESETS;
 }
 
 function getOptionalString(formData: FormData, fieldName: string): string {

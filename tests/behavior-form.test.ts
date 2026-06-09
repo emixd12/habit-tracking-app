@@ -45,6 +45,16 @@ describe("parseBehaviorFormData", () => {
       categoryId: CATEGORY_ID,
       recurrenceRule: { frequency: "daily", interval: 1 },
       scheduledTime: "22:00",
+      scheduleSlots: [
+        {
+          id: null,
+          kind: "exact",
+          preset: null,
+          startTime: "22:00",
+          endTime: null,
+          sortOrder: 0,
+        },
+      ],
       browserReminderEnabled: true,
       emailReminderEnabled: false,
       reminderOffsetMinutes: 0,
@@ -77,6 +87,64 @@ describe("parseBehaviorFormData", () => {
     });
     expect(result.emailReminderEnabled).toBe(true);
     expect(result.active).toBe(true);
+  });
+
+  it("maps multiple schedule rows with exact times and preset ranges", () => {
+    const result = parseBehaviorFormData(
+      formData([
+        ["title", "Stretch"],
+        ["category_id", CATEGORY_ID],
+        ["schedule_slot_count", "2"],
+        ["schedule_kind_0", "range"],
+        ["schedule_range_preset_0", "morning"],
+        ["schedule_kind_1", "exact"],
+        ["schedule_exact_time_1", "21:30"],
+        ["recurrence_kind", "daily"],
+        ["daily_interval", "1"],
+        ["reminder_offset", "0"],
+        ["browser_reminder", "on"],
+      ]),
+      { mode: "create", categories },
+    );
+
+    expect(result.scheduledTime).toBe("06:00");
+    expect(result.scheduleSlots).toEqual([
+      {
+        id: null,
+        kind: "range",
+        preset: "morning",
+        startTime: "06:00",
+        endTime: "12:00",
+        sortOrder: 0,
+      },
+      {
+        id: null,
+        kind: "exact",
+        preset: null,
+        startTime: "21:30",
+        endTime: null,
+        sortOrder: 1,
+      },
+    ]);
+  });
+
+  it("rejects duplicate schedule start times", () => {
+    expect(() =>
+      parseBehaviorFormData(
+        formData([
+          ["title", "Duplicate schedule"],
+          ["schedule_slot_count", "2"],
+          ["schedule_kind_0", "range"],
+          ["schedule_range_preset_0", "morning"],
+          ["schedule_kind_1", "exact"],
+          ["schedule_exact_time_1", "06:00"],
+          ["recurrence_kind", "daily"],
+          ["daily_interval", "1"],
+          ["reminder_offset", "0"],
+        ]),
+        { mode: "create", categories },
+      ),
+    ).toThrow(BehaviorValidationError);
   });
 
   it("requires a weekday for weekly recurrence", () => {

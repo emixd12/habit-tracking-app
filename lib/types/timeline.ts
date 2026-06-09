@@ -33,6 +33,7 @@ export type TimelineOccurrenceView = {
   expandedStatusActionLabel: string;
   visualTone: TimelineVisualTone;
   showDecisionActions: boolean;
+  showCollapsedStatusLabel: boolean;
   description: string;
   categoryName: string;
   scheduleSummary: string;
@@ -40,6 +41,14 @@ export type TimelineOccurrenceView = {
 };
 
 export type TimelineDaySectionKind = "today" | "future" | "needs_decision_day";
+
+export type TimelineOccurrenceGroup = {
+  key: string;
+  behaviorId: string;
+  title: string;
+  occurrences: TimelineOccurrenceView[];
+  isGroupedStack: boolean;
+};
 
 export type TimelineDaySection = {
   key: string;
@@ -49,6 +58,7 @@ export type TimelineDaySection = {
   relativeLabel: string;
   emptyMessage: string;
   occurrences: TimelineOccurrenceView[];
+  occurrenceGroups: TimelineOccurrenceGroup[];
 };
 
 export type TimelineNeedsDecisionGroup = {

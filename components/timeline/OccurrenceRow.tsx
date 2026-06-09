@@ -12,17 +12,31 @@ type OccurrenceRowProps = Readonly<{
 }>;
 
 const ROW_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
-  default: "border-foreground bg-background",
-  needs_decision: "border-foreground bg-surface",
-  done: "border-primary bg-background",
-  not_done: "border-foreground bg-surface",
+  default: "border-line bg-background text-foreground",
+  needs_decision: "border-line bg-surface text-foreground",
+  done: "border-line bg-primary text-primary-foreground",
+  not_done: "border-line bg-surface text-foreground",
 };
 
-const STATUS_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
+const TIME_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
+  default: "text-muted-readable",
+  needs_decision: "text-foreground",
+  done: "text-primary-foreground",
+  not_done: "text-muted-readable",
+};
+
+const DETAIL_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
   default: "border-line bg-surface text-muted-readable",
-  needs_decision: "border-foreground bg-background text-foreground",
-  done: "border-primary bg-primary text-primary-foreground",
-  not_done: "border-foreground bg-background text-foreground",
+  needs_decision: "border-line bg-background text-muted-readable",
+  done: "border-line bg-background text-muted-readable",
+  not_done: "border-line bg-background text-muted-readable",
+};
+
+const RESOLVED_LABEL_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
+  default: "text-muted-readable",
+  needs_decision: "text-foreground",
+  done: "text-primary-foreground",
+  not_done: "text-muted-readable",
 };
 
 export function OccurrenceRow({
@@ -33,36 +47,34 @@ export function OccurrenceRow({
   return (
     <article
       className={[
-        "border-2 transition-colors",
+        "border transition-colors",
         ROW_TONE_CLASSES[occurrence.visualTone],
       ].join(" ")}
     >
-      <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:p-5">
+      <div className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4">
         <details className="group min-w-0">
-          <summary className="grid cursor-pointer list-none gap-2 [&::-webkit-details-marker]:hidden">
-            <div className="flex flex-wrap items-center gap-2">
-              <time
-                dateTime={occurrence.scheduledFor}
-                className="border border-line bg-surface px-2 py-1 text-sm font-bold text-muted-readable"
-              >
-                {occurrence.scheduledTimeLabel}
-              </time>
-              <span
-                className={[
-                  "border px-2 py-1 text-xs font-bold",
-                  STATUS_TONE_CLASSES[occurrence.visualTone],
-                ].join(" ")}
-              >
-                {occurrence.statusLabel}
-              </span>
-            </div>
+          <summary className="grid cursor-pointer list-none gap-1.5 sm:flex sm:items-center sm:gap-3 [&::-webkit-details-marker]:hidden">
+            <time
+              dateTime={occurrence.scheduledFor}
+              className={[
+                "shrink-0 text-xs font-bold leading-5 sm:text-sm",
+                TIME_TONE_CLASSES[occurrence.visualTone],
+              ].join(" ")}
+            >
+              {occurrence.scheduledTimeLabel}
+            </time>
 
-            <h3 className="break-words text-xl font-bold leading-tight">
+            <h3 className="min-w-0 break-words text-base font-bold leading-tight sm:truncate sm:text-lg">
               {occurrence.title}
             </h3>
           </summary>
 
-          <div className="mt-5 grid gap-4 border-t border-line bg-surface p-4 text-sm leading-6 text-muted-readable">
+          <div
+            className={[
+              "mt-4 grid gap-4 border-t p-4 text-sm leading-6",
+              DETAIL_TONE_CLASSES[occurrence.visualTone],
+            ].join(" ")}
+          >
             <DetailItem
               label="Description"
               value={occurrence.description || "No description."}
@@ -99,11 +111,16 @@ export function OccurrenceRow({
             currentStatus={occurrence.status}
             action={statusAction}
           />
-        ) : (
-          <p className="border-2 border-foreground bg-background px-3 py-2 text-sm font-bold leading-6 text-foreground sm:max-w-56">
-            {occurrence.statusDetail}
+        ) : occurrence.showCollapsedStatusLabel ? (
+          <p
+            className={[
+              "text-xs font-bold leading-5 sm:self-center sm:whitespace-nowrap sm:text-sm",
+              RESOLVED_LABEL_CLASSES[occurrence.visualTone],
+            ].join(" ")}
+          >
+            {occurrence.statusLabel}
           </p>
-        )}
+        ) : null}
       </div>
     </article>
   );

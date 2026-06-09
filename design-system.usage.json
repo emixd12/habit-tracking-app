@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-09T20:46:19.525640+00:00",
+  "root": "/Users/emi/Coding Projects/habit-tracking-app",
+  "usages": [
+    {
+      "componentId": "composite.behavior-form",
+      "file": "app/(app)/behaviors/page.tsx",
+      "line": 28,
+      "route": "(app)/behaviors/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "composite.behavior-form",
+      "file": "components/behaviors/BehaviorList.tsx",
+      "line": 148,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "composite.occurrence-note-form",
+      "file": "components/timeline/OccurrenceRow.tsx",
+      "line": 99,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "composite.occurrence-row",
+      "file": "components/timeline/TimelineGroup.tsx",
+      "line": 92,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "composite.occurrence-row",
+      "file": "components/timeline/TimelineGroup.tsx",
+      "line": 109,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "flow.google-login-button",
+      "file": "app/(auth)/login/page.tsx",
+      "line": 70,
+      "route": "(auth)/login/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "layout.app-shell",
+      "file": "app/(app)/layout.tsx",
+      "line": 22,
+      "route": "(app)/layout",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "layout.screen-frame",
+      "file": "app/(app)/analytics/page.tsx",
+      "line": 30,
+      "route": "(app)/analytics/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "layout.screen-frame",
+      "file": "app/(app)/behaviors/page.tsx",
+      "line": 23,
+      "route": "(app)/behaviors/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "layout.screen-frame",
+      "file": "app/(app)/export/page.tsx",
+      "line": 28,
+      "route": "(app)/export/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "layout.screen-frame",
+      "file": "app/(app)/settings/page.tsx",
+      "line": 15,
+      "route": "(app)/settings/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "layout.screen-frame",
+      "file": "app/(app)/timeline/page.tsx",
+      "line": 30,
+      "route": "(app)/timeline/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.analytics-screen",
+      "file": "app/(app)/analytics/page.tsx",
+      "line": 34,
+      "route": "(app)/analytics/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.behavior-list",
+      "file": "app/(app)/behaviors/page.tsx",
+      "line": 35,
+      "route": "(app)/behaviors/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.export-panel",
+      "file": "app/(app)/export/page.tsx",
+      "line": 32,
+      "route": "(app)/export/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.markdown-summary-actions",
+      "file": "components/export/ExportPanel.tsx",
+      "line": 165,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.needs-decision-dialog",
+      "file": "components/timeline/Timeline.tsx",
+      "line": 21,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.notification-permission-panel",
+      "file": "app/(app)/settings/page.tsx",
+      "line": 35,
+      "route": "(app)/settings/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.recurrence-editor",
+      "file": "components/behaviors/BehaviorForm.tsx",
+      "line": 174,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.reminder-editor",
+      "file": "components/behaviors/BehaviorForm.tsx",
+      "line": 179,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.status-buttons",
+      "file": "components/timeline/OccurrenceRow.tsx",
+      "line": 90,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.status-buttons",
+      "file": "components/timeline/OccurrenceRow.tsx",
+      "line": 109,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.timeline",
+      "file": "app/(app)/timeline/page.tsx",
+      "line": 34,
+      "route": "(app)/timeline/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.timeline-group",
+      "file": "components/timeline/Timeline.tsx",
+      "line": 32,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.timeline-group",
+      "file": "components/timeline/Timeline.tsx",
+      "line": 45,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "navigation.primary-app-nav",
+      "file": "components/layout/AppShell.tsx",
+      "line": 107,
+      "route": "app shell",
+      "usageKind": "render",
+      "confidence": "manual"
+    }
+  ],
+  "summary": {
+    "productUsages": 26,
+    "benchPreviews": 0
+  }
+}

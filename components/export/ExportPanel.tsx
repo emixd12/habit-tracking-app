@@ -29,10 +29,10 @@ export function ExportPanel({ exportData }: ExportPanelProps) {
   return (
     <div className="grid gap-8">
       <section
-        className="border-2 border-foreground bg-background p-5 sm:p-6"
+        className="border border-line bg-background p-5 sm:p-6"
         aria-labelledby="export-options-title"
       >
-        <div className="border-b-2 border-foreground pb-4">
+        <div className="border-b border-line pb-4">
           <h2
             id="export-options-title"
             className="text-2xl font-bold leading-tight"
@@ -56,7 +56,7 @@ export function ExportPanel({ exportData }: ExportPanelProps) {
                     defaultChecked={exportData.range.key === option.key}
                     className="peer sr-only"
                   />
-                  <span className="inline-flex min-h-11 items-center justify-center border-2 border-foreground bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors peer-checked:bg-primary peer-checked:text-primary-foreground hover:bg-surface">
+                  <span className="inline-flex min-h-11 items-center justify-center border border-line bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors peer-checked:bg-primary peer-checked:text-primary-foreground hover:bg-surface">
                     {option.label}
                   </span>
                 </label>
@@ -64,7 +64,7 @@ export function ExportPanel({ exportData }: ExportPanelProps) {
             </div>
           </fieldset>
 
-          <label className="flex w-fit items-start gap-3 border-2 border-foreground bg-surface p-3 text-sm font-bold">
+          <label className="flex w-fit items-start gap-3 border border-line bg-surface p-3 text-sm font-bold">
             <input
               type="checkbox"
               name="include_archived"
@@ -78,7 +78,7 @@ export function ExportPanel({ exportData }: ExportPanelProps) {
           <div>
             <button
               type="submit"
-              className="inline-flex min-h-11 items-center justify-center border-2 border-foreground bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground"
+              className="inline-flex min-h-11 items-center justify-center border border-line bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground"
             >
               Apply options
             </button>
@@ -87,8 +87,8 @@ export function ExportPanel({ exportData }: ExportPanelProps) {
       </section>
 
       <section aria-labelledby="export-current-title">
-        <div className="border-2 border-foreground bg-background">
-          <div className="border-b-2 border-foreground p-5 sm:p-6">
+        <div className="border border-line bg-background">
+          <div className="border-b border-line p-5 sm:p-6">
             <h2
               id="export-current-title"
               className="text-2xl font-bold leading-tight"
@@ -111,7 +111,7 @@ export function ExportPanel({ exportData }: ExportPanelProps) {
       </section>
 
       <section className="grid gap-4" aria-labelledby="export-downloads-title">
-        <div className="border-b-2 border-foreground pb-3">
+        <div className="border-b border-line pb-3">
           <h2
             id="export-downloads-title"
             className="text-2xl font-bold leading-tight"
@@ -125,7 +125,7 @@ export function ExportPanel({ exportData }: ExportPanelProps) {
             <a
               key={action.format}
               href={downloadHref(action.format, exportData)}
-              className="group flex min-h-24 items-center justify-between gap-4 border-2 border-foreground bg-background p-4 text-foreground transition-colors hover:bg-surface"
+              className="group flex min-h-24 items-center justify-between gap-4 border border-line bg-background p-4 text-foreground transition-colors hover:bg-surface"
             >
               <span className="min-w-0">
                 <span className="block break-words text-lg font-bold leading-tight">
@@ -147,10 +147,10 @@ export function ExportPanel({ exportData }: ExportPanelProps) {
       </section>
 
       <section
-        className="border-2 border-foreground bg-background p-5 sm:p-6"
+        className="border border-line bg-background p-5 sm:p-6"
         aria-labelledby="export-summary-title"
       >
-        <div className="flex flex-col gap-4 border-b-2 border-foreground pb-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2
               id="export-summary-title"

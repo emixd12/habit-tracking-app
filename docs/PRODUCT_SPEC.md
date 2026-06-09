@@ -40,6 +40,7 @@ One scheduled instance of a behavior.
 
 Example:
 - Brush teeth scheduled for 2026-06-05 at 10:00 PM.
+- Stretch scheduled for Morning on 2026-06-05.
 
 ### Status
 
@@ -50,7 +51,7 @@ Each occurrence has one status:
 
 The system does not automatically mark things missed.
 
-Unresolved prior-day items appear under Needs decision.
+Unresolved prior-day items are surfaced through Needs decision.
 
 Needs decision is a derived UI state, not a stored status. It applies when an occurrence is still `unresolved` and its `local_date` is before the current local date.
 
@@ -68,7 +69,7 @@ Default timezone:
 Required fields:
 - Title
 - Recurrence
-- Scheduled time
+- Schedule with at least one exact time or preset time range
 
 Optional fields:
 - Description
@@ -80,6 +81,17 @@ Optional fields:
 Browser reminders default to on.
 
 Email reminders default to off.
+
+Preset time ranges:
+- Morning: 6:00 AM-Noon
+- Afternoon: Noon-6:00 PM
+- Evening: 6:00 PM-Midnight
+- Night: Midnight-6:00 AM
+
+A single behavior can have multiple schedule slots in one day. The system
+generates one occurrence per matching schedule slot. Partial completion for
+multi-time behaviors is derived only from mixed occurrence statuses; it is not a
+stored status.
 
 ## Notes
 

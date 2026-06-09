@@ -34,6 +34,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      behavior_schedule_slots: {
+        Row: {
+          behavior_id: string
+          created_at: string
+          end_time: string | null
+          id: string
+          kind: string
+          preset: string | null
+          sort_order: number
+          start_time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          behavior_id: string
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          kind: string
+          preset?: string | null
+          sort_order?: number
+          start_time: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          behavior_id?: string
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          kind?: string
+          preset?: string | null
+          sort_order?: number
+          start_time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "behavior_schedule_slots_behavior_id_fkey"
+            columns: ["behavior_id"]
+            isOneToOne: false
+            referencedRelation: "behaviors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "behavior_schedule_slots_behavior_owner_fkey"
+            columns: ["user_id", "behavior_id"]
+            isOneToOne: false
+            referencedRelation: "behaviors"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
       behaviors: {
         Row: {
           active: boolean
@@ -133,11 +187,16 @@ export type Database = {
       occurrences: {
         Row: {
           behavior_id: string
+          behavior_schedule_slot_id: string | null
           completed_at: string | null
           created_at: string
           id: string
           local_date: string
           note: string | null
+          schedule_end_time: string | null
+          schedule_kind: string
+          schedule_preset: string | null
+          schedule_start_time: string
           scheduled_for: string
           status: string
           status_marked_at: string | null
@@ -146,11 +205,16 @@ export type Database = {
         }
         Insert: {
           behavior_id: string
+          behavior_schedule_slot_id?: string | null
           completed_at?: string | null
           created_at?: string
           id?: string
           local_date: string
           note?: string | null
+          schedule_end_time?: string | null
+          schedule_kind?: string
+          schedule_preset?: string | null
+          schedule_start_time: string
           scheduled_for: string
           status?: string
           status_marked_at?: string | null
@@ -159,11 +223,16 @@ export type Database = {
         }
         Update: {
           behavior_id?: string
+          behavior_schedule_slot_id?: string | null
           completed_at?: string | null
           created_at?: string
           id?: string
           local_date?: string
           note?: string | null
+          schedule_end_time?: string | null
+          schedule_kind?: string
+          schedule_preset?: string | null
+          schedule_start_time?: string
           scheduled_for?: string
           status?: string
           status_marked_at?: string | null
@@ -183,6 +252,13 @@ export type Database = {
             columns: ["user_id", "behavior_id"]
             isOneToOne: false
             referencedRelation: "behaviors"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "occurrences_schedule_slot_owner_fkey"
+            columns: ["user_id", "behavior_schedule_slot_id"]
+            isOneToOne: false
+            referencedRelation: "behavior_schedule_slots"
             referencedColumns: ["user_id", "id"]
           },
         ]

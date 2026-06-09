@@ -11,6 +11,7 @@ import {
   resolveAnalytics,
   resolveAnalyticsDateRange,
 } from "@/lib/resolvers/analytics.resolver";
+import { formatOccurrenceScheduleLabel } from "@/lib/services/schedule";
 import { syncUserOccurrences } from "@/lib/services/occurrence.service";
 import { createClient } from "@/lib/supabase/server";
 import type { AnalyticsOccurrenceInput, AnalyticsView } from "@/lib/types/analytics";
@@ -94,11 +95,41 @@ function toAnalyticsOccurrenceInput(
     behaviorTitle: behavior.title,
     categoryName: behavior.category?.name ?? "No category",
     scheduledFor: occurrence.scheduled_for,
+    scheduledTimeLabel: formatOccurrenceScheduleLabel({
+      scheduleKind: normalizeScheduleKind(occurrence.schedule_kind),
+      schedulePreset: normalizeSchedulePreset(occurrence.schedule_preset),
+      scheduleStartTime: occurrence.schedule_start_time,
+      scheduleEndTime: occurrence.schedule_end_time,
+    }),
     localDate: occurrence.local_date,
     status: normalizeOccurrenceStatus(occurrence.status),
     note: occurrence.note ?? "",
     timezone: behavior.timezone || DEFAULT_TIMEZONE,
   };
+}
+
+function normalizeScheduleKind(value: string): "exact" | "range" {
+  if (value === "exact" || value === "range") {
+    return value;
+  }
+
+  throw new Error(`Unsupported schedule kind: ${value}.`);
+}
+
+function normalizeSchedulePreset(
+  value: string | null,
+): "morning" | "afternoon" | "evening" | "night" | null {
+  if (
+    value === null ||
+    value === "morning" ||
+    value === "afternoon" ||
+    value === "evening" ||
+    value === "night"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported schedule preset: ${value}.`);
 }
 
 function normalizeOccurrenceStatus(value: string): OccurrenceStatus {

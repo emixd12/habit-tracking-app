@@ -29,13 +29,13 @@ One event per line.
 Occurrence event:
 
 ```json
-{"type":"occurrence","local_date":"2026-06-05","scheduled_for":"2026-06-05T22:00:00-04:00","behavior_title":"Brush teeth","category":"Grooming","status":"done","status_marked_at":"2026-06-05T22:08:00-04:00","note":null}
+{"type":"occurrence","local_date":"2026-06-05","scheduled_for":"2026-06-05T22:00:00-04:00","schedule":"10:00 PM","behavior_title":"Brush teeth","category":"Grooming","status":"done","status_marked_at":"2026-06-05T22:08:00-04:00","note":null}
 ```
 
 Behavior event:
 
 ```json
-{"type":"behavior","behavior_title":"Brush teeth","category":"Grooming","description":"Night brushing","recurrence_rule":{"frequency":"daily","interval":1},"scheduled_time":"22:00","browser_reminder_enabled":true,"email_reminder_enabled":false}
+{"type":"behavior","behavior_title":"Brush teeth","category":"Grooming","description":"Night brushing","recurrence_rule":{"frequency":"daily","interval":1},"scheduled_time":"22:00","schedule_slots":[{"id":"slot-1","kind":"exact","preset":null,"startTime":"22:00","endTime":null,"sortOrder":0,"label":"10:00 PM"}],"browser_reminder_enabled":true,"email_reminder_enabled":false}
 ```
 
 Category event:
@@ -49,6 +49,7 @@ Category event:
 Occurrence CSV columns:
 - local_date
 - scheduled_for
+- schedule
 - behavior_title
 - category
 - status

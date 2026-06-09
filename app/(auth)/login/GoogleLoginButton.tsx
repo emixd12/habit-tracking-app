@@ -51,7 +51,7 @@ export function GoogleLoginButton({
         type="button"
         disabled={disabled || isPending}
         onClick={handleSignIn}
-        className="inline-flex min-h-12 w-full items-center justify-center gap-3 border-2 border-foreground bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:border-line disabled:bg-surface disabled:text-muted-readable"
+        className="inline-flex min-h-12 w-full items-center justify-center gap-3 border border-line bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:border-line disabled:bg-surface disabled:text-muted-readable"
       >
         <LogIn aria-hidden="true" size={18} strokeWidth={2} />
         {isPending ? "Opening Google..." : "Continue with Google"}

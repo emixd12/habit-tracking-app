@@ -15,16 +15,16 @@ type AnalyticsScreenProps = Readonly<{
 }>;
 
 const OVERALL_CELL_CLASSES: Record<AnalyticsOverallDayState, string> = {
-  completed: "border-foreground bg-primary text-primary-foreground",
-  not_completed: "border-foreground bg-background text-foreground",
+  completed: "border-line bg-primary text-primary-foreground",
+  not_completed: "border-line bg-background text-foreground",
   unresolved: "border-line bg-surface text-muted-readable",
   empty: "border-line bg-background text-muted-readable",
 };
 
 const BEHAVIOR_CELL_CLASSES: Record<AnalyticsBehaviorDayState, string> = {
-  full: "border-foreground bg-primary text-primary-foreground",
-  partial: "border-foreground bg-surface text-foreground",
-  not_done: "border-foreground bg-background text-foreground",
+  full: "border-line bg-primary text-primary-foreground",
+  partial: "border-line bg-surface text-foreground",
+  not_done: "border-line bg-background text-foreground",
   unresolved: "border-line bg-surface text-muted-readable",
   empty: "border-line bg-background text-muted-readable",
 };
@@ -33,12 +33,12 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
   return (
     <div className="grid gap-8">
       <section
-        className="border-2 border-foreground bg-background p-5 sm:p-6"
+        className="border border-line bg-background p-5 sm:p-6"
         aria-labelledby="analytics-summary-title"
       >
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <div className="min-w-0">
-            <div className="border-b-2 border-foreground pb-4">
+            <div className="border-b border-line pb-4">
               <h2
                 id="analytics-summary-title"
                 className="text-2xl font-bold leading-tight"
@@ -69,10 +69,10 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
       </section>
 
       <section
-        className="border-2 border-foreground bg-background p-5 sm:p-6"
+        className="border border-line bg-background p-5 sm:p-6"
         aria-labelledby="overall-heatmap-title"
       >
-        <div className="flex flex-col gap-4 border-b-2 border-foreground pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 border-b border-line pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2
               id="overall-heatmap-title"
@@ -93,10 +93,10 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
       </section>
 
       <section
-        className="border-2 border-foreground bg-surface p-5 sm:p-6"
+        className="border border-line bg-surface p-5 sm:p-6"
         aria-labelledby="selected-day-title"
       >
-        <div className="border-b-2 border-foreground pb-4">
+        <div className="border-b border-line pb-4">
           <h2
             id="selected-day-title"
             className="text-2xl font-bold leading-tight"
@@ -109,7 +109,7 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
         </div>
 
         {analytics.selectedDay.notDoneOccurrences.length === 0 ? (
-          <p className="mt-4 border-2 border-foreground bg-background p-4 text-base leading-7 text-muted-readable">
+          <p className="mt-4 border border-line bg-background p-4 text-base leading-7 text-muted-readable">
             {analytics.selectedDay.emptyMessage}
           </p>
         ) : (
@@ -117,7 +117,7 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
             {analytics.selectedDay.notDoneOccurrences.map((occurrence) => (
               <article
                 key={occurrence.id}
-                className="border-2 border-foreground bg-background p-4"
+                className="border border-line bg-background p-4"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <time
@@ -126,7 +126,7 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
                   >
                     {occurrence.scheduledTimeLabel}
                   </time>
-                  <span className="border border-foreground bg-background px-2 py-1 text-xs font-bold">
+                  <span className="border border-line bg-background px-2 py-1 text-xs font-bold">
                     {occurrence.categoryName}
                   </span>
                 </div>
@@ -145,7 +145,7 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
       </section>
 
       <section className="grid gap-4" aria-labelledby="behavior-counts-title">
-        <div className="border-b-2 border-foreground pb-3">
+        <div className="border-b border-line pb-3">
           <h2
             id="behavior-counts-title"
             className="text-2xl font-bold leading-tight"
@@ -155,7 +155,7 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
         </div>
 
         {analytics.behaviorSummaries.length === 0 ? (
-          <p className="border-2 border-foreground bg-surface p-5 text-base leading-7 text-muted-readable">
+          <p className="border border-line bg-surface p-5 text-base leading-7 text-muted-readable">
             No occurrences in this range.
           </p>
         ) : (
@@ -168,7 +168,7 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
       </section>
 
       <section className="grid gap-4" aria-labelledby="category-counts-title">
-        <div className="border-b-2 border-foreground pb-3">
+        <div className="border-b border-line pb-3">
           <h2
             id="category-counts-title"
             className="text-2xl font-bold leading-tight"
@@ -178,7 +178,7 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
         </div>
 
         {analytics.categorySummaries.length === 0 ? (
-          <p className="border-2 border-foreground bg-surface p-5 text-base leading-7 text-muted-readable">
+          <p className="border border-line bg-surface p-5 text-base leading-7 text-muted-readable">
             No category counts in this range.
           </p>
         ) : (
@@ -186,7 +186,7 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
             {analytics.categorySummaries.map((category) => (
               <article
                 key={category.categoryName}
-                className="border-2 border-foreground bg-background p-4"
+                className="border border-line bg-background p-4"
               >
                 <h3 className="break-words text-lg font-bold leading-tight">
                   {category.categoryName}
@@ -225,10 +225,10 @@ function RangeSelector({
             href={analyticsHref(rangeDays, analytics.selectedDay.localDate)}
             aria-current={isActive ? "page" : undefined}
             className={[
-              "inline-flex min-h-11 items-center justify-center border-2 px-4 py-2 text-sm font-bold transition-colors",
+              "inline-flex min-h-11 items-center justify-center border px-4 py-2 text-sm font-bold transition-colors",
               isActive
-                ? "border-foreground bg-primary text-primary-foreground"
-                : "border-foreground bg-background text-foreground hover:bg-surface",
+                ? "border-line bg-primary text-primary-foreground"
+                : "border-line bg-background text-foreground hover:bg-surface",
             ].join(" ")}
           >
             {rangeDays} days
@@ -253,7 +253,7 @@ function OverallHeatmap({
           aria-label={cell.ariaLabel}
           title={cell.ariaLabel}
           className={[
-            "relative aspect-square min-h-9 border-2 transition-colors hover:bg-surface focus-visible:z-10",
+            "relative aspect-square min-h-9 border transition-colors hover:bg-surface focus-visible:z-10",
             OVERALL_CELL_CLASSES[cell.state],
             cell.isSelected ? "outline outline-2 outline-offset-2 outline-foreground" : "",
           ].join(" ")}
@@ -272,14 +272,14 @@ function BehaviorAnalyticsRow({
   behavior: AnalyticsBehaviorSummary;
 }>) {
   return (
-    <article className="border-2 border-foreground bg-background p-5">
+    <article className="border border-line bg-background p-5">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="break-words text-xl font-bold leading-tight">
               {behavior.title}
             </h3>
-            <span className="border border-foreground bg-surface px-2 py-1 text-xs font-bold">
+            <span className="border border-line bg-surface px-2 py-1 text-xs font-bold">
               {behavior.categoryName}
             </span>
           </div>
@@ -328,8 +328,8 @@ function BehaviorHeatmapCell({
 function HeatmapLegend() {
   return (
     <ul className="flex flex-wrap gap-3 text-sm font-bold text-muted-readable">
-      <LegendItem label="Completed" className="border-foreground bg-primary" />
-      <LegendItem label="Not Completed" className="border-foreground bg-background" mark />
+      <LegendItem label="Completed" className="border-line bg-primary" />
+      <LegendItem label="Not Completed" className="border-line bg-background" mark />
       <LegendItem label="Unresolved" className="border-line bg-surface" />
     </ul>
   );

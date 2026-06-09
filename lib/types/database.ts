@@ -3,18 +3,21 @@ import type { Tables, TablesInsert, TablesUpdate } from "@/lib/db/database.types
 export type Profile = Tables<"profiles">;
 export type Category = Tables<"categories">;
 export type Behavior = Tables<"behaviors">;
+export type BehaviorScheduleSlot = Tables<"behavior_schedule_slots">;
 export type Occurrence = Tables<"occurrences">;
 export type ReminderDelivery = Tables<"reminder_deliveries">;
 export type PushSubscription = Tables<"push_subscriptions">;
 
 export type NewCategory = TablesInsert<"categories">;
 export type NewBehavior = TablesInsert<"behaviors">;
+export type NewBehaviorScheduleSlot = TablesInsert<"behavior_schedule_slots">;
 export type NewOccurrence = TablesInsert<"occurrences">;
 export type NewReminderDelivery = TablesInsert<"reminder_deliveries">;
 export type NewPushSubscription = TablesInsert<"push_subscriptions">;
 
 export type CategoryUpdate = TablesUpdate<"categories">;
 export type BehaviorUpdate = TablesUpdate<"behaviors">;
+export type BehaviorScheduleSlotUpdate = TablesUpdate<"behavior_schedule_slots">;
 export type OccurrenceUpdate = TablesUpdate<"occurrences">;
 export type ReminderDeliveryUpdate = TablesUpdate<"reminder_deliveries">;
 export type PushSubscriptionUpdate = TablesUpdate<"push_subscriptions">;

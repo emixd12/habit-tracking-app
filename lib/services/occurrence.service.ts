@@ -3,6 +3,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import {
   type AppSupabaseClient,
   type BehaviorWithCategory,
+  listBehaviorScheduleSlots,
   listUserBehaviors,
 } from "@/lib/db/behaviors.repo";
 import {
@@ -10,6 +11,7 @@ import {
   deleteUnresolvedOccurrencesById,
   getOccurrenceById,
   listBehaviorOccurrencesFrom,
+  updateUnresolvedOccurrenceScheduleById,
   updateOccurrenceById,
 } from "@/lib/db/occurrences.repo";
 import {
@@ -24,6 +26,7 @@ import {
   type StatusResolverOccurrence,
 } from "@/lib/resolvers/status.resolver";
 import { normalizeRecurrenceRule, normalizeScheduledTime } from "@/lib/services/behavior-form";
+import { compareScheduleSlots, toScheduleSlotView } from "@/lib/services/schedule";
 import {
   cancelReminderDeliveriesForResolvedOccurrence,
   syncReminderDeliveriesForBehavior,
@@ -36,6 +39,7 @@ import type {
   OccurrenceStatus,
   OccurrenceUpdate,
 } from "@/lib/types/database";
+import type { ScheduleKind, TimeRangePreset } from "@/lib/types/schedule";
 import type { OccurrenceActionState } from "@/lib/types/timeline";
 
 export type SyncBehaviorOccurrencesOptions = {
@@ -78,12 +82,17 @@ export async function syncBehaviorOccurrences(
     behavior.id,
     generationWindow.rangeStart.toString(),
   );
+  const scheduleSlots = await resolveBehaviorScheduleSlots(
+    supabase,
+    userId,
+    behavior,
+  );
   const plan = planOccurrenceGeneration({
     behavior: {
       id: behavior.id,
       userId,
       recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
-      scheduledTime: normalizeScheduledTime(behavior.scheduled_time),
+      scheduleSlots,
       timezone: behavior.timezone,
       active: behavior.active,
       createdAt: behavior.created_at,
@@ -94,6 +103,22 @@ export async function syncBehaviorOccurrences(
   });
 
   await createMissingOccurrences(supabase, plan.create.map(toNewOccurrence));
+  await Promise.all(
+    plan.updateUnresolved.map((occurrence) =>
+      updateUnresolvedOccurrenceScheduleById(supabase, {
+        userId,
+        occurrenceId: occurrence.id,
+        occurrence: {
+          behavior_schedule_slot_id: occurrence.scheduleSlotId,
+          schedule_kind: occurrence.scheduleKind,
+          schedule_preset: occurrence.schedulePreset,
+          schedule_start_time: occurrence.scheduleStartTime,
+          schedule_end_time: occurrence.scheduleEndTime,
+          local_date: occurrence.localDate,
+        },
+      }),
+    ),
+  );
   await deleteUnresolvedOccurrencesById(
     supabase,
     userId,
@@ -183,6 +208,13 @@ function toExistingOccurrenceForGeneration(
     scheduledFor: occurrence.scheduled_for,
     localDate: occurrence.local_date,
     status: normalizeOccurrenceStatus(occurrence.status),
+    scheduleSlotId: occurrence.behavior_schedule_slot_id,
+    scheduleKind: normalizeScheduleKind(occurrence.schedule_kind),
+    schedulePreset: normalizeSchedulePreset(occurrence.schedule_preset),
+    scheduleStartTime: normalizeScheduledTime(occurrence.schedule_start_time),
+    scheduleEndTime: occurrence.schedule_end_time
+      ? normalizeScheduledTime(occurrence.schedule_end_time)
+      : null,
   };
 }
 
@@ -192,6 +224,11 @@ function toNewOccurrence(occurrence: {
   scheduledFor: string;
   localDate: string;
   status: "unresolved";
+  scheduleSlotId: string | null;
+  scheduleKind: ScheduleKind;
+  schedulePreset: TimeRangePreset | null;
+  scheduleStartTime: string;
+  scheduleEndTime: string | null;
 }): NewOccurrence {
   return {
     user_id: occurrence.userId,
@@ -199,7 +236,88 @@ function toNewOccurrence(occurrence: {
     scheduled_for: occurrence.scheduledFor,
     local_date: occurrence.localDate,
     status: occurrence.status,
+    behavior_schedule_slot_id: occurrence.scheduleSlotId,
+    schedule_kind: occurrence.scheduleKind,
+    schedule_preset: occurrence.schedulePreset,
+    schedule_start_time: occurrence.scheduleStartTime,
+    schedule_end_time: occurrence.scheduleEndTime,
   };
+}
+
+async function resolveBehaviorScheduleSlots(
+  supabase: AppSupabaseClient,
+  userId: string,
+  behavior: Behavior | BehaviorWithCategory,
+): Promise<
+  Array<{
+    id: string | null;
+    kind: "exact" | "range";
+    preset: "morning" | "afternoon" | "evening" | "night" | null;
+    startTime: string;
+    endTime: string | null;
+    sortOrder: number;
+  }>
+> {
+  const scheduleSlots =
+    "schedule_slots" in behavior && Array.isArray(behavior.schedule_slots)
+      ? behavior.schedule_slots
+      : await listBehaviorScheduleSlots(supabase, userId, behavior.id);
+
+  if (scheduleSlots.length === 0) {
+    return [
+      {
+        id: null,
+        kind: "exact",
+        preset: null,
+        startTime: normalizeScheduledTime(behavior.scheduled_time),
+        endTime: null,
+        sortOrder: 0,
+      },
+    ];
+  }
+
+  return scheduleSlots
+    .map((slot) =>
+      toScheduleSlotView({
+        id: slot.id,
+        kind: normalizeScheduleKind(slot.kind),
+        preset: normalizeSchedulePreset(slot.preset),
+        startTime: slot.start_time,
+        endTime: slot.end_time,
+        sortOrder: slot.sort_order,
+      }),
+    )
+    .sort(compareScheduleSlots)
+    .map((slot) => ({
+      id: slot.id,
+      kind: slot.kind,
+      preset: slot.preset,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      sortOrder: slot.sortOrder,
+    }));
+}
+
+function normalizeScheduleKind(value: string): ScheduleKind {
+  if (value === "exact" || value === "range") {
+    return value;
+  }
+
+  throw new Error(`Unsupported schedule kind: ${value}.`);
+}
+
+function normalizeSchedulePreset(value: string | null): TimeRangePreset | null {
+  if (
+    value === null ||
+    value === "morning" ||
+    value === "afternoon" ||
+    value === "evening" ||
+    value === "night"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported schedule preset: ${value}.`);
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {

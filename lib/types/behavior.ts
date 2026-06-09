@@ -1,4 +1,5 @@
 import type { Weekday } from "@/lib/types/recurrence";
+import type { ScheduleSlotView } from "@/lib/types/schedule";
 
 export type CategoryOption = {
   id: string;
@@ -31,6 +32,8 @@ export type BehaviorView = {
   recurrenceDefaults: BehaviorRecurrenceFormDefaults;
   scheduledTime: string;
   scheduledTimeLabel: string;
+  scheduleSlots: ScheduleSlotView[];
+  scheduleSummary: string;
   timezone: string;
   browserReminderEnabled: boolean;
   emailReminderEnabled: boolean;
@@ -54,7 +57,7 @@ export type BehaviorFormField =
   | "title"
   | "description"
   | "category_id"
-  | "scheduled_time"
+  | "schedule"
   | "recurrence"
   | "reminders"
   | "active";

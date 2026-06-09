@@ -4,6 +4,7 @@ import {
   getProfileTimezone,
   listBehaviorCategories,
   listUserBehaviors,
+  replaceBehaviorScheduleSlots,
   updateBehavior,
   type AppSupabaseClient,
   type BehaviorWithCategory,
@@ -28,6 +29,12 @@ import {
   summarizeRecurrenceRule,
   summarizeReminders,
 } from "@/lib/services/behavior-form";
+import {
+  compareScheduleSlots,
+  formatScheduleSlotsSummary,
+  toScheduleSlotView,
+} from "@/lib/services/schedule";
+import type { ScheduleKind, TimeRangePreset } from "@/lib/types/schedule";
 
 export { behaviorErrorToActionState };
 
@@ -80,8 +87,22 @@ export async function createBehaviorFromFormData(
   };
 
   const createdBehavior = await createBehavior(supabase, behavior);
+  await replaceBehaviorScheduleSlots(supabase, {
+    userId,
+    behaviorId: createdBehavior.id,
+    slots: input.scheduleSlots.map(toBehaviorScheduleSlotMutation),
+  });
+  const behaviorWithSlots = await getBehaviorById(
+    supabase,
+    userId,
+    createdBehavior.id,
+  );
 
-  await syncBehaviorOccurrences(supabase, userId, createdBehavior);
+  if (!behaviorWithSlots) {
+    throw new Error("Behavior not found after saving schedule.");
+  }
+
+  await syncBehaviorOccurrences(supabase, userId, behaviorWithSlots);
 }
 
 export async function updateBehaviorFromFormData(
@@ -127,7 +148,23 @@ export async function updateBehaviorFromFormData(
     throw new Error("Behavior not found.");
   }
 
-  await syncBehaviorOccurrences(supabase, userId, updatedBehavior);
+  await replaceBehaviorScheduleSlots(supabase, {
+    userId,
+    behaviorId: updatedBehavior.id,
+    slots: input.scheduleSlots.map(toBehaviorScheduleSlotMutation),
+  });
+
+  const behaviorWithSlots = await getBehaviorById(
+    supabase,
+    userId,
+    updatedBehavior.id,
+  );
+
+  if (!behaviorWithSlots) {
+    throw new Error("Behavior not found after saving schedule.");
+  }
+
+  await syncBehaviorOccurrences(supabase, userId, behaviorWithSlots);
 }
 
 export async function archiveBehaviorFromFormData(
@@ -151,6 +188,31 @@ export async function archiveBehaviorFromFormData(
 function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {
   const recurrenceRule = normalizeRecurrenceRule(behavior.recurrence_rule);
   const scheduledTime = normalizeScheduledTime(behavior.scheduled_time);
+  const scheduledTimeLabel = formatScheduledTimeLabel(scheduledTime);
+  const scheduleSlots =
+    behavior.schedule_slots.length > 0
+      ? behavior.schedule_slots
+          .map((slot) =>
+            toScheduleSlotView({
+              id: slot.id,
+              kind: normalizeScheduleKind(slot.kind),
+              preset: normalizeSchedulePreset(slot.preset),
+              startTime: slot.start_time,
+              endTime: slot.end_time,
+              sortOrder: slot.sort_order,
+            }),
+          )
+          .sort(compareScheduleSlots)
+      : [
+          toScheduleSlotView({
+            id: `${behavior.id}-scheduled-time`,
+            kind: "exact",
+            preset: null,
+            startTime: scheduledTime,
+            endTime: null,
+            sortOrder: 0,
+          }),
+        ];
 
   return {
     id: behavior.id,
@@ -161,7 +223,9 @@ function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {
     recurrenceSummary: summarizeRecurrenceRule(recurrenceRule),
     recurrenceDefaults: recurrenceDefaultsFromRule(recurrenceRule),
     scheduledTime,
-    scheduledTimeLabel: formatScheduledTimeLabel(scheduledTime),
+    scheduledTimeLabel,
+    scheduleSlots,
+    scheduleSummary: formatScheduleSlotsSummary(scheduleSlots) || scheduledTimeLabel,
     timezone: behavior.timezone,
     browserReminderEnabled: behavior.browser_reminder_enabled,
     emailReminderEnabled: behavior.email_reminder_enabled,
@@ -176,6 +240,41 @@ function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {
     createdAt: behavior.created_at,
     updatedAt: behavior.updated_at,
   };
+}
+
+function toBehaviorScheduleSlotMutation(
+  slot: ReturnType<typeof parseBehaviorFormData>["scheduleSlots"][number],
+) {
+  return {
+    id: slot.id ?? undefined,
+    kind: slot.kind,
+    preset: slot.preset,
+    start_time: slot.startTime,
+    end_time: slot.endTime,
+    sort_order: slot.sortOrder,
+  };
+}
+
+function normalizeScheduleKind(value: string): ScheduleKind {
+  if (value === "exact" || value === "range") {
+    return value;
+  }
+
+  throw new Error(`Unsupported schedule kind: ${value}.`);
+}
+
+function normalizeSchedulePreset(value: string | null): TimeRangePreset | null {
+  if (
+    value === null ||
+    value === "morning" ||
+    value === "afternoon" ||
+    value === "evening" ||
+    value === "night"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported schedule preset: ${value}.`);
 }
 
 function toCategoryOption(category: { id: string; name: string }): CategoryOption {

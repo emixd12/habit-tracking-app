@@ -45,6 +45,17 @@ function behavior(
       interval: 1,
     },
     scheduledTime: "22:00",
+    scheduleSlots: [
+      {
+        id: "slot-brush",
+        kind: "exact",
+        preset: null,
+        startTime: "22:00",
+        endTime: null,
+        sortOrder: 0,
+        label: "10:00 PM",
+      },
+    ],
     timezone: DEFAULT_TIMEZONE,
     browserReminderEnabled: true,
     emailReminderEnabled: false,
@@ -64,6 +75,11 @@ function occurrence(
   return {
     behaviorId: "behavior-brush",
     scheduledFor: "2026-06-08T13:00:00Z",
+    scheduledTimeLabel: "9:00 AM",
+    scheduleKind: "exact",
+    schedulePreset: null,
+    scheduleStartTime: "09:00",
+    scheduleEndTime: null,
     localDate: "2026-06-08",
     status: "done",
     completedAt: "2026-06-08T13:05:00Z",
@@ -145,12 +161,21 @@ describe("resolveExportBundle", () => {
         frequency: "daily",
         interval: 1,
       },
+      schedule_slots: [
+        expect.objectContaining({
+          kind: "exact",
+          startTime: "22:00",
+          label: "10:00 PM",
+        }),
+      ],
     });
     expect(records[3]).toMatchObject({
       type: "occurrence",
       behavior_title: "Brush teeth",
       local_date: "2026-06-08",
       scheduled_for: "2026-06-08T09:00:00-04:00",
+      schedule: "9:00 AM",
+      schedule_kind: "exact",
       status: "done",
       note: null,
     });
@@ -175,9 +200,56 @@ describe("resolveExportBundle", () => {
 
     expect(bundle.csv).toBe(
       [
-        "local_date,scheduled_for,behavior_title,category,status,status_marked_at,note",
-        '2026-06-08,2026-06-08T09:00:00-04:00,"Brush, ""teeth""","Grooming\nCare",done,2026-06-08T09:05:00-04:00,"Line one\nLine ""two"", more"',
+        "local_date,scheduled_for,schedule,behavior_title,category,status,status_marked_at,note",
+        '2026-06-08,2026-06-08T09:00:00-04:00,9:00 AM,"Brush, ""teeth""","Grooming\nCare",done,2026-06-08T09:05:00-04:00,"Line one\nLine ""two"", more"',
       ].join("\n"),
+    );
+  });
+
+  it("exports preset time range labels and snapshots", () => {
+    const bundle = resolve({
+      behaviors: [
+        behavior({
+          id: "behavior-stretch",
+          title: "Stretch",
+          scheduledTime: "06:00",
+          scheduleSlots: [
+            {
+              id: "slot-morning",
+              kind: "range",
+              preset: "morning",
+              startTime: "06:00",
+              endTime: "12:00",
+              sortOrder: 0,
+              label: "Morning (6:00 AM-Noon)",
+            },
+          ],
+        }),
+      ],
+      occurrences: [
+        occurrence({
+          id: "range-row",
+          behaviorId: "behavior-stretch",
+          scheduledFor: "2026-06-08T10:00:00Z",
+          scheduledTimeLabel: "Morning (6:00 AM-Noon)",
+          scheduleKind: "range",
+          schedulePreset: "morning",
+          scheduleStartTime: "06:00",
+          scheduleEndTime: "12:00",
+        }),
+      ],
+    });
+    const occurrenceRecord = bundle.jsonBackup.occurrences[0];
+
+    expect(occurrenceRecord).toMatchObject({
+      schedule: "Morning (6:00 AM-Noon)",
+      schedule_kind: "range",
+      schedule_preset: "morning",
+      schedule_start_time: "06:00",
+      schedule_end_time: "12:00",
+    });
+    expect(bundle.csv).toContain(
+      "Morning (6:00 AM-Noon),Stretch,Grooming,done",
     );
   });
 
@@ -209,6 +281,7 @@ describe("resolveExportBundle", () => {
         {
           id: "occurrence-1",
           behavior_title: "Brush teeth",
+          schedule: "9:00 AM",
           note: null,
         },
       ],

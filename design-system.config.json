@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "bench": {
+    "file": "app/design-system/page.tsx",
+    "path": "app/design-system"
+  },
+  "aliases": {
+    "@/": "./"
+  },
+  "themes": {
+    "support": "none",
+    "requiredWhenDetected": false
+  },
+  "manualMappings": [
+    {
+      "componentId": "navigation.primary-app-nav",
+      "file": "components/layout/AppShell.tsx",
+      "line": 107,
+      "route": "app shell",
+      "usageKind": "render",
+      "confidence": "manual"
+    }
+  ]
+}

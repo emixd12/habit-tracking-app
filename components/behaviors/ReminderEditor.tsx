@@ -6,7 +6,7 @@ type ReminderEditorProps = Readonly<{
 }>;
 
 const REMINDER_OFFSETS = [
-  { value: 0, label: "At scheduled time" },
+  { value: 0, label: "At scheduled start" },
   { value: 15, label: "15 minutes before" },
   { value: 60, label: "1 hour before" },
   { value: 1440, label: "1 day before" },
@@ -20,11 +20,11 @@ export function ReminderEditor({
   error,
 }: ReminderEditorProps) {
   return (
-    <fieldset className="grid gap-4 border-2 border-foreground p-4">
-      <legend className="px-2 text-sm font-bold">Reminders</legend>
+    <fieldset className="grid gap-4 border-0 p-0">
+      <legend className="mb-1 text-base font-bold">Reminders</legend>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex min-h-12 items-center gap-3 border-2 border-foreground bg-background px-3 py-2 text-sm font-bold hover:bg-surface">
+        <label className="flex min-h-12 items-center gap-3 border border-line bg-background px-3 py-2 text-sm font-bold hover:bg-surface">
           <input
             type="checkbox"
             name="browser_reminder"
@@ -34,7 +34,7 @@ export function ReminderEditor({
           Browser reminder
         </label>
 
-        <label className="flex min-h-12 items-center gap-3 border-2 border-foreground bg-background px-3 py-2 text-sm font-bold hover:bg-surface">
+        <label className="flex min-h-12 items-center gap-3 border border-line bg-background px-3 py-2 text-sm font-bold hover:bg-surface">
           <input
             type="checkbox"
             name="email_reminder"
@@ -45,12 +45,14 @@ export function ReminderEditor({
         </label>
       </div>
 
-      <label className="grid gap-2 text-sm font-bold">
-        <span>Reminder offset</span>
+      <label className="grid gap-2">
+        <span className="text-xs font-bold text-muted-readable">
+          Reminder offset
+        </span>
         <select
           name="reminder_offset"
           defaultValue={reminderOffsetMinutes}
-          className="min-h-11 border-2 border-foreground bg-background px-3 py-2 text-base font-normal text-foreground"
+          className="min-h-11 border border-line bg-background px-3 py-2 text-base font-normal text-foreground"
         >
           {REMINDER_OFFSETS.map((offset) => (
             <option key={offset.value} value={offset.value}>
@@ -61,7 +63,7 @@ export function ReminderEditor({
       </label>
 
       {error ? (
-        <p className="border-2 border-accent p-3 text-sm leading-6 text-accent">
+        <p className="border border-line p-3 text-sm leading-6 text-accent">
           {error}
         </p>
       ) : null}

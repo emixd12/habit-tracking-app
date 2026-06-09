@@ -43,7 +43,7 @@ export function MarkdownSummaryActions({
       <button
         type="button"
         onClick={handleCopy}
-        className="inline-flex min-h-11 items-center justify-center gap-2 border-2 border-foreground bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-surface"
+        className="inline-flex min-h-11 items-center justify-center gap-2 border border-line bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-surface"
       >
         <Clipboard aria-hidden="true" size={18} strokeWidth={2} />
         Copy summary
@@ -51,7 +51,7 @@ export function MarkdownSummaryActions({
       <button
         type="button"
         onClick={handleDownload}
-        className="inline-flex min-h-11 items-center justify-center gap-2 border-2 border-foreground bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground"
+        className="inline-flex min-h-11 items-center justify-center gap-2 border border-line bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground"
       >
         <Download aria-hidden="true" size={18} strokeWidth={2} />
         Download .md

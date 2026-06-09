@@ -34,8 +34,8 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
   const [kind, setKind] = useState(defaults.kind);
 
   return (
-    <fieldset className="grid gap-4 border-2 border-foreground p-4">
-      <legend className="px-2 text-sm font-bold">Recurrence</legend>
+    <fieldset className="grid gap-4 border-0 p-0">
+      <legend className="mb-1 text-base font-bold">Recurrence</legend>
 
       <div className="grid gap-2 sm:grid-cols-4" role="radiogroup">
         {PRESETS.map((preset) => {
@@ -45,10 +45,10 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
             <label
               key={preset.value}
               className={[
-                "flex min-h-11 items-center justify-center border-2 px-3 py-2 text-center text-sm font-bold transition-colors",
+                "flex min-h-11 items-center justify-center border px-3 py-2 text-center text-sm font-bold transition-colors",
                 isSelected
-                  ? "border-foreground bg-primary text-primary-foreground"
-                  : "border-foreground bg-background text-foreground hover:bg-surface",
+                  ? "border-line bg-primary text-primary-foreground"
+                  : "border-line bg-background text-foreground hover:bg-surface",
               ].join(" ")}
             >
               <input
@@ -92,12 +92,12 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
             suffix="week(s)"
           />
           <div className="grid gap-2">
-            <span className="text-sm font-bold">On</span>
+            <span className="text-xs font-bold text-muted-readable">On</span>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
               {WEEKDAY_OPTIONS.map((weekday) => (
                 <label
                   key={weekday.value}
-                  className="flex min-h-11 items-center gap-2 border-2 border-foreground bg-background px-3 py-2 text-sm font-bold hover:bg-surface"
+                  className="flex min-h-11 items-center gap-2 border border-line bg-background px-3 py-2 text-sm font-bold hover:bg-surface"
                 >
                   <input
                     type="checkbox"
@@ -132,7 +132,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
       ) : null}
 
       {error ? (
-        <p className="border-2 border-accent p-3 text-sm leading-6 text-accent">
+        <p className="border border-line p-3 text-sm leading-6 text-accent">
           {error}
         </p>
       ) : null}
@@ -154,8 +154,8 @@ function NumberField({
   max?: number;
 }>) {
   return (
-    <label className="grid gap-2 text-sm font-bold">
-      <span>{label}</span>
+    <label className="grid gap-2">
+      <span className="text-xs font-bold text-muted-readable">{label}</span>
       <span className="flex items-center gap-3">
         <input
           type="number"
@@ -164,7 +164,7 @@ function NumberField({
           min={1}
           max={max}
           step={1}
-          className="min-h-11 w-28 border-2 border-foreground bg-background px-3 py-2 text-base font-normal text-foreground"
+          className="min-h-11 w-28 border border-line bg-background px-3 py-2 text-base font-normal text-foreground"
         />
         {suffix ? (
           <span className="text-sm font-normal text-muted-readable">{suffix}</span>

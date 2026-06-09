@@ -1,4 +1,9 @@
 import type { RecurrenceRule } from "@/lib/types/recurrence";
+import type {
+  ScheduleKind,
+  ScheduleSlotView,
+  TimeRangePreset,
+} from "@/lib/types/schedule";
 
 export type ExportOccurrenceStatus = "unresolved" | "done" | "not_done";
 
@@ -29,6 +34,7 @@ export type ExportBehaviorInput = {
   description: string | null;
   recurrenceRule: RecurrenceRule;
   scheduledTime: string;
+  scheduleSlots: ScheduleSlotView[];
   timezone: string;
   browserReminderEnabled: boolean;
   emailReminderEnabled: boolean;
@@ -43,6 +49,11 @@ export type ExportOccurrenceInput = {
   id: string;
   behaviorId: string;
   scheduledFor: string;
+  scheduledTimeLabel: string;
+  scheduleKind: ScheduleKind;
+  schedulePreset: TimeRangePreset | null;
+  scheduleStartTime: string;
+  scheduleEndTime: string | null;
   localDate: string;
   status: ExportOccurrenceStatus;
   completedAt: string | null;
@@ -94,6 +105,7 @@ export type ExportJsonBehavior = {
   description: string | null;
   recurrence_rule: RecurrenceRule;
   scheduled_time: string;
+  schedule_slots: ScheduleSlotView[];
   timezone: string;
   browser_reminder_enabled: boolean;
   email_reminder_enabled: boolean;
@@ -110,6 +122,11 @@ export type ExportJsonOccurrence = {
   behavior_title: string;
   category: string | null;
   scheduled_for: string;
+  schedule: string;
+  schedule_kind: ScheduleKind;
+  schedule_preset: TimeRangePreset | null;
+  schedule_start_time: string;
+  schedule_end_time: string | null;
   local_date: string;
   status: ExportOccurrenceStatus;
   completed_at: string | null;

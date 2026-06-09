@@ -319,6 +319,8 @@ If a command does not exist yet, either add it or state clearly that it is not a
 
 The interface should be sparse.
 
+When changing reusable UI, design tokens, component inventories, templates, navigation, layout shells, or design-system pages, invoke the design-system-bench skill.
+
 Occurrence rows should expose:
 - Completed
 - Not Completed

@@ -9,11 +9,17 @@ This file keeps route names stable across agents. Add routes here before or duri
 | `/` | implemented | Auth-aware entry route | Redirects authenticated users to `/timeline` and unauthenticated users to `/login`. |
 | `/login` | implemented | Google sign-in screen | Uses Supabase OAuth and returns through `/auth/callback`. |
 | `/auth/callback` | implemented | Supabase OAuth code exchange route | Exchanges the OAuth code for a cookie-backed Supabase session and redirects to a sanitized local `next` path. |
-| `/timeline` | implemented, protected | Primary screen for today's occurrences, prior unresolved Needs decision items, and future preview | This is the main screen. |
+| `/timeline` | implemented, protected | Primary screen for today's occurrences, a floating Needs decision modal for prior unresolved items, and future preview | This is the main screen. |
 | `/behaviors` | implemented, protected | Behavior and category management | Keep CRUD simple. |
 | `/analytics` | implemented, protected | Basic completion counts, adherence, heatmaps, and selected-day Not Completed inspection | No gamified streak language. |
 | `/export` | implemented, protected | JSONL, CSV, full JSON backup, and Markdown AI-readable summary export | Export logic belongs in `export.resolver.ts`; the page supports range and archived-behavior options. |
 | `/settings` | implemented, protected | Profile, timezone, and browser notification permission/subscription settings | Browser notification permission is requested here; category editing and any global email settings remain future Settings work. |
+
+## Internal development routes
+
+| Route | Status | Purpose | Notes |
+|---|---|---|---|
+| `/design-system` | implemented, local/dev-only | Internal design-system bench for fixture-backed UI inspection and traceability | Not in primary navigation, not protected product UI, disabled with `notFound()` in production builds, and excluded from product usage scans. |
 
 ## Auth route protection
 

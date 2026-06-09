@@ -68,10 +68,12 @@ describe("resolveTimeline", () => {
       id: "prior-unresolved",
       visualTone: "needs_decision",
       showDecisionActions: true,
+      showCollapsedStatusLabel: false,
     });
     expect(timeline.daySections[0]?.occurrences[0]).toMatchObject({
       id: "current-unresolved",
       showDecisionActions: true,
+      showCollapsedStatusLabel: false,
     });
   });
 
@@ -129,6 +131,62 @@ describe("resolveTimeline", () => {
     ]);
   });
 
+  it("groups same-day occurrences from the same behavior into a stack", () => {
+    const timeline = resolveTimeline({
+      now: NOW_BEFORE_LOCAL_MIDNIGHT,
+      timezone: DEFAULT_TIMEZONE,
+      futureDays: 0,
+      occurrences: [
+        occurrence({
+          id: "stretch-evening",
+          behaviorId: "stretch",
+          title: "Stretch",
+          scheduledFor: "2026-06-07T22:00:00Z",
+          scheduledTimeLabel: "Evening (6:00 PM-Midnight)",
+          status: "done",
+        }),
+        occurrence({
+          id: "walk",
+          behaviorId: "walk",
+          title: "Walk",
+          scheduledFor: "2026-06-07T16:00:00Z",
+          scheduledTimeLabel: "12:00 PM",
+          status: "unresolved",
+        }),
+        occurrence({
+          id: "stretch-morning",
+          behaviorId: "stretch",
+          title: "Stretch",
+          scheduledFor: "2026-06-07T10:00:00Z",
+          scheduledTimeLabel: "Morning (6:00 AM-Noon)",
+          status: "not_done",
+        }),
+      ],
+    });
+
+    expect(
+      timeline.daySections[0]?.occurrenceGroups.map((group) => ({
+        behaviorId: group.behaviorId,
+        isGroupedStack: group.isGroupedStack,
+        occurrenceIds: group.occurrences.map((item) => item.id),
+        tones: group.occurrences.map((item) => item.visualTone),
+      })),
+    ).toEqual([
+      {
+        behaviorId: "stretch",
+        isGroupedStack: true,
+        occurrenceIds: ["stretch-morning", "stretch-evening"],
+        tones: ["not_done", "done"],
+      },
+      {
+        behaviorId: "walk",
+        isGroupedStack: false,
+        occurrenceIds: ["walk"],
+        tones: ["default"],
+      },
+    ]);
+  });
+
   it("keeps resolved current-day occurrences visible with distinct resolved state", () => {
     const timeline = resolveTimeline({
       now: NOW_BEFORE_LOCAL_MIDNIGHT,
@@ -155,6 +213,7 @@ describe("resolveTimeline", () => {
         statusDetail: "Resolved as Completed",
         visualTone: "done",
         showDecisionActions: false,
+        showCollapsedStatusLabel: true,
       },
       {
         id: "not-completed",
@@ -162,6 +221,7 @@ describe("resolveTimeline", () => {
         statusDetail: "Resolved as Not Completed",
         visualTone: "not_done",
         showDecisionActions: false,
+        showCollapsedStatusLabel: true,
       },
     ]);
   });

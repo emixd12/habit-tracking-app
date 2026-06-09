@@ -58,7 +58,7 @@ Current evidence:
 - A pure Temporal-based recurrence resolver exists in `lib/resolvers/recurrence.resolver.ts`, with recurrence domain types in `lib/types/recurrence.ts` and paired tests in `tests/recurrence.resolver.test.ts`.
 - Behavior CRUD exists on `/behaviors` with server actions, service/repository access through the authenticated Supabase user, category selection, recurrence editing, scheduled time, browser/email reminder settings, active/archive handling, and active/archived lists.
 - Occurrence generation exists in `lib/resolvers/occurrence.resolver.ts`, `lib/services/occurrence.service.ts`, and `lib/db/occurrences.repo.ts`. Behavior create/edit/archive now syncs a rolling today + 30 day occurrence window, inserts missing rows idempotently, removes stale future unresolved rows, and preserves past or resolved occurrence history.
-- Timeline grouping exists in `lib/resolvers/timeline.resolver.ts`, `lib/services/timeline.service.ts`, and `/timeline`. The page syncs missing occurrences before rendering, shows Needs decision for prior unresolved active-behavior occurrences, starts the forward timeline at the current local day, shows the next 7 days by default, and can expand future visibility up to the generated 30-day horizon.
+- Timeline grouping exists in `lib/resolvers/timeline.resolver.ts`, `lib/services/timeline.service.ts`, and `/timeline`. The page syncs missing occurrences before rendering, surfaces Needs decision for prior unresolved active-behavior occurrences through a floating lower-right button and modal, starts the forward timeline at the current local day, shows the next 7 days by default, and can expand future visibility up to the generated 30-day horizon.
 - Status marking and note editing exists in `lib/resolvers/status.resolver.ts`, `lib/services/occurrence.service.ts`, `app/(app)/timeline/actions.ts`, and Timeline row controls. Completed and Not Completed actions update `status_marked_at`; Completed also sets `completed_at`; switching away from Completed clears `completed_at`; note-only edits preserve status timestamps.
 - Browser push subscription storage exists at `app/api/push/subscribe/route.ts`, `lib/services/push-subscription.service.ts`, and `lib/db/pushSubscriptions.repo.ts`; subscription registration validates endpoint/key shape and stores active subscriptions through the authenticated Supabase user context.
 - Reminder delivery planning exists in `lib/resolvers/reminder.resolver.ts`, `lib/services/reminder.service.ts`, and `lib/db/reminderDeliveries.repo.ts`. Occurrence sync now creates missing pending reminder deliveries idempotently from behavior reminder settings, including browser reminders enabled by default, and status resolution cancels pending deliveries for resolved occurrences.
@@ -69,8 +69,9 @@ Current evidence:
 - A minimal `public/push-service-worker.js` displays received push payloads and opens same-origin app URLs, defaulting to `/timeline`. It does not implement PWA install, route caching, background sync, offline writes, or offline mutation.
 - Supabase and Sequenzy CLIs are installed as dev dependencies and exposed through `npm run supabase -- ...` and `npm run sequenzy -- ...`.
 - Agent operations docs now include Supabase CLI workflow, Sequenzy CLI workflow, date/time strategy, route map, and deterministic drift checks.
-- The v1 feature ticket sequence is complete through Ticket 012. Ticket 013 Vercel production hardening is implemented locally but blocked from completion until production environment variables are configured and the Ticket 013 worktree is deployed.
-- Vercel plugin inspection found existing project `cadence` under team `Emi's projects`, connected to GitHub repo `emixd12/habit-tracking-app` on `main`. The latest observed production deployment is ready at `cadence-7w4gsw2pt-emis-projects-4c886aeb.vercel.app`, with canonical public alias `https://cadence-blush-three.vercel.app`, and points at commit `64fa1045492b8f0fc3a89babd470a043174b5227` (`Update docs for completed analytics, export, and Vercel deployment`). Production currently lacks Supabase public runtime config and `REMINDER_PROCESS_SECRET`, so Google login, authenticated QA, and reminder processing are blocked.
+- A local/dev-only design-system bench exists at `/design-system`, backed by `design-system.config.json`, `design-system.manifest.json`, `design-system.usage.json`, and `npm run design-system:check`. It renders fixture-backed existing UI only, is not in primary navigation, is disabled in production builds, and is excluded from design-system inventory/product usage scans.
+- The v1 feature ticket sequence is complete through Ticket 012. Ticket 013 Vercel production hardening is deployed and authenticated production smoke QA now passes for Google login, Behavior create/archive, Timeline occurrence generation, status changes, notes, Settings render, Analytics render, and Export page/link rendering. Completion remains blocked only on production reminder processing execution verification and browser push subscription verification in a browser where notifications are not blocked.
+- Vercel plugin inspection found existing project `cadence` under team `Emi's projects`, connected to GitHub repo `emixd12/habit-tracking-app` on `main`. The latest observed production deployment is ready at `cadence-r3j8s5nvu-emis-projects-4c886aeb.vercel.app`, with canonical public alias `https://cadence-blush-three.vercel.app`, and points at commit `5492863e00f77d89a5cea487d2513845cb1fd096` (`Harden Vercel cron reminders`). Production public Supabase config is present, `/login` renders without the missing-config warning, Google OAuth returns to the canonical production domain, and `/api/reminders/process` supports Vercel Cron `GET` with secret protection.
 - Project-local design workflow files exist under `.agents/skills/impeccable/` and should be used for UI/design work after the scaffold exists.
 
 ## Agent operations update
@@ -106,12 +107,277 @@ Supabase is initialized for local development. Ticket 003 added the first produc
 | 010: Email reminders | complete | Added a `processing_started_at` claim migration and regenerated Supabase types; extended the existing reminder repository/service to list, claim, cancel, mark sent, and mark failed due email deliveries; added a server-only Sequenzy transactional template adapter; added protected `POST /api/reminders/process`; stale pending email deliveries are cancelled when the behavior is inactive, email reminders are disabled, the occurrence is resolved, or the current resolver-planned offset no longer matches. Runtime uses `SUPABASE_SERVICE_ROLE_KEY`, `REMINDER_PROCESS_SECRET`, `SEQUENZY_API_KEY`, and `SEQUENZY_REMINDER_TEMPLATE_SLUG` only on the server side. Provider setup uses transactional slug `habit-reminder`, and local `.env.local` sets `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`. Hosted Supabase migration `20260608011000_add_reminder_delivery_processing_claim.sql` has been pushed. | Pass: `npm run supabase -- db reset`; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`; Pass: `npm run test -- tests/reminder.resolver.test.ts tests/reminder.service.test.ts tests/reminder-process-route.test.ts tests/sequenzy.service.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `npm run sequenzy -- whoami` with `.env.local` loaded; Pass: `npm run sequenzy -- transactional get habit-reminder --json`; Pass: one user-approved test send to `emibache@gmail.com`; Pass: `npm run supabase -- db push --linked --yes`; Pass: `npm run supabase -- migration list --linked` shows local and remote `20260608011000`. | Start Ticket 011: Analytics. Set `REMINDER_PROCESS_SECRET` in the deployed/server runtime before scheduling calls to `/api/reminders/process`; do not expose it to the browser. |
 | 011: Analytics | complete | Added pure analytics resolver/types/tests; added analytics service orchestration over existing behavior and occurrence repositories; replaced `/analytics` with a sparse server-rendered screen containing overall adherence, 7/30/90 range links, an overall calendar heatmap, selected-day Not Completed inspection, per-behavior counts and heatmaps, and compact category counts. Updated `docs/ROUTE_MAP.md` and `DESIGN.md` from the implemented screen. | Pass: `npx vitest run tests/analytics.resolver.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: in-app browser `/analytics` redirected unauthenticated session to `/login?next=%2Fanalytics` at 1280px and 390px with no horizontal overflow and no console errors. Authenticated Analytics visual QA was not possible because the in-app browser did not have a Supabase session. | Start Ticket 012: Export. No Ticket 011 blockers. |
 | 012: Export | complete | Added pure export resolver/types/tests; added export service orchestration over categories, behaviors, occurrences, and profile timezone; added `/api/export/jsonl`, `/api/export/csv`, and `/api/export/json` download routes; replaced `/export` placeholder with range options, Include archived behaviors, download actions, and Markdown AI summary copy/download controls. JSONL emits category, behavior, and occurrence records one per line; CSV uses the documented occurrence columns with escaping; full JSON backup includes `exported_at`, profile timezone, categories, behaviors, and occurrences; Markdown adherence excludes unresolved occurrences. Updated `docs/ROUTE_MAP.md` and `DESIGN.md` from the implemented screen. | Pass: `npx vitest run tests/export.resolver.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: authenticated in-app browser `/export` rendered at 1280px and 390px with no horizontal overflow, no console warnings/errors, expected download links, and all-time plus archived query option state preserved. | No Ticket 012 blockers. Future restore/import history remains out of scope unless product docs change. |
-| 013: Vercel production deployment | blocked | Added `vercel.json` with hourly Vercel Cron for `/api/reminders/process`; updated the route to support Vercel Cron `GET` plus existing protected manual `POST`; added `CRON_SECRET` support alongside `REMINDER_PROCESS_SECRET`; documented Vercel workflow, env ownership, Supabase Auth redirects, smoke QA, and rollback path in `docs/VERCEL_WORKFLOW.md`; updated operations/route/notification docs and `.env.example`. Vercel inspection confirms existing project `cadence` under `Emi's projects`, connected to `emixd12/habit-tracking-app` on `main`; latest production deployment `dpl_3t9JNdQxUEZsR5MnYpVumE4Tc4aJ` is ready at commit `64fa1045492b8f0fc3a89babd470a043174b5227`. | Pass: `npm run test -- tests/reminder-process-route.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `./node_modules/.bin/tsc --noEmit` after preserving the pre-existing local `next-env.d.ts` edit. Vercel build log inspection passed with deployment ready; build logs show root entrypoint `.`, `npm run build`, Next.js 16.2.7, Node runtime `24.x`, and only npm peer warnings from `react-reconciler`/`ink`. Production smoke: canonical `/login` returns 200; protected routes redirect to `/login?...error=missing_supabase_config`; current deployed `/api/reminders/process` returns POST 503 with wrong secret and GET 405 because Ticket 013 local changes are not deployed yet. Runtime logs confirm those 503/405 events. | Blocked: production Vercel env vars are not configured, at minimum `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `REMINDER_PROCESS_SECRET`, and `CRON_SECRET`; local `.env.local` has the app values except `CRON_SECRET`, but there is no local `VERCEL_TOKEN`/CLI auth and the Vercel MCP available here cannot write environment variables. After env setup, set `CRON_SECRET` to the same value as `REMINDER_PROCESS_SECRET`, deploy the Ticket 013 worktree, configure Supabase Auth redirect `https://cadence-blush-three.vercel.app/auth/callback`, then rerun authenticated production smoke, reminder processing QA with an approved email-send plan, and browser push QA. |
+| 013: Vercel production deployment | blocked | Added `vercel.json` with hourly Vercel Cron for `/api/reminders/process`; updated the route to support Vercel Cron `GET` plus existing protected manual `POST`; added `CRON_SECRET` support alongside `REMINDER_PROCESS_SECRET`; documented Vercel workflow, env ownership, Supabase Auth redirects, smoke QA, and rollback path in `docs/VERCEL_WORKFLOW.md`; updated operations/route/notification docs and `.env.example`. Vercel inspection confirms existing project `cadence` under `Emi's projects`, connected to `emixd12/habit-tracking-app` on `main`; latest production deployment `dpl_9d95kTrK9ArzgqeGC1W41f9Gcbr4` is ready at commit `5492863e00f77d89a5cea487d2513845cb1fd096`. | Pass: `npm run test -- tests/reminder-process-route.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `./node_modules/.bin/tsc --noEmit` after preserving the pre-existing local `next-env.d.ts` edit. Vercel build log inspection passed with deployment ready; build logs show root entrypoint `.`, `npm run build`, Next.js 16.2.7, Node runtime `24.x`, and only npm peer warnings from `react-reconciler`/`ink`. Production smoke after env/deploy update: canonical `/login` returns 200 with no missing Supabase config warning; protected routes redirect unauthenticated users to `/login?next=...`; `/api/reminders/process` returns 401 for a wrong bearer secret on `GET`; desktop and 390px mobile login render with no horizontal overflow and no browser console warnings/errors. Authenticated production QA passed after Supabase Site URL correction: Google OAuth returns to `https://cadence-blush-three.vercel.app/timeline`; created `Ticket 013 QA 20260608180323`; Timeline generated current and future occurrences; current occurrence was marked Completed, changed to Not Completed, and saved note `Ticket 013 production QA note 20260608180323`; Analytics rendered the Not Completed occurrence and note; Export page rendered JSONL/CSV/full JSON links and AI summary for the QA occurrence; Settings rendered profile email, `America/New_York`, notification permission `Blocked`, and browser push `Available`; QA behavior was archived and no active behaviors remain. Production runtime logs during QA show 200s for authenticated app routes, 401 for wrong reminder secret, and no error/fatal/warning logs. | Remaining blockers: a real production reminder-processing run is not verified because this environment does not have `REMINDER_PROCESS_SECRET`/`CRON_SECRET`; no scheduled `/api/reminders/process` invocation was observed around the 18:00 UTC hourly boundary, so confirm Vercel Cron is active for the account/plan or run a safe manual `POST` with the real bearer secret and `limit=1`. Do not send real emails unless an approved test recipient is expected. Browser push subscription could not be completed because the in-app browser's notification permission is `Blocked`; retry in a browser/profile where notifications are allowed. Actual file download events could not be verified because Codex in-app browser does not support downloads, but the authenticated Export page and link targets rendered correctly. |
+
+## Post-ticket refinements
+
+### Behavior schedule slots
+
+Status: complete.
+
+Implementation summary:
+- Added exact-time and preset time-range schedule slots for behaviors, including multiple slots per behavior.
+- Added migration `20260609202707_add_behavior_schedule_slots.sql` with `behavior_schedule_slots`, occurrence schedule snapshot fields, RLS policies, and backfill from existing `behaviors.scheduled_time`.
+- Updated behavior form parsing/UI, behavior repositories/services, occurrence generation, reminder email variables, Timeline grouping, analytics labels, export formats, generated database types, docs, and tests.
+- Timeline grouping keeps each scheduled time/range as its own occurrence row, avoids progress-fill grouped rows, avoids "1 of 2 completed" labels, and keeps partial completion as a derived visual result only.
+
+Verification:
+- Pass: `npm run supabase -- db reset`
+- Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`
+- Pass: `npm run test -- tests/behavior-form.test.ts tests/occurrence.resolver.test.ts tests/timeline.resolver.test.ts tests/analytics.resolver.test.ts tests/export.resolver.test.ts tests/reminder.resolver.test.ts tests/reminder.service.test.ts`
+- Pass: `npm run typecheck`
+- Pass: `npm run design-system:check`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_inventory.py --root . --out /tmp/cadence-design-system.manifest.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Browser QA: `/design-system` desktop fixture render shows the new schedule editor, range cues, grouped Timeline range rows, no "1 of 2 completed" label, no horizontal overflow, and no bench-specific warning/error logs observed beyond the earlier authenticated route error already noted below.
+- Browser QA: `/design-system` at 390px width shows the new schedule editor, range cues, grouped Timeline range rows, no "1 of 2 completed" label, and no horizontal overflow.
+
+Remaining risk:
+- Authenticated `/behaviors` and `/timeline` render against the configured hosted Supabase database will fail until the new migration is deployed to hosted Supabase. Hosted `db push` was not run because it requires explicit user authorization.
+
+### Timeline Needs decision modal
+
+Status: complete.
+
+Implementation summary:
+- Replaced the inline Needs decision section on `/timeline` with a fixed lower-right Needs decision button and modal.
+- The button shows the current prior-unresolved occurrence count and uses the primary visual treatment when there are decisions pending.
+- The modal renders the same resolver-produced Needs decision day groups and occurrence rows, preserving Completed, Not Completed, and Note actions without duplicating timeline grouping logic.
+- Updated `docs/PRODUCT_SPEC.md`, `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, `docs/ROUTE_MAP.md`, and `DESIGN.md` so the source of truth matches the modal-based interaction.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Browser QA: authenticated in-app browser `/timeline` desktop render shows no inline Needs decision section, shows the fixed lower-right count button, and reports no console warnings or errors.
+- Browser QA: authenticated in-app browser `/timeline` at 390px width has no horizontal overflow, no inline Needs decision section, and the fixed count button remains within the viewport.
+
+Remaining risk:
+- The active browser-comment overlay in the in-app browser inserted `#codex-browser-sidebar-comments-root` above the page with pointer events enabled. This blocked click/key event delivery for all client toggles tested, including the existing mobile navigation button, so modal open/close interaction could not be verified in that annotated browser surface.
+
+### Design system bench adoption
+
+Status: complete.
+
+Implementation summary:
+- Added a local/dev-only `/design-system` bench route that renders existing product UI components with static fixture data. The route is outside primary navigation, calls no Supabase services, and returns `notFound()` in production builds.
+- Added required foundation and primitive sections for typography, font scale, color, spacing, radius, border, shadow, motion, and common product control patterns.
+- Added trace cards for 18 tracked UI entries, including the app shell, screen frame, primary navigation registry, login button, Timeline, Behaviors, Analytics, Export, Settings, and supporting Timeline/Behavior/Export modules.
+- Added `design-system.config.json`, `design-system.manifest.json`, `design-system.usage.json`, and `scripts/check-design-system.mjs`; `npm run design-system:check` is separate from the existing required checks.
+- Added the short `design-system-bench` routing hook to `AGENTS.md` and documented the internal route in `docs/ROUTE_MAP.md`.
+
+Verification:
+- Pass: `npm run design-system:check`
+- Pass: post-bench temporary inventory and usage rescans; `app/design-system` did not enter inventory or product usage, and usage summary stayed at 25 product usages / 0 bench previews.
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Browser QA: `http://localhost:3000/design-system` desktop render showed 18 trace cards, required foundation anchors, closed usage drawers, no horizontal overflow, and no browser console warnings or errors.
+- Browser QA: `http://localhost:3000/design-system` at 390px width showed 18 trace cards, the Needs decision product preview control, no horizontal overflow, and no browser console warnings or errors.
+
+Remaining risk:
+- A Next dev server was already running on port 3000 during QA. The bench was verified through that server; no server restart was performed.
+
+### Quiet border system
+
+Status: complete.
+
+Implementation summary:
+- Replaced product UI `border-2` and color-specific border treatments with the shared 1px `border-line` quiet divider across the app shell, auth, Timeline, Behaviors, Analytics, Export, Settings, and design-system previews.
+- Updated the `/design-system` Border foundation so controls and panels use the same quiet divider instead of documenting a separate 2px major-border style.
+- Updated `DESIGN.md` so the source-of-truth visual system now defines one 1px Ash Line border rule for product dividers, controls, panels, rows, inputs, overlays, and heatmap cells.
+
+Verification:
+- Pass: `npm run design-system:check`
+- Pass: design-system-bench inventory and usage rescans to temporary files; auto inventory omitted the existing manual navigation entry, usage summary stayed at 25 product usages / 0 bench previews.
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Browser QA: `http://localhost:3000/design-system` desktop render showed both Border foundation samples at 1px with the same `border-line` color, no horizontal overflow, and no browser warning/error logs.
+- Browser QA: `http://localhost:3000/design-system` at 390px width showed both Border foundation samples at 1px with the same `border-line` color, no horizontal overflow, and no browser warning/error logs.
+
+Remaining risk:
+- A Next dev server was already running on port 3000 during QA. The bench was verified through that server; no server restart was performed.
+
+### Courier New typography stack
+
+Status: complete.
+
+Implementation summary:
+- Replaced the product font family stack in `app/globals.css` with `Courier New` for the Tailwind `font-sans`, Tailwind `font-mono`, and body font declarations.
+- Updated the `/design-system` Typography foundation row and product preview wrapper so the bench displays and computes `Courier New` instead of the previous Courier/Courier New/monospace stack.
+- Updated `DESIGN.md` so the design-system source of truth names `Courier New` as the single product font family.
+
+Verification:
+- Pass: `npm run design-system:check`
+- Pass: design-system-bench inventory and usage rescans to temporary files; usage summary stayed at 25 product usages / 0 bench previews.
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Browser QA: `http://localhost:3000/design-system` desktop render showed `Font family: Courier New`, computed the Typography row and product preview as `"Courier New"`, had no horizontal overflow, and reported no browser warning/error logs.
+- Browser QA: `http://localhost:3000/design-system` at 390px width showed `Font family: Courier New`, computed the row as `"Courier New"`, had no horizontal overflow, and reported no browser warning/error logs.
+
+Remaining risk:
+- A Next dev server was already running on port 3000 during QA. The bench was verified through that server; no server restart was performed.
+
+### Timeline status refresh
+
+Status: complete.
+
+Implementation summary:
+- Updated `components/timeline/StatusButtons.tsx` to call `router.refresh()` after a successful status server action.
+- The server action still owns persistence and calls `revalidatePath("/timeline")`; the refresh only asks the current route to consume the fresh resolver-produced Timeline payload.
+- Preserved the existing Needs decision semantics: the floating button and modal count prior-day unresolved occurrences only.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Pass: `npm run design-system:check`
+- Pass: design-system-bench inventory and usage rescans to temporary files; usage summary stayed at 25 product usages / 0 bench previews.
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Browser QA: read-only authenticated `/timeline` render showed the floating Needs decision button count and open modal count both at `3`, no horizontal overflow, and no browser warning/error logs.
+
+Remaining risk:
+- Browser QA did not click a real Completed or Not Completed button because that would mutate the user's actual behavior history.
+- Current-day completions do not reduce the Needs decision count by design; that count is derived only from unresolved occurrences before the current local date.
+
+### IBM Plex Sans typography stack
+
+Status: complete.
+
+Implementation summary:
+- Added the Next.js `IBM_Plex_Sans` font to `app/layout.tsx` and applied both its generated body class and CSS variable at the root layout.
+- Updated `app/globals.css` so the Tailwind `font-sans`, Tailwind `font-mono`, and body font declarations use IBM Plex Sans with standard sans fallbacks.
+- Updated the `/design-system` Typography foundation row and product preview wrapper so the bench displays and computes `IBM Plex Sans`.
+- Updated `DESIGN.md` so the design-system source of truth names IBM Plex Sans as the single product font family.
+- Restarted the existing local `next dev` server on port 3000 after browser QA found a stale generated Tailwind CSS chunk from the prior Courier New stack.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Pass: `npm run design-system:check`
+- Pass: design-system-bench inventory and usage rescans to temporary files; usage summary stayed at 25 product usages / 0 bench previews.
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Browser QA: `http://localhost:3000/design-system` desktop render showed `Font family: IBM Plex Sans`; body, Typography row, product preview, and the first `font-mono` usage computed to IBM Plex Sans; no horizontal overflow; no browser warning/error logs.
+- Browser QA: `http://localhost:3000/design-system` at 390px width showed `Font family: IBM Plex Sans`; body, Typography row, product preview, and the first `font-mono` usage computed to IBM Plex Sans; no horizontal overflow; no browser warning/error logs.
+
+Remaining risk:
+- Historical `STATUS.md` entries still describe the prior Courier New work, but live source and current design docs now use IBM Plex Sans.
+
+### Fixed sidebar and unframed behavior form
+
+Status: complete.
+
+Implementation summary:
+- Updated `components/layout/AppShell.tsx` so the desktop sidebar is truly fixed while page content scrolls, with the main content padded by the expanded or collapsed sidebar width.
+- Narrowed the collapsed desktop sidebar to a 64px icon rail, centered the expand/collapse button with the nav icons, and removed boxed borders around sidebar navigation items.
+- Removed the outer border and padding from the Behaviors page Create behavior section while preserving the form controls and inner field-group dividers.
+- Updated `docs/UI_SPEC.md`, `DESIGN.md`, and the design-system bench navigation preview/usage metadata so the source-of-truth and trace files match the new UI treatment.
+
+Verification:
+- Pass: `npm run design-system:check`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Pass: design-system-bench classify/theme detection plus inventory and usage rescans to temporary files; auto inventory omitted only the existing manual navigation entry, and usage summary stayed at 25 product usages / 0 bench previews.
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Browser QA: authenticated `/behaviors` at 1024x768 showed fixed expanded sidebar metrics, `main` left padding at 288px, sidebar nav item borders at `0px`, and the Create behavior section with `0px` border and `0px` padding.
+- Browser QA: authenticated `/behaviors` collapsed at 1024x768 showed a 64px fixed sidebar, `main` left padding at 64px, expand/collapse button and all nav icons centered at the same x coordinate, and nav item borders at `0px`.
+- Browser QA: `/behaviors` at 390px showed no horizontal overflow; the mobile drawer opened to 288px, kept nav item borders at `0px`, and stayed within the viewport.
+- Browser QA: authenticated `/timeline` at 1024x768 after scrolling showed the sidebar fixed at top `0`, `main` left padding at 288px, no horizontal overflow, and nav item borders at `0px`.
+
+Remaining risk:
+- The `/timeline` browser QA route took one slow first render during local dev before the layout metrics were collected; the measured layout state passed after the page loaded.
+- After resetting the temporary browser viewport, local dev Supabase auth fetches began timing out and the cleanup navigation landed on `/login?next=%2Fbehaviors`; the authenticated `/behaviors` and `/timeline` layout checks had already completed.
+
+### Behavior form timezone removal and recurrence flattening
+
+Status: complete.
+
+Implementation summary:
+- Removed the Timezone display panel from the Behavior create/edit form; timezone remains owned by Settings and is still applied server-side from the profile/default timezone during behavior creation.
+- Removed the Recurrence editor's outer bordered panel while preserving its semantic fieldset, segmented recurrence presets, and weekday/monthly controls.
+- Changed Recurrence subsection labels such as Every, On, and Day to smaller muted heading text.
+- Tightened the desktop sidebar from 288px to 256px expanded and from 64px to 56px collapsed, with matching main-content offsets.
+- Updated `docs/UI_SPEC.md`, `DESIGN.md`, the design-system bench preview usage, and design-system trace metadata to match the new form and shell treatment.
+
+Verification:
+- Pass: `npm run design-system:check`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Pass: design-system-bench classify/theme detection plus inventory and usage rescans to temporary files; auto inventory omitted only the existing manual navigation entry, and usage summary stayed at 25 product usages / 0 bench previews.
+- Browser QA: authenticated `/behaviors` at 1024x768 showed a fixed 256px sidebar, `main` left padding at 256px, no timezone block in the form, a 0px border/0px padding Recurrence fieldset, and no horizontal overflow.
+- Browser QA: authenticated `/behaviors` collapsed at 1024x768 showed a 56px sidebar, `main` left padding at 56px, and the expand/collapse button plus all nav icons centered on the same x coordinate.
+- Browser QA: authenticated `/behaviors` at 390px showed no horizontal overflow, no timezone block, and a 0px border/0px padding Recurrence fieldset.
+- Browser QA: authenticated `/timeline` at 1024x768 after scrolling showed the sidebar fixed at top `0`, a 256px sidebar width, `main` left padding at 256px, and no horizontal overflow.
+
+Remaining risk:
+- Local dev-server logs showed transient Supabase DNS/auth fetch failures before browser QA, but the server recovered and authenticated `/behaviors` and `/timeline` layout QA completed successfully.
+
+### Reminder editor flattening
+
+Status: complete.
+
+Implementation summary:
+- Updated `components/behaviors/ReminderEditor.tsx` so the Reminders fieldset uses the same unframed form-section treatment as Recurrence, with no outer border or padding.
+- Changed the Reminder offset label to the smaller muted subsection-heading style.
+- Updated `docs/UI_SPEC.md` and `DESIGN.md` so Reminders, Recurrence, and the Behavior form source-of-truth describe the same unframed pattern.
+- While verifying, aligned the existing in-progress schedule-slot work with TypeScript by updating generated database types for the existing `behavior_schedule_slots` migration, schedule-slot service/test fixtures, design-system preview fixtures, analytics/export test fixtures, and behavior/export mapping fixtures.
+
+Verification:
+- Pass: `npm run design-system:check`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Browser QA: `/design-system` desktop render showed the live Reminders fieldset at `0px` border and `0px` padding, matching Recurrence, with Reminder offset at 12px bold label text and no horizontal overflow.
+- Browser QA: `/design-system` at 390px width showed the Reminders fieldset at `0px` border and `0px` padding with no horizontal overflow.
+
+Remaining risk:
+- Authenticated `/behaviors` browser QA is currently blocked by the connected Supabase schema/cache returning `PGRST200` for the `behaviors` to `behavior_schedule_slots` relationship. The migration and docs exist locally, but the connected database was not updated in this task because hosted schema deployment requires explicit authorization.
 
 ## Handoff notes
 
 - For the next coding agent: continue Ticket 013 from the Vercel environment/deployment blocker. Do not start deferred offline/PWA or future restore/import work unless the product docs change or the user explicitly brings it into scope.
 - Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.
+- Run `npm run design-system:check` after changing reusable UI, the bench route, or design-system manifest/usage/config files.
 - Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.
 - Keep v1 small. Do not implement deferred PWA/offline behavior from `docs/FUTURE_UPDATES.md` unless the active docs are updated first.
 - Preserve the resolver-first architecture: core logic belongs in `lib/resolvers`, database access in `lib/db`, orchestration in `lib/services`, and UI/API routes should not duplicate resolver logic.

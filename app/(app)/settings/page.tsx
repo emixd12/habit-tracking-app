@@ -48,7 +48,7 @@ function SettingsPanel({
   children: React.ReactNode;
 }>) {
   return (
-    <section className="border-2 border-foreground bg-background p-5 sm:p-6">
+    <section className="border border-line bg-background p-5 sm:p-6">
       <h2 className="text-xl font-bold leading-tight">{title}</h2>
       <div className="mt-4">{children}</div>
     </section>

@@ -26,6 +26,7 @@ import {
   type ReminderResolverBehavior,
   type ReminderResolverOccurrence,
 } from "@/lib/resolvers/reminder.resolver";
+import { formatOccurrenceScheduleLabel } from "@/lib/services/schedule";
 import {
   createSequenzyReminderEmailSender,
   type SequenzyReminderEmailInput,
@@ -274,7 +275,12 @@ function toSequenzyReminderEmailInput(input: {
       OCCURRENCE_LOCAL_DATE: input.occurrence.local_date,
       OCCURRENCE_SCHEDULED_FOR: input.occurrence.scheduled_for,
       REMINDER_SCHEDULED_SEND_AT: input.delivery.scheduled_send_at,
-      SCHEDULED_TIME: input.behavior.scheduled_time,
+      SCHEDULED_TIME: formatOccurrenceScheduleLabel({
+        scheduleKind: normalizeScheduleKind(input.occurrence.schedule_kind),
+        schedulePreset: normalizeSchedulePreset(input.occurrence.schedule_preset),
+        scheduleStartTime: input.occurrence.schedule_start_time,
+        scheduleEndTime: input.occurrence.schedule_end_time,
+      }),
       TIMEZONE: input.behavior.timezone,
       TIMELINE_URL: buildTimelineUrl(),
     },
@@ -325,6 +331,30 @@ function normalizeOccurrenceStatus(value: string): OccurrenceStatus {
   }
 
   throw new Error(`Unsupported occurrence status: ${value}.`);
+}
+
+function normalizeScheduleKind(value: string): "exact" | "range" {
+  if (value === "exact" || value === "range") {
+    return value;
+  }
+
+  throw new Error(`Unsupported schedule kind: ${value}.`);
+}
+
+function normalizeSchedulePreset(
+  value: string | null,
+): "morning" | "afternoon" | "evening" | "night" | null {
+  if (
+    value === null ||
+    value === "morning" ||
+    value === "afternoon" ||
+    value === "evening" ||
+    value === "night"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported schedule preset: ${value}.`);
 }
 
 function normalizeProcessLimit(value: number | undefined): number {

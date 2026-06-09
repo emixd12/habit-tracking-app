@@ -2,6 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 
 import type {
   TimelineDaySection,
+  TimelineOccurrenceGroup,
   TimelineOccurrenceInput,
   TimelineOccurrenceView,
   TimelineStatus,
@@ -95,6 +96,7 @@ function resolveForwardDaySections(input: {
       relativeLabel: relativeDayLabel(offset),
       emptyMessage: EMPTY_DAY_MESSAGE,
       occurrences: dayOccurrences,
+      occurrenceGroups: groupOccurrencesByBehavior(dayOccurrences),
     });
   }
 
@@ -125,7 +127,46 @@ function groupNeedsDecisionDays(
         relativeLabel: "Prior unresolved",
         emptyMessage: EMPTY_DAY_MESSAGE,
         occurrences: [...dayOccurrences].sort(compareOccurrencesByScheduledTime),
+        occurrenceGroups: groupOccurrencesByBehavior(dayOccurrences),
       };
+    });
+}
+
+function groupOccurrencesByBehavior(
+  occurrences: TimelineOccurrenceView[],
+): TimelineOccurrenceGroup[] {
+  const groups = new Map<string, TimelineOccurrenceView[]>();
+
+  for (const occurrence of [...occurrences].sort(compareOccurrencesByScheduledTime)) {
+    const group = groups.get(occurrence.behaviorId) ?? [];
+    group.push(occurrence);
+    groups.set(occurrence.behaviorId, group);
+  }
+
+  return Array.from(groups.entries())
+    .map(([behaviorId, groupOccurrences]) => {
+      const sortedOccurrences = [...groupOccurrences].sort(
+        compareOccurrencesByScheduledTime,
+      );
+      const firstOccurrence = sortedOccurrences[0];
+
+      return {
+        key: `behavior-${behaviorId}-${firstOccurrence?.localDate ?? "unknown"}`,
+        behaviorId,
+        title: firstOccurrence?.title ?? "Untitled behavior",
+        occurrences: sortedOccurrences,
+        isGroupedStack: sortedOccurrences.length > 1,
+      };
+    })
+    .sort((left, right) => {
+      const leftFirst = left.occurrences[0];
+      const rightFirst = right.occurrences[0];
+
+      if (!leftFirst || !rightFirst) {
+        return left.title.localeCompare(right.title);
+      }
+
+      return compareOccurrencesByScheduledTime(leftFirst, rightFirst);
     });
 }
 
@@ -147,6 +188,7 @@ function toOccurrenceView(
     expandedStatusActionLabel: expandedStatusActionLabel(occurrence.status),
     visualTone: visualTone(occurrence.status, isPriorUnresolved),
     showDecisionActions: isPriorUnresolved || isTodayUnresolved,
+    showCollapsedStatusLabel: occurrence.status !== "unresolved",
   };
 }
 

@@ -43,7 +43,7 @@ Default:
 - `reminder_offset_minutes = 0`
 
 Examples:
-- `0` = at scheduled time
+- `0` = at scheduled start
 - `15` = 15 minutes before
 - `60` = 1 hour before
 - `1440` = 1 day before
@@ -72,8 +72,11 @@ Statuses:
 
 Reminder deliveries should be generated from:
 - Behavior reminder settings
-- Occurrence scheduled time
+- Occurrence scheduled start
 - Reminder offset
+
+For exact-time occurrences, the scheduled start is the exact time. For range
+occurrences, the scheduled start is the beginning of the preset range.
 
 Browser reminders:
 - Generate if `browser_reminder_enabled = true`

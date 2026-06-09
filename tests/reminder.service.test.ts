@@ -64,7 +64,12 @@ const BASE_OCCURRENCE: Occurrence = {
   id: "occurrence-1",
   user_id: "user-1",
   behavior_id: "behavior-1",
+  behavior_schedule_slot_id: null,
   scheduled_for: "2026-06-08T14:00:00Z",
+  schedule_kind: "exact",
+  schedule_preset: null,
+  schedule_start_time: "10:00:00",
+  schedule_end_time: null,
   local_date: "2026-06-08",
   status: "unresolved",
   completed_at: null,
@@ -107,6 +112,7 @@ describe("processDueEmailReminders", () => {
     vi.mocked(getBehaviorById).mockResolvedValue({
       ...BASE_BEHAVIOR,
       category: null,
+      schedule_slots: [],
     });
     vi.mocked(getProfileSettings).mockResolvedValue({
       email: "user@example.com",
@@ -150,6 +156,7 @@ describe("processDueEmailReminders", () => {
         BEHAVIOR_TITLE: "Drink water",
         OCCURRENCE_ID: "occurrence-1",
         REMINDER_SCHEDULED_SEND_AT: "2026-06-08T14:00:00Z",
+        SCHEDULED_TIME: "10:00 AM",
       }),
     });
     expect(markReminderDeliverySent).toHaveBeenCalledWith(SUPABASE, {
@@ -158,6 +165,43 @@ describe("processDueEmailReminders", () => {
       sentAt: NOW_STRING,
     });
     expect(markReminderDeliveryFailed).not.toHaveBeenCalled();
+  });
+
+  it("uses the occurrence range label in email variables", async () => {
+    vi.mocked(getOccurrenceById).mockResolvedValue({
+      ...BASE_OCCURRENCE,
+      scheduled_for: "2026-06-08T10:00:00Z",
+      schedule_kind: "range",
+      schedule_preset: "morning",
+      schedule_start_time: "06:00:00",
+      schedule_end_time: "12:00:00",
+    });
+    vi.mocked(listDuePendingEmailReminderDeliveries).mockResolvedValue([
+      {
+        ...BASE_DELIVERY,
+        scheduled_send_at: "2026-06-08T10:00:00Z",
+      },
+    ]);
+    vi.mocked(claimPendingEmailReminderDelivery).mockResolvedValue({
+      ...BASE_DELIVERY,
+      scheduled_send_at: "2026-06-08T10:00:00Z",
+      processing_started_at: NOW_STRING,
+    });
+    const sendEmail = vi.fn().mockResolvedValue({ jobId: "job-1" });
+
+    await processDueEmailReminders({
+      supabase: SUPABASE,
+      now: NOW,
+      sendEmail,
+    });
+
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variables: expect.objectContaining({
+          SCHEDULED_TIME: "Morning (6:00 AM-Noon)",
+        }),
+      }),
+    );
   });
 
   it("skips a delivery already claimed by another process", async () => {
@@ -186,6 +230,7 @@ describe("processDueEmailReminders", () => {
       ...BASE_BEHAVIOR,
       email_reminder_enabled: false,
       category: null,
+      schedule_slots: [],
     });
     const sendEmail = vi.fn();
 
@@ -213,6 +258,7 @@ describe("processDueEmailReminders", () => {
       ...BASE_BEHAVIOR,
       reminder_offset_minutes: 60,
       category: null,
+      schedule_slots: [],
     });
     const sendEmail = vi.fn();
 

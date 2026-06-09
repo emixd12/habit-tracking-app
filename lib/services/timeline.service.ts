@@ -16,11 +16,11 @@ import {
   resolveTimeline,
 } from "@/lib/resolvers/timeline.resolver";
 import {
-  formatScheduledTimeLabel,
   normalizeRecurrenceRule,
   normalizeScheduledTime,
   summarizeRecurrenceRule,
 } from "@/lib/services/behavior-form";
+import { formatOccurrenceScheduleLabel } from "@/lib/services/schedule";
 import { syncUserOccurrences } from "@/lib/services/occurrence.service";
 import { createClient } from "@/lib/supabase/server";
 import type { Occurrence } from "@/lib/types/database";
@@ -112,7 +112,6 @@ function toTimelineOccurrenceInput(
   }
 
   const recurrenceRule = normalizeRecurrenceRule(behavior.recurrence_rule);
-  const scheduledTime = normalizeScheduledTime(behavior.scheduled_time);
 
   return {
     id: occurrence.id,
@@ -122,11 +121,42 @@ function toTimelineOccurrenceInput(
     categoryName: behavior.category?.name ?? "No category",
     scheduleSummary: summarizeRecurrenceRule(recurrenceRule),
     scheduledFor: occurrence.scheduled_for,
-    scheduledTimeLabel: formatScheduledTimeLabel(scheduledTime),
+    scheduledTimeLabel: formatOccurrenceScheduleLabel({
+      scheduleKind: normalizeScheduleKind(occurrence.schedule_kind),
+      schedulePreset: normalizeSchedulePreset(occurrence.schedule_preset),
+      scheduleStartTime: normalizeScheduledTime(occurrence.schedule_start_time),
+      scheduleEndTime: occurrence.schedule_end_time
+        ? normalizeScheduledTime(occurrence.schedule_end_time)
+        : null,
+    }),
     localDate: occurrence.local_date,
     status: normalizeTimelineStatus(occurrence.status),
     note: occurrence.note ?? "",
   };
+}
+
+function normalizeScheduleKind(value: string): "exact" | "range" {
+  if (value === "exact" || value === "range") {
+    return value;
+  }
+
+  throw new Error(`Unsupported schedule kind: ${value}.`);
+}
+
+function normalizeSchedulePreset(
+  value: string | null,
+): "morning" | "afternoon" | "evening" | "night" | null {
+  if (
+    value === null ||
+    value === "morning" ||
+    value === "afternoon" ||
+    value === "evening" ||
+    value === "night"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported schedule preset: ${value}.`);
 }
 
 function normalizeTimelineStatus(value: string): TimelineStatus {

@@ -239,10 +239,7 @@ function resolveSelectedDay(input: {
       title: occurrence.behaviorTitle,
       categoryName: occurrence.categoryName,
       scheduledFor: occurrence.scheduledFor,
-      scheduledTimeLabel: formatInstantTimeLabel(
-        occurrence.scheduledFor,
-        occurrence.timezone,
-      ),
+      scheduledTimeLabel: occurrence.scheduledTimeLabel,
       note: occurrence.note,
     }));
 
@@ -485,17 +482,6 @@ function formatPercent(rate: number): string {
 
 function countsLabel(counts: AnalyticsStatusCounts): string {
   return `${counts.doneCount} Completed, ${counts.notDoneCount} Not Completed, ${counts.unresolvedCount} Unresolved`;
-}
-
-function formatInstantTimeLabel(value: string, timezone: string): string {
-  const time = Temporal.Instant.from(value)
-    .toZonedDateTimeISO(timezone || DEFAULT_TIMEZONE)
-    .toPlainTime();
-  const period = time.hour >= 12 ? "PM" : "AM";
-  const hour12 = time.hour % 12 || 12;
-  const minute = time.minute.toString().padStart(2, "0");
-
-  return `${hour12}:${minute} ${period}`;
 }
 
 const WEEKDAY_LABELS = [

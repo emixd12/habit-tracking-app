@@ -47,15 +47,27 @@ export type RecurrenceRule =
     };
 ```
 
-## Scheduled time
+## Schedule slots
 
-Each behavior must have a `scheduled_time`.
+Each behavior must have at least one schedule slot.
 
-Use local time in the user's timezone.
+Use local times in the user's timezone.
 
-Example:
+Exact-time examples:
 - `22:00`
 - `09:30`
+
+Preset time ranges:
+- Morning: `06:00` to `12:00`
+- Afternoon: `12:00` to `18:00`
+- Evening: `18:00` to `00:00`
+- Night: `00:00` to `06:00`
+
+For recurrence expansion, each schedule slot has an anchor time. Exact-time
+slots use their exact time. Range slots use the start of the range.
+
+If a behavior has multiple schedule slots, occurrence generation creates one
+occurrence per matching slot on each recurrence day.
 
 ## Timezone
 
@@ -145,3 +157,5 @@ The resolver must be pure:
 - Monthly day 31 falls back to last day of short months.
 - Timezone remains America/New_York.
 - Local midnight boundary behaves correctly.
+- Multiple schedule slots can generate multiple same-day occurrences through
+  the occurrence generation resolver.

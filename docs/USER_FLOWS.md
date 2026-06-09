@@ -29,16 +29,29 @@ The Timeline is the primary screen.
 The current day should be visually prominent and should begin the forward timeline.
 
 Timeline order:
-1. Needs decision
+1. Floating Needs decision button
 2. Current day
 3. Next 7 days
 4. Additional future days when the user chooses to show more
 
 Needs decision contains only prior-day unresolved occurrences. It is not a general past timeline.
 
+The Needs decision button is fixed to the lower right of the Timeline screen, shows the current number of prior unresolved occurrences, and opens a modal with the grouped prior-day occurrences.
+
 Users should not browse previous days as ordinary timeline sections in v1.
 
-Each day section should list active behavior occurrences in chronological order by scheduled time.
+Each day section should list active behavior occurrences by scheduled time.
+
+When one behavior has multiple occurrences on the same local day, group those
+occurrences together as a stack. The group is ordered by its earliest
+occurrence, and each scheduled time or time range remains its own occurrence row
+inside the group.
+
+Do not show a "1 of 2 completed" label, progress fill, or stored partial status
+for grouped behavior rows. Partial completion is only derived from the mixed
+states of the individual occurrence rows. Completed, unresolved, and Not
+Completed rows keep the existing single-occurrence visual treatments, and each
+status button applies only to the occurrence row where it appears.
 
 If a day has no occurrences, show:
 
@@ -72,7 +85,7 @@ Expanded cards show:
 
 Categories are visible only in expanded card details.
 
-If an occurrence is unresolved after the end of its local day, it appears in Needs decision and is visually highlighted. This is a derived UI state based on date and `unresolved`; it must not write a different stored status.
+If an occurrence is unresolved after the end of its local day, it appears in the Needs decision modal and is visually highlighted. This is a derived UI state based on date and `unresolved`; it must not write a different stored status.
 
 ## Behavior flow
 
@@ -85,13 +98,13 @@ Behavior form fields:
 - Description
 - Category
 - Recurrence
-- Scheduled time
+- Schedule with one or more exact times or preset time ranges
 - Browser reminder enabled
 - Email reminder enabled
 - Reminder offset
 - Active/archive
 
-Scheduled time is required.
+At least one schedule slot is required.
 
 The recurrence editor should use segmented presets first, with advanced options below.
 

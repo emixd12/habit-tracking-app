@@ -78,6 +78,42 @@ create table behaviors (
 );
 ```
 
+`scheduled_time` stores the first schedule slot start time for compatibility,
+sorting, and simple summaries. The schedule source of truth is
+`behavior_schedule_slots`.
+
+### `behavior_schedule_slots`
+
+```sql
+create table behavior_schedule_slots (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  behavior_id uuid not null references behaviors(id) on delete cascade,
+
+  kind text not null check (kind in ('exact', 'range')),
+  preset text check (preset in ('morning', 'afternoon', 'evening', 'night')),
+  start_time time not null,
+  end_time time,
+  sort_order int not null default 0,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  unique (behavior_id, start_time)
+);
+```
+
+Supported range presets:
+
+- Morning: 6:00 AM-Noon
+- Afternoon: Noon-6:00 PM
+- Evening: 6:00 PM-Midnight
+- Night: Midnight-6:00 AM
+
+Each behavior must have at least one schedule slot. A behavior can have multiple
+slots in a day. Occurrence generation creates one occurrence per matching
+schedule slot for each recurrence day.
+
 ### `occurrences`
 
 ```sql
@@ -85,9 +121,14 @@ create table occurrences (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   behavior_id uuid not null references behaviors(id) on delete cascade,
+  behavior_schedule_slot_id uuid references behavior_schedule_slots(id) on delete set null,
 
   scheduled_for timestamptz not null,
   local_date date not null,
+  schedule_kind text not null check (schedule_kind in ('exact', 'range')),
+  schedule_preset text check (schedule_preset in ('morning', 'afternoon', 'evening', 'night')),
+  schedule_start_time time not null,
+  schedule_end_time time,
 
   status text not null default 'unresolved'
     check (status in ('unresolved', 'done', 'not_done')),
@@ -177,6 +218,8 @@ When a behavior changes:
 - Past occurrences are preserved.
 - Resolved occurrences are preserved.
 - Archived behaviors generate no new occurrences.
+- Occurrences preserve schedule snapshots so historical rows still display the
+  time or range that existed when they were generated.
 
 ## Occurrence uniqueness
 

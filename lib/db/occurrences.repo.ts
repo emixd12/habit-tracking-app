@@ -149,6 +149,34 @@ export async function updateOccurrenceById(
   return data ?? null;
 }
 
+export async function updateUnresolvedOccurrenceScheduleById(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    occurrenceId: string;
+    occurrence: Pick<
+      OccurrenceUpdate,
+      | "behavior_schedule_slot_id"
+      | "schedule_kind"
+      | "schedule_preset"
+      | "schedule_start_time"
+      | "schedule_end_time"
+      | "local_date"
+    >;
+  },
+): Promise<void> {
+  const { error } = await supabase
+    .from("occurrences")
+    .update(input.occurrence)
+    .eq("user_id", input.userId)
+    .eq("id", input.occurrenceId)
+    .eq("status", "unresolved");
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function deleteUnresolvedOccurrencesById(
   supabase: AppSupabaseClient,
   userId: string,

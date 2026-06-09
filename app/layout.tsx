@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
+import { IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
+
+const ibmPlexSans = IBM_Plex_Sans({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-ibm-plex-sans",
+  weight: "variable",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -16,7 +24,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={`${ibmPlexSans.className} ${ibmPlexSans.variable}`}>
+        {children}
+      </body>
     </html>
   );
 }

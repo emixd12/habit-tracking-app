@@ -59,6 +59,20 @@ Use scheduled date/time.
 
 Recurring behaviors should recur according to their schedule, not from the last completion date.
 
+## Behavior schedule slots
+
+Behaviors can have one or more exact times or preset time ranges.
+
+Supported preset ranges:
+- Morning: 6:00 AM-Noon
+- Afternoon: Noon-6:00 PM
+- Evening: 6:00 PM-Midnight
+- Night: Midnight-6:00 AM
+
+Range occurrences use the beginning of the range as their scheduled reminder
+anchor. Multi-time behavior completion is derived from individual occurrence
+statuses only; do not add a stored partial-completion status or progress label.
+
 ## Reminders
 
 Browser notifications:

@@ -3,8 +3,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/db/database.types";
 import type {
   Behavior,
+  BehaviorScheduleSlot,
+  BehaviorScheduleSlotUpdate,
   BehaviorUpdate,
   Category,
+  NewBehaviorScheduleSlot,
   NewBehavior,
 } from "@/lib/types/database";
 
@@ -12,10 +15,11 @@ export type AppSupabaseClient = SupabaseClient<Database>;
 
 export type BehaviorWithCategory = Behavior & {
   category: Pick<Category, "id" | "name"> | null;
+  schedule_slots: BehaviorScheduleSlot[];
 };
 
 const BEHAVIOR_WITH_CATEGORY_SELECT =
-  "*, category:categories!behaviors_category_id_fkey(id, name)";
+  "*, category:categories!behaviors_category_id_fkey(id, name), schedule_slots:behavior_schedule_slots(*)";
 
 export async function listBehaviorCategories(
   supabase: AppSupabaseClient,
@@ -51,7 +55,9 @@ export async function listUserBehaviors(
     throw error;
   }
 
-  return (data ?? []) as unknown as BehaviorWithCategory[];
+  return sortBehaviorScheduleSlots(
+    (data ?? []) as unknown as BehaviorWithCategory[],
+  );
 }
 
 export async function getBehaviorById(
@@ -70,7 +76,9 @@ export async function getBehaviorById(
     throw error;
   }
 
-  return data as unknown as BehaviorWithCategory | null;
+  return data
+    ? sortBehaviorScheduleSlots([data as unknown as BehaviorWithCategory])[0]
+    : null;
 }
 
 export async function getProfileTimezone(
@@ -104,7 +112,7 @@ export async function createBehavior(
     throw error;
   }
 
-  return data as unknown as BehaviorWithCategory;
+  return sortBehaviorScheduleSlots([data as unknown as BehaviorWithCategory])[0];
 }
 
 export async function updateBehavior(
@@ -125,5 +133,124 @@ export async function updateBehavior(
     throw error;
   }
 
-  return data as unknown as BehaviorWithCategory | null;
+  return data
+    ? sortBehaviorScheduleSlots([data as unknown as BehaviorWithCategory])[0]
+    : null;
+}
+
+export async function listBehaviorScheduleSlots(
+  supabase: AppSupabaseClient,
+  userId: string,
+  behaviorId: string,
+): Promise<BehaviorScheduleSlot[]> {
+  const { data, error } = await supabase
+    .from("behavior_schedule_slots")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("behavior_id", behaviorId)
+    .order("sort_order", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function replaceBehaviorScheduleSlots(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    behaviorId: string;
+    slots: Array<
+      Omit<NewBehaviorScheduleSlot, "user_id" | "behavior_id"> & {
+        id?: string | null;
+      }
+    >;
+  },
+): Promise<void> {
+  const existingSlots = await listBehaviorScheduleSlots(
+    supabase,
+    input.userId,
+    input.behaviorId,
+  );
+  const existingIds = new Set(existingSlots.map((slot) => slot.id));
+  const retainedIds = new Set(
+    input.slots
+      .map((slot) => slot.id)
+      .filter((id): id is string => Boolean(id && existingIds.has(id))),
+  );
+
+  for (const slot of input.slots) {
+    const baseSlot = {
+      kind: slot.kind,
+      preset: slot.preset,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      sort_order: slot.sort_order,
+    } satisfies BehaviorScheduleSlotUpdate;
+
+    if (slot.id && existingIds.has(slot.id)) {
+      const { error } = await supabase
+        .from("behavior_schedule_slots")
+        .update(baseSlot)
+        .eq("user_id", input.userId)
+        .eq("behavior_id", input.behaviorId)
+        .eq("id", slot.id);
+
+      if (error) {
+        throw error;
+      }
+      continue;
+    }
+
+    const { error } = await supabase.from("behavior_schedule_slots").insert({
+      ...baseSlot,
+      user_id: input.userId,
+      behavior_id: input.behaviorId,
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  const deleteIds = existingSlots
+    .filter((slot) => !retainedIds.has(slot.id))
+    .map((slot) => slot.id);
+
+  if (deleteIds.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("behavior_schedule_slots")
+    .delete()
+    .eq("user_id", input.userId)
+    .eq("behavior_id", input.behaviorId)
+    .in("id", deleteIds);
+
+  if (error) {
+    throw error;
+  }
+}
+
+function sortBehaviorScheduleSlots(
+  behaviors: BehaviorWithCategory[],
+): BehaviorWithCategory[] {
+  return behaviors.map((behavior) => ({
+    ...behavior,
+    schedule_slots: [...(behavior.schedule_slots ?? [])].sort(
+      (left, right) => {
+        const sortComparison = left.sort_order - right.sort_order;
+
+        if (sortComparison !== 0) {
+          return sortComparison;
+        }
+
+        return left.start_time.localeCompare(right.start_time);
+      },
+    ),
+  }));
 }

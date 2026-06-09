@@ -13,7 +13,16 @@ const BASE_BEHAVIOR: OccurrenceGenerationBehavior = {
   id: "behavior-1",
   userId: "user-1",
   recurrenceRule: { frequency: "daily", interval: 1 },
-  scheduledTime: "09:00",
+  scheduleSlots: [
+    {
+      id: null,
+      kind: "exact",
+      preset: null,
+      startTime: "09:00",
+      endTime: null,
+      sortOrder: 0,
+    },
+  ],
   timezone: DEFAULT_TIMEZONE,
   active: true,
   createdAt: "2026-01-01T14:00:00Z",
@@ -41,6 +50,11 @@ function existingOccurrence(
     scheduledFor,
     localDate,
     status,
+    scheduleSlotId: null,
+    scheduleKind: "exact",
+    schedulePreset: null,
+    scheduleStartTime: "09:00",
+    scheduleEndTime: null,
   };
 }
 
@@ -100,6 +114,56 @@ describe("planOccurrenceGeneration", () => {
     expect(plan.deleteUnresolvedIds).toEqual([]);
   });
 
+  it("plans one occurrence per schedule slot on each matching day", () => {
+    const plan = planOccurrenceGeneration({
+      behavior: {
+        ...BASE_BEHAVIOR,
+        scheduleSlots: [
+          {
+            id: "slot-morning",
+            kind: "range",
+            preset: "morning",
+            startTime: "06:00",
+            endTime: "12:00",
+            sortOrder: 0,
+          },
+          {
+            id: "slot-evening",
+            kind: "exact",
+            preset: null,
+            startTime: "21:30",
+            endTime: null,
+            sortOrder: 1,
+          },
+        ],
+      },
+      existingOccurrences: [],
+      now: NOW,
+      horizonDays: 0,
+    });
+
+    expect(plan.create).toEqual([
+      expect.objectContaining({
+        scheduledFor: "2026-01-02T11:00:00Z",
+        localDate: "2026-01-02",
+        scheduleSlotId: "slot-morning",
+        scheduleKind: "range",
+        schedulePreset: "morning",
+        scheduleStartTime: "06:00",
+        scheduleEndTime: "12:00",
+      }),
+      expect.objectContaining({
+        scheduledFor: "2026-01-03T02:30:00Z",
+        localDate: "2026-01-02",
+        scheduleSlotId: "slot-evening",
+        scheduleKind: "exact",
+        schedulePreset: null,
+        scheduleStartTime: "21:30",
+        scheduleEndTime: null,
+      }),
+    ]);
+  });
+
   it("uses the behavior creation date as the interval anchor", () => {
     const plan = planOccurrenceGeneration({
       behavior: {
@@ -136,6 +200,55 @@ describe("planOccurrenceGeneration", () => {
     });
 
     expect(plan.deleteUnresolvedIds).toEqual(["future-unresolved"]);
+  });
+
+  it("plans schedule snapshot updates for matching future unresolved rows", () => {
+    const plan = planOccurrenceGeneration({
+      behavior: {
+        ...BASE_BEHAVIOR,
+        scheduleSlots: [
+          {
+            id: "slot-morning",
+            kind: "range",
+            preset: "morning",
+            startTime: "06:00",
+            endTime: "12:00",
+            sortOrder: 0,
+          },
+        ],
+      },
+      existingOccurrences: [
+        {
+          ...existingOccurrence(
+            "future-unresolved",
+            "2026-01-02T11:00:00Z",
+            "2026-01-02",
+          ),
+          scheduleSlotId: null,
+          scheduleKind: "exact",
+          schedulePreset: null,
+          scheduleStartTime: "06:00",
+          scheduleEndTime: null,
+        },
+      ],
+      now: NOW,
+      horizonDays: 0,
+    });
+
+    expect(plan.create).toEqual([]);
+    expect(plan.deleteUnresolvedIds).toEqual([]);
+    expect(plan.updateUnresolved).toEqual([
+      {
+        id: "future-unresolved",
+        scheduledFor: "2026-01-02T11:00:00Z",
+        localDate: "2026-01-02",
+        scheduleSlotId: "slot-morning",
+        scheduleKind: "range",
+        schedulePreset: "morning",
+        scheduleStartTime: "06:00",
+        scheduleEndTime: "12:00",
+      },
+    ]);
   });
 
   it("does not create occurrences for archived behaviors and removes future unresolved rows", () => {

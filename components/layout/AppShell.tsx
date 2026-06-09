@@ -35,7 +35,7 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b-2 border-foreground bg-background px-4 lg:hidden">
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-line bg-background px-4 lg:hidden">
         <Link href="/timeline" className="text-lg font-bold">
           Cadence
         </Link>
@@ -44,7 +44,7 @@ export function AppShell({
           aria-label="Open navigation"
           aria-expanded={isMobileOpen}
           onClick={() => setIsMobileOpen(true)}
-          className="inline-flex h-10 w-10 items-center justify-center border-2 border-foreground bg-background text-foreground transition-colors hover:bg-surface"
+          className="inline-flex h-10 w-10 items-center justify-center border border-line bg-background text-foreground transition-colors hover:bg-surface"
         >
           <Menu aria-hidden="true" size={20} strokeWidth={2} />
         </button>
@@ -59,15 +59,20 @@ export function AppShell({
         />
       ) : null}
 
-      <div className="lg:grid lg:min-h-dvh lg:grid-cols-[auto_1fr]">
+      <div>
         <aside
           className={[
-            "fixed inset-y-0 left-0 z-50 flex w-72 -translate-x-full flex-col border-r-2 border-foreground bg-background transition-transform duration-200 lg:static lg:translate-x-0",
-            isCollapsed ? "lg:w-[88px]" : "lg:w-72",
+            "fixed inset-y-0 left-0 z-50 flex w-64 -translate-x-full flex-col border-r border-line bg-background transition-[width,transform] duration-200 ease-out motion-reduce:transition-none lg:translate-x-0",
+            isCollapsed ? "lg:w-14" : "lg:w-64",
             isMobileOpen ? "translate-x-0" : "",
           ].join(" ")}
         >
-          <div className="flex h-20 items-center justify-between border-b-2 border-foreground px-4">
+          <div
+            className={[
+              "flex h-20 items-center justify-between border-b border-line px-4",
+              isCollapsed ? "lg:justify-center lg:px-0" : "",
+            ].join(" ")}
+          >
             <Link
               href="/timeline"
               className={[
@@ -82,7 +87,7 @@ export function AppShell({
               type="button"
               aria-label={isCollapsed ? "Expand navigation" : "Collapse navigation"}
               onClick={() => setIsCollapsed((value) => !value)}
-              className="hidden h-10 w-10 shrink-0 items-center justify-center border-2 border-foreground bg-background text-foreground transition-colors hover:bg-surface lg:inline-flex"
+              className="hidden h-10 w-10 shrink-0 items-center justify-center bg-background text-foreground transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:inline-flex"
             >
               {isCollapsed ? (
                 <PanelLeftOpen aria-hidden="true" size={20} strokeWidth={2} />
@@ -92,7 +97,13 @@ export function AppShell({
             </button>
           </div>
 
-          <nav aria-label="Primary" className="flex flex-1 flex-col gap-2 p-3">
+          <nav
+            aria-label="Primary"
+            className={[
+              "flex flex-1 flex-col gap-1 p-3",
+              isCollapsed ? "lg:items-center lg:p-2 lg:px-1.5" : "",
+            ].join(" ")}
+          >
             {APP_NAV_ITEMS.map((item) => {
               const Icon = navIcons[item.href];
               const isActive = pathname === item.href;
@@ -105,11 +116,13 @@ export function AppShell({
                   aria-current={isActive ? "page" : undefined}
                   onClick={() => setIsMobileOpen(false)}
                   className={[
-                    "group flex min-h-12 items-center gap-3 border-2 px-3 py-3 text-sm font-bold transition-colors",
+                    "group flex min-h-12 items-center gap-3 px-3 py-3 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                     isActive
-                      ? "border-foreground bg-primary text-primary-foreground"
-                      : "border-transparent bg-background text-foreground hover:border-foreground hover:bg-surface",
-                    isCollapsed ? "lg:justify-center lg:px-0" : "",
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-foreground hover:bg-surface",
+                    isCollapsed
+                      ? "lg:h-10 lg:min-h-10 lg:w-10 lg:justify-center lg:px-0 lg:py-0"
+                      : "",
                   ].join(" ")}
                 >
                   <Icon aria-hidden="true" size={20} strokeWidth={2} />
@@ -123,7 +136,7 @@ export function AppShell({
 
           <div
             className={[
-              "border-t-2 border-foreground p-4 text-sm leading-6 text-muted-readable",
+              "border-t border-line p-4 text-sm leading-6 text-muted-readable",
               isCollapsed ? "lg:sr-only" : "",
             ].join(" ")}
           >
@@ -131,7 +144,14 @@ export function AppShell({
           </div>
         </aside>
 
-        <main className="min-w-0">{children}</main>
+        <main
+          className={[
+            "min-w-0 transition-[padding] duration-200 ease-out motion-reduce:transition-none",
+            isCollapsed ? "lg:pl-14" : "lg:pl-64",
+          ].join(" ")}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

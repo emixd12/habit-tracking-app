@@ -16,7 +16,13 @@ Use both an instant and a local calendar date:
 
 - `occurrences.scheduled_for timestamptz`: exact UTC instant for a scheduled occurrence.
 - `occurrences.local_date date`: calendar date in the occurrence's timezone.
-- `behaviors.scheduled_time time`: local wall-clock time chosen by the user.
+- `behavior_schedule_slots.start_time time`: local wall-clock time or range
+  start chosen by the user.
+- `behavior_schedule_slots.end_time time`: local range end for preset ranges.
+- `behaviors.scheduled_time time`: first schedule slot start time kept for
+  compatibility and simple ordering.
+- `occurrences.schedule_*`: snapshot fields preserving the exact time or range
+  label source for historical occurrence rows.
 - `behaviors.timezone text`: IANA timezone name, default `America/New_York`.
 
 `local_date` is not a convenience cache to ignore. It is the stable grouping key for timeline sections, Needs decision, export, and analytics.

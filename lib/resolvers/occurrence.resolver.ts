@@ -3,6 +3,10 @@ import { Temporal } from "@js-temporal/polyfill";
 import { resolveOccurrenceSchedule } from "@/lib/resolvers/recurrence.resolver";
 import type { OccurrenceStatus } from "@/lib/types/database";
 import { DEFAULT_TIMEZONE, type RecurrenceRule } from "@/lib/types/recurrence";
+import type {
+  ScheduleKind,
+  TimeRangePreset,
+} from "@/lib/types/schedule";
 
 export const DEFAULT_OCCURRENCE_HORIZON_DAYS = 30;
 
@@ -10,11 +14,20 @@ export type OccurrenceGenerationBehavior = {
   id: string;
   userId: string;
   recurrenceRule: RecurrenceRule;
-  scheduledTime: string;
+  scheduleSlots: OccurrenceGenerationScheduleSlot[];
   timezone?: string;
   active: boolean;
   createdAt: string;
   anchorDate?: string;
+};
+
+export type OccurrenceGenerationScheduleSlot = {
+  id: string | null;
+  kind: ScheduleKind;
+  preset: TimeRangePreset | null;
+  startTime: string;
+  endTime: string | null;
+  sortOrder: number;
 };
 
 export type ExistingOccurrenceForGeneration = {
@@ -22,6 +35,11 @@ export type ExistingOccurrenceForGeneration = {
   scheduledFor: string;
   localDate: string;
   status: OccurrenceStatus;
+  scheduleSlotId: string | null;
+  scheduleKind: ScheduleKind;
+  schedulePreset: TimeRangePreset | null;
+  scheduleStartTime: string;
+  scheduleEndTime: string | null;
 };
 
 export type PlannedOccurrenceInsert = {
@@ -30,6 +48,18 @@ export type PlannedOccurrenceInsert = {
   scheduledFor: string;
   localDate: string;
   status: "unresolved";
+  scheduleSlotId: string | null;
+  scheduleKind: ScheduleKind;
+  schedulePreset: TimeRangePreset | null;
+  scheduleStartTime: string;
+  scheduleEndTime: string | null;
+};
+
+export type PlannedOccurrenceScheduleUpdate = Omit<
+  PlannedOccurrenceInsert,
+  "userId" | "behaviorId" | "status"
+> & {
+  id: string;
 };
 
 export type OccurrenceGenerationWindow = {
@@ -42,6 +72,7 @@ export type OccurrenceGenerationWindow = {
 
 export type OccurrenceGenerationPlan = {
   create: PlannedOccurrenceInsert[];
+  updateUnresolved: PlannedOccurrenceScheduleUpdate[];
   deleteUnresolvedIds: string[];
   generationWindow: OccurrenceGenerationWindow;
 };
@@ -66,13 +97,10 @@ export function planOccurrenceGeneration(
     horizonDays,
   });
   const desiredOccurrences = input.behavior.active
-    ? resolveOccurrenceSchedule({
-        recurrenceRule: input.behavior.recurrenceRule,
-        scheduledTime: input.behavior.scheduledTime,
+    ? resolveDesiredOccurrences({
+        behavior: input.behavior,
         timezone,
-        anchorDate: resolveAnchorDate(input.behavior, timezone),
-        rangeStart: generationWindow.rangeStart,
-        rangeEnd: generationWindow.rangeEnd,
+        generationWindow,
       })
     : [];
   const existingScheduledKeys = new Set(
@@ -82,6 +110,12 @@ export function planOccurrenceGeneration(
   );
   const desiredScheduledKeys = new Set(
     desiredOccurrences.map((occurrence) => occurrence.scheduledFor.toString()),
+  );
+  const desiredByScheduledKey = new Map(
+    desiredOccurrences.map((occurrence) => [
+      occurrence.scheduledFor.toString(),
+      occurrence,
+    ]),
   );
 
   return {
@@ -96,7 +130,43 @@ export function planOccurrenceGeneration(
         scheduledFor: occurrence.scheduledFor.toString(),
         localDate: occurrence.localDate,
         status: "unresolved",
+        scheduleSlotId: occurrence.scheduleSlotId,
+        scheduleKind: occurrence.scheduleKind,
+        schedulePreset: occurrence.schedulePreset,
+        scheduleStartTime: occurrence.scheduleStartTime,
+        scheduleEndTime: occurrence.scheduleEndTime,
       })),
+    updateUnresolved: input.existingOccurrences
+      .filter(
+        (occurrence) =>
+          occurrence.status === "unresolved" &&
+          isAtOrAfter(
+            normalizeInstant(occurrence.scheduledFor),
+            generationWindow.rangeStart,
+          ),
+      )
+      .flatMap((occurrence) => {
+        const desired = desiredByScheduledKey.get(
+          normalizeInstantString(occurrence.scheduledFor),
+        );
+
+        if (!desired || snapshotsMatch(occurrence, desired)) {
+          return [];
+        }
+
+        return [
+          {
+            id: occurrence.id,
+            scheduledFor: desired.scheduledFor.toString(),
+            localDate: desired.localDate,
+            scheduleSlotId: desired.scheduleSlotId,
+            scheduleKind: desired.scheduleKind,
+            schedulePreset: desired.schedulePreset,
+            scheduleStartTime: desired.scheduleStartTime,
+            scheduleEndTime: desired.scheduleEndTime,
+          },
+        ];
+      }),
     deleteUnresolvedIds: input.existingOccurrences
       .filter(
         (occurrence) =>
@@ -110,6 +180,42 @@ export function planOccurrenceGeneration(
       .map((occurrence) => occurrence.id),
     generationWindow,
   };
+}
+
+function resolveDesiredOccurrences(input: {
+  behavior: OccurrenceGenerationBehavior;
+  timezone: string;
+  generationWindow: OccurrenceGenerationWindow;
+}): Array<{
+  scheduledFor: Temporal.Instant;
+  localDate: string;
+  scheduleSlotId: string | null;
+  scheduleKind: ScheduleKind;
+  schedulePreset: TimeRangePreset | null;
+  scheduleStartTime: string;
+  scheduleEndTime: string | null;
+}> {
+  return input.behavior.scheduleSlots
+    .flatMap((slot) =>
+      resolveOccurrenceSchedule({
+        recurrenceRule: input.behavior.recurrenceRule,
+        scheduledTime: slot.startTime,
+        timezone: input.timezone,
+        anchorDate: resolveAnchorDate(input.behavior, input.timezone),
+        rangeStart: input.generationWindow.rangeStart,
+        rangeEnd: input.generationWindow.rangeEnd,
+      }).map((occurrence) => ({
+        ...occurrence,
+        scheduleSlotId: slot.id,
+        scheduleKind: slot.kind,
+        schedulePreset: slot.preset,
+        scheduleStartTime: slot.startTime,
+        scheduleEndTime: slot.endTime,
+      })),
+    )
+    .sort((left, right) =>
+      Temporal.Instant.compare(left.scheduledFor, right.scheduledFor),
+    );
 }
 
 export function resolveGenerationWindow(input: {
@@ -149,6 +255,27 @@ function resolveAnchorDate(
     .toZonedDateTimeISO(timezone)
     .toPlainDate()
     .toString();
+}
+
+function snapshotsMatch(
+  existing: ExistingOccurrenceForGeneration,
+  desired: {
+    scheduleSlotId: string | null;
+    scheduleKind: ScheduleKind;
+    schedulePreset: TimeRangePreset | null;
+    scheduleStartTime: string;
+    scheduleEndTime: string | null;
+    localDate: string;
+  },
+): boolean {
+  return (
+    existing.localDate === desired.localDate &&
+    existing.scheduleSlotId === desired.scheduleSlotId &&
+    existing.scheduleKind === desired.scheduleKind &&
+    existing.schedulePreset === desired.schedulePreset &&
+    existing.scheduleStartTime === desired.scheduleStartTime &&
+    existing.scheduleEndTime === desired.scheduleEndTime
+  );
 }
 
 function startOfLocalDay(

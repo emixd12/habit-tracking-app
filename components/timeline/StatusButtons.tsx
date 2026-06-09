@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 
 import type {
@@ -31,12 +32,23 @@ export function StatusButtons({
   compact = false,
 }: StatusButtonsProps) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (state.status === "success") {
+      router.refresh();
+    }
+  }, [router, state.status]);
 
   return (
-    <div className={compact ? "grid gap-2" : "grid gap-2 sm:min-w-72"}>
+    <div className={compact ? "grid gap-2" : "grid gap-2 sm:w-auto"}>
       <form
         action={formAction}
-        className={compact ? "grid gap-2 sm:grid-cols-2" : "grid grid-cols-2 gap-2"}
+        className={
+          compact
+            ? "grid gap-2 sm:grid-cols-2"
+            : "grid grid-cols-2 gap-2 sm:flex sm:flex-nowrap"
+        }
       >
         <input type="hidden" name="occurrence_id" value={occurrenceId} />
         <StatusSubmitButton
@@ -80,12 +92,12 @@ function StatusSubmitButton({
       disabled={pending}
       aria-pressed={isCurrent}
       className={[
-        "inline-flex min-h-11 items-center justify-center gap-2 border-2 border-foreground px-3 py-2 text-sm font-bold transition-colors disabled:bg-surface disabled:text-muted-readable",
+        "inline-flex min-h-9 items-center justify-center gap-1.5 whitespace-nowrap border border-line px-2.5 py-1.5 text-xs font-bold transition-colors disabled:bg-surface disabled:text-muted-readable sm:px-3",
         isCurrent ? "outline outline-2 outline-offset-2 outline-primary" : "",
         tone,
       ].join(" ")}
     >
-      <Icon aria-hidden="true" size={16} strokeWidth={2.5} />
+      <Icon aria-hidden="true" size={14} strokeWidth={2.5} />
       <span>{pending ? "Saving..." : label}</span>
     </button>
   );
@@ -99,10 +111,10 @@ function ActionMessage({ state }: Readonly<{ state: OccurrenceActionState }>) {
   return (
     <p
       className={[
-        "border-2 px-3 py-2 text-sm leading-6",
+        "border px-3 py-2 text-sm leading-6",
         state.status === "success"
-          ? "border-primary text-foreground"
-          : "border-accent text-accent",
+          ? "border-line text-foreground"
+          : "border-line text-accent",
       ].join(" ")}
       role={state.status === "error" ? "alert" : "status"}
     >

@@ -18,6 +18,12 @@ Avoid:
 
 Use a retractable sidebar on both desktop and mobile.
 
+On desktop, the sidebar should remain fixed while the page content scrolls.
+The collapsed sidebar should be a narrow icon rail with centered icons and no
+boxed borders around each navigation item.
+Keep the desktop sidebar compact enough that the Timeline and Behavior forms
+remain the dominant surface.
+
 Use five primary screens:
 
 1. Timeline
@@ -39,15 +45,23 @@ This is the main screen.
 
 The current day should be prominent and should begin the forward timeline.
 
-Users should not browse previous days as normal timeline sections. Prior unresolved occurrences appear only in the Needs decision group.
+Users should not browse previous days as normal timeline sections. Prior unresolved occurrences appear only in the Needs decision modal.
 
-Timeline sections:
+Timeline access:
 
-### 1. Needs decision
+### Needs decision
 
 Unresolved occurrences before today.
 
 Needs decision is a derived UI state, not a stored occurrence status.
+
+Needs decision should not interrupt the forward Timeline flow. It is opened from a floating button fixed to the lower right of the Timeline screen.
+
+The floating button should:
+- Show the number of prior unresolved occurrences.
+- Use the primary action treatment when there is at least one occurrence to decide.
+- Remain factual and non-punitive. Do not use error styling or missed/failure language.
+- Open a modal that reveals all prior unresolved occurrences grouped by local day.
 
 Example:
 
@@ -61,9 +75,27 @@ Monday
 - Laundry
 ```
 
-### 2. Current day
+### Current day
 
 Current-day occurrences, ordered by scheduled time.
+
+When the same behavior has multiple occurrences on the same local day, group
+those same-day occurrences together as a stack. Groups are ordered by their
+earliest occurrence. Each scheduled time or time range renders as its own
+occurrence row inside the group.
+
+For multi-time behavior groups:
+- Do not use percentage or progress fill on the grouped row.
+- Keep the existing single-occurrence visual language for each row.
+- Completed rows use the existing full blue completed treatment.
+- Unresolved rows use the existing unresolved treatment and show Completed and
+  Not Completed buttons.
+- Not Completed rows use the existing neutral resolved treatment.
+- Do not show a "1 of 2 completed" label.
+- Do not add a partial-completion stored status.
+- Partial completion is only a derived visual result of mixed row states within
+  the grouped behavior.
+- Status buttons always apply to the specific occurrence row where they appear.
 
 Example:
 
@@ -80,7 +112,7 @@ If a day has no scheduled behaviors, show:
 No behaviors on this day
 ```
 
-### 3. Future days
+### Future days
 
 Show the next 7 days by default.
 
@@ -88,7 +120,7 @@ Each future day is its own section.
 
 Provide a control to show more future days.
 
-Do not show previous days except for unresolved prior-day items in Needs decision.
+Do not show previous days except for unresolved prior-day items inside the Needs decision modal.
 
 ## Occurrence card
 
@@ -107,7 +139,7 @@ Expanded card details should show:
 
 Categories should only be visible in the expanded card details.
 
-Unresolved prior-day cards in Needs decision should be visually highlighted so the user is clearly prompted to decide whether each occurrence was Completed or Not Completed. This highlight is derived from date and status; it must not write a different status.
+Unresolved prior-day cards in the Needs decision modal should be visually highlighted so the user is clearly prompted to decide whether each occurrence was Completed or Not Completed. This highlight is derived from date and status; it must not write a different status.
 
 Resolved cards should remain visible with a distinct resolved state. Resolved cards should hide the primary action buttons and clearly indicate Completed or Not Completed.
 
@@ -126,18 +158,31 @@ Resolved occurrences can be changed later.
 
 The create/edit behavior view should be a full page accessible from the sidebar navigation.
 
+On the Behaviors page, the create form should sit in the page flow without an
+extra outer card border or outer padding. Inner field groups may still use
+quiet dividers where they clarify structure.
+
 Fields:
 - Title
 - Description
 - Category
 - Recurrence
-- Scheduled time
+- Schedule with one or more exact times or preset time ranges
 - Browser reminder enabled, default on
 - Email reminder toggle, default off
 - Reminder offset
 - Active/archive
 
-Scheduled time is required.
+At least one schedule slot is required.
+
+Preset time ranges:
+- Morning: 6:00 AM-Noon
+- Afternoon: Noon-6:00 PM
+- Evening: 6:00 PM-Midnight
+- Night: Midnight-6:00 AM
+
+Timezone is managed in Settings and should not be shown as a separate panel in
+the behavior creation form.
 
 ## Recurrence editor
 
@@ -150,6 +195,9 @@ Support:
 
 Use segmented presets first, with advanced options below.
 
+The Recurrence editor should be an unframed form section, not a boxed panel.
+Use smaller subsection heading text for options such as Every, On, and Day.
+
 Do not expose raw cron syntax.
 
 Do not use natural language parsing in v1.
@@ -160,7 +208,7 @@ Behavior-specific fields:
 - Browser reminder enabled, default on
 - Email reminder toggle, default off
 - Reminder offset:
-  - At scheduled time
+  - At scheduled start
   - 15 minutes before
   - 1 hour before
   - 1 day before
@@ -168,6 +216,10 @@ Behavior-specific fields:
   - Custom minutes/hours/days if easy
 
 Browser notification permission is managed globally from Settings.
+
+The Reminder editor should use the same unframed form-section treatment as the
+Recurrence editor. Use a plain section heading and smaller subsection heading
+text for options such as Reminder offset.
 
 ## Behaviors screen
 
@@ -177,7 +229,7 @@ Each behavior card/list item should include:
 - Title
 - Category
 - Recurrence summary
-- Scheduled time
+- Scheduled times or ranges
 - Reminder indicators
 - Edit
 - Archive

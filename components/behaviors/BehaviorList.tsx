@@ -15,7 +15,6 @@ type BehaviorListProps = Readonly<{
   activeBehaviors: BehaviorView[];
   archivedBehaviors: BehaviorView[];
   categories: CategoryOption[];
-  defaultTimezone: string;
   updateAction: BehaviorFormAction;
   archiveAction: BehaviorFormAction;
 }>;
@@ -29,7 +28,6 @@ export function BehaviorList({
   activeBehaviors,
   archivedBehaviors,
   categories,
-  defaultTimezone,
   updateAction,
   archiveAction,
 }: BehaviorListProps) {
@@ -44,7 +42,6 @@ export function BehaviorList({
             key={behavior.id}
             behavior={behavior}
             categories={categories}
-            defaultTimezone={defaultTimezone}
             updateAction={updateAction}
             archiveAction={archiveAction}
           />
@@ -60,7 +57,6 @@ export function BehaviorList({
             key={behavior.id}
             behavior={behavior}
             categories={categories}
-            defaultTimezone={defaultTimezone}
             updateAction={updateAction}
             archiveAction={archiveAction}
           />
@@ -83,14 +79,14 @@ function BehaviorSection({
 
   return (
     <section className="grid gap-4">
-      <div className="border-b-2 border-foreground pb-3">
+      <div className="border-b border-line pb-3">
         <h2 className="text-2xl font-bold leading-tight">{title}</h2>
       </div>
 
       {hasChildren ? (
         <div className="grid gap-4">{children}</div>
       ) : (
-        <p className="border-2 border-foreground bg-surface p-5 text-base leading-7 text-muted-readable">
+        <p className="border border-line bg-surface p-5 text-base leading-7 text-muted-readable">
           {emptyMessage}
         </p>
       )}
@@ -101,31 +97,29 @@ function BehaviorSection({
 function BehaviorCard({
   behavior,
   categories,
-  defaultTimezone,
   updateAction,
   archiveAction,
 }: Readonly<{
   behavior: BehaviorView;
   categories: CategoryOption[];
-  defaultTimezone: string;
   updateAction: BehaviorFormAction;
   archiveAction: BehaviorFormAction;
 }>) {
   return (
-    <article className="border-2 border-foreground bg-background">
+    <article className="border border-line bg-background">
       <div className="grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-xl font-bold leading-tight">{behavior.title}</h3>
             {!behavior.active ? (
-              <span className="border border-foreground bg-surface px-2 py-1 text-xs font-bold">
+              <span className="border border-line bg-surface px-2 py-1 text-xs font-bold">
                 Archived
               </span>
             ) : null}
           </div>
 
           <dl className="mt-4 grid gap-2 text-sm leading-6 text-muted-readable sm:grid-cols-2">
-            <SummaryItem label="Time" value={behavior.scheduledTimeLabel} />
+            <SummaryItem label="Schedule times" value={behavior.scheduleSummary} />
             <SummaryItem label="Category" value={behavior.categoryName} />
             <SummaryItem label="Schedule" value={behavior.recurrenceSummary} />
             <SummaryItem label="Reminders" value={behavior.reminderSummary} />
@@ -146,7 +140,7 @@ function BehaviorCard({
         </p>
       ) : null}
 
-      <details className="border-t-2 border-foreground">
+      <details className="border-t border-line">
         <summary className="cursor-pointer px-5 py-4 text-sm font-bold hover:bg-surface">
           Edit behavior
         </summary>
@@ -156,7 +150,6 @@ function BehaviorCard({
             mode="edit"
             action={updateAction}
             categories={categories}
-            defaultTimezone={defaultTimezone}
             behavior={behavior}
           />
         </div>
@@ -194,7 +187,7 @@ function ArchiveBehaviorForm({
       <input type="hidden" name="behavior_id" value={behaviorId} />
       <ArchiveButton />
       {state.status === "error" && state.message ? (
-        <p className="max-w-48 border-2 border-accent px-3 py-2 text-sm leading-6 text-accent">
+        <p className="max-w-48 border border-line px-3 py-2 text-sm leading-6 text-accent">
           {state.message}
         </p>
       ) : null}
@@ -209,7 +202,7 @@ function ArchiveButton() {
     <button
       type="submit"
       disabled={pending}
-      className="min-h-11 border-2 border-foreground bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-accent hover:text-background disabled:bg-surface disabled:text-muted-readable"
+      className="min-h-11 border border-line bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-accent hover:text-background disabled:bg-surface disabled:text-muted-readable"
     >
       {pending ? "Archiving..." : "Archive"}
     </button>

@@ -106,7 +106,7 @@ export function NotificationPermissionPanel({
   }
 
   return (
-    <section className="border-2 border-foreground bg-background p-5 sm:p-6 md:col-span-2">
+    <section className="border border-line bg-background p-5 sm:p-6 md:col-span-2">
       <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">
           <h2 className="text-xl font-bold leading-tight">Notifications</h2>
@@ -130,7 +130,7 @@ export function NotificationPermissionPanel({
           type="button"
           disabled={!canRequest}
           onClick={handleEnable}
-          className="min-h-11 border-2 border-foreground bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:bg-surface disabled:text-muted-readable"
+          className="min-h-11 border border-line bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:bg-surface disabled:text-muted-readable"
         >
           {isBusy ? "Saving..." : buttonLabel(permission)}
         </button>
@@ -139,10 +139,10 @@ export function NotificationPermissionPanel({
       {message ? (
         <p
           className={[
-            "mt-5 border-2 px-3 py-2 text-sm leading-6",
+            "mt-5 border px-3 py-2 text-sm leading-6",
             saveState === "error"
-              ? "border-accent text-accent"
-              : "border-foreground text-muted-readable",
+              ? "border-line text-accent"
+              : "border-line text-muted-readable",
           ].join(" ")}
         >
           {message}

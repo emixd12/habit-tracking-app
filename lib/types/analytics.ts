@@ -8,6 +8,7 @@ export type AnalyticsOccurrenceInput = {
   behaviorTitle: string;
   categoryName: string;
   scheduledFor: string;
+  scheduledTimeLabel: string;
   localDate: string;
   status: AnalyticsStatus;
   note: string;
