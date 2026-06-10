@@ -470,6 +470,31 @@ Verification:
 Remaining risk:
 - Browser QA did not click the status buttons because that would mutate the user's actual behavior history. The resolver display contract is covered by `tests/timeline.resolver.test.ts`.
 
+### Timeline Not Completed original surface
+
+Status: complete.
+
+Implementation summary:
+- Updated `components/timeline/OccurrenceRow.tsx` so `not_done` rows use the same `bg-background` collapsed card surface and `bg-surface` expanded-detail surface as the original unresolved row.
+- Preserved the prior behavior where `not_done` rows expose both collapsed Completed and Not Completed buttons, with Not Completed indicated as the current choice.
+- Confirmed no schema migration is needed: the existing `occurrences` row already stores `status`, `completed_at`, and `status_marked_at` per scheduled occurrence instance.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `DESIGN.md` to call this a visual reset while preserving the stored `not_done` status on the occurrence instance.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Pass: `npm run design-system:check`
+- Pass: design-system-bench classify/theme detection, inventory and usage scans to temporary files, and `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Browser QA: authenticated in-app browser `/timeline` default-width render showed Not Completed rows on `bg-background` with collapsed Completed and Not Completed buttons, no horizontal overflow, and no browser warning/error logs.
+- Browser QA: authenticated in-app browser `/timeline` at 390px width showed the 9:00 AM Not Completed row on `bg-background` with both buttons, no horizontal overflow, and no browser warning/error logs.
+
+Remaining risk:
+- Browser QA did not click status buttons because that would mutate the user's actual behavior history. No data-model risk is known for this visual treatment change.
+
 ## Handoff notes
 
 - For the next coding agent: continue Ticket 013 from the Vercel environment/deployment blocker. Do not start deferred offline/PWA or future restore/import work unless the product docs change or the user explicitly brings it into scope.

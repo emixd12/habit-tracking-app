@@ -15,7 +15,7 @@ const ROW_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
   default: "border-line bg-background text-foreground",
   needs_decision: "border-line bg-surface text-foreground",
   done: "border-line bg-primary text-primary-foreground",
-  not_done: "border-line bg-surface text-foreground",
+  not_done: "border-line bg-background text-foreground",
 };
 
 const TIME_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
@@ -29,7 +29,7 @@ const DETAIL_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> 
   default: "border-line bg-surface text-muted-readable",
   needs_decision: "border-line bg-background text-muted-readable",
   done: "border-line bg-background text-muted-readable",
-  not_done: "border-line bg-background text-muted-readable",
+  not_done: "border-line bg-surface text-muted-readable",
 };
 
 const RESOLVED_LABEL_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {

@@ -90,8 +90,9 @@ For multi-time behavior groups:
 - Completed rows use the existing full blue completed treatment.
 - Unresolved rows use the existing unresolved treatment and show Completed and
   Not Completed buttons.
-- Not Completed rows use the existing neutral treatment and show Completed and
-  Not Completed buttons, with Not Completed indicated as the current choice.
+- Not Completed rows return to the original unresolved card treatment and show
+  Completed and Not Completed buttons, with Not Completed indicated as the
+  current choice.
 - Do not show a "1 of 2 completed" label.
 - Do not add a partial-completion stored status.
 - Partial completion is only a derived visual result of mixed row states within
@@ -145,7 +146,7 @@ Unresolved prior-day cards in the Needs decision modal should be visually highli
 
 Completed cards should remain visible with a distinct resolved state, hide the primary action buttons, and clearly indicate Completed.
 
-Not Completed cards should remain visible with the neutral resolved treatment, but should expose the same Completed and Not Completed buttons as the original decision card so the user can immediately approve or change the logged action.
+Not Completed cards should remain visible with the original unresolved card treatment and expose the same Completed and Not Completed buttons as the original decision card so the user can immediately approve or change the logged action. This is a visual reset only; the stored status remains on that occurrence instance as `not_done`.
 
 Clicking a Completed card should reveal the option to change the logged action. Do not require a confirmation step before changing a status.
 

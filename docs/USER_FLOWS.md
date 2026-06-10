@@ -82,7 +82,7 @@ Collapsed Not Completed cards show:
 
 Completed cards should have a distinct visual state and should hide the primary action buttons.
 
-Not Completed cards should have the neutral resolved treatment while exposing both buttons so the logged action can be approved or changed without expanding the card.
+Not Completed cards should visually return to the original unresolved card treatment while exposing both buttons so the logged action can be approved or changed without expanding the card. The stored status remains `not_done` on that occurrence instance.
 
 Clicking a card outside the completion buttons expands it.
 
