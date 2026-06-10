@@ -1,10 +1,17 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef } from "react";
+import type { FormEvent } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 
+import {
+  playCompletionChime,
+  preloadCompletionChime,
+  prepareCompletionChimeForUserGesture,
+  shouldPlayCompletionChime,
+} from "@/lib/ui/completion-feedback";
 import type {
   OccurrenceActionState,
   OccurrenceFormAction,
@@ -33,17 +40,45 @@ export function StatusButtons({
 }: StatusButtonsProps) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
   const router = useRouter();
+  const shouldChimeAfterSuccessRef = useRef(false);
+
+  useEffect(() => {
+    preloadCompletionChime();
+  }, []);
 
   useEffect(() => {
     if (state.status === "success") {
+      if (shouldChimeAfterSuccessRef.current) {
+        playCompletionChime();
+      }
+
+      shouldChimeAfterSuccessRef.current = false;
       router.refresh();
     }
-  }, [router, state.status]);
+
+    if (state.status === "error") {
+      shouldChimeAfterSuccessRef.current = false;
+    }
+  }, [router, state]);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    const shouldChimeAfterSuccess = shouldPlayCompletionChime({
+      currentStatus,
+      nextStatus: submittedStatusFromEvent(event),
+    });
+
+    if (shouldChimeAfterSuccess) {
+      prepareCompletionChimeForUserGesture();
+    }
+
+    shouldChimeAfterSuccessRef.current = shouldChimeAfterSuccess;
+  }
 
   return (
     <div className={compact ? "grid gap-2" : "grid gap-2 sm:w-auto"}>
       <form
         action={formAction}
+        onSubmit={handleSubmit}
         className={
           compact
             ? "grid gap-2 sm:grid-cols-2"
@@ -121,4 +156,20 @@ function ActionMessage({ state }: Readonly<{ state: OccurrenceActionState }>) {
       {state.message}
     </p>
   );
+}
+
+function submittedStatusFromEvent(
+  event: FormEvent<HTMLFormElement>,
+): StatusButtonValue | null {
+  const submitter = (event.nativeEvent as SubmitEvent).submitter;
+
+  if (!(submitter instanceof HTMLButtonElement)) {
+    return null;
+  }
+
+  return isStatusButtonValue(submitter.value) ? submitter.value : null;
+}
+
+function isStatusButtonValue(value: string): value is StatusButtonValue {
+  return value === "done" || value === "not_done";
 }

@@ -220,8 +220,8 @@ describe("resolveTimeline", () => {
         statusLabel: "Not Completed",
         statusDetail: "Resolved as Not Completed",
         visualTone: "not_done",
-        showDecisionActions: false,
-        showCollapsedStatusLabel: true,
+        showDecisionActions: true,
+        showCollapsedStatusLabel: false,
       },
     ]);
   });

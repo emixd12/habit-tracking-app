@@ -185,6 +185,24 @@ export async function archiveBehaviorFromFormData(
   await syncBehaviorOccurrences(supabase, userId, updatedBehavior);
 }
 
+export async function restoreBehaviorFromFormData(
+  formData: FormData,
+): Promise<void> {
+  const supabase = await createClient();
+  const userId = await requireUserId(supabase);
+  const behaviorId = getBehaviorIdForArchive(formData);
+  const updatedBehavior = await updateBehavior(supabase, userId, behaviorId, {
+    active: true,
+    archived_at: null,
+  });
+
+  if (!updatedBehavior) {
+    throw new Error("Behavior not found.");
+  }
+
+  await syncBehaviorOccurrences(supabase, userId, updatedBehavior);
+}
+
 function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {
   const recurrenceRule = normalizeRecurrenceRule(behavior.recurrence_rule);
   const scheduledTime = normalizeScheduledTime(behavior.scheduled_time);

@@ -111,6 +111,21 @@ Supabase is initialized for local development. Ticket 003 added the first produc
 
 ## Post-ticket refinements
 
+### Behaviors page critique follow-up
+
+Status: in_progress.
+
+Implementation summary:
+- Started follow-up work from the Behaviors page impeccable critique.
+- Scope is limited to making the Behaviors page prioritize existing behavior management, reducing repeated hidden edit-form weight, improving segmented-control focus states, adding clearer archive recovery, and tightening behavior-form copy.
+- No product scope expansion, schema change, or resolver logic change is intended.
+
+Verification:
+- Pending.
+
+Remaining risk:
+- Pending implementation and verification.
+
 ### Behavior schedule slots
 
 Status: complete.
@@ -398,6 +413,62 @@ Verification:
 
 Remaining risk:
 - None known for the hosted schedule-slot schema and behavior schedule-slot embed issue.
+
+### Timeline completion chime
+
+Status: complete.
+
+Implementation summary:
+- Added the user-provided MP3 as `public/sounds/completion-chime.mp3`.
+- Added client-side completion feedback so `StatusButtons` preloads the chime and plays it only after a successful user-initiated status change into Completed.
+- Kept Not Completed, note saves, page refreshes, and re-saving an already Completed occurrence silent.
+- Follow-up: changed playback to fetch the MP3 during preload, create/resume the browser audio context during the user's submit gesture, and play the decoded chime only after the status server action reports success. This addresses browser policies that can block first-click audio when `play()` is called only after the async save returns.
+- Documented the chime behavior in `docs/UI_SPEC.md` and `DESIGN.md`.
+- Added `lib/ui/completion-feedback.ts` and paired tests for the completion-chime decision rule.
+- Updated the design-system bench preview to pass the existing `restoreAction` prop required by the in-progress BehaviorList work, and excluded non-rendering `lib/ui/**` helpers from auto-inventory scans.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Pass: `npm run design-system:check`
+- Pass: `npm run test -- tests/completion-feedback.test.ts`
+- Pass: design-system-bench classify/theme detection plus inventory and usage rescans to temporary files; inventory stayed focused on 18 rendered components and did not retain the audio helper as a visual module after config exclusion.
+- Pass: `curl -I http://localhost:3000/sounds/completion-chime.mp3` returned `200 OK` with `Content-Type: audio/mpeg`.
+- Browser QA: authenticated in-app browser `/timeline` desktop render showed Completed controls, no horizontal overflow, and no warning/error logs.
+- Browser QA: authenticated in-app browser `/timeline` at 390px width showed Completed controls, no horizontal overflow, and no warning/error logs.
+- Follow-up Browser QA: local `/design-system#ds-module-status-buttons` rendered the fixture Completed button and reported no warning/error logs, but its server-action mock did not submit in the in-app browser fixture; no product data was changed.
+
+Remaining risk:
+- Browser QA did not click a real Completed button because that would mutate the user's actual behavior history. The client decision rule is covered by tests, and the audio asset route is verified.
+
+### Timeline Not Completed approval controls
+
+Status: complete.
+
+Implementation summary:
+- Updated the Timeline resolver display metadata so `not_done` occurrences expose the same collapsed Completed / Not Completed controls as an unresolved decision row, with Not Completed indicated as the current choice.
+- Completed rows continue to use the full blue resolved treatment and collapsed status label instead of primary buttons.
+- Updated the Timeline UI source-of-truth docs and design-system occurrence-row fixture so Not Completed rows are documented and previewed as approval-ready, without adding a new stored status or changing Needs decision semantics.
+
+Verification:
+- Pass: `npm run test -- tests/timeline.resolver.test.ts`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test`
+- Pass: `npm run build`
+- Pass: `npm run design-system:check`
+- Pass: design-system-bench classify/theme detection, inventory and usage scans to temporary files, and `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Browser QA: authenticated in-app browser `/timeline` default-width render showed the selected Not Completed row with collapsed Completed and Not Completed buttons, Not Completed `aria-pressed="true"`, Completed rows still label-only, no horizontal overflow, and no browser warning/error logs.
+- Browser QA: authenticated in-app browser `/timeline` at 390px width showed the same Not Completed collapsed controls, no horizontal overflow, and no browser warning/error logs.
+
+Remaining risk:
+- Browser QA did not click the status buttons because that would mutate the user's actual behavior history. The resolver display contract is covered by `tests/timeline.resolver.test.ts`.
 
 ## Handoff notes
 

@@ -50,8 +50,10 @@ inside the group.
 Do not show a "1 of 2 completed" label, progress fill, or stored partial status
 for grouped behavior rows. Partial completion is only derived from the mixed
 states of the individual occurrence rows. Completed, unresolved, and Not
-Completed rows keep the existing single-occurrence visual treatments, and each
-status button applies only to the occurrence row where it appears.
+Completed rows keep the existing single-occurrence visual treatments. Not
+Completed rows continue to show both status buttons, with Not Completed
+indicated as the current choice, and each status button applies only to the
+occurrence row where it appears.
 
 If a day has no occurrences, show:
 
@@ -67,12 +69,20 @@ Collapsed unresolved cards show:
 - Completed button
 - Not Completed button
 
-Collapsed resolved cards show:
+Collapsed Completed cards show:
 - Scheduled time
 - Behavior title
 - Resolved status
 
-Resolved cards should have a distinct visual state and should hide the primary action buttons.
+Collapsed Not Completed cards show:
+- Scheduled time
+- Behavior title
+- Completed button
+- Not Completed button, indicated as the current choice
+
+Completed cards should have a distinct visual state and should hide the primary action buttons.
+
+Not Completed cards should have the neutral resolved treatment while exposing both buttons so the logged action can be approved or changed without expanding the card.
 
 Clicking a card outside the completion buttons expands it.
 
@@ -81,7 +91,7 @@ Expanded cards show:
 - Category
 - Schedule details
 - Note field
-- Option to change a resolved status
+- Option to change a Completed status
 
 Categories are visible only in expanded card details.
 

@@ -228,7 +228,7 @@ function ScheduleRowEditor({
           <div className="grid grid-cols-2">
             <label
               className={[
-                "flex min-h-11 cursor-pointer items-center justify-center border border-line px-3 py-2 text-sm font-bold transition-colors",
+                "flex min-h-11 cursor-pointer items-center justify-center border border-line px-3 py-2 text-sm font-bold transition-colors focus-within:z-10 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary",
                 row.kind === "exact"
                   ? "bg-primary text-primary-foreground"
                   : "bg-background text-foreground hover:bg-surface",
@@ -246,7 +246,7 @@ function ScheduleRowEditor({
             </label>
             <label
               className={[
-                "flex min-h-11 cursor-pointer items-center justify-center border border-l-0 border-line px-3 py-2 text-sm font-bold transition-colors",
+                "flex min-h-11 cursor-pointer items-center justify-center border border-l-0 border-line px-3 py-2 text-sm font-bold transition-colors focus-within:z-10 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary",
                 row.kind === "range"
                   ? "bg-primary text-primary-foreground"
                   : "bg-background text-foreground hover:bg-surface",
@@ -286,7 +286,7 @@ function ScheduleRowEditor({
                   <label
                     key={preset.preset}
                     className={[
-                      "grid min-h-14 cursor-pointer gap-0.5 border border-line px-3 py-2 transition-colors",
+                      "grid min-h-14 cursor-pointer gap-0.5 border border-line px-3 py-2 transition-colors focus-within:z-10 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary",
                       row.rangePreset === preset.preset
                         ? "bg-primary text-primary-foreground"
                         : "bg-background text-foreground hover:bg-surface",

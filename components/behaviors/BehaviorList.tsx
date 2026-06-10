@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { BehaviorForm } from "@/components/behaviors/BehaviorForm";
@@ -17,6 +17,7 @@ type BehaviorListProps = Readonly<{
   categories: CategoryOption[];
   updateAction: BehaviorFormAction;
   archiveAction: BehaviorFormAction;
+  restoreAction: BehaviorFormAction;
 }>;
 
 const EMPTY_ACTION_STATE: BehaviorActionState = {
@@ -30,6 +31,7 @@ export function BehaviorList({
   categories,
   updateAction,
   archiveAction,
+  restoreAction,
 }: BehaviorListProps) {
   return (
     <div className="grid gap-8">
@@ -44,6 +46,7 @@ export function BehaviorList({
             categories={categories}
             updateAction={updateAction}
             archiveAction={archiveAction}
+            restoreAction={restoreAction}
           />
         ))}
       </BehaviorSection>
@@ -59,6 +62,7 @@ export function BehaviorList({
             categories={categories}
             updateAction={updateAction}
             archiveAction={archiveAction}
+            restoreAction={restoreAction}
           />
         ))}
       </BehaviorSection>
@@ -99,12 +103,16 @@ function BehaviorCard({
   categories,
   updateAction,
   archiveAction,
+  restoreAction,
 }: Readonly<{
   behavior: BehaviorView;
   categories: CategoryOption[];
   updateAction: BehaviorFormAction;
   archiveAction: BehaviorFormAction;
+  restoreAction: BehaviorFormAction;
 }>) {
+  const [hasOpenedEdit, setHasOpenedEdit] = useState(false);
+
   return (
     <article className="border border-line bg-background">
       <div className="grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
@@ -119,7 +127,7 @@ function BehaviorCard({
           </div>
 
           <dl className="mt-4 grid gap-2 text-sm leading-6 text-muted-readable sm:grid-cols-2">
-            <SummaryItem label="Schedule times" value={behavior.scheduleSummary} />
+            <SummaryItem label="Scheduled for" value={behavior.scheduleSummary} />
             <SummaryItem label="Category" value={behavior.categoryName} />
             <SummaryItem label="Schedule" value={behavior.recurrenceSummary} />
             <SummaryItem label="Reminders" value={behavior.reminderSummary} />
@@ -127,11 +135,22 @@ function BehaviorCard({
         </div>
 
         {behavior.active ? (
-          <ArchiveBehaviorForm
+          <BehaviorStateForm
             behaviorId={behavior.id}
             action={archiveAction}
+            buttonLabel="Archive"
+            pendingLabel="Archiving..."
+            hoverClassName="hover:bg-accent hover:text-background"
           />
-        ) : null}
+        ) : (
+          <BehaviorStateForm
+            behaviorId={behavior.id}
+            action={restoreAction}
+            buttonLabel="Restore"
+            pendingLabel="Restoring..."
+            hoverClassName="hover:bg-primary hover:text-primary-foreground"
+          />
+        )}
       </div>
 
       {behavior.description ? (
@@ -140,19 +159,28 @@ function BehaviorCard({
         </p>
       ) : null}
 
-      <details className="border-t border-line">
-        <summary className="cursor-pointer px-5 py-4 text-sm font-bold hover:bg-surface">
+      <details
+        className="border-t border-line"
+        onToggle={(event) => {
+          if (event.currentTarget.open) {
+            setHasOpenedEdit(true);
+          }
+        }}
+      >
+        <summary className="cursor-pointer px-5 py-4 text-sm font-bold marker:text-muted-readable hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           Edit behavior
         </summary>
-        <div className="border-t border-line p-5">
-          <BehaviorForm
-            key={`${behavior.id}-${behavior.updatedAt}`}
-            mode="edit"
-            action={updateAction}
-            categories={categories}
-            behavior={behavior}
-          />
-        </div>
+        {hasOpenedEdit ? (
+          <div className="border-t border-line p-5">
+            <BehaviorForm
+              key={`${behavior.id}-${behavior.updatedAt}`}
+              mode="edit"
+              action={updateAction}
+              categories={categories}
+              behavior={behavior}
+            />
+          </div>
+        ) : null}
       </details>
     </article>
   );
@@ -173,19 +201,29 @@ function SummaryItem({
   );
 }
 
-function ArchiveBehaviorForm({
+function BehaviorStateForm({
   behaviorId,
   action,
+  buttonLabel,
+  pendingLabel,
+  hoverClassName,
 }: Readonly<{
   behaviorId: string;
   action: BehaviorFormAction;
+  buttonLabel: string;
+  pendingLabel: string;
+  hoverClassName: string;
 }>) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
 
   return (
     <form action={formAction} className="grid justify-start gap-2 sm:justify-end">
       <input type="hidden" name="behavior_id" value={behaviorId} />
-      <ArchiveButton />
+      <BehaviorStateButton
+        label={buttonLabel}
+        pendingLabel={pendingLabel}
+        hoverClassName={hoverClassName}
+      />
       {state.status === "error" && state.message ? (
         <p className="max-w-48 border border-line px-3 py-2 text-sm leading-6 text-accent">
           {state.message}
@@ -195,16 +233,27 @@ function ArchiveBehaviorForm({
   );
 }
 
-function ArchiveButton() {
+function BehaviorStateButton({
+  label,
+  pendingLabel,
+  hoverClassName,
+}: Readonly<{
+  label: string;
+  pendingLabel: string;
+  hoverClassName: string;
+}>) {
   const { pending } = useFormStatus();
 
   return (
     <button
       type="submit"
       disabled={pending}
-      className="min-h-11 border border-line bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-accent hover:text-background disabled:bg-surface disabled:text-muted-readable"
+      className={[
+        "min-h-11 border border-line bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors disabled:bg-surface disabled:text-muted-readable",
+        hoverClassName,
+      ].join(" ")}
     >
-      {pending ? "Archiving..." : "Archive"}
+      {pending ? pendingLabel : label}
     </button>
   );
 }

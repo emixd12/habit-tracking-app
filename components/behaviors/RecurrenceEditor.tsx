@@ -15,7 +15,7 @@ type RecurrenceEditorProps = Readonly<{
 
 const PRESETS: Array<{ value: BehaviorRecurrenceKind; label: string }> = [
   { value: "daily", label: "Daily" },
-  { value: "every_days", label: "Every N days" },
+  { value: "every_days", label: "Every few days" },
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
 ];
@@ -46,6 +46,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
               key={preset.value}
               className={[
                 "flex min-h-11 items-center justify-center border px-3 py-2 text-center text-sm font-bold transition-colors",
+                "focus-within:z-10 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary",
                 isSelected
                   ? "border-line bg-primary text-primary-foreground"
                   : "border-line bg-background text-foreground hover:bg-surface",
@@ -70,7 +71,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
           label="Every"
           name="daily_interval"
           defaultValue={defaults.dailyInterval}
-          suffix="day(s)"
+          suffix={(value) => pluralize(value, "day", "days")}
         />
       ) : null}
 
@@ -79,7 +80,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
           label="Every"
           name="every_days"
           defaultValue={defaults.everyDays}
-          suffix="day(s)"
+          suffix={(value) => pluralize(value, "day", "days")}
         />
       ) : null}
 
@@ -89,7 +90,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
             label="Every"
             name="weekly_interval"
             defaultValue={defaults.weeklyInterval}
-            suffix="week(s)"
+            suffix={(value) => pluralize(value, "week", "weeks")}
           />
           <div className="grid gap-2">
             <span className="text-xs font-bold text-muted-readable">On</span>
@@ -120,7 +121,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
             label="Every"
             name="monthly_interval"
             defaultValue={defaults.monthlyInterval}
-            suffix="month(s)"
+            suffix={(value) => pluralize(value, "month", "months")}
           />
           <NumberField
             label="Day"
@@ -150,9 +151,13 @@ function NumberField({
   label: string;
   name: string;
   defaultValue: number;
-  suffix?: string;
+  suffix?: string | ((value: number) => string);
   max?: number;
 }>) {
+  const [currentValue, setCurrentValue] = useState(defaultValue);
+  const suffixLabel =
+    typeof suffix === "function" ? suffix(currentValue) : suffix;
+
   return (
     <label className="grid gap-2">
       <span className="text-xs font-bold text-muted-readable">{label}</span>
@@ -164,12 +169,21 @@ function NumberField({
           min={1}
           max={max}
           step={1}
+          onChange={(event) =>
+            setCurrentValue(Number(event.currentTarget.value))
+          }
           className="min-h-11 w-28 border border-line bg-background px-3 py-2 text-base font-normal text-foreground"
         />
-        {suffix ? (
-          <span className="text-sm font-normal text-muted-readable">{suffix}</span>
+        {suffixLabel ? (
+          <span className="text-sm font-normal text-muted-readable">
+            {suffixLabel}
+          </span>
         ) : null}
       </span>
     </label>
   );
+}
+
+function pluralize(value: number, singular: string, plural: string): string {
+  return value === 1 ? singular : plural;
 }

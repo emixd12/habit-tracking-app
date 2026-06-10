@@ -802,6 +802,7 @@ function buildPreviews(): Record<string, ReactNode> {
           categories={categoryOptions}
           updateAction={behaviorAction}
           archiveAction={behaviorAction}
+          restoreAction={behaviorAction}
         />
       </ProductPreview>
     ),
@@ -1020,8 +1021,8 @@ const notDoneOccurrence: TimelineOccurrenceView = {
   statusDetail: "Resolved as Not Completed",
   expandedStatusActionLabel: "Change logged action",
   visualTone: "not_done",
-  showDecisionActions: false,
-  showCollapsedStatusLabel: true,
+  showDecisionActions: true,
+  showCollapsedStatusLabel: false,
   note: "Skipped while traveling.",
 };
 

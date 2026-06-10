@@ -213,9 +213,10 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 ### Timeline Rows
 
 - **Timeline structure:** The current day is the first forward section and uses the strongest date treatment. Day transitions use the date header plus a thin divider, not boxed day sections. Needs decision is reached from a fixed lower-right button and opens a modal rather than appearing as an inline Timeline section.
-- **Collapsed unresolved:** Scheduled time as plain text, behavior title, Completed button, and Not Completed button. Primary status actions are visible for Needs decision and current-day unresolved rows.
+- **Collapsed unresolved and Not Completed:** Scheduled time as plain text, behavior title, Completed button, and Not Completed button. Primary status actions are visible for Needs decision rows, current-day unresolved rows, and Not Completed rows.
 - **Expanded details:** Native disclosure reveals description, category, schedule summary, and note. Category and description remain hidden until expanded.
-- **Resolved:** Keep the row visible with a distinct state. Hide primary action buttons and show Completed or Not Completed plainly; a Completed row uses a full Monolith Blue fill instead of a separate status chip.
+- **Resolved:** Keep resolved rows visible with distinct states. Completed rows hide primary action buttons and use a full Monolith Blue fill instead of a separate status chip. Not Completed rows keep the neutral resolved treatment but show the Completed and Not Completed buttons, with Not Completed indicated as the current choice.
+- **Completion feedback:** A successful user-initiated change into Completed may play one short chime. Treat it as state feedback, not a reward loop: no voice, no alarm tone, no repeat sound, and no sound for Not Completed or page load.
 - **Needs decision:** The floating button shows the count to decide and uses Monolith Blue when the count is greater than zero. The modal uses a flat bordered panel, Cold Surface sections, and the same occurrence-row vocabulary as Timeline. Highlight prior unresolved rows with Cold Surface and thin structural lines, never red error styling. Do not write or imply a stored Needs decision status.
 
 ### Analytics Heatmaps

@@ -7,6 +7,7 @@ import {
   archiveBehaviorFromFormData,
   behaviorErrorToActionState,
   createBehaviorFromFormData,
+  restoreBehaviorFromFormData,
   updateBehaviorFromFormData,
 } from "@/lib/services/behavior.service";
 
@@ -58,6 +59,24 @@ export async function archiveBehaviorAction(
     return {
       status: "success",
       message: "Behavior archived.",
+    };
+  } catch (error) {
+    return behaviorErrorToActionState(error);
+  }
+}
+
+export async function restoreBehaviorAction(
+  _previousState: BehaviorActionState,
+  formData: FormData,
+): Promise<BehaviorActionState> {
+  try {
+    await restoreBehaviorFromFormData(formData);
+    revalidatePath("/behaviors");
+    revalidatePath("/timeline");
+
+    return {
+      status: "success",
+      message: "Behavior restored.",
     };
   } catch (error) {
     return behaviorErrorToActionState(error);

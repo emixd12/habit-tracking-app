@@ -90,7 +90,8 @@ For multi-time behavior groups:
 - Completed rows use the existing full blue completed treatment.
 - Unresolved rows use the existing unresolved treatment and show Completed and
   Not Completed buttons.
-- Not Completed rows use the existing neutral resolved treatment.
+- Not Completed rows use the existing neutral treatment and show Completed and
+  Not Completed buttons, with Not Completed indicated as the current choice.
 - Do not show a "1 of 2 completed" label.
 - Do not add a partial-completion stored status.
 - Partial completion is only a derived visual result of mixed row states within
@@ -127,29 +128,34 @@ Do not show previous days except for unresolved prior-day items inside the Needs
 Collapsed card should show:
 - Scheduled time
 - Behavior title
-- Current status when resolved
-- Completed and Not Completed buttons when unresolved
+- Current status when Completed
+- Completed and Not Completed buttons when unresolved or Not Completed
 
 Expanded card details should show:
 - Description if present
 - Category
 - Behavior schedule
 - Note field
-- Option to change an already logged status
+- Option to change a Completed status. Not Completed rows keep their status
+  controls visible in the collapsed row.
 
 Categories should only be visible in the expanded card details.
 
 Unresolved prior-day cards in the Needs decision modal should be visually highlighted so the user is clearly prompted to decide whether each occurrence was Completed or Not Completed. This highlight is derived from date and status; it must not write a different status.
 
-Resolved cards should remain visible with a distinct resolved state. Resolved cards should hide the primary action buttons and clearly indicate Completed or Not Completed.
+Completed cards should remain visible with a distinct resolved state, hide the primary action buttons, and clearly indicate Completed.
 
-Clicking a resolved card should reveal the option to change the logged action. Do not require a confirmation step before changing a status.
+Not Completed cards should remain visible with the neutral resolved treatment, but should expose the same Completed and Not Completed buttons as the original decision card so the user can immediately approve or change the logged action.
+
+Clicking a Completed card should reveal the option to change the logged action. Do not require a confirmation step before changing a status.
 
 Notes, category, description, and schedule details are hidden by default and revealed when the user clicks the card outside the completion buttons.
 
 Button behavior:
 - Completed changes status to `done`
 - Not Completed changes status to `not_done`
+- A successful user-initiated change into Completed may play a short completion chime.
+- Do not play a sound for Not Completed, note saves, page refreshes, or re-saving an already Completed occurrence.
 - Note opens an inline edit field or compact modal in the expanded card state
 
 Resolved occurrences can be changed later.

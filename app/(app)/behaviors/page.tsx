@@ -7,6 +7,7 @@ import { getBehaviorPageData } from "@/lib/services/behavior.service";
 import {
   archiveBehaviorAction,
   createBehaviorAction,
+  restoreBehaviorAction,
   updateBehaviorAction,
 } from "./actions";
 
@@ -18,18 +19,24 @@ export const dynamic = "force-dynamic";
 
 export default async function BehaviorsPage() {
   const data = await getBehaviorPageData();
+  const hasBehaviors =
+    data.activeBehaviors.length > 0 || data.archivedBehaviors.length > 0;
 
   return (
     <ScreenFrame title="Behaviors">
-      <section className="grid gap-5">
-        <div className="border-b border-line pb-4">
-          <h2 className="text-2xl font-bold leading-tight">Create behavior</h2>
-        </div>
-        <BehaviorForm
-          mode="create"
-          action={createBehaviorAction}
-          categories={data.categories}
-        />
+      <section className="border-b border-line">
+        <details open={!hasBehaviors}>
+          <summary className="cursor-pointer py-4 text-xl font-bold leading-tight marker:text-muted-readable hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            Create behavior
+          </summary>
+          <div className="border-t border-line py-5">
+            <BehaviorForm
+              mode="create"
+              action={createBehaviorAction}
+              categories={data.categories}
+            />
+          </div>
+        </details>
       </section>
 
       <BehaviorList
@@ -38,6 +45,7 @@ export default async function BehaviorsPage() {
         categories={data.categories}
         updateAction={updateBehaviorAction}
         archiveAction={archiveBehaviorAction}
+        restoreAction={restoreBehaviorAction}
       />
     </ScreenFrame>
   );

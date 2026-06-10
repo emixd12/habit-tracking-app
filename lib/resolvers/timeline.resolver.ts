@@ -180,6 +180,8 @@ function toOccurrenceView(
   const isTodayUnresolved =
     occurrence.status === "unresolved" &&
     occurrence.localDate === todayLocalDate;
+  const showDecisionActions =
+    isPriorUnresolved || isTodayUnresolved || occurrence.status === "not_done";
 
   return {
     ...occurrence,
@@ -187,8 +189,9 @@ function toOccurrenceView(
     statusDetail: statusDetail(occurrence.status),
     expandedStatusActionLabel: expandedStatusActionLabel(occurrence.status),
     visualTone: visualTone(occurrence.status, isPriorUnresolved),
-    showDecisionActions: isPriorUnresolved || isTodayUnresolved,
-    showCollapsedStatusLabel: occurrence.status !== "unresolved",
+    showDecisionActions,
+    showCollapsedStatusLabel:
+      occurrence.status !== "unresolved" && !showDecisionActions,
   };
 }
 
