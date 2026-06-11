@@ -543,6 +543,34 @@ Verification:
 Remaining risk:
 - The change was verified on the design-system bench and fixture-backed product previews. Authenticated product-route click flows were not exercised because this was a shared typography-token change and should not mutate user data.
 
+### No-bold typography experiment
+
+Status: complete.
+
+Implementation summary:
+- Added shared font-weight token overrides in `app/globals.css` so Tailwind weight utilities from `font-medium` through `font-black` render at normal `400` weight.
+- Added native-element resets for headings, semantic bold text, table headers, definition terms, and summaries so browser defaults do not reintroduce bolding.
+- Updated `DESIGN.md` so the typography contract describes all hierarchy levels at `400` weight and notes that this is a no-bold experiment.
+
+Verification:
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/classify_repo.py --root .`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/detect_theme_support.py --root .`
+- Pass: `npm run design-system:check`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_inventory.py --root . --out /tmp/cadence-design-system.manifest.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (18 files, 107 tests).
+- Pass: `npm run build`
+- Browser QA: `/design-system` at desktop width showed bench chrome and Font scale samples all computed at `font-weight: 400`; no horizontal overflow.
+- Browser QA: authenticated `/timeline` at desktop width showed sampled title, nav, button, section heading, and body text all computed at `font-weight: 400`; no horizontal overflow.
+- Browser QA: authenticated `/timeline` at 390x844 showed sampled mobile brand, menu button, page title, section heading, and body text all computed at `font-weight: 400`; no horizontal overflow and no warning/error logs.
+
+Remaining risk:
+- This is intentionally a broad visual experiment. It preserves existing component class names, so future reversion can remove the shared token overrides without editing every component.
+
 ### Completion chime diagnostics follow-up
 
 Status: complete.

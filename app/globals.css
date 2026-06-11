@@ -38,6 +38,16 @@
   --text-8xl--line-height: 1;
   --text-9xl: 6rem;
   --text-9xl--line-height: 1;
+  /* Experimental no-bold pass: all Tailwind weight utilities resolve to normal. */
+  --font-weight-thin: 400;
+  --font-weight-extralight: 400;
+  --font-weight-light: 400;
+  --font-weight-normal: 400;
+  --font-weight-medium: 400;
+  --font-weight-semibold: 400;
+  --font-weight-bold: 400;
+  --font-weight-extrabold: 400;
+  --font-weight-black: 400;
 }
 
 @theme inline {
@@ -69,7 +79,22 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-ibm-plex-sans), "IBM Plex Sans", Arial, Helvetica, sans-serif;
+  font-weight: var(--font-weight-normal);
   text-rendering: optimizeLegibility;
+}
+
+b,
+strong,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+th,
+dt,
+summary {
+  font-weight: var(--font-weight-normal);
 }
 
 a {

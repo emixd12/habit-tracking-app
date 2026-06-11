@@ -13,19 +13,19 @@ typography:
   display:
     fontFamily: "IBM Plex Sans"
     fontSize: "30px"
-    fontWeight: 700
+    fontWeight: 400
     lineHeight: 1.2
     letterSpacing: "0px"
   headline:
     fontFamily: "IBM Plex Sans"
     fontSize: "24px"
-    fontWeight: 700
+    fontWeight: 400
     lineHeight: 1.25
     letterSpacing: "0px"
   title:
     fontFamily: "IBM Plex Sans"
     fontSize: "18px"
-    fontWeight: 700
+    fontWeight: 400
     lineHeight: 1.25
     letterSpacing: "0px"
   body:
@@ -37,7 +37,7 @@ typography:
   label:
     fontFamily: "IBM Plex Sans"
     fontSize: "12px"
-    fontWeight: 700
+    fontWeight: 400
     lineHeight: 1.25
     letterSpacing: "1px"
 rounded:
@@ -137,24 +137,25 @@ The palette is almost monochrome: black ink, bleached paper, subtle gray, and on
 **Body Font:** IBM Plex Sans
 **Label Font:** IBM Plex Sans
 
-**Character:** The type should feel mechanical and logged, not nostalgic or cute. Use weight, spacing, borders, and layout to create hierarchy instead of introducing another font.
+**Character:** The type should feel mechanical and logged, not nostalgic or cute. Use scale, spacing, color, borders, and layout to create hierarchy instead of introducing another font or heavier weights.
 
 ### Hierarchy
 
-- **Display** (700, 30px, 1.2): Page titles and prominent dates on larger screens only.
-- **Headline** (700, 24px, 1.25): Section titles such as Timeline, Behaviors, Analytics, Export, and Settings.
-- **Section** (700, 20px, 1.25): Major in-page panels and grouped content headings.
-- **Title** (700, 18px, 1.25): Behavior titles, occurrence titles, card headings, and form section titles.
+- **Display** (400, 30px, 1.2): Page titles and prominent dates on larger screens only.
+- **Headline** (400, 24px, 1.25): Section titles such as Timeline, Behaviors, Analytics, Export, and Settings.
+- **Section** (400, 20px, 1.25): Major in-page panels and grouped content headings.
+- **Title** (400, 18px, 1.25): Behavior titles, occurrence titles, card headings, and form section titles.
 - **Body** (400, 14px, open leading): Notes, descriptions, recurrence summaries, and normal explanatory text. Keep prose to 65-75ch.
-- **Label** (700, 12px, 1px tracking): Navigation labels, button labels, status pills, table labels, and compact metadata.
+- **Label** (400, 12px, 1px tracking): Navigation labels, button labels, status pills, table labels, and compact metadata.
 
 The active Tailwind text scale is shifted one step smaller than the framework default: `text-4xl` renders at 30px, `text-3xl` at 24px, `text-2xl` at 20px, `text-base` at 14px, and `text-sm` at 12px.
+The active Tailwind font-weight scale is flattened for this no-bold experiment: `font-medium`, `font-semibold`, `font-bold`, and heavier utilities all render at 400.
 
 ### Named Rules
 
 **The IBM Plex Sans Rule.** Do not introduce serif, display, script, or secondary sans fonts.
 
-**The No-Cramped-Type Rule.** Letter spacing is never negative. The reference aesthetic comes from IBM Plex Sans weight and square layout, not squeezed letters.
+**The No-Cramped-Type Rule.** Letter spacing is never negative. The reference aesthetic comes from IBM Plex Sans letterforms and square layout, not squeezed letters.
 
 **The Uppercase Limit Rule.** Headings, short labels, and buttons may use uppercase. Body copy, notes, descriptions, and helper text must use normal sentence case.
 
