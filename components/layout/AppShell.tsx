@@ -496,12 +496,14 @@ export function AppShell({
               aria-label={isDesktopSidebarOpen ? "Collapse navigation" : "Expand navigation"}
               aria-pressed={isDesktopSidebarOpen}
               onClick={toggleDesktopSidebar}
-              className="group relative flex h-16 w-16 items-center justify-center transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="group relative flex h-16 w-16 items-center justify-center bg-transparent transition-colors hover:bg-transparent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               <BrandMark
                 className={[
                   "absolute h-6 w-6 transition-opacity duration-200",
-                  isDesktopSidebarOpen ? "opacity-100" : "opacity-100 group-hover:opacity-0",
+                  isDesktopSidebarOpen
+                    ? "opacity-100 group-hover:opacity-70"
+                    : "opacity-100 group-hover:opacity-0",
                 ].join(" ")}
               />
               <PanelLeftOpen
