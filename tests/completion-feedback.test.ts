@@ -88,6 +88,31 @@ describe("completion feedback", () => {
     );
   });
 
+  it("prefers an unlocked media element when available", async () => {
+    const { dispatchEvent, MockAudio } = installMediaMocks();
+    const { prepareCompletionChimeForUserGesture, playCompletionChime } =
+      await import("../lib/ui/completion-feedback");
+
+    prepareCompletionChimeForUserGesture();
+    await flushPromises();
+    await playCompletionChime();
+
+    const audio = MockAudio.instances[0];
+
+    expect(audio.play).toHaveBeenCalledTimes(2);
+    expect(audio.pause).toHaveBeenCalledTimes(2);
+    expect(audio.muted).toBe(false);
+    expect(audio.volume).toBe(1);
+    expect(dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: {
+          source: "media",
+        },
+        type: COMPLETION_CHIME_PLAYED_EVENT,
+      }),
+    );
+  });
+
   it("reports blocked playback when no browser audio API is available", async () => {
     const dispatchEvent = installNoAudioMocks();
     const { playCompletionChime } = await import(
@@ -100,7 +125,7 @@ describe("completion feedback", () => {
     expect(dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         detail: {
-          source: "fallback",
+          source: "buffer",
         },
         type: COMPLETION_CHIME_BLOCKED_EVENT,
       }),
@@ -171,6 +196,43 @@ function installAudioMocks() {
   });
 
   return { MockAudioContext, dispatchEvent };
+}
+
+function installMediaMocks() {
+  const dispatchEvent = vi.fn();
+
+  class MockCustomEvent<T = unknown> extends Event {
+    detail: T;
+
+    constructor(type: string, eventInitDict?: CustomEventInit<T>) {
+      super(type);
+      this.detail = eventInitDict?.detail as T;
+    }
+  }
+
+  class MockAudio {
+    static instances: MockAudio[] = [];
+
+    currentTime = 0;
+    load = vi.fn();
+    muted = false;
+    pause = vi.fn();
+    play = vi.fn(async () => undefined);
+    preload = "";
+    volume = 1;
+
+    constructor(public src: string) {
+      MockAudio.instances.push(this);
+    }
+  }
+
+  vi.stubGlobal("Audio", MockAudio);
+  vi.stubGlobal("CustomEvent", MockCustomEvent);
+  vi.stubGlobal("window", {
+    dispatchEvent,
+  });
+
+  return { dispatchEvent, MockAudio };
 }
 
 function installNoAudioMocks() {

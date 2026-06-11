@@ -552,27 +552,30 @@ Implementation summary:
 - Confirmed `/sounds/completion-chime.mp3` is served locally as `audio/mpeg`; the remaining likely causes were browser activation timing after async server actions, loss of submitted status intent, transient preload failure caching, and embedded-browser media API gaps.
 - Changed `StatusButtons` so Completed and Not Completed are submitted through separate structural forms with hidden `occurrence_id` and `status` fields instead of relying on `SubmitEvent.submitter`.
 - The status server action now echoes the submitted status in `OccurrenceActionState`; `StatusButtons` uses that server-confirmed status after success while still priming audio on pointer/click/submit before the async action returns.
-- Hardened `lib/ui/completion-feedback.ts` to prime Web Audio with a silent one-sample source during the user gesture, retry failed preload/decode attempts, guard missing `AudioContext`/`Audio` APIs, and emit dev-only playback/blocked diagnostics.
+- Hardened `lib/ui/completion-feedback.ts` to prime Web Audio with a silent one-sample source, unlock an `HTMLAudioElement` during the user gesture, prefer the media element for actual audible playback, keep Web Audio as fallback, retry failed preload/decode attempts, guard missing `AudioContext`/`Audio` APIs, and emit dev-only playback/blocked diagnostics.
+- Changed the Timeline refresh sequence so `router.refresh()` waits until the chime playback path has started instead of immediately refreshing after the successful status action.
 - Updated the design-system fixture action to mirror the real status action's `nextStatus` return for fixture-backed browser QA.
 - No schema, resolver, product-scope, notification-provider, or real occurrence-data changes were made.
 
 Verification:
 - Pass: `curl -I http://localhost:3000/sounds/completion-chime.mp3` returned `200 OK` with `Content-Type: audio/mpeg`.
+- Pass: `ffprobe`/`ffmpeg` diagnostics after installing `ffmpeg`: asset is a 1-second stereo MP3, peak `-2.7 dB`, RMS `-25.1 dB`, with audible content before the trailing silence.
+- Pass: `afplay public/sounds/completion-chime.mp3` exited successfully.
 - Pass: `npm run test -- tests/completion-feedback.test.ts`
 - Pass: `npm run agents:check`
 - Pass: `npm run resolvers:check`
 - Pass: `npm run lint`
 - Pass: `npm run design-system:check`
 - Pass: `npm run typecheck`
-- Pass: `npm run test` (18 files, 106 tests).
+- Pass: `npm run test` (18 files, 107 tests).
 - Pass: `npm run build`
 - Browser QA: in-app browser `/design-system#ds-module-status-buttons` rendered Completed and Not Completed controls and the fixture action completed without mutating product data. The in-app browser reports `AudioContext`, `Audio`, and `Notification` as unavailable, so it cannot prove audible playback in that embedded surface.
-- Browser QA: Chrome plugin fresh tab `/design-system#ds-module-status-buttons` clicked Completed and logged `cadence:completion-chime-played buffer`, confirming Web Audio buffer playback started, with no warning/error logs in that fresh tab.
+- Browser QA: Chrome plugin fresh tab `/design-system#ds-module-status-buttons` clicked Completed and logged `cadence:completion-chime-played media`, confirming the normal browser media element playback path started. The only observed Chrome warning was an extension-injected hydration mismatch, unrelated to audio.
 - Browser QA: Chrome design-system `NotificationPermissionPanel` preview showed the `Permission` row, `Browser push` row, and `Enable browser reminders` control. The fixture has no VAPID key, so the control was disabled and no permission prompt was opened or accepted.
 - Browser QA: in-app browser `NotificationPermissionPanel` preview showed the `Permission` row and `Enable browser reminders` control, with permission blocked/unavailable in that embedded surface.
 
 Remaining risk:
-- The in-app browser cannot play or authorize audio because its media and notification APIs are unavailable; Chrome verified the actual Web Audio playback-start path.
+- The in-app browser cannot play or authorize audio because its media and notification APIs are unavailable; Chrome verified the actual media playback-start path.
 - Browser notification permission prompts were not accepted during QA. The permission label/control is present, and prompt triggering remains owned by Settings with real push configuration.
 
 ## Handoff notes

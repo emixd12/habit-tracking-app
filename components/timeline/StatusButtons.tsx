@@ -57,12 +57,15 @@ export function StatusButtons({
         });
 
       if (shouldChimeAfterSuccess) {
-        playCompletionChime();
+        void playCompletionChime().finally(() => {
+          router.refresh();
+        });
+      } else {
+        router.refresh();
       }
 
       shouldChimeAfterSuccessRef.current = false;
       preparedChimeForSubmitRef.current = false;
-      router.refresh();
     }
 
     if (state.status === "error") {
