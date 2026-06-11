@@ -19,5 +19,17 @@ export default async function AppLayout({
     redirect(buildLoginPath());
   }
 
-  return <AppShell>{children}</AppShell>;
+  const metadata = user.user_metadata as Record<string, unknown>;
+  const fullName =
+    typeof metadata.full_name === "string"
+      ? metadata.full_name
+      : typeof metadata.name === "string"
+        ? metadata.name
+        : null;
+
+  return (
+    <AppShell user={{ name: fullName, email: user.email ?? null }}>
+      {children}
+    </AppShell>
+  );
 }

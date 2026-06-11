@@ -4,7 +4,26 @@ This document describes the main v1 screens, modules, and user flows.
 
 ## App shell
 
-The app uses a retractable sidebar on desktop and mobile.
+The app uses a fixed retractable sidebar on desktop and a drawer on mobile.
+
+Desktop behavior:
+- Expanded rail is 16rem wide.
+- Collapsed rail is 4rem wide.
+- Main content shifts with matching left padding at large breakpoints.
+- The logo button toggles the rail. In collapsed mode, hovering the logo shows
+  the expand icon in the same 64px square.
+- The desktop sidebar header does not draw a bottom divider.
+- Navigation and account rows keep a fixed 64px icon/avatar column so expanded
+  and collapsed icon positions match.
+- Labels fade and collapse visually but remain in the DOM.
+
+Mobile behavior:
+- The collapsed rail is not used under 1024px.
+- A sticky 64px top header opens a 60vw left drawer.
+- The drawer closes from backdrop click, Escape, the close button, a navigation
+  click, or a left swipe.
+- Edge swipe from the first 20px of the viewport opens the drawer.
+- Focus stays inside the open drawer and body scrolling is locked.
 
 Primary navigation:
 1. Timeline

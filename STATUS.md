@@ -810,6 +810,60 @@ Verification:
 Remaining risk:
 - Browser QA was visual/read-only. Status actions were not clicked to avoid mutating the user's live occurrence history.
 
+### Sidebar rail specification
+
+Status: complete.
+
+Implementation summary:
+- Applied the requested desktop sidebar rail contract in `components/layout/AppShell.tsx`: expanded width is 16rem, collapsed width is 4rem, main content uses matching `lg:pl-64` or `lg:pl-16`, and width/padding transitions run over 200ms.
+- Added `sidebar-open` localStorage persistence for the desktop rail, defaulting to open on desktop when no saved preference exists.
+- Rebuilt the desktop header around a stable `grid-cols-[4rem_1fr]` layout, with a logo toggle, collapsed hover crossfade to `PanelLeftOpen`, and an expanded right-side `PanelLeftClose` button.
+- Reworked primary nav and footer account rows around a fixed 64px icon/avatar column, 40px nav rows, 16px icons, opacity-collapsed labels, row hover when expanded, and icon-cell hover/active treatment when collapsed.
+- Replaced mobile sidebar behavior with a separate sticky 64px mobile header plus 60vw drawer, z-70 backdrop, z-80 drawer, Escape close, backdrop close, focus trapping, body scroll lock, edge swipe open, and left swipe close.
+- Passed the authenticated profile name/email into the shell footer account trigger from the protected app layout.
+- Added Tailwind token aliases for `card`, `muted-foreground`, and `ring`, updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, `DESIGN.md`, and refreshed design-system navigation preview/usage metadata.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (19 files, 110 tests).
+- Pass: `npm run design-system:check`
+- Pass: design-system-bench inventory scan to `/tmp/cadence-design-system.manifest.json`, usage scan to `design-system.usage.json`, and traceability verification.
+- Pass: `npm run build`
+- Browser QA: unauthenticated in-app browser correctly redirected protected `/timeline` to `/login?next=%2Ftimeline`.
+- Browser QA: local `/design-system` desktop shell preview at 1280px measured 256px expanded sidebar width, 256px main left padding, 64px icon cell, 16px icons, 40px nav rows, 64px header, label opacity `1`, and no horizontal overflow.
+- Browser QA: local `/design-system` mobile shell preview at 390px measured hidden desktop aside, sticky 64px mobile header, 60vw drawer width, 64px drawer header, z-80 drawer, z-70 backdrop, 200ms transform transition, closed drawer translate `-100%`, no body scroll lock while closed, and no horizontal overflow.
+
+Remaining risk:
+- The in-app browser did not have an authenticated Supabase session, so real protected app-shell interaction was not visually QA'd on `/timeline`.
+- The design-system shell preview rendered the layout correctly but did not dispatch pointer-driven state changes reliably inside the contained preview, so collapse/open clicks, focus trap cycling, and swipe gestures were verified by implementation and static measurements rather than live pointer interaction.
+
+### Desktop sidebar header divider removal
+
+Status: complete.
+
+Implementation summary:
+- Removed the bottom divider from the desktop sidebar header container in `components/layout/AppShell.tsx`, matching the browser comment on the collapsed Expand navigation/logo cell.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `DESIGN.md` so the navigation contract records the unruled desktop header treatment.
+- No resolver, service, schema, route, or product-scope changes were made.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run design-system:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (19 files, 110 tests).
+- Pass: `npm run build`
+- Pass: design-system-bench classify, theme detection, inventory scan to `/tmp/cadence-design-system.manifest.json`, usage scan to `/tmp/cadence-design-system.usage.json`, and traceability verification.
+- Browser QA: authenticated `/timeline` at 1132x863 measured the fixed desktop sidebar header bottom border at `0px`, desktop sidebar width at `256px`, main left padding at `256px`, no horizontal overflow, and no browser warning/error logs.
+- Browser QA: `/timeline` at 390x844 after reload measured desktop sidebar hidden, mobile top header height `64px`, mobile top and drawer header bottom borders still `1px`, main left padding `0px`, no horizontal overflow, and no browser warning/error logs.
+
+Remaining risk:
+- The annotated browser surface blocked pointer delivery for a live collapse click, but the removed border is on the shared desktop header container used in both expanded and collapsed rail states.
+
 ## Handoff notes
 
 - For the next coding agent: continue Ticket 013 from the Vercel environment/deployment blocker. Do not start deferred offline/PWA or future restore/import work unless the product docs change or the user explicitly brings it into scope.

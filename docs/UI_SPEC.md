@@ -16,13 +16,31 @@ Avoid:
 
 ## Primary navigation
 
-Use a retractable sidebar on both desktop and mobile.
+Use a fixed retractable sidebar on desktop and a drawer on mobile.
 
-On desktop, the sidebar should remain fixed while the page content scrolls.
-The collapsed sidebar should be a narrow icon rail with centered icons and no
-boxed borders around each navigation item.
-Keep the desktop sidebar compact enough that the Timeline and Behavior forms
-remain the dominant surface.
+On desktop, the sidebar remains fixed while page content scrolls. Expanded
+width is 16rem. Collapsed width is 4rem. Width changes animate over 200ms, and
+the main content uses matching large-breakpoint left padding so content never
+sits underneath the fixed rail.
+
+The desktop sidebar uses a stable 64px icon column in both states. Header,
+navigation, and footer account rows keep icons or avatar centered in that
+column. Labels remain in the DOM and collapse visually with `opacity-0`,
+`pointer-events-none`, `w-0`, and `overflow-hidden`; expanded labels use
+`opacity-100` and `whitespace-nowrap`.
+The desktop sidebar header does not draw a bottom divider.
+
+Expanded navigation applies hover and active treatment to the whole row.
+Collapsed navigation applies hover and active treatment only to the 64px icon
+cell so the rail feels like square targets. The active route uses the primary
+blue fill.
+
+On mobile, do not use the collapsed rail. Use a sticky 64px top header that
+opens a left drawer. The drawer is 60vw wide, max 60vw, and closes from its
+backdrop, Escape, the close button, navigation, or a left swipe. Opening from
+the first 20px viewport edge is supported. While open, the drawer traps focus
+and locks body scrolling. A narrow drawer shadow is allowed for separation from
+the backdrop.
 
 Use five primary screens:
 

@@ -669,22 +669,30 @@ function buildPreviews(): Record<string, ReactNode> {
   return {
     "navigation.primary-app-nav": (
       <ProductPreview>
-        <nav aria-label="Primary route registry" className="grid gap-1">
+        <nav
+          aria-label="Primary route registry"
+          className="grid w-64 gap-1 border border-line bg-card py-3"
+        >
           {APP_NAV_ITEMS.map((item, index) => (
             <a
               key={item.href}
               href={item.href}
               className={[
-                "flex min-h-12 items-center justify-between gap-3 px-3 py-2 text-sm font-bold hover:bg-surface",
+                "flex h-10 w-full items-center overflow-hidden text-sm",
                 index === 0
                   ? "bg-primary text-primary-foreground"
-                  : "bg-background text-foreground",
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               ].join(" ")}
             >
-              <span>{item.label}</span>
+              <span className="flex h-10 w-16 shrink-0 items-center justify-center">
+                <span className="h-4 w-4 border border-current" />
+              </span>
+              <span className="min-w-0 truncate whitespace-nowrap">
+                {item.label}
+              </span>
               <span
                 className={[
-                  "text-xs",
+                  "ml-auto truncate px-3 text-xs",
                   index === 0 ? "text-primary-foreground" : "text-muted-readable",
                 ].join(" ")}
               >

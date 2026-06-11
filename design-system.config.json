@@ -16,7 +16,7 @@
     {
       "componentId": "navigation.primary-app-nav",
       "file": "components/layout/AppShell.tsx",
-      "line": 107,
+      "line": 94,
       "route": "app shell",
       "usageKind": "render",
       "confidence": "manual"

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-11T08:24:42.961090+00:00",
+  "generatedAt": "2026-06-11T17:23:20.457413+00:00",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
@@ -54,7 +54,7 @@
     {
       "componentId": "layout.app-shell",
       "file": "app/(app)/layout.tsx",
-      "line": 22,
+      "line": 31,
       "route": "(app)/layout",
       "usageKind": "render",
       "confidence": "exact"
@@ -198,7 +198,7 @@
     {
       "componentId": "navigation.primary-app-nav",
       "file": "components/layout/AppShell.tsx",
-      "line": 107,
+      "line": 94,
       "route": "app shell",
       "usageKind": "render",
       "confidence": "manual"

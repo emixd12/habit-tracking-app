@@ -211,8 +211,9 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 ### Navigation
 
-- **Desktop:** Fixed retractable sidebar with quiet dividers and compact labels. Keep the expanded rail compact, around 256px, so product forms stay dominant. Active route uses Monolith Blue fill. The collapsed state is a very narrow icon rail, around 56px, with centered icons and no boxed borders around inactive navigation items.
-- **Mobile:** Sidebar can collapse into a top or drawer-like navigation. The top-bar menu trigger is a borderless icon button; the drawer keeps the same square navigation vocabulary.
+- **Desktop:** Fixed retractable sidebar with quiet dividers and compact labels. Expanded width is 256px and collapsed width is 64px. The main content uses matching large-breakpoint left padding. Header, navigation, and footer account rows share a fixed 64px icon/avatar column so collapsed and expanded icon positions match. The desktop sidebar header has no bottom divider. Active route uses Monolith Blue fill. In collapsed state, active and hover fills apply only to the icon cell, not the full row.
+- **Sidebar motion:** Width, brand label opacity, and nav label opacity transition over 200ms. Labels remain in the DOM, collapse visually to `w-0`, and stay `whitespace-nowrap` so text never wraps during rail transitions.
+- **Mobile:** Do not use the collapsed rail under 1024px. Use a sticky 64px top header that opens a 60vw left drawer. The drawer keeps the same square navigation vocabulary, traps focus while open, locks body scroll, closes from backdrop or Escape, supports edge swipe open from the first 20px of the viewport, and supports left swipe close. The drawer may use a narrow `shadow-lg` only to separate it from the faded backdrop.
 - **Routes:** Use the documented app screens: Timeline, Behaviors, Analytics, Export, Settings. Do not copy placeholder labels from the reference screens.
 
 ### Timeline Rows
