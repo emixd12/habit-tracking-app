@@ -111,11 +111,11 @@ The palette is almost monochrome: black ink, bleached paper, subtle gray, and on
 
 ### Primary
 
-- **Monolith Blue**: `#3572b3`, used for active navigation, primary buttons, selected states, hover fills, completed Timeline rows, and completed heatmap cells.
+- **Monolith Blue**: `#3572b3`, used for active navigation, primary buttons, selected states, Timeline status links, hover fills, completed Timeline rows, and completed heatmap cells.
 
 ### Secondary
 
-- **Rust Signal**: Warning and destructive color only. Do not use it for ordinary Not Completed buttons by default; Not Completed should feel factual, not punitive.
+- **Rust Signal**: Warning and destructive color only. Do not use it for ordinary Not Completed status actions by default; Not Completed should feel factual, not punitive.
 
 ### Neutral
 
@@ -189,8 +189,8 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Corner Style:** Square corners (0px).
 - **Background:** Bleached Newsprint for normal rows; Cold Surface for empty states, expanded details, and low-emphasis panels.
 - **Shadow Strategy:** No shadows.
-- **Border:** 1px Ash Line for occurrence rows, behavior rows, important panels, and internal dividers.
-- **Internal Padding:** 20px for behavior rows, 24px for ordinary rows, 64px for major page sections on desktop, 24px or less on mobile.
+- **Border:** 1px Ash Line for behavior rows, important panels, and internal dividers. Timeline occurrence rows are unboxed list rows and do not use a perimeter border.
+- **Internal Padding:** 20px for behavior rows, 10-12px for compact Timeline occurrence rows, 64px for major page sections on desktop, 24px or less on mobile.
 
 ### Inputs / Fields
 
@@ -212,17 +212,18 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 ### Navigation
 
 - **Desktop:** Fixed retractable sidebar with quiet dividers and compact labels. Keep the expanded rail compact, around 256px, so product forms stay dominant. Active route uses Monolith Blue fill. The collapsed state is a very narrow icon rail, around 56px, with centered icons and no boxed borders around inactive navigation items.
-- **Mobile:** Sidebar can collapse into a top or drawer-like navigation, but it must keep the same square buttons, borders, and labels.
+- **Mobile:** Sidebar can collapse into a top or drawer-like navigation. The top-bar menu trigger is a borderless icon button; the drawer keeps the same square navigation vocabulary.
 - **Routes:** Use the documented app screens: Timeline, Behaviors, Analytics, Export, Settings. Do not copy placeholder labels from the reference screens.
 
 ### Timeline Rows
 
-- **Timeline structure:** The current day is the first forward section and uses the strongest date treatment. Day transitions use the date header plus a thin divider, not boxed day sections. Needs decision is reached from a fixed lower-right button and opens a modal rather than appearing as an inline Timeline section.
-- **Collapsed unresolved and Not Completed:** Scheduled time as plain text, behavior title, Completed button, and Not Completed button. Primary status actions are visible for Needs decision rows, current-day unresolved rows, and Not Completed rows.
+- **Timeline structure:** The current day is the first forward section and uses the strongest date treatment. Do not show a visible Timeline page title above the feed. Day transitions use the date header plus a thin divider, not boxed day sections. Needs decision is reached from a fixed lower-right button and opens a modal rather than appearing as an inline Timeline section.
+- **Collapsed unresolved and Not Completed:** Scheduled time as plain text, behavior title, Completed text-link action, and Not Completed text-link action. Rows are compact and unboxed, with collapsed time, title, and action text vertically centered within the row; do not draw a perimeter border around each behavior row. Primary status actions are visible for Needs decision rows, current-day unresolved rows, and Not Completed rows. Preset time ranges show only their short label, such as Morning or Evening, in collapsed rows.
+- **Timeline status actions:** Render Completed and Not Completed as inline underlined text-link controls with the check and x icons retained. Do not use boxed, filled, or outlined button chrome for these row-level status actions. Keep status action underlines consistently thin; do not use underline thickness to indicate that a row is already Not Completed. Hover and keyboard focus may add non-reflowing text emphasis as a targeted exception to the base no-bold type experiment, but should not change the action color or move adjacent actions.
 - **Expanded details:** Native disclosure reveals description, category, schedule summary, and note. Category and description remain hidden until expanded.
-- **Resolved:** Keep resolved rows visible with distinct states. Completed rows hide primary action buttons and use a full Monolith Blue fill instead of a separate status chip. Not Completed rows visually return to the original unresolved card treatment but show the Completed and Not Completed buttons, with Not Completed indicated as the current choice.
+- **Resolved:** Keep resolved rows visible with distinct states. Completed rows hide primary status actions and use a full Monolith Blue fill instead of a separate status chip. Not Completed rows visually return to the original unresolved card treatment but show the Completed and Not Completed text-link actions without a separate current-choice cue.
 - **Completion feedback:** A successful user-initiated change into Completed may play one short chime. Treat it as state feedback, not a reward loop: no voice, no alarm tone, no repeat sound, and no sound for Not Completed or page load.
-- **Needs decision:** The floating button shows the count to decide and uses Monolith Blue when the count is greater than zero. The modal uses a flat bordered panel, Cold Surface sections, and the same occurrence-row vocabulary as Timeline. Highlight prior unresolved rows with Cold Surface and thin structural lines, never red error styling. Do not write or imply a stored Needs decision status.
+- **Needs decision:** The floating button shows the count to decide and uses Monolith Blue when the count is greater than zero. Keep the count and label on one continuous button surface without an internal divider. The modal uses a flat bordered panel, Cold Surface sections, and the same occurrence-row vocabulary as Timeline. Highlight prior unresolved rows with Cold Surface and thin structural lines, never red error styling. Do not write or imply a stored Needs decision status.
 
 ### Analytics Heatmaps
 

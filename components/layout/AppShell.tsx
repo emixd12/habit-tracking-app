@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
@@ -24,6 +25,20 @@ const navIcons: Record<AppNavHref, LucideIcon> = {
   "/settings": Settings,
 };
 
+function BrandMark() {
+  return (
+    <Image
+      src="/brand/cadence-logo.png"
+      alt=""
+      aria-hidden="true"
+      width={24}
+      height={24}
+      sizes="24px"
+      className="h-6 w-6 shrink-0 object-cover"
+    />
+  );
+}
+
 export function AppShell({
   children,
 }: Readonly<{
@@ -36,15 +51,16 @@ export function AppShell({
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-line bg-background px-4 lg:hidden">
-        <Link href="/timeline" className="text-lg font-bold">
-          Cadence
+        <Link href="/timeline" className="inline-flex items-center gap-2 text-lg font-bold">
+          <BrandMark />
+          <span>Cadence</span>
         </Link>
         <button
           type="button"
           aria-label="Open navigation"
           aria-expanded={isMobileOpen}
           onClick={() => setIsMobileOpen(true)}
-          className="inline-flex h-10 w-10 items-center justify-center border border-line bg-background text-foreground transition-colors hover:bg-surface"
+          className="inline-flex h-10 w-10 items-center justify-center bg-background text-foreground transition-colors hover:bg-surface"
         >
           <Menu aria-hidden="true" size={20} strokeWidth={2} />
         </button>
@@ -76,12 +92,13 @@ export function AppShell({
             <Link
               href="/timeline"
               className={[
-                "min-w-0 font-bold leading-tight",
+                "inline-flex min-w-0 items-center gap-2 font-bold leading-tight",
                 isCollapsed ? "lg:sr-only" : "",
               ].join(" ")}
               onClick={() => setIsMobileOpen(false)}
             >
-              Cadence Tracker
+              <BrandMark />
+              <span className="min-w-0 truncate">Cadence</span>
             </Link>
             <button
               type="button"
@@ -118,7 +135,7 @@ export function AppShell({
                   className={[
                     "group flex min-h-12 items-center gap-3 px-3 py-3 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                     isActive
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-[var(--primary)] text-primary-foreground"
                       : "bg-background text-foreground hover:bg-surface",
                     isCollapsed
                       ? "lg:h-10 lg:min-h-10 lg:w-10 lg:justify-center lg:px-0 lg:py-0"

@@ -606,6 +606,210 @@ Remaining risk:
 - The in-app browser cannot play or authorize audio because its media and notification APIs are unavailable; Chrome verified the actual media playback-start path.
 - Browser notification permission prompts were not accepted during QA. The permission label/control is present, and prompt triggering remains owned by Settings with real push configuration.
 
+### Timeline status action text links
+
+Status: complete.
+
+Implementation summary:
+- Changed `components/timeline/StatusButtons.tsx` so Timeline Completed and Not Completed actions render as inline text-link controls instead of boxed filled/outlined buttons, while retaining the check and x icons.
+- Kept semantic submit buttons under the hood so keyboard access, form submission, pending state, `aria-pressed`, and completion chime preparation remain intact.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `DESIGN.md` so future Timeline work preserves text-link status actions instead of reintroducing button chrome.
+- No schema, resolver, service, API route, provider, or product-scope changes were made.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (18 files, 107 tests).
+- Pass: `npm run design-system:check`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/classify_repo.py --root .`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/detect_theme_support.py --root .`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_inventory.py --root . --out /tmp/cadence-design-system.manifest.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Pass: `npm run build`
+- Browser QA: authenticated in-app browser `/timeline` desktop render showed Completed and Not Completed controls with transparent background, `0px` border width, retained icons, current-choice underline where applicable, and no warning/error logs.
+- Browser QA: authenticated in-app browser `/timeline` at 390px width showed the text-link status actions wrapping without horizontal overflow and no warning/error logs.
+
+Remaining risk:
+- Browser QA did not click status actions because that would mutate the user's actual occurrence history. The existing fixture-backed StatusButtons path remains covered by the design-system bench.
+
+### Timeline borderless row polish
+
+Status: complete.
+
+Implementation summary:
+- Removed perimeter borders from Timeline occurrence rows and tightened row rhythm with a 4px list gap plus compact 10-12px row padding.
+- Removed the Timeline page helper sentence under the title.
+- Removed the border from the mobile top-bar navigation icon button.
+- Removed the internal divider between the number and text in the floating Needs decision button while keeping its outer button affordance.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, `DESIGN.md`, and the local design-system typography preview so the documented visual direction matches the implemented Timeline.
+- No schema, resolver, service, API route, provider, or product-scope changes were made.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (18 files, 107 tests).
+- Pass: `npm run design-system:check`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_inventory.py --root . --out /tmp/cadence-design-system.manifest.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Pass: `npm run build`
+- Browser QA: authenticated in-app browser `/timeline` at 942px width showed no Timeline helper text, occurrence row border widths at `0px`, list `rowGap: 4px`, row padding at `12px`, mobile menu trigger border widths at `0px`, Needs decision count span border widths at `0px`, no horizontal overflow, and no warning/error logs.
+- Browser QA: authenticated in-app browser `/timeline` at 390px width showed no Timeline helper text, occurrence row border widths at `0px`, list `rowGap: 4px`, row padding at `10px`, mobile menu trigger border widths at `0px`, Needs decision count span border widths at `0px`, no horizontal overflow, and no warning/error logs.
+
+Remaining risk:
+- Browser QA was visual/read-only. Status actions and the Needs decision modal were not clicked to avoid mutating the user's live occurrence history.
+
+### Timeline status action underline affordance
+
+Status: complete.
+
+Implementation summary:
+- Changed `components/timeline/StatusButtons.tsx` so all Timeline status text-link actions are underlined by default.
+- Follow-up: normalized Completed and Not Completed action underlines to the same thin `decoration-1` treatment so Not Completed no longer receives a saved-status thickness cue.
+- Removed `aria-pressed` from the status action controls because the controls are submit actions, not the row's status indicator.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `DESIGN.md` to document consistent thin underlines and avoid current-choice styling for Not Completed rows.
+- No schema, resolver, service, API route, provider, or product-scope changes were made.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (19 files, 110 tests).
+- Pass: `npm run design-system:check`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/classify_repo.py --root .`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/detect_theme_support.py --root .`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_inventory.py --root . --out /tmp/cadence-design-system.manifest.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Pass: `npm run build`
+- Browser QA: authenticated in-app browser `/timeline` desktop render showed sampled Completed and Not Completed status actions with transparent backgrounds, 0px borders, `textDecorationLine: underline`, `textDecorationThickness: 1px`, and no `aria-pressed`; no warning/error logs.
+- Browser QA: authenticated in-app browser `/timeline` at 390px width showed the same sampled status action styles, no horizontal overflow, and no warning/error logs.
+
+Remaining risk:
+- Browser QA was visual/read-only. Status actions were not clicked to avoid mutating the user's live occurrence history.
+
+### Timeline browser comment polish
+
+Status: complete.
+
+Implementation summary:
+- Removed the visible Timeline page title so the Timeline feed starts directly with the current-day section while preserving an `sr-only` page heading for accessibility.
+- Reworked Timeline occurrence rows so scheduled labels use a fixed column and behavior title first letters align across exact times and preset ranges.
+- Added compact Timeline-only preset labels, so range occurrences display `Morning`, `Afternoon`, `Evening`, or `Night` without the full clock range; export, analytics, and reminder labels can still use the full range text.
+- Added soft blue hover hues for unresolved and Needs decision rows, with a darker blue hover for Completed rows.
+- Reworked expanded occurrence row layout so status actions stay pinned to the top-right and the expanded detail panel spans the full inner row width.
+- Changed Timeline Completed status actions to use black text like Not Completed.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, `DESIGN.md`, the design-system Timeline fixture, and `design-system.usage.json` to match the implemented Timeline state.
+- Added `tests/schedule.test.ts` coverage for full versus compact schedule labels.
+- No schema, resolver, provider, status semantics, notification behavior, or product-scope changes were made.
+
+Verification:
+- Pass: `npm run test -- tests/schedule.test.ts`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (19 files, 110 tests).
+- Pass: `npm run design-system:check`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/classify_repo.py --root .`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/detect_theme_support.py --root .`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_inventory.py --root . --out /tmp/cadence-design-system.manifest.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Pass: `npm run build`
+- Browser QA: authenticated in-app browser `/timeline` at 942px width showed no visible Timeline page title, the current-day section at the top of the content, zero horizontal overflow, compact `Evening` range labels, aligned behavior-title x positions, black Completed/Not Completed actions, and emitted hover CSS for `#eef6ff`, `#e8f2ff`, and `#2f669f`.
+- Browser QA: opening the second current-day row kept status actions top-aligned with the summary (`0px` top delta) and measured the expanded details panel at the full inner row width.
+- Browser QA: authenticated in-app browser `/timeline` at 390px width showed no visible Timeline page title, zero horizontal overflow, compact `Evening` range labels, and aligned behavior-title x positions.
+- Browser QA: no warning or error logs were observed in the in-app browser after the Timeline checks.
+
+Remaining risk:
+- Browser QA was visual/read-only. Status action clicks were not performed to avoid mutating the user's live occurrence history.
+- The in-app browser did not report `:hover` state from synthetic pointer movement, so hover was verified by emitted CSS and row class output rather than a live hover screenshot.
+
+### Timeline row vertical alignment polish
+
+Status: complete.
+
+Implementation summary:
+- Centered collapsed Timeline row contents so scheduled time, behavior title, collapsed status text, and Completed / Not Completed action text share the row's vertical midpoint.
+- Preserved the expanded-row layout by returning status controls to top alignment when a row's details are open on desktop.
+- Added a targeted Timeline status-action hover/focus weight rule so Completed and Not Completed become heavier on hover/focus without changing the global no-bold typography tokens.
+- Updated `docs/UI_SPEC.md` and `DESIGN.md` to document the centered collapsed-row treatment and the status-link hover exception.
+- No resolver, service, schema, provider, status semantic, or product-scope changes were made.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run design-system:check`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (19 files, 110 tests).
+- Pass: `npm run build`
+- Pass: design-system-bench classify, theme detection, inventory scan to `/tmp/cadence-design-system.manifest.json`, usage scan to `/tmp/cadence-design-system.usage.json`, and traceability verification.
+- Browser QA: authenticated in-app browser `/timeline` at 1042x863 showed the selected `Clean Invisalign` row with time, title, status wrapper, Completed, and Not Completed all at `0px` vertical center delta from the row midpoint, no horizontal overflow, and no browser warning/error logs.
+- Browser QA: authenticated in-app browser `/timeline` at 390x844 showed the selected row fitting within the viewport with no horizontal overflow and no browser warning/error logs.
+- Browser QA: emitted page CSS includes `.timeline-status-action:not(:disabled):hover, .timeline-status-action:focus-visible { font-weight: 600; }` and the expanded-row `:has(details[open])` alignment rule.
+
+Remaining risk:
+- Browser QA was visual/read-only. Status action clicks were not performed to avoid mutating the user's live occurrence history.
+
+### Timeline status hover color refinement
+
+Status: complete.
+
+Implementation summary:
+- Removed the hover color shift from Timeline Completed and Not Completed text-link status actions while preserving the targeted hover/focus heavier text treatment.
+- Updated `docs/UI_SPEC.md` and `DESIGN.md` so the status-action contract says hover/focus may become heavier without changing color.
+- No resolver, service, schema, provider, status semantic, or product-scope changes were made.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run design-system:check`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (19 files, 110 tests).
+- Pass: `npm run build`
+- Pass: design-system-bench classify, theme detection, inventory scan to `/tmp/cadence-design-system.manifest.json`, usage scan to `/tmp/cadence-design-system.usage.json`, and traceability verification.
+- Browser QA: authenticated in-app browser `/timeline` at 1042x863 showed the selected `Clean Invisalign` row with two Timeline status actions, no `hover:text-primary` class, no hover color CSS for `.timeline-status-action`, and no horizontal overflow or browser warning/error logs.
+- Browser QA: authenticated in-app browser `/timeline` at 390x844 showed the selected row with no `hover:text-primary` status-action class, no horizontal overflow, and no browser warning/error logs.
+
+Remaining risk:
+- Browser QA was visual/read-only. Status action clicks were not performed to avoid mutating the user's live occurrence history.
+
+### Timeline sidebar and hover stability polish
+
+Status: complete.
+
+Implementation summary:
+- Changed the desktop app-shell brand label from `Cadence Tracker` to `Cadence`, matching the mobile header.
+- Tied the active primary navigation item directly to the shared `--primary` blue token used by completed Timeline rows and primary card states.
+- Reduced the Timeline occurrence summary gap between the scheduled time column and behavior title from `0.75rem` to `0.25rem`.
+- Replaced the Timeline status-action hover/focus `font-weight` change with non-reflowing text-shadow emphasis so hovering Not Completed does not move the neighboring Completed action.
+- Updated `docs/UI_SPEC.md` and `DESIGN.md` to document non-reflowing status-action hover/focus emphasis.
+- No resolver, service, schema, provider, status semantic, notification behavior, or product-scope changes were made.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (19 files, 110 tests).
+- Pass: `npm run design-system:check`
+- Pass: design-system-bench inventory scan to `/tmp/cadence-design-system.manifest.json`, usage scan to `/tmp/cadence-design-system.usage.json`, and traceability verification.
+- Pass: `npm run build`
+- Browser QA: authenticated in-app browser `/timeline` at 854x863 showed sidebar label `Cadence`, active Timeline nav background `rgb(53, 114, 179)` matching `--primary: #3572b3`, row column gap `4px`, no horizontal overflow, no warning/error logs, and emitted status-action hover/focus CSS using `text-shadow` without a font-weight change.
+- Browser QA: authenticated in-app browser `/timeline` at 390x844 showed header label `Cadence`, row column gap `4px`, no horizontal overflow, and no warning/error logs.
+
+Remaining risk:
+- Browser QA was visual/read-only. Status actions were not clicked to avoid mutating the user's live occurrence history.
+
 ## Handoff notes
 
 - For the next coding agent: continue Ticket 013 from the Vercel environment/deployment blocker. Do not start deferred offline/PWA or future restore/import work unless the product docs change or the user explicitly brings it into scope.

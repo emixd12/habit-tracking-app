@@ -248,7 +248,7 @@ function Foundations() {
                   Timeline
                 </h2>
                 <p className="max-w-prose text-base leading-7 text-muted-readable">
-                  Current day starts at local midnight in America/New_York.
+                  Thursday, June 11
                 </p>
               </div>
             </ProductPreview>
@@ -971,7 +971,7 @@ const currentOccurrence: TimelineOccurrenceView = {
   id: "occurrence-current",
   behaviorId: "behavior-water",
   scheduledFor: "2026-06-08T13:00:00Z",
-  scheduledTimeLabel: "Morning (6:00 AM-Noon)",
+  scheduledTimeLabel: "Morning",
   localDate: "2026-06-08",
   title: "Drink water",
   visualTone: "default",
@@ -985,7 +985,7 @@ const currentGroupedDoneOccurrence: TimelineOccurrenceView = {
   ...currentOccurrence,
   id: "occurrence-current-evening",
   scheduledFor: "2026-06-08T22:00:00Z",
-  scheduledTimeLabel: "Evening (6:00 PM-Midnight)",
+  scheduledTimeLabel: "Evening",
   status: "done",
   statusLabel: "Completed",
   statusDetail: "Resolved as Completed",

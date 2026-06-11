@@ -12,10 +12,10 @@ type OccurrenceRowProps = Readonly<{
 }>;
 
 const ROW_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
-  default: "border-line bg-background text-foreground",
-  needs_decision: "border-line bg-surface text-foreground",
-  done: "border-line bg-primary text-primary-foreground",
-  not_done: "border-line bg-background text-foreground",
+  default: "bg-background text-foreground hover:bg-[#eef6ff]",
+  needs_decision: "bg-surface text-foreground hover:bg-[#e8f2ff]",
+  done: "bg-primary text-primary-foreground hover:bg-[#2f669f]",
+  not_done: "bg-background text-foreground hover:bg-[#eef6ff]",
 };
 
 const TIME_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
@@ -47,17 +47,17 @@ export function OccurrenceRow({
   return (
     <article
       className={[
-        "border transition-colors",
+        "transition-colors",
         ROW_TONE_CLASSES[occurrence.visualTone],
       ].join(" ")}
     >
-      <div className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4">
-        <details className="group min-w-0">
-          <summary className="grid cursor-pointer list-none gap-1.5 sm:flex sm:items-center sm:gap-3 [&::-webkit-details-marker]:hidden">
+      <div className="timeline-occurrence-row-grid grid gap-2 p-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-3">
+        <details className="group min-w-0 sm:col-start-1 sm:col-end-3 sm:row-start-1">
+          <summary className="grid cursor-pointer list-none grid-cols-[5.75rem_minmax(0,1fr)] items-center gap-1 sm:pr-72 [&::-webkit-details-marker]:hidden">
             <time
               dateTime={occurrence.scheduledFor}
               className={[
-                "shrink-0 text-xs font-bold leading-5 sm:text-sm",
+                "text-xs font-bold leading-5 sm:text-sm",
                 TIME_TONE_CLASSES[occurrence.visualTone],
               ].join(" ")}
             >
@@ -106,15 +106,17 @@ export function OccurrenceRow({
         </details>
 
         {occurrence.showDecisionActions ? (
-          <StatusButtons
-            occurrenceId={occurrence.id}
-            currentStatus={occurrence.status}
-            action={statusAction}
-          />
+          <div className="timeline-occurrence-status sm:z-10 sm:col-start-2 sm:row-start-1 sm:self-center">
+            <StatusButtons
+              occurrenceId={occurrence.id}
+              currentStatus={occurrence.status}
+              action={statusAction}
+            />
+          </div>
         ) : occurrence.showCollapsedStatusLabel ? (
           <p
             className={[
-              "text-xs font-bold leading-5 sm:self-center sm:whitespace-nowrap sm:text-sm",
+              "timeline-occurrence-status text-xs font-bold leading-5 sm:z-10 sm:col-start-2 sm:row-start-1 sm:self-center sm:whitespace-nowrap sm:text-sm",
               RESOLVED_LABEL_CLASSES[occurrence.visualTone],
             ].join(" ")}
           >

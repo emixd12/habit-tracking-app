@@ -45,6 +45,9 @@ This is the main screen.
 
 The current day should be prominent and should begin the forward timeline.
 
+Do not show a visible Timeline page title or explanatory helper text above the
+feed. The first visible content should be the current-day section.
+
 Users should not browse previous days as normal timeline sections. Prior unresolved occurrences appear only in the Needs decision modal.
 
 Timeline access:
@@ -61,6 +64,7 @@ The floating button should:
 - Show the number of prior unresolved occurrences.
 - Use the primary action treatment when there is at least one occurrence to decide.
 - Remain factual and non-punitive. Do not use error styling or missed/failure language.
+- Use one continuous surface without an internal divider between the number and text.
 - Open a modal that reveals all prior unresolved occurrences grouped by local day.
 
 Example:
@@ -89,15 +93,15 @@ For multi-time behavior groups:
 - Keep the existing single-occurrence visual language for each row.
 - Completed rows use the existing full blue completed treatment.
 - Unresolved rows use the existing unresolved treatment and show Completed and
-  Not Completed buttons.
+  Not Completed text-link status actions.
 - Not Completed rows return to the original unresolved card treatment and show
-  Completed and Not Completed buttons, with Not Completed indicated as the
-  current choice.
+  Completed and Not Completed text-link status actions without a separate
+  current-choice cue.
 - Do not show a "1 of 2 completed" label.
 - Do not add a partial-completion stored status.
 - Partial completion is only a derived visual result of mixed row states within
   the grouped behavior.
-- Status buttons always apply to the specific occurrence row where they appear.
+- Status actions always apply to the specific occurrence row where they appear.
 
 Example:
 
@@ -130,7 +134,16 @@ Collapsed card should show:
 - Scheduled time
 - Behavior title
 - Current status when Completed
-- Completed and Not Completed buttons when unresolved or Not Completed
+- Completed and Not Completed text-link status actions when unresolved or Not Completed
+
+Preset time-range occurrences should use the short preset label in collapsed
+Timeline rows, such as Morning or Evening, without the full clock range.
+
+Status text-link actions should be underlined by default with the same thin underline. On hover or keyboard focus, the action text may gain non-reflowing emphasis without changing color or moving adjacent actions. Do not use underline thickness to indicate a saved status.
+
+Occurrence rows should read as compact unboxed list rows. Do not draw a perimeter border around each Timeline behavior row.
+
+In collapsed rows, the scheduled time, behavior title, and collapsed status/action text should be vertically centered within the row. Expanded rows may pin the status controls to the top-right so the details panel can span the row below.
 
 Expanded card details should show:
 - Description if present
@@ -144,15 +157,15 @@ Categories should only be visible in the expanded card details.
 
 Unresolved prior-day cards in the Needs decision modal should be visually highlighted so the user is clearly prompted to decide whether each occurrence was Completed or Not Completed. This highlight is derived from date and status; it must not write a different status.
 
-Completed cards should remain visible with a distinct resolved state, hide the primary action buttons, and clearly indicate Completed.
+Completed cards should remain visible with a distinct resolved state, hide the primary status actions, and clearly indicate Completed.
 
-Not Completed cards should remain visible with the original unresolved card treatment and expose the same Completed and Not Completed buttons as the original decision card so the user can immediately approve or change the logged action. This is a visual reset only; the stored status remains on that occurrence instance as `not_done`.
+Not Completed cards should remain visible with the original unresolved card treatment and expose the same Completed and Not Completed text-link status actions as the original decision card so the user can immediately approve or change the logged action. This is a visual reset only; the stored status remains on that occurrence instance as `not_done`.
 
 Clicking a Completed card should reveal the option to change the logged action. Do not require a confirmation step before changing a status.
 
-Notes, category, description, and schedule details are hidden by default and revealed when the user clicks the card outside the completion buttons.
+Notes, category, description, and schedule details are hidden by default and revealed when the user clicks the card outside the status actions.
 
-Button behavior:
+Status action behavior:
 - Completed changes status to `done`
 - Not Completed changes status to `not_done`
 - A successful user-initiated change into Completed may play a short completion chime.

@@ -127,6 +127,21 @@ button:disabled {
   outline-offset: 3px;
 }
 
+.timeline-status-action:not(:disabled):hover,
+.timeline-status-action:focus-visible {
+  text-shadow: 0.02em 0 currentColor;
+}
+
+@media (width >= 40rem) {
+  .timeline-occurrence-row-grid:has(details[open]) {
+    align-items: start;
+  }
+
+  .timeline-occurrence-row-grid:has(details[open]) .timeline-occurrence-status {
+    align-self: start;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

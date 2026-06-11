@@ -101,6 +101,19 @@ export function formatOccurrenceScheduleLabel(
   });
 }
 
+export function formatCompactOccurrenceScheduleLabel(
+  snapshot: Pick<
+    OccurrenceScheduleSnapshot,
+    "scheduleKind" | "schedulePreset" | "scheduleStartTime" | "scheduleEndTime"
+  >,
+): string {
+  if (snapshot.scheduleKind === "range" && snapshot.schedulePreset) {
+    return TIME_RANGE_PRESETS[snapshot.schedulePreset].label;
+  }
+
+  return formatClockTimeLabel(snapshot.scheduleStartTime);
+}
+
 export function compareScheduleSlots(
   left: Pick<ScheduleSlotView, "sortOrder" | "startTime" | "label">,
   right: Pick<ScheduleSlotView, "sortOrder" | "startTime" | "label">,

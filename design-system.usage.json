@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-09T20:46:19.525640+00:00",
+  "generatedAt": "2026-06-11T08:24:42.961090+00:00",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
       "componentId": "composite.behavior-form",
       "file": "app/(app)/behaviors/page.tsx",
-      "line": 28,
+      "line": 33,
       "route": "(app)/behaviors/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -14,7 +14,7 @@
     {
       "componentId": "composite.behavior-form",
       "file": "components/behaviors/BehaviorList.tsx",
-      "line": 148,
+      "line": 175,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -70,7 +70,7 @@
     {
       "componentId": "layout.screen-frame",
       "file": "app/(app)/behaviors/page.tsx",
-      "line": 23,
+      "line": 26,
       "route": "(app)/behaviors/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -92,14 +92,6 @@
       "confidence": "exact"
     },
     {
-      "componentId": "layout.screen-frame",
-      "file": "app/(app)/timeline/page.tsx",
-      "line": 30,
-      "route": "(app)/timeline/page",
-      "usageKind": "render",
-      "confidence": "exact"
-    },
-    {
       "componentId": "module.analytics-screen",
       "file": "app/(app)/analytics/page.tsx",
       "line": 34,
@@ -110,7 +102,7 @@
     {
       "componentId": "module.behavior-list",
       "file": "app/(app)/behaviors/page.tsx",
-      "line": 35,
+      "line": 42,
       "route": "(app)/behaviors/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -174,7 +166,7 @@
     {
       "componentId": "module.status-buttons",
       "file": "components/timeline/OccurrenceRow.tsx",
-      "line": 109,
+      "line": 110,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -182,7 +174,7 @@
     {
       "componentId": "module.timeline",
       "file": "app/(app)/timeline/page.tsx",
-      "line": 34,
+      "line": 31,
       "route": "(app)/timeline/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -213,7 +205,7 @@
     }
   ],
   "summary": {
-    "productUsages": 26,
+    "productUsages": 25,
     "benchPreviews": 0
   }
 }

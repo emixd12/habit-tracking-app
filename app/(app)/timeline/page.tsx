@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { ScreenFrame } from "@/components/layout/ScreenFrame";
 import { Timeline } from "@/components/timeline/Timeline";
 import { getTimelinePageData } from "@/lib/services/timeline.service";
 import {
@@ -27,16 +26,14 @@ export default async function TimelinePage({ searchParams }: TimelinePageProps) 
   });
 
   return (
-    <ScreenFrame
-      title="Timeline"
-      description={`Current day starts at local midnight in ${timeline.timezone}.`}
-    >
+    <div className="mx-auto flex w-full max-w-6xl flex-col px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+      <h1 className="sr-only">Timeline</h1>
       <Timeline
         timeline={timeline}
         statusAction={markOccurrenceStatusAction}
         noteAction={updateOccurrenceNoteAction}
       />
-    </ScreenFrame>
+    </div>
   );
 }
 

@@ -28,6 +28,9 @@ The Timeline is the primary screen.
 
 The current day should be visually prominent and should begin the forward timeline.
 
+The Timeline feed starts directly with the current-day section. Do not show a
+visible Timeline page title or explanatory helper copy above the feed.
+
 Timeline order:
 1. Floating Needs decision button
 2. Current day
@@ -37,6 +40,7 @@ Timeline order:
 Needs decision contains only prior-day unresolved occurrences. It is not a general past timeline.
 
 The Needs decision button is fixed to the lower right of the Timeline screen, shows the current number of prior unresolved occurrences, and opens a modal with the grouped prior-day occurrences.
+The count and label sit on one continuous button surface without an internal divider.
 
 Users should not browse previous days as ordinary timeline sections in v1.
 
@@ -51,9 +55,9 @@ Do not show a "1 of 2 completed" label, progress fill, or stored partial status
 for grouped behavior rows. Partial completion is only derived from the mixed
 states of the individual occurrence rows. Completed, unresolved, and Not
 Completed rows keep the existing single-occurrence visual treatments. Not
-Completed rows continue to show both status buttons, with Not Completed
-indicated as the current choice, and each status button applies only to the
-occurrence row where it appears.
+Completed rows continue to show both status actions without separate
+current-choice styling, and each status action applies only to the occurrence
+row where it appears.
 
 If a day has no occurrences, show:
 
@@ -66,8 +70,15 @@ No behaviors on this day
 Collapsed unresolved cards show:
 - Scheduled time
 - Behavior title
-- Completed button
-- Not Completed button
+- Completed text-link action
+- Not Completed text-link action
+
+Preset time ranges show their short label in collapsed rows, such as Morning or
+Evening, rather than the full clock range.
+
+Status text-link actions are underlined by default. All status action underlines use the same thin weight.
+
+Collapsed occurrence rows are compact and unboxed. They should not draw a perimeter border around each behavior row.
 
 Collapsed Completed cards show:
 - Scheduled time
@@ -77,14 +88,14 @@ Collapsed Completed cards show:
 Collapsed Not Completed cards show:
 - Scheduled time
 - Behavior title
-- Completed button
-- Not Completed button, indicated as the current choice
+- Completed text-link action
+- Not Completed text-link action
 
-Completed cards should have a distinct visual state and should hide the primary action buttons.
+Completed cards should have a distinct visual state and should hide the primary status actions.
 
-Not Completed cards should visually return to the original unresolved card treatment while exposing both buttons so the logged action can be approved or changed without expanding the card. The stored status remains `not_done` on that occurrence instance.
+Not Completed cards should visually return to the original unresolved card treatment while exposing both status actions so the logged action can be approved or changed without expanding the card. The stored status remains `not_done` on that occurrence instance.
 
-Clicking a card outside the completion buttons expands it.
+Clicking a card outside the status actions expands it.
 
 Expanded cards show:
 - Description

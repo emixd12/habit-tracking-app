@@ -101,15 +101,14 @@ export function StatusButtons({
       <div
         className={
           compact
-            ? "grid gap-2 sm:grid-cols-2"
-            : "grid grid-cols-2 gap-2 sm:flex sm:flex-nowrap"
+            ? "flex flex-wrap items-center gap-x-4 gap-y-2"
+            : "flex flex-wrap items-center justify-start gap-x-4 gap-y-2 sm:justify-end"
         }
       >
         <StatusSubmitForm
           occurrenceId={occurrenceId}
           status="done"
           label="Completed"
-          currentStatus={currentStatus}
           action={formAction}
           onStatusIntent={prepareForSubmittedStatus}
         />
@@ -117,7 +116,6 @@ export function StatusButtons({
           occurrenceId={occurrenceId}
           status="not_done"
           label="Not Completed"
-          currentStatus={currentStatus}
           action={formAction}
           onStatusIntent={prepareForSubmittedStatus}
         />
@@ -131,14 +129,12 @@ function StatusSubmitForm({
   occurrenceId,
   status,
   label,
-  currentStatus,
   action,
   onStatusIntent,
 }: Readonly<{
   occurrenceId: string;
   status: StatusButtonValue;
   label: string;
-  currentStatus: TimelineStatus;
   action: StatusFormAction;
   onStatusIntent: (status: StatusButtonValue) => void;
 }>) {
@@ -155,7 +151,6 @@ function StatusSubmitForm({
       <StatusSubmitButton
         status={status}
         label={label}
-        currentStatus={currentStatus}
         onStatusIntent={onStatusIntent}
       />
     </form>
@@ -165,27 +160,19 @@ function StatusSubmitForm({
 function StatusSubmitButton({
   status,
   label,
-  currentStatus,
   onStatusIntent,
 }: Readonly<{
   status: StatusButtonValue;
   label: string;
-  currentStatus: TimelineStatus;
   onStatusIntent: (status: StatusButtonValue) => void;
 }>) {
   const { pending } = useFormStatus();
   const Icon = status === "done" ? Check : X;
-  const isCurrent = currentStatus === status;
-  const tone =
-    status === "done"
-      ? "bg-primary text-primary-foreground hover:bg-foreground"
-      : "bg-background text-foreground hover:bg-surface";
 
   return (
     <button
       type="submit"
       disabled={pending}
-      aria-pressed={isCurrent}
       onClick={() => {
         onStatusIntent(status);
       }}
@@ -193,9 +180,8 @@ function StatusSubmitButton({
         onStatusIntent(status);
       }}
       className={[
-        "inline-flex min-h-9 items-center justify-center gap-1.5 whitespace-nowrap border border-line px-2.5 py-1.5 text-xs font-bold transition-colors disabled:bg-surface disabled:text-muted-readable sm:px-3",
-        isCurrent ? "outline outline-2 outline-offset-2 outline-primary" : "",
-        tone,
+        "timeline-status-action inline-flex min-h-8 items-center justify-center gap-1.5 whitespace-nowrap border-0 bg-transparent px-0 py-1 text-sm font-bold underline decoration-1 underline-offset-4 disabled:text-muted-readable disabled:no-underline",
+        "text-foreground",
       ].join(" ")}
     >
       <Icon aria-hidden="true" size={14} strokeWidth={2.5} />

@@ -73,7 +73,7 @@ export function NeedsDecisionDialog({
         ].join(" ")}
       >
         <span
-          className="grid min-h-14 min-w-14 place-items-center border-r border-line px-3 text-2xl font-bold leading-none"
+          className="grid min-h-14 min-w-14 place-items-center px-3 text-2xl font-bold leading-none"
           aria-hidden="true"
         >
           {occurrenceCount}

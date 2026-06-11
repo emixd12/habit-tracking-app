@@ -20,7 +20,7 @@ import {
   normalizeScheduledTime,
   summarizeRecurrenceRule,
 } from "@/lib/services/behavior-form";
-import { formatOccurrenceScheduleLabel } from "@/lib/services/schedule";
+import { formatCompactOccurrenceScheduleLabel } from "@/lib/services/schedule";
 import { syncUserOccurrences } from "@/lib/services/occurrence.service";
 import { createClient } from "@/lib/supabase/server";
 import type { Occurrence } from "@/lib/types/database";
@@ -121,7 +121,7 @@ function toTimelineOccurrenceInput(
     categoryName: behavior.category?.name ?? "No category",
     scheduleSummary: summarizeRecurrenceRule(recurrenceRule),
     scheduledFor: occurrence.scheduled_for,
-    scheduledTimeLabel: formatOccurrenceScheduleLabel({
+    scheduledTimeLabel: formatCompactOccurrenceScheduleLabel({
       scheduleKind: normalizeScheduleKind(occurrence.schedule_kind),
       schedulePreset: normalizeSchedulePreset(occurrence.schedule_preset),
       scheduleStartTime: normalizeScheduledTime(occurrence.schedule_start_time),

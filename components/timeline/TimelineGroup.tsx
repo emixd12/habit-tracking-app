@@ -57,7 +57,7 @@ export function TimelineGroup({
           {section.emptyMessage}
         </p>
       ) : (
-        <div className="mt-3 grid gap-2">
+        <div className="mt-3 grid gap-1">
           {section.occurrenceGroups.map((group) => (
             <OccurrenceStack
               key={group.key}
