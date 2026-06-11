@@ -6,9 +6,11 @@ colors:
   background: "#FDFCFB"
   surface: "#F4F5F6"
   text: "#0A0B0C"
-  muted: "#7A848D"
   muted-readable: "#626C75"
   accent: "#C84A31"
+  timeline-row-hover: "#eef6ff"
+  timeline-needs-decision-hover: "#e8f2ff"
+  timeline-completed-hover: "#2f669f"
 typography:
   display:
     fontFamily: "IBM Plex Sans"
@@ -79,8 +81,8 @@ components:
     rounded: "{rounded.none}"
     padding: "24px"
   nav-active:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.background}"
+    backgroundColor: "{colors.timeline-row-hover}"
+    textColor: "{colors.text}"
     typography: "{typography.label}"
     rounded: "{rounded.none}"
     padding: "12px"
@@ -100,7 +102,8 @@ This is product UI, not a poster. The look can be distinctive, but every screen 
 
 - IBM Plex Sans-only typography.
 - Bleached off-white background with quiet ash dividers.
-- Muted blue used for active navigation, selected recurrence presets, completed cells, and primary actions.
+- Muted blue used for selected recurrence presets, completed cells, and primary actions.
+- Pale timeline blue used for the current navigation route state.
 - Rust red used rarely for warnings, destructive actions, or errors.
 - Square corners, no shadows, no blur, no rounded cards.
 - Spacious desktop rhythm with compact, stackable mobile layouts.
@@ -111,7 +114,10 @@ The palette is almost monochrome: black ink, bleached paper, subtle gray, and on
 
 ### Primary
 
-- **Monolith Blue**: `#3572b3`, used for active navigation, primary buttons, selected states, Timeline status links, hover fills, completed Timeline rows, and completed heatmap cells.
+- **Monolith Blue**: `#3572b3`, used for primary buttons, selected states, Timeline status links, hover fills, completed Timeline rows, and completed heatmap cells.
+- **Timeline Row Hover**: `#eef6ff`, used for unresolved and Not Completed Timeline occurrence row hover and the current navigation route state.
+- **Needs Decision Hover**: `#e8f2ff`, used for prior unresolved Needs decision occurrence row hover.
+- **Completed Row Hover**: `#2f669f`, used for Completed Timeline occurrence row hover.
 
 ### Secondary
 
@@ -120,7 +126,7 @@ The palette is almost monochrome: black ink, bleached paper, subtle gray, and on
 ### Neutral
 
 - **Bleached Newsprint**: Main app background.
-- **Cold Surface**: Secondary panels, empty states, skeleton loaders, inline note areas, and inactive heatmap cells.
+- **Cold Surface**: Secondary panels, empty states, skeleton loaders, inline note areas, inactive heatmap cells, and inactive navigation hover.
 - **Ink Black**: Main text, icons, and hard text hierarchy.
 - **Ash Line**: The single border color for dividers, controls, panels, rows, inputs, and heatmap cells.
 - **Readable Ash**: Essential secondary text where the lighter muted gray would not meet contrast.
@@ -211,9 +217,9 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 ### Navigation
 
-- **Desktop:** Fixed retractable sidebar with quiet dividers and compact labels. Expanded width is 256px and collapsed width is 64px. The main content uses matching large-breakpoint left padding. Header, navigation, and footer account rows share a fixed 64px icon/avatar column so collapsed and expanded icon positions match. The desktop sidebar header has no bottom divider. Active route uses Monolith Blue fill. In collapsed state, active and hover fills apply only to the icon cell, not the full row.
+- **Desktop:** Fixed retractable sidebar with quiet dividers and compact labels. Expanded width is 256px and collapsed width is 64px. The main content uses matching large-breakpoint left padding. Header, navigation, and footer account rows share a fixed 64px icon/avatar column so collapsed and expanded icon positions match. The desktop sidebar header has no bottom divider. Active route uses Timeline Row Hover fill with Ink Black text. Inactive route hover uses Cold Surface. Primary navigation rows do not have gaps between them. In collapsed state, active and hover fills apply only to the icon cell, not the full row.
 - **Sidebar motion:** Width, brand label opacity, and nav label opacity transition over 200ms. Labels remain in the DOM, collapse visually to `w-0`, and stay `whitespace-nowrap` so text never wraps during rail transitions.
-- **Mobile:** Do not use the collapsed rail under 1024px. Use a sticky 64px top header that opens a 60vw left drawer. The drawer keeps the same square navigation vocabulary, traps focus while open, locks body scroll, closes from backdrop or Escape, supports edge swipe open from the first 20px of the viewport, and supports left swipe close. The drawer may use a narrow `shadow-lg` only to separate it from the faded backdrop.
+- **Mobile:** Do not use the collapsed rail under 1024px. Use a sticky 64px top header that opens a 60vw left drawer. The drawer keeps the same square navigation vocabulary and its header has no bottom divider. The drawer traps focus while open, locks body scroll, closes from backdrop or Escape, supports edge swipe open from the first 20px of the viewport, and supports left swipe close. The drawer may use a narrow `shadow-lg` only to separate it from the faded backdrop.
 - **Routes:** Use the documented app screens: Timeline, Behaviors, Analytics, Export, Settings. Do not copy placeholder labels from the reference screens.
 
 ### Timeline Rows
@@ -259,7 +265,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Do** keep the Timeline as the primary screen and `/timeline` as the default authenticated route.
 - **Do** keep categories hidden from primary navigation and Timeline filtering.
 - **Do** make mobile layouts stack vertically with comfortable 24px spacing.
-- **Do** use Monolith Blue for active navigation, selected states, completed cells, and primary actions.
+- **Do** use Timeline Row Hover for active navigation and Monolith Blue for selected states, completed cells, and primary actions.
 - **Do** use Rust Signal only when the interface truly needs caution.
 
 ### Don't:

@@ -20,6 +20,7 @@ Desktop behavior:
 Mobile behavior:
 - The collapsed rail is not used under 1024px.
 - A sticky 64px top header opens a 60vw left drawer.
+- The mobile drawer header does not draw a bottom divider.
 - The drawer closes from backdrop click, Escape, the close button, a navigation
   click, or a left swipe.
 - Edge swipe from the first 20px of the viewport opens the drawer.

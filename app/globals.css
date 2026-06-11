@@ -8,7 +8,9 @@
   --card-foreground: var(--foreground);
   --primary: #3572b3;
   --primary-foreground: oklch(99.16% 0.0017 67.8);
-  --muted: oklch(60.81% 0.0181 245.2);
+  --timeline-row-hover: #eef6ff;
+  --timeline-needs-decision-hover: #e8f2ff;
+  --timeline-completed-hover: #2f669f;
   --muted-readable: oklch(52.59% 0.0187 245.3);
   --muted-foreground: var(--muted-readable);
   --accent: oklch(57.69% 0.1656 33.1);
@@ -62,7 +64,9 @@
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-muted: var(--muted);
+  --color-timeline-row-hover: var(--timeline-row-hover);
+  --color-timeline-needs-decision-hover: var(--timeline-needs-decision-hover);
+  --color-timeline-completed-hover: var(--timeline-completed-hover);
   --color-muted-readable: var(--muted-readable);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);

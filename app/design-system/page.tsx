@@ -291,6 +291,18 @@ function Foundations() {
                   name="Readable muted"
                   className="bg-background text-muted-readable"
                 />
+                <Swatch
+                  name="Timeline row hover"
+                  className="bg-timeline-row-hover text-foreground"
+                />
+                <Swatch
+                  name="Needs decision hover"
+                  className="bg-timeline-needs-decision-hover text-foreground"
+                />
+                <Swatch
+                  name="Completed row hover"
+                  className="bg-timeline-completed-hover text-primary-foreground"
+                />
               </div>
             </ProductPreview>
           }
@@ -671,7 +683,7 @@ function buildPreviews(): Record<string, ReactNode> {
       <ProductPreview>
         <nav
           aria-label="Primary route registry"
-          className="grid w-64 gap-1 border border-line bg-card py-3"
+          className="grid w-64 border border-line bg-card py-3"
         >
           {APP_NAV_ITEMS.map((item, index) => (
             <a
@@ -680,8 +692,8 @@ function buildPreviews(): Record<string, ReactNode> {
               className={[
                 "flex h-10 w-full items-center overflow-hidden text-sm",
                 index === 0
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  ? "bg-timeline-row-hover text-foreground"
+                  : "text-muted-foreground hover:bg-surface hover:text-foreground",
               ].join(" ")}
             >
               <span className="flex h-10 w-16 shrink-0 items-center justify-center">
@@ -693,7 +705,7 @@ function buildPreviews(): Record<string, ReactNode> {
               <span
                 className={[
                   "ml-auto truncate px-3 text-xs",
-                  index === 0 ? "text-primary-foreground" : "text-muted-readable",
+                  index === 0 ? "text-foreground" : "text-muted-readable",
                 ].join(" ")}
               >
                 {item.href}

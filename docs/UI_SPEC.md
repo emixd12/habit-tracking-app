@@ -32,15 +32,16 @@ The desktop sidebar header does not draw a bottom divider.
 
 Expanded navigation applies hover and active treatment to the whole row.
 Collapsed navigation applies hover and active treatment only to the 64px icon
-cell so the rail feels like square targets. The active route uses the primary
-blue fill.
+cell so the rail feels like square targets. The active route uses the Timeline
+row hover fill with foreground text. Inactive hover uses the Surface fill.
+Primary navigation rows should be flush with no gap between row containers.
 
 On mobile, do not use the collapsed rail. Use a sticky 64px top header that
 opens a left drawer. The drawer is 60vw wide, max 60vw, and closes from its
 backdrop, Escape, the close button, navigation, or a left swipe. Opening from
 the first 20px viewport edge is supported. While open, the drawer traps focus
 and locks body scrolling. A narrow drawer shadow is allowed for separation from
-the backdrop.
+the backdrop. The mobile drawer header does not draw a bottom divider.
 
 Use five primary screens:
 

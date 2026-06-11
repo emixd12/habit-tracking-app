@@ -53,7 +53,7 @@ function BrandMark({ className = "h-6 w-6" }: Readonly<{ className?: string }>) 
       width={24}
       height={24}
       sizes="24px"
-      className={["shrink-0 object-cover", className].join(" ")}
+      className={["shrink-0 object-contain", className].join(" ")}
     />
   );
 }
@@ -90,7 +90,7 @@ function PrimaryNav({
   onNavigate?: () => void;
 }>) {
   return (
-    <nav aria-label="Primary" className="flex flex-1 flex-col gap-1 py-3">
+    <nav aria-label="Primary" className="flex flex-1 flex-col py-3">
       {APP_NAV_ITEMS.map((item) => {
         const Icon = navIcons[item.href];
         const isActive = pathname === item.href;
@@ -107,8 +107,8 @@ function PrimaryNav({
               isCollapsed
                 ? "text-muted-foreground"
                 : isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  ? "bg-timeline-row-hover text-foreground"
+                  : "text-muted-foreground hover:bg-surface hover:text-foreground",
             ].join(" ")}
           >
             <span
@@ -116,8 +116,8 @@ function PrimaryNav({
                 "flex h-10 w-16 shrink-0 items-center justify-center transition-colors",
                 isCollapsed
                   ? isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "group-hover:bg-muted group-hover:text-foreground"
+                    ? "bg-timeline-row-hover text-foreground"
+                    : "group-hover:bg-surface group-hover:text-foreground"
                   : "",
               ].join(" ")}
             >
@@ -159,13 +159,13 @@ function AccountTrigger({
         "group flex h-[60px] w-full items-center overflow-hidden text-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
         isCollapsed
           ? "text-muted-foreground"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          : "text-muted-foreground hover:bg-surface hover:text-foreground",
       ].join(" ")}
     >
       <span
         className={[
           "flex h-[60px] w-16 shrink-0 items-center justify-center transition-colors",
-          isCollapsed ? "group-hover:bg-muted group-hover:text-foreground" : "",
+          isCollapsed ? "group-hover:bg-surface group-hover:text-foreground" : "",
         ].join(" ")}
       >
         <span className="flex h-8 w-8 items-center justify-center border border-line bg-background text-xs text-foreground">
@@ -418,7 +418,7 @@ export function AppShell({
           aria-expanded={isMobileOpen}
           aria-controls="mobile-navigation"
           onClick={() => setIsMobileOpen(true)}
-          className="grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center text-left transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           <span className="flex h-16 w-16 items-center justify-center">
             <BrandMark />
@@ -431,7 +431,7 @@ export function AppShell({
           aria-expanded={isMobileOpen}
           aria-controls="mobile-navigation"
           onClick={() => setIsMobileOpen(true)}
-          className="flex h-16 w-16 items-center justify-center transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="flex h-16 w-16 items-center justify-center transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           <Menu aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
         </button>
@@ -458,7 +458,7 @@ export function AppShell({
             isMobileOpen ? "translate-x-0" : "-translate-x-full",
           ].join(" ")}
         >
-          <div className="relative grid h-16 grid-cols-[4rem_1fr] items-center border-b border-line">
+          <div className="relative grid h-16 grid-cols-[4rem_1fr] items-center">
             <span className="flex h-16 w-16 items-center justify-center">
               <BrandMark />
             </span>
@@ -467,7 +467,7 @@ export function AppShell({
               type="button"
               aria-label="Close navigation"
               onClick={closeMobileNav}
-              className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
             </button>
@@ -496,7 +496,7 @@ export function AppShell({
               aria-label={isDesktopSidebarOpen ? "Collapse navigation" : "Expand navigation"}
               aria-pressed={isDesktopSidebarOpen}
               onClick={toggleDesktopSidebar}
-              className="group relative flex h-16 w-16 items-center justify-center transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="group relative flex h-16 w-16 items-center justify-center transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               <BrandMark
                 className={[
@@ -526,7 +526,7 @@ export function AppShell({
                 type="button"
                 aria-label="Collapse navigation"
                 onClick={toggleDesktopSidebar}
-                className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
                 <PanelLeftClose
                   aria-hidden="true"

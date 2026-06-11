@@ -864,6 +864,30 @@ Verification:
 Remaining risk:
 - The annotated browser surface blocked pointer delivery for a live collapse click, but the removed border is on the shared desktop header container used in both expanded and collapsed rail states.
 
+### Mobile drawer header divider removal
+
+Status: complete.
+
+Implementation summary:
+- Removed the bottom divider from the mobile drawer Cadence header in `components/layout/AppShell.tsx`, matching the browser comment on `aside#mobile-navigation`.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `DESIGN.md` so the navigation contract records the unruled mobile drawer header treatment.
+- No resolver, service, schema, route, or product-scope changes were made.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run design-system:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (19 files, 110 tests).
+- Pass: `npm run build`
+- Pass: design-system-bench classify, theme detection, inventory scan to `/tmp/cadence-design-system.manifest.json`, usage scan to `/tmp/cadence-design-system.usage.json`, and traceability verification.
+- Browser QA: authenticated `/timeline` at 890x863 with the mobile drawer open measured the drawer Cadence header bottom border at `0px`, drawer width at `534px`, no horizontal overflow, and no browser warning/error logs.
+- Browser QA: authenticated `/timeline` at 1132x863 measured the fixed desktop sidebar header bottom border still at `0px`, desktop sidebar width at `256px`, no horizontal overflow, and no browser warning/error logs.
+
+Remaining risk:
+- The sticky mobile top header still has its bottom divider; the browser comment targeted the open drawer header under Cadence.
+
 ## Handoff notes
 
 - For the next coding agent: continue Ticket 013 from the Vercel environment/deployment blocker. Do not start deferred offline/PWA or future restore/import work unless the product docs change or the user explicitly brings it into scope.
