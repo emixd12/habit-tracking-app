@@ -11,6 +11,33 @@
   --accent: oklch(57.69% 0.1656 33.1);
   --line: oklch(83% 0.006 248);
   --focus: oklch(57.69% 0.1656 33.1);
+  /* Shift Tailwind's default type scale down one step for product UI. */
+  --text-xs: 0.6875rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.75rem;
+  --text-sm--line-height: 1rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.25rem;
+  --text-lg: 1rem;
+  --text-lg--line-height: 1.5rem;
+  --text-xl: 1.125rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.25rem;
+  --text-2xl--line-height: 1.75rem;
+  --text-3xl: 1.5rem;
+  --text-3xl--line-height: 2rem;
+  --text-4xl: 1.875rem;
+  --text-4xl--line-height: 2.25rem;
+  --text-5xl: 2.25rem;
+  --text-5xl--line-height: 2.5rem;
+  --text-6xl: 3rem;
+  --text-6xl--line-height: 1;
+  --text-7xl: 3.75rem;
+  --text-7xl--line-height: 1;
+  --text-8xl: 4.5rem;
+  --text-8xl--line-height: 1;
+  --text-9xl: 6rem;
+  --text-9xl--line-height: 1;
 }
 
 @theme inline {

@@ -101,7 +101,10 @@ If an occurrence is unresolved after the end of its local day, it appears in the
 
 The Behaviors screen shows active behaviors first as compact cards.
 
-Behavior create/edit is a full page accessible from the sidebar navigation.
+Behavior create/edit is accessible from the Behaviors page. When behaviors
+already exist, creation is opened from a simple in-page disclosure so the
+existing behavior ledger stays primary. When no behaviors exist, the creation
+disclosure may open by default.
 
 Behavior form fields:
 - Title
@@ -118,7 +121,8 @@ At least one schedule slot is required.
 
 The recurrence editor should use segmented presets first, with advanced options below.
 
-Archived behaviors appear in a separate archived section and do not appear on the timeline.
+Archived behaviors appear in a separate archived section and do not appear on
+the timeline. Archived behaviors can be restored from that section.
 
 Categories are edited in Settings.
 

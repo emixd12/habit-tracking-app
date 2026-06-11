@@ -7,19 +7,27 @@ import {
   occurrenceErrorToActionState,
   updateOccurrenceNoteFromFormData,
 } from "@/lib/services/occurrence.service";
-import type { OccurrenceActionState } from "@/lib/types/timeline";
+import type {
+  OccurrenceActionState,
+  TimelineStatus,
+} from "@/lib/types/timeline";
+
+type SubmittedStatus = Extract<TimelineStatus, "done" | "not_done">;
 
 export async function markOccurrenceStatusAction(
   _previousState: OccurrenceActionState,
   formData: FormData,
 ): Promise<OccurrenceActionState> {
   try {
+    const nextStatus = getSubmittedStatus(formData);
+
     await markOccurrenceStatusFromFormData(formData);
     revalidatePath("/timeline");
 
     return {
       status: "success",
       message: "Occurrence updated.",
+      ...(nextStatus ? { nextStatus } : {}),
     };
   } catch (error) {
     return occurrenceErrorToActionState(error);
@@ -41,4 +49,10 @@ export async function updateOccurrenceNoteAction(
   } catch (error) {
     return occurrenceErrorToActionState(error);
   }
+}
+
+function getSubmittedStatus(formData: FormData): SubmittedStatus | null {
+  const value = formData.get("status");
+
+  return value === "done" || value === "not_done" ? value : null;
 }

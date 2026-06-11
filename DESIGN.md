@@ -12,31 +12,31 @@ colors:
 typography:
   display:
     fontFamily: "IBM Plex Sans"
-    fontSize: "48px"
+    fontSize: "30px"
     fontWeight: 700
-    lineHeight: 1.08
+    lineHeight: 1.2
     letterSpacing: "0px"
   headline:
     fontFamily: "IBM Plex Sans"
-    fontSize: "32px"
+    fontSize: "24px"
     fontWeight: 700
-    lineHeight: 1.15
+    lineHeight: 1.25
     letterSpacing: "0px"
   title:
     fontFamily: "IBM Plex Sans"
-    fontSize: "20px"
+    fontSize: "18px"
     fontWeight: 700
     lineHeight: 1.25
     letterSpacing: "0px"
   body:
     fontFamily: "IBM Plex Sans"
-    fontSize: "16px"
+    fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "0px"
   label:
     fontFamily: "IBM Plex Sans"
-    fontSize: "14px"
+    fontSize: "12px"
     fontWeight: 700
     lineHeight: 1.25
     letterSpacing: "1px"
@@ -141,11 +141,14 @@ The palette is almost monochrome: black ink, bleached paper, subtle gray, and on
 
 ### Hierarchy
 
-- **Display** (700, 48px, 1.08): Page titles and prominent dates on larger screens only.
-- **Headline** (700, 32px, 1.15): Section titles such as Timeline, Behaviors, Analytics, Export, and Settings.
-- **Title** (700, 20px, 1.25): Behavior titles, occurrence titles, card headings, and form section titles.
-- **Body** (400, 16px, 1.5): Notes, descriptions, recurrence summaries, and normal explanatory text. Keep prose to 65-75ch.
-- **Label** (700, 14px, 1px tracking): Navigation labels, button labels, status pills, table labels, and compact metadata.
+- **Display** (700, 30px, 1.2): Page titles and prominent dates on larger screens only.
+- **Headline** (700, 24px, 1.25): Section titles such as Timeline, Behaviors, Analytics, Export, and Settings.
+- **Section** (700, 20px, 1.25): Major in-page panels and grouped content headings.
+- **Title** (700, 18px, 1.25): Behavior titles, occurrence titles, card headings, and form section titles.
+- **Body** (400, 14px, open leading): Notes, descriptions, recurrence summaries, and normal explanatory text. Keep prose to 65-75ch.
+- **Label** (700, 12px, 1px tracking): Navigation labels, button labels, status pills, table labels, and compact metadata.
+
+The active Tailwind text scale is shifted one step smaller than the framework default: `text-4xl` renders at 30px, `text-3xl` at 24px, `text-2xl` at 20px, `text-base` at 14px, and `text-sm` at 12px.
 
 ### Named Rules
 
@@ -201,8 +204,9 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Recurrence section:** Render as an unframed form section with a plain section heading, segmented radio presets, and smaller muted subsection labels such as Every, On, and Day.
 - **Recurrence presets:** Segmented radio labels use Monolith Blue fill only for the selected preset. Weekday choices use square bordered checkbox chips.
 - **Reminder section:** Render as an unframed form section matching Recurrence, with a plain section heading, bordered checkbox controls, and smaller muted subsection labels such as Reminder offset.
-- **Behavior cards:** Active and archived records use flat 1px Ash Line rows, 20px padding, visible schedule/reminder metadata, and inline disclosure for editing.
-- **Archive action:** Archive uses a factual button treatment with Rust Signal only on hover. Archived records stay visible with a neutral square label.
+- **Create behavior:** Keep the creation form available from the Behaviors page without making existing behavior records secondary. When records already exist, use a simple native disclosure; when no records exist, the disclosure may open by default.
+- **Behavior cards:** Active and archived records use flat 1px Ash Line rows, 20px padding, visible schedule/reminder metadata, and lazy-mounted inline disclosure for editing.
+- **Archive and restore actions:** Archive uses a factual button treatment with Rust Signal only on hover. Archived records stay visible with a neutral square label and a factual Restore action using the primary hover treatment.
 
 ### Navigation
 

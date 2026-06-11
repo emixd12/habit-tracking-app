@@ -113,18 +113,37 @@ Supabase is initialized for local development. Ticket 003 added the first produc
 
 ### Behaviors page critique follow-up
 
-Status: in_progress.
+Status: complete.
 
 Implementation summary:
-- Started follow-up work from the Behaviors page impeccable critique.
-- Scope is limited to making the Behaviors page prioritize existing behavior management, reducing repeated hidden edit-form weight, improving segmented-control focus states, adding clearer archive recovery, and tightening behavior-form copy.
-- No product scope expansion, schema change, or resolver logic change is intended.
+- Completed all priority fixes from the Behaviors page impeccable critique.
+- Worker 1 changed `/behaviors` so the create form sits behind a native disclosure, stays closed when existing behaviors are present, and opens by default only for a no-behavior empty state.
+- Worker 2 changed `BehaviorList` so per-card edit forms lazy-mount only after the card's edit disclosure is opened.
+- Added a first-class Restore action for archived behaviors through the existing server action/service/repository path; Restore sets `active=true`, clears `archived_at`, and re-syncs occurrences.
+- Improved segmented radio focus visibility for schedule and recurrence controls.
+- Tightened behavior copy from "Schedule times" to "Scheduled for", "Every N days" to "Every few days", and recurrence unit labels to singular/plural text without `day(s)`-style wording.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `DESIGN.md` to reflect the collapsed create form, lazy edit pattern, and Restore affordance.
+- No schema changes, resolver changes, provider operations, or out-of-scope product features were added.
 
 Verification:
-- Pending.
+- Pass: Worker 1 `npm run typecheck`.
+- Pass: Worker 2 `npm run typecheck`; `npm run agents:check`; `npm run resolvers:check`; `npm run lint`; `npm run test`; `npm run build`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run test` (18 files, 103 tests).
+- Pass: `npm run design-system:check`.
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_inventory.py --root . --out /tmp/cadence-design-system.manifest.json`.
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`.
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`.
+- Pass: `npm run build`.
+- Browser QA: authenticated in-app browser `/behaviors` desktop render showed create disclosure closed, Active and Archived sections present, 8 Archive buttons, 3 Restore buttons, no horizontal overflow, and 0 mounted edit forms while cards were closed.
+- Browser QA: opening one behavior edit disclosure mounted exactly 1 edit form, showed "Every few days", showed "Scheduled for", and confirmed focus-styled segmented labels were present.
+- Browser QA: authenticated in-app browser `/behaviors` at 390px width showed the Active behaviors heading near the top of the viewport, create disclosure closed, 8 Archive buttons, 3 Restore buttons, no horizontal overflow, and 0 mounted edit forms while cards were closed.
 
 Remaining risk:
-- Pending implementation and verification.
+- Restore was verified through render-level browser QA and build/type checks; a live database restore click was not performed to avoid changing the user's behavior data during QA.
 
 ### Behavior schedule slots
 
@@ -494,6 +513,67 @@ Verification:
 
 Remaining risk:
 - Browser QA did not click status buttons because that would mutate the user's actual behavior history. No data-model risk is known for this visual treatment change.
+
+### Font scale downshift
+
+Status: complete.
+
+Implementation summary:
+- Shifted the app's Tailwind text scale down one step at the shared token level in `app/globals.css`; existing `text-*` utilities now render smaller across product UI and product previews.
+- Updated the `/design-system` Font scale foundation to show Display 30, Heading 24, Section 20, Body 14, and Label 12 with matching computed sizes.
+- Updated `DESIGN.md` so the typography source of truth matches the implemented scale.
+- During verification, fixed a hook dependency warning in `components/timeline/StatusButtons.tsx` and a lint-only `this` alias in `tests/completion-feedback.test.ts` from the existing completion-chime worktree changes.
+
+Verification:
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/classify_repo.py --root .`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/detect_theme_support.py --root .`
+- Pass: `npm run design-system:check`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_inventory.py --root . --out /tmp/cadence-design-system.manifest.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test -- tests/completion-feedback.test.ts`
+- Pass: `npm run test` (18 files, 106 tests).
+- Pass: `npm run build`
+- Browser QA: `/design-system` at 1042x863 showed the Font scale foundation with computed sizes Display 30, Heading 24, Section 20, Body 14, and Label 12; no horizontal overflow.
+- Browser QA: `/design-system` at 390x844 showed the same computed font-scale values, no horizontal overflow, and no browser warning/error logs.
+
+Remaining risk:
+- The change was verified on the design-system bench and fixture-backed product previews. Authenticated product-route click flows were not exercised because this was a shared typography-token change and should not mutate user data.
+
+### Completion chime diagnostics follow-up
+
+Status: complete.
+
+Implementation summary:
+- Diagnosed the completion chime path after reports that Completed did not trigger sound.
+- Confirmed `/sounds/completion-chime.mp3` is served locally as `audio/mpeg`; the remaining likely causes were browser activation timing after async server actions, loss of submitted status intent, transient preload failure caching, and embedded-browser media API gaps.
+- Changed `StatusButtons` so Completed and Not Completed are submitted through separate structural forms with hidden `occurrence_id` and `status` fields instead of relying on `SubmitEvent.submitter`.
+- The status server action now echoes the submitted status in `OccurrenceActionState`; `StatusButtons` uses that server-confirmed status after success while still priming audio on pointer/click/submit before the async action returns.
+- Hardened `lib/ui/completion-feedback.ts` to prime Web Audio with a silent one-sample source during the user gesture, retry failed preload/decode attempts, guard missing `AudioContext`/`Audio` APIs, and emit dev-only playback/blocked diagnostics.
+- Updated the design-system fixture action to mirror the real status action's `nextStatus` return for fixture-backed browser QA.
+- No schema, resolver, product-scope, notification-provider, or real occurrence-data changes were made.
+
+Verification:
+- Pass: `curl -I http://localhost:3000/sounds/completion-chime.mp3` returned `200 OK` with `Content-Type: audio/mpeg`.
+- Pass: `npm run test -- tests/completion-feedback.test.ts`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run design-system:check`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (18 files, 106 tests).
+- Pass: `npm run build`
+- Browser QA: in-app browser `/design-system#ds-module-status-buttons` rendered Completed and Not Completed controls and the fixture action completed without mutating product data. The in-app browser reports `AudioContext`, `Audio`, and `Notification` as unavailable, so it cannot prove audible playback in that embedded surface.
+- Browser QA: Chrome plugin fresh tab `/design-system#ds-module-status-buttons` clicked Completed and logged `cadence:completion-chime-played buffer`, confirming Web Audio buffer playback started, with no warning/error logs in that fresh tab.
+- Browser QA: Chrome design-system `NotificationPermissionPanel` preview showed the `Permission` row, `Browser push` row, and `Enable browser reminders` control. The fixture has no VAPID key, so the control was disabled and no permission prompt was opened or accepted.
+- Browser QA: in-app browser `NotificationPermissionPanel` preview showed the `Permission` row and `Enable browser reminders` control, with permission blocked/unavailable in that embedded surface.
+
+Remaining risk:
+- The in-app browser cannot play or authorize audio because its media and notification APIs are unavailable; Chrome verified the actual Web Audio playback-start path.
+- Browser notification permission prompts were not accepted during QA. The permission label/control is present, and prompt triggering remains owned by Settings with real push configuration.
 
 ## Handoff notes
 

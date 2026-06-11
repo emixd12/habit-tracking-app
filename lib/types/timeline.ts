@@ -83,6 +83,7 @@ export type OccurrenceActionField = "occurrence_id" | "status" | "note";
 export type OccurrenceActionState = {
   status: "idle" | "success" | "error";
   message: string;
+  nextStatus?: Extract<TimelineStatus, "done" | "not_done">;
   fieldErrors?: Partial<Record<OccurrenceActionField, string>>;
 };
 

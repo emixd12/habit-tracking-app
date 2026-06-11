@@ -1,6 +1,10 @@
 import type { TimelineStatus } from "@/lib/types/timeline";
 
 export const COMPLETION_CHIME_SRC = "/sounds/completion-chime.mp3";
+export const COMPLETION_CHIME_PLAYED_EVENT =
+  "cadence:completion-chime-played";
+export const COMPLETION_CHIME_BLOCKED_EVENT =
+  "cadence:completion-chime-blocked";
 
 const COMPLETION_CHIME_VOLUME = 0.72;
 
@@ -30,7 +34,8 @@ export function prepareCompletionChimeForUserGesture(): void {
   const context = getCompletionChimeContext();
 
   if (context) {
-    void context.resume();
+    primeCompletionChimeContext(context);
+    void context.resume().catch(() => undefined);
     void loadCompletionChimeBuffer();
     return;
   }
@@ -70,6 +75,7 @@ async function playCompletionChimeFromBuffer(): Promise<void> {
   source.connect(gain);
   gain.connect(context.destination);
   source.start();
+  reportCompletionChimePlayback("buffer");
 }
 
 async function loadCompletionChimeBuffer(): Promise<AudioBuffer | null> {
@@ -85,7 +91,13 @@ async function loadCompletionChimeBuffer(): Promise<AudioBuffer | null> {
     )
     .catch(() => null);
 
-  return completionChimeBufferPromise;
+  const audioBuffer = await completionChimeBufferPromise;
+
+  if (!audioBuffer) {
+    completionChimeBufferPromise = null;
+  }
+
+  return audioBuffer;
 }
 
 async function loadCompletionChimeArrayBuffer(): Promise<ArrayBuffer | null> {
@@ -103,7 +115,13 @@ async function loadCompletionChimeArrayBuffer(): Promise<ArrayBuffer | null> {
     })
     .catch(() => null);
 
-  return completionChimeArrayBufferPromise;
+  const arrayBuffer = await completionChimeArrayBufferPromise;
+
+  if (!arrayBuffer) {
+    completionChimeArrayBufferPromise = null;
+  }
+
+  return arrayBuffer;
 }
 
 function getCompletionChimeContext(): AudioContext | null {
@@ -120,24 +138,55 @@ function getCompletionChimeContext(): AudioContext | null {
     return null;
   }
 
-  completionChimeContext ??= new AudioContextClass();
+  try {
+    completionChimeContext ??= new AudioContextClass();
+  } catch {
+    return null;
+  }
 
   return completionChimeContext;
+}
+
+function primeCompletionChimeContext(context: AudioContext): void {
+  try {
+    const source = context.createBufferSource();
+    const gain = context.createGain();
+
+    source.buffer = context.createBuffer(1, 1, context.sampleRate);
+    gain.gain.value = 0;
+    source.connect(gain);
+    gain.connect(context.destination);
+    source.start();
+  } catch {
+    // A failed silent primer should not block the real completion action.
+  }
 }
 
 function playCompletionChimeFallback(): void {
   const audio = getCompletionChimeAudioFallback();
 
   if (!audio) {
+    reportCompletionChimeBlocked("fallback");
     return;
   }
 
   audio.currentTime = 0;
-  void audio.play().catch(() => undefined);
+  void audio
+    .play()
+    .then(() => {
+      reportCompletionChimePlayback("fallback");
+    })
+    .catch(() => {
+      reportCompletionChimeBlocked("fallback");
+    });
 }
 
 function getCompletionChimeAudioFallback(): HTMLAudioElement | null {
   if (typeof window === "undefined") {
+    return null;
+  }
+
+  if (typeof Audio === "undefined") {
     return null;
   }
 
@@ -146,4 +195,37 @@ function getCompletionChimeAudioFallback(): HTMLAudioElement | null {
   completionChimeAudio.volume = COMPLETION_CHIME_VOLUME;
 
   return completionChimeAudio;
+}
+
+function reportCompletionChimePlayback(source: "buffer" | "fallback"): void {
+  dispatchCompletionChimeEvent(COMPLETION_CHIME_PLAYED_EVENT, source);
+}
+
+function reportCompletionChimeBlocked(source: "buffer" | "fallback"): void {
+  dispatchCompletionChimeEvent(COMPLETION_CHIME_BLOCKED_EVENT, source);
+}
+
+function dispatchCompletionChimeEvent(
+  eventName: string,
+  source: "buffer" | "fallback",
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    console.info(eventName, source);
+  }
+
+  try {
+    window.dispatchEvent(
+      new CustomEvent(eventName, {
+        detail: {
+          source,
+        },
+      }),
+    );
+  } catch {
+    // Some embedded browser test surfaces expose console but not CustomEvent.
+  }
 }

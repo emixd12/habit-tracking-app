@@ -111,11 +111,15 @@ async function benchOccurrenceAction(
   "use server";
 
   void previousState;
-  void formData;
+
+  const status = formData.get("status");
+  const nextStatus =
+    status === "done" || status === "not_done" ? status : undefined;
 
   return {
     status: "success",
     message: "Bench action only. No occurrence was changed.",
+    ...(nextStatus ? { nextStatus } : {}),
   };
 }
 
@@ -257,12 +261,12 @@ function Foundations() {
           preview={
             <ProductPreview>
               <div className="grid gap-3 bg-background text-foreground">
-                <p className="text-4xl font-bold leading-tight">Display 40</p>
-                <p className="text-3xl font-bold leading-tight">Heading 30</p>
-                <p className="text-2xl font-bold leading-tight">Section 24</p>
-                <p className="text-base leading-7">Body 16 with open leading</p>
+                <p className="text-4xl font-bold leading-tight">Display 30</p>
+                <p className="text-3xl font-bold leading-tight">Heading 24</p>
+                <p className="text-2xl font-bold leading-tight">Section 20</p>
+                <p className="text-base leading-7">Body 14 with open leading</p>
                 <p className="text-sm font-bold text-muted-readable">
-                  Label 14
+                  Label 12
                 </p>
               </div>
             </ProductPreview>

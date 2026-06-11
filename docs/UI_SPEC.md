@@ -232,6 +232,11 @@ text for options such as Reminder offset.
 
 Show active behaviors first as compact cards.
 
+The behavior creation form should be available from the Behaviors page without
+pushing existing behavior cards far below the first viewport. When behaviors
+already exist, keep creation behind a simple in-page disclosure. When no
+behaviors exist, the creation disclosure may open by default.
+
 Each behavior card/list item should include:
 - Title
 - Category
@@ -240,6 +245,7 @@ Each behavior card/list item should include:
 - Reminder indicators
 - Edit
 - Archive
+- Restore for archived behaviors
 
 Archived behaviors should appear in a separate archived section and should not appear on the timeline.
 
