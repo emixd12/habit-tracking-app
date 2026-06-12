@@ -226,7 +226,7 @@ Acceptance criteria:
 - User can edit status later
 - User can add/edit note
 - Status changes update `status_marked_at`
-- `completed_at` is set when status is `done`
+- `completed_at` is set when status is `completed`
 - Status transition logic is tested
 
 Suggested files:

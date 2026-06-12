@@ -88,8 +88,8 @@ Email reminders:
 ## Cancellation
 
 When an occurrence changes from `unresolved` to:
-- `done`
-- `not_done`
+- `completed`
+- `not_completed`
 
 Then pending reminder deliveries for that occurrence should be cancelled.
 

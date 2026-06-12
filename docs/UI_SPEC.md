@@ -178,7 +178,7 @@ Unresolved prior-day cards in the Needs decision modal should be visually highli
 
 Completed cards should remain visible with a distinct resolved state, hide the primary status actions, and clearly indicate Completed.
 
-Not Completed cards should remain visible with the original unresolved card treatment and expose the same Completed and Not Completed text-link status actions as the original decision card so the user can immediately approve or change the logged action. This is a visual reset only; the stored status remains on that occurrence instance as `not_done`.
+Not Completed cards should remain visible with the original unresolved card treatment and expose the same Completed and Not Completed text-link status actions as the original decision card so the user can immediately approve or change the logged action. This is a visual reset only; the stored status remains on that occurrence instance as `not_completed`.
 
 Clicking a Completed card should reveal the option to change the logged action. Do not require a confirmation step before changing a status.
 
@@ -192,8 +192,8 @@ background used by that row's hover state so the expanded content remains
 visually attached to the behavior.
 
 Status action behavior:
-- Completed changes status to `done`
-- Not Completed changes status to `not_done`
+- Completed changes status to `completed`
+- Not Completed changes status to `not_completed`
 - A successful user-initiated change into Completed may play a short completion chime.
 - Do not play a sound for Not Completed, note saves, page refreshes, or re-saving an already Completed occurrence.
 - Note opens an inline edit field or compact modal in the expanded card state

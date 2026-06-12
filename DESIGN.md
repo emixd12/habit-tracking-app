@@ -235,8 +235,8 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 ### Analytics Heatmaps
 
 - **Analytics structure:** Overall adherence sits first in a single bordered section with the active range selector beside it. The overall calendar, selected-day Not Completed list, behavior counts, and category counts stack as separate page sections, not nested dashboards.
-- **Done cells:** Monolith Blue fill with Ash Line cell borders.
-- **Not done cells:** Background fill with Ash Line border and a simple diagonal mark if useful.
+- **Completed cells:** Monolith Blue fill with Ash Line cell borders.
+- **Not completed cells:** Background fill with Ash Line border and a simple diagonal mark if useful.
 - **Unresolved cells:** Cold Surface or background with a neutral border. Do not imply failure.
 - **Grid:** Square cells, consistent gutters, no gradients, no rounded cells.
 - **Behavior rows:** Behavior counts use flat bordered rows with title, category chip, adherence label, counts, and a compact seven-column heatmap. Full completion is filled blue; partial and not completed states use factual diagonal marks.

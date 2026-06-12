@@ -1,4 +1,4 @@
-export type TimelineStatus = "unresolved" | "done" | "not_done";
+export type TimelineStatus = "unresolved" | "completed" | "not_completed";
 
 export type TimelineOccurrenceInput = {
   id: string;
@@ -17,8 +17,8 @@ export type TimelineOccurrenceInput = {
 export type TimelineVisualTone =
   | "default"
   | "needs_decision"
-  | "done"
-  | "not_done";
+  | "completed"
+  | "not_completed";
 
 export type TimelineOccurrenceView = {
   id: string;
@@ -83,7 +83,7 @@ export type OccurrenceActionField = "occurrence_id" | "status" | "note";
 export type OccurrenceActionState = {
   status: "idle" | "success" | "error";
   message: string;
-  nextStatus?: Extract<TimelineStatus, "done" | "not_done">;
+  nextStatus?: Extract<TimelineStatus, "completed" | "not_completed">;
   fieldErrors?: Partial<Record<OccurrenceActionField, string>>;
 };
 

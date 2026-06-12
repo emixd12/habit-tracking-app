@@ -23,7 +23,7 @@ export function shouldPlayCompletionChime({
   currentStatus: TimelineStatus;
   nextStatus: TimelineStatus | null;
 }>): boolean {
-  return nextStatus === "done" && currentStatus !== "done";
+  return nextStatus === "completed" && currentStatus !== "completed";
 }
 
 export function preloadCompletionChime(): void {

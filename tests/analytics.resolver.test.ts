@@ -23,7 +23,7 @@ function occurrence(
     scheduledFor: "2026-06-08T13:00:00Z",
     scheduledTimeLabel: "9:00 AM",
     localDate: "2026-06-08",
-    status: "done",
+    status: "completed",
     note: "",
     timezone: DEFAULT_TIMEZONE,
     ...overrides,
@@ -61,15 +61,15 @@ describe("resolveAnalytics", () => {
       timezone: DEFAULT_TIMEZONE,
       rangeDays: 30,
       occurrences: [
-        occurrence({ id: "done-1", status: "done" }),
+        occurrence({ id: "completed-1", status: "completed" }),
         occurrence({
-          id: "done-2",
-          status: "done",
+          id: "completed-2",
+          status: "completed",
           scheduledFor: "2026-06-08T14:00:00Z",
         }),
         occurrence({
-          id: "not-done-1",
-          status: "not_done",
+          id: "not-completed-1",
+          status: "not_completed",
           scheduledFor: "2026-06-08T15:00:00Z",
         }),
         occurrence({
@@ -81,8 +81,8 @@ describe("resolveAnalytics", () => {
     });
 
     expect(analytics.summary).toMatchObject({
-      doneCount: 2,
-      notDoneCount: 1,
+      completedCount: 2,
+      notCompletedCount: 1,
       unresolvedCount: 1,
       resolvedCount: 3,
       totalCount: 4,
@@ -98,18 +98,18 @@ describe("resolveAnalytics", () => {
       rangeDays: 7,
       occurrences: [
         occurrence({
-          id: "brush-done",
+          id: "brush-completed",
           behaviorId: "brush",
           behaviorTitle: "Brush teeth",
           categoryName: "Grooming",
-          status: "done",
+          status: "completed",
         }),
         occurrence({
-          id: "brush-not-done",
+          id: "brush-not-completed",
           behaviorId: "brush",
           behaviorTitle: "Brush teeth",
           categoryName: "Grooming",
-          status: "not_done",
+          status: "not_completed",
           scheduledFor: "2026-06-07T13:00:00Z",
           localDate: "2026-06-07",
         }),
@@ -128,8 +128,8 @@ describe("resolveAnalytics", () => {
         behaviorId: "brush",
         title: "Brush teeth",
         categoryName: "Grooming",
-        doneCount: 1,
-        notDoneCount: 1,
+        completedCount: 1,
+        notCompletedCount: 1,
         unresolvedCount: 0,
         percentLabel: "50%",
       },
@@ -137,8 +137,8 @@ describe("resolveAnalytics", () => {
         behaviorId: "water",
         title: "Drink water",
         categoryName: "Food / Drink",
-        doneCount: 0,
-        notDoneCount: 0,
+        completedCount: 0,
+        notCompletedCount: 0,
         unresolvedCount: 1,
         percentLabel: "No resolved occurrences",
       },
@@ -150,8 +150,8 @@ describe("resolveAnalytics", () => {
       },
       {
         categoryName: "Grooming",
-        doneCount: 1,
-        notDoneCount: 1,
+        completedCount: 1,
+        notCompletedCount: 1,
       },
     ]);
   });
@@ -167,13 +167,13 @@ describe("resolveAnalytics", () => {
           id: "completed-day",
           localDate: "2026-06-06",
           scheduledFor: "2026-06-06T13:00:00Z",
-          status: "done",
+          status: "completed",
         }),
         occurrence({
           id: "not-completed-day",
           localDate: "2026-06-07",
           scheduledFor: "2026-06-07T13:00:00Z",
-          status: "not_done",
+          status: "not_completed",
         }),
         occurrence({
           id: "unresolved-day",
@@ -210,31 +210,31 @@ describe("resolveAnalytics", () => {
           id: "full-1",
           localDate: "2026-06-05",
           scheduledFor: "2026-06-05T13:00:00Z",
-          status: "done",
+          status: "completed",
         }),
         occurrence({
           id: "full-2",
           localDate: "2026-06-05",
           scheduledFor: "2026-06-05T22:00:00Z",
-          status: "done",
+          status: "completed",
         }),
         occurrence({
           id: "partial-1",
           localDate: "2026-06-06",
           scheduledFor: "2026-06-06T13:00:00Z",
-          status: "done",
+          status: "completed",
         }),
         occurrence({
           id: "partial-2",
           localDate: "2026-06-06",
           scheduledFor: "2026-06-06T22:00:00Z",
-          status: "not_done",
+          status: "not_completed",
         }),
         occurrence({
-          id: "not-done",
+          id: "not-completed",
           localDate: "2026-06-07",
           scheduledFor: "2026-06-07T13:00:00Z",
-          status: "not_done",
+          status: "not_completed",
         }),
         occurrence({
           id: "unresolved",
@@ -252,37 +252,37 @@ describe("resolveAnalytics", () => {
         .map((cell) => ({
           localDate: cell.localDate,
           state: cell.state,
-          doneCount: cell.counts.doneCount,
-          notDoneCount: cell.counts.notDoneCount,
+          completedCount: cell.counts.completedCount,
+          notCompletedCount: cell.counts.notCompletedCount,
           unresolvedCount: cell.counts.unresolvedCount,
         })),
     ).toEqual([
       {
         localDate: "2026-06-05",
         state: "full",
-        doneCount: 2,
-        notDoneCount: 0,
+        completedCount: 2,
+        notCompletedCount: 0,
         unresolvedCount: 0,
       },
       {
         localDate: "2026-06-06",
         state: "partial",
-        doneCount: 1,
-        notDoneCount: 1,
+        completedCount: 1,
+        notCompletedCount: 1,
         unresolvedCount: 0,
       },
       {
         localDate: "2026-06-07",
-        state: "not_done",
-        doneCount: 0,
-        notDoneCount: 1,
+        state: "not_completed",
+        completedCount: 0,
+        notCompletedCount: 1,
         unresolvedCount: 0,
       },
       {
         localDate: "2026-06-08",
         state: "unresolved",
-        doneCount: 0,
-        notDoneCount: 0,
+        completedCount: 0,
+        notCompletedCount: 0,
         unresolvedCount: 1,
       },
     ]);
@@ -303,7 +303,7 @@ describe("resolveAnalytics", () => {
           localDate: "2026-06-07",
           scheduledFor: "2026-06-07T22:30:00Z",
           scheduledTimeLabel: "6:30 PM",
-          status: "not_done",
+          status: "not_completed",
           note: "Skipped after travel.",
         }),
         occurrence({
@@ -313,13 +313,13 @@ describe("resolveAnalytics", () => {
           categoryName: "Grooming",
           localDate: "2026-06-07",
           scheduledFor: "2026-06-07T13:00:00Z",
-          status: "not_done",
+          status: "not_completed",
         }),
         occurrence({
-          id: "selected-done",
+          id: "selected-completed",
           localDate: "2026-06-07",
           scheduledFor: "2026-06-07T14:00:00Z",
-          status: "done",
+          status: "completed",
         }),
       ],
     });
@@ -327,7 +327,7 @@ describe("resolveAnalytics", () => {
     expect(analytics.selectedDay).toMatchObject({
       localDate: "2026-06-07",
       label: "Sunday, June 7",
-      notDoneOccurrences: [
+      notCompletedOccurrences: [
         {
           id: "selected-earlier",
           title: "Brush teeth",

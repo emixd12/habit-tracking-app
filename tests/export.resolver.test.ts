@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, expect, it } from "vitest";
 
@@ -10,6 +12,7 @@ import type {
   ExportBehaviorInput,
   ExportCategoryInput,
   ExportOccurrenceInput,
+  ExportStatusEventInput,
 } from "../lib/types/export";
 import { DEFAULT_TIMEZONE } from "../lib/types/recurrence";
 
@@ -74,6 +77,7 @@ function occurrence(
 ): ExportOccurrenceInput {
   return {
     behaviorId: "behavior-brush",
+    behaviorScheduleSlotId: "slot-brush",
     scheduledFor: "2026-06-08T13:00:00Z",
     scheduledTimeLabel: "9:00 AM",
     scheduleKind: "exact",
@@ -81,7 +85,7 @@ function occurrence(
     scheduleStartTime: "09:00",
     scheduleEndTime: null,
     localDate: "2026-06-08",
-    status: "done",
+    status: "completed",
     completedAt: "2026-06-08T13:05:00Z",
     statusMarkedAt: "2026-06-08T13:05:00Z",
     note: null,
@@ -94,16 +98,19 @@ function occurrence(
 function resolve(overrides: {
   behaviors?: ExportBehaviorInput[];
   occurrences?: ExportOccurrenceInput[];
+  statusEvents?: ExportStatusEventInput[];
   range?: string | number | null;
   includeArchived?: boolean;
 } = {}) {
   return resolveExportBundle({
     profile: {
       timezone: DEFAULT_TIMEZONE,
+      subjectId: "subject_test",
     },
     categories,
     behaviors: overrides.behaviors ?? [behavior({ id: "behavior-brush" })],
     occurrences: overrides.occurrences ?? [occurrence({ id: "occurrence-1" })],
+    statusEvents: overrides.statusEvents,
     now: NOW,
     timezone: DEFAULT_TIMEZONE,
     range: overrides.range,
@@ -176,7 +183,7 @@ describe("resolveExportBundle", () => {
       scheduled_for: "2026-06-08T09:00:00-04:00",
       schedule: "9:00 AM",
       schedule_kind: "exact",
-      status: "done",
+      status: "completed",
       note: null,
     });
   });
@@ -201,7 +208,7 @@ describe("resolveExportBundle", () => {
     expect(bundle.csv).toBe(
       [
         "local_date,scheduled_for,schedule,behavior_title,category,status,status_marked_at,note",
-        '2026-06-08,2026-06-08T09:00:00-04:00,9:00 AM,"Brush, ""teeth""","Grooming\nCare",done,2026-06-08T09:05:00-04:00,"Line one\nLine ""two"", more"',
+        '2026-06-08,2026-06-08T09:00:00-04:00,9:00 AM,"Brush, ""teeth""","Grooming\nCare",completed,2026-06-08T09:05:00-04:00,"Line one\nLine ""two"", more"',
       ].join("\n"),
     );
   });
@@ -249,7 +256,7 @@ describe("resolveExportBundle", () => {
       schedule_end_time: "12:00",
     });
     expect(bundle.csv).toContain(
-      "Morning (6:00 AM-Noon),Stretch,Grooming,done",
+      "Morning (6:00 AM-Noon),Stretch,Grooming,completed",
     );
   });
 
@@ -289,18 +296,183 @@ describe("resolveExportBundle", () => {
     expect(JSON.parse(bundle.json)).toEqual(bundle.jsonBackup);
   });
 
+  it("emits a BehaviorLog bundle with required files, hashes, status events, and notes", () => {
+    const bundle = resolve({
+      occurrences: [
+        occurrence({
+          id: "occurrence-1",
+          note: "Flossed too.",
+        }),
+      ],
+      statusEvents: [
+        {
+          id: "event-1",
+          occurrenceId: "occurrence-1",
+          behaviorId: "behavior-brush",
+          previousStatus: "unresolved",
+          status: "completed",
+          statusSemantics: "explicit_user_mark",
+          recordedAt: "2026-06-08T13:05:00Z",
+          effectiveAt: "2026-06-08T13:05:00Z",
+          localDate: "2026-06-08",
+          timezone: DEFAULT_TIMEZONE,
+          sourceCaptureMethod: "manual_tap",
+          sourceConfidence: "high",
+          revisesEventId: null,
+          reasonCode: null,
+        },
+      ],
+    });
+    const fileByPath = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file]),
+    );
+    const manifest = JSON.parse(fileByPath.get("manifest.json")?.content ?? "");
+    const occurrences = parseJsonl(
+      fileByPath.get("data/occurrences.jsonl")?.content ?? "",
+    );
+    const statusEvents = parseJsonl(
+      fileByPath.get("data/status_events.jsonl")?.content ?? "",
+    );
+    const notes = parseJsonl(fileByPath.get("data/notes.jsonl")?.content ?? "");
+
+    expect(bundle.behaviorLog.fileName).toBe(
+      "cadence-export-30-days-2026-06-08.behaviorlog.zip",
+    );
+    expect(bundle.behaviorLog.files.map((file) => file.path)).toEqual([
+      "manifest.json",
+      "schema.json",
+      "README.md",
+      "AGENTS.md",
+      "data/behaviors.jsonl",
+      "data/schedules.jsonl",
+      "data/occurrences.jsonl",
+      "data/status_events.jsonl",
+      "data/notes.jsonl",
+    ]);
+    expect(manifest).toMatchObject({
+      format: "behaviorlog.bundle",
+      schema_version: "0.1.0-draft",
+      subject: {
+        subject_id: "subject_test",
+        timezone_default: DEFAULT_TIMEZONE,
+      },
+      privacy: {
+        subject_id_strategy: "pseudonymous",
+        contains_notes: true,
+      },
+      profiles: ["core", "notes"],
+    });
+
+    for (const manifestFile of manifest.files) {
+      const file = fileByPath.get(manifestFile.path);
+
+      expect(file).toBeDefined();
+      expect(manifestFile.sha256).toBe(sha256(file?.content ?? ""));
+    }
+
+    expect(occurrences[0]).toMatchObject({
+      record_type: "occurrence",
+      occurrence_id: "occurrence-1",
+      schedule_id: "sch_slot-brush",
+      local_date: "2026-06-08",
+      timezone: DEFAULT_TIMEZONE,
+      current_status: "completed",
+    });
+    expect(statusEvents).toEqual([
+      expect.objectContaining({
+        record_type: "status_event",
+        event_id: "event-1",
+        occurrence_id: "occurrence-1",
+        previous_status: "unresolved",
+        status: "completed",
+        status_semantics: "explicit_user_mark",
+        recorded_at_utc: "2026-06-08T13:05:00Z",
+        source: expect.objectContaining({
+          capture_method: "manual_tap",
+          confidence: "high",
+        }),
+      }),
+    ]);
+    expect(notes).toEqual([
+      expect.objectContaining({
+        record_type: "note",
+        attached_to_type: "occurrence",
+        attached_to_id: "occurrence-1",
+        body_markdown: "Flossed too.",
+      }),
+    ]);
+  });
+
+  it("synthesizes BehaviorLog status events for resolved legacy occurrences", () => {
+    const bundle = resolve({
+      occurrences: [
+        occurrence({
+          id: "completed-without-event",
+          status: "completed",
+          completedAt: "2026-06-08T13:05:00Z",
+          statusMarkedAt: "2026-06-08T13:05:00Z",
+        }),
+        occurrence({
+          id: "not-completed-without-event",
+          status: "not_completed",
+          scheduledFor: "2026-06-08T14:00:00Z",
+          completedAt: null,
+          statusMarkedAt: "2026-06-08T14:05:00Z",
+        }),
+        occurrence({
+          id: "unresolved-without-event",
+          status: "unresolved",
+          scheduledFor: "2026-06-08T15:00:00Z",
+          completedAt: null,
+          statusMarkedAt: null,
+        }),
+      ],
+    });
+    const statusEvents = parseJsonl(
+      bundle.behaviorLog.files.find(
+        (file) => file.path === "data/status_events.jsonl",
+      )?.content ?? "",
+    );
+
+    expect(statusEvents).toHaveLength(2);
+    expect(statusEvents.map((event) => event.occurrence_id)).toEqual([
+      "completed-without-event",
+      "not-completed-without-event",
+    ]);
+    expect(statusEvents).toEqual([
+      expect.objectContaining({
+        previous_status: "unresolved",
+        status: "completed",
+        status_semantics: "explicit_user_mark",
+        source: expect.objectContaining({
+          capture_method: "derived",
+          confidence: "medium",
+        }),
+      }),
+      expect.objectContaining({
+        previous_status: "unresolved",
+        status: "not_completed",
+        status_semantics: "explicit_user_mark",
+        source: expect.objectContaining({
+          capture_method: "derived",
+          confidence: "medium",
+        }),
+      }),
+    ]);
+  });
+
   it("calculates Markdown adherence with unresolved excluded", () => {
     const bundle = resolve({
       occurrences: [
-        occurrence({ id: "done-1", status: "done" }),
+        occurrence({ id: "completed-1", status: "completed" }),
         occurrence({
-          id: "done-2",
-          status: "done",
+          id: "completed-2",
+          status: "completed",
           scheduledFor: "2026-06-08T14:00:00Z",
         }),
         occurrence({
-          id: "not-done-1",
-          status: "not_done",
+          id: "not-completed-1",
+          status: "not_completed",
           scheduledFor: "2026-06-08T15:00:00Z",
           completedAt: null,
           statusMarkedAt: "2026-06-08T15:03:00Z",
@@ -319,11 +491,11 @@ describe("resolveExportBundle", () => {
       "- Default adherence: 2 / (2 + 1) = 66.7%",
     );
     expect(bundle.markdownSummary).toContain(
-      "- Brush teeth: 2 done, 1 not done, 1 unresolved, 66.7% adherence",
+      "- Brush teeth: 2 completed, 1 not completed, 1 unresolved, 66.7% adherence",
     );
     expect(bundle.overallCounts).toMatchObject({
-      doneCount: 2,
-      notDoneCount: 1,
+      completedCount: 2,
+      notCompletedCount: 1,
       unresolvedCount: 1,
       resolvedCount: 3,
       totalCount: 4,
@@ -420,3 +592,14 @@ describe("resolveExportBundle", () => {
     ]);
   });
 });
+
+function parseJsonl(content: string): Array<Record<string, unknown>> {
+  return content
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line));
+}
+
+function sha256(content: string): string {
+  return createHash("sha256").update(content, "utf8").digest("hex");
+}

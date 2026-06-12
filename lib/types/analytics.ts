@@ -1,4 +1,4 @@
-export type AnalyticsStatus = "unresolved" | "done" | "not_done";
+export type AnalyticsStatus = "unresolved" | "completed" | "not_completed";
 
 export type AnalyticsRangeDays = 7 | 30 | 90;
 
@@ -16,8 +16,8 @@ export type AnalyticsOccurrenceInput = {
 };
 
 export type AnalyticsStatusCounts = {
-  doneCount: number;
-  notDoneCount: number;
+  completedCount: number;
+  notCompletedCount: number;
   unresolvedCount: number;
   resolvedCount: number;
   totalCount: number;
@@ -41,7 +41,7 @@ export type AnalyticsBehaviorDayState =
   | "empty"
   | "full"
   | "partial"
-  | "not_done"
+  | "not_completed"
   | "unresolved";
 
 export type AnalyticsDayCell = {
@@ -80,7 +80,7 @@ export type AnalyticsCategorySummary = AnalyticsStatusCounts &
     categoryName: string;
   };
 
-export type AnalyticsNotDoneOccurrence = {
+export type AnalyticsNotCompletedOccurrence = {
   id: string;
   behaviorId: string;
   title: string;
@@ -93,7 +93,7 @@ export type AnalyticsNotDoneOccurrence = {
 export type AnalyticsSelectedDay = {
   localDate: string;
   label: string;
-  notDoneOccurrences: AnalyticsNotDoneOccurrence[];
+  notCompletedOccurrences: AnalyticsNotCompletedOccurrence[];
   emptyMessage: string;
 };
 

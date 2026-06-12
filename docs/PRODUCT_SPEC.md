@@ -46,8 +46,8 @@ Example:
 
 Each occurrence has one status:
 - `unresolved`
-- `done`
-- `not_done`
+- `completed`
+- `not_completed`
 
 The system does not automatically mark things missed.
 
@@ -55,7 +55,7 @@ Unresolved prior-day items are surfaced through Needs decision.
 
 Needs decision is a derived UI state, not a stored status. It applies when an occurrence is still `unresolved` and its `local_date` is before the current local date.
 
-The UI labels `done` as Completed and `not_done` as Not Completed.
+The UI labels `completed` as Completed and `not_completed` as Not Completed.
 
 ## Day boundary
 
@@ -110,7 +110,7 @@ Analytics should be basic:
 - Counts by behavior
 - Counts by category
 - 7/30/90-day windows, defaulting to 30 days
-- Done / not_done / unresolved
+- `completed` / `not_completed` / `unresolved`
 - A binary calendar heatmap for overall adherence
 - Per-behavior charts or heatmaps where useful
 - Day-level representation of full completion, partial completion, and not completed when a behavior has multiple occurrences in one day
@@ -119,8 +119,8 @@ Analytics should be basic:
 
 Example:
 If Brush teeth has:
-- 24 done
-- 4 not_done
+- 24 completed
+- 4 not completed
 - 1 unresolved
 
 Default adherence:

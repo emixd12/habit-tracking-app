@@ -114,7 +114,7 @@ async function benchOccurrenceAction(
 
   const status = formData.get("status");
   const nextStatus =
-    status === "done" || status === "not_done" ? status : undefined;
+    status === "completed" || status === "not_completed" ? status : undefined;
 
   return {
     status: "success",
@@ -767,7 +767,7 @@ function buildPreviews(): Record<string, ReactNode> {
     "composite.occurrence-row": (
       <ProductPreview>
         <div className="grid gap-3">
-          {[needsDecisionOccurrence, doneOccurrence, notDoneOccurrence].map(
+          {[needsDecisionOccurrence, completedOccurrence, notCompletedOccurrence].map(
             (occurrence) => (
               <OccurrenceRow
                 key={occurrence.id}
@@ -1001,50 +1001,50 @@ const currentOccurrence: TimelineOccurrenceView = {
   scheduleSummary: "Daily",
 };
 
-const currentGroupedDoneOccurrence: TimelineOccurrenceView = {
+const currentGroupedCompletedOccurrence: TimelineOccurrenceView = {
   ...currentOccurrence,
   id: "occurrence-current-evening",
   scheduledFor: "2026-06-08T22:00:00Z",
   scheduledTimeLabel: "Evening",
-  status: "done",
+  status: "completed",
   statusLabel: "Completed",
   statusDetail: "Resolved as Completed",
   expandedStatusActionLabel: "Change logged action",
-  visualTone: "done",
+  visualTone: "completed",
   showDecisionActions: false,
   showCollapsedStatusLabel: true,
   note: "Finished after work.",
 };
 
-const doneOccurrence: TimelineOccurrenceView = {
+const completedOccurrence: TimelineOccurrenceView = {
   ...currentOccurrence,
-  id: "occurrence-done",
+  id: "occurrence-completed",
   behaviorId: "behavior-walk",
   title: "Walk outside",
   scheduledFor: "2026-06-08T16:00:00Z",
   scheduledTimeLabel: "12:00 PM",
-  status: "done",
+  status: "completed",
   statusLabel: "Completed",
   statusDetail: "Resolved as Completed",
   expandedStatusActionLabel: "Change logged action",
-  visualTone: "done",
+  visualTone: "completed",
   showDecisionActions: false,
   showCollapsedStatusLabel: true,
   note: "Short walk after lunch.",
 };
 
-const notDoneOccurrence: TimelineOccurrenceView = {
+const notCompletedOccurrence: TimelineOccurrenceView = {
   ...currentOccurrence,
-  id: "occurrence-not-done",
+  id: "occurrence-not-completed",
   behaviorId: "behavior-desk",
   title: "Desk reset",
   scheduledFor: "2026-06-08T22:00:00Z",
   scheduledTimeLabel: "6:00 PM",
-  status: "not_done",
+  status: "not_completed",
   statusLabel: "Not Completed",
   statusDetail: "Resolved as Not Completed",
   expandedStatusActionLabel: "Change logged action",
-  visualTone: "not_done",
+  visualTone: "not_completed",
   showDecisionActions: true,
   showCollapsedStatusLabel: false,
   note: "Skipped while traveling.",
@@ -1090,19 +1090,19 @@ const todaySection: TimelineDaySection = {
   emptyMessage: "No behaviors on this day.",
   occurrences: [
     currentOccurrence,
-    currentGroupedDoneOccurrence,
-    doneOccurrence,
-    notDoneOccurrence,
+    currentGroupedCompletedOccurrence,
+    completedOccurrence,
+    notCompletedOccurrence,
   ],
   occurrenceGroups: [
     {
       key: "group-water-2026-06-08",
       behaviorId: "behavior-water",
       title: "Drink water",
-      occurrences: [currentOccurrence, currentGroupedDoneOccurrence],
+      occurrences: [currentOccurrence, currentGroupedCompletedOccurrence],
       isGroupedStack: true,
     },
-    ...toFixtureOccurrenceGroups([doneOccurrence, notDoneOccurrence]),
+    ...toFixtureOccurrenceGroups([completedOccurrence, notCompletedOccurrence]),
   ],
 };
 
@@ -1133,8 +1133,8 @@ const timelineFixture: TimelineView = {
 };
 
 const emptyCounts = {
-  doneCount: 0,
-  notDoneCount: 0,
+  completedCount: 0,
+  notCompletedCount: 0,
   unresolvedCount: 0,
   resolvedCount: 0,
   totalCount: 0,
@@ -1148,8 +1148,8 @@ const analyticsFixture: AnalyticsView = {
   rangeEndLocalDate: "2026-06-08",
   rangeLabel: "Last 30 days",
   summary: {
-    doneCount: 18,
-    notDoneCount: 4,
+    completedCount: 18,
+    notCompletedCount: 4,
     unresolvedCount: 3,
     resolvedCount: 22,
     totalCount: 25,
@@ -1171,8 +1171,8 @@ const analyticsFixture: AnalyticsView = {
       behaviorId: "behavior-reset",
       title: "Evening reset",
       categoryName: "Home",
-      doneCount: 8,
-      notDoneCount: 2,
+      completedCount: 8,
+      notCompletedCount: 2,
       unresolvedCount: 1,
       resolvedCount: 10,
       totalCount: 11,
@@ -1186,15 +1186,15 @@ const analyticsFixture: AnalyticsView = {
         behaviorCell("2026-06-05", "Jun 5", "5", "unresolved"),
         behaviorCell("2026-06-06", "Jun 6", "6", "empty"),
         behaviorCell("2026-06-07", "Jun 7", "7", "full"),
-        behaviorCell("2026-06-08", "Jun 8", "8", "not_done"),
+        behaviorCell("2026-06-08", "Jun 8", "8", "not_completed"),
       ],
     },
   ],
   categorySummaries: [
     {
       categoryName: "Home",
-      doneCount: 8,
-      notDoneCount: 2,
+      completedCount: 8,
+      notCompletedCount: 2,
       unresolvedCount: 1,
       resolvedCount: 10,
       totalCount: 11,
@@ -1204,8 +1204,8 @@ const analyticsFixture: AnalyticsView = {
     },
     {
       categoryName: "Health",
-      doneCount: 10,
-      notDoneCount: 2,
+      completedCount: 10,
+      notCompletedCount: 2,
       unresolvedCount: 2,
       resolvedCount: 12,
       totalCount: 14,
@@ -1218,9 +1218,9 @@ const analyticsFixture: AnalyticsView = {
     localDate: "2026-06-08",
     label: "Monday, June 8",
     emptyMessage: "No Not Completed occurrences on this day.",
-    notDoneOccurrences: [
+    notCompletedOccurrences: [
       {
-        id: "occurrence-not-done",
+        id: "occurrence-not-completed",
         behaviorId: "behavior-reset",
         title: "Desk reset",
         categoryName: "Home",
@@ -1278,15 +1278,15 @@ const exportFixture: ExportBundle = {
   behaviorCount: 2,
   occurrenceCount: 4,
   overallCounts: {
-    doneCount: 2,
-    notDoneCount: 1,
+    completedCount: 2,
+    notCompletedCount: 1,
     unresolvedCount: 1,
     resolvedCount: 3,
     totalCount: 4,
   },
   overallAdherenceLabel: "67%",
   jsonl: "{\"type\":\"behavior\",\"title\":\"Evening reset\"}",
-  csv: "behavior_title,status\nEvening reset,done",
+  csv: "behavior_title,status\nEvening reset,completed",
   jsonBackup: {
     exported_at: "2026-06-08T21:00:00Z",
     profile: { timezone: "America/New_York" },
@@ -1302,8 +1302,9 @@ const exportFixture: ExportBundle = {
     ],
     occurrences: [
       {
-        id: "occurrence-done",
+        id: "occurrence-completed",
         behavior_id: "behavior-reset",
+        behavior_schedule_slot_id: "slot-evening-reset",
         behavior_title: "Evening reset",
         category: "Home",
         scheduled_for: "2026-06-08T16:00:00Z",
@@ -1313,7 +1314,8 @@ const exportFixture: ExportBundle = {
         schedule_start_time: "21:30",
         schedule_end_time: null,
         local_date: "2026-06-08",
-        status: "done",
+        timezone: "America/New_York",
+        status: "completed",
         completed_at: "2026-06-08T16:10:00Z",
         status_marked_at: "2026-06-08T16:10:00Z",
         note: "Short walk after lunch.",
@@ -1325,6 +1327,22 @@ const exportFixture: ExportBundle = {
     "# Cadence export summary\n\nRange: Last 30 days\n\nDefault adherence: 67%\n\n- Completed: 2\n- Not Completed: 1\n- Unresolved: 1",
   fileBaseName: "cadence-export-2026-06-08",
   markdownFileName: "cadence-summary-2026-06-08.md",
+  behaviorLog: {
+    fileName: "cadence-export-2026-06-08.behaviorlog.zip",
+    files: [
+      {
+        path: "manifest.json",
+        mediaType: "application/json",
+        content: "{\"format\":\"behaviorlog.bundle\"}",
+      },
+      {
+        path: "data/status_events.jsonl",
+        mediaType: "application/jsonl",
+        content:
+          "{\"record_type\":\"status_event\",\"status\":\"completed\"}",
+      },
+    ],
+  },
 };
 
 function dayCell(
@@ -1345,24 +1363,24 @@ function dayCell(
     counts:
       state === "completed"
         ? {
-            doneCount: 1,
-            notDoneCount: 0,
+            completedCount: 1,
+            notCompletedCount: 0,
             unresolvedCount: 0,
             resolvedCount: 1,
             totalCount: 1,
           }
         : state === "not_completed"
           ? {
-              doneCount: 0,
-              notDoneCount: 1,
+              completedCount: 0,
+              notCompletedCount: 1,
               unresolvedCount: 0,
               resolvedCount: 1,
               totalCount: 1,
             }
           : state === "unresolved"
             ? {
-                doneCount: 0,
-                notDoneCount: 0,
+                completedCount: 0,
+                notCompletedCount: 0,
                 unresolvedCount: 1,
                 resolvedCount: 0,
                 totalCount: 1,
@@ -1388,24 +1406,24 @@ function behaviorCell(
     counts:
       state === "full"
         ? {
-            doneCount: 1,
-            notDoneCount: 0,
+            completedCount: 1,
+            notCompletedCount: 0,
             unresolvedCount: 0,
             resolvedCount: 1,
             totalCount: 1,
           }
-        : state === "partial" || state === "not_done"
+        : state === "partial" || state === "not_completed"
           ? {
-              doneCount: state === "partial" ? 1 : 0,
-              notDoneCount: 1,
+              completedCount: state === "partial" ? 1 : 0,
+              notCompletedCount: 1,
               unresolvedCount: 0,
               resolvedCount: state === "partial" ? 2 : 1,
               totalCount: state === "partial" ? 2 : 1,
             }
           : state === "unresolved"
             ? {
-                doneCount: 0,
-                notDoneCount: 0,
+                completedCount: 0,
+                notCompletedCount: 0,
                 unresolvedCount: 1,
                 resolvedCount: 0,
                 totalCount: 1,

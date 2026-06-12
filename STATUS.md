@@ -469,7 +469,7 @@ Remaining risk:
 Status: complete.
 
 Implementation summary:
-- Updated the Timeline resolver display metadata so `not_done` occurrences expose the same collapsed Completed / Not Completed controls as an unresolved decision row, with Not Completed indicated as the current choice.
+- Updated the Timeline resolver display metadata so `not_completed` occurrences expose the same collapsed Completed / Not Completed controls as an unresolved decision row, with Not Completed indicated as the current choice.
 - Completed rows continue to use the full blue resolved treatment and collapsed status label instead of primary buttons.
 - Updated the Timeline UI source-of-truth docs and design-system occurrence-row fixture so Not Completed rows are documented and previewed as approval-ready, without adding a new stored status or changing Needs decision semantics.
 
@@ -494,10 +494,10 @@ Remaining risk:
 Status: complete.
 
 Implementation summary:
-- Updated `components/timeline/OccurrenceRow.tsx` so `not_done` rows use the same `bg-background` collapsed card surface and `bg-surface` expanded-detail surface as the original unresolved row.
-- Preserved the prior behavior where `not_done` rows expose both collapsed Completed and Not Completed buttons, with Not Completed indicated as the current choice.
+- Updated `components/timeline/OccurrenceRow.tsx` so `not_completed` rows use the same `bg-background` collapsed card surface and `bg-surface` expanded-detail surface as the original unresolved row.
+- Preserved the prior behavior where `not_completed` rows expose both collapsed Completed and Not Completed buttons, with Not Completed indicated as the current choice.
 - Confirmed no schema migration is needed: the existing `occurrences` row already stores `status`, `completed_at`, and `status_marked_at` per scheduled occurrence instance.
-- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `DESIGN.md` to call this a visual reset while preserving the stored `not_done` status on the occurrence instance.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `DESIGN.md` to call this a visual reset while preserving the stored `not_completed` status on the occurrence instance.
 
 Verification:
 - Pass: `npm run agents:check`
@@ -887,6 +887,38 @@ Verification:
 
 Remaining risk:
 - The sticky mobile top header still has its bottom divider; the browser comment targeted the open drawer header under Cadence.
+
+### BehaviorLog status vocabulary alignment
+
+Status: complete.
+
+Implementation summary:
+- Renamed the legacy stored occurrence status vocabulary to `completed` / `not_completed` across code, docs, tests, UI action values, analytics/export resolvers, and design-system fixtures.
+- Added Supabase migration `20260612073554_rename_occurrence_statuses_to_behaviorlog.sql` to migrate existing `occurrences.status` rows and replace the check constraint.
+- Kept UI labels as Completed / Not Completed and preserved existing semantics: unresolved is not failure, Needs decision remains derived, Completed sets `completed_at`, Not Completed clears it, and resolving cancels pending reminders.
+- Export JSONL, CSV, and full JSON now emit `completed` / `not_completed`.
+
+Verification:
+- Pass: `npm run supabase -- db reset`
+- Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`
+- Pass: `npm run test -- tests/status.resolver.test.ts tests/timeline.resolver.test.ts tests/analytics.resolver.test.ts tests/export.resolver.test.ts tests/occurrence.resolver.test.ts tests/reminder.resolver.test.ts tests/completion-feedback.test.ts`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run test` (19 files, 110 tests).
+- Pass: `npm run typecheck`
+- Pass: `npm run build`
+- Pass: `npm run design-system:check`
+- Pass: design-system-bench classify, theme detection, inventory scan to `/tmp/cadence-design-system.manifest.json`, usage scan to `/tmp/cadence-design-system.usage.json`, and traceability verification.
+- Pass: `npm run supabase -- migration list` showed hosted migration history aligned except for pending `20260612073554`.
+- Pass: `npm run supabase -- db push --dry-run` would apply only `20260612073554_rename_occurrence_statuses_to_behaviorlog.sql`.
+- Pass: `npm run supabase -- db push --yes` applied `20260612073554_rename_occurrence_statuses_to_behaviorlog.sql` to hosted Supabase.
+- Pass: `npm run supabase -- migration list` confirmed local and hosted migration histories now match through `20260612073554`.
+- Pass: hosted `db query --linked` confirmed `occurrences_status_check` allows only `unresolved`, `completed`, and `not_completed`.
+- Pass: hosted `db query --linked` confirmed zero `occurrences` rows remain with legacy status values.
+
+Remaining risk:
+- Browser QA was not rerun because UI-visible labels and layout treatments did not change; hidden action values and status behavior were covered by resolver/UI-adjacent tests plus build and design-system checks.
 
 ## Handoff notes
 

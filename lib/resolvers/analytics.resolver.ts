@@ -226,11 +226,11 @@ function resolveSelectedDay(input: {
   occurrences: AnalyticsOccurrenceInput[];
 }): AnalyticsSelectedDay {
   const date = Temporal.PlainDate.from(input.selectedDayLocalDate);
-  const notDoneOccurrences = input.occurrences
+  const notCompletedOccurrences = input.occurrences
     .filter(
       (occurrence) =>
         occurrence.localDate === input.selectedDayLocalDate &&
-        occurrence.status === "not_done",
+        occurrence.status === "not_completed",
     )
     .sort(compareOccurrences)
     .map((occurrence) => ({
@@ -246,7 +246,7 @@ function resolveSelectedDay(input: {
   return {
     localDate: input.selectedDayLocalDate,
     label: formatDateLabel(date),
-    notDoneOccurrences,
+    notCompletedOccurrences,
     emptyMessage: "No Not Completed occurrences on this day.",
   };
 }
@@ -265,8 +265,8 @@ function countOccurrences(
 
 function emptyCounts(): AnalyticsStatusCounts {
   return {
-    doneCount: 0,
-    notDoneCount: 0,
+    completedCount: 0,
+    notCompletedCount: 0,
     unresolvedCount: 0,
     resolvedCount: 0,
     totalCount: 0,
@@ -280,12 +280,12 @@ function incrementCounts(
   counts.totalCount += 1;
 
   switch (status) {
-    case "done":
-      counts.doneCount += 1;
+    case "completed":
+      counts.completedCount += 1;
       counts.resolvedCount += 1;
       return;
-    case "not_done":
-      counts.notDoneCount += 1;
+    case "not_completed":
+      counts.notCompletedCount += 1;
       counts.resolvedCount += 1;
       return;
     case "unresolved":
@@ -312,12 +312,12 @@ function calculateAdherence(
     };
   }
 
-  const rate = counts.doneCount / counts.resolvedCount;
+  const rate = counts.completedCount / counts.resolvedCount;
 
   return {
     rate,
     percentLabel: `${formatPercent(rate)}%`,
-    detailLabel: `${counts.doneCount} of ${counts.resolvedCount} resolved Completed`,
+    detailLabel: `${counts.completedCount} of ${counts.resolvedCount} resolved Completed`,
   };
 }
 
@@ -332,7 +332,7 @@ function resolveOverallDayState(
     return "unresolved";
   }
 
-  if (counts.notDoneCount > 0) {
+  if (counts.notCompletedCount > 0) {
     return "not_completed";
   }
 
@@ -350,16 +350,16 @@ function resolveBehaviorDayState(
     return "unresolved";
   }
 
-  if (counts.doneCount === counts.totalCount) {
+  if (counts.completedCount === counts.totalCount) {
     return "full";
   }
 
-  if (counts.doneCount > 0) {
+  if (counts.completedCount > 0) {
     return "partial";
   }
 
-  if (counts.notDoneCount > 0) {
-    return "not_done";
+  if (counts.notCompletedCount > 0) {
+    return "not_completed";
   }
 
   return "unresolved";
@@ -384,7 +384,7 @@ function behaviorDayStateLabel(state: AnalyticsBehaviorDayState): string {
       return "Full";
     case "partial":
       return "Partial";
-    case "not_done":
+    case "not_completed":
       return "Not Completed";
     case "unresolved":
       return "Unresolved";
@@ -481,7 +481,7 @@ function formatPercent(rate: number): string {
 }
 
 function countsLabel(counts: AnalyticsStatusCounts): string {
-  return `${counts.doneCount} Completed, ${counts.notDoneCount} Not Completed, ${counts.unresolvedCount} Unresolved`;
+  return `${counts.completedCount} Completed, ${counts.notCompletedCount} Not Completed, ${counts.unresolvedCount} Unresolved`;
 }
 
 const WEEKDAY_LABELS = [

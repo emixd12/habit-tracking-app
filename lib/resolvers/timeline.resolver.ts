@@ -181,7 +181,7 @@ function toOccurrenceView(
     occurrence.status === "unresolved" &&
     occurrence.localDate === todayLocalDate;
   const showDecisionActions =
-    isPriorUnresolved || isTodayUnresolved || occurrence.status === "not_done";
+    isPriorUnresolved || isTodayUnresolved || occurrence.status === "not_completed";
 
   return {
     ...occurrence,
@@ -197,9 +197,9 @@ function toOccurrenceView(
 
 function statusLabel(status: TimelineStatus): string {
   switch (status) {
-    case "done":
+    case "completed":
       return "Completed";
-    case "not_done":
+    case "not_completed":
       return "Not Completed";
     case "unresolved":
       return "Unresolved";
@@ -208,9 +208,9 @@ function statusLabel(status: TimelineStatus): string {
 
 function statusDetail(status: TimelineStatus): string {
   switch (status) {
-    case "done":
+    case "completed":
       return "Resolved as Completed";
-    case "not_done":
+    case "not_completed":
       return "Resolved as Not Completed";
     case "unresolved":
       return "Awaiting decision";
@@ -219,8 +219,8 @@ function statusDetail(status: TimelineStatus): string {
 
 function expandedStatusActionLabel(status: TimelineStatus): string {
   switch (status) {
-    case "done":
-    case "not_done":
+    case "completed":
+    case "not_completed":
       return "Change status";
     case "unresolved":
       return "Set status";
@@ -236,10 +236,10 @@ function visualTone(
   }
 
   switch (status) {
-    case "done":
-      return "done";
-    case "not_done":
-      return "not_done";
+    case "completed":
+      return "completed";
+    case "not_completed":
+      return "not_completed";
     case "unresolved":
       return "default";
   }

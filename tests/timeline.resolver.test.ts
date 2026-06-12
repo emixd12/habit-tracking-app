@@ -46,10 +46,10 @@ describe("resolveTimeline", () => {
           status: "unresolved",
         }),
         occurrence({
-          id: "prior-done",
+          id: "prior-completed",
           localDate: "2026-06-06",
           scheduledFor: "2026-06-06T15:00:00Z",
-          status: "done",
+          status: "completed",
         }),
         occurrence({
           id: "current-unresolved",
@@ -143,7 +143,7 @@ describe("resolveTimeline", () => {
           title: "Stretch",
           scheduledFor: "2026-06-07T22:00:00Z",
           scheduledTimeLabel: "Evening (6:00 PM-Midnight)",
-          status: "done",
+          status: "completed",
         }),
         occurrence({
           id: "walk",
@@ -159,7 +159,7 @@ describe("resolveTimeline", () => {
           title: "Stretch",
           scheduledFor: "2026-06-07T10:00:00Z",
           scheduledTimeLabel: "Morning (6:00 AM-Noon)",
-          status: "not_done",
+          status: "not_completed",
         }),
       ],
     });
@@ -176,7 +176,7 @@ describe("resolveTimeline", () => {
         behaviorId: "stretch",
         isGroupedStack: true,
         occurrenceIds: ["stretch-morning", "stretch-evening"],
-        tones: ["not_done", "done"],
+        tones: ["not_completed", "completed"],
       },
       {
         behaviorId: "walk",
@@ -195,11 +195,11 @@ describe("resolveTimeline", () => {
       occurrences: [
         occurrence({
           id: "completed",
-          status: "done",
+          status: "completed",
         }),
         occurrence({
           id: "not-completed",
-          status: "not_done",
+          status: "not_completed",
           scheduledFor: "2026-06-07T14:00:00Z",
           scheduledTimeLabel: "10:00 AM",
         }),
@@ -211,7 +211,7 @@ describe("resolveTimeline", () => {
         id: "completed",
         statusLabel: "Completed",
         statusDetail: "Resolved as Completed",
-        visualTone: "done",
+        visualTone: "completed",
         showDecisionActions: false,
         showCollapsedStatusLabel: true,
       },
@@ -219,7 +219,7 @@ describe("resolveTimeline", () => {
         id: "not-completed",
         statusLabel: "Not Completed",
         statusDetail: "Resolved as Not Completed",
-        visualTone: "not_done",
+        visualTone: "not_completed",
         showDecisionActions: true,
         showCollapsedStatusLabel: false,
       },

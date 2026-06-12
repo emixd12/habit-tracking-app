@@ -3,6 +3,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import {
   type AppSupabaseClient,
   type BehaviorWithCategory,
+  getBehaviorById,
   listBehaviorScheduleSlots,
   listUserBehaviors,
 } from "@/lib/db/behaviors.repo";
@@ -15,6 +16,10 @@ import {
   updateOccurrenceById,
 } from "@/lib/db/occurrences.repo";
 import {
+  createOccurrenceStatusEvent,
+  getLatestOccurrenceStatusEventForOccurrence,
+} from "@/lib/db/occurrenceStatusEvents.repo";
+import {
   planOccurrenceGeneration,
   resolveGenerationWindow,
   type ExistingOccurrenceForGeneration,
@@ -22,6 +27,7 @@ import {
 } from "@/lib/resolvers/occurrence.resolver";
 import {
   resolveNoteUpdate,
+  resolveStatusEvent,
   resolveStatusTransition,
   type StatusResolverOccurrence,
 } from "@/lib/resolvers/status.resolver";
@@ -39,6 +45,7 @@ import type {
   OccurrenceStatus,
   OccurrenceUpdate,
 } from "@/lib/types/database";
+import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type { ScheduleKind, TimeRangePreset } from "@/lib/types/schedule";
 import type { OccurrenceActionState } from "@/lib/types/timeline";
 
@@ -139,11 +146,27 @@ export async function markOccurrenceStatusFromFormData(
   const occurrenceId = getOccurrenceIdFromFormData(formData);
   const nextStatus = getStatusFromFormData(formData);
   const occurrence = await getRequiredOccurrence(supabase, userId, occurrenceId);
+  const statusOccurrence = toStatusResolverOccurrence(occurrence);
+  const now = Temporal.Now.instant();
   const update = resolveStatusTransition({
-    occurrence: toStatusResolverOccurrence(occurrence),
+    occurrence: statusOccurrence,
     nextStatus,
-    now: Temporal.Now.instant(),
+    now,
   });
+  const eventPlan = resolveStatusEvent({
+    occurrence: statusOccurrence,
+    nextStatus,
+    now,
+    update,
+  });
+  const latestStatusEvent =
+    eventPlan?.statusSemantics === "explicit_user_correction"
+      ? await getLatestOccurrenceStatusEventForOccurrence(
+          supabase,
+          userId,
+          occurrence.id,
+        )
+      : null;
   const updatedOccurrence = await updateOccurrenceById(
     supabase,
     userId,
@@ -153,6 +176,31 @@ export async function markOccurrenceStatusFromFormData(
 
   if (!updatedOccurrence) {
     throw new Error("Occurrence not found.");
+  }
+
+  if (eventPlan) {
+    const behavior = await getBehaviorById(
+      supabase,
+      userId,
+      updatedOccurrence.behavior_id,
+    );
+
+    await createOccurrenceStatusEvent(supabase, {
+      user_id: userId,
+      occurrence_id: updatedOccurrence.id,
+      behavior_id: updatedOccurrence.behavior_id,
+      previous_status: eventPlan.previousStatus,
+      status: eventPlan.status,
+      status_semantics: eventPlan.statusSemantics,
+      recorded_at: eventPlan.recordedAt,
+      effective_at: eventPlan.effectiveAt,
+      local_date: updatedOccurrence.local_date,
+      timezone: behavior?.timezone || DEFAULT_TIMEZONE,
+      source_capture_method: eventPlan.sourceCaptureMethod,
+      source_confidence: eventPlan.sourceConfidence,
+      revises_event_id: latestStatusEvent?.id ?? null,
+      reason_code: null,
+    });
   }
 
   await cancelReminderDeliveriesForResolvedOccurrence(
@@ -381,7 +429,7 @@ function getOccurrenceIdFromFormData(formData: FormData): string {
 function getStatusFromFormData(formData: FormData): OccurrenceStatus {
   const value = formData.get("status");
 
-  if (value === "done" || value === "not_done") {
+  if (value === "completed" || value === "not_completed") {
     return value;
   }
 
@@ -399,7 +447,7 @@ function getNoteFromFormData(formData: FormData): string {
 }
 
 function normalizeOccurrenceStatus(value: string): OccurrenceStatus {
-  if (value === "unresolved" || value === "done" || value === "not_done") {
+  if (value === "unresolved" || value === "completed" || value === "not_completed") {
     return value;
   }
 

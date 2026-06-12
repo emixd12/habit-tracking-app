@@ -15,22 +15,22 @@ const ROW_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
   default: "bg-background text-foreground hover:bg-timeline-row-hover",
   needs_decision:
     "bg-surface text-foreground hover:bg-timeline-needs-decision-hover",
-  done: "bg-primary text-primary-foreground hover:bg-timeline-completed-hover",
-  not_done: "bg-background text-foreground hover:bg-timeline-row-hover",
+  completed: "bg-primary text-primary-foreground hover:bg-timeline-completed-hover",
+  not_completed: "bg-background text-foreground hover:bg-timeline-row-hover",
 };
 
 const TIME_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
   default: "text-muted-readable",
   needs_decision: "text-foreground",
-  done: "text-primary-foreground",
-  not_done: "text-muted-readable",
+  completed: "text-primary-foreground",
+  not_completed: "text-muted-readable",
 };
 
 const RESOLVED_LABEL_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
   default: "text-muted-readable",
   needs_decision: "text-foreground",
-  done: "text-primary-foreground",
-  not_done: "text-muted-readable",
+  completed: "text-primary-foreground",
+  not_completed: "text-muted-readable",
 };
 
 export function OccurrenceRow({

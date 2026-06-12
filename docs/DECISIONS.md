@@ -8,14 +8,14 @@ Use explicit manual marking.
 
 Statuses:
 - unresolved
-- done
-- not_done
+- completed
+- not_completed
 
 Do not auto-mark an occurrence as missed.
 
 Needs decision is a derived UI state for prior-day unresolved occurrences, not a stored status.
 
-The UI labels `done` as Completed and `not_done` as Not Completed.
+The UI labels `completed` as Completed and `not_completed` as Not Completed.
 
 ## Primary route
 

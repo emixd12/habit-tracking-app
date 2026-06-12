@@ -106,7 +106,7 @@ describe("resolveReminderDeliveries", () => {
         behavior: BASE_BEHAVIOR,
         occurrence: {
           ...BASE_OCCURRENCE,
-          status: "done",
+          status: "completed",
         },
       }),
     ).toEqual([]);
@@ -140,7 +140,7 @@ describe("resolveReminderDeliveryCancellation", () => {
   it("cancels pending reminders when an occurrence is resolved", () => {
     expect(
       resolveReminderDeliveryCancellation({
-        occurrence: { status: "not_done" },
+        occurrence: { status: "not_completed" },
       }),
     ).toEqual({
       cancelPending: true,

@@ -12,7 +12,7 @@ This file keeps route names stable across agents. Add routes here before or duri
 | `/timeline` | implemented, protected | Primary screen for today's occurrences, a floating Needs decision modal for prior unresolved items, and future preview | This is the main screen. |
 | `/behaviors` | implemented, protected | Behavior and category management | Keep CRUD simple. |
 | `/analytics` | implemented, protected | Basic completion counts, adherence, heatmaps, and selected-day Not Completed inspection | No gamified streak language. |
-| `/export` | implemented, protected | JSONL, CSV, full JSON backup, and Markdown AI-readable summary export | Export logic belongs in `export.resolver.ts`; the page supports range and archived-behavior options. |
+| `/export` | implemented, protected | JSONL, CSV, full JSON backup, BehaviorLog bundle, and Markdown AI-readable summary export | Export logic belongs in `export.resolver.ts`; the page supports range and archived-behavior options. |
 | `/settings` | implemented, protected | Profile, timezone, and browser notification permission/subscription settings | Browser notification permission is requested here; category editing and any global email settings remain future Settings work. |
 
 ## Internal development routes
@@ -40,6 +40,7 @@ Do not create `/dashboard` in v1. The locked primary route is `/timeline`.
 | `/api/export/jsonl` | implemented in 012 | JSONL export | Route calls export service/resolver. |
 | `/api/export/csv` | implemented in 012 | CSV export | Route calls export service/resolver. |
 | `/api/export/json` | implemented in 012 | Full JSON backup | Route calls export service/resolver. |
+| `/api/export/behaviorlog` | implemented in BehaviorLog alignment milestone 1 | BehaviorLog `.behaviorlog.zip` interoperability bundle | Route calls export service/resolver and packages generated bundle files as a ZIP. |
 
 Do not add API routes that duplicate resolver logic. API routes are request/response adapters.
 

@@ -17,13 +17,13 @@ describe("completion feedback", () => {
     expect(
       shouldPlayCompletionChime({
         currentStatus: "unresolved",
-        nextStatus: "done",
+        nextStatus: "completed",
       }),
     ).toBe(true);
     expect(
       shouldPlayCompletionChime({
-        currentStatus: "not_done",
-        nextStatus: "done",
+        currentStatus: "not_completed",
+        nextStatus: "completed",
       }),
     ).toBe(true);
   });
@@ -32,13 +32,13 @@ describe("completion feedback", () => {
     expect(
       shouldPlayCompletionChime({
         currentStatus: "unresolved",
-        nextStatus: "not_done",
+        nextStatus: "not_completed",
       }),
     ).toBe(false);
     expect(
       shouldPlayCompletionChime({
-        currentStatus: "done",
-        nextStatus: "done",
+        currentStatus: "completed",
+        nextStatus: "completed",
       }),
     ).toBe(false);
     expect(

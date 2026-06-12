@@ -73,7 +73,7 @@ In scope:
 - Recurrence rules
 - Occurrence generation
 - Timeline-first interface
-- Manual statuses: unresolved, done, not_done
+- Manual statuses: unresolved, completed, not_completed
 - Notes on occurrences
 - Browser reminders enabled by default
 - Optional email reminders per behavior
@@ -104,8 +104,8 @@ Use these terms consistently:
 - Behavior: a recurring thing the user wants to track.
 - Occurrence: one scheduled instance of a behavior.
 - Unresolved: an occurrence that has not been manually marked.
-- Done: stored status meaning the behavior was completed. Display as Completed in the UI.
-- Not done: stored status meaning the user explicitly says it was not completed. Display as Not Completed in the UI.
+- Completed: stored status meaning the behavior was completed.
+- Not completed: stored status meaning the user explicitly says it was not completed. Stored as `not_completed` and displayed as Not Completed in the UI.
 - Needs decision: UI group and derived state for unresolved occurrences before today. It is not a stored status.
 
 Do not use “missed” as a stored status in v1.
@@ -152,7 +152,7 @@ The registry, allowed callers, forbidden bypasses, and paired tests live in `/do
 Stored statuses:
 
 ```ts
-type OccurrenceStatus = "unresolved" | "done" | "not_done";
+type OccurrenceStatus = "unresolved" | "completed" | "not_completed";
 ```
 
 Rules:

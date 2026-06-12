@@ -326,7 +326,7 @@ function toNewReminderDelivery(
 }
 
 function normalizeOccurrenceStatus(value: string): OccurrenceStatus {
-  if (value === "unresolved" || value === "done" || value === "not_done") {
+  if (value === "unresolved" || value === "completed" || value === "not_completed") {
     return value;
   }
 

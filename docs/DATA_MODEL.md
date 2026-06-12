@@ -131,7 +131,7 @@ create table occurrences (
   schedule_end_time time,
 
   status text not null default 'unresolved'
-    check (status in ('unresolved', 'done', 'not_done')),
+    check (status in ('unresolved', 'completed', 'not_completed')),
 
   completed_at timestamptz,
   status_marked_at timestamptz,
@@ -140,9 +140,65 @@ create table occurrences (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
-  unique (behavior_id, scheduled_for)
+  unique (behavior_id, scheduled_for),
+  unique (user_id, id, behavior_id)
 );
 ```
+
+`status` is the current-status snapshot for fast Timeline, Analytics, and
+app-native export reads. Status history is stored separately in
+`occurrence_status_events`.
+
+### `occurrence_status_events`
+
+```sql
+create table occurrence_status_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  occurrence_id uuid not null,
+  behavior_id uuid not null,
+
+  previous_status text
+    check (previous_status is null or previous_status in ('unresolved', 'completed', 'not_completed')),
+  status text not null
+    check (status in ('unresolved', 'completed', 'not_completed')),
+  status_semantics text not null
+    check (status_semantics in (
+      'explicit_user_mark',
+      'explicit_user_correction',
+      'imported_explicit',
+      'system_rule_declared',
+      'ambiguous_import'
+    )),
+
+  recorded_at timestamptz not null,
+  effective_at timestamptz,
+  local_date date not null,
+  timezone text not null default 'America/New_York',
+
+  source_capture_method text not null default 'manual_tap',
+  source_confidence text not null default 'high',
+  revises_event_id uuid references occurrence_status_events(id) on delete set null,
+  reason_code text,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  unique (user_id, id),
+  foreign key (user_id, occurrence_id, behavior_id)
+    references occurrences(user_id, id, behavior_id)
+    on delete cascade
+);
+```
+
+This table is the internal append-only status history used for BehaviorLog
+alignment. On first manual resolution, store `explicit_user_mark`. When a user
+changes one resolved status to another, store `explicit_user_correction` and
+link `revises_event_id` to the latest prior status event for that occurrence.
+
+Backfilled rows for pre-event resolved occurrences use `previous_status =
+'unresolved'`, `status_semantics = 'explicit_user_mark'`, `source_capture_method
+= 'manual_tap'`, and `source_confidence = 'high'`.
 
 ### `reminder_deliveries`
 
@@ -192,7 +248,7 @@ Optional. Only implement if useful for export history.
 create table exports (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  export_type text not null check (export_type in ('jsonl', 'csv', 'json_backup')),
+  export_type text not null check (export_type in ('jsonl', 'csv', 'json_backup', 'behaviorlog_bundle')),
   created_at timestamptz not null default now()
 );
 ```
@@ -227,6 +283,10 @@ Use:
 
 ```sql
 unique (behavior_id, scheduled_for)
+unique (user_id, id, behavior_id)
 ```
 
 Occurrence generation must be idempotent.
+
+The `(user_id, id, behavior_id)` uniqueness constraint exists so status events
+can enforce same-user ownership for their occurrence and behavior snapshot.

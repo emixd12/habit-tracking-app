@@ -184,6 +184,81 @@ export type Database = {
         }
         Relationships: []
       }
+      occurrence_status_events: {
+        Row: {
+          behavior_id: string
+          created_at: string
+          effective_at: string | null
+          id: string
+          local_date: string
+          occurrence_id: string
+          previous_status: string | null
+          reason_code: string | null
+          recorded_at: string
+          revises_event_id: string | null
+          source_capture_method: string
+          source_confidence: string
+          status: string
+          status_semantics: string
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          behavior_id: string
+          created_at?: string
+          effective_at?: string | null
+          id?: string
+          local_date: string
+          occurrence_id: string
+          previous_status?: string | null
+          reason_code?: string | null
+          recorded_at: string
+          revises_event_id?: string | null
+          source_capture_method?: string
+          source_confidence?: string
+          status: string
+          status_semantics: string
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          behavior_id?: string
+          created_at?: string
+          effective_at?: string | null
+          id?: string
+          local_date?: string
+          occurrence_id?: string
+          previous_status?: string | null
+          reason_code?: string | null
+          recorded_at?: string
+          revises_event_id?: string | null
+          source_capture_method?: string
+          source_confidence?: string
+          status?: string
+          status_semantics?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "occurrence_status_events_occurrence_owner_fkey"
+            columns: ["user_id", "occurrence_id", "behavior_id"]
+            isOneToOne: false
+            referencedRelation: "occurrences"
+            referencedColumns: ["user_id", "id", "behavior_id"]
+          },
+          {
+            foreignKeyName: "occurrence_status_events_revises_event_id_fkey"
+            columns: ["revises_event_id"]
+            isOneToOne: false
+            referencedRelation: "occurrence_status_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       occurrences: {
         Row: {
           behavior_id: string
@@ -524,4 +599,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

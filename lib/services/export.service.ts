@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { Temporal } from "@js-temporal/polyfill";
 
 import {
@@ -11,6 +13,7 @@ import {
   listOccurrencesBetweenLocalDates,
   listOccurrencesThroughLocalDate,
 } from "@/lib/db/occurrences.repo";
+import { listOccurrenceStatusEventsByOccurrenceIds } from "@/lib/db/occurrenceStatusEvents.repo";
 import {
   resolveExportBundle,
   resolveExportDateRange,
@@ -25,6 +28,7 @@ import {
   formatOccurrenceScheduleLabel,
   toScheduleSlotView,
 } from "@/lib/services/schedule";
+import { createStoredZip } from "@/lib/services/zip";
 import { createClient } from "@/lib/supabase/server";
 import type {
   ExportBehaviorInput,
@@ -32,8 +36,9 @@ import type {
   ExportCategoryInput,
   ExportOccurrenceInput,
   ExportOccurrenceStatus,
+  ExportStatusEventInput,
 } from "@/lib/types/export";
-import type { Category, Occurrence } from "@/lib/types/database";
+import type { Category, Occurrence, OccurrenceStatusEvent } from "@/lib/types/database";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type {
   ScheduleKind,
@@ -46,10 +51,10 @@ export type ExportOptions = {
   includeArchived?: boolean;
 };
 
-export type ExportDownloadFormat = "jsonl" | "csv" | "json";
+export type ExportDownloadFormat = "jsonl" | "csv" | "json" | "behaviorlog";
 
 export type ExportDownload = {
-  content: string;
+  content: BodyInit;
   contentType: string;
   fileName: string;
 };
@@ -92,6 +97,15 @@ export async function getExportDownload(
         contentType: "application/json; charset=utf-8",
         fileName: `${bundle.fileBaseName}.json`,
       };
+    case "behaviorlog": {
+      const zipBytes = Uint8Array.from(createStoredZip(bundle.behaviorLog.files));
+
+      return {
+        content: new Blob([zipBytes], { type: "application/zip" }),
+        contentType: "application/zip",
+        fileName: bundle.behaviorLog.fileName,
+      };
+    }
   }
 }
 
@@ -123,14 +137,24 @@ async function getUserExportBundle(
         )
       : listOccurrencesThroughLocalDate(supabase, userId, range.endLocalDate),
   ]);
+  const statusEvents = await listOccurrenceStatusEventsByOccurrenceIds(
+    supabase,
+    userId,
+    occurrences.map((occurrence) => occurrence.id),
+  );
 
   return resolveExportBundle({
     profile: {
       timezone,
+      subjectId: pseudonymousSubjectId(userId),
+      locale: "en-US",
+      producerName: "Cadence Tracker",
+      producerVersion: "0.1.0",
     },
     categories: categories.map(toExportCategoryInput),
     behaviors: behaviors.map(toExportBehaviorInput),
     occurrences: occurrences.map(toExportOccurrenceInput),
+    statusEvents: statusEvents.map(toExportStatusEventInput),
     now,
     timezone,
     range: range.key,
@@ -201,6 +225,7 @@ function toExportOccurrenceInput(
   return {
     id: occurrence.id,
     behaviorId: occurrence.behavior_id,
+    behaviorScheduleSlotId: occurrence.behavior_schedule_slot_id,
     scheduledFor: occurrence.scheduled_for,
     scheduledTimeLabel: formatOccurrenceScheduleLabel({
       scheduleKind: normalizeScheduleKind(occurrence.schedule_kind),
@@ -223,6 +248,31 @@ function toExportOccurrenceInput(
     note: occurrence.note,
     createdAt: occurrence.created_at,
     updatedAt: occurrence.updated_at,
+  };
+}
+
+function toExportStatusEventInput(
+  event: OccurrenceStatusEvent,
+): ExportStatusEventInput {
+  return {
+    id: event.id,
+    occurrenceId: event.occurrence_id,
+    behaviorId: event.behavior_id,
+    previousStatus: normalizeNullableOccurrenceStatus(event.previous_status),
+    status: normalizeOccurrenceStatus(event.status),
+    statusSemantics: normalizeStatusSemantics(event.status_semantics),
+    recordedAt: event.recorded_at,
+    effectiveAt: event.effective_at,
+    localDate: event.local_date,
+    timezone: event.timezone || DEFAULT_TIMEZONE,
+    sourceCaptureMethod: normalizeSourceCaptureMethod(
+      event.source_capture_method,
+    ),
+    sourceConfidence: normalizeSourceConfidence(event.source_confidence),
+    revisesEventId: event.revises_event_id,
+    reasonCode: event.reason_code,
+    createdAt: event.created_at,
+    updatedAt: event.updated_at,
   };
 }
 
@@ -249,9 +299,70 @@ function normalizeSchedulePreset(value: string | null): TimeRangePreset | null {
 }
 
 function normalizeOccurrenceStatus(value: string): ExportOccurrenceStatus {
-  if (value === "unresolved" || value === "done" || value === "not_done") {
+  if (value === "unresolved" || value === "completed" || value === "not_completed") {
     return value;
   }
 
   throw new Error(`Unsupported occurrence status: ${value}.`);
+}
+
+function normalizeNullableOccurrenceStatus(
+  value: string | null,
+): ExportOccurrenceStatus | null {
+  return value ? normalizeOccurrenceStatus(value) : null;
+}
+
+function normalizeStatusSemantics(
+  value: string,
+): ExportStatusEventInput["statusSemantics"] {
+  if (
+    value === "explicit_user_mark" ||
+    value === "explicit_user_correction" ||
+    value === "imported_explicit" ||
+    value === "system_rule_declared" ||
+    value === "ambiguous_import"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported status semantics: ${value}.`);
+}
+
+function normalizeSourceCaptureMethod(
+  value: string,
+): ExportStatusEventInput["sourceCaptureMethod"] {
+  if (
+    value === "manual_tap" ||
+    value === "manual_text" ||
+    value === "system_generated" ||
+    value === "imported" ||
+    value === "inferred" ||
+    value === "derived" ||
+    value === "ai_generated" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported source capture method: ${value}.`);
+}
+
+function normalizeSourceConfidence(
+  value: string,
+): ExportStatusEventInput["sourceConfidence"] {
+  if (
+    value === "high" ||
+    value === "medium" ||
+    value === "low" ||
+    value === "ambiguous" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported source confidence: ${value}.`);
+}
+
+function pseudonymousSubjectId(userId: string): string {
+  return `subject_${createHash("sha256").update(userId).digest("hex").slice(0, 16)}`;
 }

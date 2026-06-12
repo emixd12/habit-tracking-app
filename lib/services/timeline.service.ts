@@ -160,7 +160,7 @@ function normalizeSchedulePreset(
 }
 
 function normalizeTimelineStatus(value: string): TimelineStatus {
-  if (value === "unresolved" || value === "done" || value === "not_done") {
+  if (value === "unresolved" || value === "completed" || value === "not_completed") {
     return value;
   }
 

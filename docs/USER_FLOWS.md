@@ -113,7 +113,7 @@ Collapsed Not Completed cards show:
 
 Completed cards should have a distinct visual state and should hide the primary status actions.
 
-Not Completed cards should visually return to the original unresolved card treatment while exposing both status actions so the logged action can be approved or changed without expanding the card. The stored status remains `not_done` on that occurrence instance.
+Not Completed cards should visually return to the original unresolved card treatment while exposing both status actions so the logged action can be approved or changed without expanding the card. The stored status remains `not_completed` on that occurrence instance.
 
 Clicking a card outside the status actions expands it.
 

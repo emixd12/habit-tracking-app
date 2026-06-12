@@ -193,7 +193,7 @@ describe("planOccurrenceGeneration", () => {
       existingOccurrences: [
         existingOccurrence("past-unresolved", "2026-01-01T15:00:00Z", "2026-01-01"),
         existingOccurrence("future-unresolved", "2026-01-02T15:00:00Z", "2026-01-02"),
-        existingOccurrence("future-done", "2026-01-03T15:00:00Z", "2026-01-03", "done"),
+        existingOccurrence("future-completed", "2026-01-03T15:00:00Z", "2026-01-03", "completed"),
       ],
       now: NOW,
       horizonDays: 1,
@@ -259,7 +259,7 @@ describe("planOccurrenceGeneration", () => {
       },
       existingOccurrences: [
         existingOccurrence("future-unresolved", "2026-01-02T14:00:00Z", "2026-01-02"),
-        existingOccurrence("future-done", "2026-01-03T14:00:00Z", "2026-01-03", "done"),
+        existingOccurrence("future-completed", "2026-01-03T14:00:00Z", "2026-01-03", "completed"),
       ],
       now: NOW,
       horizonDays: 1,

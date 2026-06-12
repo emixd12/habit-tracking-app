@@ -21,7 +21,7 @@ A sparse personal behavior tracker web app:
 - Google login
 - Recurring behaviors
 - Timeline-first interface
-- Manual statuses: `unresolved`, `done`, `not_done`
+- Manual statuses: `unresolved`, `completed`, `not_completed`
 - Prior unresolved items grouped under **Needs decision**
 - Browser reminders on by default
 - Optional email reminders per behavior through Sequenzy

@@ -23,6 +23,11 @@ const DOWNLOAD_ACTIONS = [
     label: "Full JSON backup",
     fileType: ".json",
   },
+  {
+    format: "behaviorlog",
+    label: "BehaviorLog bundle",
+    fileType: ".behaviorlog.zip",
+  },
 ] as const;
 
 export function ExportPanel({ exportData }: ExportPanelProps) {
@@ -120,7 +125,7 @@ export function ExportPanel({ exportData }: ExportPanelProps) {
           </h2>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {DOWNLOAD_ACTIONS.map((action) => (
             <a
               key={action.format}

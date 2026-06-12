@@ -24,7 +24,7 @@ const OVERALL_CELL_CLASSES: Record<AnalyticsOverallDayState, string> = {
 const BEHAVIOR_CELL_CLASSES: Record<AnalyticsBehaviorDayState, string> = {
   full: "border-line bg-primary text-primary-foreground",
   partial: "border-line bg-surface text-foreground",
-  not_done: "border-line bg-background text-foreground",
+  not_completed: "border-line bg-background text-foreground",
   unresolved: "border-line bg-surface text-muted-readable",
   empty: "border-line bg-background text-muted-readable",
 };
@@ -108,13 +108,13 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
           </p>
         </div>
 
-        {analytics.selectedDay.notDoneOccurrences.length === 0 ? (
+        {analytics.selectedDay.notCompletedOccurrences.length === 0 ? (
           <p className="mt-4 border border-line bg-background p-4 text-base leading-7 text-muted-readable">
             {analytics.selectedDay.emptyMessage}
           </p>
         ) : (
           <div className="mt-4 grid gap-3">
-            {analytics.selectedDay.notDoneOccurrences.map((occurrence) => (
+            {analytics.selectedDay.notCompletedOccurrences.map((occurrence) => (
               <article
                 key={occurrence.id}
                 className="border border-line bg-background p-4"
@@ -318,7 +318,7 @@ function BehaviorHeatmapCell({
         BEHAVIOR_CELL_CLASSES[cell.state],
       ].join(" ")}
     >
-      {cell.state === "partial" || cell.state === "not_done" ? (
+      {cell.state === "partial" || cell.state === "not_completed" ? (
         <DiagonalMark compact />
       ) : null}
     </span>
@@ -371,8 +371,8 @@ function StatusCountGrid({
         compact ? "grid-cols-1" : "sm:grid-cols-3",
       ].join(" ")}
     >
-      <CountItem label="Completed" value={counts.doneCount} />
-      <CountItem label="Not Completed" value={counts.notDoneCount} />
+      <CountItem label="Completed" value={counts.completedCount} />
+      <CountItem label="Not Completed" value={counts.notCompletedCount} />
       <CountItem label="Unresolved" value={counts.unresolvedCount} />
     </dl>
   );

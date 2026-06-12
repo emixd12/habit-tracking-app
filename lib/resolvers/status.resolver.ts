@@ -21,6 +21,16 @@ export type OccurrenceStatusUpdatePlan = {
   statusMarkedAt: string | null;
 };
 
+export type OccurrenceStatusEventPlan = {
+  previousStatus: OccurrenceStatus;
+  status: OccurrenceStatus;
+  statusSemantics: "explicit_user_mark" | "explicit_user_correction";
+  recordedAt: string;
+  effectiveAt: string | null;
+  sourceCaptureMethod: "manual_tap";
+  sourceConfidence: "high";
+};
+
 export type ResolveNoteUpdateInput = {
   note: string;
 };
@@ -45,13 +55,13 @@ export function resolveStatusTransition(
   const needsStatusMarkedAt =
     statusChanged || input.occurrence.statusMarkedAt === null;
   const needsCompletedAt =
-    input.nextStatus === "done" &&
+    input.nextStatus === "completed" &&
     (statusChanged || input.occurrence.completedAt === null);
 
   return {
     status: input.nextStatus,
     completedAt:
-      input.nextStatus === "done"
+      input.nextStatus === "completed"
         ? needsCompletedAt
           ? now
           : input.occurrence.completedAt
@@ -59,6 +69,35 @@ export function resolveStatusTransition(
     statusMarkedAt: needsStatusMarkedAt
       ? now
       : input.occurrence.statusMarkedAt,
+  };
+}
+
+export function resolveStatusEvent(
+  input: ResolveStatusTransitionInput & {
+    update: OccurrenceStatusUpdatePlan;
+  },
+): OccurrenceStatusEventPlan | null {
+  if (input.occurrence.status === input.update.status) {
+    return null;
+  }
+
+  const recordedAt = input.update.statusMarkedAt ?? input.now.toString();
+  const statusSemantics =
+    input.occurrence.status === "unresolved"
+      ? "explicit_user_mark"
+      : "explicit_user_correction";
+
+  return {
+    previousStatus: input.occurrence.status,
+    status: input.update.status,
+    statusSemantics,
+    recordedAt,
+    effectiveAt:
+      input.update.status === "completed"
+        ? input.update.completedAt
+        : input.update.statusMarkedAt,
+    sourceCaptureMethod: "manual_tap",
+    sourceConfidence: "high",
   };
 }
 

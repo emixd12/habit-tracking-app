@@ -5,7 +5,7 @@ import type {
   TimeRangePreset,
 } from "@/lib/types/schedule";
 
-export type ExportOccurrenceStatus = "unresolved" | "done" | "not_done";
+export type ExportOccurrenceStatus = "unresolved" | "completed" | "not_completed";
 
 export type ExportRangeKey = "7" | "30" | "90" | "all";
 
@@ -16,6 +16,10 @@ export type ExportRangeOption = {
 
 export type ExportProfileInput = {
   timezone: string;
+  subjectId: string;
+  locale?: string;
+  producerName?: string;
+  producerVersion?: string;
 };
 
 export type ExportCategoryInput = {
@@ -48,6 +52,7 @@ export type ExportBehaviorInput = {
 export type ExportOccurrenceInput = {
   id: string;
   behaviorId: string;
+  behaviorScheduleSlotId: string | null;
   scheduledFor: string;
   scheduledTimeLabel: string;
   scheduleKind: ScheduleKind;
@@ -63,6 +68,38 @@ export type ExportOccurrenceInput = {
   updatedAt?: string | null;
 };
 
+export type ExportStatusEventInput = {
+  id: string;
+  occurrenceId: string;
+  behaviorId: string;
+  previousStatus: ExportOccurrenceStatus | null;
+  status: ExportOccurrenceStatus;
+  statusSemantics:
+    | "explicit_user_mark"
+    | "explicit_user_correction"
+    | "imported_explicit"
+    | "system_rule_declared"
+    | "ambiguous_import";
+  recordedAt: string;
+  effectiveAt: string | null;
+  localDate: string;
+  timezone: string;
+  sourceCaptureMethod:
+    | "manual_tap"
+    | "manual_text"
+    | "system_generated"
+    | "imported"
+    | "inferred"
+    | "derived"
+    | "ai_generated"
+    | "unknown";
+  sourceConfidence: "high" | "medium" | "low" | "ambiguous" | "unknown";
+  revisesEventId: string | null;
+  reasonCode: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
 export type ExportDateRange = {
   key: ExportRangeKey;
   label: string;
@@ -72,8 +109,8 @@ export type ExportDateRange = {
 };
 
 export type ExportStatusCounts = {
-  doneCount: number;
-  notDoneCount: number;
+  completedCount: number;
+  notCompletedCount: number;
   unresolvedCount: number;
   resolvedCount: number;
   totalCount: number;
@@ -119,6 +156,7 @@ export type ExportJsonBehavior = {
 export type ExportJsonOccurrence = {
   id: string;
   behavior_id: string;
+  behavior_schedule_slot_id: string | null;
   behavior_title: string;
   category: string | null;
   scheduled_for: string;
@@ -128,12 +166,24 @@ export type ExportJsonOccurrence = {
   schedule_start_time: string;
   schedule_end_time: string | null;
   local_date: string;
+  timezone: string;
   status: ExportOccurrenceStatus;
   completed_at: string | null;
   status_marked_at: string | null;
   note: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+export type BehaviorLogFile = {
+  path: string;
+  mediaType: string;
+  content: string;
+};
+
+export type BehaviorLogBundle = {
+  fileName: string;
+  files: BehaviorLogFile[];
 };
 
 export type ExportBundle = {
@@ -154,4 +204,5 @@ export type ExportBundle = {
   markdownSummary: string;
   fileBaseName: string;
   markdownFileName: string;
+  behaviorLog: BehaviorLogBundle;
 };

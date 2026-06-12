@@ -24,7 +24,7 @@ type StatusButtonsProps = Readonly<{
   compact?: boolean;
 }>;
 
-type StatusButtonValue = Extract<TimelineStatus, "done" | "not_done">;
+type StatusButtonValue = Extract<TimelineStatus, "completed" | "not_completed">;
 type StatusFormAction = (formData: FormData) => void;
 
 const EMPTY_ACTION_STATE: OccurrenceActionState = {
@@ -107,14 +107,14 @@ export function StatusButtons({
       >
         <StatusSubmitForm
           occurrenceId={occurrenceId}
-          status="done"
+          status="completed"
           label="Completed"
           action={formAction}
           onStatusIntent={prepareForSubmittedStatus}
         />
         <StatusSubmitForm
           occurrenceId={occurrenceId}
-          status="not_done"
+          status="not_completed"
           label="Not Completed"
           action={formAction}
           onStatusIntent={prepareForSubmittedStatus}
@@ -167,7 +167,7 @@ function StatusSubmitButton({
   onStatusIntent: (status: StatusButtonValue) => void;
 }>) {
   const { pending } = useFormStatus();
-  const Icon = status === "done" ? Check : X;
+  const Icon = status === "completed" ? Check : X;
 
   return (
     <button
