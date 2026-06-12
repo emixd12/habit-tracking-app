@@ -628,6 +628,317 @@ Suggested files:
 
 ---
 
+## Ticket 018: BehaviorLog import persistence foundation
+
+Add the database and service foundation needed for auditable, idempotent
+BehaviorLog imports. This ticket should not import user data yet; it only
+creates the local persistence primitives that later create/merge/write tickets
+will use.
+
+Context:
+- Ticket 014 added BehaviorLog import validation dry-run.
+- Ticket 015 added a pinned upstream core conformance harness.
+- Ticket 016 added optional Level 2 CSV views.
+- Ticket 017 added export-only Intervention Profile support.
+- Upstream BehaviorLog reader guidance requires manifest-first validation,
+  privacy awareness, JSONL authority over CSV, unresolved preservation, and
+  clear explanation before destructive normalization.
+
+Acceptance criteria:
+- Add Supabase migrations for import tracking tables, likely:
+  - `behaviorlog_import_runs`
+  - `behaviorlog_import_record_mappings`
+- `behaviorlog_import_runs` records user-owned import metadata:
+  - bundle format and schema version
+  - manifest SHA-256 or bundle fingerprint
+  - producer name/version when present
+  - subject id strategy/privacy redaction level when present
+  - import mode
+  - dry-run summary snapshot
+  - status such as `previewed`, `applied`, `failed`, or `cancelled`
+  - started/completed timestamps
+- `behaviorlog_import_record_mappings` maps external BehaviorLog ids to local
+  Cadence ids by record type and import run.
+- Mapping rows support behavior, schedule, occurrence, status event, note, and
+  intervention record types even if later tickets only write a subset.
+- Add RLS policies for all new user-owned tables.
+- Add repository/service helpers for creating import runs and mappings.
+- Make mapping inserts idempotent for repeated import attempts from the same
+  bundle/import run.
+- Update `docs/DATA_MODEL.md`, `docs/EXPORT_FORMATS.md`, and generated database
+  types.
+- Do not write imported behaviors, schedules, occurrences, status events, notes,
+  or interventions in this ticket.
+- Do not add destructive restore, overwrite, delete, or deduplication writes.
+- Tests cover migration type shape or repository behavior where practical.
+
+Suggested files:
+- `supabase/migrations/*_add_behaviorlog_import_tracking.sql`
+- `lib/db/behaviorLogImports.repo.ts`
+- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/types/behaviorlog-import.ts`
+- `lib/db/database.types.ts`
+- `tests/behaviorlog-import-write.service.test.ts`
+- `docs/DATA_MODEL.md`
+- `docs/EXPORT_FORMATS.md`
+- `STATUS.md`
+
+---
+
+## Ticket 019: BehaviorLog create-only core import
+
+Implement a create-only BehaviorLog core import write path. This ticket may
+insert records that are clearly new, but it must not merge into existing local
+records, overwrite local data, delete data, or rely on CSV over JSONL.
+
+Context:
+- Ticket 018 provides import run and record mapping persistence.
+- BehaviorLog JSONL files remain authoritative over optional CSV views.
+- `status_events.jsonl` is authoritative for status history;
+  `occurrences.jsonl.current_status` is a convenience snapshot only.
+
+Acceptance criteria:
+- Add a service-level import apply path for mode `create_missing_only`.
+- Require a valid dry-run preview before applying writes.
+- Create missing behaviors from `data/behaviors.jsonl`.
+- Create compatible schedule slots from `data/schedules.jsonl`.
+- Create missing occurrences from `data/occurrences.jsonl`.
+- Append imported status events from `data/status_events.jsonl` into
+  `occurrence_status_events`.
+- Update `occurrences.status`, `completed_at`, and `status_marked_at` only after
+  appending imported status events and only according to the latest imported
+  event for that occurrence.
+- Preserve `unresolved` as `unresolved`; never convert silence into
+  `not_completed`.
+- If an occurrence snapshot is resolved but no supporting status event exists,
+  skip status writes or create an import warning unless source confidence and
+  status semantics safely support an imported explicit event.
+- Store all external-to-local id mappings in
+  `behaviorlog_import_record_mappings`.
+- Preserve source/provenance fields that Cadence can represent directly, and
+  record unmapped fields in preview warnings rather than silently dropping them.
+- Unsupported recurrence profiles are skipped with actionable warnings.
+- Imported schedules should stay within Cadence's supported recurrence and
+  schedule-slot model.
+- The write path is idempotent for repeated application of the same accepted
+  create-only plan.
+- Do not create merge behavior, overwrite behavior, restore behavior, user-facing
+  import UI, intervention writes, Context/Profile writes, Analytics Profile
+  writes, or CSV-only import.
+- Resolver/service tests cover behavior, schedule, occurrence, status-event,
+  mapping, idempotence, unresolved preservation, and unsupported recurrence
+  handling.
+
+Suggested files:
+- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/db/behaviorLogImports.repo.ts`
+- `lib/db/behaviors.repo.ts`
+- `lib/db/occurrences.repo.ts`
+- `lib/db/occurrenceStatusEvents.repo.ts`
+- `tests/behaviorlog-import-write.service.test.ts`
+- `tests/behaviorlog-import.resolver.test.ts`
+- `docs/EXPORT_FORMATS.md`
+- `docs/DATA_MODEL.md`
+- `docs/AGENT_RESOLVERS.md`
+- `STATUS.md`
+
+---
+
+## Ticket 020: BehaviorLog conflict-aware merge preview
+
+Extend the dry-run import planner into a merge planner that can identify likely
+matches and conflicts before any merge writes are allowed. This ticket should
+produce a user-reviewable plan only; it must not mutate product data.
+
+Context:
+- Ticket 014 dry-run can validate bundles and detect basic likely conflicts.
+- Ticket 019 creates only clearly new records.
+- Upstream BehaviorLog reader guidance says receiving apps should explain
+  destructive normalization before import.
+
+Acceptance criteria:
+- Add a merge-preview mode that compares imported records against local records.
+- Compare behaviors by external mapping id, title/category identity, source
+  original id, archive state, and compatible schedule shape.
+- Compare schedules by behavior mapping, recurrence profile, recurrence payload,
+  timezone, active dates, and schedule slot/window.
+- Compare occurrences by mapped behavior/schedule plus `scheduled_for_utc`,
+  `local_date`, and timezone.
+- Compare status events by external event id, occurrence mapping, recorded time,
+  status, semantics, and revision target.
+- Produce deterministic actions such as:
+  - `create_new`
+  - `map_to_existing`
+  - `skip_existing`
+  - `conflict_requires_decision`
+- Produce deterministic conflict codes and human-readable reasons.
+- Preserve BehaviorLog semantics:
+  - JSONL authority over CSV
+  - `status_events.jsonl` authority over `current_status`
+  - `unresolved` is not failure
+  - append-only status-event history
+- Include privacy profile and redaction-level summary in the preview output.
+- Preview optional notes and interventions but do not write them.
+- Save the accepted or generated merge preview to `behaviorlog_import_runs` only
+  if this can be done without mutating product records.
+- Do not insert, update, delete, merge, restore, overwrite, or deduplicate
+  product records in this ticket.
+- Tests cover each preview action, conflict reason stability, and status-event
+  authority over occurrence snapshots.
+
+Suggested files:
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `lib/services/behaviorlog-import.service.ts`
+- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/types/behaviorlog-import.ts`
+- `tests/behaviorlog-import.resolver.test.ts`
+- `tests/behaviorlog-import-merge-preview.test.ts`
+- `docs/EXPORT_FORMATS.md`
+- `docs/AGENT_RESOLVERS.md`
+- `STATUS.md`
+
+---
+
+## Ticket 021: BehaviorLog user-approved merge write
+
+Apply a previously generated, user-approved BehaviorLog merge plan. This ticket
+may create or map records according to explicit plan decisions, but it must not
+perform blind overwrite, destructive restore, deletion, or automatic conflict
+resolution.
+
+Context:
+- Ticket 020 produces conflict-aware merge previews.
+- Upstream BehaviorLog expects receiving apps to preserve source semantics and
+  explain destructive normalization before import.
+- Cadence stores status history append-only in `occurrence_status_events`.
+
+Acceptance criteria:
+- Add apply support for mode `merge_by_user_approved_plan`.
+- Require an import run and accepted merge plan generated by Ticket 020.
+- Refuse to apply plans with unresolved `conflict_requires_decision` actions.
+- For `create_new`, insert records using the same safeguards as Ticket 019.
+- For `map_to_existing`, create mapping rows without overwriting local behavior,
+  schedule, or occurrence fields unless the plan explicitly allows a safe field
+  fill such as setting an empty local note from an imported occurrence note.
+- Append imported status events that are not already mapped or duplicated.
+- Update occurrence current-status snapshots only after appending status events
+  and only when the imported event is the latest effective/recorded event by the
+  documented ordering rule.
+- Do not downgrade or replace an existing local explicit high-confidence status
+  event with an ambiguous or lower-confidence imported event.
+- Preserve `revises_event_id` when both source and target events are mapped.
+- Record every applied action and mapping in import tracking tables.
+- Make applying the same accepted plan idempotent.
+- Fail safely: a partial failure should leave an import run marked failed and
+  should not silently continue with inconsistent mappings.
+- Do not add blind overwrite, destructive restore, delete, intervention writes,
+  Context/Profile writes, Analytics Profile writes, CSV-only import, or provider
+  side effects.
+- Tests cover accepted-plan enforcement, conflict refusal, append-only status
+  history, snapshot update rules, idempotence, and lower-confidence event
+  protection.
+
+Suggested files:
+- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/db/behaviorLogImports.repo.ts`
+- `lib/db/occurrenceStatusEvents.repo.ts`
+- `lib/services/occurrence.service.ts`
+- `tests/behaviorlog-import-merge-write.test.ts`
+- `docs/EXPORT_FORMATS.md`
+- `docs/DATA_MODEL.md`
+- `docs/USER_FLOWS.md`
+- `STATUS.md`
+
+---
+
+## Ticket 022: BehaviorLog optional notes import
+
+Add limited note import support after core create/merge behavior is safe. This
+ticket should import only note shapes Cadence can represent without expanding
+the product into a general notes system.
+
+Context:
+- BehaviorLog notes can attach to behavior, occurrence, status event, or review.
+- Cadence currently supports notes on occurrences.
+- Upstream privacy guidance treats notes as sensitive attributed context.
+
+Acceptance criteria:
+- Parse and preview `data/notes.jsonl` with privacy/sensitivity labels.
+- Import occurrence-attached notes only when the target occurrence is created,
+  mapped, or otherwise safely identified.
+- If the local occurrence note is empty, allow the imported note body to fill it.
+- If the local occurrence note is non-empty and differs, require an explicit
+  merge-plan decision before changing it.
+- Do not import behavior notes, status-event notes, review notes, or AI-generated
+  notes into product data unless the data model and product docs are explicitly
+  expanded.
+- Preserve imported note source metadata in import mapping or import-run details
+  where possible.
+- Never treat notes as objective fact in analytics, status, or adherence logic.
+- Do not add a generalized notes table unless this ticket updates
+  `docs/DATA_MODEL.md` and the product docs accordingly.
+- Do not import restricted/high-sensitivity notes without surfacing the privacy
+  warning in the preview.
+- Tests cover empty-note import, existing-note conflict, unsupported note target
+  skip, sensitivity warnings, and no analytics/status side effects.
+
+Suggested files:
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/db/occurrences.repo.ts`
+- `tests/behaviorlog-import-notes.test.ts`
+- `docs/EXPORT_FORMATS.md`
+- `docs/DATA_MODEL.md`
+- `docs/USER_FLOWS.md`
+- `STATUS.md`
+
+---
+
+## Ticket 023: BehaviorLog Intervention Profile import preview
+
+Add import-preview support for optional BehaviorLog Intervention Profile
+records. This ticket should validate and preview `data/interventions.jsonl`, but
+it must not create active reminders, send notifications, call providers, or
+write to `reminder_deliveries`.
+
+Context:
+- Ticket 017 exports Cadence reminder deliveries as optional BehaviorLog
+  Intervention Profile records.
+- Upstream BehaviorLog defines interventions as reminders, prompts,
+  notifications, suppressions, snoozes, dismissals, delivery failures, and
+  related burden signals.
+- Cadence `reminder_deliveries` are operational delivery records, not passive
+  imported history.
+
+Acceptance criteria:
+- Parse optional `data/interventions.jsonl` when present in a BehaviorLog bundle.
+- Validate intervention JSONL parsing, supported record type, manifest hash,
+  delivery status, channel, and references to behavior/occurrence records.
+- Preview intervention counts by channel, delivery status, and linked behavior.
+- Mark interventions as `preview_only` unless a later ticket adds passive
+  imported intervention-history storage.
+- Warn if intervention records contain message bodies, raw endpoints, provider
+  secrets, subscription keys, recipient identifiers, or other sensitive
+  transport data.
+- Do not write interventions into `reminder_deliveries`.
+- Do not schedule, cancel, or send reminders.
+- Do not call Sequenzy, Web Push, browser APIs, provider SDKs, or notification
+  processing routes.
+- Do not add `csv/interventions.csv` unless a later ticket changes scope.
+- Tests cover valid intervention preview, missing references, unsupported
+  channel/status, sensitive-field warnings, and no import-write actions.
+
+Suggested files:
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `lib/types/behaviorlog-import.ts`
+- `tests/behaviorlog-import-interventions.test.ts`
+- `docs/EXPORT_FORMATS.md`
+- `docs/NOTIFICATION_SPEC.md`
+- `docs/AGENT_RESOLVERS.md`
+- `STATUS.md`
+
+---
+
 ## Deferred work
 
 PWA caching, offline timeline access, local pending status changes, and sync conflict handling are not part of the v1 ticket sequence.
