@@ -1011,10 +1011,79 @@ Verification:
 Remaining risk:
 - This ticket exposes a service/resolver dry-run pathway only. A user-facing import screen, authenticated API route, and any future merge/write behavior remain separate future work and should require product/data-model updates before implementation.
 
+### Ticket 015: BehaviorLog core conformance harness
+
+Status: complete.
+
+Implementation summary:
+- Added a pinned upstream `emixd12/BehaviorLog-Bundle` reference validator snapshot from commit `d3b3850ed6cd4fb243b091ae14baeb24fdd653e9` and recorded the snapshot source/date.
+- Added `scripts/behaviorlog-conformance.mjs` and `tests/behaviorlog-conformance.test.ts`; the test generates a Cadence BehaviorLog bundle through the export resolver, writes it as a temporary `.behaviorlog/` directory, runs the upstream validator snapshot, and confirms the same files remain readable by the dry-run import resolver.
+- Tightened BehaviorLog import validation so unknown top-level fields in core records are validation errors while still being reported in `unsupportedFields`.
+- Updated `docs/EXPORT_FORMATS.md` and `docs/AGENT_RESOLVERS.md` with the conformance harness and stricter import-validation contract.
+- No schema changes, UI routes, import writes, merge/restore behavior, optional profiles, or database mutations were added.
+
+Verification:
+- Pass: `npm run test -- tests/behaviorlog-conformance.test.ts tests/behaviorlog-import.resolver.test.ts`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (21 files, 122 tests).
+- Pass: `npm run build`
+
+Remaining risk:
+- The upstream BehaviorLog Bundle specification is still draft; future alignment should intentionally update `tests/fixtures/behaviorlog-reference/SNAPSHOT.md` and the vendored validator snapshot before changing conformance expectations.
+
+### Ticket 016: BehaviorLog Level 2 CSV views
+
+Status: complete.
+
+Implementation summary:
+- Ticket 016 implementation has started. The export resolver now emits optional `csv/behaviors.csv`, `csv/schedules.csv`, `csv/occurrences.csv`, and `csv/status_events.csv` BehaviorLog bundle views generated from the same normalized records as authoritative JSONL.
+- CSV files are listed in `manifest.json` as optional `text/csv` files with SHA-256 hashes and null schema references.
+- Tests now compare each CSV view to its JSONL source by record count and stable ID, and cover CSV escaping plus single-column JSON-string extension encoding.
+
+Verification:
+- Pass: `npm run test -- tests/export.resolver.test.ts tests/behaviorlog-conformance.test.ts tests/behaviorlog-import.resolver.test.ts`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run agents:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (21 files, 124 tests).
+- Pass: `npm run build`
+
+Remaining risk:
+- No known Ticket 016 blockers. Keep CSV as optional compatibility views and do not add import writes, merge/restore behavior, user-facing import UI, or optional BehaviorLog profiles unless a later ticket explicitly changes scope.
+
+### Ticket 017: BehaviorLog Intervention Profile export
+
+Status: complete.
+
+Implementation summary:
+- Ticket 017 implementation has started. The export service now loads user-scoped reminder deliveries for exported occurrence ids and passes sanitized delivery facts into the export resolver.
+- The BehaviorLog resolver now emits optional `data/interventions.jsonl` records when exported occurrences have reminder deliveries, advertises the optional `interventions` profile, adds an Intervention schema definition, and lists the file in `manifest.json` with SHA-256 hash and `required: false`.
+- Intervention records reference exported behaviors and occurrences, preserve channel, scheduled send time, sent time, delivery status, and sanitized failure reason, and keep Cadence delivery metadata under `extensions.app.cadence`.
+- No reminder processing behavior, provider sends, import writes, message-body export, user-facing import UI, schema migration, or notification-provider side effects were added.
+
+Verification:
+- Pass: `npm run test -- tests/export.resolver.test.ts tests/behaviorlog-conformance.test.ts tests/behaviorlog-import.resolver.test.ts` (24 focused tests).
+- Pass: `npm run typecheck`
+- Pass: `npm run lint`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run test` (21 files, 127 tests).
+- Pass: `npm run build`
+
+Remaining risk:
+- Import validation still ignores optional Intervention Profile records beyond manifest hash validation; any future intervention import or merge behavior needs a separate ticket and product/data-model update.
+
 ## Handoff notes
 
 - For the next coding agent: continue Ticket 013 from the Vercel environment/deployment blocker. Do not start deferred offline/PWA or future restore/import work unless the product docs change or the user explicitly brings it into scope.
 - Ticket 014 now captures the next BehaviorLog alignment milestone: import validation dry-run only. It should not perform merge/restore writes unless a later ticket explicitly expands scope.
+- Ticket 015 now captures the next BehaviorLog alignment milestone: core conformance harness against an upstream `emixd12/BehaviorLog-Bundle` reference snapshot. It should tighten validation/test infrastructure only and must not add import writes or optional profile expansion.
+- Ticket 016 now captures the next BehaviorLog alignment milestone: Level 2 optional CSV views inside the BehaviorLog bundle, with JSONL remaining authoritative.
+- Ticket 017 now captures the next BehaviorLog alignment milestone: export-only Intervention Profile support for reminder deliveries, with no import writes or provider side effects.
 - Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.
 - Run `npm run design-system:check` after changing reusable UI, the bench route, or design-system manifest/usage/config files.
 - Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.

@@ -439,6 +439,195 @@ Suggested files:
 
 ---
 
+## Ticket 015: BehaviorLog core conformance harness
+
+Add a BehaviorLog core conformance harness that proves Cadence can produce and
+read Level 1 core-compatible BehaviorLog bundles against the upstream
+`emixd12/BehaviorLog-Bundle` draft specification. This ticket should tighten
+validation and test infrastructure only. It must not add import writes,
+merge/restore behavior, user-facing import UI, or optional profile expansion.
+
+Context:
+- BehaviorLog export exists and emits `.behaviorlog.zip` bundles.
+- Ticket 014 added import validation dry-run logic.
+- The upstream BehaviorLog Bundle draft defines required core files, hashable
+  manifests, JSONL authority, app-neutral status vocabulary, append-only status
+  events, local-date/timezone semantics, and conformance levels.
+- The next alignment risk is drift between Cadence's generated bundles and the
+  upstream reference validator/conformance expectations.
+
+Acceptance criteria:
+- Add a conformance test or harness that generates a Cadence BehaviorLog bundle
+  from the existing export resolver and materializes it as a temporary
+  `.behaviorlog/` directory.
+- Run a local or vendored snapshot of the upstream BehaviorLog reference
+  validator against the generated bundle during tests.
+- Record the upstream source and exact commit or snapshot date used by the
+  harness, so future agents can intentionally update it.
+- Assert Cadence output passes core Level 1 checks for:
+  - required files
+  - manifest format and schema version
+  - required file hashes
+  - JSON and JSONL parseability
+  - duplicate ID detection
+  - behavior/schedule/occurrence/status-event references
+  - `occurrence_state`
+  - core status vocabulary
+  - `current_status` as snapshot only
+  - append-only status event history
+  - `local_date` plus IANA `timezone`
+  - app-specific fields only under `extensions`
+- Tighten Cadence import validation to match upstream conformance where needed.
+  In particular, unknown top-level fields in core records should be validation
+  errors, not silently importable records.
+- Preserve Ticket 014's dry-run boundary: the harness may validate and preview,
+  but it must not insert, update, delete, merge, restore, overwrite, or
+  deduplicate database rows.
+- Do not add optional BehaviorLog Intervention, Context, Review, Analytics, CSV,
+  PROV, RO-Crate, iCalendar, FHIR, or xAPI profile support in this ticket.
+- Update `docs/EXPORT_FORMATS.md` and `docs/AGENT_RESOLVERS.md` if the
+  conformance contract or import validation behavior changes.
+- Update `STATUS.md` with verification results when the ticket is implemented.
+
+Suggested files:
+- `tests/behaviorlog-conformance.test.ts`
+- `tests/fixtures/behaviorlog-reference/*`
+- `scripts/behaviorlog-conformance.mjs`
+- `lib/resolvers/export.resolver.ts`
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `tests/behaviorlog-import.resolver.test.ts`
+- `docs/EXPORT_FORMATS.md`
+- `docs/AGENT_RESOLVERS.md`
+- `STATUS.md`
+
+---
+
+## Ticket 016: BehaviorLog Level 2 CSV views
+
+Add optional CSV migration views to Cadence's BehaviorLog bundle so the app can
+advance from core Level 1 alignment toward the upstream
+`emixd12/BehaviorLog-Bundle` Level 2 conformance target. JSONL remains the
+authoritative data source; CSV files are compatibility views only.
+
+Context:
+- Ticket 015 added a pinned upstream reference validator snapshot and proves
+  Cadence can produce and dry-run read a Level 1 core-compatible bundle.
+- Cadence already has app-native occurrence CSV export, but the
+  `.behaviorlog.zip` bundle does not yet include BehaviorLog CSV migration
+  views.
+- Upstream BehaviorLog conformance defines Level 2 as core plus CSV views.
+
+Acceptance criteria:
+- Generate optional CSV files inside the BehaviorLog bundle:
+  - `csv/behaviors.csv`
+  - `csv/schedules.csv`
+  - `csv/occurrences.csv`
+  - `csv/status_events.csv`
+- Generate CSV rows from the same normalized BehaviorLog records used for the
+  corresponding JSONL files.
+- Preserve stable IDs in CSV columns so CSV rows can join back to JSONL records.
+- Keep JSONL authoritative. Import validation may ignore CSV files or validate
+  them as optional views, but it must not rely on CSV over JSONL.
+- Add all emitted CSV files to `manifest.json` with:
+  - `media_type: "text/csv"`
+  - `required: false`
+  - SHA-256 hashes
+  - a clear schema reference or null when no core JSON Schema definition exists
+- Ensure app-specific fields remain under `extensions` in JSONL; if extension
+  data appears in CSV, encode it as a single JSON string column rather than
+  expanding arbitrary producer fields into top-level CSV concepts.
+- Preserve the Ticket 015 conformance harness. The upstream Level 1 validator
+  should still pass when optional CSV files are present.
+- Add tests that compare each CSV view against its authoritative JSONL source
+  for record count and stable IDs.
+- Add CSV escaping tests for commas, quotes, and newlines in BehaviorLog CSV
+  views.
+- Do not add import writes, merge/restore behavior, user-facing import UI,
+  optional Intervention/Context/Review/Analytics profiles, PROV, RO-Crate,
+  iCalendar, FHIR, or xAPI support in this ticket.
+- Update `docs/EXPORT_FORMATS.md` and `docs/AGENT_RESOLVERS.md` if the
+  BehaviorLog bundle contract changes.
+- Update `STATUS.md` with verification results when the ticket is implemented.
+
+Suggested files:
+- `lib/resolvers/export.resolver.ts`
+- `tests/export.resolver.test.ts`
+- `tests/behaviorlog-conformance.test.ts`
+- `docs/EXPORT_FORMATS.md`
+- `docs/AGENT_RESOLVERS.md`
+- `STATUS.md`
+
+---
+
+## Ticket 017: BehaviorLog Intervention Profile export
+
+Add export-only BehaviorLog Intervention Profile support for Cadence reminder
+deliveries. This should map existing browser and email reminder-delivery records
+into optional `data/interventions.jsonl` records inside the `.behaviorlog.zip`
+bundle. This ticket must not add import writes, reminder behavior changes,
+message-body export, user-facing import UI, or notification-provider side
+effects.
+
+Context:
+- Ticket 015 proves Cadence can produce and dry-run read Level 1 core-compatible
+  BehaviorLog bundles.
+- Ticket 016 is planned to add optional Level 2 CSV migration views.
+- Upstream BehaviorLog maps browser/email reminder delivery into the
+  Intervention Profile and defines that profile as `data/interventions.jsonl`.
+- Cadence already stores reminder delivery facts in `reminder_deliveries`,
+  linked to occurrences.
+
+Acceptance criteria:
+- Export optional `data/interventions.jsonl` when the BehaviorLog bundle input
+  includes reminder deliveries.
+- Add emitted intervention files to `manifest.json` with:
+  - `media_type: "application/jsonl"`
+  - `required: false`
+  - SHA-256 hashes
+  - a schema reference for Intervention records when the local schema includes
+    one, otherwise a documented null reference
+- Map reminder deliveries without changing reminder processing behavior:
+  - `occurrence_id` links to the exported occurrence
+  - `behavior_id` links through the occurrence's behavior
+  - channel distinguishes browser push from email
+  - scheduled send time, sent time, delivery status, and failure reason are
+    preserved when present
+  - provider-specific or Cadence-specific values live under `extensions`
+- Do not export email bodies, push payload bodies, API keys, provider secrets,
+  raw endpoints, browser subscription keys, or other sensitive delivery
+  transport details.
+- Keep intervention records optional and profile-scoped; core JSONL remains
+  valid without them.
+- Preserve the Level 1 conformance harness. The pinned core validator should
+  still pass when optional intervention records are present.
+- Add tests that verify:
+  - reminder deliveries are exported as interventions
+  - intervention records reference existing behaviors and occurrences
+  - pending, sent, failed, and cancelled delivery statuses are represented
+  - sensitive transport details are not exported
+  - `manifest.json` lists and hashes `data/interventions.jsonl`
+- Add or update the BehaviorLog schema copy used in exported bundles so
+  Intervention records are self-described.
+- Do not add import handling for interventions beyond ignoring or warning about
+  the optional profile if current import validation encounters it.
+- Do not add Context, Review, Analytics, PROV, RO-Crate, iCalendar, FHIR, xAPI,
+  or research-profile support in this ticket.
+- Update `docs/EXPORT_FORMATS.md` and `docs/AGENT_RESOLVERS.md` if the
+  BehaviorLog bundle contract changes.
+- Update `STATUS.md` with verification results when the ticket is implemented.
+
+Suggested files:
+- `lib/types/export.ts`
+- `lib/services/export.service.ts`
+- `lib/resolvers/export.resolver.ts`
+- `tests/export.resolver.test.ts`
+- `tests/behaviorlog-conformance.test.ts`
+- `docs/EXPORT_FORMATS.md`
+- `docs/AGENT_RESOLVERS.md`
+- `STATUS.md`
+
+---
+
 ## Deferred work
 
 PWA caching, offline timeline access, local pending status changes, and sync conflict handling are not part of the v1 ticket sequence.

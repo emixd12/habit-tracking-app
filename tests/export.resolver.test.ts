@@ -12,6 +12,7 @@ import type {
   ExportBehaviorInput,
   ExportCategoryInput,
   ExportOccurrenceInput,
+  ExportReminderDeliveryInput,
   ExportStatusEventInput,
 } from "../lib/types/export";
 import { DEFAULT_TIMEZONE } from "../lib/types/recurrence";
@@ -95,10 +96,29 @@ function occurrence(
   };
 }
 
+function reminderDelivery(
+  overrides: Partial<ExportReminderDeliveryInput> &
+    Pick<ExportReminderDeliveryInput, "id">,
+): ExportReminderDeliveryInput {
+  return {
+    occurrenceId: "occurrence-1",
+    channel: "browser_push",
+    scheduledSendAt: "2026-06-08T12:45:00Z",
+    sentAt: null,
+    status: "pending",
+    error: null,
+    processingStartedAt: null,
+    createdAt: "2026-06-08T12:00:00Z",
+    updatedAt: "2026-06-08T12:00:00Z",
+    ...overrides,
+  };
+}
+
 function resolve(overrides: {
   behaviors?: ExportBehaviorInput[];
   occurrences?: ExportOccurrenceInput[];
   statusEvents?: ExportStatusEventInput[];
+  reminderDeliveries?: ExportReminderDeliveryInput[];
   range?: string | number | null;
   includeArchived?: boolean;
 } = {}) {
@@ -111,6 +131,7 @@ function resolve(overrides: {
     behaviors: overrides.behaviors ?? [behavior({ id: "behavior-brush" })],
     occurrences: overrides.occurrences ?? [occurrence({ id: "occurrence-1" })],
     statusEvents: overrides.statusEvents,
+    reminderDeliveries: overrides.reminderDeliveries,
     now: NOW,
     timezone: DEFAULT_TIMEZONE,
     range: overrides.range,
@@ -348,6 +369,10 @@ describe("resolveExportBundle", () => {
       "data/occurrences.jsonl",
       "data/status_events.jsonl",
       "data/notes.jsonl",
+      "csv/behaviors.csv",
+      "csv/schedules.csv",
+      "csv/occurrences.csv",
+      "csv/status_events.csv",
     ]);
     expect(manifest).toMatchObject({
       format: "behaviorlog.bundle",
@@ -401,6 +426,266 @@ describe("resolveExportBundle", () => {
         body_markdown: "Flossed too.",
       }),
     ]);
+  });
+
+  it("emits optional BehaviorLog CSV views that join back to authoritative JSONL records", () => {
+    const bundle = resolve({
+      statusEvents: [
+        {
+          id: "event-1",
+          occurrenceId: "occurrence-1",
+          behaviorId: "behavior-brush",
+          previousStatus: "unresolved",
+          status: "completed",
+          statusSemantics: "explicit_user_mark",
+          recordedAt: "2026-06-08T13:05:00Z",
+          effectiveAt: "2026-06-08T13:05:00Z",
+          localDate: "2026-06-08",
+          timezone: DEFAULT_TIMEZONE,
+          sourceCaptureMethod: "manual_tap",
+          sourceConfidence: "high",
+          revisesEventId: null,
+          reasonCode: null,
+        },
+      ],
+    });
+    const fileByPath = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file]),
+    );
+    const manifest = JSON.parse(fileByPath.get("manifest.json")?.content ?? "");
+    const manifestByPath = new Map(
+      manifest.files.map((file: Record<string, unknown>) => [file.path, file]),
+    );
+
+    const comparisons = [
+      {
+        jsonPath: "data/behaviors.jsonl",
+        csvPath: "csv/behaviors.csv",
+        idField: "behavior_id",
+      },
+      {
+        jsonPath: "data/schedules.jsonl",
+        csvPath: "csv/schedules.csv",
+        idField: "schedule_id",
+      },
+      {
+        jsonPath: "data/occurrences.jsonl",
+        csvPath: "csv/occurrences.csv",
+        idField: "occurrence_id",
+      },
+      {
+        jsonPath: "data/status_events.jsonl",
+        csvPath: "csv/status_events.csv",
+        idField: "event_id",
+      },
+    ];
+
+    for (const comparison of comparisons) {
+      const manifestEntry = manifestByPath.get(comparison.csvPath);
+      const csvFile = fileByPath.get(comparison.csvPath);
+      const jsonRecords = parseJsonl(
+        fileByPath.get(comparison.jsonPath)?.content ?? "",
+      );
+      const csvRows = parseCsv(csvFile?.content ?? "");
+
+      expect(manifestEntry).toMatchObject({
+        media_type: "text/csv",
+        required: false,
+        schema_ref: null,
+        sha256: sha256(csvFile?.content ?? ""),
+      });
+      expect(csvRows).toHaveLength(jsonRecords.length);
+      expect(csvRows.map((row) => row[comparison.idField])).toEqual(
+        jsonRecords.map((record) => String(record[comparison.idField])),
+      );
+    }
+  });
+
+  it("escapes BehaviorLog CSV view cells and keeps extension data in one JSON string column", () => {
+    const bundle = resolve({
+      behaviors: [
+        behavior({
+          id: "behavior-brush",
+          title: 'Brush, "teeth"\ncarefully',
+          description: 'Use "soft", circular strokes\nbefore bed.',
+          categoryName: "Grooming",
+        }),
+      ],
+    });
+    const behaviorsCsv =
+      bundle.behaviorLog.files.find((file) => file.path === "csv/behaviors.csv")
+        ?.content ?? "";
+    const [row] = parseCsv(behaviorsCsv);
+
+    expect(behaviorsCsv).toContain('"Brush, ""teeth""\ncarefully"');
+    expect(row.title).toBe('Brush, "teeth"\ncarefully');
+    expect(row.description).toBe('Use "soft", circular strokes\nbefore bed.');
+    expect(Object.keys(row)).toContain("extensions");
+    expect(Object.keys(row)).not.toContain("app.cadence");
+    expect(JSON.parse(row.extensions)).toMatchObject({
+      "app.cadence": {
+        category_name: "Grooming",
+        browser_reminder_enabled: true,
+      },
+    });
+  });
+
+  it("exports reminder deliveries as optional BehaviorLog intervention records", () => {
+    const bundle = resolve({
+      occurrences: [
+        occurrence({
+          id: "occurrence-1",
+          behaviorId: "behavior-brush",
+        }),
+        occurrence({
+          id: "occurrence-2",
+          behaviorId: "behavior-brush",
+          scheduledFor: "2026-06-08T14:00:00Z",
+        }),
+      ],
+      reminderDeliveries: [
+        reminderDelivery({
+          id: "delivery-pending",
+          occurrenceId: "occurrence-1",
+          channel: "browser_push",
+          status: "pending",
+          scheduledSendAt: "2026-06-08T12:45:00Z",
+        }),
+        reminderDelivery({
+          id: "delivery-sent",
+          occurrenceId: "occurrence-1",
+          channel: "email",
+          status: "sent",
+          scheduledSendAt: "2026-06-08T12:50:00Z",
+          sentAt: "2026-06-08T12:51:00Z",
+        }),
+        reminderDelivery({
+          id: "delivery-failed",
+          occurrenceId: "occurrence-2",
+          channel: "email",
+          status: "failed",
+          scheduledSendAt: "2026-06-08T13:40:00Z",
+          error:
+            "Provider rejected emma@example.com endpoint https://push.example/sub p256dh=secret-key auth=auth-key token=secret-token",
+        }),
+        reminderDelivery({
+          id: "delivery-cancelled",
+          occurrenceId: "occurrence-2",
+          channel: "browser_push",
+          status: "cancelled",
+          scheduledSendAt: "2026-06-08T13:45:00Z",
+        }),
+        reminderDelivery({
+          id: "delivery-outside-export",
+          occurrenceId: "occurrence-not-exported",
+        }),
+      ],
+    });
+    const fileByPath = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file]),
+    );
+    const manifest = JSON.parse(fileByPath.get("manifest.json")?.content ?? "");
+    const manifestEntry = manifest.files.find(
+      (file: Record<string, unknown>) =>
+        file.path === "data/interventions.jsonl",
+    );
+    const schema = JSON.parse(fileByPath.get("schema.json")?.content ?? "");
+    const interventions = parseJsonl(
+      fileByPath.get("data/interventions.jsonl")?.content ?? "",
+    );
+    const occurrenceIds = new Set(
+      parseJsonl(fileByPath.get("data/occurrences.jsonl")?.content ?? "").map(
+        (record) => record.occurrence_id,
+      ),
+    );
+    const behaviorIds = new Set(
+      parseJsonl(fileByPath.get("data/behaviors.jsonl")?.content ?? "").map(
+        (record) => record.behavior_id,
+      ),
+    );
+
+    expect(manifest.profiles).toEqual(["core", "interventions"]);
+    expect(manifestEntry).toMatchObject({
+      path: "data/interventions.jsonl",
+      media_type: "application/jsonl",
+      required: false,
+      schema_ref: "#/$defs/Intervention",
+      sha256: sha256(fileByPath.get("data/interventions.jsonl")?.content ?? ""),
+    });
+    expect(schema.$defs.Intervention).toMatchObject({
+      required: expect.arrayContaining([
+        "intervention_id",
+        "occurrence_id",
+        "behavior_id",
+        "channel",
+        "scheduled_send_at_utc",
+        "delivery_status",
+      ]),
+    });
+    expect(interventions.map((intervention) => intervention.intervention_id)).toEqual([
+      "delivery-pending",
+      "delivery-sent",
+      "delivery-failed",
+      "delivery-cancelled",
+    ]);
+    expect(interventions.map((intervention) => intervention.delivery_status)).toEqual([
+      "pending",
+      "sent",
+      "failed",
+      "cancelled",
+    ]);
+    expect(interventions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          intervention_id: "delivery-sent",
+          occurrence_id: "occurrence-1",
+          behavior_id: "behavior-brush",
+          channel: "email",
+          sent_at_utc: "2026-06-08T12:51:00Z",
+          failure_reason: null,
+        }),
+      ]),
+    );
+
+    for (const intervention of interventions) {
+      expect(occurrenceIds.has(intervention.occurrence_id)).toBe(true);
+      expect(behaviorIds.has(intervention.behavior_id)).toBe(true);
+      expect(intervention).not.toHaveProperty("message_body");
+      expect(intervention).not.toHaveProperty("endpoint");
+      expect(intervention).not.toHaveProperty("p256dh");
+      expect(intervention).not.toHaveProperty("auth");
+    }
+
+    const failedIntervention = interventions.find(
+      (intervention) => intervention.intervention_id === "delivery-failed",
+    );
+
+    expect(failedIntervention?.failure_reason).toContain("Provider rejected");
+    expect(failedIntervention?.failure_reason).not.toContain(
+      "https://push.example/sub",
+    );
+    expect(failedIntervention?.failure_reason).not.toContain(
+      "emma@example.com",
+    );
+    expect(failedIntervention?.failure_reason).not.toContain("secret-key");
+    expect(failedIntervention?.failure_reason).not.toContain("auth-key");
+    expect(failedIntervention?.failure_reason).not.toContain("secret-token");
+    expect(failedIntervention?.extensions).toMatchObject({
+      "app.cadence": {
+        reminder_delivery_id: "delivery-failed",
+      },
+    });
+  });
+
+  it("keeps BehaviorLog core valid when intervention records are absent", () => {
+    const bundle = resolve();
+    const fileByPath = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file]),
+    );
+    const manifest = JSON.parse(fileByPath.get("manifest.json")?.content ?? "");
+
+    expect(fileByPath.has("data/interventions.jsonl")).toBe(false);
+    expect(manifest.profiles).toEqual(["core"]);
   });
 
   it("synthesizes BehaviorLog status events for resolved legacy occurrences", () => {
@@ -602,4 +887,57 @@ function parseJsonl(content: string): Array<Record<string, unknown>> {
 
 function sha256(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+function parseCsv(content: string): Array<Record<string, string>> {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    const nextChar = content[index + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        cell += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+
+    if (char === "\n" && !inQuotes) {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+
+    if (char !== "\r" || inQuotes) {
+      cell += char;
+    }
+  }
+
+  row.push(cell);
+  rows.push(row);
+
+  const [headers = [], ...dataRows] = rows;
+
+  return dataRows
+    .filter((dataRow) => dataRow.some((value) => value.length > 0))
+    .map((dataRow) =>
+      Object.fromEntries(
+        headers.map((header, index) => [header, dataRow[index] ?? ""]),
+      ),
+    );
 }

@@ -549,6 +549,15 @@ function parseJsonlFile(input: {
           recordId: recordIdForUnsupportedField(parsed),
           fields: extraFields,
         });
+        input.errors.push({
+          severity: "error",
+          code: "unsupported_top_level_field",
+          message: `${input.file} row ${row} includes unsupported top-level field(s): ${extraFields.join(
+            ", ",
+          )}. Put custom fields under extensions.`,
+          file: input.file,
+          row,
+        });
       }
 
       return [{ file: input.file, row, record: parsed }];

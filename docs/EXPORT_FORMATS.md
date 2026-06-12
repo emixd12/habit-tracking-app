@@ -91,6 +91,11 @@ The BehaviorLog bundle is the interoperability export. It is downloaded as
 - `data/occurrences.jsonl`
 - `data/status_events.jsonl`
 - `data/notes.jsonl` when exported occurrences contain notes
+- `data/interventions.jsonl` when exported occurrences have reminder deliveries
+- `csv/behaviors.csv`
+- `csv/schedules.csv`
+- `csv/occurrences.csv`
+- `csv/status_events.csv`
 
 Core alignment rules:
 
@@ -101,6 +106,23 @@ Core alignment rules:
 - UTC timestamps are used for ordering events.
 - Required files are listed in `manifest.json` with SHA-256 hashes.
 - App-specific fields live under the `app.cadence` extension namespace.
+- Core record top-level fields must match the BehaviorLog core schema; custom
+  producer fields belong under `extensions`.
+- CSV files under `csv/` are optional Level 2 migration views. They are derived
+  from the matching authoritative JSONL records, include stable ID columns for
+  joins, and are listed in `manifest.json` as `required: false` with
+  `media_type: "text/csv"`.
+- If app-specific extension data appears in a CSV view, it is encoded in one
+  `extensions` JSON string column instead of expanding producer-specific fields
+  into top-level CSV columns.
+- Reminder deliveries are exported through the optional Intervention Profile as
+  `data/interventions.jsonl`. Intervention records reference exported
+  `behavior_id` and `occurrence_id`, preserve reminder channel, scheduled send
+  time, sent time, delivery status, and sanitized failure reason, and keep
+  Cadence-specific delivery metadata under `extensions.app.cadence`.
+- Intervention records must not include email bodies, push payload bodies, API
+  keys, provider secrets, raw push endpoints, browser subscription keys, or other
+  sensitive transport details.
 
 If a resolved occurrence has no internal status event, the exporter may emit a
 derived medium-confidence status event from the occurrence snapshot so legacy
@@ -134,6 +156,9 @@ Import validation rules:
   later.
 - Validate supported record types for behavior, schedule, occurrence,
   status-event, and optional note rows.
+- Reject unknown top-level fields in core records. The preview may still report
+  them in `unsupportedFields`, but the bundle is not valid unless custom fields
+  are moved under `extensions`.
 - Map parsed rows into an internal dry-run plan with records that would be
   created or skipped.
 - Detect likely conflicts with existing local behaviors, occurrences, and
@@ -145,6 +170,9 @@ Import validation rules:
 - Use `local_date` plus IANA `timezone` for day grouping and conflict preview.
 - Return counts, warnings, conflicts, unsupported fields, and skipped records in
   the preview.
+- Optional `data/interventions.jsonl` files may be hash-validated through the
+  manifest but are ignored by the current import dry-run. Import writes or
+  intervention merge behavior require a later product/data-model update.
 
 ## AI summary
 
@@ -206,3 +234,15 @@ The resolver should not query Supabase directly.
   resolver, validates hashes and JSONL rows, preserves status-event semantics,
   detects local conflicts, and does not synthesize history from
   `current_status`.
+- BehaviorLog core conformance materializes a resolver-generated bundle as a
+  temporary `.behaviorlog/` directory and runs the pinned upstream
+  `emixd12/BehaviorLog-Bundle` reference validator snapshot recorded in
+  `tests/fixtures/behaviorlog-reference/SNAPSHOT.md`.
+- BehaviorLog CSV views match their authoritative JSONL source record counts
+  and stable IDs, escape commas, quotes, and newlines, and keep extension data
+  in a single JSON string column.
+- BehaviorLog Intervention Profile export emits reminder deliveries as optional
+  `intervention` records, validates their references through the conformance
+  harness, represents pending/sent/failed/cancelled statuses, lists and hashes
+  `data/interventions.jsonl` in the manifest, and redacts sensitive transport
+  details.

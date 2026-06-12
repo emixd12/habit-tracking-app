@@ -12,6 +12,7 @@ import type {
   ExportBehaviorInput,
   ExportCategoryInput,
   ExportOccurrenceInput,
+  ExportReminderDeliveryInput,
   ExportStatusEventInput,
 } from "../lib/types/export";
 import { DEFAULT_TIMEZONE } from "../lib/types/recurrence";
@@ -131,9 +132,28 @@ function statusEvents(
   }));
 }
 
+function reminderDelivery(
+  overrides: Partial<ExportReminderDeliveryInput> = {},
+): ExportReminderDeliveryInput {
+  return {
+    id: "delivery-1",
+    occurrenceId: "occurrence-1",
+    channel: "email",
+    scheduledSendAt: "2026-06-08T12:45:00Z",
+    sentAt: "2026-06-08T12:46:00Z",
+    status: "sent",
+    error: null,
+    processingStartedAt: "2026-06-08T12:45:01Z",
+    createdAt: "2026-06-08T12:00:00Z",
+    updatedAt: "2026-06-08T12:46:00Z",
+    ...overrides,
+  };
+}
+
 function bundleFiles(input: {
   occurrences?: ExportOccurrenceInput[];
   statusEvents?: ExportStatusEventInput[];
+  reminderDeliveries?: ExportReminderDeliveryInput[];
 } = {}): BehaviorLogFile[] {
   return resolveExportBundle({
     profile: {
@@ -144,6 +164,7 @@ function bundleFiles(input: {
     behaviors: [behavior()],
     occurrences: input.occurrences ?? [occurrence()],
     statusEvents: input.statusEvents ?? statusEvents(),
+    reminderDeliveries: input.reminderDeliveries,
     now: NOW,
     timezone: DEFAULT_TIMEZONE,
     range: "30",
@@ -312,7 +333,40 @@ describe("resolveBehaviorLogImportPreview", () => {
     );
   });
 
-  it("reports unsupported top-level fields without rejecting otherwise valid rows", () => {
+  it("ignores optional intervention profile records during dry-run import", () => {
+    const files = bundleFiles({
+      reminderDeliveries: [reminderDelivery()],
+    });
+    const preview = resolveBehaviorLogImportPreview({ files });
+    const manifest = JSON.parse(
+      files.find((file) => file.path === "manifest.json")?.content ?? "{}",
+    );
+    const interventionFile = files.find(
+      (file) => file.path === "data/interventions.jsonl",
+    );
+    const interventionEntry = manifest.files.find(
+      (entry: Record<string, unknown>) =>
+        entry.path === "data/interventions.jsonl",
+    );
+
+    expect(interventionFile).toBeDefined();
+    expect(interventionEntry).toMatchObject({
+      required: false,
+      sha256: sha256(interventionFile?.content ?? ""),
+    });
+    expect(preview.valid).toBe(true);
+    expect(preview.summary).toMatchObject({
+      behaviorCount: 1,
+      scheduleCount: 1,
+      occurrenceCount: 1,
+      statusEventCount: 2,
+      noteCount: 1,
+      errorCount: 0,
+    });
+    expect(Object.keys(preview.plan)).not.toContain("interventions");
+  });
+
+  it("rejects unsupported top-level fields in core records", () => {
     const files = replaceJsonlRecords(
       bundleFiles(),
       "data/behaviors.jsonl",
@@ -324,8 +378,17 @@ describe("resolveBehaviorLogImportPreview", () => {
     );
     const preview = resolveBehaviorLogImportPreview({ files });
 
-    expect(preview.valid).toBe(true);
+    expect(preview.valid).toBe(false);
     expect(preview.summary.unsupportedFieldCount).toBe(1);
+    expect(preview.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unsupported_top_level_field",
+          file: "data/behaviors.jsonl",
+          row: 1,
+        }),
+      ]),
+    );
     expect(preview.unsupportedFields).toEqual([
       expect.objectContaining({
         file: "data/behaviors.jsonl",

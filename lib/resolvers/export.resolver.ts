@@ -17,6 +17,7 @@ import type {
   ExportProfileInput,
   ExportRangeKey,
   ExportRangeOption,
+  ExportReminderDeliveryInput,
   ExportStatusCounts,
   ExportStatusEventInput,
 } from "@/lib/types/export";
@@ -26,6 +27,74 @@ const BEHAVIORLOG_SCHEMA_VERSION = "0.1.0-draft";
 const BEHAVIORLOG_FORMAT = "behaviorlog.bundle";
 const BEHAVIORLOG_EXTENSION_NAMESPACE = "app.cadence";
 const BEHAVIORLOG_GENERATION_RULE_ID = "rule_recurrence_calendar_simple_v1";
+const BEHAVIORLOG_BEHAVIOR_CSV_COLUMNS = [
+  "record_type",
+  "behavior_id",
+  "title",
+  "description",
+  "category",
+  "success_definition",
+  "expected_duration_minutes",
+  "created_at_utc",
+  "archived_at_utc",
+  "source",
+  "sensitivity",
+  "extensions",
+] as const;
+const BEHAVIORLOG_SCHEDULE_CSV_COLUMNS = [
+  "record_type",
+  "schedule_id",
+  "behavior_id",
+  "recurrence_profile",
+  "recurrence",
+  "timezone",
+  "local_time",
+  "window_start_local",
+  "window_end_local",
+  "active_from_local_date",
+  "active_until_local_date",
+  "source",
+  "extensions",
+] as const;
+const BEHAVIORLOG_OCCURRENCE_CSV_COLUMNS = [
+  "record_type",
+  "occurrence_id",
+  "behavior_id",
+  "schedule_id",
+  "scheduled_for_utc",
+  "local_date",
+  "local_time",
+  "timezone",
+  "utc_offset_at_event",
+  "due_window_start_utc",
+  "due_window_end_utc",
+  "generated_at_utc",
+  "generation_rule_id",
+  "occurrence_state",
+  "current_status",
+  "source",
+  "extensions",
+] as const;
+const BEHAVIORLOG_STATUS_EVENT_CSV_COLUMNS = [
+  "record_type",
+  "event_id",
+  "occurrence_id",
+  "behavior_id",
+  "previous_status",
+  "status",
+  "status_semantics",
+  "recorded_at_utc",
+  "effective_at_utc",
+  "local_date",
+  "timezone",
+  "utc_offset_at_event",
+  "actor",
+  "source",
+  "note_id",
+  "revises_event_id",
+  "reason_code",
+  "extensions",
+] as const;
 
 export const EXPORT_RANGE_OPTIONS: ExportRangeOption[] = [
   { key: "7", label: "7 days" },
@@ -52,6 +121,7 @@ export type ResolveExportInput = {
   behaviors: ExportBehaviorInput[];
   occurrences: ExportOccurrenceInput[];
   statusEvents?: ExportStatusEventInput[];
+  reminderDeliveries?: ExportReminderDeliveryInput[];
   now: Temporal.Instant;
   timezone?: string;
   range?: string | number | null;
@@ -103,6 +173,7 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     behaviors,
     occurrences,
     statusEvents: input.statusEvents ?? [],
+    reminderDeliveries: input.reminderDeliveries ?? [],
   });
 
   return {
@@ -372,6 +443,7 @@ function toBehaviorLogBundle(input: {
   behaviors: ExportJsonBehavior[];
   occurrences: ExportJsonOccurrence[];
   statusEvents: ExportStatusEventInput[];
+  reminderDeliveries: ExportReminderDeliveryInput[];
 }): BehaviorLogBundle {
   const schemaContent = JSON.stringify(createBehaviorLogSchema(), null, 2);
   const readmeContent = createBehaviorLogReadme();
@@ -387,6 +459,10 @@ function toBehaviorLogBundle(input: {
     statusEvents: input.statusEvents,
     occurrences: input.occurrences,
     behaviors: input.behaviors,
+  });
+  const interventionRecords = toBehaviorLogInterventions({
+    reminderDeliveries: input.reminderDeliveries,
+    occurrences: input.occurrences,
   });
   const noteRecords = toBehaviorLogNotes(input.occurrences);
   const filesWithoutManifest: BehaviorLogFile[] = [
@@ -435,11 +511,29 @@ function toBehaviorLogBundle(input: {
     });
   }
 
+  if (interventionRecords.length > 0) {
+    filesWithoutManifest.push({
+      path: "data/interventions.jsonl",
+      mediaType: "application/jsonl",
+      content: toJsonlRecords(interventionRecords),
+    });
+  }
+
+  filesWithoutManifest.push(
+    ...toBehaviorLogCsvFiles({
+      behaviorRecords,
+      scheduleRecords: schedules.records,
+      occurrenceRecords,
+      statusEventRecords,
+    }),
+  );
+
   const manifestContent = JSON.stringify(
     createBehaviorLogManifest({
       exportedAt: input.exportedAtInstant.toString(),
       profile: input.profile,
       containsNotes: noteRecords.length > 0,
+      containsInterventions: interventionRecords.length > 0,
       files: filesWithoutManifest,
     }),
     null,
@@ -463,6 +557,7 @@ function createBehaviorLogManifest(input: {
   exportedAt: string;
   profile: ExportProfileInput;
   containsNotes: boolean;
+  containsInterventions: boolean;
   files: BehaviorLogFile[];
 }) {
   return {
@@ -489,7 +584,10 @@ function createBehaviorLogManifest(input: {
       contains_health_data: false,
       contains_ai_generated_content: false,
     },
-    profiles: input.containsNotes ? ["core", "notes"] : ["core"],
+    profiles: createBehaviorLogProfiles({
+      containsNotes: input.containsNotes,
+      containsInterventions: input.containsInterventions,
+    }),
     rules: {
       status_semantics: {
         unresolved:
@@ -595,6 +693,7 @@ function createBehaviorLogSchema() {
       { $ref: "#/$defs/Occurrence" },
       { $ref: "#/$defs/StatusEvent" },
       { $ref: "#/$defs/Note" },
+      { $ref: "#/$defs/Intervention" },
     ],
     $defs: {
       Source: source,
@@ -814,8 +913,50 @@ function createBehaviorLogSchema() {
           extensions,
         },
       },
+      Intervention: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "record_type",
+          "intervention_id",
+          "behavior_id",
+          "occurrence_id",
+          "intervention_type",
+          "channel",
+          "scheduled_send_at_utc",
+          "delivery_status",
+        ],
+        properties: {
+          record_type: { const: "intervention" },
+          intervention_id: { type: "string" },
+          behavior_id: { type: "string" },
+          occurrence_id: { type: "string" },
+          intervention_type: { type: "string", enum: ["reminder"] },
+          channel: { type: "string", enum: ["browser_push", "email"] },
+          scheduled_send_at_utc: timestamp,
+          sent_at_utc: { anyOf: [timestamp, { type: "null" }] },
+          delivery_status: {
+            type: "string",
+            enum: ["pending", "sent", "failed", "cancelled"],
+          },
+          failure_reason: { type: ["string", "null"] },
+          source,
+          extensions,
+        },
+      },
     },
   };
+}
+
+function createBehaviorLogProfiles(input: {
+  containsNotes: boolean;
+  containsInterventions: boolean;
+}): string[] {
+  return [
+    "core",
+    input.containsNotes ? "notes" : null,
+    input.containsInterventions ? "interventions" : null,
+  ].filter((profile): profile is string => Boolean(profile));
 }
 
 function toBehaviorLogBehavior(
@@ -1185,7 +1326,51 @@ function createBehaviorLogSource(input: {
     imported_from: null,
     confidence: input.confidence,
     transformation_notes: input.transformationNotes ?? null,
-  });
+    });
+}
+
+function toBehaviorLogInterventions(input: {
+  reminderDeliveries: ExportReminderDeliveryInput[];
+  occurrences: ExportJsonOccurrence[];
+}) {
+  const occurrenceById = new Map(
+    input.occurrences.map((occurrence) => [occurrence.id, occurrence]),
+  );
+
+  return [...input.reminderDeliveries]
+    .filter((delivery) => occurrenceById.has(delivery.occurrenceId))
+    .sort(compareReminderDeliveries)
+    .map((delivery) => {
+      const occurrence = occurrenceById.get(delivery.occurrenceId)!;
+
+      return omitNullish({
+        record_type: "intervention",
+        intervention_id: delivery.id,
+        behavior_id: occurrence.behavior_id,
+        occurrence_id: delivery.occurrenceId,
+        intervention_type: "reminder",
+        channel: delivery.channel,
+        scheduled_send_at_utc: formatUtc(delivery.scheduledSendAt),
+        sent_at_utc: formatOptionalUtc(delivery.sentAt),
+        delivery_status: delivery.status,
+        failure_reason: sanitizeInterventionFailureReason(delivery.error),
+        source: createBehaviorLogSource({
+          originalId: delivery.id,
+          captureMethod: "system_generated",
+          confidence: "high",
+        }),
+        extensions: {
+          [BEHAVIORLOG_EXTENSION_NAMESPACE]: omitNullish({
+            reminder_delivery_id: delivery.id,
+            processing_started_at_utc: formatOptionalUtc(
+              delivery.processingStartedAt,
+            ),
+            created_at_utc: formatOptionalUtc(delivery.createdAt),
+            updated_at_utc: formatOptionalUtc(delivery.updatedAt),
+          }),
+        },
+      });
+    });
 }
 
 function createBehaviorLogReadme(): string {
@@ -1195,7 +1380,7 @@ function createBehaviorLogReadme(): string {
     "This export contains BehaviorLog core records generated by Cadence Tracker.",
     "",
     "Read `manifest.json` first. JSONL files under `data/` are authoritative.",
-    "CSV and app-native exports, when present elsewhere, are derived views.",
+    "CSV files under `csv/`, when present, are derived compatibility views and should join back to JSONL records by stable ID.",
   ].join("\n");
 }
 
@@ -1212,6 +1397,7 @@ function createBehaviorLogAgentsMd(): string {
     "- Use `local_date` and `timezone` for day, week, and month analysis.",
     "- Use UTC timestamps for ordering events.",
     "- Prefer `status_events.jsonl` over `current_status` snapshots when analyzing history.",
+    "- Treat files under `csv/` as compatibility views only; JSONL files under `data/` remain authoritative.",
     "- Treat notes as attributed context, not objective fact.",
     "- Report unresolved counts when computing adherence.",
   ].join("\n");
@@ -1343,6 +1529,8 @@ function schemaRefForBehaviorLogPath(path: string): string | null {
       return "#/$defs/StatusEvent";
     case "data/notes.jsonl":
       return "#/$defs/Note";
+    case "data/interventions.jsonl":
+      return "#/$defs/Intervention";
     default:
       return null;
   }
@@ -1397,6 +1585,76 @@ function toJsonlRecords(records: unknown[]): string {
   return records.map((record) => JSON.stringify(record)).join("\n");
 }
 
+function toBehaviorLogCsvFiles(input: {
+  behaviorRecords: Record<string, unknown>[];
+  scheduleRecords: Record<string, unknown>[];
+  occurrenceRecords: Record<string, unknown>[];
+  statusEventRecords: Record<string, unknown>[];
+}): BehaviorLogFile[] {
+  return [
+    {
+      path: "csv/behaviors.csv",
+      mediaType: "text/csv",
+      content: toBehaviorLogCsv(
+        BEHAVIORLOG_BEHAVIOR_CSV_COLUMNS,
+        input.behaviorRecords,
+      ),
+    },
+    {
+      path: "csv/schedules.csv",
+      mediaType: "text/csv",
+      content: toBehaviorLogCsv(
+        BEHAVIORLOG_SCHEDULE_CSV_COLUMNS,
+        input.scheduleRecords,
+      ),
+    },
+    {
+      path: "csv/occurrences.csv",
+      mediaType: "text/csv",
+      content: toBehaviorLogCsv(
+        BEHAVIORLOG_OCCURRENCE_CSV_COLUMNS,
+        input.occurrenceRecords,
+      ),
+    },
+    {
+      path: "csv/status_events.csv",
+      mediaType: "text/csv",
+      content: toBehaviorLogCsv(
+        BEHAVIORLOG_STATUS_EVENT_CSV_COLUMNS,
+        input.statusEventRecords,
+      ),
+    },
+  ];
+}
+
+function toBehaviorLogCsv(
+  columns: readonly string[],
+  records: Record<string, unknown>[],
+): string {
+  return [
+    columns.join(","),
+    ...records.map((record) =>
+      columns.map((column) => escapeCsvCell(formatCsvValue(record[column]))).join(","),
+    ),
+  ].join("\n");
+}
+
+function formatCsvValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return JSON.stringify(value);
+}
+
 function sha256(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
 }
@@ -1415,6 +1673,40 @@ function compareStatusEvents(
   }
 
   return left.id.localeCompare(right.id);
+}
+
+function compareReminderDeliveries(
+  left: ExportReminderDeliveryInput,
+  right: ExportReminderDeliveryInput,
+): number {
+  const scheduledComparison = Temporal.Instant.compare(
+    Temporal.Instant.from(left.scheduledSendAt),
+    Temporal.Instant.from(right.scheduledSendAt),
+  );
+
+  if (scheduledComparison !== 0) {
+    return scheduledComparison;
+  }
+
+  return left.id.localeCompare(right.id);
+}
+
+function sanitizeInterventionFailureReason(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  return value
+    .replace(
+      /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+      "[redacted-email]",
+    )
+    .replace(/https?:\/\/[^\s)]+/gi, "[redacted-url]")
+    .replace(/\b(p256dh|auth)\s*[:=]\s*\S+/gi, "$1=[redacted-key]")
+    .replace(
+      /\b(api[_-]?key|token|secret|bearer)\s*[:=]\s*\S+/gi,
+      "$1=[redacted-secret]",
+    );
 }
 
 function omitNullish<T extends Record<string, unknown>>(input: T): T {

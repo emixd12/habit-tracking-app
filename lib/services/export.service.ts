@@ -14,6 +14,7 @@ import {
   listOccurrencesThroughLocalDate,
 } from "@/lib/db/occurrences.repo";
 import { listOccurrenceStatusEventsByOccurrenceIds } from "@/lib/db/occurrenceStatusEvents.repo";
+import { listReminderDeliveriesByOccurrenceIds } from "@/lib/db/reminderDeliveries.repo";
 import {
   resolveExportBundle,
   resolveExportDateRange,
@@ -36,9 +37,17 @@ import type {
   ExportCategoryInput,
   ExportOccurrenceInput,
   ExportOccurrenceStatus,
+  ExportReminderDeliveryChannel,
+  ExportReminderDeliveryInput,
+  ExportReminderDeliveryStatus,
   ExportStatusEventInput,
 } from "@/lib/types/export";
-import type { Category, Occurrence, OccurrenceStatusEvent } from "@/lib/types/database";
+import type {
+  Category,
+  Occurrence,
+  OccurrenceStatusEvent,
+  ReminderDelivery,
+} from "@/lib/types/database";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type {
   ScheduleKind,
@@ -142,6 +151,11 @@ async function getUserExportBundle(
     userId,
     occurrences.map((occurrence) => occurrence.id),
   );
+  const reminderDeliveries = await listReminderDeliveriesByOccurrenceIds(
+    supabase,
+    userId,
+    occurrences.map((occurrence) => occurrence.id),
+  );
 
   return resolveExportBundle({
     profile: {
@@ -155,11 +169,29 @@ async function getUserExportBundle(
     behaviors: behaviors.map(toExportBehaviorInput),
     occurrences: occurrences.map(toExportOccurrenceInput),
     statusEvents: statusEvents.map(toExportStatusEventInput),
+    reminderDeliveries: reminderDeliveries.map(toExportReminderDeliveryInput),
     now,
     timezone,
     range: range.key,
     includeArchived: options.includeArchived,
   });
+}
+
+function toExportReminderDeliveryInput(
+  delivery: ReminderDelivery,
+): ExportReminderDeliveryInput {
+  return {
+    id: delivery.id,
+    occurrenceId: delivery.occurrence_id,
+    channel: normalizeReminderChannel(delivery.channel),
+    scheduledSendAt: delivery.scheduled_send_at,
+    sentAt: delivery.sent_at,
+    status: normalizeReminderDeliveryStatus(delivery.status),
+    error: delivery.error,
+    processingStartedAt: delivery.processing_started_at,
+    createdAt: delivery.created_at,
+    updatedAt: delivery.updated_at,
+  };
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
@@ -361,6 +393,29 @@ function normalizeSourceConfidence(
   }
 
   throw new Error(`Unsupported source confidence: ${value}.`);
+}
+
+function normalizeReminderChannel(value: string): ExportReminderDeliveryChannel {
+  if (value === "browser_push" || value === "email") {
+    return value;
+  }
+
+  throw new Error(`Unsupported reminder channel: ${value}.`);
+}
+
+function normalizeReminderDeliveryStatus(
+  value: string,
+): ExportReminderDeliveryStatus {
+  if (
+    value === "pending" ||
+    value === "sent" ||
+    value === "failed" ||
+    value === "cancelled"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported reminder delivery status: ${value}.`);
 }
 
 function pseudonymousSubjectId(userId: string): string {

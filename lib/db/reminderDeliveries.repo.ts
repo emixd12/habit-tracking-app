@@ -71,6 +71,30 @@ export async function listDuePendingEmailReminderDeliveries(
   return data ?? [];
 }
 
+export async function listReminderDeliveriesByOccurrenceIds(
+  supabase: AppSupabaseClient,
+  userId: string,
+  occurrenceIds: string[],
+): Promise<ReminderDelivery[]> {
+  if (occurrenceIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("reminder_deliveries")
+    .select("*")
+    .eq("user_id", userId)
+    .in("occurrence_id", occurrenceIds)
+    .order("scheduled_send_at", { ascending: true })
+    .order("id", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
 export async function claimPendingEmailReminderDelivery(
   supabase: AppSupabaseClient,
   input: {

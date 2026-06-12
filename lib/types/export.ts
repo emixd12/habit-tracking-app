@@ -6,6 +6,12 @@ import type {
 } from "@/lib/types/schedule";
 
 export type ExportOccurrenceStatus = "unresolved" | "completed" | "not_completed";
+export type ExportReminderDeliveryChannel = "browser_push" | "email";
+export type ExportReminderDeliveryStatus =
+  | "pending"
+  | "sent"
+  | "failed"
+  | "cancelled";
 
 export type ExportRangeKey = "7" | "30" | "90" | "all";
 
@@ -96,6 +102,19 @@ export type ExportStatusEventInput = {
   sourceConfidence: "high" | "medium" | "low" | "ambiguous" | "unknown";
   revisesEventId: string | null;
   reasonCode: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type ExportReminderDeliveryInput = {
+  id: string;
+  occurrenceId: string;
+  channel: ExportReminderDeliveryChannel;
+  scheduledSendAt: string;
+  sentAt: string | null;
+  status: ExportReminderDeliveryStatus;
+  error: string | null;
+  processingStartedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };
