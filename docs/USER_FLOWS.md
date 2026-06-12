@@ -130,7 +130,10 @@ If an occurrence is unresolved after the end of its local day, it appears in the
 
 ## Behavior flow
 
-The Behaviors screen shows active behaviors first as compact cards.
+The Behaviors screen shows active behaviors first as compact unboxed records
+separated by quiet divider lines.
+Behavior description text appears in the record as a labeled Notes block
+without local divider lines.
 
 Behavior create/edit is accessible from the Behaviors page. When behaviors
 already exist, creation is opened from a simple in-page disclosure so the

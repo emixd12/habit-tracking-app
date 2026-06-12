@@ -220,7 +220,12 @@ function ScheduleRowEditor({
   const rangeName = `schedule_range_preset_${index}`;
 
   return (
-    <div className="grid gap-3 border border-line bg-background p-3">
+    <div
+      className={[
+        "grid gap-3",
+        index > 0 ? "border-t border-line pt-4" : "",
+      ].join(" ")}
+    >
       <input type="hidden" name={`schedule_slot_id_${index}`} value={row.id} />
 
       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">

@@ -88,7 +88,7 @@ function BehaviorSection({
       </div>
 
       {hasChildren ? (
-        <div className="grid gap-4">{children}</div>
+        <div className="grid divide-y divide-line">{children}</div>
       ) : (
         <p className="border border-line bg-surface p-5 text-base leading-7 text-muted-readable">
           {emptyMessage}
@@ -114,7 +114,7 @@ function BehaviorCard({
   const [hasOpenedEdit, setHasOpenedEdit] = useState(false);
 
   return (
-    <article className="border border-line bg-background">
+    <article className="bg-background">
       <div className="grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -154,13 +154,15 @@ function BehaviorCard({
       </div>
 
       {behavior.description ? (
-        <p className="border-t border-line px-5 py-4 text-sm leading-6 text-muted-readable">
-          {behavior.description}
-        </p>
+        <div className="grid gap-1 px-5 pb-3 text-sm leading-6">
+          <p className="font-bold text-foreground">Notes</p>
+          <p className="max-w-[75ch] break-words text-muted-readable">
+            {behavior.description}
+          </p>
+        </div>
       ) : null}
 
       <details
-        className="border-t border-line"
         onToggle={(event) => {
           if (event.currentTarget.open) {
             setHasOpenedEdit(true);
@@ -171,7 +173,7 @@ function BehaviorCard({
           Edit behavior
         </summary>
         {hasOpenedEdit ? (
-          <div className="border-t border-line p-5">
+          <div className="px-5 pb-5 pt-1">
             <BehaviorForm
               key={`${behavior.id}-${behavior.updatedAt}`}
               mode="edit"

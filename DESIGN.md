@@ -68,7 +68,7 @@ components:
     typography: "{typography.body}"
     rounded: "{rounded.none}"
     padding: "8px 12px"
-  behavior-card:
+  behavior-record:
     backgroundColor: "{colors.background}"
     textColor: "{colors.text}"
     typography: "{typography.title}"
@@ -195,7 +195,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Corner Style:** Square corners (0px).
 - **Background:** Bleached Newsprint for normal rows; Cold Surface for empty states, expanded details, and low-emphasis panels.
 - **Shadow Strategy:** No shadows.
-- **Border:** 1px Ash Line for behavior rows, important panels, and internal dividers. Timeline occurrence rows are unboxed list rows and do not use a perimeter border.
+- **Border:** 1px Ash Line for important panels, controls, and internal dividers. Behavior records and Timeline occurrence rows are unboxed list rows and do not use a perimeter border.
 - **Internal Padding:** 20px for behavior rows, 10-12px for compact Timeline occurrence rows, 64px for major page sections on desktop, 24px or less on mobile.
 
 ### Inputs / Fields
@@ -212,7 +212,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Recurrence presets:** Segmented radio labels use Monolith Blue fill only for the selected preset. Weekday choices use square bordered checkbox chips.
 - **Reminder section:** Render as an unframed form section matching Recurrence, with a plain section heading, bordered checkbox controls, and smaller muted subsection labels such as Reminder offset.
 - **Create behavior:** Keep the creation form available from the Behaviors page without making existing behavior records secondary. When records already exist, use a simple native disclosure; when no records exist, the disclosure may open by default.
-- **Behavior cards:** Active and archived records use flat 1px Ash Line rows, 20px padding, visible schedule/reminder metadata, and lazy-mounted inline disclosure for editing.
+- **Behavior records:** Active and archived records are unboxed list rows separated by a single 1px Ash Line divider between adjacent records. They keep 20px padding, visible schedule/reminder metadata, a labeled Notes block when description text exists, and lazy-mounted inline disclosure for editing. The Notes block has no divider lines immediately above or below it. Create and edit forms use real field/control borders only; schedule slots use quiet row dividers instead of perimeter boxes.
 - **Archive and restore actions:** Archive uses a factual button treatment with Rust Signal only on hover. Archived records stay visible with a neutral square label and a factual Restore action using the primary hover treatment.
 
 ### Navigation

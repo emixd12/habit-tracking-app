@@ -279,6 +279,12 @@ Each behavior card/list item should include:
 - Archive
 - Restore for archived behaviors
 
+Behavior records should not draw a perimeter border. Separate adjacent
+behaviors with a single quiet divider line, and keep borders only on real
+fields, controls, status labels, and action buttons.
+When a behavior has saved description text, show it as a small Notes block with
+a visible label and no divider lines immediately above or below that block.
+
 Archived behaviors should appear in a separate archived section and should not appear on the timeline.
 
 Category editing belongs in Settings.
