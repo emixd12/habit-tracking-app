@@ -388,6 +388,57 @@ Suggested files:
 
 ---
 
+## Ticket 014: BehaviorLog import validation dry-run
+
+Add a BehaviorLog import/validation pathway that can read a `.behaviorlog.zip`
+bundle, validate it, and produce a safe import preview. This ticket must not
+write imported data to the database.
+
+Context:
+- BehaviorLog export and internal `occurrence_status_events` history are already implemented.
+- Hosted Supabase has migration `20260612075036_add_occurrence_status_events.sql`.
+- Import work should preserve the distinction between occurrence current-status
+  snapshots and append-only status-event history.
+
+Acceptance criteria:
+- Add a pure BehaviorLog import resolver that accepts parsed bundle files and returns a validation/import preview plan.
+- Parse `.behaviorlog.zip` contents through a service or utility layer before passing structured records to the resolver.
+- Validate required files:
+  - `manifest.json`
+  - `schema.json`
+  - `README.md`
+  - `AGENTS.md`
+  - `data/behaviors.jsonl`
+  - `data/schedules.jsonl`
+  - `data/occurrences.jsonl`
+  - `data/status_events.jsonl`
+- Validate manifest SHA-256 hashes for every listed file.
+- Validate supported schema version and required record types.
+- Validate JSONL parsing errors with actionable row/file errors.
+- Map BehaviorLog behavior, schedule, occurrence, status-event, and optional note records into an internal import plan.
+- Detect likely conflicts against existing local behaviors, occurrences, and status events without mutating them.
+- Preserve status semantics including `explicit_user_mark`, `explicit_user_correction`, imported source confidence, and `revises_event_id`.
+- Treat `current_status` in `occurrences.jsonl` as a snapshot; status history comes from `status_events.jsonl`.
+- Use `local_date` and IANA `timezone` for day grouping and conflict preview.
+- Return a dry-run summary including counts, warnings, conflicts, unsupported fields, and records that would be created or skipped.
+- Do not add destructive merge, restore, overwrite, delete, or deduplication writes in this ticket.
+- Do not create a new primary navigation route unless product docs are explicitly updated first; a service-level dry-run or internal test harness is enough for this milestone.
+- Resolver logic is tested with a small fixture bundle produced by the existing export resolver.
+
+Suggested files:
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `lib/services/behaviorlog-import.service.ts`
+- `lib/services/zip.ts`
+- `lib/types/behaviorlog-import.ts`
+- `tests/behaviorlog-import.resolver.test.ts`
+- `tests/fixtures/behaviorlog/*.jsonl`
+- `docs/EXPORT_FORMATS.md`
+- `docs/DATA_MODEL.md`
+- `docs/AGENT_RESOLVERS.md`
+- `STATUS.md`
+
+---
+
 ## Deferred work
 
 PWA caching, offline timeline access, local pending status changes, and sync conflict handling are not part of the v1 ticket sequence.

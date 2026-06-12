@@ -220,6 +220,12 @@ Backfilled rows for pre-event resolved occurrences use
 `previous_status = 'unresolved'`, `status_semantics = 'explicit_user_mark'`,
 `source_capture_method = 'manual_tap'`, and `source_confidence = 'high'`.
 
+BehaviorLog import validation is dry-run only in the current import milestone.
+It may compare imported behavior, occurrence, and status-event records against
+local rows for a preview, but it must not insert, update, delete, merge,
+restore, overwrite, or deduplicate database records. Future import writes require
+a separate ticket and this data model must be updated first.
+
 ### `reminder_deliveries`
 
 ```sql

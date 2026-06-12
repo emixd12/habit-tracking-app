@@ -88,6 +88,12 @@ const resolverRegistry = [
     test: "tests/export.resolver.test.ts",
     source: "docs/EXPORT_FORMATS.md",
   },
+  {
+    domain: "behaviorlog import",
+    resolver: "lib/resolvers/behaviorlog-import.resolver.ts",
+    test: "tests/behaviorlog-import.resolver.test.ts",
+    source: "docs/EXPORT_FORMATS.md",
+  },
 ];
 
 const guide = read("docs/AGENT_RESOLVERS.md");
