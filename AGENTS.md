@@ -78,7 +78,7 @@ In scope:
 - Browser reminders enabled by default
 - Optional email reminders per behavior
 - Basic analytics
-- JSONL/CSV/full JSON export
+- JSONL/CSV/full JSON/BehaviorLog export
 
 Out of scope for v1:
 - Multi-user collaboration

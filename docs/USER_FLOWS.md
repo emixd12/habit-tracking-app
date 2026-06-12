@@ -59,7 +59,7 @@ Timeline order:
 
 Needs decision contains only prior-day unresolved occurrences. It is not a general past timeline.
 
-The Needs decision button is fixed to the lower right of the Timeline screen, shows the current number of prior unresolved occurrences, and opens a modal with the grouped prior-day occurrences.
+The Needs decision button is fixed to the lower right of the Timeline screen, shows the current number of prior unresolved occurrences, and opens a modal with the grouped prior-day occurrences. On mobile, it spans the lower safe-area width as one bottom action.
 The count and label sit on one continuous button surface without an internal divider.
 
 Users should not browse previous days as ordinary timeline sections in v1.
@@ -99,6 +99,7 @@ Evening, rather than the full clock range.
 Status text-link actions are underlined by default. All status action underlines use the same thin weight.
 
 Collapsed occurrence rows are compact and unboxed. They should not draw a perimeter border around each behavior row.
+On mobile, scheduled time and behavior title appear first, then status actions sit on a full-width touch row before any expanded details. Do not add a chevron or separate disclosure icon.
 
 Collapsed Completed cards show:
 - Scheduled time
@@ -199,6 +200,7 @@ The Export screen supports:
 - JSONL
 - CSV
 - Full JSON backup
+- BehaviorLog bundle
 - Markdown AI summary
 
 Exports should support download and copy where practical.

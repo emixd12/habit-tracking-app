@@ -17,7 +17,7 @@ export function Timeline({
   noteAction,
 }: TimelineProps) {
   return (
-    <div className="grid gap-8 pb-24">
+    <div className="grid gap-8 pb-32 sm:pb-24">
       <NeedsDecisionDialog
         title={timeline.needsDecision.title}
         occurrenceCount={timeline.needsDecision.occurrenceCount}

@@ -251,11 +251,11 @@ export type Database = {
             referencedColumns: ["user_id", "id", "behavior_id"]
           },
           {
-            foreignKeyName: "occurrence_status_events_revises_event_id_fkey"
-            columns: ["revises_event_id"]
+            foreignKeyName: "occurrence_status_events_revises_event_owner_fkey"
+            columns: ["user_id", "revises_event_id"]
             isOneToOne: false
             referencedRelation: "occurrence_status_events"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
@@ -599,3 +599,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

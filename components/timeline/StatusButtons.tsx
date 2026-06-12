@@ -102,7 +102,7 @@ export function StatusButtons({
         className={
           compact
             ? "flex flex-wrap items-center gap-x-4 gap-y-2"
-            : "flex flex-wrap items-center justify-start gap-x-4 gap-y-2 sm:justify-end"
+            : "flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 sm:w-auto sm:justify-end"
         }
       >
         <StatusSubmitForm
@@ -180,7 +180,7 @@ function StatusSubmitButton({
         onStatusIntent(status);
       }}
       className={[
-        "timeline-status-action inline-flex min-h-8 items-center justify-center gap-1.5 whitespace-nowrap border-0 bg-transparent px-0 py-1 text-sm font-bold underline decoration-1 underline-offset-4 disabled:text-muted-readable disabled:no-underline",
+        "timeline-status-action inline-flex min-h-11 items-center justify-center gap-1.5 whitespace-nowrap border-0 bg-transparent px-0 py-1 text-sm font-bold underline decoration-1 underline-offset-4 disabled:text-muted-readable disabled:no-underline sm:min-h-8",
         "text-foreground",
       ].join(" ")}
     >

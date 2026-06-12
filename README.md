@@ -25,7 +25,7 @@ A sparse personal behavior tracker web app:
 - Prior unresolved items grouped under **Needs decision**
 - Browser reminders on by default
 - Optional email reminders per behavior through Sequenzy
-- JSONL/CSV/full JSON export for AI-readable history
+- JSONL/CSV/full JSON and BehaviorLog bundle export for AI-readable history
 
 ## Agent checks
 

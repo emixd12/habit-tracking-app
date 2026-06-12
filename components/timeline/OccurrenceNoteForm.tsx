@@ -55,7 +55,7 @@ function SaveNoteButton() {
     <button
       type="submit"
       disabled={pending}
-      className="timeline-status-action inline-flex min-h-8 items-center justify-center border-0 bg-transparent px-0 py-1 text-sm font-bold text-foreground underline decoration-1 underline-offset-4 disabled:text-muted-readable disabled:no-underline"
+      className="timeline-status-action inline-flex min-h-11 items-center justify-center border-0 bg-transparent px-0 py-1 text-sm font-bold text-foreground underline decoration-1 underline-offset-4 disabled:text-muted-readable disabled:no-underline sm:min-h-8"
     >
       {pending ? "Saving..." : "Save note"}
     </button>

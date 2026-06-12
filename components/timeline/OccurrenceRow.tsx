@@ -38,6 +38,8 @@ export function OccurrenceRow({
   statusAction,
   noteAction,
 }: OccurrenceRowProps) {
+  const detailsId = `${occurrence.id}-details`;
+
   return (
     <article
       data-visual-tone={occurrence.visualTone}
@@ -46,9 +48,12 @@ export function OccurrenceRow({
         ROW_TONE_CLASSES[occurrence.visualTone],
       ].join(" ")}
     >
-      <div className="timeline-occurrence-row-grid grid gap-2 p-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-3">
-        <details className="group min-w-0 sm:col-start-1 sm:col-end-3 sm:row-start-1">
-          <summary className="grid cursor-pointer list-none grid-cols-[5.75rem_minmax(0,1fr)] items-center gap-1 sm:pr-72 [&::-webkit-details-marker]:hidden">
+      <div className="timeline-occurrence-row-grid grid gap-2 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <details
+          className="group min-w-0 sm:col-start-1 sm:col-end-3 sm:row-start-1"
+          aria-controls={detailsId}
+        >
+          <summary className="grid min-h-12 cursor-pointer list-none grid-cols-[4.75rem_minmax(0,1fr)] items-center gap-2 py-1 sm:min-h-0 sm:grid-cols-[5.75rem_minmax(0,1fr)] sm:gap-1 sm:py-0 sm:pr-72 [&::-webkit-details-marker]:hidden">
             <time
               dateTime={occurrence.scheduledFor}
               className={[
@@ -63,40 +68,10 @@ export function OccurrenceRow({
               {occurrence.title}
             </h3>
           </summary>
-
-          <div className="timeline-occurrence-details mt-4 grid gap-4 py-2 text-sm leading-6 text-muted-readable">
-            <DetailItem
-              label="Description"
-              value={occurrence.description || "No description."}
-            />
-            <DetailItem label="Category" value={occurrence.categoryName} />
-            <DetailItem label="Schedule" value={occurrence.scheduleSummary} />
-
-            {!occurrence.showDecisionActions ? (
-              <div className="grid gap-2">
-                <h4 className="font-bold text-foreground">
-                  {occurrence.expandedStatusActionLabel}
-                </h4>
-                <StatusButtons
-                  occurrenceId={occurrence.id}
-                  currentStatus={occurrence.status}
-                  action={statusAction}
-                  compact
-                />
-              </div>
-            ) : null}
-
-            <OccurrenceNoteForm
-              key={`${occurrence.id}-${occurrence.note}`}
-              occurrenceId={occurrence.id}
-              note={occurrence.note}
-              action={noteAction}
-            />
-          </div>
         </details>
 
         {occurrence.showDecisionActions ? (
-          <div className="timeline-occurrence-status sm:z-10 sm:col-start-2 sm:row-start-1 sm:self-center">
+          <div className="timeline-occurrence-status border-t border-line pt-2 sm:z-10 sm:col-start-2 sm:row-start-1 sm:self-center sm:border-t-0 sm:pt-0">
             <StatusButtons
               occurrenceId={occurrence.id}
               currentStatus={occurrence.status}
@@ -113,6 +88,39 @@ export function OccurrenceRow({
             {occurrence.statusLabel}
           </p>
         ) : null}
+
+        <div
+          id={detailsId}
+          className="timeline-occurrence-details mt-2 gap-4 border-t border-line pt-4 text-sm leading-6 text-muted-readable sm:col-start-1 sm:col-end-3 sm:mt-3 sm:py-2"
+        >
+          <DetailItem
+            label="Description"
+            value={occurrence.description || "No description."}
+          />
+          <DetailItem label="Category" value={occurrence.categoryName} />
+          <DetailItem label="Schedule" value={occurrence.scheduleSummary} />
+
+          {!occurrence.showDecisionActions ? (
+            <div className="grid gap-2">
+              <h4 className="font-bold text-foreground">
+                {occurrence.expandedStatusActionLabel}
+              </h4>
+              <StatusButtons
+                occurrenceId={occurrence.id}
+                currentStatus={occurrence.status}
+                action={statusAction}
+                compact
+              />
+            </div>
+          ) : null}
+
+          <OccurrenceNoteForm
+            key={`${occurrence.id}-${occurrence.note}`}
+            occurrenceId={occurrence.id}
+            note={occurrence.note}
+            action={noteAction}
+          />
+        </div>
       </div>
     </article>
   );

@@ -111,6 +111,34 @@ Supabase is initialized for local development. Ticket 003 added the first produc
 
 ## Post-ticket refinements
 
+### Timeline mobile adaptation
+
+Status: complete.
+
+Implementation summary:
+- Adapted the Timeline mobile layout while preserving the desktop ledger treatment.
+- Kept occurrence rows unboxed and kept native disclosure without adding a chevron or separate disclosure icon.
+- Moved mobile status actions into a full-width touch row before expanded details, increased mobile status and note action tap targets, made grouped stacks breathe more on mobile, and adapted the Needs decision button/modal for mobile safe areas.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `DESIGN.md` so the mobile Timeline behavior and no-chevron choice are documented.
+- Updated `design-system.usage.json` Timeline line references for the restructured occurrence row.
+- No schema, resolver, provider, reminder, export, analytics, or out-of-scope product behavior changes were added.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (19 files, 115 tests).
+- Pass: `npm run build`
+- Pass: `npm run design-system:check`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_inventory.py --root . --out /tmp/cadence-design-system.manifest.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Browser QA: `/design-system` at 390px width reported no horizontal overflow; closed occurrence details were hidden; the first status action measured 44px tall; expanding the occurrence row showed details as a grid with the status row before details and no chevron text detected; browser logs showed no warnings or errors.
+
+Remaining risk:
+- The in-app browser did not open the fixed Needs decision modal from the design-system bench trigger despite the trigger being visible and no console errors being present, so modal open/close interaction was not verified in browser QA during this pass.
+
 ### Behaviors page critique follow-up
 
 Status: complete.
@@ -919,6 +947,37 @@ Verification:
 
 Remaining risk:
 - Browser QA was not rerun because UI-visible labels and layout treatments did not change; hidden action values and status behavior were covered by resolver/UI-adjacent tests plus build and design-system checks.
+
+### BehaviorLog interoperability milestone 1
+
+Status: complete.
+
+Implementation summary:
+- Added internal `occurrence_status_events` history for explicit status marks and corrections, including same-user occurrence ownership, same-user `revises_event_id` ownership, RLS, and authenticated select/insert-only grants so normal app code treats the table as append-only.
+- Updated status transition planning so the resolver produces status-event semantics and the occurrence service persists the event after a status change.
+- Added BehaviorLog `.behaviorlog.zip` export generation with manifest hashes, schema, README, AGENTS guidance, behavior/schedule/occurrence/status-event JSONL files, optional notes JSONL, app-specific extension fields under `app.cadence`, and synthetic medium-confidence status events for resolved legacy rows that predate status-event history.
+- Added `/api/export/behaviorlog` and the Export screen download option while keeping JSONL, CSV, full JSON, and AI summary exports intact.
+- Updated product, data-model, route, resolver, UI, flow, decision, README, and AGENTS docs so current-status snapshots and append-only status history are distinct.
+
+Verification:
+- Pass: `npm run supabase -- db reset`
+- Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`
+- Pass: local `pg_policies` query confirmed only `SELECT` and `INSERT` RLS policies on `occurrence_status_events`.
+- Pass: local `information_schema.role_table_grants` query confirmed authenticated grants only `SELECT` and `INSERT` on `occurrence_status_events`.
+- Pass: `npm run test -- tests/status.resolver.test.ts tests/export.resolver.test.ts`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (19 files, 115 tests).
+- Pass: `npm run build`
+- Pass: `npm run design-system:check`
+- Pass: `npm run supabase -- db push --dry-run` would apply only `20260612075036_add_occurrence_status_events.sql`; hosted database was not changed.
+- Local render smoke: dev server rendered `/design-system` with the BehaviorLog bundle export control and returned 200; dev server was stopped after QA.
+
+Remaining risk:
+- Hosted Supabase still needs explicit user authorization before applying `20260612075036_add_occurrence_status_events.sql`.
+- Occurrence status update and status-event insert are orchestrated by the service as separate Supabase calls; the BehaviorLog exporter synthesizes a fallback event for resolved rows without a status-event row, but a future RPC could make the write path fully atomic.
 
 ## Handoff notes
 

@@ -139,9 +139,22 @@ button:disabled {
   outline-offset: 3px;
 }
 
-.timeline-status-action:not(:disabled):hover,
 .timeline-status-action:focus-visible {
   text-shadow: 0.02em 0 currentColor;
+}
+
+@media (hover: hover) {
+  .timeline-status-action:not(:disabled):hover {
+    text-shadow: 0.02em 0 currentColor;
+  }
+}
+
+.timeline-occurrence-details {
+  display: none;
+}
+
+.timeline-occurrence-row-grid:has(details[open]) .timeline-occurrence-details {
+  display: grid;
 }
 
 .timeline-occurrence-row:has(details[open]) {

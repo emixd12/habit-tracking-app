@@ -34,6 +34,8 @@ export function NeedsDecisionDialog({
     }
 
     closeButtonRef.current?.focus();
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -43,7 +45,10 @@ export function NeedsDecisionDialog({
 
     window.addEventListener("keydown", handleKeyDown);
 
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [isOpen]);
 
   function openDialog() {
@@ -66,7 +71,7 @@ export function NeedsDecisionDialog({
         aria-label={decisionButtonLabel(occurrenceCount)}
         onClick={openDialog}
         className={[
-          "fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] items-stretch border text-left transition-colors sm:bottom-6 sm:right-6",
+          "fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-40 flex items-stretch justify-between border text-left transition-colors sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-[calc(100vw-2rem)]",
           hasDecisions
             ? "border-line bg-primary text-primary-foreground hover:bg-foreground"
             : "border-line bg-background text-foreground hover:bg-surface",
@@ -78,7 +83,7 @@ export function NeedsDecisionDialog({
         >
           {occurrenceCount}
         </span>
-        <span className="grid min-h-14 content-center px-3 py-2">
+        <span className="grid min-h-14 flex-1 content-center px-3 py-2 sm:flex-none">
           <span className="text-sm font-bold leading-5">{title}</span>
           <span className="text-xs font-bold leading-5">
             {occurrenceCount} to decide
@@ -88,7 +93,7 @@ export function NeedsDecisionDialog({
 
       {isOpen ? (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-foreground/50 p-4"
+          className="fixed inset-0 z-50 grid bg-foreground/50 sm:place-items-center sm:p-4"
           onMouseDown={handleBackdropClick}
         >
           <section
@@ -97,9 +102,9 @@ export function NeedsDecisionDialog({
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={descriptionId}
-            className="grid max-h-[calc(100dvh-2rem)] w-[min(920px,100%)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden border border-line bg-background text-foreground"
+            className="grid h-dvh w-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-background text-foreground sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[min(920px,100%)] sm:border sm:border-line"
           >
-            <header className="border-b border-line bg-background p-4 sm:p-5">
+            <header className="border-b border-line bg-background p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <p
@@ -122,7 +127,7 @@ export function NeedsDecisionDialog({
                   aria-label="Close Needs decision"
                   title="Close"
                   onClick={() => setIsOpen(false)}
-                  className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center border border-line bg-background text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center border border-line bg-background text-foreground transition-colors hover:bg-primary hover:text-primary-foreground sm:min-h-10 sm:min-w-10"
                 >
                   <X aria-hidden="true" size={18} strokeWidth={2.5} />
                 </button>
@@ -133,7 +138,7 @@ export function NeedsDecisionDialog({
               </p>
             </header>
 
-            <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
+            <div className="min-h-0 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">
               {children}
             </div>
           </section>

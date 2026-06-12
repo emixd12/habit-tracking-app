@@ -17,6 +17,10 @@ Needs decision is a derived UI state for prior-day unresolved occurrences, not a
 
 The UI labels `completed` as Completed and `not_completed` as Not Completed.
 
+Occurrence rows keep a current-status snapshot. Internal
+`occurrence_status_events` rows store explicit status history for auditability
+and BehaviorLog interoperability.
+
 ## Primary route
 
 Use Timeline as the primary screen.

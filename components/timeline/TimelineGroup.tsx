@@ -99,7 +99,7 @@ function OccurrenceStack({
 
   return (
     <div
-      className="grid gap-1 bg-surface p-1"
+      className="grid gap-2 bg-surface p-2 sm:gap-1 sm:p-1"
       aria-label={`${group.title} scheduled times`}
     >
       <p className="px-2 py-1 text-sm font-bold leading-6 text-muted-readable">

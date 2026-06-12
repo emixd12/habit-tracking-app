@@ -84,6 +84,7 @@ The floating button should:
 - Use the primary action treatment when there is at least one occurrence to decide.
 - Remain factual and non-punitive. Do not use error styling or missed/failure language.
 - Use one continuous surface without an internal divider between the number and text.
+- On mobile, span the lower safe-area width as one bottom action so it stays easy to reach without covering the feed.
 - Open a modal that reveals all prior unresolved occurrences grouped by local day.
 
 Example:
@@ -158,11 +159,12 @@ Collapsed card should show:
 Preset time-range occurrences should use the short preset label in collapsed
 Timeline rows, such as Morning or Evening, without the full clock range.
 
-Status text-link actions should be underlined by default with the same thin underline. On hover or keyboard focus, the action text may gain non-reflowing emphasis without changing color or moving adjacent actions. Do not use underline thickness to indicate a saved status.
+Status text-link actions should be underlined by default with the same thin underline. On hover-capable devices or keyboard focus, the action text may gain non-reflowing emphasis without changing color or moving adjacent actions. Do not use underline thickness to indicate a saved status.
 
 Occurrence rows should read as compact unboxed list rows. Do not draw a perimeter border around each Timeline behavior row.
 
 In collapsed rows, the scheduled time, behavior title, and collapsed status/action text should be vertically centered within the row. Expanded rows may pin the status controls to the top-right so the details panel can span the row below.
+On mobile, keep scheduled time and behavior title first, then place Completed and Not Completed on their own full-width touch row before expanded details. Mobile status and note actions should have at least a 44px tap target while still looking like underlined text actions. Do not add a chevron or separate disclosure icon.
 
 Expanded card details should show:
 - Description if present
@@ -321,6 +323,7 @@ Show:
 - Export JSONL
 - Export CSV
 - Export full JSON backup
+- Export BehaviorLog bundle
 - Copy AI summary
 - Download AI summary as `.md`
 

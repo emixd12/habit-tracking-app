@@ -132,6 +132,7 @@ The app must provide:
 - JSONL export
 - CSV export
 - Full JSON backup
+- BehaviorLog bundle export
 - Markdown AI summary
 
 Exports should include:
@@ -139,6 +140,7 @@ Exports should include:
 - Categories
 - Occurrences
 - Statuses
+- Status event history
 - Notes
 
 ## Offline and PWA behavior
@@ -158,7 +160,7 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - Browser reminders by default
 - Optional email reminders
 - Basic analytics
-- JSONL/CSV/full JSON export
+- JSONL/CSV/full JSON/BehaviorLog export
 
 ## Out of scope
 

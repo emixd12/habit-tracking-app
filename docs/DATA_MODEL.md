@@ -176,15 +176,35 @@ create table occurrence_status_events (
   local_date date not null,
   timezone text not null default 'America/New_York',
 
-  source_capture_method text not null default 'manual_tap',
-  source_confidence text not null default 'high',
-  revises_event_id uuid references occurrence_status_events(id) on delete set null,
+  source_capture_method text not null default 'manual_tap'
+    check (source_capture_method in (
+      'manual_tap',
+      'manual_text',
+      'system_generated',
+      'imported',
+      'inferred',
+      'derived',
+      'ai_generated',
+      'unknown'
+    )),
+  source_confidence text not null default 'high'
+    check (source_confidence in (
+      'high',
+      'medium',
+      'low',
+      'ambiguous',
+      'unknown'
+    )),
+  revises_event_id uuid,
   reason_code text,
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
   unique (user_id, id),
+  foreign key (user_id, revises_event_id)
+    references occurrence_status_events(user_id, id)
+    on delete set null (revises_event_id),
   foreign key (user_id, occurrence_id, behavior_id)
     references occurrences(user_id, id, behavior_id)
     on delete cascade
@@ -196,9 +216,9 @@ alignment. On first manual resolution, store `explicit_user_mark`. When a user
 changes one resolved status to another, store `explicit_user_correction` and
 link `revises_event_id` to the latest prior status event for that occurrence.
 
-Backfilled rows for pre-event resolved occurrences use `previous_status =
-'unresolved'`, `status_semantics = 'explicit_user_mark'`, `source_capture_method
-= 'manual_tap'`, and `source_confidence = 'high'`.
+Backfilled rows for pre-event resolved occurrences use
+`previous_status = 'unresolved'`, `status_semantics = 'explicit_user_mark'`,
+`source_capture_method = 'manual_tap'`, and `source_confidence = 'high'`.
 
 ### `reminder_deliveries`
 
@@ -260,6 +280,11 @@ For every user-owned table:
 - Insert only where `user_id = auth.uid()`
 - Update only where `user_id = auth.uid()`
 - Delete only where `user_id = auth.uid()`
+
+Exception: `occurrence_status_events` is append-only for normal app code. It
+allows authenticated select and insert for owned rows, but does not expose
+authenticated update or delete policies. Database-level cascades may still
+remove events when their owning occurrence is removed.
 
 For `profiles`, use `id = auth.uid()` because the primary key is the authenticated user's id.
 

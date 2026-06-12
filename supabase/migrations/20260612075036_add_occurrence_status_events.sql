@@ -54,13 +54,17 @@ create table public.occurrence_status_events (
         'unknown'
       )
     ),
-  revises_event_id uuid references public.occurrence_status_events(id) on delete set null,
+  revises_event_id uuid,
   reason_code text,
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
   unique (user_id, id),
+  constraint occurrence_status_events_revises_event_owner_fkey
+    foreign key (user_id, revises_event_id)
+    references public.occurrence_status_events(user_id, id)
+    on delete set null (revises_event_id),
   constraint occurrence_status_events_occurrence_owner_fkey
     foreign key (user_id, occurrence_id, behavior_id)
     references public.occurrences(user_id, id, behavior_id)
@@ -96,18 +100,8 @@ create policy occurrence_status_events_insert_own
   to authenticated
   with check ((select auth.uid()) = user_id);
 
-create policy occurrence_status_events_update_own
-  on public.occurrence_status_events for update
-  to authenticated
-  using ((select auth.uid()) = user_id)
-  with check ((select auth.uid()) = user_id);
-
-create policy occurrence_status_events_delete_own
-  on public.occurrence_status_events for delete
-  to authenticated
-  using ((select auth.uid()) = user_id);
-
-grant select, insert, update, delete on table public.occurrence_status_events to authenticated;
+revoke all on table public.occurrence_status_events from authenticated;
+grant select, insert on table public.occurrence_status_events to authenticated;
 
 insert into public.occurrence_status_events (
   user_id,
