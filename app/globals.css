@@ -144,6 +144,34 @@ button:disabled {
   text-shadow: 0.02em 0 currentColor;
 }
 
+.timeline-occurrence-row:has(details[open]) {
+  background: var(--timeline-row-hover);
+}
+
+.timeline-occurrence-row[data-visual-tone="needs_decision"]:has(details[open]) {
+  background: var(--timeline-needs-decision-hover);
+}
+
+.timeline-occurrence-row[data-visual-tone="done"]:has(details[open]) {
+  background: var(--timeline-completed-hover);
+}
+
+.timeline-occurrence-row[data-visual-tone="done"]:has(details[open])
+  .timeline-occurrence-details,
+.timeline-occurrence-row[data-visual-tone="done"]:has(details[open])
+  .timeline-occurrence-details h4,
+.timeline-occurrence-row[data-visual-tone="done"]:has(details[open])
+  .timeline-occurrence-details label,
+.timeline-occurrence-row[data-visual-tone="done"]:has(details[open])
+  .timeline-occurrence-details .timeline-status-action {
+  color: var(--primary-foreground);
+}
+
+.timeline-occurrence-row[data-visual-tone="done"]:has(details[open])
+  .timeline-occurrence-details textarea {
+  color: var(--foreground);
+}
+
 @media (width >= 40rem) {
   .timeline-occurrence-row-grid:has(details[open]) {
     align-items: start;

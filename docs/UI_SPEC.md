@@ -183,6 +183,13 @@ Not Completed cards should remain visible with the original unresolved card trea
 Clicking a Completed card should reveal the option to change the logged action. Do not require a confirmation step before changing a status.
 
 Notes, category, description, and schedule details are hidden by default and revealed when the user clicks the card outside the status actions.
+Expanded details should sit directly on the background surface without a grey
+panel, enclosing border, or boxed card treatment. The Note textarea keeps its
+field border, but Save note uses the same underlined text-action vocabulary as
+Completed and Not Completed.
+When an occurrence is open, the whole occurrence row should hold the same blue
+background used by that row's hover state so the expanded content remains
+visually attached to the behavior.
 
 Status action behavior:
 - Completed changes status to `done`

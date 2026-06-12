@@ -124,6 +124,11 @@ Expanded cards show:
 - Note field
 - Option to change a Completed status
 
+Expanded details sit on the normal page background. The note save action is an
+underlined text action, matching the Completed and Not Completed controls.
+An expanded occurrence holds the same blue background used on row hover, rather
+than adding a separate details box.
+
 Categories are visible only in expanded card details.
 
 If an occurrence is unresolved after the end of its local day, it appears in the Needs decision modal and is visually highlighted. This is a derived UI state based on date and `unresolved`; it must not write a different stored status.

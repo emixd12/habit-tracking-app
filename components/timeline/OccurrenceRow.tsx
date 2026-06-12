@@ -26,13 +26,6 @@ const TIME_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = 
   not_done: "text-muted-readable",
 };
 
-const DETAIL_TONE_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
-  default: "border-line bg-surface text-muted-readable",
-  needs_decision: "border-line bg-background text-muted-readable",
-  done: "border-line bg-background text-muted-readable",
-  not_done: "border-line bg-surface text-muted-readable",
-};
-
 const RESOLVED_LABEL_CLASSES: Record<TimelineOccurrenceView["visualTone"], string> = {
   default: "text-muted-readable",
   needs_decision: "text-foreground",
@@ -47,8 +40,9 @@ export function OccurrenceRow({
 }: OccurrenceRowProps) {
   return (
     <article
+      data-visual-tone={occurrence.visualTone}
       className={[
-        "transition-colors",
+        "timeline-occurrence-row transition-colors",
         ROW_TONE_CLASSES[occurrence.visualTone],
       ].join(" ")}
     >
@@ -70,12 +64,7 @@ export function OccurrenceRow({
             </h3>
           </summary>
 
-          <div
-            className={[
-              "mt-4 grid gap-4 border-t p-4 text-sm leading-6",
-              DETAIL_TONE_CLASSES[occurrence.visualTone],
-            ].join(" ")}
-          >
+          <div className="timeline-occurrence-details mt-4 grid gap-4 py-2 text-sm leading-6 text-muted-readable">
             <DetailItem
               label="Description"
               value={occurrence.description || "No description."}
