@@ -71,7 +71,7 @@ export function OccurrenceRow({
         </details>
 
         {occurrence.showDecisionActions ? (
-          <div className="timeline-occurrence-status border-t border-line pt-2 sm:z-10 sm:col-start-2 sm:row-start-1 sm:self-center sm:border-t-0 sm:pt-0">
+          <div className="timeline-occurrence-status pt-1 sm:z-10 sm:col-start-2 sm:row-start-1 sm:self-center sm:pt-0">
             <StatusButtons
               occurrenceId={occurrence.id}
               currentStatus={occurrence.status}

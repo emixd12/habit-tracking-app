@@ -119,6 +119,7 @@ Implementation summary:
 - Adapted the Timeline mobile layout while preserving the desktop ledger treatment.
 - Kept occurrence rows unboxed and kept native disclosure without adding a chevron or separate disclosure icon.
 - Moved mobile status actions into a full-width touch row before expanded details, increased mobile status and note action tap targets, made grouped stacks breathe more on mobile, and adapted the Needs decision button/modal for mobile safe areas.
+- Browser-comment follow-up removed the mobile divider between the occurrence time/title row and the Completed/Not Completed action row while preserving the mobile touch row spacing.
 - Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `DESIGN.md` so the mobile Timeline behavior and no-chevron choice are documented.
 - Updated `design-system.usage.json` Timeline line references for the restructured occurrence row.
 - No schema, resolver, provider, reminder, export, analytics, or out-of-scope product behavior changes were added.
@@ -135,6 +136,9 @@ Verification:
 - Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`
 - Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
 - Browser QA: `/design-system` at 390px width reported no horizontal overflow; closed occurrence details were hidden; the first status action measured 44px tall; expanding the occurrence row showed details as a grid with the status row before details and no chevron text detected; browser logs showed no warnings or errors.
+- Follow-up pass: `npm run agents:check`; `npm run resolvers:check`; `./node_modules/.bin/eslint components/timeline/OccurrenceRow.tsx`; `npm run test` (19 files, 115 tests); `npm run design-system:check`; `git diff --check -- components/timeline/OccurrenceRow.tsx`.
+- Follow-up browser QA: `/timeline` at 430px wide reported `statusBorderTopWidth: "0px"` for the occurrence status row and no horizontal overflow.
+- Follow-up unblock: after regenerating `lib/db/database.types.ts` during BehaviorLog milestone verification, full `npm run lint`, `npm run typecheck`, and `npm run build` passed again.
 
 Remaining risk:
 - The in-app browser did not open the fixed Needs decision modal from the design-system bench trigger despite the trigger being visible and no console errors being present, so modal open/close interaction was not verified in browser QA during this pass.
@@ -961,7 +965,7 @@ Implementation summary:
 
 Verification:
 - Pass: `npm run supabase -- db reset`
-- Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`
+- Pass: `npm run supabase -- gen types typescript --local` regenerated `lib/db/database.types.ts` after removing only the npm wrapper banner.
 - Pass: local `pg_policies` query confirmed only `SELECT` and `INSERT` RLS policies on `occurrence_status_events`.
 - Pass: local `information_schema.role_table_grants` query confirmed authenticated grants only `SELECT` and `INSERT` on `occurrence_status_events`.
 - Pass: `npm run test -- tests/status.resolver.test.ts tests/export.resolver.test.ts`
@@ -973,7 +977,7 @@ Verification:
 - Pass: `npm run build`
 - Pass: `npm run design-system:check`
 - Pass: `npm run supabase -- db push --dry-run` would apply only `20260612075036_add_occurrence_status_events.sql`; hosted database was not changed.
-- Local render smoke: dev server rendered `/design-system` with the BehaviorLog bundle export control and returned 200; dev server was stopped after QA.
+- Local render smoke: existing dev server at `http://localhost:3000` rendered `/design-system` with the BehaviorLog bundle export control and returned 200; dev logs showed no warnings or errors beyond the React DevTools info message.
 
 Remaining risk:
 - Hosted Supabase still needs explicit user authorization before applying `20260612075036_add_occurrence_status_events.sql`.
