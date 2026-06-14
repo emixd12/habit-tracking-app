@@ -128,12 +128,13 @@ If a resolved occurrence has no internal status event, the exporter may emit a
 derived medium-confidence status event from the occurrence snapshot so legacy
 rows remain interoperable.
 
-### BehaviorLog import validation dry-run
+### BehaviorLog import validation, tracking, and create-only apply
 
-The import milestone is validation and preview only. It can read a
-`.behaviorlog.zip`, validate bundle structure, and return a dry-run plan. It
-must not write imported data to Supabase, merge records, restore backups,
-overwrite local rows, delete rows, or deduplicate by mutation.
+The import path can read a `.behaviorlog.zip`, validate bundle structure, and
+return a dry-run plan. The tracking layer persists auditable import runs and
+external-to-local record mappings. Create-only apply may write product data only
+for records that remain `action: "create"` in a valid dry-run preview and only
+when the import run mode is `create_missing_only`.
 
 Required bundle files:
 
@@ -156,6 +157,8 @@ Import validation rules:
   later.
 - Validate supported record types for behavior, schedule, occurrence,
   status-event, and optional note rows.
+- Parse optional `data/notes.jsonl` rows with note role, sensitivity label, and
+  source metadata preserved in the preview plan.
 - Reject unknown top-level fields in core records. The preview may still report
   them in `unsupportedFields`, but the bundle is not valid unless custom fields
   are moved under `extensions`.
@@ -170,9 +173,129 @@ Import validation rules:
 - Use `local_date` plus IANA `timezone` for day grouping and conflict preview.
 - Return counts, warnings, conflicts, unsupported fields, and skipped records in
   the preview.
-- Optional `data/interventions.jsonl` files may be hash-validated through the
-  manifest but are ignored by the current import dry-run. Import writes or
-  intervention merge behavior require a later product/data-model update.
+- Optional `data/interventions.jsonl` files are parsed for an Intervention
+  Profile preview. The importer validates JSONL rows, record type, manifest
+  hash, channel, delivery status, and behavior/occurrence references, then
+  marks every intervention as `preview_only`.
+- Intervention preview returns counts by reminder channel, delivery status, and
+  linked behavior. It also warns when rows contain message bodies, raw
+  endpoints, provider identifiers or secrets, subscription keys, recipient
+  identifiers, or similar sensitive delivery payload.
+- Intervention preview must not create `reminder_deliveries`, schedule sends,
+  cancel sends, retry sends, call Sequenzy, call Web Push, or call any
+  notification provider.
+
+Import tracking rules:
+
+- Each preview or apply attempt can create one `behaviorlog_import_runs` row.
+- Import runs record bundle format, schema version, manifest SHA-256, a
+  deterministic bundle fingerprint, producer name/version, subject id strategy,
+  privacy redaction level, import mode, dry-run summary snapshot, status, and
+  start/completion timestamps.
+- Import run status values are `previewed`, `applied`, `failed`, and
+  `cancelled`.
+- Import modes are `preview_only`, `create_missing_only`, `merge_preview`, and
+  `merge_by_user_approved_plan`.
+- `behaviorlog_import_record_mappings` maps external BehaviorLog ids to local
+  Cadence ids by import run and record type.
+- Mapping record types are `behavior`, `schedule`, `occurrence`,
+  `status_event`, `note`, and `intervention`.
+- Mapping inserts are idempotent for the same import run, record type, and
+  external id. Later import phases should reuse these mappings instead of
+  inventing separate provenance stores.
+
+Create-only apply rules:
+
+- Create missing behaviors from `data/behaviors.jsonl` when they have at least
+  one compatible schedule.
+- Match imported behavior categories to existing local categories by normalized
+  name. Do not create categories in this import mode.
+- Create compatible schedule slots from `data/schedules.jsonl` using Cadence's
+  supported recurrence and schedule-slot model.
+- Supported recurrence profile is `behaviorlog.calendar_simple.v1` with daily,
+  every N days, weekly weekdays, every N weeks on weekdays, and monthly day-N
+  rules.
+- Exact schedules use `local_time`. Range schedules must match Cadence preset
+  windows: morning, afternoon, evening, or night.
+- Create missing occurrences from `data/occurrences.jsonl` as `unresolved`
+  first.
+- Append imported `data/status_events.jsonl` rows into
+  `occurrence_status_events` and then update occurrence `status`,
+  `completed_at`, and `status_marked_at` from the latest imported event for
+  that occurrence.
+- A resolved `current_status` snapshot without a supporting status event remains
+  a warning; the importer does not synthesize explicit history from the
+  snapshot.
+- Reapplying the same accepted create-only import run must not duplicate
+  behaviors, schedules, occurrences, status events, or mappings.
+- Create-only apply must not merge, overwrite, restore, delete, import notes,
+  import interventions, import optional profile data, import CSV-only data, or
+  trigger notification/provider side effects.
+
+Merge-preview rules:
+
+- Merge preview uses authoritative JSONL files under `data/`; CSV files remain
+  optional derived views and are ignored for merge decisions.
+- Merge preview emits deterministic actions for each imported core record:
+  `create_new`, `map_to_existing`, `skip_existing`, or
+  `conflict_requires_decision`.
+- Conflict codes and human-readable reasons must be stable enough to present
+  for user review and to feed a later user-approved merge plan.
+- Behavior comparisons use existing import mappings, source original id,
+  title/category identity, archive state, and compatible schedule shape.
+- Schedule comparisons use mapped behavior, recurrence profile, recurrence
+  payload, timezone, active date bounds, and exact-time or preset range slot.
+- Occurrence comparisons use mapped behavior/schedule plus
+  `scheduled_for_utc`, `local_date`, and timezone.
+- Status-event comparisons use external event id, mapped occurrence, recorded
+  time, status, status semantics, and revision target.
+- `status_events.jsonl` remains the status-history authority. The occurrence
+  `current_status` field is a snapshot only, and unresolved is never converted
+  to a failure state.
+- The merge-preview output includes a privacy/profile summary, including
+  redaction level and whether notes or interventions are present.
+- Optional notes are previewed with sensitivity/source metadata. Only
+  occurrence-attached, non-AI notes can plan a product write. Behavior,
+  status-event, review, and AI-generated notes are skipped with warnings.
+- High or restricted note sensitivity must produce a preview warning before the
+  note can be accepted for import.
+- If a mapped or created target occurrence has an empty local note, merge preview
+  may emit an accepted safe-fill note action. If the local note is non-empty and
+  differs, merge preview must emit `occurrence_note_conflict` and require an
+  explicit decision before any change.
+- `data/interventions.jsonl` rows remain preview-only. Intervention preview
+  must not create reminder deliveries, schedule sends, cancel sends, retry
+  sends, or call notification providers.
+- A generated merge preview may be stored in `behaviorlog_import_runs` with
+  `import_mode = 'merge_preview'`; this write is limited to the import ledger
+  and must not mutate product records.
+
+User-approved merge apply rules:
+
+- Applying a merge plan requires an import run with
+  `import_mode = 'merge_by_user_approved_plan'` and an accepted Ticket 020
+  `mergePreview` snapshot stored in `dry_run_summary`.
+- Apply refuses plans that still contain `conflict_requires_decision`.
+- `create_new` actions use the same compatibility checks as create-only import.
+- `map_to_existing` actions create provenance mappings without overwriting local
+  behavior, schedule, or occurrence fields, except for accepted occurrence-note
+  safe fills described below.
+- Imported status events are append-only. The current occurrence snapshot is
+  updated only after appending events and only when the imported event is latest
+  by effective time, recorded time, and stable id tie-breaker.
+- Ambiguous or lower-confidence imported events must not replace an existing
+  local explicit high-confidence status decision.
+- Accepted note actions may fill `occurrences.note` only for occurrence-attached,
+  non-AI notes when the target occurrence is safely identified and the current
+  local note is empty. Note mappings use the local occurrence id.
+- Note apply must not update occurrence status fields, status events, analytics
+  inputs, adherence logic, reminder deliveries, or provider state.
+- Interventions remain preview/provenance-only here; imported intervention
+  records must not be written into operational reminder-delivery tables unless
+  a later passive history model explicitly changes scope.
+- Merge apply must be idempotent for the same accepted run through
+  `behaviorlog_import_record_mappings`, and failed partial attempts mark the
+  import run `failed`.
 
 ## AI summary
 
@@ -234,6 +357,12 @@ The resolver should not query Supabase directly.
   resolver, validates hashes and JSONL rows, preserves status-event semantics,
   detects local conflicts, and does not synthesize history from
   `current_status`.
+- BehaviorLog merge preview covers `create_new`, `map_to_existing`,
+  `skip_existing`, and `conflict_requires_decision` actions, stable conflict
+  reasons, privacy/redaction summaries, optional note sensitivity/source
+  preview, occurrence-note safe-fill/conflict decisions, optional intervention
+  preview counts/sensitive-payload warnings, and status-event authority over
+  occurrence snapshots.
 - BehaviorLog core conformance materializes a resolver-generated bundle as a
   temporary `.behaviorlog/` directory and runs the pinned upstream
   `emixd12/BehaviorLog-Bundle` reference validator snapshot recorded in

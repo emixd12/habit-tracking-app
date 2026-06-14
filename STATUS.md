@@ -1077,6 +1077,286 @@ Verification:
 Remaining risk:
 - Import validation still ignores optional Intervention Profile records beyond manifest hash validation; any future intervention import or merge behavior needs a separate ticket and product/data-model update.
 
+### Ticket 018: BehaviorLog import persistence foundation
+
+Status: complete.
+
+Implementation summary:
+- Added Supabase migration `20260612221022_add_behaviorlog_import_tracking.sql`
+  with `behaviorlog_import_runs` and
+  `behaviorlog_import_record_mappings`.
+- Import runs store user-owned bundle/schema metadata, manifest SHA-256,
+  deterministic bundle fingerprint, producer metadata, subject/privacy hints,
+  import mode, dry-run summary snapshot, status, failure message, and
+  start/completion timestamps.
+- Record mappings store external BehaviorLog ids to local Cadence UUIDs by
+  import run and record type, with support for behavior, schedule, occurrence,
+  status event, note, and intervention mappings.
+- Mapping inserts are idempotent on `import_run_id, record_type, external_id`.
+- Added repository and service helpers for import-run creation, status updates,
+  and mapping insertion/listing. These helpers write only import tracking rows,
+  not imported product records.
+- Updated generated database types, domain aliases, `docs/DATA_MODEL.md`, and
+  `docs/EXPORT_FORMATS.md`.
+- Later Tickets 019-023 depend on this import run and external-to-local mapping
+  contract.
+
+Verification:
+- Pass: `npm run supabase -- db reset`.
+- Pass: local schema probe confirmed RLS enabled on both new tables.
+- Pass: local `pg_policies` probe confirmed authenticated owner policies for
+  select, insert, update, and delete on both new tables. The first probe without
+  `roles::text` hit a Supabase CLI scan limitation for `name[]`, then passed
+  with the cast.
+- Pass: local grant probe confirmed no `anon` grants and explicit
+  authenticated/service-role CRUD grants on both new tables.
+- Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`.
+- Pass: `npm run test -- tests/behaviorlog-import-write.service.test.ts`.
+- Pass: `npm run test -- tests/behaviorlog-import.resolver.test.ts tests/behaviorlog-import-write.service.test.ts`.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run typecheck` after regenerating types with the direct Supabase
+  binary; the npm script wrapper prints a banner that must not be redirected
+  into `lib/db/database.types.ts`.
+
+Remaining risk:
+- Hosted Supabase was not updated; no hosted `db push` was requested or run.
+- The tracking layer intentionally does not create, merge, overwrite, restore,
+  delete, or deduplicate imported product records. Ticket 019 starts the first
+  constrained product-record write path.
+
+### Ticket 019: BehaviorLog create-only core import
+
+Status: complete.
+
+Implementation summary:
+- Added `applyCreateMissingBehaviorLogImportPlan` in
+  `lib/services/behaviorlog-import-write.service.ts`.
+- The create-only apply path requires an existing valid dry-run import run with
+  `import_mode = 'create_missing_only'` and an accepted valid dry-run summary.
+- Creates clearly new behaviors, compatible schedule slots, and occurrences
+  from authoritative BehaviorLog JSONL plan records.
+- Inserts imported occurrences as `unresolved` first, appends imported
+  `occurrence_status_events`, then updates occurrence `status`, `completed_at`,
+  and `status_marked_at` from the latest imported status event for each
+  occurrence.
+- Does not synthesize status history from
+  `occurrences.jsonl.current_status`; resolved snapshots without supporting
+  status events remain warnings and imported occurrences stay unresolved.
+- Uses `behaviorlog_import_record_mappings` for external-to-local behavior,
+  schedule, occurrence, and status-event id mappings and for same-run
+  idempotence.
+- Added narrow repository helpers for import run lookup, schedule-slot
+  create/lookup, occurrence create/lookup, and imported status-event duplicate
+  fingerprint lookup.
+- Extended the import resolver/types to preserve Cadence extension fields and
+  warn/skip unsupported recurrence profiles, unsupported recurrence payloads,
+  and unsupported schedule windows.
+- Updated `docs/DATA_MODEL.md`, `docs/EXPORT_FORMATS.md`, and
+  `docs/AGENT_RESOLVERS.md` for create-only import semantics.
+- No notes, interventions, CSV-only data, merge behavior, overwrite/restore,
+  destructive delete, user-facing import UI, or provider side effects were
+  added.
+
+Verification:
+- Pass: `npm run test -- tests/behaviorlog-import-write.service.test.ts tests/behaviorlog-import.resolver.test.ts` (12 focused tests).
+- Pass: `npm run typecheck`.
+- Pass: `npm run lint`.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+
+Remaining risk:
+- Hosted Supabase still has not received the Ticket 018 import-tracking
+  migration; no hosted `db push` was requested or run.
+- Ticket 020 should treat the create-only path as provenance-aware but not
+  conflict-resolving. Merge preview must make mapping/map-to-existing decisions
+  explicit instead of relying on the create-only writer.
+- Ticket 022 remains responsible for occurrence-note import decisions; Ticket
+  019 intentionally does not import notes.
+- Ticket 023 remains preview-only for interventions; Ticket 019 intentionally
+  does not write `reminder_deliveries`.
+
+### Ticket 020: BehaviorLog conflict-aware merge preview
+
+Status: complete.
+
+Implementation summary:
+- Added `resolveBehaviorLogImportMergePreview` with deterministic
+  `create_new`, `map_to_existing`, `skip_existing`, and
+  `conflict_requires_decision` actions.
+- Added stable merge conflict codes and human-readable reasons for behavior,
+  schedule, occurrence, status-event, note, and intervention preview records.
+- Added merge-preview privacy/redaction summary and explicit BehaviorLog
+  semantics flags for JSONL authority, CSV ignored for merge, status-events
+  authority, unresolved-not-failure, and append-only status history.
+- Extended existing-record inputs with schedules, import mappings,
+  source-original ids, archive state, schedule shape, status-event semantics,
+  and revision target fields used by merge preview.
+- Added optional notes and interventions to merge preview only. No note writes,
+  intervention writes, reminder delivery writes, provider calls, or reminder
+  scheduling side effects were added.
+- Added service helpers for merge preview from files/ZIP and an import-run
+  persistence helper that stores the merge preview snapshot in
+  `behaviorlog_import_runs.dry_run_summary` only.
+- Preserved the Ticket 019 create-only `plan.action` contract and writer path.
+- Updated `docs/DATA_MODEL.md`, `docs/EXPORT_FORMATS.md`, and
+  `docs/AGENT_RESOLVERS.md`.
+
+Verification:
+- Pass: `npm run test -- tests/behaviorlog-import-merge-preview.test.ts tests/behaviorlog-import.resolver.test.ts tests/behaviorlog-import-write.service.test.ts` (17 focused tests).
+- Pass: `npm run typecheck`.
+- Pass: `npm run lint`.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run build` after rerunning with approved network access; the first
+  sandboxed build failed because Next.js could not fetch the configured Google
+  Font.
+
+Remaining risk:
+- Hosted Supabase still has not received the Ticket 018 import-tracking
+  migration; no hosted `db push` was requested or run.
+- Ticket 021 should consume `preview.mergePreview.actions` and
+  `dry_run_summary.mergePreview`, refuse unresolved
+  `conflict_requires_decision` actions, and still avoid blind overwrite or
+  destructive restore behavior.
+- Ticket 022 remains responsible for note import decisions; Ticket 020 only
+  previews notes.
+- Ticket 023 remains responsible for detailed intervention validation; Ticket
+  020 only previews interventions and does not write `reminder_deliveries`.
+
+### Ticket 021: BehaviorLog user-approved merge write
+
+Status: complete.
+
+Implementation summary:
+- Added `applyApprovedBehaviorLogMergePlan` in
+  `lib/services/behaviorlog-import-write.service.ts`.
+- The merge writer requires an import run with
+  `import_mode = 'merge_by_user_approved_plan'`, a valid accepted
+  `dry_run_summary.mergePreview`, and a matching input merge preview.
+- Refuses to apply unresolved `conflict_requires_decision` actions and marks the
+  import run failed on apply errors.
+- Applies `create_new` records using the Ticket 019 create-only safeguards.
+- Applies `map_to_existing` for behaviors, schedules, and occurrences by writing
+  provenance mappings only; it does not overwrite local behavior, schedule, or
+  occurrence fields.
+- Appends imported status events that are not already mapped or duplicated,
+  preserves `revises_event_id` when the revised event is mapped, and records all
+  applied mappings.
+- Updates occurrence current-status snapshots only after imported status events
+  are accepted, and only when the imported event is the latest by effective
+  time, recorded time, then stable id.
+- Protects existing local explicit high-confidence status snapshots from
+  ambiguous or lower-confidence imported events.
+- Added `getBehaviorScheduleSlotById` repository helper and merge-write tests.
+- Notes remain non-product writes in this phase; mappings may be recorded but
+  occurrence note fill/conflict logic is left for Ticket 022.
+- Interventions remain preview/provenance-only; no `reminder_deliveries`,
+  provider calls, or scheduling side effects were added.
+- Updated `docs/DATA_MODEL.md`, `docs/EXPORT_FORMATS.md`, and
+  `docs/AGENT_RESOLVERS.md`.
+
+Verification:
+- Pass: `npm run test -- tests/behaviorlog-import-write.service.test.ts tests/behaviorlog-import-merge-preview.test.ts tests/behaviorlog-import.resolver.test.ts` (22 focused tests).
+- Pass: `npm run typecheck`.
+- Pass: `npm run lint`.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run build`.
+
+Remaining risk:
+- Hosted Supabase still has not received the Ticket 018 import-tracking
+  migration; no hosted `db push` was requested or run.
+- Merge apply remains a multi-call Supabase workflow. A partial failure marks
+  the import run `failed`, but already-written rows are not rolled back. This
+  matches the Ticket 019 service pattern and should be revisited if the import
+  UI later needs stronger atomicity.
+- Ticket 022 should implement occurrence-note import/fill/conflict behavior on
+  top of the existing note preview/provenance scaffolding.
+- Ticket 023 should keep interventions preview-only unless a later data model
+  adds passive imported intervention history.
+
+### Ticket 022: BehaviorLog optional notes import
+
+Status: complete.
+
+Implementation summary:
+- Added limited BehaviorLog note import support for occurrence-attached notes
+  only.
+- Parsed `data/notes.jsonl` sensitivity labels and source metadata into the
+  import plan and merge-preview metadata.
+- Added preview warnings for high and restricted sensitivity notes.
+- Skipped behavior-attached, status-event-attached, review-attached, and
+  AI-generated notes from product data with explicit warnings/reasons.
+- Added safe merge-preview note decisions for created occurrence fill, empty
+  mapped occurrence fill, already-matching mapped notes, missing targets, and
+  differing existing-note conflicts.
+- Added approved merge-apply support that fills `occurrences.note` only when
+  the target occurrence is safely identified and the local note is still empty.
+  Note mappings use the target occurrence id as `local_id`.
+- Existing non-empty differing occurrence notes remain protected behind
+  `occurrence_note_conflict`; note replacement was not added.
+- Notes do not update occurrence status fields, status-event history, reminder
+  deliveries, analytics inputs, adherence logic, provider calls, or scheduling.
+- No generalized notes table was added.
+- Updated `docs/DATA_MODEL.md`, `docs/EXPORT_FORMATS.md`,
+  `docs/USER_FLOWS.md`, and `docs/AGENT_RESOLVERS.md`.
+
+Verification:
+- Pass: `npm run test -- tests/behaviorlog-import-notes.test.ts tests/behaviorlog-import-write.service.test.ts tests/behaviorlog-import-merge-preview.test.ts tests/behaviorlog-import.resolver.test.ts` (30 focused tests).
+- Pass: `npm run typecheck`.
+- Pass: `npm run lint`.
+- Pass: `git diff --check`.
+
+Remaining risk:
+- Hosted Supabase still has not received the Ticket 018 import-tracking
+  migration; no hosted `db push` was requested or run.
+- Ticket 023 should keep Intervention Profile import preview-only. It must not
+  write `reminder_deliveries`, call providers, send notifications, schedule
+  reminders, or reuse occurrence-note fill behavior for interventions.
+
+### Ticket 023: BehaviorLog Intervention Profile import preview
+
+Status: complete.
+
+Implementation summary:
+- Added optional `data/interventions.jsonl` parsing to BehaviorLog import
+  preview.
+- Intervention rows validate JSONL parsing, manifest hash, `record_type`,
+  channel, delivery status, and behavior/occurrence references.
+- Intervention preview plans are marked `action: "preview_only"` and
+  `previewOnly: true`.
+- Import summary now includes intervention count, preview-only count, and
+  counts by channel, delivery status, and linked behavior.
+- Merge preview includes intervention rows only as preview/provenance actions;
+  it does not schedule, send, cancel, retry, or write operational reminders.
+- Added warnings for sensitive delivery payload fields and values, including
+  message bodies, endpoints, provider identifiers/secrets, subscription keys,
+  recipient identifiers, emails, phones, and similar nested extension fields.
+- Updated `docs/EXPORT_FORMATS.md`, `docs/NOTIFICATION_SPEC.md`, and
+  `docs/AGENT_RESOLVERS.md`.
+- No schema changes, `reminder_deliveries` writes, provider calls,
+  notification-processing route calls, or `csv/interventions.csv` output were
+  added.
+
+Verification:
+- Pass: `npm run test -- tests/behaviorlog-import-interventions.test.ts tests/behaviorlog-import-notes.test.ts tests/behaviorlog-import.resolver.test.ts tests/behaviorlog-import-merge-preview.test.ts tests/behaviorlog-import-write.service.test.ts` (36 focused tests).
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (25 files, 157 tests).
+- Pass: `npm run build`.
+- Pass: `env HOME=/private/tmp/cadence-supabase-home npm run supabase -- db reset`.
+- Pass: `git diff --check`.
+
+Remaining risk:
+- Hosted Supabase still has not received the Ticket 018 import-tracking
+  migration; no hosted `db push` was requested or run.
+- Imported intervention records are intentionally not stored as passive history.
+  A later ticket would need a separate data model before retaining imported
+  intervention history outside the preview/import ledger.
+
 ## Handoff notes
 
 - For the next coding agent: continue Ticket 013 from the Vercel environment/deployment blocker. Do not start deferred offline/PWA or future restore/import work unless the product docs change or the user explicitly brings it into scope.

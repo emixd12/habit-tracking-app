@@ -130,6 +130,13 @@ underlined text action, matching the Completed and Not Completed controls.
 An expanded occurrence holds the same blue background used on row hover, rather
 than adding a separate details box.
 
+BehaviorLog imports may fill this occurrence Note field only when an accepted
+merge plan identifies the target occurrence safely and the local note is empty.
+Imported behavior notes, status-event notes, review notes, and AI-generated
+notes are not displayed as product notes in v1. Imported notes are user-review
+context only; they do not change status, adherence, analytics, or reminder
+behavior.
+
 Categories are visible only in expanded card details.
 
 If an occurrence is unresolved after the end of its local day, it appears in the Needs decision modal and is visually highlighted. This is a derived UI state based on date and `unresolved`; it must not write a different stored status.

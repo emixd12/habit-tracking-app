@@ -158,6 +158,67 @@ export async function listBehaviorScheduleSlots(
   return data ?? [];
 }
 
+export async function getBehaviorScheduleSlotByStartTime(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    behaviorId: string;
+    startTime: string;
+  },
+): Promise<BehaviorScheduleSlot | null> {
+  const { data, error } = await supabase
+    .from("behavior_schedule_slots")
+    .select("*")
+    .eq("user_id", input.userId)
+    .eq("behavior_id", input.behaviorId)
+    .eq("start_time", input.startTime)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+export async function getBehaviorScheduleSlotById(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    scheduleSlotId: string;
+  },
+): Promise<BehaviorScheduleSlot | null> {
+  const { data, error } = await supabase
+    .from("behavior_schedule_slots")
+    .select("*")
+    .eq("user_id", input.userId)
+    .eq("id", input.scheduleSlotId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+export async function createBehaviorScheduleSlot(
+  supabase: AppSupabaseClient,
+  slot: NewBehaviorScheduleSlot,
+): Promise<BehaviorScheduleSlot> {
+  const { data, error } = await supabase
+    .from("behavior_schedule_slots")
+    .insert(slot)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 export async function replaceBehaviorScheduleSlots(
   supabase: AppSupabaseClient,
   input: {

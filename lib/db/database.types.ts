@@ -88,6 +88,107 @@ export type Database = {
           },
         ]
       }
+      behaviorlog_import_record_mappings: {
+        Row: {
+          created_at: string
+          external_id: string
+          id: string
+          import_run_id: string
+          local_id: string
+          record_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          external_id: string
+          id?: string
+          import_run_id: string
+          local_id: string
+          record_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          external_id?: string
+          id?: string
+          import_run_id?: string
+          local_id?: string
+          record_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "behaviorlog_import_record_mappings_import_run_owner_fkey"
+            columns: ["user_id", "import_run_id"]
+            isOneToOne: false
+            referencedRelation: "behaviorlog_import_runs"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
+      behaviorlog_import_runs: {
+        Row: {
+          bundle_fingerprint: string | null
+          bundle_format: string
+          completed_at: string | null
+          created_at: string
+          dry_run_summary: Json
+          failure_message: string | null
+          id: string
+          import_mode: string
+          manifest_sha256: string | null
+          privacy_redaction_level: string | null
+          producer_name: string | null
+          producer_version: string | null
+          schema_version: string | null
+          started_at: string
+          status: string
+          subject_id_strategy: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bundle_fingerprint?: string | null
+          bundle_format: string
+          completed_at?: string | null
+          created_at?: string
+          dry_run_summary?: Json
+          failure_message?: string | null
+          id?: string
+          import_mode: string
+          manifest_sha256?: string | null
+          privacy_redaction_level?: string | null
+          producer_name?: string | null
+          producer_version?: string | null
+          schema_version?: string | null
+          started_at?: string
+          status?: string
+          subject_id_strategy?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bundle_fingerprint?: string | null
+          bundle_format?: string
+          completed_at?: string | null
+          created_at?: string
+          dry_run_summary?: Json
+          failure_message?: string | null
+          id?: string
+          import_mode?: string
+          manifest_sha256?: string | null
+          privacy_redaction_level?: string | null
+          producer_name?: string | null
+          producer_version?: string | null
+          schema_version?: string | null
+          started_at?: string
+          status?: string
+          subject_id_strategy?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       behaviors: {
         Row: {
           active: boolean

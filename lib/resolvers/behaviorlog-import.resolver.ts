@@ -4,15 +4,24 @@ import { Temporal } from "@js-temporal/polyfill";
 
 import type {
   BehaviorLogExistingRecords,
+  BehaviorLogInterventionChannel,
+  BehaviorLogInterventionDeliveryStatus,
   BehaviorLogImportBehaviorPlan,
   BehaviorLogImportConflict,
   BehaviorLogImportDayGroup,
   BehaviorLogImportFile,
+  BehaviorLogImportInterventionPreviewPlan,
   BehaviorLogImportIssue,
+  BehaviorLogImportMergeConflict,
+  BehaviorLogImportMergePreview,
+  BehaviorLogImportMergePreviewResult,
+  BehaviorLogImportMergeRecordAction,
+  BehaviorLogNoteSensitivity,
   BehaviorLogImportNotePlan,
   BehaviorLogImportOccurrencePlan,
   BehaviorLogImportPlan,
   BehaviorLogImportPreview,
+  BehaviorLogImportRecordType,
   BehaviorLogImportSchedulePlan,
   BehaviorLogImportStatusEventPlan,
   BehaviorLogSourceCaptureMethod,
@@ -24,9 +33,33 @@ import type { OccurrenceStatus } from "@/lib/types/database";
 
 const BEHAVIORLOG_FORMAT = "behaviorlog.bundle";
 const BEHAVIORLOG_SUPPORTED_SCHEMA_VERSIONS = ["0.1.0-draft"] as const;
+const BEHAVIORLOG_EXTENSION_NAMESPACE = "app.cadence";
 const TIMEZONE_VALIDATION_INSTANT = Temporal.Instant.from(
   "2000-01-01T00:00:00Z",
 );
+
+const CADENCE_RANGE_PRESETS = [
+  {
+    preset: "morning",
+    start: "06:00",
+    end: "12:00",
+  },
+  {
+    preset: "afternoon",
+    start: "12:00",
+    end: "18:00",
+  },
+  {
+    preset: "evening",
+    start: "18:00",
+    end: "00:00",
+  },
+  {
+    preset: "night",
+    start: "00:00",
+    end: "06:00",
+  },
+] as const;
 
 const REQUIRED_PATHS = [
   "manifest.json",
@@ -45,6 +78,7 @@ const JSONL_FILES = {
   occurrences: "data/occurrences.jsonl",
   statusEvents: "data/status_events.jsonl",
   notes: "data/notes.jsonl",
+  interventions: "data/interventions.jsonl",
 } as const;
 
 const BEHAVIOR_FIELDS = new Set([
@@ -133,6 +167,48 @@ const NOTE_FIELDS = new Set([
   "extensions",
 ]);
 
+const INTERVENTION_FIELDS = new Set([
+  "record_type",
+  "intervention_id",
+  "behavior_id",
+  "occurrence_id",
+  "intervention_type",
+  "channel",
+  "scheduled_send_at_utc",
+  "sent_at_utc",
+  "delivery_status",
+  "failure_reason",
+  "source",
+  "extensions",
+  "message_body",
+  "body",
+  "email_body",
+  "push_payload",
+  "payload",
+  "endpoint",
+  "raw_endpoint",
+  "provider_id",
+  "provider_identifier",
+  "provider_message_id",
+  "provider_delivery_id",
+  "provider_secret",
+  "api_key",
+  "secret",
+  "token",
+  "subscription",
+  "subscription_key",
+  "subscription_keys",
+  "p256dh",
+  "auth",
+  "recipient",
+  "recipient_id",
+  "recipient_email",
+  "email",
+  "phone",
+  "address",
+  "to",
+]);
+
 type JsonRecord = Record<string, unknown>;
 
 type ParsedJsonlRecord = {
@@ -145,6 +221,13 @@ export type ResolveBehaviorLogImportPreviewInput = {
   files: BehaviorLogImportFile[];
   existing?: BehaviorLogExistingRecords;
   supportedSchemaVersions?: readonly string[];
+};
+
+export type ResolveBehaviorLogImportMergePreviewInput = Omit<
+  ResolveBehaviorLogImportPreviewInput,
+  "existing"
+> & {
+  existing?: BehaviorLogExistingRecords;
 };
 
 export function resolveBehaviorLogImportPreview(
@@ -211,6 +294,16 @@ export function resolveBehaviorLogImportPreview(
         unsupportedFields,
       })
     : [];
+  const interventionRows = fileMap.has(JSONL_FILES.interventions)
+    ? parseJsonlFile({
+        file: JSONL_FILES.interventions,
+        expectedRecordType: "intervention",
+        allowedFields: INTERVENTION_FIELDS,
+        fileMap,
+        errors,
+        unsupportedFields,
+      })
+    : [];
   const plan: BehaviorLogImportPlan = {
     behaviors: behaviorRows
       .map((row) => toBehaviorPlan(row, errors))
@@ -237,9 +330,16 @@ export function resolveBehaviorLogImportPreview(
       .filter((record): record is BehaviorLogImportNotePlan =>
         Boolean(record),
       ),
+    interventions: interventionRows
+      .map((row) => toInterventionPlan(row, errors, warnings))
+      .filter((record): record is BehaviorLogImportInterventionPreviewPlan =>
+        Boolean(record),
+      ),
   };
 
   validateCrossReferences({ plan, errors, warnings });
+  validateNoteImportPolicy({ plan, warnings });
+  validateSupportedSchedules({ plan, warnings });
   markConflicts({ plan, existing: input.existing, conflicts });
   warnAboutSnapshotHistory({ plan, warnings });
 
@@ -259,6 +359,26 @@ export function resolveBehaviorLogImportPreview(
     conflicts,
     unsupportedFields,
     plan,
+  };
+}
+
+export function resolveBehaviorLogImportMergePreview(
+  input: ResolveBehaviorLogImportMergePreviewInput,
+): BehaviorLogImportMergePreviewResult {
+  const preview = resolveBehaviorLogImportPreview({
+    files: input.files,
+    supportedSchemaVersions: input.supportedSchemaVersions,
+  });
+  const mergePreview = buildMergePreview({
+    plan: preview.plan,
+    existing: input.existing,
+    privacy: readPrivacySummary(input.files),
+    interventions: preview.plan.interventions,
+  });
+
+  return {
+    ...preview,
+    mergePreview,
   };
 }
 
@@ -583,8 +703,10 @@ function toBehaviorPlan(
   const id = readRequiredString(row, "behavior_id", errors);
   const title = readRequiredString(row, "title", errors);
   const category = readRequiredString(row, "category", errors);
+  const createdAtUtc = readOptionalInstant(row, "created_at_utc", errors);
   const archivedAtUtc = readOptionalInstant(row, "archived_at_utc", errors);
   const source = readSource(row, errors, false);
+  const cadence = readCadenceExtension(row.record);
 
   if (!id || !title || !category) {
     return null;
@@ -596,8 +718,24 @@ function toBehaviorPlan(
     externalId: id,
     title,
     category,
+    cadenceCategoryName: readExtensionString(cadence, "category_name"),
     description: readOptionalString(row, "description", errors),
+    createdAtUtc,
     archivedAtUtc,
+    cadenceActive: readExtensionBoolean(cadence, "active"),
+    cadenceBrowserReminderEnabled: readExtensionBoolean(
+      cadence,
+      "browser_reminder_enabled",
+    ),
+    cadenceEmailReminderEnabled: readExtensionBoolean(
+      cadence,
+      "email_reminder_enabled",
+    ),
+    cadenceReminderOffsetMinutes: readExtensionInteger(
+      cadence,
+      "reminder_offset_minutes",
+    ),
+    sourceOriginalId: source.originalId,
     sourceConfidence: source.confidence,
   };
 }
@@ -621,6 +759,7 @@ function toSchedulePlan(
     errors,
   );
   const source = readSource(row, errors, false);
+  const cadence = readCadenceExtension(row.record);
 
   if (
     !id ||
@@ -644,12 +783,18 @@ function toSchedulePlan(
     localTime: readOptionalLocalTime(row, "local_time", errors),
     windowStartLocal: readOptionalLocalTime(row, "window_start_local", errors),
     windowEndLocal: readOptionalLocalTime(row, "window_end_local", errors),
+    cadenceScheduleKind: readExtensionScheduleKind(cadence, "schedule_kind"),
+    cadenceSchedulePreset: readExtensionSchedulePreset(
+      cadence,
+      "schedule_preset",
+    ),
     activeFromLocalDate,
     activeUntilLocalDate: readOptionalLocalDate(
       row,
       "active_until_local_date",
       errors,
     ),
+    sourceOriginalId: source.originalId,
     sourceConfidence: source.confidence,
   };
 }
@@ -665,6 +810,7 @@ function toOccurrencePlan(
   const localDate = readRequiredLocalDate(row, "local_date", errors);
   const timezone = readRequiredTimezone(row, "timezone", errors);
   const currentStatus = readRequiredStatus(row, "current_status", errors);
+  const generatedAtUtc = readOptionalInstant(row, "generated_at_utc", errors);
   const source = readSource(row, errors, false);
 
   if (
@@ -689,7 +835,9 @@ function toOccurrencePlan(
     localDate,
     timezone,
     localTime: readOptionalLocalTime(row, "local_time", errors),
+    generatedAtUtc,
     currentStatus,
+    sourceOriginalId: source.originalId,
     sourceConfidence: source.confidence,
   };
 }
@@ -742,6 +890,7 @@ function toStatusEventPlan(
     sourceConfidence: source.confidence,
     revisesEventId: readOptionalString(row, "revises_event_id", errors),
     reasonCode: readOptionalString(row, "reason_code", errors),
+    sourceOriginalId: source.originalId,
   };
 }
 
@@ -759,6 +908,7 @@ function toNotePlan(
   const bodyMarkdown = readRequiredString(row, "body_markdown", errors);
   const noteRole = readRequiredNoteRole(row, "note_role", errors);
   const createdAtUtc = readRequiredInstant(row, "created_at_utc", errors);
+  const sensitivity = readOptionalNoteSensitivity(row, "sensitivity", errors);
   const source = readSource(row, errors, false);
 
   if (
@@ -782,8 +932,164 @@ function toNotePlan(
     noteRole,
     createdAtUtc,
     updatedAtUtc: readOptionalInstant(row, "updated_at_utc", errors),
+    sensitivity,
+    sourceOriginalId: source.originalId,
+    sourceCaptureMethod: source.captureMethod,
     sourceConfidence: source.confidence,
   };
+}
+
+function toInterventionPlan(
+  row: ParsedJsonlRecord,
+  errors: BehaviorLogImportIssue[],
+  warnings: BehaviorLogImportIssue[],
+): BehaviorLogImportInterventionPreviewPlan | null {
+  const id = readRequiredString(row, "intervention_id", errors);
+  const behaviorId = readRequiredString(row, "behavior_id", errors);
+  const occurrenceId = readRequiredString(row, "occurrence_id", errors);
+  const channel = readRequiredInterventionChannel(row, "channel", errors);
+  const scheduledSendAtUtc = readRequiredInstant(
+    row,
+    "scheduled_send_at_utc",
+    errors,
+  );
+  const deliveryStatus = readRequiredInterventionDeliveryStatus(
+    row,
+    "delivery_status",
+    errors,
+  );
+  const source = readSource(row, errors, false);
+
+  warnAboutSensitiveInterventionPayload(row, warnings);
+
+  if (
+    !id ||
+    !behaviorId ||
+    !occurrenceId ||
+    !channel ||
+    !scheduledSendAtUtc ||
+    !deliveryStatus
+  ) {
+    return null;
+  }
+
+  return {
+    action: "preview_only",
+    previewOnly: true,
+    externalId: id,
+    behaviorExternalId: behaviorId,
+    occurrenceExternalId: occurrenceId,
+    interventionType: readOptionalString(row, "intervention_type", errors),
+    channel,
+    deliveryStatus,
+    scheduledSendAtUtc,
+    sentAtUtc: readOptionalInstant(row, "sent_at_utc", errors),
+    failureReason: readOptionalString(row, "failure_reason", errors),
+    sourceOriginalId: source.originalId,
+  };
+}
+
+function warnAboutSensitiveInterventionPayload(
+  row: ParsedJsonlRecord,
+  warnings: BehaviorLogImportIssue[],
+): void {
+  const paths = collectSensitiveInterventionPaths(row.record);
+
+  if (paths.length === 0) {
+    return;
+  }
+
+  const interventionId =
+    typeof row.record.intervention_id === "string"
+      ? row.record.intervention_id
+      : `row ${row.row}`;
+
+  warnings.push({
+    severity: "warning",
+    code: "intervention_sensitive_payload_present",
+    message: `Intervention ${interventionId} contains sensitive delivery payload field(s): ${paths.join(
+      ", ",
+    )}. These values are previewed for warning only and must not be imported into reminders.`,
+    file: row.file,
+    row: row.row,
+  });
+}
+
+function collectSensitiveInterventionPaths(
+  value: unknown,
+  path = "",
+): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry, index) =>
+      collectSensitiveInterventionPaths(entry, `${path}[${index}]`),
+    );
+  }
+
+  if (!isRecord(value)) {
+    if (typeof value === "string" && looksLikeSensitiveDeliveryValue(value)) {
+      return [path || "value"];
+    }
+
+    return [];
+  }
+
+  const paths: string[] = [];
+
+  for (const [key, child] of Object.entries(value)) {
+    const childPath = path ? `${path}.${key}` : key;
+
+    if (isSensitiveInterventionFieldName(key)) {
+      paths.push(childPath);
+    }
+
+    paths.push(...collectSensitiveInterventionPaths(child, childPath));
+  }
+
+  return [...new Set(paths)].sort();
+}
+
+function isSensitiveInterventionFieldName(key: string): boolean {
+  const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  return (
+    normalized === "messagebody" ||
+    normalized === "emailbody" ||
+    normalized === "pushpayload" ||
+    normalized === "payload" ||
+    normalized === "body" ||
+    normalized.includes("endpoint") ||
+    normalized.includes("subscription") ||
+    normalized === "p256dh" ||
+    normalized === "auth" ||
+    normalized.includes("apikey") ||
+    normalized.includes("secret") ||
+    normalized.includes("token") ||
+    normalized.includes("authorization") ||
+    normalized.includes("credential") ||
+    (normalized.includes("provider") &&
+      (normalized.includes("id") ||
+        normalized.includes("identifier") ||
+        normalized.includes("message") ||
+        normalized.includes("delivery") ||
+        normalized.includes("secret") ||
+        normalized.includes("token"))) ||
+    normalized.includes("recipient") ||
+    normalized === "email" ||
+    normalized.includes("emailaddress") ||
+    normalized === "phone" ||
+    normalized === "address" ||
+    normalized === "to"
+  );
+}
+
+function looksLikeSensitiveDeliveryValue(value: string): boolean {
+  return (
+    /https?:\/\/\S+/i.test(value) ||
+    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(value) ||
+    /\b(p256dh|auth|token|secret|api[_-]?key|authorization)\s*[:=]/i.test(
+      value,
+    )
+  );
 }
 
 function validateCrossReferences(input: {
@@ -887,6 +1193,108 @@ function validateCrossReferences(input: {
         file: JSONL_FILES.notes,
       });
       skip(note, "missing_attachment");
+    }
+  }
+
+  for (const intervention of input.plan.interventions) {
+    if (!behaviorIds.has(intervention.behaviorExternalId)) {
+      input.errors.push({
+        severity: "error",
+        code: "intervention_behavior_missing",
+        message: `Intervention ${intervention.externalId} references missing behavior ${intervention.behaviorExternalId}.`,
+        file: JSONL_FILES.interventions,
+      });
+    }
+
+    if (!occurrenceIds.has(intervention.occurrenceExternalId)) {
+      input.errors.push({
+        severity: "error",
+        code: "intervention_occurrence_missing",
+        message: `Intervention ${intervention.externalId} references missing occurrence ${intervention.occurrenceExternalId}.`,
+        file: JSONL_FILES.interventions,
+      });
+    }
+  }
+}
+
+function validateNoteImportPolicy(input: {
+  plan: BehaviorLogImportPlan;
+  warnings: BehaviorLogImportIssue[];
+}): void {
+  for (const note of input.plan.notes) {
+    if (note.attachedToType !== "occurrence") {
+      input.warnings.push({
+        severity: "warning",
+        code: "unsupported_note_target",
+        message: `Note ${note.externalId} is attached to ${note.attachedToType}; Cadence imports occurrence-attached notes only.`,
+        file: JSONL_FILES.notes,
+      });
+      skip(note, "unsupported_note_target");
+    }
+
+    if (note.noteRole === "ai_generated") {
+      input.warnings.push({
+        severity: "warning",
+        code: "ai_generated_note_skipped",
+        message: `Note ${note.externalId} is AI-generated and will not be imported into occurrence notes.`,
+        file: JSONL_FILES.notes,
+      });
+      skip(note, "ai_generated_note");
+    }
+
+    if (note.sensitivity === "high" || note.sensitivity === "restricted") {
+      input.warnings.push({
+        severity: "warning",
+        code:
+          note.sensitivity === "restricted"
+            ? "restricted_note_present"
+            : "high_sensitivity_note_present",
+        message: `Note ${note.externalId} is labeled ${note.sensitivity} sensitivity; review it before accepting any note import action.`,
+        file: JSONL_FILES.notes,
+      });
+    }
+  }
+}
+
+function validateSupportedSchedules(input: {
+  plan: BehaviorLogImportPlan;
+  warnings: BehaviorLogImportIssue[];
+}): void {
+  for (const schedule of input.plan.schedules) {
+    if (schedule.action === "skip") {
+      continue;
+    }
+
+    if (schedule.recurrenceProfile !== "behaviorlog.calendar_simple.v1") {
+      input.warnings.push({
+        severity: "warning",
+        code: "unsupported_recurrence_profile",
+        message: `Schedule ${schedule.externalId} uses unsupported recurrence_profile ${schedule.recurrenceProfile}.`,
+        file: JSONL_FILES.schedules,
+      });
+      skip(schedule, "unsupported_recurrence_profile");
+      continue;
+    }
+
+    if (!isSupportedRecurrence(schedule.recurrence)) {
+      input.warnings.push({
+        severity: "warning",
+        code: "unsupported_recurrence",
+        message: `Schedule ${schedule.externalId} uses a recurrence payload Cadence cannot import in create-only mode.`,
+        file: JSONL_FILES.schedules,
+      });
+      skip(schedule, "unsupported_recurrence");
+      continue;
+    }
+
+    if (!isSupportedScheduleSlot(schedule)) {
+      input.warnings.push({
+        severity: "warning",
+        code: "unsupported_schedule_window",
+        message: `Schedule ${schedule.externalId} does not fit Cadence exact-time or preset time-range slots.`,
+        file: JSONL_FILES.schedules,
+      });
+      skip(schedule, "unsupported_schedule_window");
     }
   }
 }
@@ -1134,6 +1542,1576 @@ function warnAboutSnapshotHistory(input: {
   }
 }
 
+type MergePreviewBuildInput = {
+  plan: BehaviorLogImportPlan;
+  existing?: BehaviorLogExistingRecords;
+  privacy: BehaviorLogImportMergePreview["privacy"];
+  interventions: BehaviorLogImportInterventionPreviewPlan[];
+};
+
+type MergePreviewContext = {
+  existing: BehaviorLogExistingRecords;
+  mappingsByKey: Map<string, string>;
+  behaviorsById: Map<string, NonNullable<BehaviorLogExistingRecords["behaviors"]>[number]>;
+  behaviorsBySourceOriginalId: Map<
+    string,
+    NonNullable<BehaviorLogExistingRecords["behaviors"]>[number]
+  >;
+  behaviorsByIdentity: Map<
+    string,
+    NonNullable<BehaviorLogExistingRecords["behaviors"]>[number]
+  >;
+  behaviorsByTitle: Map<
+    string,
+    NonNullable<BehaviorLogExistingRecords["behaviors"]>[number]
+  >;
+  schedulesById: Map<string, NonNullable<BehaviorLogExistingRecords["schedules"]>[number]>;
+  schedulesByBehaviorId: Map<
+    string,
+    NonNullable<BehaviorLogExistingRecords["schedules"]>[number][]
+  >;
+  occurrencesById: Map<string, NonNullable<BehaviorLogExistingRecords["occurrences"]>[number]>;
+  occurrencesBySourceOriginalId: Map<
+    string,
+    NonNullable<BehaviorLogExistingRecords["occurrences"]>[number]
+  >;
+  statusEventsById: Map<
+    string,
+    NonNullable<BehaviorLogExistingRecords["statusEvents"]>[number]
+  >;
+  statusEventsBySourceOriginalId: Map<
+    string,
+    NonNullable<BehaviorLogExistingRecords["statusEvents"]>[number]
+  >;
+  statusEventsByFingerprint: Map<
+    string,
+    NonNullable<BehaviorLogExistingRecords["statusEvents"]>[number]
+  >;
+  importedSchedulesByBehaviorId: Map<string, BehaviorLogImportSchedulePlan[]>;
+};
+
+function buildMergePreview(
+  input: MergePreviewBuildInput,
+): BehaviorLogImportMergePreview {
+  const context = createMergePreviewContext(input);
+  const conflicts: BehaviorLogImportMergeConflict[] = [];
+  const behaviorActions = input.plan.behaviors.map((behavior) =>
+    resolveBehaviorMergeAction(behavior, context, conflicts),
+  );
+  const behaviorActionsByExternalId = new Map(
+    behaviorActions.map((action) => [action.externalId, action]),
+  );
+  const scheduleActions = input.plan.schedules.map((schedule) =>
+    resolveScheduleMergeAction({
+      schedule,
+      context,
+      conflicts,
+      behaviorActionsByExternalId,
+    }),
+  );
+  const scheduleActionsByExternalId = new Map(
+    scheduleActions.map((action) => [action.externalId, action]),
+  );
+  const occurrenceActions = input.plan.occurrences.map((occurrence) =>
+    resolveOccurrenceMergeAction({
+      occurrence,
+      context,
+      conflicts,
+      behaviorActionsByExternalId,
+      scheduleActionsByExternalId,
+    }),
+  );
+  const occurrenceActionsByExternalId = new Map(
+    occurrenceActions.map((action) => [action.externalId, action]),
+  );
+  const statusEventActions = input.plan.statusEvents.map((event) =>
+    resolveStatusEventMergeAction({
+      event,
+      context,
+      conflicts,
+      occurrenceActionsByExternalId,
+    }),
+  );
+  const noteActions = input.plan.notes.map((note) =>
+    resolveNoteMergeAction({
+      note,
+      context,
+      conflicts,
+      behaviorActionsByExternalId,
+      occurrenceActionsByExternalId,
+    }),
+  );
+  const interventionActions = input.interventions.map((intervention) =>
+    resolveInterventionMergeAction({
+      intervention,
+      context,
+      conflicts,
+      behaviorActionsByExternalId,
+      occurrenceActionsByExternalId,
+    }),
+  );
+  const actions = {
+    behaviors: behaviorActions,
+    schedules: scheduleActions,
+    occurrences: occurrenceActions,
+    statusEvents: statusEventActions,
+    notes: noteActions,
+    interventions: interventionActions,
+  };
+
+  return {
+    mode: "merge_preview",
+    privacy: input.privacy,
+    semantics: {
+      jsonlAuthoritative: true,
+      csvIgnoredForMerge: true,
+      statusEventsAuthoritative: true,
+      unresolvedIsFailure: false,
+      appendOnlyStatusEvents: true,
+    },
+    actionCounts: countMergeActions(actions),
+    conflictCodes: [...new Set(conflicts.map((conflict) => conflict.code))].sort(),
+    conflictCount: conflicts.length,
+    conflicts,
+    actions,
+  };
+}
+
+function createMergePreviewContext(
+  input: MergePreviewBuildInput,
+): MergePreviewContext {
+  const existing = input.existing ?? {};
+  const existingSchedules = dedupeById([
+    ...(existing.schedules ?? []),
+    ...(existing.behaviors ?? []).flatMap((behavior) => behavior.schedules ?? []),
+  ]);
+  const behaviors = existing.behaviors ?? [];
+  const occurrences = existing.occurrences ?? [];
+  const statusEvents = existing.statusEvents ?? [];
+
+  return {
+    existing,
+    mappingsByKey: new Map(
+      (existing.mappings ?? []).map((mapping) => [
+        mergeMappingKey(mapping.recordType, mapping.externalId),
+        mapping.localId,
+      ]),
+    ),
+    behaviorsById: new Map(behaviors.map((behavior) => [behavior.id, behavior])),
+    behaviorsBySourceOriginalId: indexByOptionalString(
+      behaviors,
+      (behavior) => behavior.sourceOriginalId,
+    ),
+    behaviorsByIdentity: new Map(
+      behaviors.map((behavior) => [
+        behaviorIdentity(behavior.title, behavior.category ?? null),
+        behavior,
+      ]),
+    ),
+    behaviorsByTitle: new Map(
+      behaviors.map((behavior) => [normalizeIdentity(behavior.title), behavior]),
+    ),
+    schedulesById: new Map(
+      existingSchedules.map((schedule) => [schedule.id, schedule]),
+    ),
+    schedulesByBehaviorId: groupBy(
+      existingSchedules,
+      (schedule) => schedule.behaviorId,
+    ),
+    occurrencesById: new Map(
+      occurrences.map((occurrence) => [occurrence.id, occurrence]),
+    ),
+    occurrencesBySourceOriginalId: indexByOptionalString(
+      occurrences,
+      (occurrence) => occurrence.sourceOriginalId,
+    ),
+    statusEventsById: new Map(statusEvents.map((event) => [event.id, event])),
+    statusEventsBySourceOriginalId: indexByOptionalString(
+      statusEvents,
+      (event) => event.sourceOriginalId,
+    ),
+    statusEventsByFingerprint: new Map(
+      statusEvents.map((event) => [
+        statusEventMergeIdentity(
+          event.occurrenceId,
+          event.recordedAtUtc,
+          event.status,
+          event.statusSemantics ?? null,
+          event.revisesEventId ?? null,
+        ),
+        event,
+      ]),
+    ),
+    importedSchedulesByBehaviorId: groupBy(
+      input.plan.schedules,
+      (schedule) => schedule.behaviorExternalId,
+    ),
+  };
+}
+
+function resolveBehaviorMergeAction(
+  behavior: BehaviorLogImportBehaviorPlan,
+  context: MergePreviewContext,
+  conflicts: BehaviorLogImportMergeConflict[],
+): BehaviorLogImportMergeRecordAction {
+  const mappedLocalId = context.mappingsByKey.get(
+    mergeMappingKey("behavior", behavior.externalId),
+  );
+  const mappedBehavior = mappedLocalId
+    ? context.behaviorsById.get(mappedLocalId)
+    : undefined;
+
+  if (mappedLocalId && !mappedBehavior) {
+    return conflictMergeAction({
+      conflicts,
+      recordType: "behavior",
+      externalId: behavior.externalId,
+      localId: mappedLocalId,
+      codes: ["behavior_mapped_record_missing"],
+      reasons: [
+        `Existing import mapping points behavior ${behavior.externalId} at local behavior ${mappedLocalId}, but that local behavior was not provided to the preview.`,
+      ],
+    });
+  }
+
+  if (mappedBehavior) {
+    return behaviorCandidateAction({
+      behavior,
+      existing: mappedBehavior,
+      context,
+      conflicts,
+      reason: `Existing import mapping links behavior ${behavior.externalId} to local behavior ${mappedBehavior.id}.`,
+    });
+  }
+
+  const sourceMatch = behavior.sourceOriginalId
+    ? context.behaviorsBySourceOriginalId.get(behavior.sourceOriginalId) ??
+      context.behaviorsById.get(behavior.sourceOriginalId)
+    : undefined;
+
+  if (sourceMatch) {
+    return behaviorCandidateAction({
+      behavior,
+      existing: sourceMatch,
+      context,
+      conflicts,
+      reason: `Behavior ${behavior.externalId} shares source original id ${behavior.sourceOriginalId}.`,
+    });
+  }
+
+  const idMatch = context.behaviorsById.get(behavior.externalId);
+
+  if (idMatch) {
+    return behaviorCandidateAction({
+      behavior,
+      existing: idMatch,
+      context,
+      conflicts,
+      reason: `Behavior ${behavior.externalId} matches a local behavior id.`,
+    });
+  }
+
+  const identityMatch = context.behaviorsByIdentity.get(
+    behaviorIdentity(behavior.title, behaviorCategoryForIdentity(behavior)),
+  );
+
+  if (identityMatch) {
+    return behaviorCandidateAction({
+      behavior,
+      existing: identityMatch,
+      context,
+      conflicts,
+      reason: `Behavior ${behavior.externalId} matches local title/category identity.`,
+    });
+  }
+
+  const titleOnlyMatch = context.behaviorsByTitle.get(
+    normalizeIdentity(behavior.title),
+  );
+
+  if (titleOnlyMatch) {
+    return behaviorCandidateAction({
+      behavior,
+      existing: titleOnlyMatch,
+      context,
+      conflicts,
+      reason: `Behavior ${behavior.externalId} has the same title as local behavior ${titleOnlyMatch.id}, but category or provenance differs.`,
+    });
+  }
+
+  return mergeAction({
+    recordType: "behavior",
+    externalId: behavior.externalId,
+    action: "create_new",
+    localId: null,
+    reasons: [`Behavior ${behavior.externalId} has no local match.`],
+  });
+}
+
+function behaviorCandidateAction(input: {
+  behavior: BehaviorLogImportBehaviorPlan;
+  existing: NonNullable<BehaviorLogExistingRecords["behaviors"]>[number];
+  context: MergePreviewContext;
+  conflicts: BehaviorLogImportMergeConflict[];
+  reason: string;
+}): BehaviorLogImportMergeRecordAction {
+  const { codes, reasons } = compareBehaviorCandidate(
+    input.behavior,
+    input.existing,
+    input.context,
+  );
+
+  if (codes.length > 0) {
+    return conflictMergeAction({
+      conflicts: input.conflicts,
+      recordType: "behavior",
+      externalId: input.behavior.externalId,
+      localId: input.existing.id,
+      codes,
+      reasons,
+    });
+  }
+
+  return mergeAction({
+    recordType: "behavior",
+    externalId: input.behavior.externalId,
+    action: "map_to_existing",
+    localId: input.existing.id,
+    reasons: [input.reason],
+  });
+}
+
+function resolveScheduleMergeAction(input: {
+  schedule: BehaviorLogImportSchedulePlan;
+  context: MergePreviewContext;
+  conflicts: BehaviorLogImportMergeConflict[];
+  behaviorActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+}): BehaviorLogImportMergeRecordAction {
+  const parent = input.behaviorActionsByExternalId.get(
+    input.schedule.behaviorExternalId,
+  );
+
+  if (parent?.action === "conflict_requires_decision") {
+    return conflictMergeAction({
+      conflicts: input.conflicts,
+      recordType: "schedule",
+      externalId: input.schedule.externalId,
+      localId: null,
+      codes: ["schedule_parent_behavior_conflict"],
+      reasons: [
+        `Schedule ${input.schedule.externalId} cannot be compared until behavior ${input.schedule.behaviorExternalId} is resolved.`,
+      ],
+      relatedExternalIds: {
+        behavior: input.schedule.behaviorExternalId,
+      },
+    });
+  }
+
+  if (!parent?.localId) {
+    return mergeAction({
+      recordType: "schedule",
+      externalId: input.schedule.externalId,
+      action: "create_new",
+      localId: null,
+      reasons: [
+        `Schedule ${input.schedule.externalId} belongs to a behavior that will be created.`,
+      ],
+      relatedExternalIds: {
+        behavior: input.schedule.behaviorExternalId,
+      },
+    });
+  }
+
+  const mappedLocalId = input.context.mappingsByKey.get(
+    mergeMappingKey("schedule", input.schedule.externalId),
+  );
+  const mappedSchedule = mappedLocalId
+    ? input.context.schedulesById.get(mappedLocalId)
+    : undefined;
+
+  if (mappedLocalId && !mappedSchedule) {
+    return conflictMergeAction({
+      conflicts: input.conflicts,
+      recordType: "schedule",
+      externalId: input.schedule.externalId,
+      localId: mappedLocalId,
+      codes: ["schedule_mapped_record_missing"],
+      reasons: [
+        `Existing import mapping points schedule ${input.schedule.externalId} at local schedule ${mappedLocalId}, but that local schedule was not provided to the preview.`,
+      ],
+      relatedExternalIds: {
+        behavior: input.schedule.behaviorExternalId,
+      },
+    });
+  }
+
+  const sourceMatch = input.schedule.sourceOriginalId
+    ? input.context.schedulesById.get(input.schedule.sourceOriginalId)
+    : undefined;
+  const idMatch = input.context.schedulesById.get(input.schedule.externalId);
+  const shapeMatch = (
+    input.context.schedulesByBehaviorId.get(parent.localId) ?? []
+  ).find((schedule) => schedulesMatch(input.schedule, schedule));
+  const candidate = mappedSchedule ?? sourceMatch ?? idMatch ?? shapeMatch;
+
+  if (candidate) {
+    const { codes, reasons } = compareScheduleCandidate(
+      input.schedule,
+      candidate,
+      parent.localId,
+    );
+
+    if (codes.length > 0) {
+      return conflictMergeAction({
+        conflicts: input.conflicts,
+        recordType: "schedule",
+        externalId: input.schedule.externalId,
+        localId: candidate.id,
+        codes,
+        reasons,
+        relatedExternalIds: {
+          behavior: input.schedule.behaviorExternalId,
+        },
+      });
+    }
+
+    return mergeAction({
+      recordType: "schedule",
+      externalId: input.schedule.externalId,
+      action: "map_to_existing",
+      localId: candidate.id,
+      reasons: [
+        `Schedule ${input.schedule.externalId} matches a local schedule for behavior ${parent.localId}.`,
+      ],
+      relatedExternalIds: {
+        behavior: input.schedule.behaviorExternalId,
+      },
+    });
+  }
+
+  return mergeAction({
+    recordType: "schedule",
+    externalId: input.schedule.externalId,
+    action: "create_new",
+    localId: null,
+    reasons: [
+      `Schedule ${input.schedule.externalId} has no matching local recurrence and slot shape.`,
+    ],
+    relatedExternalIds: {
+      behavior: input.schedule.behaviorExternalId,
+    },
+  });
+}
+
+function resolveOccurrenceMergeAction(input: {
+  occurrence: BehaviorLogImportOccurrencePlan;
+  context: MergePreviewContext;
+  conflicts: BehaviorLogImportMergeConflict[];
+  behaviorActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+  scheduleActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+}): BehaviorLogImportMergeRecordAction {
+  const behaviorAction = input.behaviorActionsByExternalId.get(
+    input.occurrence.behaviorExternalId,
+  );
+  const scheduleAction = input.scheduleActionsByExternalId.get(
+    input.occurrence.scheduleExternalId,
+  );
+
+  if (
+    behaviorAction?.action === "conflict_requires_decision" ||
+    scheduleAction?.action === "conflict_requires_decision"
+  ) {
+    return conflictMergeAction({
+      conflicts: input.conflicts,
+      recordType: "occurrence",
+      externalId: input.occurrence.externalId,
+      localId: null,
+      codes: ["occurrence_parent_mapping_unresolved"],
+      reasons: [
+        `Occurrence ${input.occurrence.externalId} cannot be compared until its behavior and schedule are resolved.`,
+      ],
+      localDate: input.occurrence.localDate,
+      timezone: input.occurrence.timezone,
+      relatedExternalIds: {
+        behavior: input.occurrence.behaviorExternalId,
+        schedule: input.occurrence.scheduleExternalId,
+      },
+    });
+  }
+
+  if (!behaviorAction?.localId || !scheduleAction?.localId) {
+    return mergeAction({
+      recordType: "occurrence",
+      externalId: input.occurrence.externalId,
+      action: "create_new",
+      localId: null,
+      reasons: [
+        `Occurrence ${input.occurrence.externalId} belongs to behavior or schedule records that will be created.`,
+      ],
+      relatedExternalIds: {
+        behavior: input.occurrence.behaviorExternalId,
+        schedule: input.occurrence.scheduleExternalId,
+      },
+    });
+  }
+
+  const localBehaviorId = behaviorAction.localId;
+  const localScheduleId = scheduleAction.localId;
+  const mappedLocalId = input.context.mappingsByKey.get(
+    mergeMappingKey("occurrence", input.occurrence.externalId),
+  );
+  const mappedOccurrence = mappedLocalId
+    ? input.context.occurrencesById.get(mappedLocalId)
+    : undefined;
+
+  if (mappedLocalId && !mappedOccurrence) {
+    return occurrenceConflictAction({
+      occurrence: input.occurrence,
+      conflicts: input.conflicts,
+      localId: mappedLocalId,
+      codes: ["occurrence_mapped_record_missing"],
+      reasons: [
+        `Existing import mapping points occurrence ${input.occurrence.externalId} at local occurrence ${mappedLocalId}, but that local occurrence was not provided to the preview.`,
+      ],
+    });
+  }
+
+  const sourceMatch = input.occurrence.sourceOriginalId
+    ? input.context.occurrencesBySourceOriginalId.get(
+        input.occurrence.sourceOriginalId,
+      ) ?? input.context.occurrencesById.get(input.occurrence.sourceOriginalId)
+    : undefined;
+  const idMatch = input.context.occurrencesById.get(input.occurrence.externalId);
+  const exactMatch = (input.context.existing.occurrences ?? []).find((candidate) =>
+    occurrencesMatch(input.occurrence, candidate, {
+      behaviorId: localBehaviorId,
+      scheduleId: localScheduleId,
+    }),
+  );
+  const sameInstantMismatch = (input.context.existing.occurrences ?? []).find(
+    (candidate) =>
+      candidate.behaviorId === localBehaviorId &&
+      optionalStringsEqual(candidate.scheduleId, localScheduleId) &&
+      candidate.scheduledForUtc === input.occurrence.scheduledForUtc &&
+      !occurrencesMatch(input.occurrence, candidate, {
+        behaviorId: localBehaviorId,
+        scheduleId: localScheduleId,
+      }),
+  );
+  const candidate =
+    mappedOccurrence ?? sourceMatch ?? idMatch ?? exactMatch ?? sameInstantMismatch;
+
+  if (candidate) {
+    const { codes, reasons } = compareOccurrenceCandidate(input.occurrence, candidate, {
+      behaviorId: localBehaviorId,
+      scheduleId: localScheduleId,
+    });
+
+    if (codes.length > 0) {
+      return occurrenceConflictAction({
+        occurrence: input.occurrence,
+        conflicts: input.conflicts,
+        localId: candidate.id,
+        codes,
+        reasons,
+      });
+    }
+
+    return mergeAction({
+      recordType: "occurrence",
+      externalId: input.occurrence.externalId,
+      action: "map_to_existing",
+      localId: candidate.id,
+      reasons: [
+        `Occurrence ${input.occurrence.externalId} matches a local occurrence by mapped behavior, mapped schedule, scheduled_for_utc, local_date, and timezone.`,
+      ],
+      relatedExternalIds: {
+        behavior: input.occurrence.behaviorExternalId,
+        schedule: input.occurrence.scheduleExternalId,
+      },
+    });
+  }
+
+  return mergeAction({
+    recordType: "occurrence",
+    externalId: input.occurrence.externalId,
+    action: "create_new",
+    localId: null,
+    reasons: [
+      `Occurrence ${input.occurrence.externalId} has no local match by mapped behavior, mapped schedule, scheduled_for_utc, local_date, and timezone.`,
+    ],
+    relatedExternalIds: {
+      behavior: input.occurrence.behaviorExternalId,
+      schedule: input.occurrence.scheduleExternalId,
+    },
+  });
+}
+
+function resolveStatusEventMergeAction(input: {
+  event: BehaviorLogImportStatusEventPlan;
+  context: MergePreviewContext;
+  conflicts: BehaviorLogImportMergeConflict[];
+  occurrenceActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+}): BehaviorLogImportMergeRecordAction {
+  const occurrenceAction = input.occurrenceActionsByExternalId.get(
+    input.event.occurrenceExternalId,
+  );
+
+  if (occurrenceAction?.action === "conflict_requires_decision") {
+    return statusEventConflictAction({
+      event: input.event,
+      conflicts: input.conflicts,
+      localId: null,
+      codes: ["status_event_parent_mapping_unresolved"],
+      reasons: [
+        `Status event ${input.event.externalId} cannot be compared until occurrence ${input.event.occurrenceExternalId} is resolved.`,
+      ],
+    });
+  }
+
+  if (!occurrenceAction?.localId) {
+    return mergeAction({
+      recordType: "status_event",
+      externalId: input.event.externalId,
+      action: "create_new",
+      localId: null,
+      reasons: [
+        `Status event ${input.event.externalId} belongs to an occurrence that will be created. status_events.jsonl remains authoritative over the occurrence current_status snapshot.`,
+      ],
+      relatedExternalIds: {
+        occurrence: input.event.occurrenceExternalId,
+        behavior: input.event.behaviorExternalId,
+        revisesEvent: input.event.revisesEventId,
+      },
+    });
+  }
+
+  const revisionCode = unresolvedRevisionCode(input.event, input.context);
+  const mappedLocalId = input.context.mappingsByKey.get(
+    mergeMappingKey("status_event", input.event.externalId),
+  );
+  const mappedEvent = mappedLocalId
+    ? input.context.statusEventsById.get(mappedLocalId)
+    : undefined;
+
+  if (mappedLocalId && !mappedEvent) {
+    return statusEventConflictAction({
+      event: input.event,
+      conflicts: input.conflicts,
+      localId: mappedLocalId,
+      codes: ["status_event_mapped_record_missing"],
+      reasons: [
+        `Existing import mapping points status event ${input.event.externalId} at local event ${mappedLocalId}, but that local event was not provided to the preview.`,
+      ],
+    });
+  }
+
+  const sourceMatch = input.event.sourceOriginalId
+    ? input.context.statusEventsBySourceOriginalId.get(input.event.sourceOriginalId) ??
+      input.context.statusEventsById.get(input.event.sourceOriginalId)
+    : undefined;
+  const idMatch = input.context.statusEventsById.get(input.event.externalId);
+  const fingerprintMatch = input.context.statusEventsByFingerprint.get(
+    statusEventMergeIdentity(
+      occurrenceAction.localId,
+      input.event.recordedAtUtc,
+      input.event.status,
+      input.event.statusSemantics,
+      localRevisionTargetId(input.event, input.context),
+    ),
+  );
+  const candidate = mappedEvent ?? sourceMatch ?? idMatch ?? fingerprintMatch;
+
+  if (candidate) {
+    const { codes, reasons } = compareStatusEventCandidate(input.event, candidate, {
+      occurrenceId: occurrenceAction.localId,
+      revisionTargetId: localRevisionTargetId(input.event, input.context),
+    });
+    const allCodes = [...codes, ...revisionCode.codes];
+    const allReasons = [...reasons, ...revisionCode.reasons];
+
+    if (allCodes.length > 0) {
+      return statusEventConflictAction({
+        event: input.event,
+        conflicts: input.conflicts,
+        localId: candidate.id,
+        codes: allCodes,
+        reasons: allReasons,
+      });
+    }
+
+    return mergeAction({
+      recordType: "status_event",
+      externalId: input.event.externalId,
+      action: fingerprintMatch ? "skip_existing" : "map_to_existing",
+      localId: candidate.id,
+      reasons: [
+        fingerprintMatch
+          ? `Status event ${input.event.externalId} already exists locally with the same occurrence, recorded time, status, semantics, and revision target.`
+          : `Status event ${input.event.externalId} maps to local status event ${candidate.id}.`,
+      ],
+      relatedExternalIds: {
+        occurrence: input.event.occurrenceExternalId,
+        behavior: input.event.behaviorExternalId,
+        revisesEvent: input.event.revisesEventId,
+      },
+    });
+  }
+
+  if (revisionCode.codes.length > 0) {
+    return statusEventConflictAction({
+      event: input.event,
+      conflicts: input.conflicts,
+      localId: null,
+      codes: revisionCode.codes,
+      reasons: revisionCode.reasons,
+    });
+  }
+
+  return mergeAction({
+    recordType: "status_event",
+    externalId: input.event.externalId,
+    action: "create_new",
+    localId: null,
+    reasons: [
+      `Status event ${input.event.externalId} has no local append-only history match. status_events.jsonl remains authoritative over current_status snapshots.`,
+    ],
+    relatedExternalIds: {
+      occurrence: input.event.occurrenceExternalId,
+      behavior: input.event.behaviorExternalId,
+      revisesEvent: input.event.revisesEventId,
+    },
+  });
+}
+
+function resolveNoteMergeAction(input: {
+  note: BehaviorLogImportNotePlan;
+  context: MergePreviewContext;
+  conflicts: BehaviorLogImportMergeConflict[];
+  behaviorActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+  occurrenceActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+}): BehaviorLogImportMergeRecordAction {
+  const metadata = noteMergeMetadata(input.note);
+  const mappedLocalId = input.context.mappingsByKey.get(
+    mergeMappingKey("note", input.note.externalId),
+  );
+
+  if (mappedLocalId) {
+    return mergeAction({
+      recordType: "note",
+      externalId: input.note.externalId,
+      action: "map_to_existing",
+      localId: mappedLocalId,
+      reasons: [`Existing import mapping links note ${input.note.externalId}.`],
+      metadata: {
+        ...metadata,
+        noteDecision: "already_mapped",
+      },
+    });
+  }
+
+  if (input.note.action === "skip") {
+    return mergeAction({
+      recordType: "note",
+      externalId: input.note.externalId,
+      action: "skip_existing",
+      localId: null,
+      reasons: noteSkipReasons(input.note),
+      relatedExternalIds: {
+        [input.note.attachedToType]: input.note.attachedToId,
+      },
+      metadata: {
+        ...metadata,
+        noteDecision: "skip_unsupported_note",
+      },
+    });
+  }
+
+  const parentAction =
+    input.note.attachedToType === "behavior"
+      ? input.behaviorActionsByExternalId.get(input.note.attachedToId)
+      : input.note.attachedToType === "occurrence"
+        ? input.occurrenceActionsByExternalId.get(input.note.attachedToId)
+        : undefined;
+
+  if (parentAction?.action === "conflict_requires_decision") {
+    return conflictMergeAction({
+      conflicts: input.conflicts,
+      recordType: "note",
+      externalId: input.note.externalId,
+      localId: null,
+      codes: ["note_attachment_unresolved"],
+      reasons: [
+        `Note ${input.note.externalId} cannot be reviewed until its ${input.note.attachedToType} attachment is resolved.`,
+      ],
+      relatedExternalIds: {
+        [input.note.attachedToType]: input.note.attachedToId,
+      },
+      metadata,
+    });
+  }
+
+  if (input.note.attachedToType !== "occurrence") {
+    return mergeAction({
+      recordType: "note",
+      externalId: input.note.externalId,
+      action: "skip_existing",
+      localId: null,
+      reasons: [
+        `Note ${input.note.externalId} is attached to ${input.note.attachedToType}; Cadence imports occurrence-attached notes only.`,
+      ],
+      relatedExternalIds: {
+        [input.note.attachedToType]: input.note.attachedToId,
+      },
+      metadata: {
+        ...metadata,
+        noteDecision: "skip_unsupported_note",
+      },
+    });
+  }
+
+  if (input.note.noteRole === "ai_generated") {
+    return mergeAction({
+      recordType: "note",
+      externalId: input.note.externalId,
+      action: "skip_existing",
+      localId: null,
+      reasons: [
+        `Note ${input.note.externalId} is AI-generated and will not be imported into occurrence notes.`,
+      ],
+      relatedExternalIds: {
+        occurrence: input.note.attachedToId,
+      },
+      metadata: {
+        ...metadata,
+        noteDecision: "skip_ai_generated_note",
+      },
+    });
+  }
+
+  if (!parentAction) {
+    return conflictMergeAction({
+      conflicts: input.conflicts,
+      recordType: "note",
+      externalId: input.note.externalId,
+      localId: null,
+      codes: ["note_attachment_unresolved"],
+      reasons: [
+        `Note ${input.note.externalId} cannot be reviewed because occurrence ${input.note.attachedToId} has no merge action.`,
+      ],
+      relatedExternalIds: {
+        occurrence: input.note.attachedToId,
+      },
+      metadata,
+    });
+  }
+
+  if (parentAction.action === "create_new") {
+    return mergeAction({
+      recordType: "note",
+      externalId: input.note.externalId,
+      action: "create_new",
+      localId: null,
+      reasons: [
+        `Note ${input.note.externalId} can fill occurrence ${input.note.attachedToId} after that occurrence is created.`,
+      ],
+      relatedExternalIds: {
+        occurrence: input.note.attachedToId,
+      },
+      metadata: {
+        ...metadata,
+        noteDecision: "fill_created_occurrence_note",
+      },
+    });
+  }
+
+  if (!parentAction.localId) {
+    return mergeAction({
+      recordType: "note",
+      externalId: input.note.externalId,
+      action: "skip_existing",
+      localId: null,
+      reasons: [
+        `Note ${input.note.externalId} has no safely identified local occurrence target.`,
+      ],
+      relatedExternalIds: {
+        occurrence: input.note.attachedToId,
+      },
+      metadata: {
+        ...metadata,
+        noteDecision: "skip_missing_target",
+      },
+    });
+  }
+
+  const localOccurrence = input.context.occurrencesById.get(parentAction.localId);
+
+  if (!localOccurrence) {
+    return conflictMergeAction({
+      conflicts: input.conflicts,
+      recordType: "note",
+      externalId: input.note.externalId,
+      localId: parentAction.localId,
+      codes: ["note_target_occurrence_not_provided"],
+      reasons: [
+        `Note ${input.note.externalId} targets local occurrence ${parentAction.localId}, but that occurrence was not provided to the preview.`,
+      ],
+      relatedExternalIds: {
+        occurrence: input.note.attachedToId,
+      },
+      metadata,
+    });
+  }
+
+  if (isEmptyNoteBody(localOccurrence.note)) {
+    return mergeAction({
+      recordType: "note",
+      externalId: input.note.externalId,
+      action: "map_to_existing",
+      localId: localOccurrence.id,
+      reasons: [
+        `Local occurrence ${localOccurrence.id} has an empty note, so note ${input.note.externalId} may fill it.`,
+      ],
+      relatedExternalIds: {
+        occurrence: input.note.attachedToId,
+      },
+      metadata: {
+        ...metadata,
+        noteDecision: "fill_empty_occurrence_note",
+      },
+    });
+  }
+
+  if (noteBodiesEqual(localOccurrence.note, input.note.bodyMarkdown)) {
+    return mergeAction({
+      recordType: "note",
+      externalId: input.note.externalId,
+      action: "map_to_existing",
+      localId: localOccurrence.id,
+      reasons: [
+        `Note ${input.note.externalId} already matches local occurrence ${localOccurrence.id}.`,
+      ],
+      relatedExternalIds: {
+        occurrence: input.note.attachedToId,
+      },
+      metadata: {
+        ...metadata,
+        noteDecision: "note_matches_existing_occurrence_note",
+      },
+    });
+  }
+
+  return conflictMergeAction({
+    conflicts: input.conflicts,
+    recordType: "note",
+    externalId: input.note.externalId,
+    localId: localOccurrence.id,
+    codes: ["occurrence_note_conflict"],
+    reasons: [
+      `Local occurrence ${localOccurrence.id} already has a different note; changing it requires an explicit merge-plan decision.`,
+    ],
+    localDate: localOccurrence.localDate,
+    timezone: localOccurrence.timezone,
+    relatedExternalIds: {
+      occurrence: input.note.attachedToId,
+    },
+    metadata: {
+      ...metadata,
+      noteDecision: "requires_explicit_note_replace_decision",
+    },
+  });
+}
+
+function noteSkipReasons(note: BehaviorLogImportNotePlan): string[] {
+  if (note.skipReasons.length === 0) {
+    return [`Note ${note.externalId} is skipped by the validated import plan.`];
+  }
+
+  return note.skipReasons.map(
+    (reason) => `Note ${note.externalId} is skipped: ${reason}.`,
+  );
+}
+
+function noteMergeMetadata(
+  note: BehaviorLogImportNotePlan,
+): Record<string, unknown> {
+  const normalizedBody = normalizeNoteBody(note.bodyMarkdown) ?? note.bodyMarkdown;
+
+  return {
+    attachedToType: note.attachedToType,
+    attachedToId: note.attachedToId,
+    noteRole: note.noteRole,
+    sensitivity: note.sensitivity,
+    sourceOriginalId: note.sourceOriginalId ?? null,
+    sourceCaptureMethod: note.sourceCaptureMethod,
+    sourceConfidence: note.sourceConfidence,
+    createdAtUtc: note.createdAtUtc,
+    updatedAtUtc: note.updatedAtUtc,
+    bodySha256: sha256(normalizedBody),
+  };
+}
+
+function isEmptyNoteBody(value: string | null | undefined): boolean {
+  return normalizeNoteBody(value) === null;
+}
+
+function noteBodiesEqual(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  return normalizeNoteBody(left) === normalizeNoteBody(right);
+}
+
+function normalizeNoteBody(value: string | null | undefined): string | null {
+  const normalized = value?.replace(/\r\n/g, "\n").trim() ?? "";
+
+  return normalized.length > 0 ? normalized : null;
+}
+
+function resolveInterventionMergeAction(input: {
+  intervention: BehaviorLogImportInterventionPreviewPlan;
+  context: MergePreviewContext;
+  conflicts: BehaviorLogImportMergeConflict[];
+  behaviorActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+  occurrenceActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+}): BehaviorLogImportMergeRecordAction {
+  const mappedLocalId = input.context.mappingsByKey.get(
+    mergeMappingKey("intervention", input.intervention.externalId),
+  );
+
+  if (mappedLocalId) {
+    return mergeAction({
+      recordType: "intervention",
+      externalId: input.intervention.externalId,
+      action: "map_to_existing",
+      localId: mappedLocalId,
+      reasons: [
+        `Existing import mapping links intervention ${input.intervention.externalId}.`,
+      ],
+    });
+  }
+
+  const behaviorAction = input.intervention.behaviorExternalId
+    ? input.behaviorActionsByExternalId.get(input.intervention.behaviorExternalId)
+    : undefined;
+  const occurrenceAction = input.intervention.occurrenceExternalId
+    ? input.occurrenceActionsByExternalId.get(
+        input.intervention.occurrenceExternalId,
+      )
+    : undefined;
+
+  if (
+    behaviorAction?.action === "conflict_requires_decision" ||
+    occurrenceAction?.action === "conflict_requires_decision"
+  ) {
+    return conflictMergeAction({
+      conflicts: input.conflicts,
+      recordType: "intervention",
+      externalId: input.intervention.externalId,
+      localId: null,
+      codes: ["intervention_parent_unresolved"],
+      reasons: [
+        `Intervention ${input.intervention.externalId} cannot be reviewed until its behavior or occurrence is resolved.`,
+      ],
+      relatedExternalIds: {
+        behavior: input.intervention.behaviorExternalId,
+        occurrence: input.intervention.occurrenceExternalId,
+      },
+    });
+  }
+
+  return mergeAction({
+    recordType: "intervention",
+    externalId: input.intervention.externalId,
+    action: "skip_existing",
+    localId: null,
+    reasons: [
+      `Intervention ${input.intervention.externalId} is included in the merge preview only; intervention writes and reminder side effects require a later passive history model.`,
+    ],
+    relatedExternalIds: {
+      behavior: input.intervention.behaviorExternalId,
+      occurrence: input.intervention.occurrenceExternalId,
+    },
+  });
+}
+
+function compareBehaviorCandidate(
+  behavior: BehaviorLogImportBehaviorPlan,
+  existing: NonNullable<BehaviorLogExistingRecords["behaviors"]>[number],
+  context: MergePreviewContext,
+): { codes: string[]; reasons: string[] } {
+  const codes: string[] = [];
+  const reasons: string[] = [];
+
+  if (
+    behaviorIdentity(behavior.title, behaviorCategoryForIdentity(behavior)) !==
+    behaviorIdentity(existing.title, existing.category ?? null)
+  ) {
+    codes.push("behavior_identity_mismatch");
+    reasons.push(
+      `Behavior ${behavior.externalId} differs from local behavior ${existing.id} by title or category identity.`,
+    );
+  }
+
+  if (importedBehaviorArchived(behavior) !== existingBehaviorArchived(existing)) {
+    codes.push("behavior_archive_state_mismatch");
+    reasons.push(
+      `Behavior ${behavior.externalId} archive state differs from local behavior ${existing.id}.`,
+    );
+  }
+
+  if (
+    !behaviorScheduleShapesCompatible(
+      context.importedSchedulesByBehaviorId.get(behavior.externalId) ?? [],
+      context.schedulesByBehaviorId.get(existing.id) ?? existing.schedules ?? [],
+    )
+  ) {
+    codes.push("behavior_schedule_shape_mismatch");
+    reasons.push(
+      `Behavior ${behavior.externalId} schedule shape does not match local behavior ${existing.id}.`,
+    );
+  }
+
+  return { codes, reasons };
+}
+
+function compareScheduleCandidate(
+  schedule: BehaviorLogImportSchedulePlan,
+  existing: NonNullable<BehaviorLogExistingRecords["schedules"]>[number],
+  behaviorId: string,
+): { codes: string[]; reasons: string[] } {
+  if (existing.behaviorId === behaviorId && schedulesMatch(schedule, existing)) {
+    return { codes: [], reasons: [] };
+  }
+
+  return {
+    codes: ["schedule_shape_mismatch"],
+    reasons: [
+      `Schedule ${schedule.externalId} differs from local schedule ${existing.id} by behavior mapping, recurrence, timezone, active dates, or slot shape.`,
+    ],
+  };
+}
+
+function compareOccurrenceCandidate(
+  occurrence: BehaviorLogImportOccurrencePlan,
+  existing: NonNullable<BehaviorLogExistingRecords["occurrences"]>[number],
+  parent: { behaviorId: string; scheduleId: string },
+): { codes: string[]; reasons: string[] } {
+  if (occurrencesMatch(occurrence, existing, parent)) {
+    return { codes: [], reasons: [] };
+  }
+
+  return {
+    codes: ["occurrence_identity_mismatch"],
+    reasons: [
+      `Occurrence ${occurrence.externalId} differs from local occurrence ${existing.id} by mapped behavior, mapped schedule, scheduled_for_utc, local_date, or timezone.`,
+    ],
+  };
+}
+
+function compareStatusEventCandidate(
+  event: BehaviorLogImportStatusEventPlan,
+  existing: NonNullable<BehaviorLogExistingRecords["statusEvents"]>[number],
+  parent: { occurrenceId: string; revisionTargetId: string | null },
+): { codes: string[]; reasons: string[] } {
+  if (
+    existing.occurrenceId === parent.occurrenceId &&
+    existing.recordedAtUtc === event.recordedAtUtc &&
+    existing.status === event.status &&
+    (existing.statusSemantics ?? event.statusSemantics) ===
+      event.statusSemantics &&
+    optionalStringsEqual(existing.revisesEventId ?? null, parent.revisionTargetId)
+  ) {
+    return { codes: [], reasons: [] };
+  }
+
+  return {
+    codes: ["status_event_identity_mismatch"],
+    reasons: [
+      `Status event ${event.externalId} differs from local event ${existing.id} by occurrence mapping, recorded time, status, semantics, or revision target.`,
+    ],
+  };
+}
+
+function occurrenceConflictAction(input: {
+  occurrence: BehaviorLogImportOccurrencePlan;
+  conflicts: BehaviorLogImportMergeConflict[];
+  localId: string | null;
+  codes: string[];
+  reasons: string[];
+}): BehaviorLogImportMergeRecordAction {
+  return conflictMergeAction({
+    conflicts: input.conflicts,
+    recordType: "occurrence",
+    externalId: input.occurrence.externalId,
+    localId: input.localId,
+    codes: input.codes,
+    reasons: input.reasons,
+    localDate: input.occurrence.localDate,
+    timezone: input.occurrence.timezone,
+    relatedExternalIds: {
+      behavior: input.occurrence.behaviorExternalId,
+      schedule: input.occurrence.scheduleExternalId,
+    },
+  });
+}
+
+function statusEventConflictAction(input: {
+  event: BehaviorLogImportStatusEventPlan;
+  conflicts: BehaviorLogImportMergeConflict[];
+  localId: string | null;
+  codes: string[];
+  reasons: string[];
+}): BehaviorLogImportMergeRecordAction {
+  return conflictMergeAction({
+    conflicts: input.conflicts,
+    recordType: "status_event",
+    externalId: input.event.externalId,
+    localId: input.localId,
+    codes: input.codes,
+    reasons: input.reasons,
+    localDate: input.event.localDate,
+    timezone: input.event.timezone,
+    relatedExternalIds: {
+      occurrence: input.event.occurrenceExternalId,
+      behavior: input.event.behaviorExternalId,
+      revisesEvent: input.event.revisesEventId,
+    },
+  });
+}
+
+function conflictMergeAction(input: {
+  conflicts: BehaviorLogImportMergeConflict[];
+  recordType: BehaviorLogImportRecordType;
+  externalId: string;
+  localId: string | null;
+  codes: string[];
+  reasons: string[];
+  localDate?: string;
+  timezone?: string;
+  relatedExternalIds?: Record<string, string | null>;
+  metadata?: Record<string, unknown>;
+}): BehaviorLogImportMergeRecordAction {
+  for (const [index, code] of input.codes.entries()) {
+    input.conflicts.push({
+      code,
+      reason: input.reasons[index] ?? input.reasons[0] ?? code,
+      importedRecordType: input.recordType,
+      importedId: input.externalId,
+      existingId: input.localId,
+      localDate: input.localDate,
+      timezone: input.timezone,
+    });
+  }
+
+  return mergeAction({
+    recordType: input.recordType,
+    externalId: input.externalId,
+    action: "conflict_requires_decision",
+    localId: input.localId,
+    conflictCodes: input.codes,
+    reasons: input.reasons,
+    relatedExternalIds: input.relatedExternalIds,
+    metadata: input.metadata,
+  });
+}
+
+function mergeAction(input: {
+  recordType: BehaviorLogImportRecordType;
+  externalId: string;
+  action: BehaviorLogImportMergeRecordAction["action"];
+  localId: string | null;
+  reasons: string[];
+  conflictCodes?: string[];
+  relatedExternalIds?: Record<string, string | null>;
+  metadata?: Record<string, unknown>;
+}): BehaviorLogImportMergeRecordAction {
+  return {
+    recordType: input.recordType,
+    externalId: input.externalId,
+    action: input.action,
+    localId: input.localId,
+    conflictCodes: input.conflictCodes ?? [],
+    reasons: input.reasons,
+    relatedExternalIds: input.relatedExternalIds,
+    metadata: input.metadata,
+  };
+}
+
+function countMergeActions(
+  actions: BehaviorLogImportMergePreview["actions"],
+): BehaviorLogImportMergePreview["actionCounts"] {
+  const counts: BehaviorLogImportMergePreview["actionCounts"] = {
+    create_new: 0,
+    map_to_existing: 0,
+    skip_existing: 0,
+    conflict_requires_decision: 0,
+  };
+
+  for (const group of Object.values(actions)) {
+    for (const action of group) {
+      counts[action.action] += 1;
+    }
+  }
+
+  return counts;
+}
+
+function behaviorCategoryForIdentity(
+  behavior: BehaviorLogImportBehaviorPlan,
+): string | null {
+  return behavior.cadenceCategoryName ?? behavior.category;
+}
+
+function importedBehaviorArchived(
+  behavior: BehaviorLogImportBehaviorPlan,
+): boolean {
+  return Boolean(behavior.archivedAtUtc) || behavior.cadenceActive === false;
+}
+
+function existingBehaviorArchived(
+  behavior: NonNullable<BehaviorLogExistingRecords["behaviors"]>[number],
+): boolean {
+  return Boolean(behavior.archivedAt) || behavior.active === false;
+}
+
+function behaviorScheduleShapesCompatible(
+  importedSchedules: BehaviorLogImportSchedulePlan[],
+  existingSchedules: NonNullable<BehaviorLogExistingRecords["schedules"]>,
+): boolean {
+  if (importedSchedules.length === 0 || existingSchedules.length === 0) {
+    return true;
+  }
+
+  return importedSchedules.every((importedSchedule) =>
+    existingSchedules.some((existingSchedule) =>
+      schedulesMatch(importedSchedule, existingSchedule),
+    ),
+  );
+}
+
+function schedulesMatch(
+  imported: BehaviorLogImportSchedulePlan,
+  existing: NonNullable<BehaviorLogExistingRecords["schedules"]>[number],
+): boolean {
+  return (
+    imported.recurrenceProfile === existing.recurrenceProfile &&
+    stableStringify(imported.recurrence) === stableStringify(existing.recurrence) &&
+    imported.timezone === existing.timezone &&
+    normalizeLocalTimeForCompare(imported.localTime) ===
+      normalizeLocalTimeForCompare(existing.localTime) &&
+    normalizeLocalTimeForCompare(imported.windowStartLocal) ===
+      normalizeLocalTimeForCompare(existing.windowStartLocal) &&
+    normalizeLocalTimeForCompare(imported.windowEndLocal) ===
+      normalizeLocalTimeForCompare(existing.windowEndLocal) &&
+    (imported.cadenceScheduleKind ?? null) ===
+      (existing.cadenceScheduleKind ?? null) &&
+    (imported.cadenceSchedulePreset ?? null) ===
+      (existing.cadenceSchedulePreset ?? null) &&
+    imported.activeFromLocalDate === existing.activeFromLocalDate &&
+    optionalStringsEqual(
+      imported.activeUntilLocalDate,
+      existing.activeUntilLocalDate,
+    )
+  );
+}
+
+function occurrencesMatch(
+  imported: BehaviorLogImportOccurrencePlan,
+  existing: NonNullable<BehaviorLogExistingRecords["occurrences"]>[number],
+  parent: { behaviorId: string; scheduleId: string },
+): boolean {
+  return (
+    existing.behaviorId === parent.behaviorId &&
+    optionalStringsEqual(existing.scheduleId, parent.scheduleId) &&
+    existing.scheduledForUtc === imported.scheduledForUtc &&
+    existing.localDate === imported.localDate &&
+    existing.timezone === imported.timezone
+  );
+}
+
+function unresolvedRevisionCode(
+  event: BehaviorLogImportStatusEventPlan,
+  context: MergePreviewContext,
+): { codes: string[]; reasons: string[] } {
+  if (!event.revisesEventId) {
+    return { codes: [], reasons: [] };
+  }
+
+  const hasImportedTarget = context.existing.statusEvents?.some(
+    (candidate) =>
+      candidate.id === event.revisesEventId ||
+      candidate.sourceOriginalId === event.revisesEventId,
+  );
+  const hasMappedTarget = context.mappingsByKey.has(
+    mergeMappingKey("status_event", event.revisesEventId),
+  );
+
+  if (hasImportedTarget || hasMappedTarget) {
+    return { codes: [], reasons: [] };
+  }
+
+  return {
+    codes: ["status_event_revision_target_unresolved"],
+    reasons: [
+      `Status event ${event.externalId} revises ${event.revisesEventId}, but that revision target has no local mapping in the merge preview input.`,
+    ],
+  };
+}
+
+function localRevisionTargetId(
+  event: BehaviorLogImportStatusEventPlan,
+  context: MergePreviewContext,
+): string | null {
+  if (!event.revisesEventId) {
+    return null;
+  }
+
+  return (
+    context.mappingsByKey.get(
+      mergeMappingKey("status_event", event.revisesEventId),
+    ) ??
+    context.statusEventsById.get(event.revisesEventId)?.id ??
+    context.statusEventsBySourceOriginalId.get(event.revisesEventId)?.id ??
+    null
+  );
+}
+
+function statusEventMergeIdentity(
+  occurrenceId: string,
+  recordedAtUtc: string,
+  status: OccurrenceStatus,
+  semantics: BehaviorLogStatusSemantics | null,
+  revisesEventId: string | null,
+): string {
+  return [
+    occurrenceId,
+    recordedAtUtc,
+    status,
+    semantics ?? "",
+    revisesEventId ?? "",
+  ].join("|");
+}
+
+function readPrivacySummary(
+  files: BehaviorLogImportFile[],
+): BehaviorLogImportMergePreview["privacy"] {
+  const manifest = parseLooseJsonObject(
+    files.find((file) => file.path === "manifest.json")?.content ?? null,
+  );
+  const privacy = isRecord(manifest?.privacy) ? manifest.privacy : null;
+  const profiles = Array.isArray(manifest?.profiles)
+    ? manifest.profiles.filter((profile): profile is string =>
+        typeof profile === "string",
+      )
+    : [];
+  const containsNotesFile = files.some((file) => file.path === JSONL_FILES.notes);
+  const containsInterventionsFile = files.some(
+    (file) => file.path === JSONL_FILES.interventions,
+  );
+
+  return {
+    profiles,
+    redactionLevel: readPreviewString(privacy?.redaction_level),
+    subjectIdStrategy: readPreviewString(privacy?.subject_id_strategy),
+    containsNotes:
+      readPreviewBoolean(privacy?.contains_notes) ?? containsNotesFile,
+    containsInterventions:
+      profiles.includes("interventions") || containsInterventionsFile,
+    containsRawLocation: readPreviewBoolean(privacy?.contains_raw_location),
+    containsHealthData: readPreviewBoolean(privacy?.contains_health_data),
+    containsAiGeneratedContent: readPreviewBoolean(
+      privacy?.contains_ai_generated_content,
+    ),
+  };
+}
+
+function parseLooseJsonObject(content: string | null): JsonRecord | null {
+  if (!content) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(content);
+
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function readPreviewString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function readPreviewBoolean(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function mergeMappingKey(
+  recordType: BehaviorLogImportRecordType,
+  externalId: string,
+): string {
+  return `${recordType}:${externalId}`;
+}
+
+function optionalStringsEqual(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  return (left ?? null) === (right ?? null);
+}
+
+function normalizeLocalTimeForCompare(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return Temporal.PlainTime.from(value).toString({ smallestUnit: "minute" });
+  } catch {
+    return value;
+  }
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+
+  if (isRecord(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+function dedupeById<T extends { id: string }>(values: T[]): T[] {
+  return [...new Map(values.map((value) => [value.id, value])).values()];
+}
+
+function indexByOptionalString<T>(
+  values: T[],
+  getKey: (value: T) => string | null | undefined,
+): Map<string, T> {
+  const map = new Map<string, T>();
+
+  for (const value of values) {
+    const key = getKey(value);
+
+    if (key) {
+      map.set(key, value);
+    }
+  }
+
+  return map;
+}
+
 function summarizePreview(input: {
   schemaVersion: string | null;
   fileCount: number;
@@ -1150,6 +3128,7 @@ function summarizePreview(input: {
     ...input.plan.statusEvents,
     ...input.plan.notes,
   ];
+  const interventionCounts = summarizeInterventionCounts(input.plan);
 
   return {
     schemaVersion: input.schemaVersion,
@@ -1159,6 +3138,11 @@ function summarizePreview(input: {
     occurrenceCount: input.plan.occurrences.length,
     statusEventCount: input.plan.statusEvents.length,
     noteCount: input.plan.notes.length,
+    interventionCount: input.plan.interventions.length,
+    interventionPreviewOnlyCount: input.plan.interventions.filter(
+      (intervention) => intervention.action === "preview_only",
+    ).length,
+    interventionCounts,
     createCount: allPlans.filter((record) => record.action === "create")
       .length,
     skipCount: allPlans.filter((record) => record.action === "skip").length,
@@ -1171,6 +3155,49 @@ function summarizePreview(input: {
     ),
     dayGroups: summarizeDayGroups(input.plan, input.conflicts),
   };
+}
+
+function summarizeInterventionCounts(
+  plan: BehaviorLogImportPlan,
+): BehaviorLogImportPreview["summary"]["interventionCounts"] {
+  const behaviorsById = new Map(
+    plan.behaviors.map((behavior) => [behavior.externalId, behavior]),
+  );
+
+  return {
+    byChannel: countInterventionsBy(
+      plan.interventions,
+      (intervention) => intervention.channel,
+    ),
+    byDeliveryStatus: countInterventionsBy(
+      plan.interventions,
+      (intervention) => intervention.deliveryStatus,
+    ),
+    byBehavior: countInterventionsBy(
+      plan.interventions,
+      (intervention) => intervention.behaviorExternalId,
+    ).map((entry) => ({
+      behaviorExternalId: entry.value,
+      behaviorTitle: behaviorsById.get(entry.value)?.title ?? null,
+      count: entry.count,
+    })),
+  };
+}
+
+function countInterventionsBy<T>(
+  interventions: BehaviorLogImportInterventionPreviewPlan[],
+  getValue: (intervention: BehaviorLogImportInterventionPreviewPlan) => T,
+): Array<{ value: T; count: number }> {
+  const counts = new Map<T, number>();
+
+  for (const intervention of interventions) {
+    const value = getValue(intervention);
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .map(([value, count]) => ({ value, count }))
+    .sort((left, right) => String(left.value).localeCompare(String(right.value)));
 }
 
 function summarizeDayGroups(
@@ -1644,6 +3671,84 @@ function readRequiredNoteRole(
   return null;
 }
 
+function readOptionalNoteSensitivity(
+  row: ParsedJsonlRecord,
+  field: string,
+  errors: BehaviorLogImportIssue[],
+): BehaviorLogNoteSensitivity | null {
+  const value = readOptionalString(row, field, errors);
+
+  if (value === null) {
+    return null;
+  }
+
+  if (
+    value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "restricted"
+  ) {
+    return value;
+  }
+
+  errors.push({
+    severity: "error",
+    code: "note_sensitivity_invalid",
+    message: `${row.file} row ${row.row} field ${field} has unsupported sensitivity ${value}.`,
+    file: row.file,
+    row: row.row,
+  });
+  return null;
+}
+
+function readRequiredInterventionChannel(
+  row: ParsedJsonlRecord,
+  field: string,
+  errors: BehaviorLogImportIssue[],
+): BehaviorLogInterventionChannel | null {
+  const value = readRequiredString(row, field, errors);
+
+  if (value && isInterventionChannel(value)) {
+    return value;
+  }
+
+  if (value) {
+    errors.push({
+      severity: "error",
+      code: "intervention_channel_invalid",
+      message: `${row.file} row ${row.row} field ${field} has unsupported channel ${value}.`,
+      file: row.file,
+      row: row.row,
+    });
+  }
+
+  return null;
+}
+
+function readRequiredInterventionDeliveryStatus(
+  row: ParsedJsonlRecord,
+  field: string,
+  errors: BehaviorLogImportIssue[],
+): BehaviorLogInterventionDeliveryStatus | null {
+  const value = readRequiredString(row, field, errors);
+
+  if (value && isInterventionDeliveryStatus(value)) {
+    return value;
+  }
+
+  if (value) {
+    errors.push({
+      severity: "error",
+      code: "intervention_delivery_status_invalid",
+      message: `${row.file} row ${row.row} field ${field} has unsupported delivery status ${value}.`,
+      file: row.file,
+      row: row.row,
+    });
+  }
+
+  return null;
+}
+
 function readSource(
   row: ParsedJsonlRecord,
   errors: BehaviorLogImportIssue[],
@@ -1651,6 +3756,7 @@ function readSource(
 ): {
   captureMethod: BehaviorLogSourceCaptureMethod;
   confidence: BehaviorLogSourceConfidence;
+  originalId: string | null;
 } {
   const source = row.record.source;
 
@@ -1668,6 +3774,7 @@ function readSource(
     return {
       captureMethod: "unknown",
       confidence: "unknown",
+      originalId: null,
     };
   }
 
@@ -1681,8 +3788,124 @@ function readSource(
     isSourceConfidence(source.confidence)
       ? source.confidence
       : "unknown";
+  const originalId =
+    typeof source.original_id === "string" && source.original_id.trim().length > 0
+      ? source.original_id.trim()
+      : null;
 
-  return { captureMethod, confidence };
+  return { captureMethod, confidence, originalId };
+}
+
+function readCadenceExtension(record: JsonRecord): JsonRecord | null {
+  const extensions = record.extensions;
+
+  if (!isRecord(extensions)) {
+    return null;
+  }
+
+  const cadence = extensions[BEHAVIORLOG_EXTENSION_NAMESPACE];
+
+  return isRecord(cadence) ? cadence : null;
+}
+
+function readExtensionString(
+  extension: JsonRecord | null,
+  field: string,
+): string | null {
+  const value = extension?.[field];
+
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function readExtensionBoolean(
+  extension: JsonRecord | null,
+  field: string,
+): boolean | null {
+  const value = extension?.[field];
+
+  return typeof value === "boolean" ? value : null;
+}
+
+function readExtensionInteger(
+  extension: JsonRecord | null,
+  field: string,
+): number | null {
+  const value = extension?.[field];
+
+  return typeof value === "number" && Number.isInteger(value) ? value : null;
+}
+
+function readExtensionScheduleKind(
+  extension: JsonRecord | null,
+  field: string,
+): BehaviorLogImportSchedulePlan["cadenceScheduleKind"] {
+  const value = extension?.[field];
+
+  return value === "exact" || value === "range" ? value : null;
+}
+
+function readExtensionSchedulePreset(
+  extension: JsonRecord | null,
+  field: string,
+): BehaviorLogImportSchedulePlan["cadenceSchedulePreset"] {
+  const value = extension?.[field];
+
+  return isCadenceRangePreset(value) ? value : null;
+}
+
+function isSupportedRecurrence(recurrence: Record<string, unknown>): boolean {
+  switch (recurrence.type) {
+    case "daily":
+      return isPositiveInteger(recurrence.interval);
+    case "every_n_days":
+      return isPositiveInteger(recurrence.interval);
+    case "weekly_on_weekdays":
+      return isWeekdayArray(recurrence.weekdays);
+    case "every_n_weeks_on_weekdays":
+      return (
+        isPositiveInteger(recurrence.interval) &&
+        isWeekdayArray(recurrence.weekdays)
+      );
+    case "monthly_on_day":
+      return (
+        isPositiveInteger(recurrence.interval) &&
+        isPositiveInteger(recurrence.day) &&
+        recurrence.day <= 31 &&
+        (recurrence.fallback === undefined ||
+          recurrence.fallback === "last_day_of_month")
+      );
+    default:
+      return false;
+  }
+}
+
+function isSupportedScheduleSlot(
+  schedule: BehaviorLogImportSchedulePlan,
+): boolean {
+  if (schedule.windowStartLocal || schedule.windowEndLocal) {
+    return (
+      Boolean(schedule.windowStartLocal && schedule.windowEndLocal) &&
+      cadencePresetForRange(
+        schedule.windowStartLocal ?? "",
+        schedule.windowEndLocal ?? "",
+      ) !== null
+    );
+  }
+
+  return schedule.localTime !== null;
+}
+
+function cadencePresetForRange(
+  startTime: string,
+  endTime: string,
+): BehaviorLogImportSchedulePlan["cadenceSchedulePreset"] {
+  return (
+    CADENCE_RANGE_PRESETS.find(
+      (preset) => preset.start === startTime && preset.end === endTime,
+    )?.preset ?? null
+  );
 }
 
 function isOccurrenceStatus(value: string): value is OccurrenceStatus {
@@ -1700,6 +3923,23 @@ function isStatusSemantics(value: string): value is BehaviorLogStatusSemantics {
     value === "imported_explicit" ||
     value === "system_rule_declared" ||
     value === "ambiguous_import"
+  );
+}
+
+function isInterventionChannel(
+  value: string,
+): value is BehaviorLogInterventionChannel {
+  return value === "browser_push" || value === "email";
+}
+
+function isInterventionDeliveryStatus(
+  value: string,
+): value is BehaviorLogInterventionDeliveryStatus {
+  return (
+    value === "pending" ||
+    value === "sent" ||
+    value === "failed" ||
+    value === "cancelled"
   );
 }
 
@@ -1728,6 +3968,37 @@ function isSourceConfidence(value: string): value is BehaviorLogSourceConfidence
   );
 }
 
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function isWeekdayArray(value: unknown): boolean {
+  return Array.isArray(value) && value.length > 0 && value.every(isWeekday);
+}
+
+function isWeekday(value: unknown): boolean {
+  return (
+    value === "monday" ||
+    value === "tuesday" ||
+    value === "wednesday" ||
+    value === "thursday" ||
+    value === "friday" ||
+    value === "saturday" ||
+    value === "sunday"
+  );
+}
+
+function isCadenceRangePreset(
+  value: unknown,
+): value is BehaviorLogImportSchedulePlan["cadenceSchedulePreset"] {
+  return (
+    value === "morning" ||
+    value === "afternoon" ||
+    value === "evening" ||
+    value === "night"
+  );
+}
+
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -1739,6 +4010,7 @@ function recordIdForUnsupportedField(record: JsonRecord): string | null {
     "occurrence_id",
     "event_id",
     "note_id",
+    "intervention_id",
   ]) {
     const value = record[key];
 

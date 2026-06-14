@@ -1,11 +1,14 @@
 import {
+  resolveBehaviorLogImportMergePreview,
   resolveBehaviorLogImportPreview,
+  type ResolveBehaviorLogImportMergePreviewInput,
   type ResolveBehaviorLogImportPreviewInput,
 } from "@/lib/resolvers/behaviorlog-import.resolver";
 import { readZipEntries } from "@/lib/services/zip";
 import type {
   BehaviorLogExistingRecords,
   BehaviorLogImportFile,
+  BehaviorLogImportMergePreviewResult,
   BehaviorLogImportPreview,
 } from "@/lib/types/behaviorlog-import";
 
@@ -37,10 +40,28 @@ export function previewBehaviorLogImportFromZip(input: {
   });
 }
 
+export function previewBehaviorLogMergeImportFromZip(input: {
+  zip: BehaviorLogZipInput;
+  existing?: BehaviorLogExistingRecords;
+  supportedSchemaVersions?: readonly string[];
+}): BehaviorLogImportMergePreviewResult {
+  return resolveBehaviorLogImportMergePreview({
+    files: parseBehaviorLogZipFiles(input.zip),
+    existing: input.existing,
+    supportedSchemaVersions: input.supportedSchemaVersions,
+  });
+}
+
 export function previewBehaviorLogImportFromFiles(
   input: ResolveBehaviorLogImportPreviewInput,
 ): BehaviorLogImportPreview {
   return resolveBehaviorLogImportPreview(input);
+}
+
+export function previewBehaviorLogMergeImportFromFiles(
+  input: ResolveBehaviorLogImportMergePreviewInput,
+): BehaviorLogImportMergePreviewResult {
+  return resolveBehaviorLogImportMergePreview(input);
 }
 
 function assertSafeZipPath(path: string): void {

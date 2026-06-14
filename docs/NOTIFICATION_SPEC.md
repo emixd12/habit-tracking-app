@@ -68,6 +68,25 @@ Statuses:
 - failed
 - cancelled
 
+## BehaviorLog intervention import preview
+
+BehaviorLog `data/interventions.jsonl` records are passive import-preview
+records. They may describe exported reminders or related notification history,
+but imported rows are not active Cadence reminder deliveries.
+
+Rules:
+- Preview may validate and summarize intervention rows by channel, delivery
+  status, and linked behavior.
+- Preview must mark imported interventions as `preview_only`.
+- Preview must warn about message bodies, raw endpoints, provider identifiers or
+  secrets, subscription keys, recipient identifiers, and similar sensitive
+  delivery payload.
+- Import preview and merge preview must not write `reminder_deliveries`.
+- Import preview and merge preview must not schedule, send, cancel, or retry
+  reminders.
+- Import preview and merge preview must not call Sequenzy, Web Push, browser
+  APIs, provider SDKs, or notification processing routes.
+
 ## Delivery generation
 
 Reminder deliveries should be generated from:

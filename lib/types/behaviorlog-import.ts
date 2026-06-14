@@ -1,5 +1,25 @@
 import type { OccurrenceStatus } from "@/lib/types/database";
 
+export type BehaviorLogImportRecordType =
+  | "behavior"
+  | "schedule"
+  | "occurrence"
+  | "status_event"
+  | "note"
+  | "intervention";
+
+export type BehaviorLogImportMode =
+  | "preview_only"
+  | "create_missing_only"
+  | "merge_preview"
+  | "merge_by_user_approved_plan";
+
+export type BehaviorLogImportRunStatus =
+  | "previewed"
+  | "applied"
+  | "failed"
+  | "cancelled";
+
 export type BehaviorLogImportFile = {
   path: string;
   content: string;
@@ -28,12 +48,7 @@ export type BehaviorLogUnsupportedField = {
 export type BehaviorLogImportConflict = {
   code: string;
   message: string;
-  importedRecordType:
-    | "behavior"
-    | "schedule"
-    | "occurrence"
-    | "status_event"
-    | "note";
+  importedRecordType: BehaviorLogImportRecordType;
   importedId: string;
   existingId?: string;
   localDate?: string;
@@ -59,6 +74,20 @@ export type BehaviorLogSourceCaptureMethod =
   | "ai_generated"
   | "unknown";
 
+export type BehaviorLogNoteSensitivity =
+  | "low"
+  | "medium"
+  | "high"
+  | "restricted";
+
+export type BehaviorLogInterventionChannel = "browser_push" | "email";
+
+export type BehaviorLogInterventionDeliveryStatus =
+  | "pending"
+  | "sent"
+  | "failed"
+  | "cancelled";
+
 export type BehaviorLogStatusSemantics =
   | "explicit_user_mark"
   | "explicit_user_correction"
@@ -70,17 +99,39 @@ export type BehaviorLogExistingBehavior = {
   id: string;
   title: string;
   category?: string | null;
+  active?: boolean | null;
   archivedAt?: string | null;
+  sourceOriginalId?: string | null;
+  schedules?: BehaviorLogExistingSchedule[];
+};
+
+export type BehaviorLogExistingSchedule = {
+  id: string;
+  behaviorId: string;
+  recurrenceProfile: string;
+  recurrence: Record<string, unknown>;
+  timezone: string;
+  localTime: string | null;
+  windowStartLocal: string | null;
+  windowEndLocal: string | null;
+  cadenceScheduleKind?: "exact" | "range" | null;
+  cadenceSchedulePreset?: "morning" | "afternoon" | "evening" | "night" | null;
+  activeFromLocalDate: string;
+  activeUntilLocalDate: string | null;
+  sourceOriginalId?: string | null;
 };
 
 export type BehaviorLogExistingOccurrence = {
   id: string;
   behaviorId: string;
+  scheduleId?: string | null;
   behaviorTitle?: string | null;
   scheduledForUtc: string;
   localDate: string;
   timezone: string;
   status: OccurrenceStatus;
+  note?: string | null;
+  sourceOriginalId?: string | null;
 };
 
 export type BehaviorLogExistingStatusEvent = {
@@ -89,12 +140,25 @@ export type BehaviorLogExistingStatusEvent = {
   behaviorId: string;
   recordedAtUtc: string;
   status: OccurrenceStatus;
+  statusSemantics?: BehaviorLogStatusSemantics | null;
+  sourceCaptureMethod?: BehaviorLogSourceCaptureMethod | null;
+  sourceConfidence?: BehaviorLogSourceConfidence | null;
+  revisesEventId?: string | null;
+  sourceOriginalId?: string | null;
+};
+
+export type BehaviorLogExistingImportMapping = {
+  recordType: BehaviorLogImportRecordType;
+  externalId: string;
+  localId: string;
 };
 
 export type BehaviorLogExistingRecords = {
   behaviors?: BehaviorLogExistingBehavior[];
+  schedules?: BehaviorLogExistingSchedule[];
   occurrences?: BehaviorLogExistingOccurrence[];
   statusEvents?: BehaviorLogExistingStatusEvent[];
+  mappings?: BehaviorLogExistingImportMapping[];
 };
 
 export type BehaviorLogImportBehaviorPlan = {
@@ -103,8 +167,15 @@ export type BehaviorLogImportBehaviorPlan = {
   externalId: string;
   title: string;
   category: string;
+  cadenceCategoryName: string | null;
   description: string | null;
+  createdAtUtc: string | null;
   archivedAtUtc: string | null;
+  cadenceActive: boolean | null;
+  cadenceBrowserReminderEnabled: boolean | null;
+  cadenceEmailReminderEnabled: boolean | null;
+  cadenceReminderOffsetMinutes: number | null;
+  sourceOriginalId?: string | null;
   sourceConfidence: BehaviorLogSourceConfidence;
 };
 
@@ -119,8 +190,11 @@ export type BehaviorLogImportSchedulePlan = {
   localTime: string | null;
   windowStartLocal: string | null;
   windowEndLocal: string | null;
+  cadenceScheduleKind: "exact" | "range" | null;
+  cadenceSchedulePreset: "morning" | "afternoon" | "evening" | "night" | null;
   activeFromLocalDate: string;
   activeUntilLocalDate: string | null;
+  sourceOriginalId?: string | null;
   sourceConfidence: BehaviorLogSourceConfidence;
 };
 
@@ -134,7 +208,9 @@ export type BehaviorLogImportOccurrencePlan = {
   localDate: string;
   timezone: string;
   localTime: string | null;
+  generatedAtUtc: string | null;
   currentStatus: OccurrenceStatus;
+  sourceOriginalId?: string | null;
   sourceConfidence: BehaviorLogSourceConfidence;
 };
 
@@ -155,6 +231,7 @@ export type BehaviorLogImportStatusEventPlan = {
   sourceConfidence: BehaviorLogSourceConfidence;
   revisesEventId: string | null;
   reasonCode: string | null;
+  sourceOriginalId?: string | null;
 };
 
 export type BehaviorLogImportNotePlan = {
@@ -167,7 +244,25 @@ export type BehaviorLogImportNotePlan = {
   noteRole: "user" | "imported" | "system" | "ai_generated";
   createdAtUtc: string;
   updatedAtUtc: string | null;
+  sensitivity: BehaviorLogNoteSensitivity | null;
+  sourceOriginalId?: string | null;
+  sourceCaptureMethod: BehaviorLogSourceCaptureMethod;
   sourceConfidence: BehaviorLogSourceConfidence;
+};
+
+export type BehaviorLogImportInterventionPreviewPlan = {
+  action: "preview_only";
+  previewOnly: true;
+  externalId: string;
+  behaviorExternalId: string;
+  occurrenceExternalId: string;
+  interventionType: string | null;
+  channel: BehaviorLogInterventionChannel;
+  deliveryStatus: BehaviorLogInterventionDeliveryStatus;
+  scheduledSendAtUtc: string | null;
+  sentAtUtc: string | null;
+  failureReason: string | null;
+  sourceOriginalId?: string | null;
 };
 
 export type BehaviorLogImportPlan = {
@@ -176,6 +271,7 @@ export type BehaviorLogImportPlan = {
   occurrences: BehaviorLogImportOccurrencePlan[];
   statusEvents: BehaviorLogImportStatusEventPlan[];
   notes: BehaviorLogImportNotePlan[];
+  interventions: BehaviorLogImportInterventionPreviewPlan[];
 };
 
 export type BehaviorLogImportDayGroup = {
@@ -187,6 +283,23 @@ export type BehaviorLogImportDayGroup = {
   conflictCount: number;
 };
 
+export type BehaviorLogImportInterventionCount = {
+  value: string;
+  count: number;
+};
+
+export type BehaviorLogImportInterventionBehaviorCount = {
+  behaviorExternalId: string;
+  behaviorTitle: string | null;
+  count: number;
+};
+
+export type BehaviorLogImportInterventionCounts = {
+  byChannel: BehaviorLogImportInterventionCount[];
+  byDeliveryStatus: BehaviorLogImportInterventionCount[];
+  byBehavior: BehaviorLogImportInterventionBehaviorCount[];
+};
+
 export type BehaviorLogImportSummary = {
   schemaVersion: string | null;
   fileCount: number;
@@ -195,6 +308,9 @@ export type BehaviorLogImportSummary = {
   occurrenceCount: number;
   statusEventCount: number;
   noteCount: number;
+  interventionCount: number;
+  interventionPreviewOnlyCount: number;
+  interventionCounts: BehaviorLogImportInterventionCounts;
   createCount: number;
   skipCount: number;
   errorCount: number;
@@ -212,4 +328,105 @@ export type BehaviorLogImportPreview = {
   conflicts: BehaviorLogImportConflict[];
   unsupportedFields: BehaviorLogUnsupportedField[];
   plan: BehaviorLogImportPlan;
+  mergePreview?: BehaviorLogImportMergePreview;
+};
+
+export type BehaviorLogImportMergeAction =
+  | "create_new"
+  | "map_to_existing"
+  | "skip_existing"
+  | "conflict_requires_decision";
+
+export type BehaviorLogImportMergeRecordAction = {
+  recordType: BehaviorLogImportRecordType;
+  externalId: string;
+  action: BehaviorLogImportMergeAction;
+  localId: string | null;
+  conflictCodes: string[];
+  reasons: string[];
+  relatedExternalIds?: Record<string, string | null>;
+  metadata?: Record<string, unknown>;
+};
+
+export type BehaviorLogImportMergeConflict = {
+  code: string;
+  reason: string;
+  importedRecordType: BehaviorLogImportRecordType;
+  importedId: string;
+  existingId?: string | null;
+  localDate?: string;
+  timezone?: string;
+};
+
+export type BehaviorLogImportPrivacySummary = {
+  profiles: string[];
+  redactionLevel: string | null;
+  subjectIdStrategy: string | null;
+  containsNotes: boolean;
+  containsInterventions: boolean;
+  containsRawLocation: boolean | null;
+  containsHealthData: boolean | null;
+  containsAiGeneratedContent: boolean | null;
+};
+
+export type BehaviorLogImportMergePreview = {
+  mode: "merge_preview";
+  privacy: BehaviorLogImportPrivacySummary;
+  semantics: {
+    jsonlAuthoritative: true;
+    csvIgnoredForMerge: true;
+    statusEventsAuthoritative: true;
+    unresolvedIsFailure: false;
+    appendOnlyStatusEvents: true;
+  };
+  actionCounts: Record<BehaviorLogImportMergeAction, number>;
+  conflictCodes: string[];
+  conflictCount: number;
+  conflicts: BehaviorLogImportMergeConflict[];
+  actions: {
+    behaviors: BehaviorLogImportMergeRecordAction[];
+    schedules: BehaviorLogImportMergeRecordAction[];
+    occurrences: BehaviorLogImportMergeRecordAction[];
+    statusEvents: BehaviorLogImportMergeRecordAction[];
+    notes: BehaviorLogImportMergeRecordAction[];
+    interventions: BehaviorLogImportMergeRecordAction[];
+  };
+};
+
+export type BehaviorLogImportMergePreviewResult = BehaviorLogImportPreview & {
+  mergePreview: BehaviorLogImportMergePreview;
+};
+
+export type BehaviorLogImportRunCreateInput = {
+  userId: string;
+  bundleFormat: string;
+  schemaVersion: string | null;
+  manifestSha256: string | null;
+  bundleFingerprint: string | null;
+  producerName: string | null;
+  producerVersion: string | null;
+  subjectIdStrategy: string | null;
+  privacyRedactionLevel: string | null;
+  importMode: BehaviorLogImportMode;
+  dryRunSummary: Record<string, unknown>;
+  status?: BehaviorLogImportRunStatus;
+  failureMessage?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+};
+
+export type BehaviorLogImportRunStatusUpdateInput = {
+  userId: string;
+  importRunId: string;
+  status: BehaviorLogImportRunStatus;
+  failureMessage?: string | null;
+  completedAt?: string | null;
+};
+
+export type BehaviorLogImportRecordMappingInput = {
+  userId: string;
+  importRunId: string;
+  recordType: BehaviorLogImportRecordType;
+  externalId: string;
+  localId: string;
 };

@@ -1,0 +1,146 @@
+import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import type { Json } from "@/lib/db/database.types";
+import type {
+  BehaviorLogImportRecordMappingInput,
+  BehaviorLogImportRunCreateInput,
+  BehaviorLogImportRunStatusUpdateInput,
+} from "@/lib/types/behaviorlog-import";
+import type {
+  BehaviorLogImportRecordMapping,
+  BehaviorLogImportRun,
+  NewBehaviorLogImportRecordMapping,
+  NewBehaviorLogImportRun,
+} from "@/lib/types/database";
+
+export async function createBehaviorLogImportRun(
+  supabase: AppSupabaseClient,
+  input: BehaviorLogImportRunCreateInput,
+): Promise<BehaviorLogImportRun> {
+  const { data, error } = await supabase
+    .from("behaviorlog_import_runs")
+    .insert(toImportRunInsert(input))
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getBehaviorLogImportRunById(
+  supabase: AppSupabaseClient,
+  userId: string,
+  importRunId: string,
+): Promise<BehaviorLogImportRun | null> {
+  const { data, error } = await supabase
+    .from("behaviorlog_import_runs")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", importRunId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+export async function updateBehaviorLogImportRunStatus(
+  supabase: AppSupabaseClient,
+  input: BehaviorLogImportRunStatusUpdateInput,
+): Promise<BehaviorLogImportRun | null> {
+  const { data, error } = await supabase
+    .from("behaviorlog_import_runs")
+    .update({
+      status: input.status,
+      failure_message: input.failureMessage ?? null,
+      completed_at: input.completedAt ?? null,
+    })
+    .eq("user_id", input.userId)
+    .eq("id", input.importRunId)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+export async function createBehaviorLogImportRecordMappings(
+  supabase: AppSupabaseClient,
+  mappings: BehaviorLogImportRecordMappingInput[],
+): Promise<void> {
+  if (mappings.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("behaviorlog_import_record_mappings")
+    .upsert(mappings.map(toMappingInsert), {
+      onConflict: "import_run_id,record_type,external_id",
+      ignoreDuplicates: true,
+    });
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function listBehaviorLogImportRecordMappingsByRun(
+  supabase: AppSupabaseClient,
+  userId: string,
+  importRunId: string,
+): Promise<BehaviorLogImportRecordMapping[]> {
+  const { data, error } = await supabase
+    .from("behaviorlog_import_record_mappings")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("import_run_id", importRunId)
+    .order("record_type", { ascending: true })
+    .order("external_id", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+function toImportRunInsert(
+  input: BehaviorLogImportRunCreateInput,
+): NewBehaviorLogImportRun {
+  return {
+    user_id: input.userId,
+    bundle_format: input.bundleFormat,
+    schema_version: input.schemaVersion,
+    manifest_sha256: input.manifestSha256,
+    bundle_fingerprint: input.bundleFingerprint,
+    producer_name: input.producerName,
+    producer_version: input.producerVersion,
+    subject_id_strategy: input.subjectIdStrategy,
+    privacy_redaction_level: input.privacyRedactionLevel,
+    import_mode: input.importMode,
+    dry_run_summary: input.dryRunSummary as Json,
+    status: input.status ?? "previewed",
+    failure_message: input.failureMessage ?? null,
+    started_at: input.startedAt ?? undefined,
+    completed_at: input.completedAt ?? null,
+  };
+}
+
+function toMappingInsert(
+  input: BehaviorLogImportRecordMappingInput,
+): NewBehaviorLogImportRecordMapping {
+  return {
+    user_id: input.userId,
+    import_run_id: input.importRunId,
+    record_type: input.recordType,
+    external_id: input.externalId,
+    local_id: input.localId,
+  };
+}

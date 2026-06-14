@@ -220,11 +220,179 @@ Backfilled rows for pre-event resolved occurrences use
 `previous_status = 'unresolved'`, `status_semantics = 'explicit_user_mark'`,
 `source_capture_method = 'manual_tap'`, and `source_confidence = 'high'`.
 
-BehaviorLog import validation is dry-run only in the current import milestone.
-It may compare imported behavior, occurrence, and status-event records against
-local rows for a preview, but it must not insert, update, delete, merge,
-restore, overwrite, or deduplicate database records. Future import writes require
-a separate ticket and this data model must be updated first.
+BehaviorLog import validation starts as a dry-run preview. The create-only core
+import path may then insert clearly new behaviors, compatible schedule slots,
+occurrences, and status events from a valid accepted preview with
+`import_mode = 'create_missing_only'`.
+
+Merge-preview import is also dry-run only. It may compare imported records
+against local records and store the generated preview snapshot in
+`behaviorlog_import_runs` with `import_mode = 'merge_preview'`, but it must not
+insert, update, restore, overwrite, delete, deduplicate, or otherwise mutate
+product records.
+
+Create-only import rules:
+
+- Use `behaviorlog_import_runs` as the auditable preview/apply ledger.
+- Use `behaviorlog_import_record_mappings` to map external BehaviorLog ids to
+  local Cadence ids for idempotence and provenance.
+- Insert occurrences as `unresolved` first, then append imported
+  `occurrence_status_events`, then update the occurrence current-status snapshot
+  from the latest imported event for that occurrence.
+- Treat `occurrences.jsonl.current_status` as a snapshot only. Do not synthesize
+  explicit status history from the snapshot during import.
+- Preserve `unresolved` as unresolved; do not convert silence into
+  `not_completed`.
+- Skip unsupported recurrence profiles or schedule windows with warnings.
+- Do not merge, restore, overwrite, delete, or deduplicate local product records
+  by mutation in create-only mode.
+- Do not import notes, interventions, Context/Profile records, Analytics Profile
+  records, optional CSV-only data, or provider side effects until a later ticket
+  explicitly adds that write path.
+
+Merge-preview rules:
+
+- Emit user-reviewable deterministic actions: `create_new`,
+  `map_to_existing`, `skip_existing`, and `conflict_requires_decision`.
+- Use existing `behaviorlog_import_record_mappings` as provenance evidence when
+  deciding whether an imported BehaviorLog id maps to a local record.
+- Compare behaviors by mapped id, title/category identity, source original id,
+  archive state, and compatible schedule shape.
+- Compare schedules by mapped behavior, recurrence profile, recurrence payload,
+  timezone, active dates, and exact-time or preset range slot shape.
+- Compare occurrences by mapped behavior, mapped schedule, `scheduled_for_utc`,
+  `local_date`, and timezone.
+- Compare status events by mapped occurrence, external event id, recorded time,
+  status, status semantics, and revision target.
+- Keep `status_events.jsonl` authoritative over occurrence `current_status`
+  snapshots. `unresolved` remains a valid unresolved state, not a failure.
+- Treat status events as append-only history. Merge preview may identify an
+  existing duplicate event, but future writes must not overwrite local history.
+- Parse optional `data/notes.jsonl` and include note sensitivity/source metadata
+  in preview details. Only occurrence-attached, non-AI notes can be planned for
+  product import. Behavior, status-event, review, and AI-generated notes are
+  skipped with warnings.
+- High or restricted note sensitivity must produce a preview warning before any
+  accepted plan can import that note body.
+- Preview Intervention Profile records for user review only. Intervention and
+  reminder-delivery writes belong to the intervention-import ticket.
+
+User-approved merge apply rules:
+
+- Apply only import runs with `import_mode = 'merge_by_user_approved_plan'`
+  that contain an accepted Ticket 020 `mergePreview` snapshot in
+  `dry_run_summary`.
+- Refuse to apply while any accepted action remains
+  `conflict_requires_decision`.
+- For `create_new`, use the same create safeguards as create-only import:
+  create compatible behaviors, schedule slots, and occurrences only when the
+  validated plan can represent them in Cadence.
+- For `map_to_existing`, write provenance mappings only. Do not overwrite local
+  behavior, schedule, or occurrence fields except for the limited occurrence-note
+  fill rules below.
+- Append status events that are not already mapped or duplicated. Preserve
+  `revises_event_id` when both the imported event and revision target have
+  local mappings.
+- Update occurrence current-status snapshots only after status events are
+  appended and only when the imported event is the latest event by effective
+  time, then recorded time, then stable id tie-breaker.
+- Do not replace a local explicit high-confidence status decision with an
+  ambiguous or lower-confidence imported status event.
+- Applying the same accepted plan must be idempotent through
+  `behaviorlog_import_record_mappings`.
+- If apply fails after partial work, mark the import run `failed` with the
+  failure message. Do not silently continue after inconsistent parent mappings.
+- Occurrence-attached notes may fill `occurrences.note` only when the target
+  occurrence has been created, mapped, or otherwise safely identified and the
+  current local note is empty. The note mapping uses the target occurrence id as
+  `local_id`.
+- If the local occurrence note is non-empty and differs from the imported note,
+  merge preview must emit `occurrence_note_conflict`; apply must not change it
+  unless a later explicit merge-plan decision model is accepted.
+- Note imports must not update occurrence status fields, status-event history,
+  reminder deliveries, analytics inputs, or adherence logic.
+- Do not write interventions, Context/Profile records, Analytics Profile records,
+  optional CSV-only data, reminder deliveries, or provider side effects in this
+  phase.
+
+### `behaviorlog_import_runs`
+
+```sql
+create table behaviorlog_import_runs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+
+  bundle_format text not null,
+  schema_version text,
+  manifest_sha256 text,
+  bundle_fingerprint text,
+
+  producer_name text,
+  producer_version text,
+  subject_id_strategy text,
+  privacy_redaction_level text,
+
+  import_mode text not null
+    check (
+      import_mode in (
+        'preview_only',
+        'create_missing_only',
+        'merge_preview',
+        'merge_by_user_approved_plan'
+      )
+    ),
+  dry_run_summary jsonb not null default '{}'::jsonb,
+  status text not null default 'previewed'
+    check (status in ('previewed', 'applied', 'failed', 'cancelled')),
+  failure_message text,
+
+  started_at timestamptz not null default now(),
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+This table is the auditable import ledger. It records BehaviorLog bundle and
+schema metadata, manifest/fingerprint hashes, producer information, privacy
+profile hints, the requested import mode, a dry-run summary snapshot, status,
+and start/completion timestamps. It does not mean imported product records have
+been written; `status = 'previewed'` only means the bundle was validated and
+previewed.
+
+### `behaviorlog_import_record_mappings`
+
+```sql
+create table behaviorlog_import_record_mappings (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  import_run_id uuid not null,
+
+  record_type text not null
+    check (
+      record_type in (
+        'behavior',
+        'schedule',
+        'occurrence',
+        'status_event',
+        'note',
+        'intervention'
+      )
+    ),
+  external_id text not null,
+  local_id uuid not null,
+
+  created_at timestamptz not null default now(),
+
+  unique (import_run_id, record_type, external_id)
+);
+```
+
+Mapping rows connect external BehaviorLog record ids to local Cadence ids for a
+single import run. The unique constraint makes repeated mapping inserts
+idempotent for the same run, record type, and external id. The table supports
+behavior, schedule, occurrence, status event, note, and intervention mappings so
+later import phases can share one provenance contract.
 
 ### `reminder_deliveries`
 

@@ -333,7 +333,7 @@ describe("resolveBehaviorLogImportPreview", () => {
     );
   });
 
-  it("ignores optional intervention profile records during dry-run import", () => {
+  it("previews optional intervention profile records during dry-run import", () => {
     const files = bundleFiles({
       reminderDeliveries: [reminderDelivery()],
     });
@@ -361,9 +361,19 @@ describe("resolveBehaviorLogImportPreview", () => {
       occurrenceCount: 1,
       statusEventCount: 2,
       noteCount: 1,
+      interventionCount: 1,
+      interventionPreviewOnlyCount: 1,
       errorCount: 0,
     });
-    expect(Object.keys(preview.plan)).not.toContain("interventions");
+    expect(preview.plan.interventions[0]).toMatchObject({
+      action: "preview_only",
+      previewOnly: true,
+      externalId: "delivery-1",
+      behaviorExternalId: "behavior-brush",
+      occurrenceExternalId: "occurrence-1",
+      channel: "email",
+      deliveryStatus: "sent",
+    });
   });
 
   it("rejects unsupported top-level fields in core records", () => {

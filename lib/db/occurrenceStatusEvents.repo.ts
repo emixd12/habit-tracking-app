@@ -21,6 +21,34 @@ export async function createOccurrenceStatusEvent(
   return data;
 }
 
+export async function getOccurrenceStatusEventByImportFingerprint(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    occurrenceId: string;
+    recordedAt: string;
+    status: string;
+  },
+): Promise<OccurrenceStatusEvent | null> {
+  const { data, error } = await supabase
+    .from("occurrence_status_events")
+    .select("*")
+    .eq("user_id", input.userId)
+    .eq("occurrence_id", input.occurrenceId)
+    .eq("recorded_at", input.recordedAt)
+    .eq("status", input.status)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
 export async function listOccurrenceStatusEventsByOccurrenceIds(
   supabase: AppSupabaseClient,
   userId: string,

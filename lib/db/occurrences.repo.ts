@@ -108,6 +108,46 @@ export async function getOccurrenceById(
   return data ?? null;
 }
 
+export async function getOccurrenceByBehaviorAndScheduledFor(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    behaviorId: string;
+    scheduledFor: string;
+  },
+): Promise<Occurrence | null> {
+  const { data, error } = await supabase
+    .from("occurrences")
+    .select("*")
+    .eq("user_id", input.userId)
+    .eq("behavior_id", input.behaviorId)
+    .eq("scheduled_for", input.scheduledFor)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+export async function createOccurrenceForImport(
+  supabase: AppSupabaseClient,
+  occurrence: NewOccurrence,
+): Promise<Occurrence> {
+  const { data, error } = await supabase
+    .from("occurrences")
+    .insert(occurrence)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 export async function createMissingOccurrences(
   supabase: AppSupabaseClient,
   occurrences: NewOccurrence[],
@@ -149,6 +189,29 @@ export async function updateOccurrenceById(
   return data ?? null;
 }
 
+export async function updateOccurrenceNoteIfEmpty(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    occurrenceId: string;
+    note: string;
+  },
+): Promise<Occurrence | null> {
+  const occurrence = await getOccurrenceById(
+    supabase,
+    input.userId,
+    input.occurrenceId,
+  );
+
+  if (!occurrence || !isEmptyOccurrenceNote(occurrence.note)) {
+    return null;
+  }
+
+  return updateOccurrenceById(supabase, input.userId, input.occurrenceId, {
+    note: input.note,
+  });
+}
+
 export async function updateUnresolvedOccurrenceScheduleById(
   supabase: AppSupabaseClient,
   input: {
@@ -175,6 +238,10 @@ export async function updateUnresolvedOccurrenceScheduleById(
   if (error) {
     throw error;
   }
+}
+
+function isEmptyOccurrenceNote(note: string | null): boolean {
+  return (note?.trim() ?? "").length === 0;
 }
 
 export async function deleteUnresolvedOccurrencesById(
