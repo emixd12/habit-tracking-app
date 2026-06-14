@@ -6,15 +6,17 @@ product
 
 ## Users
 
-One authenticated user who wants a private, low-friction way to track recurring behaviors across ordinary days. They are usually checking the app quickly: deciding what was completed, resolving prior-day items, adding a note when context matters, or reviewing a short history before exporting it.
+One independent account holder who wants a private, low-friction way to track recurring behaviors across ordinary days. They are usually checking the app quickly: deciding what was completed, resolving prior-day items, adding a note when context matters, or reviewing a short history before exporting it.
 
-The user needs the app to feel trustworthy and calm. Unresolved items should remain undecided until the user acts, and prior-day unresolved occurrences should be brought forward without judgment.
+The public product may serve many independent accounts, but each account remains single-player. The user needs the app to feel trustworthy and calm. Unresolved items should remain undecided until the user acts, and prior-day unresolved occurrences should be brought forward without judgment.
 
 ## Product Purpose
 
-This product is a single-user personal behavior tracker for recurring life patterns. It lets the user create behaviors, generate scheduled occurrences, view them in a timeline, manually mark each occurrence as Completed or Not Completed, add notes, receive reminders, review basic analytics, and export their history.
+Cadence is a public, open-source personal behavior tracker for recurring life patterns. It lets the user create behaviors, generate scheduled occurrences, view them in a timeline, manually mark each occurrence as Completed or Not Completed, add notes, receive reminders, review basic analytics, and export their history.
 
 Success means the user can open the Timeline, understand what needs attention, make a decision, and leave with confidence that the record reflects only explicit user input.
+
+Cadence is also a demonstration and adoption surface for the BehaviorLog Bundle standard. It should make portable behavior-history export feel practical rather than theoretical.
 
 ## Brand Personality
 
@@ -35,6 +37,8 @@ No named visual anti-references are documented. The locked product anti-referenc
 - Multi-user SaaS administration
 - Calendar-sync or task-manager complexity
 - Offline or PWA mutation flows in v1
+- Public-product admin dashboards
+- AI coaching or speech features in the launch web app
 
 ## Design Principles
 
@@ -43,6 +47,8 @@ No named visual anti-references are documented. The locked product anti-referenc
 3. Progressive detail: show scheduled time, behavior title, and action buttons first; reveal category, description, schedule details, and notes only when useful.
 4. Quiet consistency: use familiar controls, sparse layouts, restrained color, and predictable states across Timeline, Behaviors, Analytics, Export, and Settings.
 5. Small v1 surface: prefer direct workflows over settings depth, dashboards, modals, or speculative future features.
+6. Portable by default: export and account-deletion paths should support the project's BehaviorLog portability posture.
+7. Composable surfaces: web, marketing, desktop, and mobile should be treated as separate shells over shared product principles and core logic where useful.
 
 ## Accessibility & Inclusion
 

@@ -939,6 +939,103 @@ Suggested files:
 
 ---
 
+## Future ticket: Public web hardening
+
+Harden the current authenticated web app so it can safely serve many
+independent single-account users.
+
+Acceptance criteria should include:
+- Keep Google-only login for launch.
+- Confirm RLS isolation for many independent users.
+- Add practical abuse protections and route/action validation.
+- Add account deletion and export/account portability paths.
+- Add minimal first-run onboarding:
+  - create first behavior,
+  - notification permission,
+  - import entry when import exists,
+  - timezone detection/manual override.
+- Add basic monitoring/error reporting without sensitive behavior payloads.
+- Add Terms of Service, Privacy Policy, and privacy/trust copy.
+- Preserve the small tracker scope and avoid collaboration/social features.
+
+Suggested docs:
+- `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+- `docs/PRODUCT_SPEC.md`
+- `docs/DATA_MODEL.md`
+- `docs/USER_FLOWS.md`
+- `docs/NOTIFICATION_SPEC.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `STATUS.md`
+
+---
+
+## Future ticket: Astro marketing site
+
+Add a simple public marketing site for Cadence and the BehaviorLog Bundle
+standard.
+
+Acceptance criteria should include:
+- Implement as Astro, not inside the authenticated app shell.
+- Support planned routes:
+  - `/`
+  - `/cadence`
+  - `/standard`
+  - `/docs`
+  - optional `/examples`
+  - optional `/about`
+- Include primary CTAs:
+  - Try Cadence
+  - Read the Standard
+  - Download Example Bundle
+  - View on GitHub
+- Use SEO-conscious static pages with metadata, canonical URLs, sitemap/robots,
+  accessible headings, and fast rendering.
+- Share Cadence design tokens or token outputs where practical.
+- Do not add marketing cookies or analytics unless separately scoped.
+- Do not tease desktop/mobile apps before they are real or intentionally
+  announced.
+
+Suggested files:
+- `apps/marketing/*`
+- `packages/ui/*` if tokens/primitives are extracted
+- `docs/ROUTE_MAP.md`
+- `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+- `DESIGN.md`
+- `STATUS.md`
+
+---
+
+## Future ticket: Workspace restructuring
+
+Move toward the target composable architecture only when needed by marketing,
+desktop/mobile, or shared-core work.
+
+Target shape:
+
+```text
+apps/
+  app/
+  marketing/
+  desktop/
+  mobile/
+packages/
+  core/
+  db/
+  ui/
+  config/
+```
+
+Acceptance criteria should include:
+- Preserve all current authenticated app routes and behavior.
+- Preserve Supabase, Sequenzy, Vercel, test, and drift-check workflows.
+- Start with npm workspaces unless Turborepo is justified.
+- Extract `packages/core` before broader UI sharing when a second runtime needs
+  the logic.
+- Keep `packages/ui` focused on tokens and primitives first because future
+  surfaces may use different frameworks.
+
+---
+
 ## Deferred work
 
 PWA caching, offline timeline access, local pending status changes, and sync conflict handling are not part of the v1 ticket sequence.

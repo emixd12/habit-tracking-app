@@ -1,6 +1,6 @@
-# Cadence Tracker Bootstrap and App Scaffold
+# Cadence
 
-This repository contains the project-definition layer and the Ticket 001 Next.js scaffold for a single-user personal behavior tracker.
+This repository contains Cadence, a public, open-source personal behavior tracker. The current implemented surface is the authenticated Next.js web app.
 
 Future agents should treat the docs as source-of-truth and use `STATUS.md` to understand what has actually been implemented.
 
@@ -14,9 +14,9 @@ Future agents should treat the docs as source-of-truth and use `STATUS.md` to un
 
 If these bootstrap files are copied into a new repository, copy the full project-definition layer, including `AGENTS.md`, `STATUS.md`, `PRODUCT.md`, `DESIGN.md`, `.env.example`, `.agents/`, and `docs/`.
 
-## Intended app
+## Intended product
 
-A sparse personal behavior tracker web app:
+A sparse personal behavior tracker product:
 
 - Google login
 - Recurring behaviors
@@ -26,6 +26,14 @@ A sparse personal behavior tracker web app:
 - Browser reminders on by default
 - Optional email reminders per behavior through Sequenzy
 - JSONL/CSV/full JSON and BehaviorLog bundle export for AI-readable history
+- A future Astro marketing site for Cadence and the BehaviorLog Bundle standard
+- Future free open-source desktop and mobile apps
+
+Cadence remains single-player per account. It is not a collaboration product,
+social tracker, or general productivity platform.
+
+The target public-product architecture is documented in
+`docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
 
 ## Agent checks
 
@@ -70,4 +78,6 @@ For local Supabase CLI auth testing, `supabase/config.toml` reads the Google cli
 
 ## Important
 
-The app should stay small. It is not a general task manager, not a medical dosing app, not a quantified-self analytics platform, and not a multi-user SaaS product.
+The app should stay small. It is not a general task manager, not a medical
+dosing app, not a quantified-self analytics platform, and not a collaboration
+or admin-heavy SaaS product.

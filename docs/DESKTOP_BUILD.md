@@ -4,6 +4,10 @@ A forward-looking architecture proposal for shipping Cadence Tracker as a
 downloadable, signed macOS desktop application, built so the same core can later
 run as an iOS app and gain optional multi-device sync.
 
+Cadence's public-product posture now treats desktop and mobile as future free
+open-source surfaces. This document remains a proposal, not scheduled work, but
+it is the source of truth for the intended local-first desktop direction.
+
 ## Status and scope
 
 - **This is a proposal, not scheduled work.** It captures durable architectural
@@ -20,6 +24,9 @@ run as an iOS app and gain optional multi-device sync.
   current v1 constraints"). Those constraints remain in force until a refactor
   is actually scheduled and the relevant docs in `AGENTS.md` / `docs/` are
   updated in the same task that begins the work.
+- **The public web app remains cloud-first.** The desktop/mobile direction is
+  intentionally local-first with optional sync later. A future sync bridge
+  should merge local data with hosted Supabase only when the user opts in.
 
 Precedence: while unscheduled, treat this file as lower precedence than every
 source-of-truth doc listed in `AGENTS.md`. It is closest in spirit to
@@ -38,6 +45,10 @@ Produce a macOS app a user can download and run that is:
    schema migration or a UI/core rewrite.
 4. **iOS-portable.** The portable core, the UI, and the platform adapters are
    structured so an iOS build reuses them with minimal change.
+
+The desktop/mobile apps are intended to be free and open source. Future paid
+features, if added, belong to hosted cross-surface saving and future
+speech-to-speech AI capabilities, not basic local tracking.
 
 ## Locked decisions
 
@@ -66,7 +77,7 @@ scheduled and the owning docs are updated in the same task.
 | "Native mobile apps" out of scope | iOS is a future target of the same core | Only when the iOS phase is scheduled |
 | "PWA offline cache" / "Offline writes or sync conflict handling" out of scope | Local-first is the desktop foundation; sync conflict policy is defined here | When the desktop track is scheduled |
 | Supabase Auth + Google login required; data restricted to authenticated user | Auth becomes optional; local anonymous profile is the default | When the desktop track is scheduled |
-| RLS required on all user-owned tables; do not bypass | Local SQLite has no RLS (single local DB, single user). RLS returns on the *server* side if/when sync lands | When the local data layer is built |
+| RLS required on all user-owned tables; do not bypass | Local SQLite has no RLS (single local DB, single local profile). RLS returns on the *server* side if/when sync lands | When the local data layer is built |
 | Vercel deployment + hourly cron reminder processing | Replaced by OS-scheduled local notifications | When the notification phase is scheduled |
 
 `docs/FUTURE_UPDATES.md` already anticipates local pending queues and offline
@@ -167,7 +178,8 @@ Translation from the current Postgres schema
   it as JSON.
 - `timestamptz` / `time` / `date` → `TEXT` (ISO-8601). The code already passes
   ISO strings, so this is low-friction.
-- Drop all RLS policies and grants (single local database, single user).
+- Drop all RLS policies and grants (single local database, single local
+  profile).
 - Replace the `auth.users` foreign keys and `handle_new_user` trigger with
   app-level first-run seeding: ensure one local profile and the default
   categories exist on first launch.

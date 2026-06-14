@@ -45,6 +45,15 @@ When updating a ticket row:
 
 This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, and the project-definition and agent-bootstrap layer.
 
+Product posture update: Cadence is now scoped as a public, open-source
+single-account personal behavior tracker product. The current implemented
+surface remains the authenticated Next.js web app; future surfaces are an Astro
+marketing site, a Tauri desktop app proposal, and a future mobile app. The
+first public-product implementation step is hardening the current web app for
+many independent Google-auth users, not billing, AI, desktop, or mobile work.
+The target composable workspace and public marketing scope live in
+`docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
+
 Current evidence:
 
 - `package.json` and `package-lock.json` exist with Next.js App Router, TypeScript, Tailwind, ESLint, and Vitest scripts.
@@ -1120,7 +1129,10 @@ Verification:
   into `lib/db/database.types.ts`.
 
 Remaining risk:
-- Hosted Supabase was not updated; no hosted `db push` was requested or run.
+- Hosted Supabase now has migration
+  `20260612221022_add_behaviorlog_import_tracking.sql`; `npm run supabase --
+  db push --linked --yes` and `npm run supabase -- migration list --linked`
+  passed on 2026-06-14.
 - The tracking layer intentionally does not create, merge, overwrite, restore,
   delete, or deduplicate imported product records. Ticket 019 starts the first
   constrained product-record write path.
@@ -1166,8 +1178,9 @@ Verification:
 - Pass: `npm run resolvers:check`.
 
 Remaining risk:
-- Hosted Supabase still has not received the Ticket 018 import-tracking
-  migration; no hosted `db push` was requested or run.
+- Hosted Supabase now has the Ticket 018 import-tracking migration; `npm run
+  supabase -- migration list --linked` shows local and remote
+  `20260612221022` match.
 - Ticket 020 should treat the create-only path as provenance-aware but not
   conflict-resolving. Merge preview must make mapping/map-to-existing decisions
   explicit instead of relying on the create-only writer.
@@ -1213,8 +1226,9 @@ Verification:
   Font.
 
 Remaining risk:
-- Hosted Supabase still has not received the Ticket 018 import-tracking
-  migration; no hosted `db push` was requested or run.
+- Hosted Supabase now has the Ticket 018 import-tracking migration; `npm run
+  supabase -- migration list --linked` shows local and remote
+  `20260612221022` match.
 - Ticket 021 should consume `preview.mergePreview.actions` and
   `dry_run_summary.mergePreview`, refuse unresolved
   `conflict_requires_decision` actions, and still avoid blind overwrite or
@@ -1265,8 +1279,9 @@ Verification:
 - Pass: `npm run build`.
 
 Remaining risk:
-- Hosted Supabase still has not received the Ticket 018 import-tracking
-  migration; no hosted `db push` was requested or run.
+- Hosted Supabase now has the Ticket 018 import-tracking migration; `npm run
+  supabase -- migration list --linked` shows local and remote
+  `20260612221022` match.
 - Merge apply remains a multi-call Supabase workflow. A partial failure marks
   the import run `failed`, but already-written rows are not rolled back. This
   matches the Ticket 019 service pattern and should be revisited if the import
@@ -1309,8 +1324,9 @@ Verification:
 - Pass: `git diff --check`.
 
 Remaining risk:
-- Hosted Supabase still has not received the Ticket 018 import-tracking
-  migration; no hosted `db push` was requested or run.
+- Hosted Supabase now has the Ticket 018 import-tracking migration; `npm run
+  supabase -- migration list --linked` shows local and remote
+  `20260612221022` match.
 - Ticket 023 should keep Intervention Profile import preview-only. It must not
   write `reminder_deliveries`, call providers, send notifications, schedule
   reminders, or reuse occurrence-note fill behavior for interventions.
@@ -1348,18 +1364,51 @@ Verification:
 - Pass: `npm run test` (25 files, 157 tests).
 - Pass: `npm run build`.
 - Pass: `env HOME=/private/tmp/cadence-supabase-home npm run supabase -- db reset`.
+- Pass: `npm run supabase -- db push --linked --yes` applied
+  `20260612221022_add_behaviorlog_import_tracking.sql` to hosted Supabase on
+  2026-06-14.
+- Pass: `npm run supabase -- migration list --linked` shows local and remote
+  `20260612221022` match.
 - Pass: `git diff --check`.
 
 Remaining risk:
-- Hosted Supabase still has not received the Ticket 018 import-tracking
-  migration; no hosted `db push` was requested or run.
+- Hosted Supabase now has the Ticket 018 import-tracking migration.
 - Imported intervention records are intentionally not stored as passive history.
   A later ticket would need a separate data model before retaining imported
   intervention history outside the preview/import ledger.
 
+### Public product posture
+
+Status: complete.
+
+Implementation summary:
+- Updated Cadence's source-of-truth posture from private-only personal app to
+  public, open-source, single-account personal behavior tracker.
+- Added `docs/PUBLIC_PRODUCT_ARCHITECTURE.md` to scope the target surface model:
+  current authenticated web app, future Astro marketing site, future Tauri
+  desktop app, future mobile app, and eventual shared packages.
+- Documented the launch sequence: harden the current Google-auth web app for
+  many independent accounts first; defer billing, AI speech features,
+  desktop/mobile implementation, and workspace restructuring until explicit
+  tickets.
+- Added future tickets for public web hardening, Astro marketing, and workspace
+  restructuring.
+- Updated product, route, UI, flow, data, notification, export, operations,
+  Vercel, desktop proposal, README, AGENTS, and decision docs to reflect the
+  public posture and BehaviorLog Bundle demonstration/adoption role.
+
+Verification:
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+
+Remaining risk:
+- No implementation restructure was performed. Current routes, deployment
+  assumptions, package layout, and app code remain unchanged until future
+  tickets schedule the work.
+
 ## Handoff notes
 
-- For the next coding agent: continue Ticket 013 from the Vercel environment/deployment blocker. Do not start deferred offline/PWA or future restore/import work unless the product docs change or the user explicitly brings it into scope.
+- For the next coding agent: continue Ticket 013 from the Vercel environment/deployment blocker if deployment work resumes. Do not start deferred offline/PWA, marketing, workspace restructuring, desktop/mobile, billing, or AI work unless the relevant docs and tickets move that work into active scope.
 - Ticket 014 now captures the next BehaviorLog alignment milestone: import validation dry-run only. It should not perform merge/restore writes unless a later ticket explicitly expands scope.
 - Ticket 015 now captures the next BehaviorLog alignment milestone: core conformance harness against an upstream `emixd12/BehaviorLog-Bundle` reference snapshot. It should tighten validation/test infrastructure only and must not add import writes or optional profile expansion.
 - Ticket 016 now captures the next BehaviorLog alignment milestone: Level 2 optional CSV views inside the BehaviorLog bundle, with JSONL remaining authoritative.

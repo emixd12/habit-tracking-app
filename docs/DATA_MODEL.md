@@ -2,6 +2,10 @@
 
 Use Supabase Postgres.
 
+The web app may support many independent accounts. It is still single-player
+per account: no shared workspaces, no collaboration records, and no social data
+model are in scope.
+
 All user-owned tables must include `user_id`.
 
 Exception: `profiles` uses `id` as the authenticated user's id (`auth.users.id`) instead of a separate `user_id`; its RLS ownership rule is `id = auth.uid()`.
@@ -51,6 +55,10 @@ Default categories:
 - Measurements
 - Admin
 - Other
+
+Default categories are seeded for convenience and remain user-owned. Public
+launch should allow users to add categories and remove default categories once
+category management is fully scoped.
 
 ### `behaviors`
 
@@ -447,6 +455,18 @@ create table exports (
 );
 ```
 
+### Account deletion
+
+Public launch should include an account deletion path. Deletion should remove
+or anonymize user-owned hosted records consistently with the public Terms and
+Privacy Policy. Until a detailed retention policy is adopted, the product
+posture is:
+
+- retain user data while the account exists,
+- delete user-owned records on account deletion,
+- do not expose routine admin access to user behavior content,
+- avoid sending sensitive behavior content to monitoring tools.
+
 ## RLS requirements
 
 For every user-owned table:
@@ -465,6 +485,22 @@ For `profiles`, use `id = auth.uid()` because the primary key is the authenticat
 Normal app code should use the authenticated user context.
 
 Do not expose the service-role key to client-side code.
+
+Service-role access is reserved for narrow server-only maintenance,
+scheduled-processing, or deletion workflows. It must not become the normal path
+for user-facing reads or writes.
+
+## Abuse and public-product protections
+
+Before broad public launch, add standard protections around sensitive routes
+and account creation:
+
+- provider-level auth abuse protection where available,
+- route/action validation for all mutations,
+- practical rate limiting for public or secret-protected endpoints,
+- monitoring that avoids sensitive behavior payloads,
+- clear secret ownership for Supabase, Sequenzy, VAPID, and cron/process
+  secrets.
 
 ## Behavior edits and occurrence preservation
 

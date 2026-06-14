@@ -7,6 +7,10 @@ Exports should be easy to read by:
 - A spreadsheet
 - A future restore/import process
 
+Exports are also part of Cadence's public-product posture: the app should act
+as a practical producer and demonstration surface for the BehaviorLog Bundle
+standard.
+
 V1 export types:
 - JSONL
 - CSV
@@ -106,6 +110,9 @@ Core alignment rules:
 - UTC timestamps are used for ordering events.
 - Required files are listed in `manifest.json` with SHA-256 hashes.
 - App-specific fields live under the `app.cadence` extension namespace.
+
+The upstream standard lives at:
+`https://github.com/emixd12/BehaviorLog-Bundle`
 - Core record top-level fields must match the BehaviorLog core schema; custom
   producer fields belong under `extensions`.
 - CSV files under `csv/` are optional Level 2 migration views. They are derived

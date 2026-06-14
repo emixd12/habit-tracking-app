@@ -4,6 +4,34 @@ This document tracks ideas that are intentionally deferred until after the first
 
 Items in this document are not v1 requirements unless a future task explicitly moves them into the active product docs and tickets.
 
+## Public product surfaces
+
+Cadence's public-product direction is documented in
+`docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
+
+Deferred surface work includes:
+
+- Astro marketing site,
+- composable workspace restructuring,
+- shared `packages/core`,
+- shared tokens/primitives in `packages/ui`,
+- desktop app,
+- mobile app.
+
+Do not implement these without a scoped ticket.
+
+## Paid shared account and speech features
+
+Future commercial work may add:
+
+- paid web/shared-account access for cross-surface saving,
+- optional cloud sync for desktop/mobile,
+- future speech-to-speech AI behavior-review features.
+
+Billing and AI features are not launch scope. Do not add payment
+infrastructure, subscription gates, AI coaching, or speech features until
+product docs and tickets explicitly move them into scope.
+
 ## PWA and offline support
 
 Future work may add:

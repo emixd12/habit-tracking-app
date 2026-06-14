@@ -3,6 +3,12 @@
 This repository deploys to the existing Vercel project `cadence` under team
 `Emi's projects`. Do not create a duplicate Vercel project for this app.
 
+The current Vercel project owns the authenticated web app. A future Astro
+marketing site may use a separate Vercel project or a multi-app workspace
+configuration, but that decision should be made in the marketing/workspace
+ticket. Do not change the current production routing casually: authenticated
+app routes and Supabase OAuth redirects must remain stable.
+
 Authoritative upstream docs used for this workflow:
 
 - Vercel deployments: `https://vercel.com/docs/deployments/overview`
@@ -76,8 +82,8 @@ Redirect URL: https://cadence-blush-three.vercel.app/auth/callback
 ```
 
 Only add preview callback URLs when preview OAuth QA is intentionally supported.
-Do not use wildcard preview redirects for this single-user v1 app unless the
-Supabase project owner accepts that operational tradeoff.
+Do not use wildcard preview redirects for this single-player public app unless
+the Supabase project owner accepts that operational tradeoff.
 
 ## Cron Processing
 
@@ -151,6 +157,17 @@ Authenticated checks:
 - Export download links respond.
 
 Check both a desktop viewport and a narrow viewport around 390px wide.
+
+## Public launch additions
+
+Before broad public launch, add smoke checks for:
+
+- new-user signup through Google,
+- first-run onboarding,
+- account deletion,
+- export/account portability,
+- rate-limit or abuse-protection behavior where implemented,
+- monitoring/error-reporting capture without sensitive behavior content.
 
 ## Rollback
 

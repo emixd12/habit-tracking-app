@@ -6,6 +6,11 @@ Sparse, clean, checklist-like.
 
 The app should feel like a personal cockpit, not a productivity platform.
 
+Cadence is now a public product, but the authenticated app should not become
+marketing-heavy. Public explanation, SEO content, standard adoption, and GitHub
+links belong on the future Astro marketing site. The app remains direct and
+work-focused after login.
+
 Avoid:
 - Dense dashboards
 - Gamified streaks
@@ -57,6 +62,36 @@ Route:
 `/timeline`
 
 Categories should not appear in navigation or timeline filtering.
+
+## Public marketing site
+
+The marketing site should use Cadence's existing product voice and design
+tokens, but it is a separate Astro shell rather than part of the authenticated
+app shell.
+
+Launch marketing routes:
+
+- `/`
+- `/cadence`
+- `/standard`
+- `/docs`
+- `/examples`
+- `/about`
+
+Primary calls to action:
+
+- Try Cadence
+- Read the Standard
+- Download Example Bundle
+- View on GitHub
+
+The marketing site should be SEO-conscious with semantic content structure,
+metadata, canonical URLs, social preview metadata, sitemap/robots support, and
+fast static pages. Do not add heavy client-side marketing interactions unless a
+specific page needs them.
+
+No public design-system page is launch scope. `/design-system` remains
+dev-only.
 
 ## Timeline screen
 
@@ -232,6 +267,10 @@ Preset time ranges:
 Timezone is managed in Settings and should not be shown as a separate panel in
 the behavior creation form.
 
+Public launch may introduce a short first-run onboarding flow, but it should
+reuse the same behavior form, notification permission control, import entry,
+and timezone settings rather than creating a separate onboarding product.
+
 ## Recurrence editor
 
 Support:
@@ -347,6 +386,7 @@ Show:
 - Global email notification setting if needed
 - Lightweight category editing
 - Export/backup links if not on Export page
+- Account deletion when public launch hardening scopes it
 
 Timezone should be detected automatically when the browser/location permission allows it. If the user has not allowed automatic detection, provide a manual timezone selector.
 

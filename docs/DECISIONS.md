@@ -137,6 +137,54 @@ These checks are part of the repository contract and should be extended when new
 
 ## Product direction
 
-Build a custom MVP.
+Build a custom, open-source Cadence product.
 
 Do not start by integrating an open-source habit tracker.
+
+Cadence is now a public product posture, not a private-only app. The current
+web app should be hardened for many independent single-account users while
+remaining single-player and small.
+
+Cadence also demonstrates and promotes the BehaviorLog Bundle standard:
+`https://github.com/emixd12/BehaviorLog-Bundle`.
+
+## Public surface architecture
+
+Use separate shells for separate surfaces:
+
+- authenticated web app: current Next.js app,
+- marketing site: future Astro app,
+- desktop app: future Tauri proposal,
+- mobile app: future local-first app following the desktop direction.
+
+When the repository is restructured, prefer:
+
+```text
+apps/
+  app/
+  marketing/
+  desktop/
+  mobile/
+packages/
+  core/
+  db/
+  ui/
+  config/
+```
+
+Do not restructure the repository without a scoped ticket. Start with npm
+workspaces unless multi-app task orchestration justifies Turborepo.
+
+## Marketing stack
+
+Use Astro for the public marketing site. Keep it SEO-conscious, static-first,
+and visually consistent with `PRODUCT.md` and `DESIGN.md`.
+
+## Pricing and AI
+
+Billing is not launch scope. The intended future shape is free open-source
+desktop/mobile apps plus paid web/shared-account capabilities for cross-surface
+saving and future speech-to-speech AI features.
+
+Do not add payment or AI speech features until tickets update the relevant
+product, route, data, legal, and operations docs.

@@ -6,6 +6,12 @@ Use this file after `AGENTS.md` and `STATUS.md` to run the repository consistent
 
 The repository contains the v1 app implementation through Ticket 012 plus the project-definition layer. `STATUS.md` remains the detailed implementation ledger and should be checked before starting or continuing any ticket.
 
+Cadence's product posture has moved from private-only usage to a public
+open-source product with multiple planned surfaces. The current implemented
+surface is still the authenticated Next.js web app. See
+`docs/PUBLIC_PRODUCT_ARCHITECTURE.md` before starting public-product,
+marketing-site, workspace, desktop, or mobile work.
+
 ## Setup
 
 ```bash
@@ -67,6 +73,20 @@ If docs conflict, report and fix the conflict before implementing product code.
 - Supabase: `docs/SUPABASE_WORKFLOW.md`
 - Sequenzy: `docs/SEQUENZY_WORKFLOW.md`
 - Vercel: `docs/VERCEL_WORKFLOW.md`
+
+## Public-product operations
+
+Before broad public launch, scope and verify:
+
+- many-independent-user RLS smoke tests,
+- account deletion and export/account portability,
+- basic abuse protections and validation,
+- monitoring/error reporting without sensitive behavior payloads,
+- Terms of Service, Privacy Policy, and privacy/trust content,
+- owner mapping for Vercel, Supabase, Sequenzy, VAPID, and cron secrets.
+
+Marketing cookies and analytics are not launch scope, but any future addition
+should include consent and documentation updates.
 
 Use those files instead of searching repeatedly for provider setup.
 

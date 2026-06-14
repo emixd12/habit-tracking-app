@@ -2,6 +2,45 @@
 
 This document describes the main v1 screens, modules, and user flows.
 
+Cadence is a public product with multiple planned surfaces, but the current
+implemented flow remains the authenticated web app. Marketing flows belong to a
+future Astro site and should not add promotional copy inside the logged-in app.
+
+## Public site flow
+
+Planned public marketing routes:
+
+- `/`: combined landing page explaining Cadence and BehaviorLog
+- `/cadence`: product page for the tracker
+- `/standard`: BehaviorLog Bundle overview and adoption case
+- `/docs`: docs entry point that mostly links to GitHub files at launch
+- `/examples`: optional sample bundle page or homepage section
+- `/about`: optional philosophy, governance, privacy, or project page/section
+
+Primary actions:
+
+- Try Cadence
+- Read the Standard
+- Download Example Bundle
+- View on GitHub
+
+The site should be simple, static-first, and SEO-conscious. It should not tease
+desktop/mobile apps before those surfaces are real or intentionally announced.
+
+## First-run onboarding flow
+
+Public web launch may add a minimal onboarding path after Google login.
+
+Steps:
+
+1. Create first behavior.
+2. Request browser notification permission.
+3. Import data when import exists.
+4. Detect timezone automatically when possible and allow manual override.
+
+Onboarding should stay thin. It should reuse existing app controls and should
+not become a broad setup wizard.
+
 ## App shell
 
 The app uses a fixed retractable sidebar on desktop and a drawer on mobile.

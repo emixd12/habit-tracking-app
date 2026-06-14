@@ -2,6 +2,11 @@
 
 This file keeps route names stable across agents. Add routes here before or during implementation so UI, tests, docs, and navigation do not drift.
 
+The current implemented routes belong to the authenticated web app. Future
+public marketing routes are scoped separately in
+`docs/PUBLIC_PRODUCT_ARCHITECTURE.md` and should be implemented as an Astro
+surface when ticketed.
+
 ## Current app routes
 
 | Route | Status | Purpose | Notes |
@@ -14,6 +19,20 @@ This file keeps route names stable across agents. Add routes here before or duri
 | `/analytics` | implemented, protected | Basic completion counts, adherence, heatmaps, and selected-day Not Completed inspection | No gamified streak language. |
 | `/export` | implemented, protected | JSONL, CSV, full JSON backup, BehaviorLog bundle, and Markdown AI-readable summary export | Export logic belongs in `export.resolver.ts`; the page supports range and archived-behavior options. |
 | `/settings` | implemented, protected | Profile, timezone, and browser notification permission/subscription settings | Browser notification permission is requested here; category editing and any global email settings remain future Settings work. |
+
+## Planned marketing routes
+
+These routes are not implemented in the current Next.js app. They are planned
+for a future Astro marketing app.
+
+| Route | Status | Purpose | Notes |
+|---|---|---|---|
+| `/` | planned for marketing | Combined landing page explaining Cadence and BehaviorLog | If marketing owns `/`, preserve the authenticated app's entry behavior through an app subdomain or app-specific route. |
+| `/cadence` | planned for marketing | Simple product page for the tracker | Primary CTA: Try Cadence. |
+| `/standard` | planned for marketing | BehaviorLog Bundle overview and adoption case | Primary CTA: Read the Standard. |
+| `/docs` | planned for marketing | Docs/spec entry point | Mostly links to GitHub files at launch. |
+| `/examples` | optional | Sample BehaviorLog bundle page or homepage section | Primary CTA: Download Example Bundle. |
+| `/about` | optional | Philosophy, governance, privacy, or project page/section | Keep sparse and factual. |
 
 ## Internal development routes
 

@@ -2,15 +2,43 @@
 
 ## Purpose
 
-A single-user personal behavior tracker for recurring life patterns.
+Cadence is a public, open-source personal behavior tracker for recurring life
+patterns.
 
 The app lets the user define recurring behaviors, see what is scheduled in a timeline, and manually mark each scheduled occurrence as Completed or Not Completed.
 
+Cadence also serves as a practical demonstration and adoption surface for the
+BehaviorLog Bundle standard:
+`https://github.com/emixd12/BehaviorLog-Bundle`.
+
 ## Primary user
 
-One authenticated user.
+One independent account holder using a single-player personal tracker.
 
-This is not a public product. The app should still use proper auth, RLS, and basic security, but it does not need multi-tenant product administration, billing, onboarding funnels, role management, or collaboration.
+The public web app may support many independent accounts, but it is not a
+collaboration product. It does not need shared workspaces, role management,
+social features, public profiles, admin dashboards, or productivity-suite
+sprawl.
+
+The first public-product step is to harden the existing web app for many
+independent users with simple Google auth. Billing, desktop, mobile, sync, and
+AI speech features are future scope unless tickets explicitly move them into
+active work.
+
+## Product surfaces
+
+Target surfaces:
+
+1. Authenticated web app: current Next.js app.
+2. Marketing site: future Astro app for Cadence, BehaviorLog, docs links, and
+   example bundles.
+3. Desktop app: future local-first Tauri app, documented as a proposal in
+   `docs/DESKTOP_BUILD.md`.
+4. Mobile app: future local-first app following the desktop direction.
+
+The product should eventually live in a composable workspace, but repository
+restructuring is not implied by this document alone. See
+`docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
 
 ## Core screens
 
@@ -19,6 +47,27 @@ This is not a public product. The app should still use proper auth, RLS, and bas
 3. Analytics
 4. Export
 5. Settings
+
+## Public website scope
+
+The marketing site should be a simple Astro site, SEO-conscious from launch,
+and visually consistent with `PRODUCT.md` and `DESIGN.md`.
+
+Launch routes:
+
+- `/`: combined landing page explaining Cadence and BehaviorLog
+- `/cadence`: product page for the tracker
+- `/standard`: BehaviorLog Bundle overview and adoption case
+- `/docs`: docs entry point, mostly linking to GitHub files at launch
+- `/examples`: optional sample bundle page or homepage section
+- `/about`: optional philosophy, governance, privacy, or project page/section
+
+Primary calls to action:
+
+- Try Cadence
+- Read the Standard
+- Download Example Bundle
+- View on GitHub
 
 ## Core object model
 
@@ -82,6 +131,13 @@ Browser reminders default to on.
 
 Email reminders default to off.
 
+Public launch may add a minimal onboarding flow after first login:
+
+- create first behavior
+- request browser notification permission
+- import data when import exists
+- detect timezone automatically when possible and allow manual override
+
 Preset time ranges:
 - Morning: 6:00 AM-Noon
 - Afternoon: Noon-6:00 PM
@@ -143,6 +199,9 @@ Exports should include:
 - Status event history
 - Notes
 
+Account deletion and export should be first-class before broad public launch,
+consistent with the BehaviorLog portability posture.
+
 ## Offline and PWA behavior
 
 Offline support, offline writes, and PWA caching are deferred from v1.
@@ -152,6 +211,7 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 ## In scope
 
 - Google login
+- Many independent single-account users
 - Behavior creation/edit/archive
 - Categories
 - Recurrence rules
@@ -161,6 +221,8 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - Optional email reminders
 - Basic analytics
 - JSONL/CSV/full JSON/BehaviorLog export
+- Simple onboarding for first behavior, notification permission, import, and timezone
+- Public Astro marketing site when explicitly ticketed
 
 ## Out of scope
 
@@ -178,3 +240,6 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - Admin dashboard
 - Automatic missed status
 - Any third manual completion status beyond Completed and Not Completed
+- AI coaching or speech features in the launch web app
+- Marketing/product emails at launch
+- Desktop/mobile implementation until proposal work is explicitly scheduled

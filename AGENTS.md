@@ -2,11 +2,20 @@
 
 ## Project
 
-This repository contains a single-user personal behavior tracker web app.
+This repository contains Cadence, a public, open-source personal behavior
+tracker product. The current implemented surface is an authenticated web app
+for one account at a time.
 
-The app lets one user create recurring behaviors, view scheduled occurrences in a timeline, and manually mark each occurrence as Completed or Not Completed. Unmarked occurrences remain Unresolved, and prior-day unresolved occurrences are grouped under Needs decision.
+The app lets a user create recurring behaviors, view scheduled occurrences in a timeline, and manually mark each occurrence as Completed or Not Completed. Unmarked occurrences remain Unresolved, and prior-day unresolved occurrences are grouped under Needs decision.
 
-This is not a general productivity app, not a social habit tracker, not a medical dosing app, and not a multi-user SaaS product.
+Cadence may support many independent accounts, but each account remains
+single-player. This is not a general productivity app, not a social habit
+tracker, not a medical dosing app, not a collaboration product, and not an
+admin-heavy SaaS product.
+
+Cadence also serves as a practical reference implementation and promotion
+surface for the BehaviorLog Bundle standard:
+`https://github.com/emixd12/BehaviorLog-Bundle`.
 
 ## Primary stack
 
@@ -20,6 +29,11 @@ This is not a general productivity app, not a social habit tracker, not a medica
 - Sequenzy for email reminders
 - Web Push for browser notifications
 - Vitest for resolver tests
+
+Future public-product surfaces are scoped in
+`docs/PUBLIC_PRODUCT_ARCHITECTURE.md`: an Astro marketing site, a future Tauri
+desktop app, and a future mobile app. Do not restructure the repository into a
+multi-app workspace or add those surfaces without a scoped ticket.
 
 ## Agent operating model
 
@@ -61,6 +75,7 @@ Product and implementation docs:
 14. `/docs/TICKETS.md`
 15. `/docs/DECISIONS.md`
 16. `/docs/FUTURE_UPDATES.md`
+17. `/docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
 
 ## Product constraints
 
@@ -68,6 +83,7 @@ Keep the app small.
 
 In scope:
 - Google login
+- Many independent single-account users for the web app
 - Behavior CRUD
 - Category CRUD or simple category selection
 - Recurrence rules
@@ -79,6 +95,7 @@ In scope:
 - Optional email reminders per behavior
 - Basic analytics
 - JSONL/CSV/full JSON/BehaviorLog export
+- Simple public marketing site and workspace split when explicitly ticketed
 
 Out of scope for v1:
 - Multi-user collaboration
@@ -96,6 +113,8 @@ Out of scope for v1:
 - PWA offline cache
 - Offline writes or sync conflict handling
 - Automatic missed status
+- AI coaching or speech features
+- Desktop/mobile implementation unless the proposal is explicitly scheduled
 
 ## Domain language
 
@@ -245,7 +264,8 @@ Exception: `profiles` uses `id` as the authenticated user's id (`auth.users.id`)
 
 All user-owned tables must have RLS policies.
 
-Even though this is single-user, do not bypass RLS in normal app code.
+Even though each account is single-player, do not bypass RLS in normal app
+code.
 
 ## Sequenzy CLI rules
 

@@ -11,6 +11,9 @@ Browser reminders default to on for every behavior.
 
 Email reminders default to off and are enabled per behavior.
 
+Public launch does not include marketing or product lifecycle emails. Reminder
+emails remain transactional behavior reminders.
+
 ## Browser reminders
 
 Requirements:
@@ -18,6 +21,8 @@ Requirements:
 - User must have an active push subscription.
 - If browser push is denied or unavailable, the app still works.
 - Settings should provide the control that triggers the browser notification permission prompt.
+- Public launch onboarding may also request notification permission after the
+  user creates the first behavior.
 - V1 does not need a test notification button.
 
 Behavior fields:
@@ -33,6 +38,8 @@ Provider:
 - Use `docs/SEQUENZY_WORKFLOW.md` for CLI login, template inspection, test sends, and provider operations.
 - Keep runtime sending in server-only services/adapters.
 - Do not send from resolvers, UI components, or client-side code.
+- Sequenzy may later handle other transactional product emails, but marketing
+  or promotional email is not launch scope.
 
 Behavior fields:
 - `email_reminder_enabled`
