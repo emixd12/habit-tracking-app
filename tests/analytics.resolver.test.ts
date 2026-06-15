@@ -19,6 +19,8 @@ function occurrence(
   return {
     behaviorId: "behavior-a",
     behaviorTitle: "Brush teeth",
+    behaviorActive: true,
+    behaviorCreatedAt: "2026-06-01T13:00:00Z",
     categoryName: "Grooming",
     scheduledFor: "2026-06-08T13:00:00Z",
     scheduledTimeLabel: "9:00 AM",
@@ -55,7 +57,7 @@ describe("resolveAnalyticsDateRange", () => {
 });
 
 describe("resolveAnalytics", () => {
-  it("excludes unresolved occurrences from default adherence", () => {
+  it("matches the Timeline Needs decision count in the summary unresolved count", () => {
     const analytics = resolveAnalytics({
       now: NOW,
       timezone: DEFAULT_TIMEZONE,
@@ -73,9 +75,24 @@ describe("resolveAnalytics", () => {
           scheduledFor: "2026-06-08T15:00:00Z",
         }),
         occurrence({
-          id: "unresolved-1",
+          id: "current-unresolved",
           status: "unresolved",
           scheduledFor: "2026-06-08T16:00:00Z",
+        }),
+      ],
+      needsDecisionOccurrences: [
+        occurrence({
+          id: "prior-unresolved",
+          status: "unresolved",
+          scheduledFor: "2026-05-31T16:00:00Z",
+          localDate: "2026-05-31",
+        }),
+        occurrence({
+          id: "archived-prior-unresolved",
+          behaviorActive: false,
+          status: "unresolved",
+          scheduledFor: "2026-05-31T17:00:00Z",
+          localDate: "2026-05-31",
         }),
       ],
     });
@@ -156,7 +173,55 @@ describe("resolveAnalytics", () => {
     ]);
   });
 
-  it("builds an overall binary heatmap with unresolved shown separately", () => {
+  it("adds behavior tracking start metadata and marks the start day in the behavior calendar", () => {
+    const analytics = resolveAnalytics({
+      now: NOW,
+      timezone: DEFAULT_TIMEZONE,
+      rangeDays: 7,
+      occurrences: [
+        occurrence({
+          id: "start-day",
+          behaviorId: "journal",
+          behaviorTitle: "Journal",
+          behaviorCreatedAt: "2026-06-05T13:00:00Z",
+          localDate: "2026-06-05",
+          scheduledFor: "2026-06-05T13:00:00Z",
+          status: "completed",
+        }),
+        occurrence({
+          id: "later-day",
+          behaviorId: "journal",
+          behaviorTitle: "Journal",
+          behaviorCreatedAt: "2026-06-05T13:00:00Z",
+          localDate: "2026-06-06",
+          scheduledFor: "2026-06-06T13:00:00Z",
+          status: "not_completed",
+        }),
+      ],
+    });
+
+    const behavior = analytics.behaviorSummaries[0];
+
+    expect(behavior).toMatchObject({
+      behaviorId: "journal",
+      trackingStartLocalDate: "2026-06-05",
+      trackingStartLabel: "Friday, June 5",
+    });
+    expect(
+      behavior?.dailyCells.map((cell) => ({
+        localDate: cell.localDate,
+        isTrackingStart: cell.isTrackingStart,
+        ariaLabel: cell.ariaLabel,
+      })),
+    ).toContainEqual({
+      localDate: "2026-06-05",
+      isTrackingStart: true,
+      ariaLabel:
+        "Friday, June 5: Full; 1 Completed, 0 Not Completed, 0 Unresolved; tracking started",
+    });
+  });
+
+  it("builds an overall heatmap with completion intensity", () => {
     const analytics = resolveAnalytics({
       now: NOW,
       timezone: DEFAULT_TIMEZONE,
@@ -170,7 +235,13 @@ describe("resolveAnalytics", () => {
           status: "completed",
         }),
         occurrence({
-          id: "not-completed-day",
+          id: "partial-completed-day",
+          localDate: "2026-06-07",
+          scheduledFor: "2026-06-07T12:00:00Z",
+          status: "completed",
+        }),
+        occurrence({
+          id: "partial-not-completed-day",
           localDate: "2026-06-07",
           scheduledFor: "2026-06-07T13:00:00Z",
           status: "not_completed",
@@ -187,16 +258,60 @@ describe("resolveAnalytics", () => {
       analytics.overallHeatmap.map((cell) => ({
         localDate: cell.localDate,
         state: cell.state,
+        stateLabel: cell.stateLabel,
+        completionRate: cell.completionRate,
         isSelected: cell.isSelected,
       })),
     ).toEqual([
-      { localDate: "2026-06-02", state: "empty", isSelected: false },
-      { localDate: "2026-06-03", state: "empty", isSelected: false },
-      { localDate: "2026-06-04", state: "empty", isSelected: false },
-      { localDate: "2026-06-05", state: "empty", isSelected: false },
-      { localDate: "2026-06-06", state: "completed", isSelected: false },
-      { localDate: "2026-06-07", state: "not_completed", isSelected: true },
-      { localDate: "2026-06-08", state: "unresolved", isSelected: false },
+      {
+        localDate: "2026-06-02",
+        state: "empty",
+        stateLabel: "No occurrences",
+        completionRate: null,
+        isSelected: false,
+      },
+      {
+        localDate: "2026-06-03",
+        state: "empty",
+        stateLabel: "No occurrences",
+        completionRate: null,
+        isSelected: false,
+      },
+      {
+        localDate: "2026-06-04",
+        state: "empty",
+        stateLabel: "No occurrences",
+        completionRate: null,
+        isSelected: false,
+      },
+      {
+        localDate: "2026-06-05",
+        state: "empty",
+        stateLabel: "No occurrences",
+        completionRate: null,
+        isSelected: false,
+      },
+      {
+        localDate: "2026-06-06",
+        state: "completed",
+        stateLabel: "Completed",
+        completionRate: 1,
+        isSelected: false,
+      },
+      {
+        localDate: "2026-06-07",
+        state: "partial",
+        stateLabel: "50% Completed",
+        completionRate: 0.5,
+        isSelected: true,
+      },
+      {
+        localDate: "2026-06-08",
+        state: "unresolved",
+        stateLabel: "Unresolved",
+        completionRate: null,
+        isSelected: false,
+      },
     ]);
   });
 

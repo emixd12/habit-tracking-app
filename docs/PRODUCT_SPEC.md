@@ -167,17 +167,32 @@ Analytics should be basic:
 - Counts by category
 - 7/30/90-day windows, defaulting to 30 days
 - `completed` / `not_completed` / `unresolved`
-- A binary calendar heatmap for overall adherence
+- A completion-intensity calendar heatmap for overall adherence
 - Per-behavior charts or heatmaps where useful
+- Per-behavior tracking start date, visible in text and marked in the
+  per-behavior calendar when it falls inside the selected range
 - Day-level representation of full completion, partial completion, and not completed when a behavior has multiple occurrences in one day
 - A way to see occurrences that were not completed on a given day
 - Default adherence rate excludes unresolved
+
+The top-level Analytics summary Unresolved count should match the Timeline
+Needs decision count: active unresolved occurrences before the current local
+day, regardless of the selected Analytics range. Current-day unresolved
+occurrences may still appear as unresolved in the overall heatmap and
+behavior/category detail counts, but they are not included in the top summary
+Unresolved count until they become prior-day unresolved.
+
+The overall calendar should shade each day by completion share: full blue when
+all scheduled occurrences that day are Completed, and proportionally lighter
+blue as the completed share decreases. Days with no completed occurrences use
+the background end of that scale. Fully unresolved days remain neutral and
+should not imply failure.
 
 Example:
 If Brush teeth has:
 - 24 completed
 - 4 not completed
-- 1 unresolved
+- 1 prior-day unresolved
 
 Default adherence:
 `24 / (24 + 4) = 85.7%`

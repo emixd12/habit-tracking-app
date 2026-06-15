@@ -234,13 +234,15 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 ### Analytics Heatmaps
 
-- **Analytics structure:** Overall adherence sits first in a single bordered section with the active range selector beside it. The overall calendar, selected-day Not Completed list, behavior counts, and category counts stack as separate page sections, not nested dashboards.
-- **Completed cells:** Monolith Blue fill with Ash Line cell borders.
-- **Not completed cells:** Background fill with Ash Line border and a simple diagonal mark if useful.
+- **Analytics structure:** Overall adherence sits first with the active range selector beside it, and the overall calendar lives inside that same area. Analytics sections are unboxed report bands separated by single horizontal dividers where needed, not perimeter panel borders.
+- **Legend disclosure:** The overall calendar legend stays hidden behind a simple See Legend disclosure by default.
+- **Top summary unresolved count:** Match the Timeline Needs decision count by counting only active unresolved occurrences before the current local day, regardless of the selected Analytics range. Current-day unresolved occurrences may still show in heatmap and detail counts.
+- **Completion-intensity cells:** Overall calendar cells mix Monolith Blue with Bleached Newsprint by completed share: 100% uses full Monolith Blue, 50% uses a half-strength blue, and lower shares keep fading toward the background.
+- **Not completed cells:** Overall calendar cells with resolved occurrences but no completions use the background end of the completion-intensity scale, without a diagonal overlay.
 - **Unresolved cells:** Cold Surface or background with a neutral border. Do not imply failure.
 - **Grid:** Square cells, consistent gutters, no gradients, no rounded cells.
-- **Behavior rows:** Behavior counts use flat bordered rows with title, category chip, adherence label, counts, and a compact seven-column heatmap. Full completion is filled blue; partial and not completed states use factual diagonal marks.
-- **Selected day:** Not Completed inspection uses the same occurrence-row vocabulary: scheduled time chip, category chip, title, and note when present.
+- **Behavior rows:** Behavior counts use unboxed divider rows with title, category chip, adherence label, tracking-since text, vertical label/value counts, and a compact seven-column heatmap. Full completion is filled blue; partial and not completed states use factual diagonal marks. The behavior tracking start date is marked in the heatmap when it falls inside the selected range.
+- **Selected day:** Not Completed inspection uses the same occurrence-row vocabulary: scheduled time chip, category chip, title, and note when present. Do not render an empty inspection panel when there are no Not Completed occurrences on the selected day.
 
 ### Export Panels
 

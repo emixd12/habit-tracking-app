@@ -344,17 +344,44 @@ Default range:
 
 Show:
 - Overall adherence at the top
-- Binary calendar heatmap for overall adherence
+- Completion-intensity calendar heatmap for overall adherence
 - Date range selector: 7 / 30 / 90 days
 - Completion counts by behavior
 - Per-behavior chart or calendar heatmap
+- Tracking-since date for each behavior count row, plus a start marker in that
+  behavior's calendar when the start day is inside the selected range
 - Full completion, partial completion, and not completed day states for behaviors that can occur multiple times in one day
 - Not completed occurrences for a selected day
 - Unresolved count
 - Optional compact counts by category
 - Default adherence rate
 
-Default adherence excludes unresolved occurrences.
+The Analytics screen should read as one sparse report surface. Avoid boxed
+section panels around Overall adherence, the calendar, Behavior counts, and
+Category counts. Use single horizontal dividers where separation is needed.
+The overall calendar belongs inside the Overall adherence area, and its legend
+should stay hidden behind a simple See Legend disclosure by default.
+
+Do not render a selected-day Not Completed empty-state panel when the selected
+day has no Not Completed occurrences. Only show the selected-day Not Completed
+inspection when it has rows to inspect.
+
+Default adherence excludes unresolved occurrences. The top summary Unresolved
+count matches the Timeline Needs decision count: active unresolved occurrences
+before the current local day, regardless of the selected Analytics range.
+Current-day unresolved occurrences can still show as unresolved in heatmap
+cells and behavior/category detail counts.
+
+Overall calendar cells use completion intensity: 100% Completed uses the full
+primary blue, and lower completion shares mix that blue with the background in
+the same proportion. A 50% completed day should appear as a half-strength blue
+cell. A day with resolved occurrences but no completed occurrences uses the
+background end of the scale. Fully unresolved days use the neutral unresolved
+treatment.
+
+Behavior count rows should be divider-separated rather than boxed. Their
+Completed, Not Completed, and Unresolved labels align vertically with the
+numeric values in a right-hand column.
 
 ## Export screen
 

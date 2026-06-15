@@ -6,7 +6,10 @@ import {
   type AppSupabaseClient,
   type BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
-import { listOccurrencesBetweenLocalDates } from "@/lib/db/occurrences.repo";
+import {
+  listOccurrencesBetweenLocalDates,
+  listUnresolvedOccurrencesBeforeLocalDate,
+} from "@/lib/db/occurrences.repo";
 import {
   resolveAnalytics,
   resolveAnalyticsDateRange,
@@ -40,12 +43,17 @@ export async function getAnalyticsPageData(
 
   await syncUserOccurrences(supabase, userId, { now });
 
-  const [behaviors, occurrences] = await Promise.all([
+  const [behaviors, occurrences, needsDecisionOccurrences] = await Promise.all([
     listUserBehaviors(supabase, userId),
     listOccurrencesBetweenLocalDates(
       supabase,
       userId,
       dateRange.startLocalDate,
+      dateRange.endLocalDate,
+    ),
+    listUnresolvedOccurrencesBeforeLocalDate(
+      supabase,
+      userId,
       dateRange.endLocalDate,
     ),
   ]);
@@ -55,6 +63,11 @@ export async function getAnalyticsPageData(
 
   return resolveAnalytics({
     occurrences: occurrences
+      .map((occurrence) => toAnalyticsOccurrenceInput(occurrence, behaviorById))
+      .filter((occurrence): occurrence is AnalyticsOccurrenceInput =>
+        Boolean(occurrence),
+      ),
+    needsDecisionOccurrences: needsDecisionOccurrences
       .map((occurrence) => toAnalyticsOccurrenceInput(occurrence, behaviorById))
       .filter((occurrence): occurrence is AnalyticsOccurrenceInput =>
         Boolean(occurrence),
@@ -93,6 +106,8 @@ function toAnalyticsOccurrenceInput(
     id: occurrence.id,
     behaviorId: occurrence.behavior_id,
     behaviorTitle: behavior.title,
+    behaviorActive: behavior.active,
+    behaviorCreatedAt: behavior.created_at,
     categoryName: behavior.category?.name ?? "No category",
     scheduledFor: occurrence.scheduled_for,
     scheduledTimeLabel: formatOccurrenceScheduleLabel({

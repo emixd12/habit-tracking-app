@@ -6,6 +6,8 @@ export type AnalyticsOccurrenceInput = {
   id: string;
   behaviorId: string;
   behaviorTitle: string;
+  behaviorActive?: boolean;
+  behaviorCreatedAt: string;
   categoryName: string;
   scheduledFor: string;
   scheduledTimeLabel: string;
@@ -34,6 +36,7 @@ export type AnalyticsSummary = AnalyticsStatusCounts & AnalyticsAdherence;
 export type AnalyticsOverallDayState =
   | "empty"
   | "completed"
+  | "partial"
   | "not_completed"
   | "unresolved";
 
@@ -52,6 +55,7 @@ export type AnalyticsDayCell = {
   isSelected: boolean;
   state: AnalyticsOverallDayState;
   stateLabel: string;
+  completionRate: number | null;
   counts: AnalyticsStatusCounts;
   ariaLabel: string;
 };
@@ -63,6 +67,7 @@ export type AnalyticsBehaviorDayCell = {
   shortLabel: string;
   state: AnalyticsBehaviorDayState;
   stateLabel: string;
+  isTrackingStart: boolean;
   counts: AnalyticsStatusCounts;
   ariaLabel: string;
 };
@@ -72,6 +77,8 @@ export type AnalyticsBehaviorSummary = AnalyticsStatusCounts &
     behaviorId: string;
     title: string;
     categoryName: string;
+    trackingStartLocalDate: string;
+    trackingStartLabel: string;
     dailyCells: AnalyticsBehaviorDayCell[];
   };
 

@@ -1159,7 +1159,7 @@ const analyticsFixture: AnalyticsView = {
   },
   overallHeatmap: [
     dayCell("2026-06-02", "Jun 2", "2", "completed", false),
-    dayCell("2026-06-03", "Jun 3", "3", "not_completed", false),
+    dayCell("2026-06-03", "Jun 3", "3", "partial", false),
     dayCell("2026-06-04", "Jun 4", "4", "completed", false),
     dayCell("2026-06-05", "Jun 5", "5", "unresolved", false),
     dayCell("2026-06-06", "Jun 6", "6", "empty", false),
@@ -1179,8 +1179,10 @@ const analyticsFixture: AnalyticsView = {
       rate: 0.8,
       percentLabel: "80%",
       detailLabel: "8 of 10 resolved",
+      trackingStartLocalDate: "2026-06-02",
+      trackingStartLabel: "Tuesday, June 2",
       dailyCells: [
-        behaviorCell("2026-06-02", "Jun 2", "2", "full"),
+        behaviorCell("2026-06-02", "Jun 2", "2", "full", true),
         behaviorCell("2026-06-03", "Jun 3", "3", "partial"),
         behaviorCell("2026-06-04", "Jun 4", "4", "full"),
         behaviorCell("2026-06-05", "Jun 5", "5", "unresolved"),
@@ -1352,22 +1354,22 @@ function dayCell(
   state: AnalyticsView["overallHeatmap"][number]["state"],
   isSelected: boolean,
 ) {
-  return {
-    key: `overall-${localDate}`,
-    localDate,
-    label,
-    shortLabel,
-    isSelected,
-    state,
-    stateLabel: state,
-    counts:
-      state === "completed"
+  const counts =
+    state === "completed"
+      ? {
+          completedCount: 1,
+          notCompletedCount: 0,
+          unresolvedCount: 0,
+          resolvedCount: 1,
+          totalCount: 1,
+        }
+      : state === "partial"
         ? {
             completedCount: 1,
-            notCompletedCount: 0,
+            notCompletedCount: 1,
             unresolvedCount: 0,
-            resolvedCount: 1,
-            totalCount: 1,
+            resolvedCount: 2,
+            totalCount: 2,
           }
         : state === "not_completed"
           ? {
@@ -1385,7 +1387,21 @@ function dayCell(
                 resolvedCount: 0,
                 totalCount: 1,
               }
-            : emptyCounts,
+            : emptyCounts;
+
+  return {
+    key: `overall-${localDate}`,
+    localDate,
+    label,
+    shortLabel,
+    isSelected,
+    state,
+    stateLabel: state,
+    completionRate:
+      counts.totalCount > 0 && counts.resolvedCount > 0
+        ? counts.completedCount / counts.totalCount
+        : null,
+    counts,
     ariaLabel: `${label}: ${state}`,
   };
 }
@@ -1395,6 +1411,7 @@ function behaviorCell(
   label: string,
   shortLabel: string,
   state: AnalyticsView["behaviorSummaries"][number]["dailyCells"][number]["state"],
+  isTrackingStart = false,
 ) {
   return {
     key: `behavior-${localDate}`,
@@ -1403,6 +1420,7 @@ function behaviorCell(
     shortLabel,
     state,
     stateLabel: state,
+    isTrackingStart,
     counts:
       state === "full"
         ? {
@@ -1429,6 +1447,6 @@ function behaviorCell(
                 totalCount: 1,
               }
             : emptyCounts,
-    ariaLabel: `${label}: ${state}`,
+    ariaLabel: `${label}: ${state}${isTrackingStart ? "; tracking started" : ""}`,
   };
 }

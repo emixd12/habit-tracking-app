@@ -230,9 +230,27 @@ The Analytics screen defaults to the last 30 days.
 
 Show overall adherence at the top.
 
-Show a binary calendar heatmap for overall adherence.
+The overall calendar is part of the Overall adherence area rather than a
+separate boxed section. Its legend is hidden by default behind a See Legend
+disclosure.
+
+The top summary Unresolved count should match the Timeline Needs decision
+count, so it includes only active unresolved occurrences before the current
+local day, regardless of the selected Analytics range.
+
+Show a completion-intensity calendar heatmap for overall adherence. A fully
+completed day uses the full completed color; partial completion uses a lighter
+blue proportional to the completed share; days with no completed occurrences
+use the background end of the scale.
 
 Show behavior-level counts and charts.
+
+Each behavior count row shows when that behavior started being tracked. When
+the tracking start day is within the selected range, the behavior calendar marks
+that day.
+
+Do not show a selected-day Not Completed empty state when there are no Not
+Completed occurrences on that selected day.
 
 For behaviors that occur more than once in a day, represent full completion, partial completion, and not completed day states.
 

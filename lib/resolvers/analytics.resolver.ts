@@ -30,6 +30,7 @@ export type AnalyticsDateRange = {
 
 export type ResolveAnalyticsInput = {
   occurrences: AnalyticsOccurrenceInput[];
+  needsDecisionOccurrences?: AnalyticsOccurrenceInput[];
   now: Temporal.Instant;
   timezone?: string;
   rangeDays?: number;
@@ -54,7 +55,13 @@ export function resolveAnalytics(input: ResolveAnalyticsInput): AnalyticsView {
       ),
     )
     .sort(compareOccurrences);
-  const summary = toAnalyticsSummary(countOccurrences(rangeOccurrences));
+  const summary = toAnalyticsSummary(
+    countSummaryOccurrences({
+      rangeOccurrences,
+      needsDecisionOccurrences: input.needsDecisionOccurrences ?? rangeOccurrences,
+      todayLocalDate: dateRange.endLocalDate,
+    }),
+  );
 
   return {
     timezone: dateRange.timezone,
@@ -123,8 +130,9 @@ function resolveOverallHeatmap(input: {
     const counts = countOccurrences(
       input.occurrences.filter((occurrence) => occurrence.localDate === localDate),
     );
+    const completionRate = calculateDayCompletionRate(counts);
     const state = resolveOverallDayState(counts);
-    const stateLabel = overallDayStateLabel(state);
+    const stateLabel = overallDayStateLabel(state, completionRate);
 
     return {
       key: `overall-${localDate}`,
@@ -134,6 +142,7 @@ function resolveOverallHeatmap(input: {
       isSelected: localDate === input.selectedDayLocalDate,
       state,
       stateLabel,
+      completionRate,
       counts,
       ariaLabel: `${formatDateLabel(date)}: ${stateLabel}; ${countsLabel(
         counts,
@@ -159,15 +168,18 @@ function resolveBehaviorSummaries(input: {
       const firstOccurrence = occurrences[0];
       const counts = countOccurrences(occurrences);
       const adherence = calculateAdherence(counts);
+      const trackingStart = resolveBehaviorTrackingStart(occurrences);
 
       return {
         behaviorId,
         title: firstOccurrence?.behaviorTitle ?? "Untitled behavior",
         categoryName: firstOccurrence?.categoryName ?? "No category",
+        trackingStartLocalDate: trackingStart.localDate,
+        trackingStartLabel: trackingStart.label,
         ...counts,
         ...adherence,
         dailyCells: input.dates.map((date) =>
-          resolveBehaviorDayCell(date, occurrences),
+          resolveBehaviorDayCell(date, occurrences, trackingStart.localDate),
         ),
       };
     })
@@ -177,6 +189,7 @@ function resolveBehaviorSummaries(input: {
 function resolveBehaviorDayCell(
   date: Temporal.PlainDate,
   occurrences: AnalyticsOccurrenceInput[],
+  trackingStartLocalDate: string,
 ): AnalyticsBehaviorDayCell {
   const localDate = date.toString();
   const counts = countOccurrences(
@@ -184,6 +197,8 @@ function resolveBehaviorDayCell(
   );
   const state = resolveBehaviorDayState(counts);
   const stateLabel = behaviorDayStateLabel(state);
+  const isTrackingStart = localDate === trackingStartLocalDate;
+  const trackingStartSuffix = isTrackingStart ? "; tracking started" : "";
 
   return {
     key: `behavior-${localDate}`,
@@ -192,8 +207,43 @@ function resolveBehaviorDayCell(
     shortLabel: formatShortDateLabel(date),
     state,
     stateLabel,
+    isTrackingStart,
     counts,
-    ariaLabel: `${formatDateLabel(date)}: ${stateLabel}; ${countsLabel(counts)}`,
+    ariaLabel: `${formatDateLabel(date)}: ${stateLabel}; ${countsLabel(
+      counts,
+    )}${trackingStartSuffix}`,
+  };
+}
+
+function resolveBehaviorTrackingStart(
+  occurrences: AnalyticsOccurrenceInput[],
+): { localDate: string; label: string } {
+  const firstOccurrence = occurrences[0];
+
+  if (!firstOccurrence) {
+    return {
+      localDate: "",
+      label: "Unknown",
+    };
+  }
+
+  const earliestOccurrence = occurrences.reduce((earliest, occurrence) =>
+    Temporal.Instant.compare(
+      Temporal.Instant.from(occurrence.behaviorCreatedAt),
+      Temporal.Instant.from(earliest.behaviorCreatedAt),
+    ) < 0
+      ? occurrence
+      : earliest,
+  );
+  const startDate = Temporal.Instant.from(
+    earliestOccurrence.behaviorCreatedAt,
+  )
+    .toZonedDateTimeISO(earliestOccurrence.timezone || DEFAULT_TIMEZONE)
+    .toPlainDate();
+
+  return {
+    localDate: startDate.toString(),
+    label: formatDateLabel(startDate),
   };
 }
 
@@ -263,6 +313,40 @@ function countOccurrences(
   return counts;
 }
 
+function countSummaryOccurrences(input: {
+  rangeOccurrences: AnalyticsOccurrenceInput[];
+  needsDecisionOccurrences: AnalyticsOccurrenceInput[];
+  todayLocalDate: string;
+}): AnalyticsStatusCounts {
+  const counts = emptyCounts();
+
+  for (const occurrence of input.rangeOccurrences) {
+    if (occurrence.status === "unresolved") {
+      continue;
+    }
+
+    incrementCounts(counts, occurrence.status);
+  }
+
+  for (const occurrence of input.needsDecisionOccurrences) {
+    if (
+      occurrence.status === "unresolved" &&
+      isActiveBehaviorOccurrence(occurrence) &&
+      compareLocalDate(occurrence.localDate, input.todayLocalDate) < 0
+    ) {
+      incrementCounts(counts, occurrence.status);
+    }
+  }
+
+  return counts;
+}
+
+function isActiveBehaviorOccurrence(
+  occurrence: AnalyticsOccurrenceInput,
+): boolean {
+  return occurrence.behaviorActive !== false;
+}
+
 function emptyCounts(): AnalyticsStatusCounts {
   return {
     completedCount: 0,
@@ -321,6 +405,16 @@ function calculateAdherence(
   };
 }
 
+function calculateDayCompletionRate(
+  counts: AnalyticsStatusCounts,
+): number | null {
+  if (counts.totalCount === 0 || counts.resolvedCount === 0) {
+    return null;
+  }
+
+  return counts.completedCount / counts.totalCount;
+}
+
 function resolveOverallDayState(
   counts: AnalyticsStatusCounts,
 ): AnalyticsOverallDayState {
@@ -332,11 +426,15 @@ function resolveOverallDayState(
     return "unresolved";
   }
 
-  if (counts.notCompletedCount > 0) {
-    return "not_completed";
+  if (counts.completedCount === counts.totalCount) {
+    return "completed";
   }
 
-  return "completed";
+  if (counts.completedCount > 0) {
+    return "partial";
+  }
+
+  return "not_completed";
 }
 
 function resolveBehaviorDayState(
@@ -365,10 +463,15 @@ function resolveBehaviorDayState(
   return "unresolved";
 }
 
-function overallDayStateLabel(state: AnalyticsOverallDayState): string {
+function overallDayStateLabel(
+  state: AnalyticsOverallDayState,
+  completionRate: number | null,
+): string {
   switch (state) {
     case "completed":
       return "Completed";
+    case "partial":
+      return `${formatPercent(completionRate ?? 0)}% Completed`;
     case "not_completed":
       return "Not Completed";
     case "unresolved":

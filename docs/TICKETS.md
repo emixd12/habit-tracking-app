@@ -939,6 +939,224 @@ Suggested files:
 
 ---
 
+## Ticket 024: User-facing BehaviorLog import UI
+
+Add a first-class import entry point so the user can upload a `.behaviorlog.zip`,
+review validation output, inspect merge actions, and intentionally apply a safe
+import plan.
+
+Context:
+- Tickets 018-023 added import persistence, preview, create-only apply,
+  user-approved merge apply, limited note import, and intervention preview.
+- The remaining gap is an end-user workflow that exposes those service paths
+  without requiring direct service calls.
+
+Acceptance criteria:
+- Add an authenticated import screen or export/import screen section.
+- Accept `.behaviorlog.zip` uploads and reject unsupported files with clear
+  validation errors.
+- Show dry-run summary counts, warnings, errors, conflicts, privacy notes,
+  note sensitivity warnings, and intervention preview counts.
+- Let the user choose create-only import only when the dry-run plan is valid and
+  contains no unsafe merge decisions.
+- Let the user review merge actions and approve only supported safe actions.
+- Require explicit confirmation before any write operation.
+- Persist import runs and show their status, mode, timestamps, and failure
+  message when present.
+- Do not add destructive overwrite, full restore, generalized notes, or
+  intervention-to-reminder writes in this ticket.
+- UI is sparse, mobile-responsive, and avoids product-sprawl language.
+- Tests cover upload validation, invalid bundle display, dry-run summary
+  rendering, apply gating, and no accidental writes from preview.
+
+Suggested files:
+- `app/(app)/export/page.tsx`
+- `app/(app)/export/actions.ts`
+- `components/export/*`
+- `lib/services/behaviorlog-import.service.ts`
+- `lib/services/behaviorlog-import-write.service.ts`
+- `tests/behaviorlog-import-ui.test.ts`
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `docs/ROUTE_MAP.md`
+- `STATUS.md`
+
+---
+
+## Ticket 025: BehaviorLog full restore and overwrite mode
+
+Add an explicit full-restore import mode for users who want to replace local
+Cadence data from a trusted BehaviorLog backup. This ticket tackles
+restore/overwrite import, but it must not perform silent or hidden destructive
+writes.
+
+Context:
+- Current import modes are create-only and user-approved merge.
+- Full restore is materially more dangerous than merge because it can archive,
+  replace, or delete local records.
+
+Acceptance criteria:
+- Add a separate restore preview mode; do not reuse merge preview for destructive
+  decisions.
+- Show exactly which local behaviors, schedules, occurrences, status events,
+  occurrence notes, imported note records, and imported intervention-history
+  records would be created, replaced, archived, or deleted.
+- Require an explicit typed confirmation before destructive apply.
+- Require the user to download or create a fresh local backup before restore
+  apply.
+- Preserve Supabase RLS and user ownership for every restored row.
+- Preserve append-only status history unless the user explicitly selects full
+  replacement for status history.
+- Do not automatically convert unresolved occurrences into failures.
+- Restore must be idempotent for the same accepted restore run.
+- Failed restore attempts must mark the import run failed and surface partial
+  work clearly.
+- Tests cover restore preview, typed confirmation, backup requirement,
+  destructive-action refusal without confirmation, replacement semantics,
+  idempotence, and RLS ownership.
+
+Suggested files:
+- `lib/resolvers/behaviorlog-restore.resolver.ts`
+- `lib/services/behaviorlog-restore.service.ts`
+- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/db/behaviorLogImports.repo.ts`
+- `tests/behaviorlog-restore.resolver.test.ts`
+- `tests/behaviorlog-restore.service.test.ts`
+- `docs/DATA_MODEL.md`
+- `docs/EXPORT_FORMATS.md`
+- `docs/USER_FLOWS.md`
+- `STATUS.md`
+
+---
+
+## Ticket 026: General BehaviorLog notes data model and import
+
+Expand Cadence from occurrence-only notes to a small general imported-note model
+that can represent BehaviorLog notes attached to behaviors, occurrences, status
+events, and reviews.
+
+Context:
+- Ticket 022 intentionally imports only occurrence-attached notes into
+  `occurrences.note`.
+- BehaviorLog supports richer note attachments.
+- Notes remain sensitive attributed context and must not become objective
+  analytics facts.
+
+Acceptance criteria:
+- Update product docs before schema work to define which note attachment types
+  Cadence will display and how.
+- Add a user-owned notes table or equivalent schema that can store imported
+  behavior, occurrence, status-event, and review notes.
+- Preserve note role, sensitivity, source metadata, source original id, created
+  and updated timestamps, and attachment target.
+- Do not feed imported notes into adherence, status, reminder, or analytics
+  calculations unless a later ticket explicitly changes that.
+- Update import preview to distinguish inline occurrence-note fills from general
+  imported note records.
+- Add UI surfaces only where they are useful and sparse.
+- Require privacy warnings before importing high or restricted sensitivity
+  notes.
+- Tests cover each supported attachment type, unsupported/AI-generated handling,
+  sensitivity warnings, RLS ownership, and no analytics/status side effects.
+
+Suggested files:
+- `supabase/migrations/*_add_imported_notes.sql`
+- `lib/db/notes.repo.ts`
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `lib/services/behaviorlog-import-write.service.ts`
+- `components/timeline/*`
+- `components/behaviors/*`
+- `tests/behaviorlog-import-general-notes.test.ts`
+- `docs/DATA_MODEL.md`
+- `docs/PRODUCT_SPEC.md`
+- `docs/UI_SPEC.md`
+- `STATUS.md`
+
+---
+
+## Ticket 027: Imported intervention history storage
+
+Add passive storage for imported BehaviorLog Intervention Profile records so
+Cadence can retain historical reminder/prompt delivery context without turning
+those imported rows into active reminders.
+
+Context:
+- Ticket 023 previews interventions but does not store them.
+- Cadence `reminder_deliveries` are operational delivery records.
+- Imported intervention history should be passive provenance unless a later
+  ticket explicitly promotes selected records into operational reminders.
+
+Acceptance criteria:
+- Add a user-owned imported intervention history table or equivalent passive
+  storage model.
+- Store BehaviorLog intervention id, behavior/occurrence mappings, intervention
+  type, channel, delivery status, scheduled/sent timestamps, failure reason,
+  source metadata, and redacted sensitivity indicators.
+- Do not store raw provider secrets, raw push endpoints, subscription keys,
+  recipient identifiers, or message bodies unless product/privacy docs are
+  explicitly expanded.
+- Import preview must show what will be stored and what sensitive fields will be
+  dropped or redacted.
+- Applying the same accepted import run must be idempotent.
+- Stored intervention history must not schedule, send, cancel, retry, or claim
+  reminders.
+- Tests cover storage, redaction/drop behavior, idempotence, RLS ownership, and
+  no writes to `reminder_deliveries`.
+
+Suggested files:
+- `supabase/migrations/*_add_imported_intervention_history.sql`
+- `lib/db/importedInterventions.repo.ts`
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `lib/services/behaviorlog-import-write.service.ts`
+- `tests/behaviorlog-import-intervention-history.test.ts`
+- `docs/DATA_MODEL.md`
+- `docs/NOTIFICATION_SPEC.md`
+- `docs/EXPORT_FORMATS.md`
+- `STATUS.md`
+
+---
+
+## Ticket 028: Promote imported interventions into reminder deliveries
+
+Add an explicit opt-in flow to convert selected imported intervention records
+into operational `reminder_deliveries` rows.
+
+Context:
+- This is intentionally separate from import preview and passive intervention
+  history.
+- Writing to `reminder_deliveries` can create active operational work, so it
+  must be narrowly scoped and user-approved.
+
+Acceptance criteria:
+- Only eligible future pending reminder interventions can be promoted.
+- Sent, failed, cancelled, dismissed, historical, or ambiguous intervention
+  records remain passive history and must not become operational deliveries.
+- Require explicit user selection and confirmation for every promoted group.
+- Create `reminder_deliveries` idempotently and avoid duplicate sends.
+- Do not call Sequenzy, Web Push, browser APIs, provider SDKs, or notification
+  processing routes during promotion.
+- Normal reminder processing may later send promoted pending deliveries only if
+  they remain due, valid, unresolved, and consistent with current behavior
+  reminder settings.
+- Preserve provenance linking the reminder delivery back to the imported
+  intervention record/import run.
+- Tests cover eligibility filtering, explicit confirmation, duplicate
+  prevention, provenance, no provider calls, and no promotion for historical or
+  resolved occurrences.
+
+Suggested files:
+- `lib/resolvers/imported-intervention-promotion.resolver.ts`
+- `lib/services/imported-intervention-promotion.service.ts`
+- `lib/db/reminderDeliveries.repo.ts`
+- `lib/db/importedInterventions.repo.ts`
+- `tests/imported-intervention-promotion.test.ts`
+- `docs/NOTIFICATION_SPEC.md`
+- `docs/DATA_MODEL.md`
+- `docs/USER_FLOWS.md`
+- `STATUS.md`
+
+---
+
 ## Future ticket: Public web hardening
 
 Harden the current authenticated web app so it can safely serve many

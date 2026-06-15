@@ -72,7 +72,7 @@ Current evidence:
 - Browser push subscription storage exists at `app/api/push/subscribe/route.ts`, `lib/services/push-subscription.service.ts`, and `lib/db/pushSubscriptions.repo.ts`; subscription registration validates endpoint/key shape and stores active subscriptions through the authenticated Supabase user context.
 - Reminder delivery planning exists in `lib/resolvers/reminder.resolver.ts`, `lib/services/reminder.service.ts`, and `lib/db/reminderDeliveries.repo.ts`. Occurrence sync now creates missing pending reminder deliveries idempotently from behavior reminder settings, including browser reminders enabled by default, and status resolution cancels pending deliveries for resolved occurrences.
 - Email reminder processing code exists at `app/api/reminders/process/route.ts`, `lib/services/reminder.service.ts`, `lib/db/reminderDeliveries.repo.ts`, and `lib/services/sequenzy.service.ts`. The protected process route validates `REMINDER_PROCESS_SECRET`, claims due pending email deliveries with `processing_started_at`, re-checks current occurrence/behavior eligibility through the reminder resolver, sends Sequenzy template emails from server-only code, and records sent, failed, or cancelled outcomes. Sequenzy provider setup is verified with transactional slug `habit-reminder`; local `.env.local` has `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`.
-- Analytics exists in `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/analytics`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and selected-day Not Completed inspection. Default adherence excludes unresolved occurrences.
+- Analytics exists in `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/analytics`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and selected-day Not Completed inspection. Default adherence excludes unresolved occurrences, and the top summary Unresolved count matches the Timeline Needs decision count.
 - Export exists in `lib/resolvers/export.resolver.ts`, `lib/services/export.service.ts`, `/export`, and `/api/export/jsonl`, `/api/export/csv`, `/api/export/json`. The resolver owns range filtering, archived-behavior filtering, JSONL, CSV escaping, full JSON backup shape, and Markdown AI summary adherence math. All-time export includes occurrences through the current local day and excludes generated future rows.
 - Settings now shows profile email, timezone, notification permission status, browser push availability, and a browser reminder enable/save control. The client path uses only `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; real push sending still requires server-only VAPID private configuration in the processing/sending layer.
 - A minimal `public/push-service-worker.js` displays received push payloads and opens same-origin app URLs, defaulting to `/timeline`. It does not implement PWA install, route caching, background sync, offline writes, or offline mutation.
@@ -119,6 +119,93 @@ Supabase is initialized for local development. Ticket 003 added the first produc
 | 013: Vercel production deployment | blocked | Added `vercel.json` with hourly Vercel Cron for `/api/reminders/process`; updated the route to support Vercel Cron `GET` plus existing protected manual `POST`; added `CRON_SECRET` support alongside `REMINDER_PROCESS_SECRET`; documented Vercel workflow, env ownership, Supabase Auth redirects, smoke QA, and rollback path in `docs/VERCEL_WORKFLOW.md`; updated operations/route/notification docs and `.env.example`. Vercel inspection confirms existing project `cadence` under `Emi's projects`, connected to `emixd12/habit-tracking-app` on `main`; latest production deployment `dpl_9d95kTrK9ArzgqeGC1W41f9Gcbr4` is ready at commit `5492863e00f77d89a5cea487d2513845cb1fd096`. | Pass: `npm run test -- tests/reminder-process-route.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `./node_modules/.bin/tsc --noEmit` after preserving the pre-existing local `next-env.d.ts` edit. Vercel build log inspection passed with deployment ready; build logs show root entrypoint `.`, `npm run build`, Next.js 16.2.7, Node runtime `24.x`, and only npm peer warnings from `react-reconciler`/`ink`. Production smoke after env/deploy update: canonical `/login` returns 200 with no missing Supabase config warning; protected routes redirect unauthenticated users to `/login?next=...`; `/api/reminders/process` returns 401 for a wrong bearer secret on `GET`; desktop and 390px mobile login render with no horizontal overflow and no browser console warnings/errors. Authenticated production QA passed after Supabase Site URL correction: Google OAuth returns to `https://cadence-blush-three.vercel.app/timeline`; created `Ticket 013 QA 20260608180323`; Timeline generated current and future occurrences; current occurrence was marked Completed, changed to Not Completed, and saved note `Ticket 013 production QA note 20260608180323`; Analytics rendered the Not Completed occurrence and note; Export page rendered JSONL/CSV/full JSON links and AI summary for the QA occurrence; Settings rendered profile email, `America/New_York`, notification permission `Blocked`, and browser push `Available`; QA behavior was archived and no active behaviors remain. Production runtime logs during QA show 200s for authenticated app routes, 401 for wrong reminder secret, and no error/fatal/warning logs. | Remaining blockers: a real production reminder-processing run is not verified because this environment does not have `REMINDER_PROCESS_SECRET`/`CRON_SECRET`; no scheduled `/api/reminders/process` invocation was observed around the 18:00 UTC hourly boundary, so confirm Vercel Cron is active for the account/plan or run a safe manual `POST` with the real bearer secret and `limit=1`. Do not send real emails unless an approved test recipient is expected. Browser push subscription could not be completed because the in-app browser's notification permission is `Blocked`; retry in a browser/profile where notifications are allowed. Actual file download events could not be verified because Codex in-app browser does not support downloads, but the authenticated Export page and link targets rendered correctly. |
 
 ## Post-ticket refinements
+
+### Analytics summary unresolved alignment
+
+Status: complete.
+
+Implementation summary:
+- Updated the Analytics top summary Unresolved count to match the Timeline Needs decision count.
+- The top summary now counts only active unresolved occurrences before the current local day, regardless of the selected Analytics range.
+- Current-day unresolved occurrences still appear in the Analytics heatmap and behavior/category detail counts so the current-day state remains visible.
+- Added `behaviorActive` to analytics resolver input from the analytics service so archived prior unresolved occurrences do not affect the top summary count.
+- Updated product/UI/user-flow/design docs to document the aligned summary semantics.
+- No schema changes, route changes, provider operations, or out-of-scope features were added.
+
+Verification:
+- Pass: `npm run test -- tests/analytics.resolver.test.ts tests/timeline.resolver.test.ts`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run typecheck`
+- Pass: `npm run agents:check`
+- Pass: `npm run lint`
+- Pass: `npm run test` (25 files, 157 tests).
+- Pass: `npm run build`
+- Browser QA: authenticated in-app browser `/analytics` showed summary `Unresolved: 0` while `/timeline` showed `Open Needs decision, 0 prior unresolved occurrences`; `/analytics` had no browser warning/error logs.
+
+Remaining risk:
+- Behavior/category detail counts may still show current-day unresolved occurrences by design; only the top summary Unresolved count is aligned to Needs decision.
+
+### Analytics calendar completion intensity
+
+Status: complete.
+
+Implementation summary:
+- Updated the overall Analytics calendar from a binary completed/not-completed treatment to completion-intensity day cells.
+- Overall day cells now carry `completionRate`; fully completed days use the full completed color, partial days mix the completed color with the background by completed share, and days with no completions use the background end of the scale without a diagonal overlay.
+- Added the `partial` overall day state in the analytics resolver/type contract and updated resolver tests for a 50% completed day.
+- Updated the Analytics legend, design-system Analytics fixture, product/UI/user-flow/design docs, and browser QA coverage for the new shade-only visual semantics.
+- No schema changes, route changes, provider operations, or out-of-scope features were added.
+
+Verification:
+- Pass: `npm run test -- tests/analytics.resolver.test.ts`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run typecheck`
+- Pass: `npm run design-system:check`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_inventory.py --root . --out /tmp/cadence-design-system.manifest.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Pass: `npm run agents:check`
+- Pass: `npm run lint`
+- Pass: `npm run test` (25 files, 157 tests).
+- Pass: `npm run build`
+- Browser QA: authenticated in-app browser `/analytics` showed live fractional `data-completion-rate` values, proportional computed blue shades, the Partial legend item, zero diagonal overlays in the overall calendar and legend, no horizontal overflow at desktop or 390px mobile, and no browser warnings/errors.
+- Browser QA: `/design-system` at 390px showed the partial Analytics fixture cell, no horizontal overflow, and no browser warnings/errors.
+
+Remaining risk:
+- Fully unresolved days intentionally remain neutral; unresolved occurrences reduce a mixed day's completion shade because the shade represents completion share across all scheduled occurrences for that day. A 0% completed resolved day is intentionally the background end of the shade scale.
+
+### Analytics layout simplification and tracking starts
+
+Status: complete.
+
+Implementation summary:
+- Removed boxed section-panel treatment from the Analytics screen and converted the page to unboxed report sections separated by horizontal dividers.
+- Merged the overall calendar into the Overall adherence area and moved the calendar legend behind a See Legend disclosure.
+- Removed the empty selected-day Not Completed panel; selected-day Not Completed details now render only when the selected day has rows.
+- Added per-behavior tracking start metadata from `behaviors.created_at`, converted through Temporal in the behavior timezone, and surfaced it as Tracking since text plus a start marker in each behavior heatmap when the start day is in range.
+- Reshaped behavior and category status counts into vertical label/value rows with numeric values aligned to the right.
+- Updated Analytics resolver tests, the design-system Analytics fixture, product/UI/user-flow/design docs, and this status ledger.
+- No schema changes, route changes, provider operations, or out-of-scope features were added.
+
+Verification:
+- Pass: `npm run test -- tests/analytics.resolver.test.ts`
+- Pass: `./node_modules/.bin/eslint components/analytics/AnalyticsScreen.tsx lib/resolvers/analytics.resolver.ts lib/services/analytics.service.ts tests/analytics.resolver.test.ts app/design-system/page.tsx`
+- Pass: `npm run typecheck`
+- Pass: `npm run design-system:check`
+- Pass: `npm run resolvers:check`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_inventory.py --root . --out /tmp/cadence-design-system.manifest.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/scan_usages.py --root . --manifest design-system.manifest.json --out /tmp/cadence-design-system.usage.json`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Pass: `git diff --check`
+- Pass: `npm run agents:check`
+- Pass: `npm run lint`
+- Pass: `npm run test` (25 files, 158 tests).
+- Pass: `npm run build`
+- Browser QA: authenticated in-app browser `/analytics` at desktop width showed zero boxed section wrappers, the calendar inside Overall adherence, See Legend closed by default and revealing the legend on click, no empty selected-day Not Completed panel, Tracking since text and `data-tracking-start` cells for behavior rows, label/value status rows, no horizontal overflow, and no warning/error logs.
+- Browser QA: authenticated in-app browser `/analytics` at 390px showed zero boxed section wrappers, no horizontal overflow, no empty selected-day Not Completed panel, behavior count values to the right of their labels, Tracking since text and start markers, and See Legend closed by default.
+
+Remaining risk:
+- The visible heatmap start marker is intentionally subtle and relies on the adjacent Tracking since text for human-readable context.
 
 ### Timeline mobile adaptation
 
