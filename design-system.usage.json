@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-15T21:46:43.345196+00:00",
+  "generatedAt": "2026-06-19T05:57:03.557339+00:00",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
       "componentId": "composite.behavior-form",
-      "file": "app/(app)/behaviors/page.tsx",
-      "line": 33,
-      "route": "(app)/behaviors/page",
+      "file": "components/behaviors/BehaviorCreateSection.tsx",
+      "line": 50,
+      "route": null,
       "usageKind": "render",
       "confidence": "exact"
     },
@@ -100,9 +100,17 @@
       "confidence": "exact"
     },
     {
+      "componentId": "module.behavior-create-section",
+      "file": "app/(app)/behaviors/page.tsx",
+      "line": 27,
+      "route": "(app)/behaviors/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
       "componentId": "module.behavior-list",
       "file": "app/(app)/behaviors/page.tsx",
-      "line": 42,
+      "line": 33,
       "route": "(app)/behaviors/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -150,7 +158,7 @@
     {
       "componentId": "module.recurrence-editor",
       "file": "components/behaviors/BehaviorForm.tsx",
-      "line": 174,
+      "line": 182,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -158,7 +166,7 @@
     {
       "componentId": "module.reminder-editor",
       "file": "components/behaviors/BehaviorForm.tsx",
-      "line": 179,
+      "line": 187,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -213,7 +221,7 @@
     }
   ],
   "summary": {
-    "productUsages": 26,
+    "productUsages": 27,
     "benchPreviews": 0
   }
 }

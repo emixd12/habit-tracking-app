@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import manifestJson from "@/design-system.manifest.json";
 import usageJson from "@/design-system.usage.json";
 import { AnalyticsScreen } from "@/components/analytics/AnalyticsScreen";
+import { BehaviorCreateSection } from "@/components/behaviors/BehaviorCreateSection";
 import { BehaviorForm } from "@/components/behaviors/BehaviorForm";
 import { BehaviorList } from "@/components/behaviors/BehaviorList";
 import { RecurrenceEditor } from "@/components/behaviors/RecurrenceEditor";
@@ -809,6 +810,15 @@ function buildPreviews(): Record<string, ReactNode> {
             noteAction={occurrenceAction}
           />
         </NeedsDecisionDialog>
+      </ProductPreview>
+    ),
+    "module.behavior-create-section": (
+      <ProductPreview maxHeight="48rem">
+        <BehaviorCreateSection
+          action={behaviorAction}
+          categories={categoryOptions}
+          defaultOpen
+        />
       </ProductPreview>
     ),
     "composite.behavior-form": (

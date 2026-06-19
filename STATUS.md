@@ -1965,6 +1965,46 @@ Remaining risk:
   with the available desktop-browser automation. The unauthenticated mobile
   redirect/login surface was verified at 390px.
 
+### Behavior create submit feedback
+
+Status: complete.
+
+Implementation summary:
+- Added a client-owned Behaviors create disclosure wrapper so successful create
+  submissions close the create form instead of leaving it open.
+- Kept the existing server action success text, `Behavior created.`, and moved
+  create success feedback outside the collapsible form so the message remains
+  visible after the form closes.
+- Remounted the create form after success so a later create starts from blank
+  default fields.
+- Added the new create-section module to the design-system manifest, usage map,
+  and dev-only bench preview.
+- No schema, resolver, reminder, export, analytics, route, or product-scope
+  changes were added.
+
+Verification:
+- Pass: targeted ESLint for changed Behaviors and design-system files.
+- Pass: `npm run typecheck`
+- Pass: `npm run design-system:check`
+- Pass: `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`
+- Pass: `git diff --check`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run test` (32 files, 227 tests).
+- Pass: `npm run build`
+- Browser QA: headless system Chrome submitted the dev-only
+  `BehaviorCreateSection` preview at `/design-system`; after the successful
+  bench server action, the disclosure was closed, the success status remained
+  visible, the title field was blank after remount, and desktop plus 390px
+  mobile viewports had no horizontal overflow.
+
+Remaining risk:
+- The authenticated `/behaviors` production-data create path was not submitted
+  during this pass; the wrapper behavior was verified through the same component
+  in the dev-only bench with a harmless server action, and the real create
+  action already returns `Behavior created.`.
+
 ## Handoff notes
 
 - For the next coding agent: production browser push subscription is now

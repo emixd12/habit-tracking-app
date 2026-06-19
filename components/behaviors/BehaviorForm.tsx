@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -20,6 +20,7 @@ type BehaviorFormProps = Readonly<{
   action: BehaviorFormAction;
   categories: CategoryOption[];
   behavior?: BehaviorView;
+  onSuccess?: (message: string) => void;
 }>;
 
 const EMPTY_ACTION_STATE: BehaviorActionState = {
@@ -52,6 +53,7 @@ export function BehaviorForm({
   action,
   categories,
   behavior,
+  onSuccess,
 }: BehaviorFormProps) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
   const fieldErrors = state.fieldErrors ?? {};
@@ -59,6 +61,12 @@ export function BehaviorForm({
   const [scheduleRows, setScheduleRows] = useState<ScheduleFormRow[]>(() =>
     initialScheduleRows(behavior),
   );
+
+  useEffect(() => {
+    if (state.status === "success" && state.message) {
+      onSuccess?.(state.message);
+    }
+  }, [onSuccess, state.message, state.status]);
 
   function addScheduleRow() {
     if (scheduleRows.length >= MAX_SCHEDULE_ROWS) {
