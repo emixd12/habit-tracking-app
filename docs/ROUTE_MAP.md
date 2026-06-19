@@ -12,13 +12,16 @@ surface when ticketed.
 | Route | Status | Purpose | Notes |
 |---|---|---|---|
 | `/` | implemented | Auth-aware entry route | Redirects authenticated users to `/timeline` and unauthenticated users to `/login`. |
-| `/login` | implemented | Google sign-in screen | Uses Supabase OAuth and returns through `/auth/callback`. |
+| `/login` | implemented | Google sign-in screen | Uses Supabase OAuth and returns through `/auth/callback`; links to Terms, Privacy, and Trust. |
 | `/auth/callback` | implemented | Supabase OAuth code exchange route | Exchanges the OAuth code for a cookie-backed Supabase session and redirects to a sanitized local `next` path. |
+| `/terms` | implemented, public | Public product terms | Sparse launch terms for the personal behavior tracker; not a marketing site. |
+| `/privacy` | implemented, public | Public product privacy notes | Covers account data, behavior data, reminders, providers, export, and deletion. |
+| `/trust` | implemented, public | Public trust and portability notes | Covers manual status truth, account isolation, portability, and reminder boundaries. |
 | `/timeline` | implemented, protected | Primary screen for today's occurrences, a floating Needs decision modal for prior unresolved items, and future preview | This is the main screen. |
 | `/behaviors` | implemented, protected | Behavior and category management | Keep CRUD simple. |
 | `/analytics` | implemented, protected | Basic completion counts, adherence, heatmaps, and selected-day Not Completed inspection | No gamified streak language. |
 | `/export` | implemented, protected | JSONL, CSV, full JSON backup, BehaviorLog bundle, Markdown AI-readable summary export, and BehaviorLog bundle import | Export logic belongs in `export.resolver.ts`; BehaviorLog import validation and merge preview belong in `behaviorlog-import.resolver.ts`; the page supports range and archived-behavior export options. |
-| `/settings` | implemented, protected | Profile, timezone, and browser notification permission/subscription settings | Browser notification permission is requested here; category editing and any global email settings remain future Settings work. |
+| `/settings` | implemented, protected | Profile, timezone, browser notification permission/subscription settings, trust/legal links, and account deletion | Browser notification permission is requested here; account deletion requires export acknowledgement and typed confirmation; category editing and any global email settings remain future Settings work. |
 
 ## Planned marketing routes
 
@@ -54,8 +57,8 @@ Do not create `/dashboard` in v1. The locked primary route is `/timeline`.
 
 | Route | Earliest ticket | Purpose | Required ownership |
 |---|---:|---|---|
-| `/api/push/subscribe` | implemented in 009 | Store browser push subscriptions | Route validates request shape, requires the authenticated Supabase user, and calls a service/repository. |
-| `/api/reminders/process` | implemented in 010; Vercel Cron GET support added in 013 | Protected process route for due email reminder deliveries | Route validates `REMINDER_PROCESS_SECRET` or `CRON_SECRET`, supports Vercel Cron `GET` and manual protected `POST`, and calls `reminder.service.ts`. |
+| `/api/push/subscribe` | implemented in 009; auth-failure rate limit added in 029 | Store browser push subscriptions | Route validates request shape, requires the authenticated Supabase user, rate-limits repeated unauthenticated attempts, and calls a service/repository. |
+| `/api/reminders/process` | implemented in 010; Vercel Cron GET support added in 013; auth-failure rate limit and bounded `limit` added in 029; browser-push sending added after notification troubleshooting | Protected process route for due reminder deliveries | Route validates `REMINDER_PROCESS_SECRET` or `CRON_SECRET`, supports Vercel Cron `GET` and manual protected `POST`, rate-limits repeated auth failures, bounds batch size, and calls `reminder.service.ts` for email and browser-push channels. |
 | `/api/export/jsonl` | implemented in 012 | JSONL export | Route calls export service/resolver. |
 | `/api/export/csv` | implemented in 012 | CSV export | Route calls export service/resolver. |
 | `/api/export/json` | implemented in 012 | Full JSON backup | Route calls export service/resolver. |

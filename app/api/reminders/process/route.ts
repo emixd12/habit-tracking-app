@@ -2,9 +2,17 @@ import { timingSafeEqual } from "node:crypto";
 
 import { NextResponse, type NextRequest } from "next/server";
 
-import { processDueEmailReminders } from "@/lib/services/reminder.service";
+import {
+  buildAuthFailureRateLimitKey,
+  reminderProcessAuthFailureLimiter,
+} from "@/lib/security/auth-failure-rate-limits";
+import type { RateLimitResult } from "@/lib/security/rate-limiter";
+import { processDueReminders } from "@/lib/services/reminder.service";
 
 export const runtime = "nodejs";
+
+const RATE_LIMIT_SCOPE = "reminder-process-auth";
+const MAX_REMINDER_PROCESS_LIMIT = 100;
 
 export async function GET(request: NextRequest) {
   return processReminderRequest(request);
@@ -21,14 +29,33 @@ async function processReminderRequest(request: NextRequest) {
     return jsonError("Reminder processing is not configured.", 503);
   }
 
+  const rateLimitKey = buildAuthFailureRateLimitKey(
+    RATE_LIMIT_SCOPE,
+    request.headers,
+  );
+  const rateLimit = reminderProcessAuthFailureLimiter.check(rateLimitKey);
+
+  if (!rateLimit.allowed) {
+    return rateLimitError(rateLimit);
+  }
+
   const requestSecret = readRequestSecret(request);
 
   if (!configuredSecrets.some((secret) => secretMatches(requestSecret, secret))) {
+    const failureLimit =
+      reminderProcessAuthFailureLimiter.recordFailure(rateLimitKey);
+
+    if (!failureLimit.allowed) {
+      return rateLimitError(failureLimit);
+    }
+
     return jsonError("Unauthorized reminder processing request.", 401);
   }
 
+  reminderProcessAuthFailureLimiter.reset(rateLimitKey);
+
   try {
-    const result = await processDueEmailReminders({
+    const result = await processDueReminders({
       limit: parseLimit(request.nextUrl.searchParams.get("limit")),
     });
 
@@ -91,7 +118,11 @@ function parseLimit(value: string | null): number | undefined {
 
   const parsed = Number(value);
 
-  return Number.isInteger(parsed) ? parsed : undefined;
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return undefined;
+  }
+
+  return Math.min(parsed, MAX_REMINDER_PROCESS_LIMIT);
 }
 
 function jsonError(message: string, status: number) {
@@ -101,5 +132,20 @@ function jsonError(message: string, status: number) {
       error: message,
     },
     { status },
+  );
+}
+
+function rateLimitError(result: RateLimitResult) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: "Too many failed attempts. Try again later.",
+    },
+    {
+      status: 429,
+      headers: {
+        "Retry-After": String(result.retryAfterSeconds),
+      },
+    },
   );
 }

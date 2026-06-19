@@ -50,6 +50,11 @@ restructuring is not implied by this document alone. See
 
 ## Public website scope
 
+The current Next.js app includes sparse public account-information routes:
+`/terms`, `/privacy`, and `/trust`. These are not the future marketing site.
+They exist so users can review product boundaries, privacy, portability, and
+account-deletion behavior before signing in.
+
 The marketing site should be a simple Astro site, SEO-conscious from launch,
 and visually consistent with `PRODUCT.md` and `DESIGN.md`.
 
@@ -235,6 +240,11 @@ Exports should include:
 Account deletion and export should be first-class before broad public launch,
 consistent with the BehaviorLog portability posture.
 
+The Settings screen implements account deletion for the signed-in account. The
+user must acknowledge the export reminder and type the account email, or
+`DELETE` when no email is available. The server signs out the account globally
+and deletes the Supabase auth user through a server-only service-role client.
+
 ## Offline and PWA behavior
 
 Offline support, offline writes, and PWA caching are deferred from v1.
@@ -254,6 +264,8 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - Optional email reminders
 - Basic analytics
 - JSONL/CSV/full JSON/BehaviorLog export
+- Account deletion with export reminder and typed confirmation
+- Public Terms, Privacy, and Trust routes
 - Simple onboarding for first behavior, notification permission, import, and timezone
 - Public Astro marketing site when explicitly ticketed
 

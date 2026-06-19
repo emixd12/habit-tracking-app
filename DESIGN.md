@@ -257,6 +257,14 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Profile and timezone:** Use compact 1px Ash Line panels with label/value rows. Keep values readable and avoid explanatory prose unless the state needs it.
 - **Notification permission:** Use one 1px Ash Line panel with Permission and Browser push values plus a single primary action. Permission prompts must be triggered by the user, not on page load.
 - **Unavailable states:** Use factual muted text for denied, unsupported, or unconfigured browser push. Rust Signal is only for an actual save error.
+- **Trust and legal:** Link to Terms, Privacy, and Trust from Settings using quiet ledger rows. These pages are public account-information routes, not marketing pages.
+- **Account deletion:** Use a flat Settings section with export reminder copy, a checkbox acknowledgement, typed confirmation, and a Rust Signal destructive button. This is the only destructive account action in the public-launch web app baseline.
+
+### Public Account Information
+
+- **Routes:** `/terms`, `/privacy`, and `/trust` use the same square, flat product vocabulary as the authenticated app.
+- **Layout:** Keep public legal/trust pages narrow, text-first, and divided by quiet rules. Use plain navigation between the three pages and simple Sign in / Open settings actions.
+- **Copy:** Keep legal/trust copy factual. Explain account isolation, manual statuses, portability, reminders, and deletion without marketing claims or motivational language.
 
 ## 6. Do's and Don'ts
 

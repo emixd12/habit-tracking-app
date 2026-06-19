@@ -110,8 +110,16 @@ Hourly processing keeps reminder sends reasonably close to their planned
 plan that supports hourly cron or document an external scheduler that calls the
 same route with the same bearer secret.
 
-Manual production check, with a user-approved email-send plan if due email
-deliveries may exist:
+Production verification on 2026-06-19 found hourly production
+`GET /api/reminders/process` invocations returning 200 for the prior 24 hours,
+from 2026-06-18T01:00:03Z through 2026-06-19T00:00:03Z, with no production
+warning, error, or fatal runtime logs in the preceding seven days. The latest
+deployment at that time became ready at 2026-06-19T00:46:32Z, after the
+00:00Z cron tick, so its first post-deploy hourly tick still needed the next
+cron boundary.
+
+Manual production check, with a user-approved send plan if due email or browser
+push deliveries may exist:
 
 ```bash
 curl -X POST \
@@ -165,6 +173,7 @@ Before broad public launch, add smoke checks for:
 - new-user signup through Google,
 - first-run onboarding,
 - account deletion,
+- Terms, Privacy, and Trust public route rendering,
 - export/account portability,
 - rate-limit or abuse-protection behavior where implemented,
 - monitoring/error-reporting capture without sensitive behavior content.

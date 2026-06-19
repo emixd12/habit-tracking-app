@@ -627,10 +627,14 @@ create table exports (
 
 ### Account deletion
 
-Public launch should include an account deletion path. Deletion should remove
-or anonymize user-owned hosted records consistently with the public Terms and
-Privacy Policy. Until a detailed retention policy is adopted, the product
-posture is:
+Public launch includes an account deletion path from Settings. The current
+implementation requires an export acknowledgement and typed confirmation, signs
+out the current Supabase session globally, then uses a server-only Supabase
+service-role client to delete the authenticated `auth.users` row.
+
+Deletion removes user-owned hosted records through the existing `on delete
+cascade` ownership graph. Until a detailed retention policy is adopted, the
+product posture is:
 
 - retain user data while the account exists,
 - delete user-owned records on account deletion,
@@ -668,6 +672,7 @@ and account creation:
 - provider-level auth abuse protection where available,
 - route/action validation for all mutations,
 - practical rate limiting for public or secret-protected endpoints,
+- a static RLS policy registry test covering every user-owned table,
 - monitoring that avoids sensitive behavior payloads,
 - clear secret ownership for Supabase, Sequenzy, VAPID, and cron/process
   secrets.

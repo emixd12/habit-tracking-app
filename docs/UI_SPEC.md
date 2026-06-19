@@ -427,13 +427,16 @@ Show:
 - Global email notification setting if needed
 - Lightweight category editing
 - Export/backup links if not on Export page
-- Account deletion when public launch hardening scopes it
+- Trust, Privacy, and Terms links for public-product account context
+- Account deletion with export acknowledgement and typed confirmation
 
 Timezone should be detected automatically when the browser/location permission allows it. If the user has not allowed automatic detection, provide a manual timezone selector.
 
 Do not include a test notification button in v1.
 
-Do not include destructive data actions in v1.
+Do not include destructive data actions in v1 except the explicit public-launch
+account deletion path. Full restore, overwrite, or destructive import actions
+remain out of scope unless a dedicated ticket changes that.
 
 ## Offline UI
 

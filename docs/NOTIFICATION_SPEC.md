@@ -142,6 +142,12 @@ occurrences, the scheduled start is the beginning of the preset range.
 
 Browser reminders:
 - Generate if `browser_reminder_enabled = true`
+- Processing sends the due delivery to active `push_subscriptions` for the
+  owning user through the server-only VAPID configuration.
+- If a push service reports a subscription as gone or not found, mark that
+  subscription inactive.
+- If no active subscription exists, or browser push sending is not configured,
+  mark the claimed browser delivery failed with a factual error.
 
 Email reminders:
 - Generate if `email_reminder_enabled = true`
@@ -177,7 +183,10 @@ A scheduled backend process should periodically:
 4. Mark as sent or failed.
 5. Store error text for failed sends.
 
-The process route must be protected by `REMINDER_PROCESS_SECRET`, `CRON_SECRET`, or an equivalent server-only mechanism.
+The process route must be protected by `REMINDER_PROCESS_SECRET`,
+`CRON_SECRET`, or an equivalent server-only mechanism. Repeated auth failures
+are rate-limited, and manual `limit` query values are bounded so a valid secret
+cannot request an unbounded batch.
 
 ## Resolver contract
 

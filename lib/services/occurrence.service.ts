@@ -54,6 +54,9 @@ export type SyncBehaviorOccurrencesOptions = {
   horizonDays?: number;
 };
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function syncUserOccurrences(
   supabase: AppSupabaseClient,
   userId: string,
@@ -421,6 +424,10 @@ function getOccurrenceIdFromFormData(formData: FormData): string {
 
   if (typeof value !== "string" || !value) {
     throw new Error("Choose an occurrence to update.");
+  }
+
+  if (!UUID_PATTERN.test(value)) {
+    throw new Error("Choose a valid occurrence to update.");
   }
 
   return value;

@@ -6,6 +6,7 @@ export type SettingsPageData = {
   email: string;
   timezone: string;
   vapidPublicKey: string;
+  deleteConfirmationLabel: string;
 };
 
 export async function getSettingsPageData(): Promise<SettingsPageData> {
@@ -27,6 +28,7 @@ export async function getSettingsPageData(): Promise<SettingsPageData> {
     vapidPublicKey: normalizePublicVapidKey(
       process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
     ),
+    deleteConfirmationLabel: user.email?.trim() || "DELETE",
   };
 }
 

@@ -58,7 +58,7 @@ Current evidence:
 
 - `package.json` and `package-lock.json` exist with Next.js App Router, TypeScript, Tailwind, ESLint, and Vitest scripts.
 - `app/`, `components/`, `lib/`, and `tests/` application directories exist.
-- Primary app routes exist for Timeline, Behaviors, Analytics, Export, and Settings. Export is implemented with JSONL, CSV, full JSON backup, and Markdown AI summary outputs.
+- Primary app routes exist for Timeline, Behaviors, Analytics, Export, and Settings. Public account-information routes exist for Terms, Privacy, and Trust. Export is implemented with JSONL, CSV, full JSON backup, BehaviorLog bundle, Markdown AI summary outputs, and BehaviorLog import.
 - Supabase SSR auth utilities exist under `lib/supabase/`, with Google login at `/login`, OAuth callback handling at `/auth/callback`, and protected app routes guarded by `proxy.ts` plus the app layout.
 - Supabase CLI has been initialized with `supabase/config.toml`; local Supabase uses the 5532x port range to avoid conflicts with another local Supabase stack.
 - Product database schema exists in `supabase/migrations/20260607204951_create_database_schema.sql` with RLS-enabled profiles, categories, behaviors, occurrences, reminder_deliveries, and push_subscriptions tables. Ticket 010 adds `supabase/migrations/20260608011000_add_reminder_delivery_processing_claim.sql` for an internal `reminder_deliveries.processing_started_at` claim timestamp.
@@ -69,18 +69,18 @@ Current evidence:
 - Occurrence generation exists in `lib/resolvers/occurrence.resolver.ts`, `lib/services/occurrence.service.ts`, and `lib/db/occurrences.repo.ts`. Behavior create/edit/archive now syncs a rolling today + 30 day occurrence window, inserts missing rows idempotently, removes stale future unresolved rows, and preserves past or resolved occurrence history.
 - Timeline grouping exists in `lib/resolvers/timeline.resolver.ts`, `lib/services/timeline.service.ts`, and `/timeline`. The page syncs missing occurrences before rendering, surfaces Needs decision for prior unresolved active-behavior occurrences through a floating lower-right button and modal, starts the forward timeline at the current local day, shows the next 7 days by default, and can expand future visibility up to the generated 30-day horizon.
 - Status marking and note editing exists in `lib/resolvers/status.resolver.ts`, `lib/services/occurrence.service.ts`, `app/(app)/timeline/actions.ts`, and Timeline row controls. Completed and Not Completed actions update `status_marked_at`; Completed also sets `completed_at`; switching away from Completed clears `completed_at`; note-only edits preserve status timestamps.
-- Browser push subscription storage exists at `app/api/push/subscribe/route.ts`, `lib/services/push-subscription.service.ts`, and `lib/db/pushSubscriptions.repo.ts`; subscription registration validates endpoint/key shape and stores active subscriptions through the authenticated Supabase user context.
+- Browser push subscription storage exists at `app/api/push/subscribe/route.ts`, `lib/services/push-subscription.service.ts`, and `lib/db/pushSubscriptions.repo.ts`; subscription registration validates endpoint/key shape, stores active subscriptions through the authenticated Supabase user context, lists active subscriptions for browser-push sends, and marks expired subscriptions inactive.
 - Reminder delivery planning exists in `lib/resolvers/reminder.resolver.ts`, `lib/services/reminder.service.ts`, and `lib/db/reminderDeliveries.repo.ts`. Occurrence sync now creates missing pending reminder deliveries idempotently from behavior reminder settings, including browser reminders enabled by default, and status resolution cancels pending deliveries for resolved occurrences.
-- Email reminder processing code exists at `app/api/reminders/process/route.ts`, `lib/services/reminder.service.ts`, `lib/db/reminderDeliveries.repo.ts`, and `lib/services/sequenzy.service.ts`. The protected process route validates `REMINDER_PROCESS_SECRET`, claims due pending email deliveries with `processing_started_at`, re-checks current occurrence/behavior eligibility through the reminder resolver, sends Sequenzy template emails from server-only code, and records sent, failed, or cancelled outcomes. Sequenzy provider setup is verified with transactional slug `habit-reminder`; local `.env.local` has `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`.
+- Reminder processing code exists at `app/api/reminders/process/route.ts`, `lib/services/reminder.service.ts`, `lib/db/reminderDeliveries.repo.ts`, `lib/services/sequenzy.service.ts`, and `lib/services/web-push.service.ts`. The protected process route validates `REMINDER_PROCESS_SECRET` or `CRON_SECRET`, rate-limits repeated auth failures, bounds manual batch size, claims due pending email and browser-push deliveries with `processing_started_at`, re-checks current occurrence/behavior eligibility through the reminder resolver, sends Sequenzy template emails or VAPID-backed browser push from server-only code, and records sent, failed, or cancelled outcomes. Sequenzy provider setup is verified with transactional slug `habit-reminder`; local `.env.local` has `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`.
 - Analytics exists in `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/analytics`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and selected-day Not Completed inspection. Default adherence excludes unresolved occurrences, and the top summary Unresolved count matches the Timeline Needs decision count.
 - Export exists in `lib/resolvers/export.resolver.ts`, `lib/services/export.service.ts`, `/export`, and `/api/export/jsonl`, `/api/export/csv`, `/api/export/json`. The resolver owns range filtering, archived-behavior filtering, JSONL, CSV escaping, full JSON backup shape, and Markdown AI summary adherence math. All-time export includes occurrences through the current local day and excludes generated future rows.
-- Settings now shows profile email, timezone, notification permission status, browser push availability, and a browser reminder enable/save control. The client path uses only `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; real push sending still requires server-only VAPID private configuration in the processing/sending layer.
+- Settings now shows profile email, timezone, notification permission status, browser push availability, a browser reminder enable/save control, Trust/Privacy/Terms links, and account deletion with export acknowledgement plus typed confirmation. The client path uses only `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; the processing/sending layer uses server-only `VAPID_PRIVATE_KEY`.
 - A minimal `public/push-service-worker.js` displays received push payloads and opens same-origin app URLs, defaulting to `/timeline`. It does not implement PWA install, route caching, background sync, offline writes, or offline mutation.
 - Supabase and Sequenzy CLIs are installed as dev dependencies and exposed through `npm run supabase -- ...` and `npm run sequenzy -- ...`.
 - Agent operations docs now include Supabase CLI workflow, Sequenzy CLI workflow, date/time strategy, route map, and deterministic drift checks.
 - A local/dev-only design-system bench exists at `/design-system`, backed by `design-system.config.json`, `design-system.manifest.json`, `design-system.usage.json`, and `npm run design-system:check`. It renders fixture-backed existing UI only, is not in primary navigation, is disabled in production builds, and is excluded from design-system inventory/product usage scans.
-- The v1 feature ticket sequence is complete through Ticket 012. Ticket 013 Vercel production hardening is deployed and authenticated production smoke QA now passes for Google login, Behavior create/archive, Timeline occurrence generation, status changes, notes, Settings render, Analytics render, and Export page/link rendering. Completion remains blocked only on production reminder processing execution verification and browser push subscription verification in a browser where notifications are not blocked.
-- Vercel plugin inspection found existing project `cadence` under team `Emi's projects`, connected to GitHub repo `emixd12/habit-tracking-app` on `main`. The latest observed production deployment is ready at `cadence-r3j8s5nvu-emis-projects-4c886aeb.vercel.app`, with canonical public alias `https://cadence-blush-three.vercel.app`, and points at commit `5492863e00f77d89a5cea487d2513845cb1fd096` (`Harden Vercel cron reminders`). Production public Supabase config is present, `/login` renders without the missing-config warning, Google OAuth returns to the canonical production domain, and `/api/reminders/process` supports Vercel Cron `GET` with secret protection.
+- The v1 feature ticket sequence is complete through Ticket 012. Ticket 013 Vercel production hardening is deployed and authenticated production smoke QA now passes for Google login, Behavior create/archive, Timeline occurrence generation, status changes, notes, Settings render, Analytics render, and Export page/link rendering. Production reminder processing execution is now verified through Vercel runtime logs; completion remains blocked only on browser push subscription verification in a browser where notifications are not blocked.
+- Vercel plugin inspection found existing project `cadence` under team `Emi's projects`, connected to GitHub repo `emixd12/habit-tracking-app` on `main`. The latest observed production deployment is ready at `cadence-8uihchsc4-emis-projects-4c886aeb.vercel.app`, with canonical public alias `https://cadence-blush-three.vercel.app`, and points at commit `e1bf0bfa56b00264b88ce3cb4307fc6c62823a3b` (`Implement BehaviorLog import promotion tickets`). Production public Supabase config is present, `/login` renders without the missing-config warning, Google OAuth returns to the canonical production domain, and `/api/reminders/process` supports Vercel Cron `GET` with secret protection.
 - Project-local design workflow files exist under `.agents/skills/impeccable/` and should be used for UI/design work after the scaffold exists.
 
 ## Agent operations update
@@ -116,7 +116,7 @@ Supabase is initialized for local development. Ticket 003 added the first produc
 | 010: Email reminders | complete | Added a `processing_started_at` claim migration and regenerated Supabase types; extended the existing reminder repository/service to list, claim, cancel, mark sent, and mark failed due email deliveries; added a server-only Sequenzy transactional template adapter; added protected `POST /api/reminders/process`; stale pending email deliveries are cancelled when the behavior is inactive, email reminders are disabled, the occurrence is resolved, or the current resolver-planned offset no longer matches. Runtime uses `SUPABASE_SERVICE_ROLE_KEY`, `REMINDER_PROCESS_SECRET`, `SEQUENZY_API_KEY`, and `SEQUENZY_REMINDER_TEMPLATE_SLUG` only on the server side. Provider setup uses transactional slug `habit-reminder`, and local `.env.local` sets `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`. Hosted Supabase migration `20260608011000_add_reminder_delivery_processing_claim.sql` has been pushed. | Pass: `npm run supabase -- db reset`; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`; Pass: `npm run test -- tests/reminder.resolver.test.ts tests/reminder.service.test.ts tests/reminder-process-route.test.ts tests/sequenzy.service.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `npm run sequenzy -- whoami` with `.env.local` loaded; Pass: `npm run sequenzy -- transactional get habit-reminder --json`; Pass: one user-approved test send to `emibache@gmail.com`; Pass: `npm run supabase -- db push --linked --yes`; Pass: `npm run supabase -- migration list --linked` shows local and remote `20260608011000`. | Start Ticket 011: Analytics. Set `REMINDER_PROCESS_SECRET` in the deployed/server runtime before scheduling calls to `/api/reminders/process`; do not expose it to the browser. |
 | 011: Analytics | complete | Added pure analytics resolver/types/tests; added analytics service orchestration over existing behavior and occurrence repositories; replaced `/analytics` with a sparse server-rendered screen containing overall adherence, 7/30/90 range links, an overall calendar heatmap, selected-day Not Completed inspection, per-behavior counts and heatmaps, and compact category counts. Updated `docs/ROUTE_MAP.md` and `DESIGN.md` from the implemented screen. | Pass: `npx vitest run tests/analytics.resolver.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: in-app browser `/analytics` redirected unauthenticated session to `/login?next=%2Fanalytics` at 1280px and 390px with no horizontal overflow and no console errors. Authenticated Analytics visual QA was not possible because the in-app browser did not have a Supabase session. | Start Ticket 012: Export. No Ticket 011 blockers. |
 | 012: Export | complete | Added pure export resolver/types/tests; added export service orchestration over categories, behaviors, occurrences, and profile timezone; added `/api/export/jsonl`, `/api/export/csv`, and `/api/export/json` download routes; replaced `/export` placeholder with range options, Include archived behaviors, download actions, and Markdown AI summary copy/download controls. JSONL emits category, behavior, and occurrence records one per line; CSV uses the documented occurrence columns with escaping; full JSON backup includes `exported_at`, profile timezone, categories, behaviors, and occurrences; Markdown adherence excludes unresolved occurrences. Updated `docs/ROUTE_MAP.md` and `DESIGN.md` from the implemented screen. | Pass: `npx vitest run tests/export.resolver.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: authenticated in-app browser `/export` rendered at 1280px and 390px with no horizontal overflow, no console warnings/errors, expected download links, and all-time plus archived query option state preserved. | No Ticket 012 blockers. Future restore/import history remains out of scope unless product docs change. |
-| 013: Vercel production deployment | blocked | Added `vercel.json` with hourly Vercel Cron for `/api/reminders/process`; updated the route to support Vercel Cron `GET` plus existing protected manual `POST`; added `CRON_SECRET` support alongside `REMINDER_PROCESS_SECRET`; documented Vercel workflow, env ownership, Supabase Auth redirects, smoke QA, and rollback path in `docs/VERCEL_WORKFLOW.md`; updated operations/route/notification docs and `.env.example`. Vercel inspection confirms existing project `cadence` under `Emi's projects`, connected to `emixd12/habit-tracking-app` on `main`; latest production deployment `dpl_9d95kTrK9ArzgqeGC1W41f9Gcbr4` is ready at commit `5492863e00f77d89a5cea487d2513845cb1fd096`. | Pass: `npm run test -- tests/reminder-process-route.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `./node_modules/.bin/tsc --noEmit` after preserving the pre-existing local `next-env.d.ts` edit. Vercel build log inspection passed with deployment ready; build logs show root entrypoint `.`, `npm run build`, Next.js 16.2.7, Node runtime `24.x`, and only npm peer warnings from `react-reconciler`/`ink`. Production smoke after env/deploy update: canonical `/login` returns 200 with no missing Supabase config warning; protected routes redirect unauthenticated users to `/login?next=...`; `/api/reminders/process` returns 401 for a wrong bearer secret on `GET`; desktop and 390px mobile login render with no horizontal overflow and no browser console warnings/errors. Authenticated production QA passed after Supabase Site URL correction: Google OAuth returns to `https://cadence-blush-three.vercel.app/timeline`; created `Ticket 013 QA 20260608180323`; Timeline generated current and future occurrences; current occurrence was marked Completed, changed to Not Completed, and saved note `Ticket 013 production QA note 20260608180323`; Analytics rendered the Not Completed occurrence and note; Export page rendered JSONL/CSV/full JSON links and AI summary for the QA occurrence; Settings rendered profile email, `America/New_York`, notification permission `Blocked`, and browser push `Available`; QA behavior was archived and no active behaviors remain. Production runtime logs during QA show 200s for authenticated app routes, 401 for wrong reminder secret, and no error/fatal/warning logs. | Remaining blockers: a real production reminder-processing run is not verified because this environment does not have `REMINDER_PROCESS_SECRET`/`CRON_SECRET`; no scheduled `/api/reminders/process` invocation was observed around the 18:00 UTC hourly boundary, so confirm Vercel Cron is active for the account/plan or run a safe manual `POST` with the real bearer secret and `limit=1`. Do not send real emails unless an approved test recipient is expected. Browser push subscription could not be completed because the in-app browser's notification permission is `Blocked`; retry in a browser/profile where notifications are allowed. Actual file download events could not be verified because Codex in-app browser does not support downloads, but the authenticated Export page and link targets rendered correctly. |
+| 013: Vercel production deployment | blocked | Added `vercel.json` with hourly Vercel Cron for `/api/reminders/process`; updated the route to support Vercel Cron `GET` plus existing protected manual `POST`; added `CRON_SECRET` support alongside `REMINDER_PROCESS_SECRET`; documented Vercel workflow, env ownership, Supabase Auth redirects, smoke QA, and rollback path in `docs/VERCEL_WORKFLOW.md`; updated operations/route/notification docs and `.env.example`. Vercel inspection confirms existing project `cadence` under `Emi's projects`, connected to `emixd12/habit-tracking-app` on `main`; latest production deployment `dpl_APxAZ7fDhZjuNHvKFPMgZjMTP3eK` is ready at commit `e1bf0bfa56b00264b88ce3cb4307fc6c62823a3b`. | Pass: `npm run test -- tests/reminder-process-route.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `./node_modules/.bin/tsc --noEmit` after preserving the pre-existing local `next-env.d.ts` edit. Vercel build log inspection passed with deployment ready; build logs show root entrypoint `.`, `npm run build`, Next.js 16.2.7, Node runtime `24.x`, and only npm peer warnings from `react-reconciler`/`ink`. Production smoke after env/deploy update: canonical `/login` returns 200 with no missing Supabase config warning; protected routes redirect unauthenticated users to `/login?next=...`; `/api/reminders/process` returns 401 for a wrong bearer secret on `GET`; desktop and 390px mobile login render with no horizontal overflow and no browser console warnings/errors. Authenticated production QA passed after Supabase Site URL correction: Google OAuth returns to `https://cadence-blush-three.vercel.app/timeline`; created `Ticket 013 QA 20260608180323`; Timeline generated current and future occurrences; current occurrence was marked Completed, changed to Not Completed, and saved note `Ticket 013 production QA note 20260608180323`; Analytics rendered the Not Completed occurrence and note; Export page rendered JSONL/CSV/full JSON links and AI summary for the QA occurrence; Settings rendered profile email, `America/New_York`, notification permission `Blocked`, and browser push `Available`; QA behavior was archived and no active behaviors remain. Production runtime logs during QA show 200s for authenticated app routes, 401 for wrong reminder secret, and no error/fatal/warning logs. Follow-up Vercel runtime log inspection on 2026-06-19 found hourly production `GET /api/reminders/process` invocations returning 200 from 2026-06-18T01:00:03Z through 2026-06-19T00:00:03Z, with no production warning/error/fatal logs in the previous seven days. | Remaining blocker: browser push subscription could not be completed because the in-app browser's notification permission is `Blocked`; retry in a real authenticated browser/profile where notifications are allowed. The latest deployment became ready at 2026-06-19T00:46:32Z, after the 00:00Z cron tick, so its first post-deploy hourly cron tick still needs the next cron boundary. Actual file download events could not be verified because Codex in-app browser does not support downloads, but the authenticated Export page and link targets rendered correctly. |
 
 ## Post-ticket refinements
 
@@ -1684,6 +1684,130 @@ Remaining risk:
   user-facing review/confirmation UI or API route still needs a separate scoped
   ticket before users can invoke it from the app.
 
+### Ticket 029: Public web hardening account safety baseline
+
+Status: complete.
+
+Implementation summary:
+- Verified production reminder cron execution through Vercel runtime logs
+  without manually triggering a send. Hourly production
+  `GET /api/reminders/process` requests returned 200 from
+  2026-06-18T01:00:03Z through 2026-06-19T00:00:03Z, with no production
+  warning, error, or fatal logs in the previous seven days.
+- Added public `/terms`, `/privacy`, and `/trust` routes with sparse account,
+  privacy, portability, manual-status, and reminder-boundary copy.
+- Linked Terms, Privacy, and Trust from Login and Settings.
+- Added Settings account deletion with export acknowledgement and typed
+  confirmation. The server action signs out globally, then deletes the current
+  Supabase auth user through the server-only service-role client so existing
+  `on delete cascade` ownership constraints remove hosted Cadence records.
+- Added in-memory auth-failure rate limiting for `/api/push/subscribe` and
+  `/api/reminders/process`.
+- Bounded `/api/reminders/process?limit=` to a maximum batch size of 100.
+- Added malformed UUID validation for occurrence status/note mutations before
+  repository lookup.
+- Added a static RLS policy registry test covering every user-owned public
+  table in the migration set.
+- Updated product, data-model, notification, route, UI, user-flow, operations,
+  Vercel workflow, ticket, and design docs.
+- No schema migration, Ticket 025 restore/overwrite mode, marketing site,
+  workspace restructuring, billing, AI, desktop/mobile, PWA/offline, provider
+  sends, or admin/support surface was added.
+
+Verification:
+- Pass: `npm run test -- tests/account-deletion.service.test.ts tests/push-subscribe-route.test.ts tests/reminder-process-route.test.ts tests/legal-content.test.tsx tests/rls-policy-registry.test.ts` (19 focused tests).
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (31 files, 206 tests).
+- Pass: `npm run build`.
+- Pass: `npm run design-system:check`.
+- Pass: `git diff --check`.
+- Vercel tool verification: production project `cadence`
+  (`prj_9tZKRXZ6IdT56ZLKVSmoJH5AAYhs`) latest deployment
+  `dpl_APxAZ7fDhZjuNHvKFPMgZjMTP3eK` is `READY` at commit
+  `e1bf0bfa56b00264b88ce3cb4307fc6c62823a3b`; reminder cron logs returned 200
+  hourly as noted above.
+- Browser QA: attempted Playwright against local dev server. The bundled
+  Playwright browser was not installed, system Chrome failed to launch headless
+  in this environment, and the local Next dev server had a stale lock reporting
+  PID 49560 while no HTTP connection was available on port 3000. UI route
+  rendering is covered by `npm run build` and render-level tests, but live
+  desktop/mobile browser inspection remains unverified in this pass.
+
+Remaining risk:
+- Browser push subscription verification from Ticket 029 was superseded by the
+  Browser push delivery troubleshooting note below: production Chrome now shows
+  permission granted and an active PushSubscription. Real provider delivery
+  still needs deployed-code verification.
+- The latest production deployment became ready after the observed 00:00Z cron
+  tick; confirm the next post-deploy hourly cron tick if strict latest-artifact
+  cron verification is needed.
+- The rate limiter is per-runtime in-memory protection. It is a practical
+  baseline, not distributed abuse prevention across all Vercel instances.
+- Full first-run onboarding and monitoring/error reporting remain public-launch
+  follow-up work.
+
+### Browser push delivery troubleshooting
+
+Status: complete.
+
+Implementation summary:
+- Investigated the reported Chrome notification prompt issue from Settings.
+  Chrome on production `https://cadence-blush-three.vercel.app/settings`
+  already reports `Notification.permission = "granted"`, so clicking Save
+  subscription will not show a browser authorization prompt for that origin
+  unless the site permission is reset.
+- Confirmed the production Chrome profile has one service worker registration
+  for the app origin and an active PushSubscription through `fcm.googleapis.com`
+  with both `p256dh` and `auth` keys present. The subscription step is therefore
+  working in Chrome.
+- Fixed the actual delivery gap: `/api/reminders/process` now calls combined
+  reminder processing instead of the email-only processor.
+- Added `web-push` server-side sending through `lib/services/web-push.service.ts`
+  using `NEXT_PUBLIC_VAPID_PUBLIC_KEY` plus server-only `VAPID_PRIVATE_KEY`.
+- Added browser-push due delivery listing/claiming, active subscription lookup,
+  expired subscription deactivation, no-subscription failure logging, and
+  missing-VAPID failure logging.
+- Kept resolver logic pure; browser provider calls remain in services.
+- Updated the Settings notification panel so the Permission row continues to
+  show Chrome's real permission state (`Allowed`, `Blocked`, or `Not enabled`)
+  after saving a subscription instead of replacing it with `Enabled`.
+- Updated notification, route, Vercel workflow, and status docs.
+- No schema migration, PWA caching, offline writes, marketing flow, or extra
+  Settings surface was added.
+
+Verification:
+- Pass: `npm run test -- tests/reminder.service.test.ts tests/reminder-process-route.test.ts tests/push-subscribe-route.test.ts tests/push-browser.test.ts` (4 files, 26 tests).
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run lint`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run test` (31 files, 212 tests).
+- Pass: `npm run build`.
+- Pass: `git diff --check`.
+- NPM install for `web-push` / `@types/web-push` completed with the existing
+  `ink` React peer warning and 0 vulnerabilities.
+- Chrome QA: local `http://localhost:3000/login?next=%2Fsettings` reported
+  secure context, Notification API available, `Notification.permission =
+  "default"`, service worker support available, and PushManager available.
+- Chrome QA: production Settings tab reported secure context, Notification API
+  available, `Notification.permission = "granted"`, service worker support
+  available, PushManager available, one app service worker registration, and an
+  active FCM PushSubscription with required keys present. Endpoint and keys were
+  not printed.
+
+Remaining risk:
+- A real browser-push provider send was not triggered during this troubleshooting
+  pass. The new provider path is covered by mocked service tests; deployed
+  production verification still needs this code deployed and a safe due browser
+  reminder or approved test-send path.
+- If the user wants to see Chrome's browser authorization prompt again on the
+  production origin, the existing allowed notification permission must be reset
+  in Chrome site settings first.
+
 ### Public product posture
 
 Status: complete.
@@ -1715,11 +1839,15 @@ Remaining risk:
 
 ## Handoff notes
 
-- For the next coding agent: continue Ticket 013 from the Vercel environment/deployment blocker if deployment work resumes. Do not start deferred offline/PWA, marketing, workspace restructuring, desktop/mobile, billing, or AI work unless the relevant docs and tickets move that work into active scope.
-- Ticket 014 now captures the next BehaviorLog alignment milestone: import validation dry-run only. It should not perform merge/restore writes unless a later ticket explicitly expands scope.
-- Ticket 015 now captures the next BehaviorLog alignment milestone: core conformance harness against an upstream `emixd12/BehaviorLog-Bundle` reference snapshot. It should tighten validation/test infrastructure only and must not add import writes or optional profile expansion.
-- Ticket 016 now captures the next BehaviorLog alignment milestone: Level 2 optional CSV views inside the BehaviorLog bundle, with JSONL remaining authoritative.
-- Ticket 017 now captures the next BehaviorLog alignment milestone: export-only Intervention Profile support for reminder deliveries, with no import writes or provider side effects.
+- For the next coding agent: production browser push subscription is now
+  verified in Chrome as permission granted with an active FCM subscription.
+  The remaining notification follow-up is deploying the browser-push delivery
+  processor change and verifying a safe real browser-push send. Production cron
+  execution has been verified through Vercel runtime logs, with the
+  latest-deployment timing nuance recorded above.
+- Ticket 029 completed the first public web hardening baseline. Remaining public-launch follow-up is hosted multi-user RLS smoke QA, first-run onboarding, and monitoring/error reporting without sensitive behavior payloads.
+- Ticket 025 full restore/overwrite remains not started and should not be implemented unless explicitly requested. It is intentionally more destructive than the current import/create/merge paths.
+- Do not start deferred offline/PWA, marketing, workspace restructuring, desktop/mobile, billing, or AI work unless the relevant docs and tickets move that work into active scope.
 - Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.
 - Run `npm run design-system:check` after changing reusable UI, the bench route, or design-system manifest/usage/config files.
 - Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.

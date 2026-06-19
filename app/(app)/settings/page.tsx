@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 
 import { ScreenFrame } from "@/components/layout/ScreenFrame";
+import { AccountDeletionPanel } from "@/components/settings/AccountDeletionPanel";
 import { NotificationPermissionPanel } from "@/components/settings/NotificationPermissionPanel";
+import {
+  SettingsPanel,
+  TrustAndLegalPanel,
+} from "@/components/settings/SettingsPanels";
 import { getSettingsPageData } from "@/lib/services/settings.service";
+import { deleteAccountAction } from "./actions";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -35,22 +41,14 @@ export default async function SettingsPage() {
         <NotificationPermissionPanel
           vapidPublicKey={settings.vapidPublicKey}
         />
+
+        <TrustAndLegalPanel />
+
+        <AccountDeletionPanel
+          confirmationLabel={settings.deleteConfirmationLabel}
+          deleteAccountAction={deleteAccountAction}
+        />
       </div>
     </ScreenFrame>
-  );
-}
-
-function SettingsPanel({
-  title,
-  children,
-}: Readonly<{
-  title: string;
-  children: React.ReactNode;
-}>) {
-  return (
-    <section className="border border-line bg-background p-5 sm:p-6">
-      <h2 className="text-xl font-bold leading-tight">{title}</h2>
-      <div className="mt-4">{children}</div>
-    </section>
   );
 }

@@ -37,3 +37,41 @@ export async function upsertPushSubscription(
 
   return data;
 }
+
+export async function listActivePushSubscriptionsForUser(
+  supabase: AppSupabaseClient,
+  userId: string,
+): Promise<PushSubscription[]> {
+  const { data, error } = await supabase
+    .from("push_subscriptions")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("active", true)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function deactivatePushSubscriptionById(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    subscriptionId: string;
+  },
+): Promise<void> {
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .update({
+      active: false,
+    })
+    .eq("user_id", input.userId)
+    .eq("id", input.subscriptionId);
+
+  if (error) {
+    throw error;
+  }
+}

@@ -85,6 +85,22 @@ Before broad public launch, scope and verify:
 - Terms of Service, Privacy Policy, and privacy/trust content,
 - owner mapping for Vercel, Supabase, Sequenzy, VAPID, and cron secrets.
 
+Implemented baseline:
+
+- static RLS policy registry test for user-owned tables,
+- Settings account deletion with export acknowledgement and typed confirmation,
+- public `/terms`, `/privacy`, and `/trust` routes,
+- auth-failure rate limiting for push subscription and reminder processing
+  routes,
+- bounded reminder processing batch size.
+
+Remaining public-launch follow-up:
+
+- hosted multi-user RLS smoke QA,
+- first-run onboarding for behavior creation, notification permission, import,
+  and timezone,
+- monitoring/error reporting that avoids sensitive behavior payloads.
+
 Marketing cookies and analytics are not launch scope, but any future addition
 should include consent and documentation updates.
 

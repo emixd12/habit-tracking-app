@@ -1157,23 +1157,23 @@ Suggested files:
 
 ---
 
-## Future ticket: Public web hardening
+## Ticket 029: Public web hardening account safety baseline
 
-Harden the current authenticated web app so it can safely serve many
-independent single-account users.
+Harden the current authenticated web app with the first public-launch account
+safety baseline.
 
-Acceptance criteria should include:
+Acceptance criteria:
 - Keep Google-only login for launch.
-- Confirm RLS isolation for many independent users.
-- Add practical abuse protections and route/action validation.
-- Add account deletion and export/account portability paths.
-- Add minimal first-run onboarding:
-  - create first behavior,
-  - notification permission,
-  - import entry when import exists,
-  - timezone detection/manual override.
-- Add basic monitoring/error reporting without sensitive behavior payloads.
-- Add Terms of Service, Privacy Policy, and privacy/trust copy.
+- Add a durable RLS policy registry test for user-owned tables.
+- Add practical abuse controls to sensitive current endpoints.
+- Bound reminder-process batch limits.
+- Validate malformed occurrence mutation ids before repository lookup.
+- Add Settings-based account deletion with export acknowledgement and typed
+  confirmation.
+- Keep account deletion server-only with Supabase service-role access and
+  database cascades.
+- Add public Terms, Privacy, and Trust routes linked from Login and Settings.
+- Preserve export/account portability before deletion.
 - Preserve the small tracker scope and avoid collaboration/social features.
 
 Suggested docs:
@@ -1184,6 +1184,28 @@ Suggested docs:
 - `docs/NOTIFICATION_SPEC.md`
 - `docs/VERCEL_WORKFLOW.md`
 - `STATUS.md`
+
+Out of scope for this baseline:
+- Ticket 025 full restore/overwrite import.
+- Marketing site or workspace restructuring.
+- Billing, AI, desktop/mobile, PWA/offline, or admin/support surfaces.
+- Full first-run onboarding and monitoring/error-reporting integration, which
+  remain public-launch follow-up work.
+
+---
+
+## Future ticket: Public web hardening follow-up
+
+Complete the remaining public-launch hardening items after Ticket 029:
+
+- Add minimal first-run onboarding:
+  - create first behavior,
+  - notification permission,
+  - import entry when import exists,
+  - timezone detection/manual override.
+- Add basic monitoring/error reporting without sensitive behavior payloads.
+- Add hosted many-independent-user RLS smoke QA beyond the static policy
+  registry test.
 
 ---
 

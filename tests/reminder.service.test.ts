@@ -6,15 +6,27 @@ import { getOccurrenceById } from "@/lib/db/occurrences.repo";
 import { getProfileSettings } from "@/lib/db/profiles.repo";
 import {
   cancelPendingReminderDeliveryById,
+  claimPendingBrowserPushReminderDelivery,
   claimPendingEmailReminderDelivery,
+  listDuePendingBrowserPushReminderDeliveries,
   listDuePendingEmailReminderDeliveries,
   markReminderDeliveryFailed,
   markReminderDeliverySent,
 } from "@/lib/db/reminderDeliveries.repo";
-import { processDueEmailReminders } from "@/lib/services/reminder.service";
+import {
+  deactivatePushSubscriptionById,
+  listActivePushSubscriptionsForUser,
+} from "@/lib/db/pushSubscriptions.repo";
+import {
+  processDueBrowserPushReminders,
+  processDueEmailReminders,
+  processDueReminders,
+} from "@/lib/services/reminder.service";
+import { BrowserPushSubscriptionExpiredError } from "@/lib/services/web-push.service";
 import type {
   Behavior,
   Occurrence,
+  PushSubscription,
   ReminderDelivery,
 } from "@/lib/types/database";
 
@@ -35,11 +47,18 @@ vi.mock("@/lib/db/reminderDeliveries.repo", () => ({
   cancelPendingReminderDeliveryById: vi.fn(),
   cancelPendingReminderDeliveriesForOccurrence: vi.fn(),
   cancelPendingReminderDeliveriesForOccurrences: vi.fn(),
+  claimPendingBrowserPushReminderDelivery: vi.fn(),
   claimPendingEmailReminderDelivery: vi.fn(),
   createMissingReminderDeliveries: vi.fn(),
+  listDuePendingBrowserPushReminderDeliveries: vi.fn(),
   listDuePendingEmailReminderDeliveries: vi.fn(),
   markReminderDeliveryFailed: vi.fn(),
   markReminderDeliverySent: vi.fn(),
+}));
+
+vi.mock("@/lib/db/pushSubscriptions.repo", () => ({
+  deactivatePushSubscriptionById: vi.fn(),
+  listActivePushSubscriptionsForUser: vi.fn(),
 }));
 
 const NOW = Temporal.Instant.from("2026-06-08T14:00:00Z");
@@ -58,6 +77,24 @@ const BASE_DELIVERY: ReminderDelivery = {
   imported_intervention_id: null,
   status: "pending",
   error: null,
+  created_at: "2026-06-08T00:00:00Z",
+  updated_at: "2026-06-08T00:00:00Z",
+};
+
+const BASE_BROWSER_DELIVERY: ReminderDelivery = {
+  ...BASE_DELIVERY,
+  id: "browser-delivery-1",
+  channel: "browser_push",
+};
+
+const BASE_PUSH_SUBSCRIPTION: PushSubscription = {
+  id: "push-subscription-1",
+  user_id: "user-1",
+  endpoint: "https://push.example.com/subscription/1",
+  p256dh: "p256dh-key",
+  auth: "auth-key",
+  user_agent: "Test Browser",
+  active: true,
   created_at: "2026-06-08T00:00:00Z",
   updated_at: "2026-06-08T00:00:00Z",
 };
@@ -106,8 +143,15 @@ describe("processDueEmailReminders", () => {
     vi.mocked(listDuePendingEmailReminderDeliveries).mockResolvedValue([
       BASE_DELIVERY,
     ]);
+    vi.mocked(listDuePendingBrowserPushReminderDeliveries).mockResolvedValue([
+      BASE_BROWSER_DELIVERY,
+    ]);
     vi.mocked(claimPendingEmailReminderDelivery).mockResolvedValue({
       ...BASE_DELIVERY,
+      processing_started_at: NOW_STRING,
+    });
+    vi.mocked(claimPendingBrowserPushReminderDelivery).mockResolvedValue({
+      ...BASE_BROWSER_DELIVERY,
       processing_started_at: NOW_STRING,
     });
     vi.mocked(getOccurrenceById).mockResolvedValue(BASE_OCCURRENCE);
@@ -120,6 +164,9 @@ describe("processDueEmailReminders", () => {
       email: "user@example.com",
       timezone: "America/New_York",
     });
+    vi.mocked(listActivePushSubscriptionsForUser).mockResolvedValue([
+      BASE_PUSH_SUBSCRIPTION,
+    ]);
   });
 
   it("claims a due email reminder before sending and marks it sent", async () => {
@@ -306,3 +353,259 @@ describe("processDueEmailReminders", () => {
     expect(markReminderDeliverySent).not.toHaveBeenCalled();
   });
 });
+
+describe("processDueBrowserPushReminders", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    vi.mocked(listDuePendingBrowserPushReminderDeliveries).mockResolvedValue([
+      BASE_BROWSER_DELIVERY,
+    ]);
+    vi.mocked(claimPendingBrowserPushReminderDelivery).mockResolvedValue({
+      ...BASE_BROWSER_DELIVERY,
+      processing_started_at: NOW_STRING,
+    });
+    vi.mocked(getOccurrenceById).mockResolvedValue(BASE_OCCURRENCE);
+    vi.mocked(getBehaviorById).mockResolvedValue({
+      ...BASE_BEHAVIOR,
+      category: null,
+      schedule_slots: [],
+    });
+    vi.mocked(listActivePushSubscriptionsForUser).mockResolvedValue([
+      BASE_PUSH_SUBSCRIPTION,
+    ]);
+  });
+
+  it("claims a due browser push reminder before sending and marks it sent", async () => {
+    const sendBrowserPush = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      processDueBrowserPushReminders({
+        supabase: SUPABASE,
+        now: NOW,
+        limit: 2,
+        sendBrowserPush,
+      }),
+    ).resolves.toEqual({
+      checked: 1,
+      claimed: 1,
+      skipped: 0,
+      sent: 1,
+      failed: 0,
+      cancelled: 0,
+    });
+
+    expect(listDuePendingBrowserPushReminderDeliveries).toHaveBeenCalledWith(
+      SUPABASE,
+      {
+        dueAt: NOW_STRING,
+        limit: 2,
+      },
+    );
+    expect(claimPendingBrowserPushReminderDelivery).toHaveBeenCalledWith(
+      SUPABASE,
+      {
+        id: "browser-delivery-1",
+        userId: "user-1",
+        dueAt: NOW_STRING,
+        processingStartedAt: NOW_STRING,
+      },
+    );
+    expect(sendBrowserPush).toHaveBeenCalledWith({
+      endpoint: "https://push.example.com/subscription/1",
+      p256dh: "p256dh-key",
+      auth: "auth-key",
+      payload: {
+        title: "Behavior reminder",
+        body: "Drink water is scheduled for 10:00 AM.",
+        tag: "cadence-reminder-occurrence-1",
+        url: "/timeline",
+      },
+    });
+    expect(markReminderDeliverySent).toHaveBeenCalledWith(SUPABASE, {
+      id: "browser-delivery-1",
+      userId: "user-1",
+      sentAt: NOW_STRING,
+    });
+    expect(markReminderDeliveryFailed).not.toHaveBeenCalled();
+  });
+
+  it("fails a browser push reminder when there is no active subscription", async () => {
+    vi.mocked(listActivePushSubscriptionsForUser).mockResolvedValue([]);
+    const sendBrowserPush = vi.fn();
+
+    await expect(
+      processDueBrowserPushReminders({
+        supabase: SUPABASE,
+        now: NOW,
+        sendBrowserPush,
+      }),
+    ).resolves.toMatchObject({
+      sent: 0,
+      failed: 1,
+      cancelled: 0,
+    });
+
+    expect(sendBrowserPush).not.toHaveBeenCalled();
+    expect(markReminderDeliveryFailed).toHaveBeenCalledWith(SUPABASE, {
+      id: "browser-delivery-1",
+      userId: "user-1",
+      error: "No active browser push subscription is available.",
+    });
+  });
+
+  it("deactivates expired browser push subscriptions", async () => {
+    const sendBrowserPush = vi
+      .fn()
+      .mockRejectedValue(new BrowserPushSubscriptionExpiredError("Gone"));
+
+    await expect(
+      processDueBrowserPushReminders({
+        supabase: SUPABASE,
+        now: NOW,
+        sendBrowserPush,
+      }),
+    ).resolves.toMatchObject({
+      sent: 0,
+      failed: 1,
+      cancelled: 0,
+    });
+
+    expect(deactivatePushSubscriptionById).toHaveBeenCalledWith(SUPABASE, {
+      userId: "user-1",
+      subscriptionId: "push-subscription-1",
+    });
+    expect(markReminderDeliveryFailed).toHaveBeenCalledWith(SUPABASE, {
+      id: "browser-delivery-1",
+      userId: "user-1",
+      error: "Gone",
+    });
+  });
+
+  it("cancels stale browser push deliveries when browser reminders are disabled", async () => {
+    vi.mocked(getBehaviorById).mockResolvedValue({
+      ...BASE_BEHAVIOR,
+      browser_reminder_enabled: false,
+      category: null,
+      schedule_slots: [],
+    });
+    const sendBrowserPush = vi.fn();
+
+    await expect(
+      processDueBrowserPushReminders({
+        supabase: SUPABASE,
+        now: NOW,
+        sendBrowserPush,
+      }),
+    ).resolves.toMatchObject({
+      sent: 0,
+      failed: 0,
+      cancelled: 1,
+    });
+
+    expect(sendBrowserPush).not.toHaveBeenCalled();
+    expect(cancelPendingReminderDeliveryById).toHaveBeenCalledWith(SUPABASE, {
+      id: "browser-delivery-1",
+      userId: "user-1",
+    });
+  });
+
+  it("logs missing VAPID configuration on claimed browser push deliveries", async () => {
+    const originalPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    const originalPrivateKey = process.env.VAPID_PRIVATE_KEY;
+
+    delete process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    delete process.env.VAPID_PRIVATE_KEY;
+
+    try {
+      await expect(
+        processDueBrowserPushReminders({
+          supabase: SUPABASE,
+          now: NOW,
+        }),
+      ).resolves.toMatchObject({
+        checked: 1,
+        claimed: 1,
+        skipped: 0,
+        failed: 1,
+      });
+    } finally {
+      restoreEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", originalPublicKey);
+      restoreEnv("VAPID_PRIVATE_KEY", originalPrivateKey);
+    }
+
+    expect(markReminderDeliveryFailed).toHaveBeenCalledWith(SUPABASE, {
+      id: "browser-delivery-1",
+      userId: "user-1",
+      error: "Browser push sending is not configured.",
+    });
+  });
+});
+
+describe("processDueReminders", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    vi.mocked(listDuePendingEmailReminderDeliveries).mockResolvedValue([
+      BASE_DELIVERY,
+    ]);
+    vi.mocked(listDuePendingBrowserPushReminderDeliveries).mockResolvedValue([
+      BASE_BROWSER_DELIVERY,
+    ]);
+    vi.mocked(claimPendingEmailReminderDelivery).mockResolvedValue({
+      ...BASE_DELIVERY,
+      processing_started_at: NOW_STRING,
+    });
+    vi.mocked(claimPendingBrowserPushReminderDelivery).mockResolvedValue({
+      ...BASE_BROWSER_DELIVERY,
+      processing_started_at: NOW_STRING,
+    });
+    vi.mocked(getOccurrenceById).mockResolvedValue(BASE_OCCURRENCE);
+    vi.mocked(getBehaviorById).mockResolvedValue({
+      ...BASE_BEHAVIOR,
+      category: null,
+      schedule_slots: [],
+    });
+    vi.mocked(getProfileSettings).mockResolvedValue({
+      email: "user@example.com",
+      timezone: "America/New_York",
+    });
+    vi.mocked(listActivePushSubscriptionsForUser).mockResolvedValue([
+      BASE_PUSH_SUBSCRIPTION,
+    ]);
+  });
+
+  it("processes due email and browser push deliveries in one run", async () => {
+    const sendEmail = vi.fn().mockResolvedValue({ jobId: "job-1" });
+    const sendBrowserPush = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      processDueReminders({
+        supabase: SUPABASE,
+        now: NOW,
+        sendEmail,
+        sendBrowserPush,
+      }),
+    ).resolves.toEqual({
+      checked: 2,
+      claimed: 2,
+      skipped: 0,
+      sent: 2,
+      failed: 0,
+      cancelled: 0,
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendBrowserPush).toHaveBeenCalledTimes(1);
+    expect(markReminderDeliverySent).toHaveBeenCalledTimes(2);
+  });
+});
+
+function restoreEnv(key: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key];
+    return;
+  }
+
+  process.env[key] = value;
+}

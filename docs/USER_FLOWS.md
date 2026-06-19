@@ -8,7 +8,15 @@ future Astro site and should not add promotional copy inside the logged-in app.
 
 ## Public site flow
 
-Planned public marketing routes:
+Implemented public account-information routes:
+
+- `/terms`: sparse product terms
+- `/privacy`: privacy notes for account, behavior, reminder, export, import,
+  and deletion data
+- `/trust`: manual-status, account-isolation, portability, and reminder
+  boundary notes
+
+Planned public marketing routes for the future Astro site:
 
 - `/`: combined landing page explaining Cadence and BehaviorLog
 - `/cadence`: product page for the tracker
@@ -315,9 +323,19 @@ Settings includes:
 - Global browser notification setting
 - Global email notification setting if needed
 - Lightweight category editing
+- Trust, Privacy, and Terms links
+- Account deletion
 
 Timezone should be detected automatically when browser/location permission allows it.
 
 If automatic detection is unavailable, the user can manually select their timezone.
 
-Do not include destructive data actions in v1.
+Account deletion requires the signed-in user to acknowledge the export reminder
+and type the account email, or `DELETE` if no email is available. The server
+signs out the account globally and deletes the Supabase auth user through a
+server-only service-role client, relying on the database ownership cascades to
+remove hosted Cadence records.
+
+Do not include destructive data actions in v1 except explicit account deletion.
+Full restore, overwrite, destructive import, or broad data-reset behavior
+requires a dedicated ticket.

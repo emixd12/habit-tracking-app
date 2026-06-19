@@ -54,8 +54,7 @@ export function NotificationPermissionPanel({
   const isBusy = saveState === "saving";
   const isDenied = permission === "denied";
   const canRequest = support?.supported === true && !isDenied && !isBusy;
-  const statusLabel =
-    saveState === "saved" ? "Enabled" : permissionStatusLabel(permission);
+  const statusLabel = permissionStatusLabel(permission);
 
   async function handleEnable() {
     setSaveState("saving");

@@ -17,6 +17,7 @@ export const metadata: Metadata = {
 
 type LoginPageProps = Readonly<{
   searchParams: Promise<{
+    account_deleted?: string | string[];
     error?: string | string[];
     next?: string | string[];
   }>;
@@ -26,6 +27,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const nextPath = normalizeRedirectPath(params.next, DEFAULT_APP_ROUTE);
   const authErrorMessage = getAuthErrorMessage(params.error);
+  const accountDeleted = params.account_deleted === "1";
   const isConfigured = readSupabaseRuntimeConfig() !== null;
 
   if (isConfigured) {
@@ -61,6 +63,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </p>
           ) : null}
 
+          {accountDeleted ? (
+            <p className="border border-line bg-surface p-4 text-sm leading-6 text-muted-readable">
+              Account deleted.
+            </p>
+          ) : null}
+
           {!isConfigured ? (
             <p className="border border-line bg-surface p-4 text-sm leading-6 text-muted-readable">
               Add Supabase runtime values before signing in locally.
@@ -70,8 +78,23 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <GoogleLoginButton disabled={!isConfigured} nextPath={nextPath} />
 
           <p className="text-sm leading-6 text-muted-readable">
-            Google sign-in is required for this private v1 app.
+            Google sign-in is required for Cadence.
           </p>
+
+          <nav
+            aria-label="Public product information"
+            className="flex flex-wrap gap-3 border-t border-line pt-4 text-sm leading-6 text-muted-readable"
+          >
+            <a className="underline underline-offset-4" href="/terms">
+              Terms
+            </a>
+            <a className="underline underline-offset-4" href="/privacy">
+              Privacy
+            </a>
+            <a className="underline underline-offset-4" href="/trust">
+              Trust
+            </a>
+          </nav>
         </div>
       </section>
     </main>

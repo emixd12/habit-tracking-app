@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { upsertPushSubscription } from "@/lib/db/pushSubscriptions.repo";
+import { resetAuthFailureRateLimitersForTests } from "@/lib/security/auth-failure-rate-limits";
 import { createClient } from "@/lib/supabase/server";
 import { POST } from "../app/api/push/subscribe/route";
 
@@ -24,6 +25,7 @@ const VALID_SUBSCRIPTION = {
 describe("push subscribe route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetAuthFailureRateLimitersForTests();
   });
 
   it("rejects invalid subscription payloads", async () => {
@@ -102,4 +104,39 @@ describe("push subscribe route", () => {
       userAgent: "Test Browser",
     });
   });
+
+  it("rate limits repeated unauthenticated subscription attempts", async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: null },
+          error: null,
+        }),
+      },
+    } as never);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await POST(pushRequest());
+      expect(response.status).toBe(401);
+    }
+
+    const limitedResponse = await POST(pushRequest());
+
+    await expect(limitedResponse.json()).resolves.toMatchObject({
+      ok: false,
+    });
+    expect(limitedResponse.status).toBe(429);
+    expect(limitedResponse.headers.get("retry-after")).toBeTruthy();
+    expect(upsertPushSubscription).not.toHaveBeenCalled();
+  });
 });
+
+function pushRequest() {
+  return new NextRequest("http://localhost:3000/api/push/subscribe", {
+    method: "POST",
+    body: JSON.stringify(VALID_SUBSCRIPTION),
+    headers: {
+      "x-forwarded-for": "203.0.113.10",
+    },
+  });
+}

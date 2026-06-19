@@ -101,6 +101,30 @@ export async function listDuePendingEmailReminderDeliveries(
   return data ?? [];
 }
 
+export async function listDuePendingBrowserPushReminderDeliveries(
+  supabase: AppSupabaseClient,
+  options: {
+    dueAt: string;
+    limit: number;
+  },
+): Promise<ReminderDelivery[]> {
+  const { data, error } = await supabase
+    .from("reminder_deliveries")
+    .select("*")
+    .eq("channel", "browser_push")
+    .eq("status", "pending")
+    .is("processing_started_at", null)
+    .lte("scheduled_send_at", options.dueAt)
+    .order("scheduled_send_at", { ascending: true })
+    .limit(options.limit);
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
 export async function listReminderDeliveriesByOccurrenceIds(
   supabase: AppSupabaseClient,
   userId: string,
@@ -142,6 +166,36 @@ export async function claimPendingEmailReminderDelivery(
     .eq("id", input.id)
     .eq("user_id", input.userId)
     .eq("channel", "email")
+    .eq("status", "pending")
+    .is("processing_started_at", null)
+    .lte("scheduled_send_at", input.dueAt)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+export async function claimPendingBrowserPushReminderDelivery(
+  supabase: AppSupabaseClient,
+  input: {
+    id: string;
+    userId: string;
+    dueAt: string;
+    processingStartedAt: string;
+  },
+): Promise<ReminderDelivery | null> {
+  const { data, error } = await supabase
+    .from("reminder_deliveries")
+    .update({
+      processing_started_at: input.processingStartedAt,
+    })
+    .eq("id", input.id)
+    .eq("user_id", input.userId)
+    .eq("channel", "browser_push")
     .eq("status", "pending")
     .is("processing_started_at", null)
     .lte("scheduled_send_at", input.dueAt)

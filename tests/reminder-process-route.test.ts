@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { processDueEmailReminders } from "@/lib/services/reminder.service";
+import { resetAuthFailureRateLimitersForTests } from "@/lib/security/auth-failure-rate-limits";
+import { processDueReminders } from "@/lib/services/reminder.service";
 import { GET, POST } from "../app/api/reminders/process/route";
 
 vi.mock("@/lib/services/reminder.service", () => ({
-  processDueEmailReminders: vi.fn(),
+  processDueReminders: vi.fn(),
 }));
 
 const ORIGINAL_SECRET = process.env.REMINDER_PROCESS_SECRET;
@@ -14,9 +15,10 @@ const ORIGINAL_CRON_SECRET = process.env.CRON_SECRET;
 describe("reminder process route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetAuthFailureRateLimitersForTests();
     process.env.REMINDER_PROCESS_SECRET = "process-secret";
     process.env.CRON_SECRET = "";
-    vi.mocked(processDueEmailReminders).mockResolvedValue({
+    vi.mocked(processDueReminders).mockResolvedValue({
       checked: 1,
       claimed: 1,
       skipped: 0,
@@ -45,7 +47,7 @@ describe("reminder process route", () => {
       ok: false,
     });
     expect(response.status).toBe(503);
-    expect(processDueEmailReminders).not.toHaveBeenCalled();
+    expect(processDueReminders).not.toHaveBeenCalled();
   });
 
   it("rejects requests without the configured secret", async () => {
@@ -62,7 +64,7 @@ describe("reminder process route", () => {
       ok: false,
     });
     expect(response.status).toBe(401);
-    expect(processDueEmailReminders).not.toHaveBeenCalled();
+    expect(processDueReminders).not.toHaveBeenCalled();
   });
 
   it("processes due reminders with the configured secret", async () => {
@@ -87,9 +89,44 @@ describe("reminder process route", () => {
       },
     });
     expect(response.status).toBe(200);
-    expect(processDueEmailReminders).toHaveBeenCalledWith({
+    expect(processDueReminders).toHaveBeenCalledWith({
       limit: 3,
     });
+  });
+
+  it("bounds the manual processing limit", async () => {
+    const response = await POST(
+      new NextRequest("http://localhost:3000/api/reminders/process?limit=10000", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer process-secret",
+        },
+      }),
+    );
+
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+    });
+    expect(response.status).toBe(200);
+    expect(processDueReminders).toHaveBeenCalledWith({
+      limit: 100,
+    });
+  });
+
+  it("rate limits repeated unauthorized processing attempts", async () => {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await POST(reminderRequestWithWrongSecret());
+      expect(response.status).toBe(401);
+    }
+
+    const limitedResponse = await POST(reminderRequestWithWrongSecret());
+
+    await expect(limitedResponse.json()).resolves.toMatchObject({
+      ok: false,
+    });
+    expect(limitedResponse.status).toBe(429);
+    expect(limitedResponse.headers.get("retry-after")).toBeTruthy();
+    expect(processDueReminders).not.toHaveBeenCalled();
   });
 
   it("processes Vercel Cron GET requests with the cron secret", async () => {
@@ -109,7 +146,7 @@ describe("reminder process route", () => {
       ok: true,
     });
     expect(response.status).toBe(200);
-    expect(processDueEmailReminders).toHaveBeenCalledWith({
+    expect(processDueReminders).toHaveBeenCalledWith({
       limit: 4,
     });
   });
@@ -130,9 +167,19 @@ describe("reminder process route", () => {
       ok: false,
     });
     expect(response.status).toBe(401);
-    expect(processDueEmailReminders).not.toHaveBeenCalled();
+    expect(processDueReminders).not.toHaveBeenCalled();
   });
 });
+
+function reminderRequestWithWrongSecret() {
+  return new NextRequest("http://localhost:3000/api/reminders/process", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer wrong-secret",
+      "x-forwarded-for": "203.0.113.20",
+    },
+  });
+}
 
 function restoreEnv(key: string, value: string | undefined) {
   if (value === undefined) {
