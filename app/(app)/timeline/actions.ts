@@ -22,7 +22,8 @@ export async function markOccurrenceStatusAction(
     const nextStatus = getSubmittedStatus(formData);
 
     await markOccurrenceStatusFromFormData(formData);
-    revalidatePath("/timeline");
+    // StatusButtons refreshes after completion feedback. Revalidating here can
+    // unmount the submitting row before the client-side chime effect runs.
 
     return {
       status: "success",

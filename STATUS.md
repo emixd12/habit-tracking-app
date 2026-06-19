@@ -713,6 +713,8 @@ Implementation summary:
 - Hardened `lib/ui/completion-feedback.ts` to prime Web Audio with a silent one-sample source, unlock an `HTMLAudioElement` during the user gesture, prefer the media element for actual audible playback, keep Web Audio as fallback, retry failed preload/decode attempts, guard missing `AudioContext`/`Audio` APIs, and emit dev-only playback/blocked diagnostics.
 - Added a final compatibility fallback for browsers where media playback rejects and the MP3 buffer cannot load or decode: when Web Audio oscillator/gain nodes are available and the context can run, Cadence now plays one very short, low-gain synthesized chime before reporting playback blocked.
 - Changed the Timeline refresh sequence so `router.refresh()` waits until the chime playback path has started instead of immediately refreshing after the successful status action.
+- Follow-up production listener QA showed two real production Completed clicks reached hydrated React status forms, but neither emitted `cadence:completion-chime-played` nor `cadence:completion-chime-blocked`. The issue was the status server action calling `revalidatePath("/timeline")` before the client success effect could run; completing an occurrence can remove or replace the submitting action component, losing the pending chime effect.
+- Removed the eager Timeline revalidation from `markOccurrenceStatusAction`. `StatusButtons` already refreshes the Timeline after success and completion feedback, so server confirmation is preserved while avoiding the unmount race.
 - Updated the design-system fixture action to mirror the real status action's `nextStatus` return for fixture-backed browser QA.
 - No schema, resolver, product-scope, notification-provider, or real occurrence-data changes were made.
 
@@ -730,8 +732,17 @@ Verification:
 - Pass: `npm run typecheck`
 - Pass: `npm run test` (32 files, 227 tests).
 - Pass: `npm run build`
+- Pass: Production Chrome listener attached to `https://cadence-blush-three.vercel.app/timeline` captured two user-clicked Completed submits with `status: "completed"` and hydrated React `onPointerDown`/`onClick`/`onSubmit` handlers present, but no chime played/blocked events before the local fix.
+- Pass: `npm run test -- tests/completion-feedback.test.ts` after removing eager status-action revalidation.
+- Pass: `npm run typecheck`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run test` (32 files, 227 tests).
+- Pass: `npm run build`
 - Pass: design-system-bench classify/theme detection, inventory and usage scans to `/tmp`, and `npm run design-system:check`; a freshly generated full traceability verification still reports unrelated in-progress Settings/Timezone bench coverage gaps from the current dirty worktree, so no design-system source files were changed for this chime-only pass.
 - Browser QA: Chrome remote-debugging profile loaded local `/design-system#ds-module-status-buttons`, clicked the fixture Completed control through CDP mouse events, received the bench server-action success message, and observed `cadence:completion-chime-played` with `source: "media"`.
+- Browser QA: After the eager-revalidation fix, Chrome loaded local `http://localhost:3002/design-system#ds-module-status-buttons`, clicked the fixture Completed control, and observed `cadence:completion-chime-played` with `source: "media"`.
 - Browser QA: in-app browser `/design-system#ds-module-status-buttons` rendered Completed and Not Completed controls and the fixture action completed without mutating product data. The in-app browser reports `AudioContext`, `Audio`, and `Notification` as unavailable, so it cannot prove audible playback in that embedded surface.
 - Browser QA: Chrome plugin fresh tab `/design-system#ds-module-status-buttons` clicked Completed and logged `cadence:completion-chime-played media`, confirming the normal browser media element playback path started. The only observed Chrome warning was an extension-injected hydration mismatch, unrelated to audio.
 - Browser QA: Chrome design-system `NotificationPermissionPanel` preview showed the `Permission` row, `Browser push` row, and `Enable browser reminders` control. The fixture has no VAPID key, so the control was disabled and no permission prompt was opened or accepted.
@@ -741,6 +752,7 @@ Remaining risk:
 - The in-app browser cannot play or authorize audio because its media and notification APIs are unavailable; Chrome verified the actual media playback-start path.
 - The synthesized compatibility fallback is covered by unit tests only. The real Chrome fixture used the preferred media element path, so the fallback was not forced in browser QA.
 - Browser notification permission prompts were not accepted during QA. The permission label/control is present, and prompt triggering remains owned by Settings with real push configuration.
+- The production site will continue using the eager-revalidation behavior until this local fix is deployed.
 
 ### Timeline status action text links
 
