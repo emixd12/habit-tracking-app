@@ -7,13 +7,27 @@ export const COMPLETION_CHIME_BLOCKED_EVENT =
   "cadence:completion-chime-blocked";
 
 const COMPLETION_CHIME_VOLUME = 1;
+const SYNTH_CHIME_DURATION_SECONDS = 0.12;
+const SYNTH_CHIME_PEAK_GAIN = 0.045;
+const SYNTH_CHIME_START_FREQUENCY = 660;
+const SYNTH_CHIME_END_FREQUENCY = 880;
 
 type AudioContextConstructor = typeof AudioContext;
+type CompletionChimeSubmittedStatus = Extract<
+  TimelineStatus,
+  "completed" | "not_completed"
+>;
+
+export type CompletionChimeIntent = Readonly<{
+  currentStatus: TimelineStatus;
+  submittedStatus: CompletionChimeSubmittedStatus;
+}>;
 
 let completionChimeContext: AudioContext | null = null;
 let completionChimeArrayBufferPromise: Promise<ArrayBuffer | null> | null = null;
 let completionChimeBufferPromise: Promise<AudioBuffer | null> | null = null;
-let completionChimeAudio: HTMLAudioElement | null = null;
+let completionChimePlaybackAudio: HTMLAudioElement | null = null;
+let completionChimePrimerAudio: HTMLAudioElement | null = null;
 const activeCompletionChimeSources = new Set<AudioBufferSourceNode>();
 
 export function shouldPlayCompletionChime({
@@ -26,9 +40,26 @@ export function shouldPlayCompletionChime({
   return nextStatus === "completed" && currentStatus !== "completed";
 }
 
+export function shouldPlayCompletionChimeForStatusSuccess({
+  intent,
+  serverNextStatus,
+}: Readonly<{
+  intent: CompletionChimeIntent | null;
+  serverNextStatus?: TimelineStatus | null;
+}>): boolean {
+  if (!intent || intent.submittedStatus !== "completed") {
+    return false;
+  }
+
+  return shouldPlayCompletionChime({
+    currentStatus: intent.currentStatus,
+    nextStatus: serverNextStatus ?? null,
+  });
+}
+
 export function preloadCompletionChime(): void {
   void loadCompletionChimeArrayBuffer();
-  getCompletionChimeAudioFallback()?.load();
+  getCompletionChimePlaybackAudio()?.load();
 }
 
 export function prepareCompletionChimeForUserGesture(): void {
@@ -51,9 +82,18 @@ export async function playCompletionChime(): Promise<void> {
     // Fall through to Web Audio for browsers that reject delayed media replay.
   }
 
-  await playCompletionChimeFromBuffer().catch(() => {
-    reportCompletionChimeBlocked("buffer");
-  });
+  try {
+    await playCompletionChimeFromBuffer();
+    return;
+  } catch {
+    // Fall through to a short synthesized chime if the MP3 buffer cannot play.
+  }
+
+  try {
+    await playSynthesizedCompletionChime();
+  } catch {
+    reportCompletionChimeBlocked("synth");
+  }
 }
 
 async function playCompletionChimeFromBuffer(): Promise<void> {
@@ -63,13 +103,7 @@ async function playCompletionChimeFromBuffer(): Promise<void> {
     throw new Error("AudioContext is unavailable.");
   }
 
-  if (context.state !== "running") {
-    await context.resume();
-  }
-
-  if (context.state !== "running") {
-    throw new Error("AudioContext is not running.");
-  }
+  await ensureCompletionChimeContextIsRunning(context);
 
   const audioBuffer = await loadCompletionChimeBuffer();
 
@@ -91,6 +125,102 @@ async function playCompletionChimeFromBuffer(): Promise<void> {
   };
   source.start();
   reportCompletionChimePlayback("buffer");
+}
+
+async function playSynthesizedCompletionChime(): Promise<void> {
+  const context = getCompletionChimeContext();
+
+  if (!context) {
+    throw new Error("AudioContext is unavailable.");
+  }
+
+  if (
+    typeof context.createOscillator !== "function" ||
+    typeof context.createGain !== "function"
+  ) {
+    throw new Error("Synthesized chime nodes are unavailable.");
+  }
+
+  await ensureCompletionChimeContextIsRunning(context);
+
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const startTime = context.currentTime;
+  const endTime = startTime + SYNTH_CHIME_DURATION_SECONDS;
+
+  oscillator.type = "sine";
+  setAudioParamValue(oscillator.frequency, SYNTH_CHIME_START_FREQUENCY, startTime);
+  rampAudioParamValue(
+    oscillator.frequency,
+    SYNTH_CHIME_END_FREQUENCY,
+    startTime + SYNTH_CHIME_DURATION_SECONDS * 0.45,
+  );
+
+  setAudioParamValue(gain.gain, 0.0001, startTime);
+  rampAudioParamValue(gain.gain, SYNTH_CHIME_PEAK_GAIN, startTime + 0.015, {
+    preferLinear: true,
+  });
+  rampAudioParamValue(gain.gain, 0.0001, endTime);
+
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(startTime);
+  oscillator.stop(endTime);
+  reportCompletionChimePlayback("synth");
+}
+
+async function ensureCompletionChimeContextIsRunning(
+  context: AudioContext,
+): Promise<void> {
+  if (context.state !== "running") {
+    await context.resume();
+  }
+
+  if (context.state !== "running") {
+    throw new Error("AudioContext is not running.");
+  }
+}
+
+function setAudioParamValue(
+  audioParam: AudioParam,
+  value: number,
+  startTime: number,
+): void {
+  if (typeof audioParam.setValueAtTime === "function") {
+    audioParam.setValueAtTime(value, startTime);
+    return;
+  }
+
+  audioParam.value = value;
+}
+
+function rampAudioParamValue(
+  audioParam: AudioParam,
+  value: number,
+  endTime: number,
+  options: Readonly<{
+    preferLinear?: boolean;
+  }> = {},
+): void {
+  if (
+    options.preferLinear &&
+    typeof audioParam.linearRampToValueAtTime === "function"
+  ) {
+    audioParam.linearRampToValueAtTime(value, endTime);
+    return;
+  }
+
+  if (typeof audioParam.exponentialRampToValueAtTime === "function") {
+    audioParam.exponentialRampToValueAtTime(value, endTime);
+    return;
+  }
+
+  if (typeof audioParam.linearRampToValueAtTime === "function") {
+    audioParam.linearRampToValueAtTime(value, endTime);
+    return;
+  }
+
+  audioParam.value = value;
 }
 
 async function loadCompletionChimeBuffer(): Promise<AudioBuffer | null> {
@@ -178,7 +308,7 @@ function primeCompletionChimeContext(context: AudioContext): void {
 }
 
 async function playCompletionChimeFromMediaElement(): Promise<void> {
-  const audio = getCompletionChimeAudioFallback();
+  const audio = getCompletionChimePlaybackAudio();
 
   if (!audio) {
     throw new Error("HTMLAudioElement is unavailable.");
@@ -192,7 +322,19 @@ async function playCompletionChimeFromMediaElement(): Promise<void> {
   reportCompletionChimePlayback("media");
 }
 
-function getCompletionChimeAudioFallback(): HTMLAudioElement | null {
+function getCompletionChimePlaybackAudio(): HTMLAudioElement | null {
+  completionChimePlaybackAudio ??= createCompletionChimeAudio();
+
+  return completionChimePlaybackAudio;
+}
+
+function getCompletionChimePrimerAudio(): HTMLAudioElement | null {
+  completionChimePrimerAudio ??= createCompletionChimeAudio();
+
+  return completionChimePrimerAudio;
+}
+
+function createCompletionChimeAudio(): HTMLAudioElement | null {
   if (typeof window === "undefined") {
     return null;
   }
@@ -201,15 +343,15 @@ function getCompletionChimeAudioFallback(): HTMLAudioElement | null {
     return null;
   }
 
-  completionChimeAudio ??= new Audio(COMPLETION_CHIME_SRC);
-  completionChimeAudio.preload = "auto";
-  completionChimeAudio.volume = COMPLETION_CHIME_VOLUME;
+  const audio = new Audio(COMPLETION_CHIME_SRC);
+  audio.preload = "auto";
+  audio.volume = COMPLETION_CHIME_VOLUME;
 
-  return completionChimeAudio;
+  return audio;
 }
 
 function primeCompletionChimeAudioFallback(): void {
-  const audio = getCompletionChimeAudioFallback();
+  const audio = getCompletionChimePrimerAudio();
 
   if (!audio) {
     return;
@@ -241,7 +383,7 @@ function reportCompletionChimeBlocked(source: ChimePlaybackSource): void {
   dispatchCompletionChimeEvent(COMPLETION_CHIME_BLOCKED_EVENT, source);
 }
 
-type ChimePlaybackSource = "buffer" | "media";
+type ChimePlaybackSource = "buffer" | "media" | "synth";
 
 function dispatchCompletionChimeEvent(
   eventName: string,

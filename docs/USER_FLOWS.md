@@ -44,7 +44,7 @@ Steps:
 1. Create first behavior.
 2. Request browser notification permission.
 3. Import data when import exists.
-4. Detect timezone automatically when possible and allow manual override.
+4. Point to Settings timezone confirmation when useful.
 
 Onboarding should stay thin. It should reuse existing app controls and should
 not become a broad setup wizard.
@@ -326,9 +326,15 @@ Settings includes:
 - Trust, Privacy, and Terms links
 - Account deletion
 
-Timezone should be detected automatically when browser/location permission allows it.
+Timezone detection uses the browser/OS timezone reported by `Intl.DateTimeFormat().resolvedOptions().timeZone`; it does not request location permission.
 
-If automatic detection is unavailable, the user can manually select their timezone.
+The user can apply the detected timezone or manually enter an IANA timezone. Saving updates the profile timezone, updates active behavior schedules to that timezone, and resyncs future unresolved occurrences. Past and resolved occurrence history stays unchanged.
+
+When the user clicks Save subscription for browser reminders, Settings requests
+browser notification permission if the browser still allows prompting, then
+saves the push subscription after permission is allowed. If the browser reports
+notifications are blocked, Settings shows the blocked state and asks the user to
+allow the origin in browser site settings before saving again.
 
 Account deletion requires the signed-in user to acknowledge the export reminder
 and type the account email, or `DELETE` if no email is available. The server

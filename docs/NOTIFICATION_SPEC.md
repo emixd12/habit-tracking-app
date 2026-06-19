@@ -21,6 +21,11 @@ Requirements:
 - User must have an active push subscription.
 - If browser push is denied or unavailable, the app still works.
 - Settings should provide the control that triggers the browser notification permission prompt.
+- Clicking the Settings save control should retry the browser permission request
+  while the browser still reports an undecided permission state. Browsers do
+  not show the native prompt again after the origin is explicitly allowed or
+  blocked; a blocked origin needs browser/site settings changed before Cadence
+  can save a working subscription.
 - Public launch onboarding may also request notification permission after the
   user creates the first behavior.
 - V1 does not need a test notification button.

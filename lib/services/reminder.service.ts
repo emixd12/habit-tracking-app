@@ -469,7 +469,7 @@ function isCurrentExpectedEmailDelivery(
   }).some(
     (expectedDelivery) =>
       expectedDelivery.channel === "email" &&
-      expectedDelivery.scheduledSendAt === delivery.scheduled_send_at,
+      sameInstant(expectedDelivery.scheduledSendAt, delivery.scheduled_send_at),
   );
 }
 
@@ -484,8 +484,16 @@ function isCurrentExpectedBrowserPushDelivery(
   }).some(
     (expectedDelivery) =>
       expectedDelivery.channel === "browser_push" &&
-      expectedDelivery.scheduledSendAt === delivery.scheduled_send_at,
+      sameInstant(expectedDelivery.scheduledSendAt, delivery.scheduled_send_at),
   );
+}
+
+function sameInstant(first: string, second: string): boolean {
+  try {
+    return Temporal.Instant.compare(first, second) === 0;
+  } catch {
+    return first === second;
+  }
 }
 
 async function sendBrowserPushToSubscriptions(input: {

@@ -90,6 +90,11 @@ create table behaviors (
 sorting, and simple summaries. The schedule source of truth is
 `behavior_schedule_slots`.
 
+`timezone` is copied from `profiles.timezone` when a behavior is created. When
+the user saves a new timezone in Settings, active behaviors are updated to the
+new timezone and future unresolved occurrences are resynced. Archived behavior
+rows and past or resolved occurrence history remain historical records.
+
 ### `behavior_schedule_slots`
 
 ```sql

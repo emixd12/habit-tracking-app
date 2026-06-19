@@ -302,7 +302,11 @@ Behavior-specific fields:
   - 3 days before
   - Custom minutes/hours/days if easy
 
-Browser notification permission is managed globally from Settings.
+Browser notification permission is managed globally from Settings. The Settings
+save control should call the browser permission request from the user's click
+when permission is still undecided, save a subscription after permission is
+allowed, and show factual unblock copy when the browser reports permission is
+blocked.
 
 The Reminder editor should use the same unframed form-section treatment as the
 Recurrence editor. Use a plain section heading and smaller subsection heading
@@ -430,7 +434,7 @@ Show:
 - Trust, Privacy, and Terms links for public-product account context
 - Account deletion with export acknowledgement and typed confirmation
 
-Timezone should be detected automatically when the browser/location permission allows it. If the user has not allowed automatic detection, provide a manual timezone selector.
+Timezone detection should use the browser/OS timezone exposed by `Intl.DateTimeFormat().resolvedOptions().timeZone`; do not request geolocation or location permission. Settings should show the stored timezone, show the detected browser timezone when available, provide a Use detected timezone action, and allow manual IANA timezone entry. Saving a timezone updates the profile and active behavior schedules, then resyncs future unresolved occurrences while preserving past and resolved history.
 
 Do not include a test notification button in v1.
 

@@ -141,7 +141,7 @@ Public launch may add a minimal onboarding flow after first login:
 - create first behavior
 - request browser notification permission
 - import data when import exists
-- detect timezone automatically when possible and allow manual override
+- point to Settings timezone confirmation when useful
 
 Preset time ranges:
 - Morning: 6:00 AM-Noon

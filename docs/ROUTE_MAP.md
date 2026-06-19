@@ -21,7 +21,7 @@ surface when ticketed.
 | `/behaviors` | implemented, protected | Behavior and category management | Keep CRUD simple. |
 | `/analytics` | implemented, protected | Basic completion counts, adherence, heatmaps, and selected-day Not Completed inspection | No gamified streak language. |
 | `/export` | implemented, protected | JSONL, CSV, full JSON backup, BehaviorLog bundle, Markdown AI-readable summary export, and BehaviorLog bundle import | Export logic belongs in `export.resolver.ts`; BehaviorLog import validation and merge preview belong in `behaviorlog-import.resolver.ts`; the page supports range and archived-behavior export options. |
-| `/settings` | implemented, protected | Profile, timezone, browser notification permission/subscription settings, trust/legal links, and account deletion | Browser notification permission is requested here; account deletion requires export acknowledgement and typed confirmation; category editing and any global email settings remain future Settings work. |
+| `/settings` | implemented, protected | Profile, timezone detection/manual override, browser notification permission/subscription settings, trust/legal links, and account deletion | Timezone detection uses browser/OS `Intl` data without geolocation; saving timezone updates the profile, active behavior schedules, and future unresolved occurrences. Browser notification permission is requested here; account deletion requires export acknowledgement and typed confirmation; category editing and any global email settings remain future Settings work. |
 
 ## Planned marketing routes
 

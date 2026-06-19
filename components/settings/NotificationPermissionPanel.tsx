@@ -52,8 +52,7 @@ export function NotificationPermissionPanel({
     [support],
   );
   const isBusy = saveState === "saving";
-  const isDenied = permission === "denied";
-  const canRequest = support?.supported === true && !isDenied && !isBusy;
+  const canRequest = support?.supported === true && !isBusy;
   const statusLabel = permissionStatusLabel(permission);
 
   async function handleEnable() {
@@ -73,7 +72,7 @@ export function NotificationPermissionPanel({
 
       let nextPermission = readNotificationPermission();
 
-      if (nextPermission === "default") {
+      if (nextPermission !== "granted" && nextPermission !== "unavailable") {
         nextPermission = await requestNotificationPermission();
       }
 
@@ -81,13 +80,17 @@ export function NotificationPermissionPanel({
 
       if (nextPermission === "denied") {
         setSaveState("idle");
-        setMessage("Notifications are blocked in this browser.");
+        setMessage(
+          "Notifications are blocked in this browser. Allow them in Chrome site settings, then click Save subscription again.",
+        );
         return;
       }
 
       if (nextPermission !== "granted") {
         setSaveState("idle");
-        setMessage("Notification permission was not changed.");
+        setMessage(
+          "Notification permission was not changed. Click Save subscription again to request it.",
+        );
         return;
       }
 
@@ -131,7 +134,7 @@ export function NotificationPermissionPanel({
           onClick={handleEnable}
           className="min-h-11 border border-line bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:bg-surface disabled:text-muted-readable"
         >
-          {isBusy ? "Saving..." : buttonLabel(permission)}
+          {isBusy ? "Saving..." : buttonLabel()}
         </button>
       </div>
 
@@ -166,10 +169,8 @@ function permissionStatusLabel(
   }
 }
 
-function buttonLabel(permission: BrowserNotificationPermission): string {
-  return permission === "granted"
-    ? "Save subscription"
-    : "Enable browser reminders";
+function buttonLabel(): string {
+  return "Save subscription";
 }
 
 function supportMessage(reason: BrowserPushUnavailableReason): string {

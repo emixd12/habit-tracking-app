@@ -74,7 +74,7 @@ Current evidence:
 - Reminder processing code exists at `app/api/reminders/process/route.ts`, `lib/services/reminder.service.ts`, `lib/db/reminderDeliveries.repo.ts`, `lib/services/sequenzy.service.ts`, and `lib/services/web-push.service.ts`. The protected process route validates `REMINDER_PROCESS_SECRET` or `CRON_SECRET`, rate-limits repeated auth failures, bounds manual batch size, claims due pending email and browser-push deliveries with `processing_started_at`, re-checks current occurrence/behavior eligibility through the reminder resolver, sends Sequenzy template emails or VAPID-backed browser push from server-only code, and records sent, failed, or cancelled outcomes. Sequenzy provider setup is verified with transactional slug `habit-reminder`; local `.env.local` has `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`.
 - Analytics exists in `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/analytics`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and selected-day Not Completed inspection. Default adherence excludes unresolved occurrences, and the top summary Unresolved count matches the Timeline Needs decision count.
 - Export exists in `lib/resolvers/export.resolver.ts`, `lib/services/export.service.ts`, `/export`, and `/api/export/jsonl`, `/api/export/csv`, `/api/export/json`. The resolver owns range filtering, archived-behavior filtering, JSONL, CSV escaping, full JSON backup shape, and Markdown AI summary adherence math. All-time export includes occurrences through the current local day and excludes generated future rows.
-- Settings now shows profile email, timezone, notification permission status, browser push availability, a browser reminder enable/save control, Trust/Privacy/Terms links, and account deletion with export acknowledgement plus typed confirmation. The client path uses only `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; the processing/sending layer uses server-only `VAPID_PRIVATE_KEY`.
+- Settings now shows profile email, timezone detection/manual override, notification permission status, browser push availability, a browser reminder enable/save control, Trust/Privacy/Terms links, and account deletion with export acknowledgement plus typed confirmation. Timezone detection uses browser/OS `Intl` data without geolocation; saving a changed timezone updates the profile, active behavior timezones, and future unresolved occurrences through the existing occurrence sync. The client path uses only `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; the processing/sending layer uses server-only `VAPID_PRIVATE_KEY`.
 - A minimal `public/push-service-worker.js` displays received push payloads and opens same-origin app URLs, defaulting to `/timeline`. It does not implement PWA install, route caching, background sync, offline writes, or offline mutation.
 - Supabase and Sequenzy CLIs are installed as dev dependencies and exposed through `npm run supabase -- ...` and `npm run sequenzy -- ...`.
 - Agent operations docs now include Supabase CLI workflow, Sequenzy CLI workflow, date/time strategy, route map, and deterministic drift checks.
@@ -708,23 +708,30 @@ Implementation summary:
 - Confirmed `/sounds/completion-chime.mp3` is served locally as `audio/mpeg`; the remaining likely causes were browser activation timing after async server actions, loss of submitted status intent, transient preload failure caching, and embedded-browser media API gaps.
 - Changed `StatusButtons` so Completed and Not Completed are submitted through separate structural forms with hidden `occurrence_id` and `status` fields instead of relying on `SubmitEvent.submitter`.
 - The status server action now echoes the submitted status in `OccurrenceActionState`; `StatusButtons` uses that server-confirmed status after success while still priming audio on pointer/click/submit before the async action returns.
+- Further hardened `StatusButtons` so it captures the submitted status and current status at the user gesture, then requires a successful server-confirmed `completed` result before playback. A later render cannot cause a chime without that captured user intent.
+- Split the media-element gesture primer from the media element used for audible playback so delayed muted-primer cleanup cannot pause, reset, or mute the real chime.
 - Hardened `lib/ui/completion-feedback.ts` to prime Web Audio with a silent one-sample source, unlock an `HTMLAudioElement` during the user gesture, prefer the media element for actual audible playback, keep Web Audio as fallback, retry failed preload/decode attempts, guard missing `AudioContext`/`Audio` APIs, and emit dev-only playback/blocked diagnostics.
+- Added a final compatibility fallback for browsers where media playback rejects and the MP3 buffer cannot load or decode: when Web Audio oscillator/gain nodes are available and the context can run, Cadence now plays one very short, low-gain synthesized chime before reporting playback blocked.
 - Changed the Timeline refresh sequence so `router.refresh()` waits until the chime playback path has started instead of immediately refreshing after the successful status action.
 - Updated the design-system fixture action to mirror the real status action's `nextStatus` return for fixture-backed browser QA.
 - No schema, resolver, product-scope, notification-provider, or real occurrence-data changes were made.
 
 Verification:
 - Pass: `curl -I http://localhost:3000/sounds/completion-chime.mp3` returned `200 OK` with `Content-Type: audio/mpeg`.
+- Pass: `curl -I http://localhost:3002/sounds/completion-chime.mp3` returned `200 OK` with `Content-Type: audio/mpeg` from the current Cadence dev server.
 - Pass: `ffprobe`/`ffmpeg` diagnostics after installing `ffmpeg`: asset is a 1-second stereo MP3, peak `-2.7 dB`, RMS `-25.1 dB`, with audible content before the trailing silence.
 - Pass: `afplay public/sounds/completion-chime.mp3` exited successfully.
-- Pass: `npm run test -- tests/completion-feedback.test.ts`
+- Pass: `npm run test -- tests/completion-feedback.test.ts` (14 tests covering intent confirmation, primer/playback separation, synthesized fallback success, and oscillator-unavailable blocked coverage).
+- Pass: `npx eslint components/timeline/StatusButtons.tsx lib/ui/completion-feedback.ts tests/completion-feedback.test.ts`
 - Pass: `npm run agents:check`
 - Pass: `npm run resolvers:check`
 - Pass: `npm run lint`
 - Pass: `npm run design-system:check`
 - Pass: `npm run typecheck`
-- Pass: `npm run test` (18 files, 107 tests).
+- Pass: `npm run test` (32 files, 227 tests).
 - Pass: `npm run build`
+- Pass: design-system-bench classify/theme detection, inventory and usage scans to `/tmp`, and `npm run design-system:check`; a freshly generated full traceability verification still reports unrelated in-progress Settings/Timezone bench coverage gaps from the current dirty worktree, so no design-system source files were changed for this chime-only pass.
+- Browser QA: Chrome remote-debugging profile loaded local `/design-system#ds-module-status-buttons`, clicked the fixture Completed control through CDP mouse events, received the bench server-action success message, and observed `cadence:completion-chime-played` with `source: "media"`.
 - Browser QA: in-app browser `/design-system#ds-module-status-buttons` rendered Completed and Not Completed controls and the fixture action completed without mutating product data. The in-app browser reports `AudioContext`, `Audio`, and `Notification` as unavailable, so it cannot prove audible playback in that embedded surface.
 - Browser QA: Chrome plugin fresh tab `/design-system#ds-module-status-buttons` clicked Completed and logged `cadence:completion-chime-played media`, confirming the normal browser media element playback path started. The only observed Chrome warning was an extension-injected hydration mismatch, unrelated to audio.
 - Browser QA: Chrome design-system `NotificationPermissionPanel` preview showed the `Permission` row, `Browser push` row, and `Enable browser reminders` control. The fixture has no VAPID key, so the control was disabled and no permission prompt was opened or accepted.
@@ -732,6 +739,7 @@ Verification:
 
 Remaining risk:
 - The in-app browser cannot play or authorize audio because its media and notification APIs are unavailable; Chrome verified the actual media playback-start path.
+- The synthesized compatibility fallback is covered by unit tests only. The real Chrome fixture used the preferred media element path, so the fallback was not forced in browser QA.
 - Browser notification permission prompts were not accepted during QA. The permission label/control is present, and prompt triggering remains owned by Settings with real push configuration.
 
 ### Timeline status action text links
@@ -1808,6 +1816,62 @@ Remaining risk:
   production origin, the existing allowed notification permission must be reset
   in Chrome site settings first.
 
+### Browser push production verification
+
+Status: complete.
+
+Implementation summary:
+- Fixed reminder processor revalidation so expected reminder timestamps are
+  compared as Temporal instants instead of raw strings. Supabase/Postgres can
+  return the same UTC instant as `+00:00` while the resolver emits `Z`; those
+  now match for both email and browser-push deliveries.
+- Updated the Settings notification control so Save subscription remains the
+  stable action label, retries `Notification.requestPermission()` from the
+  user click whenever Chrome still allows prompting, and stays clickable in the
+  blocked state so it can show factual unblock guidance.
+- Updated notification, UI, and user-flow docs for click-driven permission
+  retry and the browser limitation that already allowed or blocked origins do
+  not show the native prompt again until site settings are reset.
+- Deployed the isolated browser-push fix to the existing Vercel production
+  project from a temporary clean copy so unrelated in-progress local changes
+  were not included. Deployment `dpl_B5RBr2msxy29hnEHijAXjdf1iFdH` became
+  READY and was aliased to `https://cadence-blush-three.vercel.app`.
+- No schema migration, offline/PWA caching, marketing flow, or new Settings
+  surface was added.
+
+Verification:
+- Pass: `npm run test -- tests/reminder.service.test.ts tests/push-browser.test.ts` (2 files, 18 tests).
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run lint`.
+- Pass: `npm run agents:check`.
+- Pass: `npm run test` (32 files, 219 tests).
+- Pass: `npm run build`.
+- Production preflight: due email reminder count was 0 before calling the
+  processor; active browser subscriptions existed for Apple Push and Chrome
+  FCM.
+- Production send QA: inserted one temporary Chrome-targeted browser-push
+  behavior/occurrence/reminder due at `2020-01-01T15:00:00Z`, called
+  `POST https://cadence-blush-three.vercel.app/api/reminders/process?limit=1`,
+  and received `{ checked: 1, claimed: 1, sent: 1, failed: 0, cancelled: 0 }`.
+  The delivery row was marked `sent` with `sent_at`, no error, and
+  `processing_started_at`.
+- Production cleanup QA: deleted the temporary behavior and confirmed 0
+  matching QA behaviors and 0 matching QA reminder-delivery rows remained.
+- Chrome QA: production Settings rendered `Allowed`, `Available`, and Save
+  subscription; Chrome DevTools Protocol reported secure context, Notification
+  API, service worker, PushManager, `Notification.permission = "granted"`, and
+  an active FCM PushSubscription with both required keys present.
+
+Remaining risk:
+- Chrome will not show the native notification permission banner again for an
+  origin that is already `granted` or `denied`. The production Chrome profile
+  is currently `granted`, so seeing the banner again requires manually resetting
+  the Cadence site permission to the ask/default state in Chrome site settings,
+  then clicking Save subscription.
+- Codex browser automation was not allowed to open `chrome://settings`, so the
+  permission reset itself was not performed by the agent.
+
 ### Public product posture
 
 Status: complete.
@@ -1837,6 +1901,55 @@ Remaining risk:
   assumptions, package layout, and app code remain unchanged until future
   tickets schedule the work.
 
+### Settings timezone detection and override
+
+Status: complete.
+
+Implementation summary:
+- Added a lightweight Settings timezone panel that shows the stored profile
+  timezone, detects the browser/OS timezone with `Intl.DateTimeFormat()`, offers
+  a Use detected timezone action, and supports manual IANA timezone entry.
+- Added server-side timezone canonicalization/validation without geolocation or
+  location permission.
+- Saving a changed timezone updates `profiles.timezone`, updates all active
+  behaviors to that timezone, and resyncs future unresolved occurrences through
+  the existing occurrence generation service. Past occurrences, resolved
+  occurrences, and archived behaviors remain historical records.
+- Added repository helpers for profile timezone and active behavior timezone
+  updates, plus service tests for validation, no-op saves, and active-behavior
+  resync orchestration.
+- Updated date/time, data-model, product, UI, user-flow, route, ticket, design,
+  and status docs to reflect the implemented policy.
+- No schema migration, location permission prompt, onboarding wizard, or
+  out-of-scope app surface was added.
+
+Verification:
+- Pass: `npm run test -- tests/settings.service.test.ts`
+- Pass: targeted ESLint for changed Settings/service/repository/test files.
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (32 files, 219 tests).
+- Pass: `npm run build`
+- Pass: `git diff --check`
+- Browser QA: authenticated Chrome `/settings` rendered the new full-width
+  Timezone panel with Current timezone, Browser timezone, IANA timezone field,
+  Use detected timezone, and Save timezone controls. Browser timezone matched
+  the saved timezone, so Use detected timezone was disabled as expected.
+- Browser QA: a no-op Save timezone submit against the current timezone
+  returned `POST /settings 200` and did not mutate behavior schedules.
+- Browser QA: headless system Chrome verified unauthenticated `/settings`
+  redirects to `/login?next=%2Fsettings` at 1280px and 390px with no horizontal
+  overflow and no console warnings/errors.
+
+Remaining risk:
+- Browser QA intentionally did not change the real account timezone; the changed
+  timezone mutation/resync path is covered by mocked service tests.
+- Protected mobile Settings visual inspection could not be completed reliably
+  with the available desktop-browser automation. The unauthenticated mobile
+  redirect/login surface was verified at 390px.
+
 ## Handoff notes
 
 - For the next coding agent: production browser push subscription is now
@@ -1845,7 +1958,7 @@ Remaining risk:
   processor change and verifying a safe real browser-push send. Production cron
   execution has been verified through Vercel runtime logs, with the
   latest-deployment timing nuance recorded above.
-- Ticket 029 completed the first public web hardening baseline. Remaining public-launch follow-up is hosted multi-user RLS smoke QA, first-run onboarding, and monitoring/error reporting without sensitive behavior payloads.
+- Ticket 029 completed the first public web hardening baseline. Remaining public-launch follow-up is hosted multi-user RLS smoke QA, first-run onboarding for first behavior/notifications/import entry, and monitoring/error reporting without sensitive behavior payloads.
 - Ticket 025 full restore/overwrite remains not started and should not be implemented unless explicitly requested. It is intentionally more destructive than the current import/create/merge paths.
 - Do not start deferred offline/PWA, marketing, workspace restructuring, desktop/mobile, billing, or AI work unless the relevant docs and tickets move that work into active scope.
 - Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.

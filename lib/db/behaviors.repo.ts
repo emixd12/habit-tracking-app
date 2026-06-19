@@ -138,6 +138,27 @@ export async function updateBehavior(
     : null;
 }
 
+export async function updateActiveBehaviorTimezones(
+  supabase: AppSupabaseClient,
+  userId: string,
+  timezone: string,
+): Promise<BehaviorWithCategory[]> {
+  const { data, error } = await supabase
+    .from("behaviors")
+    .update({ timezone })
+    .eq("user_id", userId)
+    .eq("active", true)
+    .select(BEHAVIOR_WITH_CATEGORY_SELECT);
+
+  if (error) {
+    throw error;
+  }
+
+  return sortBehaviorScheduleSlots(
+    (data ?? []) as unknown as BehaviorWithCategory[],
+  );
+}
+
 export async function listBehaviorScheduleSlots(
   supabase: AppSupabaseClient,
   userId: string,

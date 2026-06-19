@@ -254,7 +254,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 ### Settings Panels
 
-- **Profile and timezone:** Use compact 1px Ash Line panels with label/value rows. Keep values readable and avoid explanatory prose unless the state needs it.
+- **Profile and timezone:** Use compact 1px Ash Line panels with label/value rows. The timezone panel shows current and browser-detected values, a plain IANA timezone field, a secondary Use detected timezone action, and a primary Save timezone action. Keep values readable and avoid explanatory prose unless the state needs it.
 - **Notification permission:** Use one 1px Ash Line panel with Permission and Browser push values plus a single primary action. Permission prompts must be triggered by the user, not on page load.
 - **Unavailable states:** Use factual muted text for denied, unsupported, or unconfigured browser push. Rust Signal is only for an actual save error.
 - **Trust and legal:** Link to Terms, Privacy, and Trust from Settings using quiet ledger rows. These pages are public account-information routes, not marketing pages.

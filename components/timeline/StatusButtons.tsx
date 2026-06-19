@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 
 import {
+  type CompletionChimeIntent,
   playCompletionChime,
   preloadCompletionChime,
   prepareCompletionChimeForUserGesture,
   shouldPlayCompletionChime,
+  shouldPlayCompletionChimeForStatusSuccess,
 } from "@/lib/ui/completion-feedback";
 import type {
   OccurrenceActionState,
@@ -40,7 +42,7 @@ export function StatusButtons({
 }: StatusButtonsProps) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
   const router = useRouter();
-  const shouldChimeAfterSuccessRef = useRef(false);
+  const completionChimeIntentRef = useRef<CompletionChimeIntent | null>(null);
   const preparedChimeForSubmitRef = useRef(false);
 
   useEffect(() => {
@@ -49,12 +51,12 @@ export function StatusButtons({
 
   useEffect(() => {
     if (state.status === "success") {
-      const shouldChimeAfterSuccess =
-        shouldChimeAfterSuccessRef.current ||
-        shouldPlayCompletionChime({
-          currentStatus,
-          nextStatus: state.nextStatus ?? null,
-        });
+      const shouldChimeAfterSuccess = shouldPlayCompletionChimeForStatusSuccess(
+        {
+          intent: completionChimeIntentRef.current,
+          serverNextStatus: state.nextStatus ?? null,
+        },
+      );
 
       if (shouldChimeAfterSuccess) {
         void playCompletionChime().finally(() => {
@@ -64,24 +66,30 @@ export function StatusButtons({
         router.refresh();
       }
 
-      shouldChimeAfterSuccessRef.current = false;
+      completionChimeIntentRef.current = null;
       preparedChimeForSubmitRef.current = false;
     }
 
     if (state.status === "error") {
-      shouldChimeAfterSuccessRef.current = false;
+      completionChimeIntentRef.current = null;
       preparedChimeForSubmitRef.current = false;
     }
-  }, [currentStatus, router, state]);
+  }, [router, state]);
 
-  function prepareForSubmittedStatus(nextStatus: StatusButtonValue | null) {
-    if (!nextStatus) {
+  function prepareForSubmittedStatus(submittedStatus: StatusButtonValue | null) {
+    if (!submittedStatus) {
+      completionChimeIntentRef.current = null;
+      preparedChimeForSubmitRef.current = false;
       return;
     }
 
-    const shouldChimeAfterSuccess = shouldPlayCompletionChime({
+    const intent: CompletionChimeIntent = {
       currentStatus,
-      nextStatus,
+      submittedStatus,
+    };
+    const shouldChimeAfterSuccess = shouldPlayCompletionChime({
+      currentStatus: intent.currentStatus,
+      nextStatus: intent.submittedStatus,
     });
 
     if (shouldChimeAfterSuccess && !preparedChimeForSubmitRef.current) {
@@ -93,7 +101,7 @@ export function StatusButtons({
       preparedChimeForSubmitRef.current = false;
     }
 
-    shouldChimeAfterSuccessRef.current = shouldChimeAfterSuccess;
+    completionChimeIntentRef.current = intent;
   }
 
   return (

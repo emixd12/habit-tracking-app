@@ -6,6 +6,8 @@ This app is recurrence-heavy. Date/time drift is one of the highest-risk areas f
 
 - Default timezone: `America/New_York`.
 - User timezone is stored on `profiles.timezone` and copied to each behavior as `behaviors.timezone`.
+- Settings can update `profiles.timezone`. A user-approved timezone change also updates active behaviors to the new timezone and resyncs future unresolved occurrences. Past occurrences and resolved occurrences remain historical records.
+- Browser timezone detection uses `Intl.DateTimeFormat().resolvedOptions().timeZone`; it does not use geolocation or request location permission.
 - Day boundary is local midnight in the behavior/user timezone.
 - Needs decision is derived from `status === "unresolved"` and `local_date` before today's local date.
 - The system does not auto-mark unresolved occurrences as missed.
@@ -79,7 +81,7 @@ Agents must test these cases when implementing recurrence:
 - Monthly day 31 fallback in February and April.
 - Local midnight boundary for Needs decision.
 - Behavior timezone different from the server timezone.
-- User timezone change policy if a future ticket permits changing profile timezone after behaviors exist.
+- User timezone changes should preserve past and resolved occurrence history while regenerating future unresolved rows through the occurrence generation service.
 
 For nonexistent local times during spring-forward, prefer the next valid local time. For repeated local times during fall-back, prefer the earlier occurrence unless the product docs are updated with a different policy.
 

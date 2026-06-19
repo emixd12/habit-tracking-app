@@ -1201,8 +1201,7 @@ Complete the remaining public-launch hardening items after Ticket 029:
 - Add minimal first-run onboarding:
   - create first behavior,
   - notification permission,
-  - import entry when import exists,
-  - timezone detection/manual override.
+  - import entry when import exists.
 - Add basic monitoring/error reporting without sensitive behavior payloads.
 - Add hosted many-independent-user RLS smoke QA beyond the static policy
   registry test.

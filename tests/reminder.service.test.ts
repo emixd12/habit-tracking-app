@@ -216,6 +216,35 @@ describe("processDueEmailReminders", () => {
     expect(markReminderDeliveryFailed).not.toHaveBeenCalled();
   });
 
+  it("treats Supabase +00:00 timestamps as the current expected email delivery", async () => {
+    vi.mocked(listDuePendingEmailReminderDeliveries).mockResolvedValue([
+      {
+        ...BASE_DELIVERY,
+        scheduled_send_at: "2026-06-08T14:00:00+00:00",
+      },
+    ]);
+    vi.mocked(claimPendingEmailReminderDelivery).mockResolvedValue({
+      ...BASE_DELIVERY,
+      scheduled_send_at: "2026-06-08T14:00:00+00:00",
+      processing_started_at: NOW_STRING,
+    });
+    const sendEmail = vi.fn().mockResolvedValue({ jobId: "job-1" });
+
+    await expect(
+      processDueEmailReminders({
+        supabase: SUPABASE,
+        now: NOW,
+        sendEmail,
+      }),
+    ).resolves.toMatchObject({
+      sent: 1,
+      cancelled: 0,
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(cancelPendingReminderDeliveryById).not.toHaveBeenCalled();
+  });
+
   it("uses the occurrence range label in email variables", async () => {
     vi.mocked(getOccurrenceById).mockResolvedValue({
       ...BASE_OCCURRENCE,
@@ -428,6 +457,35 @@ describe("processDueBrowserPushReminders", () => {
       sentAt: NOW_STRING,
     });
     expect(markReminderDeliveryFailed).not.toHaveBeenCalled();
+  });
+
+  it("treats Supabase +00:00 timestamps as the current expected browser push delivery", async () => {
+    vi.mocked(listDuePendingBrowserPushReminderDeliveries).mockResolvedValue([
+      {
+        ...BASE_BROWSER_DELIVERY,
+        scheduled_send_at: "2026-06-08T14:00:00+00:00",
+      },
+    ]);
+    vi.mocked(claimPendingBrowserPushReminderDelivery).mockResolvedValue({
+      ...BASE_BROWSER_DELIVERY,
+      scheduled_send_at: "2026-06-08T14:00:00+00:00",
+      processing_started_at: NOW_STRING,
+    });
+    const sendBrowserPush = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      processDueBrowserPushReminders({
+        supabase: SUPABASE,
+        now: NOW,
+        sendBrowserPush,
+      }),
+    ).resolves.toMatchObject({
+      sent: 1,
+      cancelled: 0,
+    });
+
+    expect(sendBrowserPush).toHaveBeenCalledTimes(1);
+    expect(cancelPendingReminderDeliveryById).not.toHaveBeenCalled();
   });
 
   it("fails a browser push reminder when there is no active subscription", async () => {
