@@ -153,6 +153,24 @@ stored status.
 
 Any occurrence can have a free-text note.
 
+BehaviorLog imports can also preserve general note records attached to
+behaviors, occurrences, status events, and reviews. These imported records are
+passive user-review context: Cadence stores their role, sensitivity, source
+metadata, source original id, timestamps, and attachment target, but it must not
+turn them into objective analytics facts.
+
+Occurrence-attached imported notes may fill the existing Timeline occurrence
+Note field only when an accepted import plan safely identifies the occurrence,
+the note is not AI-generated, and the local occurrence note is empty. Behavior,
+status-event, review, and conflicting occurrence notes remain imported note
+records rather than product notes on Timeline or Behaviors. Import preview and
+apply summaries should distinguish inline occurrence-note fills from general
+imported note records.
+
+High or restricted sensitivity imported notes require an explicit privacy
+acknowledgement before apply. AI-generated notes are previewed with warnings but
+not imported into Cadence notes in v1.
+
 V1 does not need structured measurement fields. For measurements, the user can write values in the behavior title, description, or occurrence note.
 
 Example:

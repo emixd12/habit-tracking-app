@@ -48,6 +48,26 @@ export async function getBehaviorLogImportRunById(
   return data ?? null;
 }
 
+export async function listBehaviorLogImportRuns(
+  supabase: AppSupabaseClient,
+  userId: string,
+  limit = 10,
+): Promise<BehaviorLogImportRun[]> {
+  const { data, error } = await supabase
+    .from("behaviorlog_import_runs")
+    .select("*")
+    .eq("user_id", userId)
+    .order("started_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
 export async function updateBehaviorLogImportRunStatus(
   supabase: AppSupabaseClient,
   input: BehaviorLogImportRunStatusUpdateInput,
@@ -101,6 +121,24 @@ export async function listBehaviorLogImportRecordMappingsByRun(
     .select("*")
     .eq("user_id", userId)
     .eq("import_run_id", importRunId)
+    .order("record_type", { ascending: true })
+    .order("external_id", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function listBehaviorLogImportRecordMappings(
+  supabase: AppSupabaseClient,
+  userId: string,
+): Promise<BehaviorLogImportRecordMapping[]> {
+  const { data, error } = await supabase
+    .from("behaviorlog_import_record_mappings")
+    .select("*")
+    .eq("user_id", userId)
     .order("record_type", { ascending: true })
     .order("external_id", { ascending: true });
 

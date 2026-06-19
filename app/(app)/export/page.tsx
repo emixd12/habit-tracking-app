@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { ExportPanel } from "@/components/export/ExportPanel";
 import { ScreenFrame } from "@/components/layout/ScreenFrame";
+import { getBehaviorLogImportPageData } from "@/lib/services/behaviorlog-import.service";
 import { getExportPageData } from "@/lib/services/export.service";
 
 export const metadata: Metadata = {
@@ -19,17 +20,20 @@ type ExportPageProps = Readonly<{
 
 export default async function ExportPage({ searchParams }: ExportPageProps) {
   const params = await searchParams;
-  const exportData = await getExportPageData({
-    range: parseStringParam(params?.range),
-    includeArchived: parseBooleanParam(params?.include_archived),
-  });
+  const [exportData, importData] = await Promise.all([
+    getExportPageData({
+      range: parseStringParam(params?.range),
+      includeArchived: parseBooleanParam(params?.include_archived),
+    }),
+    getBehaviorLogImportPageData(),
+  ]);
 
   return (
     <ScreenFrame
       title="Export"
       description={`Local day boundary: ${exportData.timezone}.`}
     >
-      <ExportPanel exportData={exportData} />
+      <ExportPanel exportData={exportData} importData={importData} />
     </ScreenFrame>
   );
 }

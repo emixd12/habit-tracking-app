@@ -285,6 +285,171 @@ export type Database = {
         }
         Relationships: []
       }
+      imported_interventions: {
+        Row: {
+          behavior_external_id: string
+          behavior_id: string | null
+          channel: string
+          created_at: string
+          delivery_status: string
+          external_id: string
+          failure_reason: string | null
+          id: string
+          import_run_id: string
+          intervention_type: string | null
+          metadata: Json
+          occurrence_external_id: string
+          occurrence_id: string | null
+          redacted_sensitivity_indicators: Json
+          scheduled_send_at: string
+          sent_at: string | null
+          source_capture_method: string
+          source_confidence: string
+          source_original_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          behavior_external_id: string
+          behavior_id?: string | null
+          channel: string
+          created_at?: string
+          delivery_status: string
+          external_id: string
+          failure_reason?: string | null
+          id?: string
+          import_run_id: string
+          intervention_type?: string | null
+          metadata?: Json
+          occurrence_external_id: string
+          occurrence_id?: string | null
+          redacted_sensitivity_indicators?: Json
+          scheduled_send_at: string
+          sent_at?: string | null
+          source_capture_method?: string
+          source_confidence?: string
+          source_original_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          behavior_external_id?: string
+          behavior_id?: string | null
+          channel?: string
+          created_at?: string
+          delivery_status?: string
+          external_id?: string
+          failure_reason?: string | null
+          id?: string
+          import_run_id?: string
+          intervention_type?: string | null
+          metadata?: Json
+          occurrence_external_id?: string
+          occurrence_id?: string | null
+          redacted_sensitivity_indicators?: Json
+          scheduled_send_at?: string
+          sent_at?: string | null
+          source_capture_method?: string
+          source_confidence?: string
+          source_original_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imported_interventions_behavior_owner_fkey"
+            columns: ["user_id", "behavior_id"]
+            isOneToOne: false
+            referencedRelation: "behaviors"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "imported_interventions_import_run_owner_fkey"
+            columns: ["user_id", "import_run_id"]
+            isOneToOne: false
+            referencedRelation: "behaviorlog_import_runs"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "imported_interventions_occurrence_owner_fkey"
+            columns: ["user_id", "occurrence_id"]
+            isOneToOne: false
+            referencedRelation: "occurrences"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
+      imported_notes: {
+        Row: {
+          body_markdown: string
+          created_at: string
+          external_id: string
+          id: string
+          import_run_id: string
+          imported_created_at: string
+          imported_updated_at: string | null
+          metadata: Json
+          note_role: string
+          sensitivity: string | null
+          source_capture_method: string
+          source_confidence: string
+          source_original_id: string | null
+          target_external_id: string
+          target_local_id: string | null
+          target_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body_markdown: string
+          created_at?: string
+          external_id: string
+          id?: string
+          import_run_id: string
+          imported_created_at: string
+          imported_updated_at?: string | null
+          metadata?: Json
+          note_role: string
+          sensitivity?: string | null
+          source_capture_method: string
+          source_confidence: string
+          source_original_id?: string | null
+          target_external_id: string
+          target_local_id?: string | null
+          target_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body_markdown?: string
+          created_at?: string
+          external_id?: string
+          id?: string
+          import_run_id?: string
+          imported_created_at?: string
+          imported_updated_at?: string | null
+          metadata?: Json
+          note_role?: string
+          sensitivity?: string | null
+          source_capture_method?: string
+          source_confidence?: string
+          source_original_id?: string | null
+          target_external_id?: string
+          target_local_id?: string | null
+          target_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imported_notes_import_run_owner_fkey"
+            columns: ["user_id", "import_run_id"]
+            isOneToOne: false
+            referencedRelation: "behaviorlog_import_runs"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
       occurrence_status_events: {
         Row: {
           behavior_id: string
@@ -508,6 +673,8 @@ export type Database = {
           created_at: string
           error: string | null
           id: string
+          import_run_id: string | null
+          imported_intervention_id: string | null
           occurrence_id: string
           processing_started_at: string | null
           scheduled_send_at: string
@@ -521,6 +688,8 @@ export type Database = {
           created_at?: string
           error?: string | null
           id?: string
+          import_run_id?: string | null
+          imported_intervention_id?: string | null
           occurrence_id: string
           processing_started_at?: string | null
           scheduled_send_at: string
@@ -534,6 +703,8 @@ export type Database = {
           created_at?: string
           error?: string | null
           id?: string
+          import_run_id?: string | null
+          imported_intervention_id?: string | null
           occurrence_id?: string
           processing_started_at?: string | null
           scheduled_send_at?: string
@@ -543,6 +714,20 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "reminder_deliveries_import_run_owner_fkey"
+            columns: ["user_id", "import_run_id"]
+            isOneToOne: false
+            referencedRelation: "behaviorlog_import_runs"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "reminder_deliveries_imported_intervention_owner_fkey"
+            columns: ["user_id", "imported_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "imported_interventions"
+            referencedColumns: ["user_id", "id"]
+          },
           {
             foreignKeyName: "reminder_deliveries_occurrence_id_fkey"
             columns: ["occurrence_id"]

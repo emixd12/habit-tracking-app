@@ -250,6 +250,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Range controls:** Use square segmented radio choices for 7 days, 30 days, 90 days, and All time. Selected range uses Monolith Blue fill. The archived-behavior option uses a plain checkbox.
 - **Download actions:** JSONL, CSV, and full JSON backup use flat 1px Ash Line action rows with a download icon and file extension. Avoid explanatory card grids or restore/import promises in the UI.
 - **AI summary:** Show a Markdown preview in a Cold Surface preformatted panel, with Copy summary and Download .md controls above it. The preview uses resolver-produced content; the UI does not calculate adherence or format export rows.
+- **BehaviorLog import:** Keep import preview sparse and ledger-like. Show privacy warnings, imported-note record counts, inline occurrence-note fill counts, and intervention preview counts before apply. High or restricted note sensitivity requires a separate checkbox acknowledgement. Do not add a generalized note browser here.
 
 ### Settings Panels
 

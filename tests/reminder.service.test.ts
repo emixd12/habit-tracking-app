@@ -54,6 +54,8 @@ const BASE_DELIVERY: ReminderDelivery = {
   scheduled_send_at: "2026-06-08T14:00:00Z",
   sent_at: null,
   processing_started_at: null,
+  import_run_id: null,
+  imported_intervention_id: null,
   status: "pending",
   error: null,
   created_at: "2026-06-08T00:00:00Z",

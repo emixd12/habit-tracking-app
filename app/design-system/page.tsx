@@ -9,6 +9,7 @@ import { BehaviorForm } from "@/components/behaviors/BehaviorForm";
 import { BehaviorList } from "@/components/behaviors/BehaviorList";
 import { RecurrenceEditor } from "@/components/behaviors/RecurrenceEditor";
 import { ReminderEditor } from "@/components/behaviors/ReminderEditor";
+import { BehaviorLogImportPanel } from "@/components/export/BehaviorLogImportPanel";
 import { ExportPanel } from "@/components/export/ExportPanel";
 import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActions";
 import { AppShell } from "@/components/layout/AppShell";
@@ -30,6 +31,7 @@ import type {
   BehaviorView,
   CategoryOption,
 } from "@/lib/types/behavior";
+import type { BehaviorLogImportPageData } from "@/lib/types/behaviorlog-import-ui";
 import type { ExportBundle } from "@/lib/types/export";
 import type {
   OccurrenceActionState,
@@ -851,7 +853,15 @@ function buildPreviews(): Record<string, ReactNode> {
     ),
     "module.export-panel": (
       <ProductPreview maxHeight="50rem">
-        <ExportPanel exportData={exportFixture} />
+        <ExportPanel
+          exportData={exportFixture}
+          importData={importPageFixture}
+        />
+      </ProductPreview>
+    ),
+    "module.behavior-log-import-panel": (
+      <ProductPreview maxHeight="38rem">
+        <BehaviorLogImportPanel recentRuns={importPageFixture.recentRuns} />
       </ProductPreview>
     ),
     "module.markdown-summary-actions": (
@@ -1345,6 +1355,19 @@ const exportFixture: ExportBundle = {
       },
     ],
   },
+};
+
+const importPageFixture: BehaviorLogImportPageData = {
+  recentRuns: [
+    {
+      id: "import-run-preview",
+      import_mode: "merge_preview",
+      status: "previewed",
+      started_at: "2026-06-08T21:10:00Z",
+      completed_at: "2026-06-08T21:10:02Z",
+      failure_message: null,
+    },
+  ],
 };
 
 function dayCell(

@@ -27,6 +27,36 @@ export async function createMissingReminderDeliveries(
   }
 }
 
+export async function attachImportProvenanceToPendingReminderDelivery(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    occurrenceId: string;
+    channel: string;
+    scheduledSendAt: string;
+    importRunId: string;
+    importedInterventionId: string;
+  },
+): Promise<void> {
+  const { error } = await supabase
+    .from("reminder_deliveries")
+    .update({
+      import_run_id: input.importRunId,
+      imported_intervention_id: input.importedInterventionId,
+    })
+    .eq("user_id", input.userId)
+    .eq("occurrence_id", input.occurrenceId)
+    .eq("channel", input.channel)
+    .eq("scheduled_send_at", input.scheduledSendAt)
+    .eq("status", "pending")
+    .is("processing_started_at", null)
+    .is("imported_intervention_id", null);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function cancelPendingReminderDeliveriesForOccurrence(
   supabase: AppSupabaseClient,
   userId: string,

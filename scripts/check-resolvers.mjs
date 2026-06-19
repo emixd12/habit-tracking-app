@@ -94,6 +94,12 @@ const resolverRegistry = [
     test: "tests/behaviorlog-import.resolver.test.ts",
     source: "docs/EXPORT_FORMATS.md",
   },
+  {
+    domain: "imported intervention promotion",
+    resolver: "lib/resolvers/imported-intervention-promotion.resolver.ts",
+    test: "tests/imported-intervention-promotion.test.ts",
+    source: "docs/NOTIFICATION_SPEC.md",
+  },
 ];
 
 const guide = read("docs/AGENT_RESOLVERS.md");

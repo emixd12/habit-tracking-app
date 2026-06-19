@@ -89,6 +89,24 @@ export async function listOccurrencesThroughLocalDate(
   return data ?? [];
 }
 
+export async function listUserOccurrences(
+  supabase: AppSupabaseClient,
+  userId: string,
+): Promise<Occurrence[]> {
+  const { data, error } = await supabase
+    .from("occurrences")
+    .select("*")
+    .eq("user_id", userId)
+    .order("local_date", { ascending: true })
+    .order("scheduled_for", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
 export async function getOccurrenceById(
   supabase: AppSupabaseClient,
   userId: string,

@@ -1464,6 +1464,226 @@ Remaining risk:
   A later ticket would need a separate data model before retaining imported
   intervention history outside the preview/import ledger.
 
+### Ticket 024: User-facing BehaviorLog import UI
+
+Status: complete.
+
+Implementation summary:
+- Added a first-class BehaviorLog import section to the authenticated Export
+  screen. It accepts `.behaviorlog.zip` uploads, rejects unsupported files,
+  persists preview import-run ledger rows, shows dry-run counts, errors,
+  warnings, conflicts, privacy notes, note sensitivity warnings, intervention
+  preview counts, and merge actions, and requires explicit confirmation before
+  create-only or approved-merge writes.
+- Added server actions and a UI-facing import service layer that regenerates
+  previews from the submitted bundle payload during apply, gathers current local
+  records for conflict-aware merge preview, and creates a mode-specific import
+  run before calling the existing create-only or approved-merge writers.
+- Added recent import-run history to the Export screen with mode, status,
+  timestamps, and failure message display.
+- Added repository reads for recent import runs, user import mappings, and all
+  user occurrences. No schema changes were needed.
+- Updated the design-system bench inventory/usage and added a live preview for
+  the new import panel.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, `docs/ROUTE_MAP.md`, and
+  `docs/EXPORT_FORMATS.md` for the user-facing import workflow.
+- No destructive restore/overwrite behavior, generalized notes data model,
+  intervention-to-reminder writes, provider calls, or raw bundle persistence
+  were added.
+
+Verification:
+- Pass: `npm run test -- tests/behaviorlog-import-ui.test.tsx`.
+- Pass: `npm run test -- tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-import.resolver.test.ts tests/behaviorlog-import-merge-preview.test.ts tests/behaviorlog-import-write.service.test.ts` (31 focused tests).
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (26 files, 163 tests).
+- Pass: `npm run build`.
+- Pass: `npm run design-system:check`.
+- Pass: browser QA on existing local dev server at `http://localhost:3000/export`
+  for desktop and 390px mobile viewport; Import, upload control, recent runs,
+  and downloads rendered with no horizontal overflow.
+- Pass: `git diff --check`.
+
+Remaining risk:
+- Apply uses the submitted bundle payload to regenerate preview server-side; raw
+  bundle contents are intentionally not stored in Postgres. Very large bundles
+  remain capped by the current upload screen limit and may need a separate
+  storage-backed handoff if future import sizes grow.
+- The import UI depends on the existing Ticket 019-023 writer semantics; partial
+  apply failures still mark the import run failed but do not roll back already
+  written rows.
+
+### Ticket 026: General BehaviorLog notes data model and import
+
+Status: complete.
+
+Implementation summary:
+- Added the user-owned `imported_notes` table for passive BehaviorLog notes
+  attached to behaviors, occurrences, status events, and reviews, with
+  owner-scoped RLS, source metadata, source original id, sensitivity, role,
+  imported timestamps, attachment target, and import-run provenance.
+- Extended BehaviorLog import preview and apply so non-AI notes can be stored as
+  imported note records while occurrence-attached notes may also fill the
+  existing occurrence Note field only when the target is safe and the local note
+  is empty.
+- Changed note mappings to point at `imported_notes.id` instead of an occurrence
+  id, and included existing imported notes in merge-preview context for
+  idempotent mapping.
+- Updated the Export import panel to distinguish imported note records from
+  inline occurrence-note fills and to require a dedicated high/restricted note
+  sensitivity acknowledgement before apply. The server enforces the
+  acknowledgement as well as the UI.
+- Updated product, data-model, export/import, UI, user-flow, resolver registry,
+  and design docs so notes remain passive user-review context and do not feed
+  status, adherence, reminders, or analytics.
+
+Verification:
+- Pass: `npm run test -- tests/behaviorlog-import-notes.test.ts tests/behaviorlog-import-merge-preview.test.ts tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-import-write.service.test.ts` (35 focused tests).
+- Pass: `npm run supabase -- db reset`.
+- Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`.
+- Pass: `npm run supabase -- db push --linked --dry-run`.
+- Pass: `npm run supabase -- db push --linked --yes` applied
+  `20260618120000_add_imported_notes.sql` to hosted Supabase.
+- Pass: `npm run supabase -- migration list --linked` confirmed
+  `20260618120000` is present locally and remotely.
+- Pass: hosted schema probe confirmed `public.imported_notes` has RLS enabled
+  with four policies.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (26 files, 169 tests).
+- Pass: `npm run build`.
+- Browser QA: started Cadence on `http://localhost:3003` because port 3000 was
+  serving a different local app; authenticated `/export` rendered at desktop
+  and 390px mobile with the import section present, no horizontal overflow, and
+  no browser warning/error logs. `/design-system#ds-module-behaviorlog-import`
+  rendered the idle import panel without overflow or warning/error logs.
+- Browser QA: uploaded
+  `/tmp/cadence-ticket-26-upload-20260618064102.behaviorlog.zip` through the
+  Export import form and received `BehaviorLog preview ready.` with dry-run
+  counts, `Imported note records`, `Inline note fills`,
+  `high_sensitivity_note_present`, the note sensitivity warning, and the
+  high/restricted note acknowledgement visible. The post-upload preview had no
+  horizontal overflow at 1280px or 390px and no browser warning/error events.
+
+Remaining risk:
+- Browser QA stopped at preview and did not click Apply, so no product records
+  were accepted from the browser upload. The apply path remains covered by
+  resolver, service, and render tests.
+
+### Ticket 027: Imported intervention history storage
+
+Status: complete.
+
+Implementation summary:
+- Added user-owned passive `imported_interventions` storage with owner-scoped
+  RLS, import-run ownership, optional local behavior/occurrence links, external
+  BehaviorLog ids, intervention type, channel, delivery status,
+  scheduled/sent timestamps, sanitized failure reason, source metadata,
+  redaction indicators, and metadata.
+- Extended BehaviorLog intervention preview so each intervention shows passive
+  storage fields, dropped sensitive delivery fields, redacted fields, and
+  explicit no-reminder/no-provider side-effect flags.
+- Extended create-only and approved-merge apply paths to store passive
+  intervention history idempotently through `behaviorlog_import_record_mappings`
+  with `record_type = 'intervention'`.
+- Updated the Export import panel to show imported intervention counts,
+  passive-history rows, dropped/redacted field counts, per-intervention storage
+  details, and applied imported-intervention counts.
+- Updated data model, notification, export/import, UI, user-flow, and resolver
+  registry docs. No Ticket 028 promotion behavior, `reminder_deliveries` writes,
+  provider calls, scheduling, sending, cancellation, retry, or claim behavior
+  was added.
+
+Verification:
+- Pass: `npm run supabase -- db reset`.
+- Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`.
+- Pass: `npm run test -- tests/behaviorlog-import-intervention-history.test.ts tests/behaviorlog-import-interventions.test.ts tests/behaviorlog-import-merge-preview.test.ts tests/behaviorlog-import-write.service.test.ts` (31 focused tests).
+- Pass: `npm run test -- tests/behaviorlog-import-intervention-history.test.ts tests/behaviorlog-import-interventions.test.ts tests/behaviorlog-import-merge-preview.test.ts tests/behaviorlog-import-write.service.test.ts tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-import.resolver.test.ts tests/behaviorlog-import-notes.test.ts` (51 focused tests).
+- Pass: `npm run typecheck`.
+- Pass: `npm run lint`.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run test` (27 files, 173 tests).
+- Pass: `npm run build`.
+- Pass: local schema probe confirmed RLS enabled on
+  `public.imported_interventions` with select/insert/update/delete owner
+  policies. The first probe hit the Supabase CLI array scan limitation and
+  passed after casting the policy list to text.
+- Pass: `git diff --check`.
+- Pass: `npm run supabase -- db push --linked --yes` applied
+  `20260618220226_add_imported_intervention_history.sql` to hosted Supabase on
+  2026-06-18.
+- Pass: `npm run supabase -- migration list --linked` confirmed
+  `20260618220226` is present locally and remotely.
+
+Remaining risk:
+- No known Ticket 027 blockers.
+
+### Ticket 028: Promote imported interventions into reminder deliveries
+
+Status: complete.
+
+Implementation summary:
+- Added nullable `reminder_deliveries.import_run_id` and
+  `reminder_deliveries.imported_intervention_id` provenance columns with a
+  pair check, same-user foreign keys, and a unique imported-intervention index.
+- Added `lib/resolvers/imported-intervention-promotion.resolver.ts` to
+  classify selected passive intervention rows and return operational reminder
+  delivery plans only when the user selected rows, confirmed promotion, the row
+  is a future pending reminder, the linked behavior/occurrence are current and
+  owned by the user, the occurrence is unresolved, the behavior is active, the
+  channel is enabled, and the scheduled send time matches current
+  `resolveReminderDeliveries` output.
+- Added `lib/services/imported-intervention-promotion.service.ts` to orchestrate
+  user-scoped reads, existing-delivery checks, idempotent reminder-delivery
+  insertion, and provenance attachment. Promotion does not call Sequenzy, Web
+  Push, browser APIs, provider SDKs, or notification processing routes.
+- Extended `importedInterventions.repo` and `reminderDeliveries.repo` with
+  selected-row reads and pending-delivery provenance attachment.
+- Added focused Ticket 028 coverage in
+  `tests/imported-intervention-promotion.test.ts` for eligibility filtering,
+  explicit selection/confirmation, duplicate selected records, existing
+  delivery handling, provenance, historical/resolved-occurrence rejection, UTC
+  timestamp normalization, and the migration contract.
+- Updated data-model, notification, export/import, user-flow, and resolver
+  registry docs so BehaviorLog import apply remains passive while promotion is
+  a separate opt-in service-level workflow. No Export-screen promotion UI was
+  added.
+
+Verification:
+- Pass: `npm run supabase -- migration new add_imported_intervention_promotion_provenance`.
+- Pass: `npm run supabase -- db reset`.
+- Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`.
+- Pass: `npm run test -- tests/imported-intervention-promotion.test.ts` (22 focused tests).
+- Pass: targeted ESLint for the new resolver, service, repository helpers,
+  test, and resolver-check script.
+- Pass: `npm run typecheck`.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run test` (28 files, 195 tests).
+- Pass: `npm run build`.
+- Pass: local Supabase schema probes confirmed nullable
+  `reminder_deliveries.import_run_id` and `imported_intervention_id` columns
+  plus the promotion pair check and same-user foreign-key constraints.
+- Pass: `git diff --check`.
+- Pass: `npm run supabase -- db push --linked --yes` applied
+  `20260618222427_add_imported_intervention_promotion_provenance.sql` to hosted
+  Supabase on 2026-06-18.
+- Pass: `npm run supabase -- migration list --linked` confirmed
+  `20260618222427` is present locally and remotely.
+
+Remaining risk:
+- The promotion workflow is implemented as a service-level contract. A
+  user-facing review/confirmation UI or API route still needs a separate scoped
+  ticket before users can invoke it from the app.
+
 ### Public product posture
 
 Status: complete.

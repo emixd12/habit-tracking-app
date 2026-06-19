@@ -817,9 +817,23 @@ describe("BehaviorLog import write service", () => {
       completedAt: COMPLETED_AT,
     });
 
-    expect(result.mapped.notes).toBe(1);
+    expect(result.created.notes).toBe(1);
+    expect(result.mapped.notes).toBe(0);
     expect(result.created.statusEvents).toBe(0);
     expect(tables.occurrence_status_events).toHaveLength(0);
+    expect(tables.imported_notes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          external_id: "note-1",
+          target_type: "occurrence",
+          target_external_id: "occurrence-1",
+          target_local_id: "local-occurrence",
+          body_markdown: "Imported occurrence note.",
+          note_role: "user",
+          sensitivity: "high",
+        }),
+      ]),
+    );
     expect(tables.occurrences[0]).toMatchObject({
       note: "Imported occurrence note.",
       status: "completed",
@@ -831,10 +845,102 @@ describe("BehaviorLog import write service", () => {
         expect.objectContaining({
           record_type: "note",
           external_id: "note-1",
-          local_id: "local-occurrence",
+          local_id: "imported_notes-1",
         }),
       ]),
     );
+  });
+
+  it("stores behavior, status-event, and review notes as passive imported note rows", async () => {
+    const preview = createApplyPreview({
+      notes: [
+        createNotePlan({
+          externalId: "note-behavior",
+          attachedToType: "behavior",
+          attachedToId: "behavior-brush",
+          bodyMarkdown: "Behavior-level imported context.",
+          sensitivity: "medium",
+          sourceOriginalId: "behavior-brush",
+        }),
+        createNotePlan({
+          externalId: "note-status-event",
+          attachedToType: "status_event",
+          attachedToId: "event-1",
+          bodyMarkdown: "Status-event imported context.",
+          sensitivity: "low",
+          sourceOriginalId: "event-1",
+        }),
+        createNotePlan({
+          externalId: "note-review",
+          attachedToType: "review",
+          attachedToId: "review-1",
+          bodyMarkdown: "Review imported context.",
+          sensitivity: "high",
+          sourceOriginalId: "review-1",
+        }),
+      ],
+    });
+    const { supabase, tables } = createApplyClient();
+
+    const result = await applyCreateMissingBehaviorLogImportPlan(supabase, {
+      userId: USER_ID,
+      importRunId: IMPORT_RUN_ID,
+      preview,
+      completedAt: COMPLETED_AT,
+    });
+
+    expect(result.created.notes).toBe(3);
+    expect(tables.imported_notes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          external_id: "note-behavior",
+          target_type: "behavior",
+          target_external_id: "behavior-brush",
+          target_local_id: "behaviors-1",
+          body_markdown: "Behavior-level imported context.",
+          sensitivity: "medium",
+        }),
+        expect.objectContaining({
+          external_id: "note-status-event",
+          target_type: "status_event",
+          target_external_id: "event-1",
+          target_local_id: "occurrence_status_events-1",
+          body_markdown: "Status-event imported context.",
+          sensitivity: "low",
+        }),
+        expect.objectContaining({
+          external_id: "note-review",
+          target_type: "review",
+          target_external_id: "review-1",
+          target_local_id: null,
+          body_markdown: "Review imported context.",
+          sensitivity: "high",
+        }),
+      ]),
+    );
+    expect(tables.behaviorlog_import_record_mappings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          record_type: "note",
+          external_id: "note-behavior",
+          local_id: "imported_notes-1",
+        }),
+        expect.objectContaining({
+          record_type: "note",
+          external_id: "note-status-event",
+          local_id: "imported_notes-2",
+        }),
+        expect.objectContaining({
+          record_type: "note",
+          external_id: "note-review",
+          local_id: "imported_notes-3",
+        }),
+      ]),
+    );
+    expect(tables.occurrences[0]).toMatchObject({
+      status: "completed",
+    });
+    expect(tables.occurrences[0].note).toBeUndefined();
   });
 
   it("skips unsupported recurrence profiles before product writes", async () => {
@@ -898,6 +1004,9 @@ function behaviorLogPreview(): BehaviorLogImportPreview {
       noteCount: 0,
       interventionCount: 0,
       interventionPreviewOnlyCount: 0,
+      interventionStoredCount: 0,
+      interventionSensitiveFieldDropCount: 0,
+      interventionRedactedFieldCount: 0,
       interventionCounts: {
         byChannel: [],
         byDeliveryStatus: [],
@@ -940,6 +1049,7 @@ function createApplyPreview(
     warnings?: BehaviorLogImportPreview["warnings"];
     statusEvents?: BehaviorLogImportPreview["plan"]["statusEvents"];
     notes?: BehaviorLogImportPreview["plan"]["notes"];
+    interventions?: BehaviorLogImportPreview["plan"]["interventions"];
     occurrenceStatus?: "unresolved" | "completed" | "not_completed";
   } = {},
 ): BehaviorLogImportPreview {
@@ -976,8 +1086,22 @@ function createApplyPreview(
       occurrenceCount: 1,
       statusEventCount: statusEvents.length,
       noteCount: options.notes?.length ?? 0,
-      interventionCount: 0,
-      interventionPreviewOnlyCount: 0,
+      interventionCount: options.interventions?.length ?? 0,
+      interventionPreviewOnlyCount: options.interventions?.length ?? 0,
+      interventionStoredCount: options.interventions?.length ?? 0,
+      interventionSensitiveFieldDropCount:
+        options.interventions?.reduce(
+          (count, intervention) =>
+            count +
+            intervention.storageDecision.droppedSensitiveFields.length,
+          0,
+        ) ?? 0,
+      interventionRedactedFieldCount:
+        options.interventions?.reduce(
+          (count, intervention) =>
+            count + intervention.storageDecision.redactedFields.length,
+          0,
+        ) ?? 0,
       interventionCounts: {
         byChannel: [],
         byDeliveryStatus: [],
@@ -1054,7 +1178,7 @@ function createApplyPreview(
       ],
       statusEvents,
       notes: options.notes ?? [],
-      interventions: [],
+      interventions: options.interventions ?? [],
     },
   };
 }
@@ -1064,6 +1188,7 @@ function createMergeApplyPreview(
     warnings?: BehaviorLogImportPreview["warnings"];
     statusEvents?: BehaviorLogImportPreview["plan"]["statusEvents"];
     notes?: BehaviorLogImportPreview["plan"]["notes"];
+    interventions?: BehaviorLogImportPreview["plan"]["interventions"];
     actionOverrides?: Partial<BehaviorLogImportMergePreview["actions"]>;
   } = {},
 ): BehaviorLogImportMergePreviewResult {
@@ -1071,6 +1196,7 @@ function createMergeApplyPreview(
     warnings: options.warnings,
     statusEvents: options.statusEvents,
     notes: options.notes,
+    interventions: options.interventions,
   });
   const actions: BehaviorLogImportMergePreview["actions"] = {
     behaviors: [
@@ -1134,7 +1260,22 @@ function createMergeApplyPreview(
         },
       }),
     ),
-    interventions: [],
+    interventions: basePreview.plan.interventions.map((intervention) =>
+      mergeAction({
+        recordType: "intervention",
+        externalId: intervention.externalId,
+        action: "create_new",
+        localId: null,
+        relatedExternalIds: {
+          behavior: intervention.behaviorExternalId,
+          occurrence: intervention.occurrenceExternalId,
+        },
+        metadata: {
+          interventionDecision: "store_passive_history",
+          storageDecision: intervention.storageDecision,
+        },
+      }),
+    ),
     ...options.actionOverrides,
   };
   const mergePreview: BehaviorLogImportMergePreview = {

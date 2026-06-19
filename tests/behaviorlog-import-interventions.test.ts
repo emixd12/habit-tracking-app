@@ -32,6 +32,9 @@ describe("BehaviorLog Intervention Profile import preview", () => {
     expect(preview.summary).toMatchObject({
       interventionCount: 2,
       interventionPreviewOnlyCount: 2,
+      interventionStoredCount: 2,
+      interventionSensitiveFieldDropCount: 0,
+      interventionRedactedFieldCount: 0,
       createCount: 4,
       skipCount: 0,
       errorCount: 0,
@@ -62,6 +65,13 @@ describe("BehaviorLog Intervention Profile import preview", () => {
         occurrenceExternalId: "occurrence-1",
         channel: "email",
         deliveryStatus: "sent",
+        storageDecision: expect.objectContaining({
+          decision: "store_passive_history",
+          rawMessageBodyStored: false,
+          rawEndpointStored: false,
+          reminderDeliverySideEffects: false,
+          providerSideEffects: false,
+        }),
       }),
       expect.objectContaining({
         action: "preview_only",
@@ -199,9 +209,28 @@ describe("BehaviorLog Intervention Profile import preview", () => {
     expect(preview.warnings[0]?.message).toEqual(
       expect.stringContaining("extensions.vendor.recipient_email"),
     );
+    expect(preview.plan.interventions[0]?.storageDecision).toMatchObject({
+      decision: "store_passive_history",
+      droppedSensitiveFields: expect.arrayContaining([
+        "endpoint",
+        "message_body",
+        "provider_message_id",
+        "subscription_keys",
+        "subscription_keys.auth",
+        "subscription_keys.p256dh",
+        "extensions.vendor.recipient_email",
+      ]),
+      rawMessageBodyStored: false,
+      rawEndpointStored: false,
+      recipientIdentifiersStored: false,
+    });
+    expect(preview.summary).toMatchObject({
+      interventionStoredCount: 1,
+      interventionSensitiveFieldDropCount: 7,
+    });
   });
 
-  it("keeps interventions preview-only without CSV or reminder write actions", () => {
+  it("plans passive intervention history without CSV or reminder write actions", () => {
     const files = behaviorLogFiles();
     const preview = resolveBehaviorLogImportMergePreview({ files });
 
@@ -218,16 +247,23 @@ describe("BehaviorLog Intervention Profile import preview", () => {
       expect.objectContaining({
         recordType: "intervention",
         externalId: "delivery-1",
-        action: "skip_existing",
+        action: "create_new",
         localId: null,
+        metadata: expect.objectContaining({
+          interventionDecision: "store_passive_history",
+          storageDecision: expect.objectContaining({
+            reminderDeliverySideEffects: false,
+            providerSideEffects: false,
+          }),
+        }),
       }),
     ]);
     expect(preview.mergePreview.actions.interventions[0]?.reasons[0]).toContain(
-      "later passive history model",
+      "passive imported intervention history",
     );
     expect(preview.mergePreview.actionCounts).toMatchObject({
-      create_new: 4,
-      skip_existing: 1,
+      create_new: 5,
+      skip_existing: 0,
     });
   });
 });

@@ -1,18 +1,87 @@
+import { Temporal } from "@js-temporal/polyfill";
+
 import {
   resolveBehaviorLogImportMergePreview,
   resolveBehaviorLogImportPreview,
   type ResolveBehaviorLogImportMergePreviewInput,
   type ResolveBehaviorLogImportPreviewInput,
 } from "@/lib/resolvers/behaviorlog-import.resolver";
+import {
+  listBehaviorLogImportRecordMappings,
+  listBehaviorLogImportRuns,
+} from "@/lib/db/behaviorLogImports.repo";
+import { listImportedNotes } from "@/lib/db/notes.repo";
+import {
+  listUserBehaviors,
+  type AppSupabaseClient,
+  type BehaviorWithCategory,
+} from "@/lib/db/behaviors.repo";
+import { listUserOccurrences } from "@/lib/db/occurrences.repo";
+import { listOccurrenceStatusEventsByOccurrenceIds } from "@/lib/db/occurrenceStatusEvents.repo";
+import {
+  applyApprovedBehaviorLogMergePlan,
+  applyCreateMissingBehaviorLogImportPlan,
+  createBehaviorLogImportRunFromPreview,
+} from "@/lib/services/behaviorlog-import-write.service";
+import { normalizeRecurrenceRule } from "@/lib/services/behavior-form";
 import { readZipEntries } from "@/lib/services/zip";
+import { createClient } from "@/lib/supabase/server";
 import type {
   BehaviorLogExistingRecords,
+  BehaviorLogExistingSchedule,
+  BehaviorLogImportRecordType,
   BehaviorLogImportFile,
   BehaviorLogImportMergePreviewResult,
   BehaviorLogImportPreview,
+  BehaviorLogSourceCaptureMethod,
+  BehaviorLogSourceConfidence,
+  BehaviorLogStatusSemantics,
 } from "@/lib/types/behaviorlog-import";
+import type {
+  BehaviorLogImportActionState,
+  BehaviorLogImportApplyMode,
+  BehaviorLogImportCapabilities,
+  BehaviorLogImportPageData,
+} from "@/lib/types/behaviorlog-import-ui";
+import {
+  BEHAVIORLOG_IMPORT_INITIAL_STATE,
+  isBehaviorLogApplyMode,
+  toImportRunView,
+} from "@/lib/types/behaviorlog-import-ui";
+import type {
+  Occurrence,
+  OccurrenceStatus,
+  OccurrenceStatusEvent,
+  ImportedNote,
+} from "@/lib/types/database";
+import { DEFAULT_TIMEZONE, type RecurrenceRule } from "@/lib/types/recurrence";
 
 export type BehaviorLogZipInput = Buffer | Uint8Array | ArrayBuffer;
+
+const MAX_BEHAVIORLOG_UPLOAD_BYTES = 20 * 1024 * 1024;
+const BEHAVIORLOG_RECURRENCE_PROFILE = "behaviorlog.calendar_simple.v1";
+
+type BehaviorLogUploadBundle = {
+  fileName: string;
+  fileSize: number;
+  zip: Buffer;
+  files: BehaviorLogImportFile[];
+  bundlePayload: string;
+};
+
+export class BehaviorLogImportAuthError extends Error {
+  constructor(message = "Sign in again before importing data.") {
+    super(message);
+    this.name = "BehaviorLogImportAuthError";
+  }
+}
+
+export class BehaviorLogImportUserError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BehaviorLogImportUserError";
+  }
+}
 
 export function parseBehaviorLogZipFiles(
   zip: BehaviorLogZipInput,
@@ -64,6 +133,191 @@ export function previewBehaviorLogMergeImportFromFiles(
   return resolveBehaviorLogImportMergePreview(input);
 }
 
+export async function getBehaviorLogImportPageData(): Promise<BehaviorLogImportPageData> {
+  const supabase = await createClient();
+  const userId = await requireUserId(supabase);
+  const recentRuns = await listBehaviorLogImportRuns(supabase, userId, 8);
+
+  return {
+    recentRuns: recentRuns.map(toImportRunView),
+  };
+}
+
+export async function previewBehaviorLogImportUploadFromFormData(
+  formData: FormData,
+): Promise<BehaviorLogImportActionState> {
+  const bundle = await readUploadBundle(formData);
+  const supabase = await createClient();
+  const userId = await requireUserId(supabase);
+  const existing = await listBehaviorLogExistingRecords(supabase, userId);
+  const preview = previewBehaviorLogMergeImportFromFiles({
+    files: bundle.files,
+    existing,
+  });
+  const importRun = await createBehaviorLogImportRunFromPreview(supabase, {
+    userId,
+    files: bundle.files,
+    preview,
+    importMode: "merge_preview",
+  });
+
+  return {
+    status: "previewed",
+    message: preview.valid
+      ? "BehaviorLog preview ready."
+      : "BehaviorLog preview found validation errors.",
+    upload: {
+      fileName: bundle.fileName,
+      fileSize: bundle.fileSize,
+    },
+    bundlePayload: bundle.bundlePayload,
+    preview,
+    previewRun: toImportRunView(importRun),
+    capabilities: resolveBehaviorLogImportCapabilities(preview),
+    applyResult: null,
+  };
+}
+
+export async function applyBehaviorLogImportUploadFromFormData(
+  formData: FormData,
+): Promise<BehaviorLogImportActionState> {
+  const modeValue = formData.get("import_mode");
+
+  if (!isBehaviorLogApplyMode(modeValue)) {
+    throw new BehaviorLogImportUserError("Choose an import mode before applying.");
+  }
+
+  if (formData.get("confirm_apply") !== "yes") {
+    throw new BehaviorLogImportUserError(
+      "Confirm that you want to apply this import before writing records.",
+    );
+  }
+
+  const bundle = readBundlePayload(formData);
+  const supabase = await createClient();
+  const userId = await requireUserId(supabase);
+  const existing = await listBehaviorLogExistingRecords(supabase, userId);
+  const preview = previewBehaviorLogMergeImportFromFiles({
+    files: bundle.files,
+    existing,
+  });
+  const capabilities = resolveBehaviorLogImportCapabilities(preview);
+
+  assertImportModeCanApply(modeValue, capabilities);
+  assertSensitiveNotesCanApply(formData, preview);
+
+  const importRun = await createBehaviorLogImportRunFromPreview(supabase, {
+    userId,
+    files: bundle.files,
+    preview,
+    importMode: modeValue,
+  });
+  if (modeValue === "create_missing_only") {
+    const result = await applyCreateMissingBehaviorLogImportPlan(supabase, {
+      userId,
+      importRunId: importRun.id,
+      preview,
+    });
+
+    return {
+      status: "applied",
+      message: "Create-only import applied.",
+      upload: {
+        fileName: bundle.fileName,
+        fileSize: bundle.fileSize,
+      },
+      bundlePayload: null,
+      preview,
+      previewRun: toImportRunView(importRun),
+      capabilities,
+      applyResult: {
+        mode: modeValue,
+        importRun: toImportRunView(result.importRun),
+        created: result.created,
+        skipped: result.skipped,
+      },
+    };
+  }
+
+  const result = await applyApprovedBehaviorLogMergePlan(supabase, {
+    userId,
+    importRunId: importRun.id,
+    preview,
+  });
+
+  return {
+    status: "applied",
+    message: "Approved merge import applied.",
+    upload: {
+      fileName: bundle.fileName,
+      fileSize: bundle.fileSize,
+    },
+    bundlePayload: null,
+    preview,
+    previewRun: toImportRunView(importRun),
+    capabilities,
+    applyResult: {
+      mode: modeValue,
+      importRun: toImportRunView(result.importRun),
+      created: result.created,
+      mapped: result.mapped,
+      skipped: result.skipped,
+    },
+  };
+}
+
+export function behaviorLogImportErrorToActionState(
+  error: unknown,
+  previousState: BehaviorLogImportActionState = BEHAVIORLOG_IMPORT_INITIAL_STATE,
+): BehaviorLogImportActionState {
+  return {
+    ...previousState,
+    status: "error",
+    message: errorMessage(error),
+    applyResult: null,
+  };
+}
+
+export function resolveBehaviorLogImportCapabilities(
+  preview: BehaviorLogImportMergePreviewResult,
+): BehaviorLogImportCapabilities {
+  if (!preview.valid || preview.errors.length > 0) {
+    return {
+      canApplyCreateOnly: false,
+      createOnlyReason: "Fix validation errors before applying.",
+      canApplyMerge: false,
+      mergeReason: "Fix validation errors before applying.",
+    };
+  }
+
+  if (preview.mergePreview.conflictCount > 0) {
+    return {
+      canApplyCreateOnly: false,
+      createOnlyReason: "Resolve merge conflicts before using create-only import.",
+      canApplyMerge: false,
+      mergeReason: "Resolve merge conflicts before applying a merge plan.",
+    };
+  }
+
+  const createOnlyHasWork =
+    preview.summary.createCount > 0 ||
+    preview.summary.interventionStoredCount > 0;
+  const mergeActionCount = Object.values(preview.mergePreview.actionCounts).reduce(
+    (total, count) => total + count,
+    0,
+  );
+
+  return {
+    canApplyCreateOnly: createOnlyHasWork,
+    createOnlyReason: createOnlyHasWork
+      ? null
+      : "No new create-only records are available.",
+    canApplyMerge: mergeActionCount > 0,
+    mergeReason:
+      mergeActionCount > 0 ? null : "No supported merge actions are available.",
+  };
+}
+
 function assertSafeZipPath(path: string): void {
   if (
     path.length === 0 ||
@@ -89,4 +343,493 @@ function inferMediaType(path: string): string {
   }
 
   return "application/octet-stream";
+}
+
+async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    throw new BehaviorLogImportAuthError();
+  }
+
+  return user.id;
+}
+
+async function readUploadBundle(
+  formData: FormData,
+): Promise<BehaviorLogUploadBundle> {
+  const value = formData.get("behaviorlog_file");
+
+  if (!isUploadFile(value)) {
+    throw new BehaviorLogImportUserError("Choose a .behaviorlog.zip file.");
+  }
+
+  const fileName = value.name.trim();
+
+  if (!fileName.endsWith(".behaviorlog.zip")) {
+    throw new BehaviorLogImportUserError(
+      "Unsupported file. Upload a .behaviorlog.zip bundle.",
+    );
+  }
+
+  if (value.size === 0) {
+    throw new BehaviorLogImportUserError("The uploaded bundle is empty.");
+  }
+
+  if (value.size > MAX_BEHAVIORLOG_UPLOAD_BYTES) {
+    throw new BehaviorLogImportUserError(
+      "The uploaded bundle is too large for this import screen.",
+    );
+  }
+
+  const zip = Buffer.from(await value.arrayBuffer());
+
+  return createUploadBundle({
+    fileName,
+    fileSize: value.size,
+    zip,
+  });
+}
+
+function readBundlePayload(formData: FormData): BehaviorLogUploadBundle {
+  const payload = formData.get("bundle_payload");
+  const fileNameValue = formData.get("upload_file_name");
+  const fileSizeValue = formData.get("upload_file_size");
+
+  if (typeof payload !== "string" || payload.length === 0) {
+    throw new BehaviorLogImportUserError(
+      "Preview the .behaviorlog.zip bundle again before applying.",
+    );
+  }
+
+  const zip = Buffer.from(payload, "base64");
+
+  if (zip.byteLength === 0) {
+    throw new BehaviorLogImportUserError("The uploaded bundle is empty.");
+  }
+
+  if (zip.byteLength > MAX_BEHAVIORLOG_UPLOAD_BYTES) {
+    throw new BehaviorLogImportUserError(
+      "The uploaded bundle is too large for this import screen.",
+    );
+  }
+
+  return createUploadBundle({
+    fileName:
+      typeof fileNameValue === "string" && fileNameValue.trim()
+        ? fileNameValue.trim()
+        : "uploaded.behaviorlog.zip",
+    fileSize:
+      typeof fileSizeValue === "string" && Number.isFinite(Number(fileSizeValue))
+        ? Number(fileSizeValue)
+        : zip.byteLength,
+    zip,
+  });
+}
+
+function createUploadBundle(input: {
+  fileName: string;
+  fileSize: number;
+  zip: Buffer;
+}): BehaviorLogUploadBundle {
+  try {
+    return {
+      ...input,
+      files: parseBehaviorLogZipFiles(input.zip),
+      bundlePayload: input.zip.toString("base64"),
+    };
+  } catch (error) {
+    throw new BehaviorLogImportUserError(
+      `Unable to read BehaviorLog bundle: ${errorMessage(error)}`,
+    );
+  }
+}
+
+function isUploadFile(value: FormDataEntryValue | null): value is File {
+  return typeof File !== "undefined" && value instanceof File;
+}
+
+function assertImportModeCanApply(
+  mode: BehaviorLogImportApplyMode,
+  capabilities: BehaviorLogImportCapabilities,
+): void {
+  if (mode === "create_missing_only" && !capabilities.canApplyCreateOnly) {
+    throw new BehaviorLogImportUserError(
+      capabilities.createOnlyReason ?? "Create-only import is unavailable.",
+    );
+  }
+
+  if (
+    mode === "merge_by_user_approved_plan" &&
+    !capabilities.canApplyMerge
+  ) {
+    throw new BehaviorLogImportUserError(
+      capabilities.mergeReason ?? "Merge import is unavailable.",
+    );
+  }
+}
+
+function assertSensitiveNotesCanApply(
+  formData: FormData,
+  preview: BehaviorLogImportMergePreviewResult,
+): void {
+  if (!previewRequiresSensitiveNoteConfirmation(preview)) {
+    return;
+  }
+
+  if (formData.get("confirm_sensitive_notes") === "yes") {
+    return;
+  }
+
+  throw new BehaviorLogImportUserError(
+    "Review and acknowledge high or restricted note sensitivity before importing notes.",
+  );
+}
+
+export function previewRequiresSensitiveNoteConfirmation(
+  preview: BehaviorLogImportMergePreviewResult,
+): boolean {
+  return preview.plan.notes.some(
+    (note) =>
+      note.action !== "skip" &&
+      note.noteRole !== "ai_generated" &&
+      (note.sensitivity === "high" || note.sensitivity === "restricted"),
+  );
+}
+
+async function listBehaviorLogExistingRecords(
+  supabase: AppSupabaseClient,
+  userId: string,
+): Promise<BehaviorLogExistingRecords> {
+  const [behaviors, occurrences, mappings, importedNotes] = await Promise.all([
+    listUserBehaviors(supabase, userId),
+    listUserOccurrences(supabase, userId),
+    listBehaviorLogImportRecordMappings(supabase, userId),
+    listImportedNotes(supabase, userId),
+  ]);
+  const statusEvents = await listOccurrenceStatusEventsByOccurrenceIds(
+    supabase,
+    userId,
+    occurrences.map((occurrence) => occurrence.id),
+  );
+  const behaviorById = new Map(
+    behaviors.map((behavior) => [behavior.id, behavior]),
+  );
+
+  return {
+    behaviors: behaviors.map(toExistingBehavior),
+    schedules: behaviors.flatMap(toExistingSchedules),
+    occurrences: occurrences.map((occurrence) =>
+      toExistingOccurrence(occurrence, behaviorById.get(occurrence.behavior_id)),
+    ),
+    statusEvents: statusEvents.map(toExistingStatusEvent),
+    importedNotes: importedNotes.map(toExistingImportedNote),
+    mappings: mappings.map((mapping) => ({
+      recordType: normalizeRecordType(mapping.record_type),
+      externalId: mapping.external_id,
+      localId: mapping.local_id,
+    })),
+  };
+}
+
+function toExistingBehavior(behavior: BehaviorWithCategory) {
+  return {
+    id: behavior.id,
+    title: behavior.title,
+    category: toBehaviorLogCategory(behavior.category?.name ?? null),
+    active: behavior.active,
+    archivedAt: behavior.archived_at,
+    sourceOriginalId: behavior.id,
+    schedules: toExistingSchedules(behavior),
+  };
+}
+
+function toExistingSchedules(
+  behavior: BehaviorWithCategory,
+): BehaviorLogExistingSchedule[] {
+  const timezone = behavior.timezone || DEFAULT_TIMEZONE;
+
+  return behavior.schedule_slots.map((slot) => ({
+    id: slot.id,
+    behaviorId: behavior.id,
+    recurrenceProfile: BEHAVIORLOG_RECURRENCE_PROFILE,
+    recurrence: toBehaviorLogRecurrence(
+      normalizeRecurrenceRule(behavior.recurrence_rule),
+    ),
+    timezone,
+    localTime: normalizeTime(slot.start_time),
+    windowStartLocal:
+      slot.kind === "range" ? normalizeTime(slot.start_time) : null,
+    windowEndLocal:
+      slot.kind === "range" && slot.end_time
+        ? normalizeTime(slot.end_time)
+        : null,
+    cadenceScheduleKind: slot.kind === "range" ? "range" : "exact",
+    cadenceSchedulePreset: normalizeSchedulePreset(slot.preset),
+    activeFromLocalDate: instantToLocalDate(behavior.created_at, timezone),
+    activeUntilLocalDate: behavior.archived_at
+      ? instantToLocalDate(behavior.archived_at, timezone)
+      : null,
+    sourceOriginalId: slot.id,
+  }));
+}
+
+function toExistingOccurrence(
+  occurrence: Occurrence,
+  behavior: BehaviorWithCategory | undefined,
+) {
+  return {
+    id: occurrence.id,
+    behaviorId: occurrence.behavior_id,
+    scheduleId: occurrence.behavior_schedule_slot_id,
+    behaviorTitle: behavior?.title ?? null,
+    scheduledForUtc: occurrence.scheduled_for,
+    localDate: occurrence.local_date,
+    timezone: behavior?.timezone ?? DEFAULT_TIMEZONE,
+    status: normalizeOccurrenceStatus(occurrence.status),
+    note: occurrence.note,
+    sourceOriginalId: occurrence.id,
+  };
+}
+
+function toExistingStatusEvent(event: OccurrenceStatusEvent) {
+  return {
+    id: event.id,
+    occurrenceId: event.occurrence_id,
+    behaviorId: event.behavior_id,
+    recordedAtUtc: event.recorded_at,
+    status: normalizeOccurrenceStatus(event.status),
+    statusSemantics: normalizeStatusSemantics(event.status_semantics),
+    sourceCaptureMethod: normalizeSourceCaptureMethod(
+      event.source_capture_method,
+    ),
+    sourceConfidence: normalizeSourceConfidence(event.source_confidence),
+    revisesEventId: event.revises_event_id,
+    sourceOriginalId: event.id,
+  };
+}
+
+function toExistingImportedNote(note: ImportedNote) {
+  return {
+    id: note.id,
+    importRunId: note.import_run_id,
+    externalId: note.external_id,
+    targetType: normalizeImportedNoteTargetType(note.target_type),
+    targetExternalId: note.target_external_id,
+    targetLocalId: note.target_local_id,
+    bodyMarkdown: note.body_markdown,
+    noteRole: normalizeImportedNoteRole(note.note_role),
+    sensitivity: normalizeImportedNoteSensitivity(note.sensitivity),
+    sourceOriginalId: note.source_original_id,
+    sourceCaptureMethod: normalizeSourceCaptureMethod(
+      note.source_capture_method,
+    ),
+    sourceConfidence: normalizeSourceConfidence(note.source_confidence),
+    createdAtUtc: note.imported_created_at,
+    updatedAtUtc: note.imported_updated_at,
+  };
+}
+
+function toBehaviorLogRecurrence(rule: RecurrenceRule): Record<string, unknown> {
+  switch (rule.frequency) {
+    case "daily":
+      return rule.interval === 1
+        ? { type: "daily", interval: 1 }
+        : { type: "every_n_days", interval: rule.interval };
+    case "interval_days":
+      return { type: "every_n_days", interval: rule.intervalDays };
+    case "weekly":
+      return rule.interval === 1
+        ? { type: "weekly_on_weekdays", weekdays: rule.daysOfWeek }
+        : {
+            type: "every_n_weeks_on_weekdays",
+            interval: rule.interval,
+            weekdays: rule.daysOfWeek,
+          };
+    case "monthly":
+      return {
+        type: "monthly_on_day",
+        interval: rule.interval,
+        day: rule.dayOfMonth,
+        fallback: "last_day_of_month",
+      };
+  }
+}
+
+function toBehaviorLogCategory(category: string | null): string {
+  switch (category) {
+    case "Grooming":
+      return "hygiene";
+    case "Fitness":
+      return "fitness";
+    case "Food / Drink":
+      return "nutrition";
+    case "Home":
+      return "chores";
+    case "Admin":
+      return "admin";
+    case "Medical":
+    case "Measurements":
+      return "health_wellness";
+    case "Other":
+      return "other";
+    case null:
+      return "uncategorized";
+    default:
+      return category.trim().length > 0 ? category : "uncategorized";
+  }
+}
+
+function instantToLocalDate(instant: string, timezone: string): string {
+  return Temporal.Instant.from(instant)
+    .toZonedDateTimeISO(timezone || DEFAULT_TIMEZONE)
+    .toPlainDate()
+    .toString();
+}
+
+function normalizeTime(value: string): string {
+  return value.slice(0, 5);
+}
+
+function normalizeSchedulePreset(
+  value: string | null,
+): "morning" | "afternoon" | "evening" | "night" | null {
+  if (
+    value === "morning" ||
+    value === "afternoon" ||
+    value === "evening" ||
+    value === "night"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function normalizeRecordType(value: string): BehaviorLogImportRecordType {
+  if (
+    value === "behavior" ||
+    value === "schedule" ||
+    value === "occurrence" ||
+    value === "status_event" ||
+    value === "note" ||
+    value === "intervention"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported BehaviorLog import mapping record type: ${value}.`);
+}
+
+function normalizeOccurrenceStatus(value: string): OccurrenceStatus {
+  if (
+    value === "unresolved" ||
+    value === "completed" ||
+    value === "not_completed"
+  ) {
+    return value;
+  }
+
+  return "unresolved";
+}
+
+function normalizeStatusSemantics(value: string): BehaviorLogStatusSemantics {
+  if (
+    value === "explicit_user_mark" ||
+    value === "explicit_user_correction" ||
+    value === "imported_explicit" ||
+    value === "system_rule_declared" ||
+    value === "ambiguous_import"
+  ) {
+    return value;
+  }
+
+  return "ambiguous_import";
+}
+
+function normalizeImportedNoteTargetType(
+  value: string,
+): "behavior" | "occurrence" | "status_event" | "review" {
+  if (
+    value === "behavior" ||
+    value === "occurrence" ||
+    value === "status_event" ||
+    value === "review"
+  ) {
+    return value;
+  }
+
+  return "review";
+}
+
+function normalizeImportedNoteRole(
+  value: string,
+): "user" | "imported" | "system" | "ai_generated" {
+  if (
+    value === "user" ||
+    value === "imported" ||
+    value === "system" ||
+    value === "ai_generated"
+  ) {
+    return value;
+  }
+
+  return "imported";
+}
+
+function normalizeImportedNoteSensitivity(
+  value: string | null,
+): "low" | "medium" | "high" | "restricted" | null {
+  if (
+    value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "restricted"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function normalizeSourceCaptureMethod(
+  value: string,
+): BehaviorLogSourceCaptureMethod {
+  if (
+    value === "manual_tap" ||
+    value === "manual_text" ||
+    value === "system_generated" ||
+    value === "imported" ||
+    value === "inferred" ||
+    value === "derived" ||
+    value === "ai_generated" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function normalizeSourceConfidence(value: string): BehaviorLogSourceConfidence {
+  if (
+    value === "high" ||
+    value === "medium" ||
+    value === "low" ||
+    value === "ambiguous" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "BehaviorLog import could not be completed.";
 }

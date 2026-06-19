@@ -88,6 +88,18 @@ export type BehaviorLogInterventionDeliveryStatus =
   | "failed"
   | "cancelled";
 
+export type BehaviorLogImportInterventionStorageDecision = {
+  decision: "store_passive_history";
+  storedFields: string[];
+  droppedSensitiveFields: string[];
+  redactedFields: string[];
+  rawMessageBodyStored: false;
+  rawEndpointStored: false;
+  recipientIdentifiersStored: false;
+  reminderDeliverySideEffects: false;
+  providerSideEffects: false;
+};
+
 export type BehaviorLogStatusSemantics =
   | "explicit_user_mark"
   | "explicit_user_correction"
@@ -147,6 +159,23 @@ export type BehaviorLogExistingStatusEvent = {
   sourceOriginalId?: string | null;
 };
 
+export type BehaviorLogExistingImportedNote = {
+  id: string;
+  importRunId: string;
+  externalId: string;
+  targetType: "behavior" | "occurrence" | "status_event" | "review";
+  targetExternalId: string;
+  targetLocalId: string | null;
+  bodyMarkdown: string;
+  noteRole: "user" | "imported" | "system" | "ai_generated";
+  sensitivity: BehaviorLogNoteSensitivity | null;
+  sourceOriginalId?: string | null;
+  sourceCaptureMethod: BehaviorLogSourceCaptureMethod;
+  sourceConfidence: BehaviorLogSourceConfidence;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+};
+
 export type BehaviorLogExistingImportMapping = {
   recordType: BehaviorLogImportRecordType;
   externalId: string;
@@ -158,6 +187,7 @@ export type BehaviorLogExistingRecords = {
   schedules?: BehaviorLogExistingSchedule[];
   occurrences?: BehaviorLogExistingOccurrence[];
   statusEvents?: BehaviorLogExistingStatusEvent[];
+  importedNotes?: BehaviorLogExistingImportedNote[];
   mappings?: BehaviorLogExistingImportMapping[];
 };
 
@@ -263,6 +293,9 @@ export type BehaviorLogImportInterventionPreviewPlan = {
   sentAtUtc: string | null;
   failureReason: string | null;
   sourceOriginalId?: string | null;
+  sourceCaptureMethod: BehaviorLogSourceCaptureMethod;
+  sourceConfidence: BehaviorLogSourceConfidence;
+  storageDecision: BehaviorLogImportInterventionStorageDecision;
 };
 
 export type BehaviorLogImportPlan = {
@@ -310,6 +343,9 @@ export type BehaviorLogImportSummary = {
   noteCount: number;
   interventionCount: number;
   interventionPreviewOnlyCount: number;
+  interventionStoredCount: number;
+  interventionSensitiveFieldDropCount: number;
+  interventionRedactedFieldCount: number;
   interventionCounts: BehaviorLogImportInterventionCounts;
   createCount: number;
   skipCount: number;

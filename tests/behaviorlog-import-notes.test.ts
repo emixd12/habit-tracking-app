@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -21,11 +22,13 @@ describe("BehaviorLog optional notes import preview", () => {
     expect(preview.mergePreview.actions.notes[0]).toMatchObject({
       recordType: "note",
       externalId: "note-1",
-      action: "map_to_existing",
-      localId: "local-occurrence",
+      action: "create_new",
+      localId: null,
       conflictCodes: [],
       metadata: {
         noteDecision: "fill_empty_occurrence_note",
+        noteStorageDecision: "create_imported_note_record",
+        targetLocalId: "local-occurrence",
         attachedToType: "occurrence",
         attachedToId: "occurrence-1",
         noteRole: "user",
@@ -45,26 +48,21 @@ describe("BehaviorLog optional notes import preview", () => {
     expect(preview.mergePreview.actions.notes[0]).toMatchObject({
       recordType: "note",
       externalId: "note-1",
-      action: "conflict_requires_decision",
-      localId: "local-occurrence",
-      conflictCodes: ["occurrence_note_conflict"],
+      action: "create_new",
+      localId: null,
+      conflictCodes: [],
       metadata: {
         noteDecision: "requires_explicit_note_replace_decision",
+        noteStorageDecision: "create_imported_note_record",
+        targetLocalId: "local-occurrence",
       },
     });
-    expect(preview.mergePreview.conflicts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "occurrence_note_conflict",
-          importedRecordType: "note",
-          importedId: "note-1",
-          existingId: "local-occurrence",
-        }),
-      ]),
+    expect(preview.mergePreview.conflictCodes).not.toContain(
+      "occurrence_note_conflict",
     );
   });
 
-  it("skips unsupported note targets and AI-generated notes without product-write actions", () => {
+  it("stores behavior-attached notes passively and skips AI-generated notes without product side effects", () => {
     const behaviorNotePreview = resolveBehaviorLogImportMergePreview({
       files: behaviorLogFiles({
         includeNote: true,
@@ -89,20 +87,21 @@ describe("BehaviorLog optional notes import preview", () => {
 
     expect(behaviorNotePreview.warnings).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "unsupported_note_target" }),
         expect.objectContaining({ code: "restricted_note_present" }),
       ]),
     );
     expect(behaviorNotePreview.plan.notes[0]).toMatchObject({
-      action: "skip",
-      skipReasons: ["unsupported_note_target"],
+      action: "create",
+      skipReasons: [],
       sensitivity: "restricted",
     });
     expect(behaviorNotePreview.mergePreview.actions.notes[0]).toMatchObject({
-      action: "skip_existing",
+      action: "create_new",
       localId: null,
       metadata: {
-        noteDecision: "skip_unsupported_note",
+        noteDecision: "create_imported_note_record",
+        noteStorageDecision: "create_imported_note_record",
+        targetLocalId: "local-behavior",
         attachedToType: "behavior",
       },
     });
@@ -124,6 +123,109 @@ describe("BehaviorLog optional notes import preview", () => {
         noteRole: "ai_generated",
       },
     });
+  });
+
+  it("stores status-event and review notes as passive imported note records", () => {
+    const statusEventNotePreview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles({
+        includeNote: true,
+        noteOverrides: {
+          attached_to_type: "status_event",
+          attached_to_id: "event-1",
+          sensitivity: "medium",
+        },
+      }),
+      existing: existingRecords({ occurrenceNote: null }),
+    });
+    const reviewNotePreview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles({
+        includeNote: true,
+        noteOverrides: {
+          attached_to_type: "review",
+          attached_to_id: "review-1",
+          sensitivity: "low",
+        },
+      }),
+      existing: existingRecords({ occurrenceNote: null }),
+    });
+
+    expect(statusEventNotePreview.mergePreview.actions.notes[0]).toMatchObject({
+      action: "create_new",
+      localId: null,
+      metadata: {
+        noteDecision: "create_imported_note_record",
+        noteStorageDecision: "create_imported_note_record",
+        targetLocalId: "local-event",
+        attachedToType: "status_event",
+      },
+    });
+    expect(reviewNotePreview.mergePreview.actions.notes[0]).toMatchObject({
+      action: "create_new",
+      localId: null,
+      metadata: {
+        noteDecision: "create_imported_note_record",
+        noteStorageDecision: "create_imported_note_record",
+        targetLocalId: null,
+        attachedToType: "review",
+      },
+    });
+  });
+
+  it("maps notes to existing imported note rows when they were already stored", () => {
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles({ includeNote: true }),
+      existing: {
+        ...existingRecords({ occurrenceNote: null }),
+        importedNotes: [
+          {
+            id: "local-imported-note",
+            importRunId: "prior-import-run",
+            externalId: "note-1",
+            targetType: "occurrence",
+            targetExternalId: "occurrence-1",
+            targetLocalId: "local-occurrence",
+            bodyMarkdown: "Skipped before work.",
+            noteRole: "user",
+            sensitivity: "high",
+            sourceCaptureMethod: "manual_text",
+            sourceConfidence: "high",
+            createdAtUtc: "2026-06-08T13:12:00Z",
+            updatedAtUtc: null,
+          },
+        ],
+      },
+    });
+
+    expect(preview.mergePreview.actions.notes[0]).toMatchObject({
+      recordType: "note",
+      externalId: "note-1",
+      action: "map_to_existing",
+      localId: "local-imported-note",
+      metadata: {
+        noteDecision: "already_imported_note_record",
+        noteStorageDecision: "existing_imported_note_record",
+      },
+    });
+  });
+
+  it("rejects unsupported note target types before planning note imports", () => {
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles({
+        includeNote: true,
+        noteOverrides: {
+          attached_to_type: "measurement",
+        },
+      }),
+      existing: existingRecords({ occurrenceNote: null }),
+    });
+
+    expect(preview.valid).toBe(false);
+    expect(preview.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "note_target_type_invalid" }),
+      ]),
+    );
+    expect(preview.plan.notes).toHaveLength(0);
   });
 
   it("surfaces note privacy warnings and keeps notes out of status merge actions", () => {
@@ -150,6 +252,21 @@ describe("BehaviorLog optional notes import preview", () => {
       action: "skip_existing",
       localId: "local-event",
     });
+  });
+
+  it("keeps imported notes user-owned with RLS policies", () => {
+    const migration = readFileSync(
+      "supabase/migrations/20260618120000_add_imported_notes.sql",
+      "utf8",
+    );
+
+    expect(migration).toContain("alter table public.imported_notes enable row level security");
+    expect(migration).toContain("create policy imported_notes_select_own");
+    expect(migration).toContain("create policy imported_notes_insert_own");
+    expect(migration).toContain("create policy imported_notes_update_own");
+    expect(migration).toContain("create policy imported_notes_delete_own");
+    expect(migration).toContain("using ((select auth.uid()) = user_id)");
+    expect(migration).toContain("with check ((select auth.uid()) = user_id)");
   });
 });
 

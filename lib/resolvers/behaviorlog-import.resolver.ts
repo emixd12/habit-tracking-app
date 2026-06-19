@@ -959,8 +959,15 @@ function toInterventionPlan(
     errors,
   );
   const source = readSource(row, errors, false);
+  const sensitivePaths = collectSensitiveInterventionPaths(row.record);
+  const failureReason = readOptionalString(row, "failure_reason", errors);
+  const redactedFields = interventionRedactedFields({
+    failureReason,
+    sourceOriginalId: source.originalId,
+    sensitivePaths,
+  });
 
-  warnAboutSensitiveInterventionPayload(row, warnings);
+  warnAboutSensitiveInterventionPayload(row, warnings, sensitivePaths);
 
   if (
     !id ||
@@ -984,17 +991,37 @@ function toInterventionPlan(
     deliveryStatus,
     scheduledSendAtUtc,
     sentAtUtc: readOptionalInstant(row, "sent_at_utc", errors),
-    failureReason: readOptionalString(row, "failure_reason", errors),
-    sourceOriginalId: source.originalId,
+    failureReason: sanitizeInterventionFailureReason(
+      failureReason,
+      sensitivePaths,
+    ),
+    sourceOriginalId: sanitizeInterventionSourceOriginalId(
+      source.originalId,
+      sensitivePaths,
+    ),
+    sourceCaptureMethod: source.captureMethod,
+    sourceConfidence: source.confidence,
+    storageDecision: {
+      decision: "store_passive_history",
+      storedFields: interventionStoredFields(redactedFields),
+      droppedSensitiveFields: sensitivePaths.filter(
+        (path) => !redactedFields.includes(path),
+      ),
+      redactedFields,
+      rawMessageBodyStored: false,
+      rawEndpointStored: false,
+      recipientIdentifiersStored: false,
+      reminderDeliverySideEffects: false,
+      providerSideEffects: false,
+    },
   };
 }
 
 function warnAboutSensitiveInterventionPayload(
   row: ParsedJsonlRecord,
   warnings: BehaviorLogImportIssue[],
+  paths: string[],
 ): void {
-  const paths = collectSensitiveInterventionPaths(row.record);
-
   if (paths.length === 0) {
     return;
   }
@@ -1009,10 +1036,93 @@ function warnAboutSensitiveInterventionPayload(
     code: "intervention_sensitive_payload_present",
     message: `Intervention ${interventionId} contains sensitive delivery payload field(s): ${paths.join(
       ", ",
-    )}. These values are previewed for warning only and must not be imported into reminders.`,
+    )}. These values will be dropped or redacted before passive intervention history storage and must not be imported into reminders.`,
     file: row.file,
     row: row.row,
   });
+}
+
+function interventionRedactedFields(input: {
+  failureReason: string | null;
+  sourceOriginalId: string | null;
+  sensitivePaths: string[];
+}): string[] {
+  const redactedFields: string[] = [];
+
+  if (
+    input.failureReason &&
+    (input.sensitivePaths.includes("failure_reason") ||
+      looksLikeSensitiveDeliveryValue(input.failureReason))
+  ) {
+    redactedFields.push("failure_reason");
+  }
+
+  if (
+    input.sourceOriginalId &&
+    (input.sensitivePaths.includes("source.original_id") ||
+      looksLikeSensitiveDeliveryValue(input.sourceOriginalId))
+  ) {
+    redactedFields.push("source.original_id");
+  }
+
+  return redactedFields;
+}
+
+function sanitizeInterventionFailureReason(
+  value: string | null,
+  sensitivePaths: string[],
+): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (
+    sensitivePaths.includes("failure_reason") ||
+    looksLikeSensitiveDeliveryValue(value)
+  ) {
+    return "Redacted sensitive delivery detail.";
+  }
+
+  return value;
+}
+
+function sanitizeInterventionSourceOriginalId(
+  value: string | null,
+  sensitivePaths: string[],
+): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (
+    sensitivePaths.includes("source.original_id") ||
+    looksLikeSensitiveDeliveryValue(value)
+  ) {
+    return null;
+  }
+
+  return value;
+}
+
+function interventionStoredFields(redactedFields: string[]): string[] {
+  const fields = [
+    "intervention_id",
+    "behavior_id",
+    "occurrence_id",
+    "intervention_type",
+    "channel",
+    "delivery_status",
+    "scheduled_send_at_utc",
+    "sent_at_utc",
+    "failure_reason",
+    "source.original_id",
+    "source.capture_method",
+    "source.confidence",
+  ];
+
+  return fields.map((field) =>
+    redactedFields.includes(field) ? `${field} (redacted)` : field,
+  );
 }
 
 function collectSensitiveInterventionPaths(
@@ -1222,21 +1332,11 @@ function validateNoteImportPolicy(input: {
   warnings: BehaviorLogImportIssue[];
 }): void {
   for (const note of input.plan.notes) {
-    if (note.attachedToType !== "occurrence") {
-      input.warnings.push({
-        severity: "warning",
-        code: "unsupported_note_target",
-        message: `Note ${note.externalId} is attached to ${note.attachedToType}; Cadence imports occurrence-attached notes only.`,
-        file: JSONL_FILES.notes,
-      });
-      skip(note, "unsupported_note_target");
-    }
-
     if (note.noteRole === "ai_generated") {
       input.warnings.push({
         severity: "warning",
         code: "ai_generated_note_skipped",
-        message: `Note ${note.externalId} is AI-generated and will not be imported into occurrence notes.`,
+        message: `Note ${note.externalId} is AI-generated and will not be imported into Cadence notes.`,
         file: JSONL_FILES.notes,
       });
       skip(note, "ai_generated_note");
@@ -1493,12 +1593,30 @@ function markConflicts(input: {
     }
   }
 
+  const statusEventById = new Map(
+    input.plan.statusEvents.map((event) => [event.externalId, event]),
+  );
+
   for (const note of input.plan.notes) {
+    if (
+      note.attachedToType === "behavior" &&
+      behaviorById.get(note.attachedToId)?.action === "skip"
+    ) {
+      skip(note, "parent_behavior_skipped");
+    }
+
     if (
       note.attachedToType === "occurrence" &&
       occurrenceById.get(note.attachedToId)?.action === "skip"
     ) {
       skip(note, "parent_occurrence_skipped");
+    }
+
+    if (
+      note.attachedToType === "status_event" &&
+      statusEventById.get(note.attachedToId)?.action === "skip"
+    ) {
+      skip(note, "parent_status_event_skipped");
     }
   }
 }
@@ -1587,6 +1705,14 @@ type MergePreviewContext = {
     string,
     NonNullable<BehaviorLogExistingRecords["statusEvents"]>[number]
   >;
+  importedNotesById: Map<
+    string,
+    NonNullable<BehaviorLogExistingRecords["importedNotes"]>[number]
+  >;
+  importedNotesByExternalId: Map<
+    string,
+    NonNullable<BehaviorLogExistingRecords["importedNotes"]>[number]
+  >;
   importedSchedulesByBehaviorId: Map<string, BehaviorLogImportSchedulePlan[]>;
 };
 
@@ -1632,6 +1758,9 @@ function buildMergePreview(
       occurrenceActionsByExternalId,
     }),
   );
+  const statusEventActionsByExternalId = new Map(
+    statusEventActions.map((action) => [action.externalId, action]),
+  );
   const noteActions = input.plan.notes.map((note) =>
     resolveNoteMergeAction({
       note,
@@ -1639,6 +1768,7 @@ function buildMergePreview(
       conflicts,
       behaviorActionsByExternalId,
       occurrenceActionsByExternalId,
+      statusEventActionsByExternalId,
     }),
   );
   const interventionActions = input.interventions.map((intervention) =>
@@ -1688,6 +1818,7 @@ function createMergePreviewContext(
   const behaviors = existing.behaviors ?? [];
   const occurrences = existing.occurrences ?? [];
   const statusEvents = existing.statusEvents ?? [];
+  const importedNotes = existing.importedNotes ?? [];
 
   return {
     existing,
@@ -1741,6 +1872,12 @@ function createMergePreviewContext(
         ),
         event,
       ]),
+    ),
+    importedNotesById: new Map(
+      importedNotes.map((note) => [note.id, note]),
+    ),
+    importedNotesByExternalId: new Map(
+      importedNotes.map((note) => [note.externalId, note]),
     ),
     importedSchedulesByBehaviorId: groupBy(
       input.plan.schedules,
@@ -2290,6 +2427,7 @@ function resolveNoteMergeAction(input: {
   conflicts: BehaviorLogImportMergeConflict[];
   behaviorActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
   occurrenceActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+  statusEventActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
 }): BehaviorLogImportMergeRecordAction {
   const metadata = noteMergeMetadata(input.note);
   const mappedLocalId = input.context.mappingsByKey.get(
@@ -2297,15 +2435,62 @@ function resolveNoteMergeAction(input: {
   );
 
   if (mappedLocalId) {
+    const importedNote = input.context.importedNotesById.get(mappedLocalId);
+
+    if (!importedNote) {
+      return conflictMergeAction({
+        conflicts: input.conflicts,
+        recordType: "note",
+        externalId: input.note.externalId,
+        localId: mappedLocalId,
+        codes: ["note_mapped_record_missing"],
+        reasons: [
+          `Existing import mapping points note ${input.note.externalId} at ${mappedLocalId}, but no imported_notes row was provided. Cadence will not reinterpret legacy occurrence-note mappings as imported-note records.`,
+        ],
+        relatedExternalIds: noteRelatedExternalIds(input.note),
+        metadata: {
+          ...metadata,
+          noteDecision: "mapped_imported_note_missing",
+          noteStorageDecision: "requires_imported_note_record",
+        },
+      });
+    }
+
     return mergeAction({
       recordType: "note",
       externalId: input.note.externalId,
       action: "map_to_existing",
-      localId: mappedLocalId,
-      reasons: [`Existing import mapping links note ${input.note.externalId}.`],
+      localId: importedNote.id,
+      reasons: [
+        `Existing import mapping links note ${input.note.externalId} to imported note ${importedNote.id}.`,
+      ],
+      relatedExternalIds: noteRelatedExternalIds(input.note),
       metadata: {
         ...metadata,
         noteDecision: "already_mapped",
+        noteStorageDecision: "existing_imported_note_record",
+      },
+    });
+  }
+
+  const existingImportedNote = input.context.importedNotesByExternalId.get(
+    input.note.externalId,
+  );
+
+  if (existingImportedNote) {
+    return mergeAction({
+      recordType: "note",
+      externalId: input.note.externalId,
+      action: "map_to_existing",
+      localId: existingImportedNote.id,
+      reasons: [
+        `Imported note ${input.note.externalId} already exists as passive note ${existingImportedNote.id}.`,
+      ],
+      relatedExternalIds: noteRelatedExternalIds(input.note),
+      metadata: {
+        ...metadata,
+        noteDecision: "already_imported_note_record",
+        noteStorageDecision: "existing_imported_note_record",
       },
     });
   }
@@ -2317,55 +2502,11 @@ function resolveNoteMergeAction(input: {
       action: "skip_existing",
       localId: null,
       reasons: noteSkipReasons(input.note),
-      relatedExternalIds: {
-        [input.note.attachedToType]: input.note.attachedToId,
-      },
+      relatedExternalIds: noteRelatedExternalIds(input.note),
       metadata: {
         ...metadata,
         noteDecision: "skip_unsupported_note",
-      },
-    });
-  }
-
-  const parentAction =
-    input.note.attachedToType === "behavior"
-      ? input.behaviorActionsByExternalId.get(input.note.attachedToId)
-      : input.note.attachedToType === "occurrence"
-        ? input.occurrenceActionsByExternalId.get(input.note.attachedToId)
-        : undefined;
-
-  if (parentAction?.action === "conflict_requires_decision") {
-    return conflictMergeAction({
-      conflicts: input.conflicts,
-      recordType: "note",
-      externalId: input.note.externalId,
-      localId: null,
-      codes: ["note_attachment_unresolved"],
-      reasons: [
-        `Note ${input.note.externalId} cannot be reviewed until its ${input.note.attachedToType} attachment is resolved.`,
-      ],
-      relatedExternalIds: {
-        [input.note.attachedToType]: input.note.attachedToId,
-      },
-      metadata,
-    });
-  }
-
-  if (input.note.attachedToType !== "occurrence") {
-    return mergeAction({
-      recordType: "note",
-      externalId: input.note.externalId,
-      action: "skip_existing",
-      localId: null,
-      reasons: [
-        `Note ${input.note.externalId} is attached to ${input.note.attachedToType}; Cadence imports occurrence-attached notes only.`,
-      ],
-      relatedExternalIds: {
-        [input.note.attachedToType]: input.note.attachedToId,
-      },
-      metadata: {
-        ...metadata,
-        noteDecision: "skip_unsupported_note",
+        noteStorageDecision: "skip_imported_note_record",
       },
     });
   }
@@ -2377,19 +2518,20 @@ function resolveNoteMergeAction(input: {
       action: "skip_existing",
       localId: null,
       reasons: [
-        `Note ${input.note.externalId} is AI-generated and will not be imported into occurrence notes.`,
+        `Note ${input.note.externalId} is AI-generated and will not be imported into Cadence notes.`,
       ],
-      relatedExternalIds: {
-        occurrence: input.note.attachedToId,
-      },
+      relatedExternalIds: noteRelatedExternalIds(input.note),
       metadata: {
         ...metadata,
         noteDecision: "skip_ai_generated_note",
+        noteStorageDecision: "skip_imported_note_record",
       },
     });
   }
 
-  if (!parentAction) {
+  const targetAction = noteTargetAction(input);
+
+  if (targetAction?.action === "conflict_requires_decision") {
     return conflictMergeAction({
       conflicts: input.conflicts,
       recordType: "note",
@@ -2397,129 +2539,166 @@ function resolveNoteMergeAction(input: {
       localId: null,
       codes: ["note_attachment_unresolved"],
       reasons: [
-        `Note ${input.note.externalId} cannot be reviewed because occurrence ${input.note.attachedToId} has no merge action.`,
+        `Note ${input.note.externalId} cannot be imported until its ${input.note.attachedToType} attachment is resolved.`,
       ],
-      relatedExternalIds: {
-        occurrence: input.note.attachedToId,
-      },
+      relatedExternalIds: noteRelatedExternalIds(input.note),
       metadata,
     });
   }
 
-  if (parentAction.action === "create_new") {
-    return mergeAction({
-      recordType: "note",
-      externalId: input.note.externalId,
-      action: "create_new",
-      localId: null,
-      reasons: [
-        `Note ${input.note.externalId} can fill occurrence ${input.note.attachedToId} after that occurrence is created.`,
-      ],
-      relatedExternalIds: {
-        occurrence: input.note.attachedToId,
-      },
-      metadata: {
-        ...metadata,
-        noteDecision: "fill_created_occurrence_note",
-      },
+  if (input.note.attachedToType === "review") {
+    return importedNoteRecordAction({
+      note: input.note,
+      metadata,
+      noteDecision: "create_imported_note_record",
+      reason: `Review note ${input.note.externalId} will be stored as passive imported note history.`,
     });
   }
 
-  if (!parentAction.localId) {
-    return mergeAction({
-      recordType: "note",
-      externalId: input.note.externalId,
-      action: "skip_existing",
-      localId: null,
-      reasons: [
-        `Note ${input.note.externalId} has no safely identified local occurrence target.`,
-      ],
-      relatedExternalIds: {
-        occurrence: input.note.attachedToId,
-      },
-      metadata: {
-        ...metadata,
-        noteDecision: "skip_missing_target",
-      },
-    });
-  }
-
-  const localOccurrence = input.context.occurrencesById.get(parentAction.localId);
-
-  if (!localOccurrence) {
+  if (!targetAction) {
     return conflictMergeAction({
       conflicts: input.conflicts,
       recordType: "note",
       externalId: input.note.externalId,
-      localId: parentAction.localId,
-      codes: ["note_target_occurrence_not_provided"],
+      localId: null,
+      codes: ["note_attachment_unresolved"],
       reasons: [
-        `Note ${input.note.externalId} targets local occurrence ${parentAction.localId}, but that occurrence was not provided to the preview.`,
+        `Note ${input.note.externalId} cannot be imported because ${input.note.attachedToType} ${input.note.attachedToId} has no merge action.`,
       ],
-      relatedExternalIds: {
-        occurrence: input.note.attachedToId,
-      },
+      relatedExternalIds: noteRelatedExternalIds(input.note),
       metadata,
     });
   }
 
+  if (input.note.attachedToType !== "occurrence") {
+    return importedNoteRecordAction({
+      note: input.note,
+      metadata,
+      targetAction,
+      noteDecision: "create_imported_note_record",
+      reason: `Note ${input.note.externalId} will be stored as passive imported ${input.note.attachedToType} note history.`,
+    });
+  }
+
+  if (targetAction.action === "create_new") {
+    return importedNoteRecordAction({
+      note: input.note,
+      metadata,
+      targetAction,
+      noteDecision: "fill_created_occurrence_note",
+      reason: `Note ${input.note.externalId} will be stored as an imported note and can fill occurrence ${input.note.attachedToId} after that occurrence is created.`,
+    });
+  }
+
+  if (!targetAction.localId) {
+    return importedNoteRecordAction({
+      note: input.note,
+      metadata,
+      targetAction,
+      noteDecision: "skip_missing_target",
+      reason: `Note ${input.note.externalId} will be stored as imported note history without a local occurrence target.`,
+    });
+  }
+
+  const localOccurrence = input.context.occurrencesById.get(targetAction.localId);
+
+  if (!localOccurrence) {
+    return importedNoteRecordAction({
+      note: input.note,
+      metadata,
+      targetAction,
+      noteDecision: "target_occurrence_not_provided",
+      reason: `Note ${input.note.externalId} will be stored as imported note history; local occurrence ${targetAction.localId} was not provided for safe inline-note inspection.`,
+    });
+  }
+
   if (isEmptyNoteBody(localOccurrence.note)) {
-    return mergeAction({
-      recordType: "note",
-      externalId: input.note.externalId,
-      action: "map_to_existing",
-      localId: localOccurrence.id,
-      reasons: [
-        `Local occurrence ${localOccurrence.id} has an empty note, so note ${input.note.externalId} may fill it.`,
-      ],
-      relatedExternalIds: {
-        occurrence: input.note.attachedToId,
-      },
-      metadata: {
-        ...metadata,
-        noteDecision: "fill_empty_occurrence_note",
-      },
+    return importedNoteRecordAction({
+      note: input.note,
+      metadata,
+      targetAction,
+      noteDecision: "fill_empty_occurrence_note",
+      reason: `Note ${input.note.externalId} will be stored as an imported note and may fill empty local occurrence note ${localOccurrence.id}.`,
+      localDate: localOccurrence.localDate,
+      timezone: localOccurrence.timezone,
     });
   }
 
   if (noteBodiesEqual(localOccurrence.note, input.note.bodyMarkdown)) {
-    return mergeAction({
-      recordType: "note",
-      externalId: input.note.externalId,
-      action: "map_to_existing",
-      localId: localOccurrence.id,
-      reasons: [
-        `Note ${input.note.externalId} already matches local occurrence ${localOccurrence.id}.`,
-      ],
-      relatedExternalIds: {
-        occurrence: input.note.attachedToId,
-      },
-      metadata: {
-        ...metadata,
-        noteDecision: "note_matches_existing_occurrence_note",
-      },
+    return importedNoteRecordAction({
+      note: input.note,
+      metadata,
+      targetAction,
+      noteDecision: "note_matches_existing_occurrence_note",
+      reason: `Note ${input.note.externalId} will be stored as an imported note; its body already matches local occurrence ${localOccurrence.id}.`,
+      localDate: localOccurrence.localDate,
+      timezone: localOccurrence.timezone,
     });
   }
 
-  return conflictMergeAction({
-    conflicts: input.conflicts,
-    recordType: "note",
-    externalId: input.note.externalId,
-    localId: localOccurrence.id,
-    codes: ["occurrence_note_conflict"],
-    reasons: [
-      `Local occurrence ${localOccurrence.id} already has a different note; changing it requires an explicit merge-plan decision.`,
-    ],
+  return importedNoteRecordAction({
+    note: input.note,
+    metadata,
+    targetAction,
+    noteDecision: "requires_explicit_note_replace_decision",
+    reason: `Note ${input.note.externalId} will be stored as passive imported note history; local occurrence ${localOccurrence.id} has a different inline note and will not be changed without an explicit later decision.`,
     localDate: localOccurrence.localDate,
     timezone: localOccurrence.timezone,
-    relatedExternalIds: {
-      occurrence: input.note.attachedToId,
-    },
+  });
+}
+
+function noteTargetAction(input: {
+  note: BehaviorLogImportNotePlan;
+  behaviorActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+  occurrenceActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+  statusEventActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
+}): BehaviorLogImportMergeRecordAction | undefined {
+  switch (input.note.attachedToType) {
+    case "behavior":
+      return input.behaviorActionsByExternalId.get(input.note.attachedToId);
+    case "occurrence":
+      return input.occurrenceActionsByExternalId.get(input.note.attachedToId);
+    case "status_event":
+      return input.statusEventActionsByExternalId.get(input.note.attachedToId);
+    case "review":
+      return undefined;
+  }
+}
+
+function importedNoteRecordAction(input: {
+  note: BehaviorLogImportNotePlan;
+  metadata: Record<string, unknown>;
+  targetAction?: BehaviorLogImportMergeRecordAction;
+  noteDecision: string;
+  reason: string;
+  localDate?: string;
+  timezone?: string;
+}): BehaviorLogImportMergeRecordAction {
+  return mergeAction({
+    recordType: "note",
+    externalId: input.note.externalId,
+    action: "create_new",
+    localId: null,
+    reasons: [input.reason],
+    relatedExternalIds: noteRelatedExternalIds(input.note),
     metadata: {
-      ...metadata,
-      noteDecision: "requires_explicit_note_replace_decision",
+      ...input.metadata,
+      noteDecision: input.noteDecision,
+      noteStorageDecision: "create_imported_note_record",
+      targetLocalId: input.targetAction?.localId ?? null,
+      targetAction: input.targetAction?.action ?? null,
+      localDate: input.localDate ?? null,
+      timezone: input.timezone ?? null,
     },
   });
+}
+
+function noteRelatedExternalIds(
+  note: BehaviorLogImportNotePlan,
+): Record<string, string | null> {
+  return {
+    [note.attachedToType]: note.attachedToId,
+  };
 }
 
 function noteSkipReasons(note: BehaviorLogImportNotePlan): string[] {
@@ -2623,16 +2802,41 @@ function resolveInterventionMergeAction(input: {
   return mergeAction({
     recordType: "intervention",
     externalId: input.intervention.externalId,
-    action: "skip_existing",
+    action: "create_new",
     localId: null,
     reasons: [
-      `Intervention ${input.intervention.externalId} is included in the merge preview only; intervention writes and reminder side effects require a later passive history model.`,
+      `Intervention ${input.intervention.externalId} can be stored as passive imported intervention history without reminder delivery or provider side effects.`,
     ],
     relatedExternalIds: {
       behavior: input.intervention.behaviorExternalId,
       occurrence: input.intervention.occurrenceExternalId,
     },
+    metadata: interventionMergeMetadata({
+      intervention: input.intervention,
+      behaviorLocalId: behaviorAction?.localId ?? null,
+      occurrenceLocalId: occurrenceAction?.localId ?? null,
+    }),
   });
+}
+
+function interventionMergeMetadata(input: {
+  intervention: BehaviorLogImportInterventionPreviewPlan;
+  behaviorLocalId: string | null;
+  occurrenceLocalId: string | null;
+}): Record<string, unknown> {
+  return {
+    interventionDecision: "store_passive_history",
+    interventionType: input.intervention.interventionType,
+    channel: input.intervention.channel,
+    deliveryStatus: input.intervention.deliveryStatus,
+    scheduledSendAtUtc: input.intervention.scheduledSendAtUtc,
+    sentAtUtc: input.intervention.sentAtUtc,
+    behaviorExternalId: input.intervention.behaviorExternalId,
+    occurrenceExternalId: input.intervention.occurrenceExternalId,
+    behaviorLocalId: input.behaviorLocalId,
+    occurrenceLocalId: input.occurrenceLocalId,
+    storageDecision: input.intervention.storageDecision,
+  };
 }
 
 function compareBehaviorCandidate(
@@ -3129,6 +3333,7 @@ function summarizePreview(input: {
     ...input.plan.notes,
   ];
   const interventionCounts = summarizeInterventionCounts(input.plan);
+  const interventionStorageSummary = summarizeInterventionStorage(input.plan);
 
   return {
     schemaVersion: input.schemaVersion,
@@ -3142,6 +3347,10 @@ function summarizePreview(input: {
     interventionPreviewOnlyCount: input.plan.interventions.filter(
       (intervention) => intervention.action === "preview_only",
     ).length,
+    interventionStoredCount: interventionStorageSummary.storedCount,
+    interventionSensitiveFieldDropCount:
+      interventionStorageSummary.sensitiveFieldDropCount,
+    interventionRedactedFieldCount: interventionStorageSummary.redactedFieldCount,
     interventionCounts,
     createCount: allPlans.filter((record) => record.action === "create")
       .length,
@@ -3155,6 +3364,32 @@ function summarizePreview(input: {
     ),
     dayGroups: summarizeDayGroups(input.plan, input.conflicts),
   };
+}
+
+function summarizeInterventionStorage(plan: BehaviorLogImportPlan): {
+  storedCount: number;
+  sensitiveFieldDropCount: number;
+  redactedFieldCount: number;
+} {
+  return plan.interventions.reduce(
+    (summary, intervention) => ({
+      storedCount:
+        intervention.storageDecision.decision === "store_passive_history"
+          ? summary.storedCount + 1
+          : summary.storedCount,
+      sensitiveFieldDropCount:
+        summary.sensitiveFieldDropCount +
+        intervention.storageDecision.droppedSensitiveFields.length,
+      redactedFieldCount:
+        summary.redactedFieldCount +
+        intervention.storageDecision.redactedFields.length,
+    }),
+    {
+      storedCount: 0,
+      sensitiveFieldDropCount: 0,
+      redactedFieldCount: 0,
+    },
+  );
 }
 
 function summarizeInterventionCounts(

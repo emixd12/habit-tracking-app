@@ -392,6 +392,7 @@ Show:
 - Export BehaviorLog bundle
 - Copy AI summary
 - Download AI summary as `.md`
+- Import BehaviorLog bundle
 
 Options:
 - Last 7 days
@@ -401,6 +402,19 @@ Options:
 - Include archived behaviors
 
 Exports should support both download and copy where practical.
+
+BehaviorLog import should live on the Export screen as a sparse ledger section.
+The section accepts `.behaviorlog.zip` uploads, shows validation errors and
+warnings before any product write, shows dry-run counts, privacy notes, note
+sensitivity warnings, intervention preview counts, passive imported
+intervention storage counts, dropped/redacted intervention field summaries,
+imported-note record counts, inline occurrence-note fill counts, and merge
+actions, and requires explicit confirmation before applying create-only or
+supported user-approved merge plans.
+If high or restricted sensitivity notes would be imported, apply controls must
+also require a dedicated privacy acknowledgement. Do not add destructive
+restore/overwrite controls, generalized notes browsing, or
+intervention-to-reminder writes in this screen.
 
 ## Settings screen
 

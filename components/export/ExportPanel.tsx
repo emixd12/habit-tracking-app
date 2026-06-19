@@ -1,10 +1,13 @@
 import { Download } from "lucide-react";
 
+import { BehaviorLogImportPanel } from "@/components/export/BehaviorLogImportPanel";
 import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActions";
+import type { BehaviorLogImportPageData } from "@/lib/types/behaviorlog-import-ui";
 import type { ExportBundle } from "@/lib/types/export";
 
 type ExportPanelProps = Readonly<{
   exportData: ExportBundle;
+  importData: BehaviorLogImportPageData;
 }>;
 
 const DOWNLOAD_ACTIONS = [
@@ -30,7 +33,7 @@ const DOWNLOAD_ACTIONS = [
   },
 ] as const;
 
-export function ExportPanel({ exportData }: ExportPanelProps) {
+export function ExportPanel({ exportData, importData }: ExportPanelProps) {
   return (
     <div className="grid gap-8">
       <section
@@ -177,6 +180,8 @@ export function ExportPanel({ exportData }: ExportPanelProps) {
           {exportData.markdownSummary}
         </pre>
       </section>
+
+      <BehaviorLogImportPanel recentRuns={importData.recentRuns} />
     </div>
   );
 }

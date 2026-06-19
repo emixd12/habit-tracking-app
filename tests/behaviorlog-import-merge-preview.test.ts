@@ -32,9 +32,9 @@ describe("resolveBehaviorLogImportMergePreview", () => {
       containsAiGeneratedContent: false,
     });
     expect(preview.mergePreview.actionCounts).toMatchObject({
-      create_new: 5,
+      create_new: 6,
       map_to_existing: 0,
-      skip_existing: 1,
+      skip_existing: 0,
       conflict_requires_decision: 0,
     });
     expect(preview.mergePreview.actions.behaviors[0]).toMatchObject({
@@ -59,7 +59,14 @@ describe("resolveBehaviorLogImportMergePreview", () => {
     expect(preview.mergePreview.actions.interventions[0]).toMatchObject({
       recordType: "intervention",
       externalId: "delivery-1",
-      action: "skip_existing",
+      action: "create_new",
+      metadata: expect.objectContaining({
+        interventionDecision: "store_passive_history",
+        storageDecision: expect.objectContaining({
+          reminderDeliverySideEffects: false,
+          providerSideEffects: false,
+        }),
+      }),
     });
     expect(preview.warnings).toEqual(
       expect.arrayContaining([
@@ -198,14 +205,16 @@ describe("resolveBehaviorLogImportMergePreview", () => {
     expect(preview.mergePreview.actions.notes[0]).toMatchObject({
       recordType: "note",
       externalId: "note-1",
-      action: "map_to_existing",
-      localId: "local-occurrence",
+      action: "create_new",
+      localId: null,
       conflictCodes: [],
       relatedExternalIds: {
         occurrence: "occurrence-1",
       },
       metadata: {
         noteDecision: "fill_empty_occurrence_note",
+        noteStorageDecision: "create_imported_note_record",
+        targetLocalId: "local-occurrence",
         attachedToType: "occurrence",
         attachedToId: "occurrence-1",
         sensitivity: "high",
@@ -226,24 +235,22 @@ describe("resolveBehaviorLogImportMergePreview", () => {
     expect(preview.mergePreview.actions.notes[0]).toMatchObject({
       recordType: "note",
       externalId: "note-1",
-      action: "conflict_requires_decision",
-      localId: "local-occurrence",
-      conflictCodes: ["occurrence_note_conflict"],
+      action: "create_new",
+      localId: null,
+      conflictCodes: [],
+      metadata: {
+        noteDecision: "requires_explicit_note_replace_decision",
+        noteStorageDecision: "create_imported_note_record",
+        targetLocalId: "local-occurrence",
+      },
     });
-    expect(preview.mergePreview.conflicts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "occurrence_note_conflict",
-          importedRecordType: "note",
-          importedId: "note-1",
-          existingId: "local-occurrence",
-        }),
-      ]),
+    expect(preview.mergePreview.conflictCodes).not.toContain(
+      "occurrence_note_conflict",
     );
   });
 
-  it("skips unsupported note targets and AI-generated notes with warnings", () => {
-    const unsupportedTargetPreview = resolveBehaviorLogImportMergePreview({
+  it("stores behavior-attached notes and skips AI-generated notes with warnings", () => {
+    const behaviorNotePreview = resolveBehaviorLogImportMergePreview({
       files: behaviorLogFiles({
         includeNote: true,
         note: {
@@ -263,23 +270,21 @@ describe("resolveBehaviorLogImportMergePreview", () => {
       }),
     });
 
-    expect(unsupportedTargetPreview.warnings).toEqual(
+    expect(behaviorNotePreview.warnings).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "unsupported_note_target" }),
         expect.objectContaining({ code: "restricted_note_present" }),
       ]),
     );
-    expect(unsupportedTargetPreview.plan.notes[0]).toMatchObject({
-      action: "skip",
-      skipReasons: ["unsupported_note_target"],
+    expect(behaviorNotePreview.plan.notes[0]).toMatchObject({
+      action: "create",
+      skipReasons: [],
       sensitivity: "restricted",
     });
-    expect(
-      unsupportedTargetPreview.mergePreview.actions.notes[0],
-    ).toMatchObject({
-      action: "skip_existing",
+    expect(behaviorNotePreview.mergePreview.actions.notes[0]).toMatchObject({
+      action: "create_new",
       metadata: {
-        noteDecision: "skip_unsupported_note",
+        noteDecision: "create_imported_note_record",
+        noteStorageDecision: "create_imported_note_record",
         attachedToType: "behavior",
       },
     });

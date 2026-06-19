@@ -363,6 +363,9 @@ describe("resolveBehaviorLogImportPreview", () => {
       noteCount: 1,
       interventionCount: 1,
       interventionPreviewOnlyCount: 1,
+      interventionStoredCount: 1,
+      interventionSensitiveFieldDropCount: 0,
+      interventionRedactedFieldCount: 0,
       errorCount: 0,
     });
     expect(preview.plan.interventions[0]).toMatchObject({

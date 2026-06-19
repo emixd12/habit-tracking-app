@@ -254,9 +254,17 @@ Create-only import rules:
 - Skip unsupported recurrence profiles or schedule windows with warnings.
 - Do not merge, restore, overwrite, delete, or deduplicate local product records
   by mutation in create-only mode.
-- Do not import notes, interventions, Context/Profile records, Analytics Profile
-  records, optional CSV-only data, or provider side effects until a later ticket
-  explicitly adds that write path.
+- Import non-AI `data/notes.jsonl` records into `imported_notes` when their
+  behavior, occurrence, status-event, or review attachment can be represented.
+  Occurrence-attached notes may also fill `occurrences.note` only when the
+  imported occurrence is safely identified and the current local note is empty.
+- Import `data/interventions.jsonl` records into `imported_interventions` as
+  passive delivery history. Store external behavior/occurrence ids and local
+  behavior/occurrence ids when safely known. Drop or redact sensitive transport
+  fields before storage.
+- Do not import Context/Profile records, Analytics Profile records, optional
+  CSV-only data, reminder deliveries, or provider side effects until a later
+  ticket explicitly adds that write path.
 
 Merge-preview rules:
 
@@ -276,14 +284,22 @@ Merge-preview rules:
   snapshots. `unresolved` remains a valid unresolved state, not a failure.
 - Treat status events as append-only history. Merge preview may identify an
   existing duplicate event, but future writes must not overwrite local history.
-- Parse optional `data/notes.jsonl` and include note sensitivity/source metadata
-  in preview details. Only occurrence-attached, non-AI notes can be planned for
-  product import. Behavior, status-event, review, and AI-generated notes are
-  skipped with warnings.
-- High or restricted note sensitivity must produce a preview warning before any
-  accepted plan can import that note body.
-- Preview Intervention Profile records for user review only. Intervention and
-  reminder-delivery writes belong to the intervention-import ticket.
+- Parse optional `data/notes.jsonl` and include note role,
+  sensitivity/source metadata, source original id, timestamps, attachment
+  target, and storage decision details in preview output.
+- Non-AI behavior, occurrence, status-event, and review notes may be planned as
+  passive `imported_notes` rows. AI-generated notes are skipped with warnings.
+- Occurrence-attached, non-AI notes may additionally plan an inline
+  `occurrences.note` fill only when the target occurrence is safely identified
+  and the current local note is empty. Conflicting occurrence notes are stored
+  as passive imported notes and do not replace the local note.
+- High or restricted note sensitivity must produce a preview warning and require
+  explicit privacy acknowledgement before any accepted plan can import that note
+  body.
+- Preview Intervention Profile records with the passive history fields that
+  will be stored and the sensitive delivery fields that will be dropped or
+  redacted. Intervention merge actions may plan `imported_interventions` rows,
+  but must not plan operational reminder deliveries.
 
 User-approved merge apply rules:
 
@@ -310,18 +326,23 @@ User-approved merge apply rules:
   `behaviorlog_import_record_mappings`.
 - If apply fails after partial work, mark the import run `failed` with the
   failure message. Do not silently continue after inconsistent parent mappings.
+- Note mappings use the imported note row id as `local_id`, not the attachment
+  target id. This preserves provenance for behavior, occurrence, status-event,
+  and review notes with one mapping contract.
 - Occurrence-attached notes may fill `occurrences.note` only when the target
   occurrence has been created, mapped, or otherwise safely identified and the
-  current local note is empty. The note mapping uses the target occurrence id as
-  `local_id`.
+  current local note is empty.
 - If the local occurrence note is non-empty and differs from the imported note,
-  merge preview must emit `occurrence_note_conflict`; apply must not change it
-  unless a later explicit merge-plan decision model is accepted.
+  apply still stores the passive imported note row but must not change
+  `occurrences.note` unless a later explicit note-replacement decision model is
+  accepted.
 - Note imports must not update occurrence status fields, status-event history,
   reminder deliveries, analytics inputs, or adherence logic.
-- Do not write interventions, Context/Profile records, Analytics Profile records,
-  optional CSV-only data, reminder deliveries, or provider side effects in this
-  phase.
+- Accepted intervention actions store passive `imported_interventions` rows and
+  provenance mappings. They must not write `reminder_deliveries`, schedule,
+  send, cancel, retry, claim reminders, or call providers.
+- Do not write Context/Profile records, Analytics Profile records, optional
+  CSV-only data, reminder deliveries, or provider side effects in this phase.
 
 ### `behaviorlog_import_runs`
 
@@ -402,6 +423,146 @@ idempotent for the same run, record type, and external id. The table supports
 behavior, schedule, occurrence, status event, note, and intervention mappings so
 later import phases can share one provenance contract.
 
+### `imported_notes`
+
+```sql
+create table imported_notes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  import_run_id uuid not null,
+  external_id text not null,
+
+  target_type text not null
+    check (target_type in ('behavior', 'occurrence', 'status_event', 'review')),
+  target_external_id text not null,
+  target_local_id uuid,
+
+  body_markdown text not null,
+  note_role text not null
+    check (note_role in ('user', 'imported', 'system', 'ai_generated')),
+  sensitivity text
+    check (
+      sensitivity is null
+      or sensitivity in ('low', 'medium', 'high', 'restricted')
+  ),
+  source_original_id text,
+  source_capture_method text not null
+    check (
+      source_capture_method in (
+        'manual_tap',
+        'manual_text',
+        'system_generated',
+        'imported',
+        'inferred',
+        'derived',
+        'ai_generated',
+        'unknown'
+      )
+    ),
+  source_confidence text not null
+    check (
+      source_confidence in (
+        'high',
+        'medium',
+        'low',
+        'ambiguous',
+        'unknown'
+      )
+    ),
+  imported_created_at timestamptz not null,
+  imported_updated_at timestamptz,
+  metadata jsonb not null default '{}'::jsonb,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  unique (user_id, id),
+  unique (import_run_id, external_id),
+  foreign key (user_id, import_run_id)
+    references behaviorlog_import_runs(user_id, id)
+    on delete cascade
+);
+```
+
+`imported_notes` stores passive BehaviorLog note context for behavior,
+occurrence, status-event, and review attachments. `target_local_id` points to
+the local behavior, occurrence, or status-event row when one is safely known;
+review notes may have no local target. Because the attachment is polymorphic,
+the application service must only set `target_local_id` from resolver-approved
+mappings and must not use notes for status, adherence, reminder, or analytics
+calculations. Note mappings in `behaviorlog_import_record_mappings` point to
+`imported_notes.id`.
+
+High and restricted sensitivity notes are allowed only after preview warnings
+and explicit apply acknowledgement. AI-generated notes are skipped in v1.
+
+### `imported_interventions`
+
+```sql
+create table imported_interventions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  import_run_id uuid not null,
+  external_id text not null,
+
+  behavior_external_id text not null,
+  occurrence_external_id text not null,
+  behavior_id uuid,
+  occurrence_id uuid,
+
+  intervention_type text,
+  channel text not null check (channel in ('browser_push', 'email')),
+  delivery_status text not null
+    check (delivery_status in ('pending', 'sent', 'failed', 'cancelled')),
+  scheduled_send_at timestamptz not null,
+  sent_at timestamptz,
+  failure_reason text,
+
+  source_original_id text,
+  source_capture_method text not null,
+  source_confidence text not null,
+  redacted_sensitivity_indicators jsonb not null default '{}'::jsonb,
+  metadata jsonb not null default '{}'::jsonb,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  unique (user_id, id),
+  unique (import_run_id, external_id),
+  foreign key (user_id, import_run_id)
+    references behaviorlog_import_runs(user_id, id)
+    on delete cascade,
+  foreign key (user_id, behavior_id)
+    references behaviors(user_id, id)
+    on delete set null (behavior_id),
+  foreign key (user_id, occurrence_id)
+    references occurrences(user_id, id)
+    on delete set null (occurrence_id)
+);
+```
+
+`imported_interventions` stores passive BehaviorLog Intervention Profile
+history. It records the BehaviorLog intervention id, external behavior and
+occurrence ids, local behavior and occurrence ids when known, intervention type,
+channel, delivery status, scheduled/sent timestamps, sanitized failure reason,
+source metadata, and redaction indicators. It must not contain raw provider
+secrets, raw push endpoints, subscription keys, recipient identifiers, message
+bodies, or raw provider payloads.
+
+Rows are provenance and review context only. They do not create, schedule,
+send, cancel, retry, claim, or otherwise mutate operational
+`reminder_deliveries`. Intervention mappings in
+`behaviorlog_import_record_mappings` point to `imported_interventions.id` and
+make repeated accepted applies idempotent.
+
+Imported intervention promotion is a separate opt-in workflow. It may convert
+selected future pending reminder interventions into operational
+`reminder_deliveries` only after explicit user selection and confirmation.
+The promotion workflow must leave sent, failed, cancelled, dismissed, past,
+ambiguous, unresolved-parent, resolved-occurrence, inactive-behavior,
+disabled-channel, and current-setting-mismatched intervention rows as passive
+history.
+
 ### `reminder_deliveries`
 
 ```sql
@@ -414,6 +575,8 @@ create table reminder_deliveries (
   scheduled_send_at timestamptz not null,
   sent_at timestamptz,
   processing_started_at timestamptz,
+  import_run_id uuid,
+  imported_intervention_id uuid,
   status text not null default 'pending'
     check (status in ('pending', 'sent', 'failed', 'cancelled')),
 
@@ -422,6 +585,13 @@ create table reminder_deliveries (
   updated_at timestamptz not null default now()
 );
 ```
+
+`import_run_id` and `imported_intervention_id` are nullable provenance fields
+used only for explicit imported-intervention promotion. App-generated reminder
+deliveries keep both fields null. Promoted deliveries must set both fields and
+must still satisfy the normal idempotence key
+`(occurrence_id, channel, scheduled_send_at)`, so promotion cannot create a
+second operational delivery for the same occurrence/channel/send time.
 
 ### `push_subscriptions`
 

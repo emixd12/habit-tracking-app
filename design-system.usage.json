@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-12T08:17:16.048130+00:00",
+  "generatedAt": "2026-06-15T21:46:43.345196+00:00",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
@@ -78,7 +78,7 @@
     {
       "componentId": "layout.screen-frame",
       "file": "app/(app)/export/page.tsx",
-      "line": 28,
+      "line": 32,
       "route": "(app)/export/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -108,9 +108,17 @@
       "confidence": "exact"
     },
     {
+      "componentId": "module.behavior-log-import-panel",
+      "file": "components/export/ExportPanel.tsx",
+      "line": 184,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
       "componentId": "module.export-panel",
       "file": "app/(app)/export/page.tsx",
-      "line": 32,
+      "line": 36,
       "route": "(app)/export/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -118,7 +126,7 @@
     {
       "componentId": "module.markdown-summary-actions",
       "file": "components/export/ExportPanel.tsx",
-      "line": 165,
+      "line": 173,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -205,7 +213,7 @@
     }
   ],
   "summary": {
-    "productUsages": 25,
+    "productUsages": 26,
     "benchPreviews": 0
   }
 }

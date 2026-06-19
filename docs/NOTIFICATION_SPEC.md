@@ -66,6 +66,10 @@ Fields:
 - scheduled_send_at
 - sent_at
 - processing_started_at (internal claim timestamp for idempotent processing)
+- import_run_id (nullable provenance for explicitly promoted imported
+  interventions)
+- imported_intervention_id (nullable provenance for explicitly promoted
+  imported interventions)
 - status
 - error
 
@@ -75,24 +79,56 @@ Statuses:
 - failed
 - cancelled
 
-## BehaviorLog intervention import preview
+## BehaviorLog intervention import history
 
-BehaviorLog `data/interventions.jsonl` records are passive import-preview
+BehaviorLog `data/interventions.jsonl` records are passive import-history
 records. They may describe exported reminders or related notification history,
 but imported rows are not active Cadence reminder deliveries.
 
 Rules:
 - Preview may validate and summarize intervention rows by channel, delivery
   status, and linked behavior.
-- Preview must mark imported interventions as `preview_only`.
+- Preview must show which intervention fields will be stored in passive
+  `imported_interventions` rows and which sensitive transport fields will be
+  dropped or redacted.
 - Preview must warn about message bodies, raw endpoints, provider identifiers or
   secrets, subscription keys, recipient identifiers, and similar sensitive
   delivery payload.
-- Import preview and merge preview must not write `reminder_deliveries`.
-- Import preview and merge preview must not schedule, send, cancel, or retry
+- Accepted create-only or merge import runs may store passive
+  `imported_interventions` rows and intervention provenance mappings.
+- Imported intervention history must not write `reminder_deliveries`.
+- Imported intervention history must not schedule, send, cancel, retry, or claim
   reminders.
-- Import preview and merge preview must not call Sequenzy, Web Push, browser
-  APIs, provider SDKs, or notification processing routes.
+- Imported intervention history must not call Sequenzy, Web Push, browser APIs,
+  provider SDKs, or notification processing routes.
+
+## Imported intervention promotion
+
+Imported intervention promotion is a separate explicit opt-in workflow after
+passive `imported_interventions` history exists. It is not part of BehaviorLog
+preview, create-only apply, or user-approved merge apply.
+
+Promotion rules:
+- Require a non-empty selected imported-intervention id list.
+- Require explicit confirmation for the selected group.
+- Promote only future pending records whose `intervention_type` is `reminder`.
+- Require a safely linked current behavior and occurrence owned by the same
+  user.
+- Require the occurrence to still be unresolved and the behavior to still be
+  active.
+- Require the imported channel to still be enabled on the behavior.
+- Require the imported scheduled send time to match the current
+  `resolveReminderDeliveries` output for that behavior, occurrence, channel,
+  and reminder offset.
+- Leave sent, failed, cancelled, dismissed, past, ambiguous, unresolved-parent,
+  resolved-occurrence, inactive-behavior, disabled-channel, and mismatched
+  current-setting records as passive history.
+- Create or link `reminder_deliveries` idempotently through the normal
+  `(occurrence_id, channel, scheduled_send_at)` key.
+- Store `import_run_id` and `imported_intervention_id` on promoted operational
+  deliveries for durable provenance.
+- Do not call Sequenzy, Web Push, browser APIs, provider SDKs, or notification
+  processing routes during promotion.
 
 ## Delivery generation
 

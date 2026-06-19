@@ -9,6 +9,8 @@ export type OccurrenceStatusEvent = Tables<"occurrence_status_events">;
 export type BehaviorLogImportRun = Tables<"behaviorlog_import_runs">;
 export type BehaviorLogImportRecordMapping =
   Tables<"behaviorlog_import_record_mappings">;
+export type ImportedIntervention = Tables<"imported_interventions">;
+export type ImportedNote = Tables<"imported_notes">;
 export type ReminderDelivery = Tables<"reminder_deliveries">;
 export type PushSubscription = Tables<"push_subscriptions">;
 
@@ -21,6 +23,8 @@ export type NewBehaviorLogImportRun =
   TablesInsert<"behaviorlog_import_runs">;
 export type NewBehaviorLogImportRecordMapping =
   TablesInsert<"behaviorlog_import_record_mappings">;
+export type NewImportedIntervention = TablesInsert<"imported_interventions">;
+export type NewImportedNote = TablesInsert<"imported_notes">;
 export type NewReminderDelivery = TablesInsert<"reminder_deliveries">;
 export type NewPushSubscription = TablesInsert<"push_subscriptions">;
 
@@ -33,6 +37,8 @@ export type BehaviorLogImportRunUpdate =
   TablesUpdate<"behaviorlog_import_runs">;
 export type BehaviorLogImportRecordMappingUpdate =
   TablesUpdate<"behaviorlog_import_record_mappings">;
+export type ImportedInterventionUpdate = TablesUpdate<"imported_interventions">;
+export type ImportedNoteUpdate = TablesUpdate<"imported_notes">;
 export type ReminderDeliveryUpdate = TablesUpdate<"reminder_deliveries">;
 export type PushSubscriptionUpdate = TablesUpdate<"push_subscriptions">;
 

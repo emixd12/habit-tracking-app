@@ -164,8 +164,9 @@ Import validation rules:
   later.
 - Validate supported record types for behavior, schedule, occurrence,
   status-event, and optional note rows.
-- Parse optional `data/notes.jsonl` rows with note role, sensitivity label, and
-  source metadata preserved in the preview plan.
+- Parse optional `data/notes.jsonl` rows with note role, sensitivity label,
+  source metadata, source original id, created/updated timestamps, and
+  attachment target preserved in the preview plan.
 - Reject unknown top-level fields in core records. The preview may still report
   them in `unsupportedFields`, but the bundle is not valid unless custom fields
   are moved under `extensions`.
@@ -188,9 +189,11 @@ Import validation rules:
   linked behavior. It also warns when rows contain message bodies, raw
   endpoints, provider identifiers or secrets, subscription keys, recipient
   identifiers, or similar sensitive delivery payload.
-- Intervention preview must not create `reminder_deliveries`, schedule sends,
-  cancel sends, retry sends, call Sequenzy, call Web Push, or call any
-  notification provider.
+- Intervention preview must show the passive history fields that will be stored
+  in `imported_interventions` and the sensitive delivery fields that will be
+  dropped or redacted. Intervention preview must not create
+  `reminder_deliveries`, schedule sends, cancel sends, retry sends, call
+  Sequenzy, call Web Push, or call any notification provider.
 
 Import tracking rules:
 
@@ -235,9 +238,19 @@ Create-only apply rules:
   snapshot.
 - Reapplying the same accepted create-only import run must not duplicate
   behaviors, schedules, occurrences, status events, or mappings.
-- Create-only apply must not merge, overwrite, restore, delete, import notes,
-  import interventions, import optional profile data, import CSV-only data, or
-  trigger notification/provider side effects.
+- Create-only apply may store non-AI behavior, occurrence, status-event, and
+  review notes in `imported_notes` after their attachment target is created or
+  mapped. Occurrence-attached notes may also fill `occurrences.note` only when
+  the imported occurrence is safely identified and the local note is empty.
+- Create-only apply may store `data/interventions.jsonl` rows as passive
+  `imported_interventions` history with sanitized failure reasons, source
+  metadata, redaction indicators, external behavior/occurrence ids, and local
+  ids when known.
+- Create-only apply must not merge, overwrite, restore, delete, import optional
+  profile data, import CSV-only data, write `reminder_deliveries`, or trigger
+  notification/provider side effects. Imported intervention promotion is a
+  separate explicit selected-and-confirmed workflow after passive history
+  exists.
 
 Merge-preview rules:
 
@@ -261,18 +274,21 @@ Merge-preview rules:
   to a failure state.
 - The merge-preview output includes a privacy/profile summary, including
   redaction level and whether notes or interventions are present.
-- Optional notes are previewed with sensitivity/source metadata. Only
-  occurrence-attached, non-AI notes can plan a product write. Behavior,
-  status-event, review, and AI-generated notes are skipped with warnings.
-- High or restricted note sensitivity must produce a preview warning before the
-  note can be accepted for import.
-- If a mapped or created target occurrence has an empty local note, merge preview
-  may emit an accepted safe-fill note action. If the local note is non-empty and
-  differs, merge preview must emit `occurrence_note_conflict` and require an
-  explicit decision before any change.
-- `data/interventions.jsonl` rows remain preview-only. Intervention preview
-  must not create reminder deliveries, schedule sends, cancel sends, retry
-  sends, or call notification providers.
+- Optional notes are previewed with role, sensitivity/source metadata, source
+  original id, timestamps, attachment target, and a storage decision. Non-AI
+  behavior, occurrence, status-event, and review notes can plan passive
+  `imported_notes` rows. AI-generated notes are skipped with warnings.
+- High or restricted note sensitivity must produce a preview warning and require
+  explicit privacy acknowledgement before the note can be accepted for import.
+- Import preview must distinguish an inline occurrence-note fill from a general
+  passive imported note record. If a mapped or created target occurrence has an
+  empty local note, merge preview may emit an inline safe-fill decision in
+  addition to the passive note-record decision. If the local note is non-empty
+  and differs, preview still plans the passive imported note row but must not
+  plan an inline replacement.
+- `data/interventions.jsonl` rows may plan passive imported intervention
+  history. Merge preview must show stored fields, dropped/redacted sensitive
+  fields, and no reminder-delivery/provider side effects.
 - A generated merge preview may be stored in `behaviorlog_import_runs` with
   `import_mode = 'merge_preview'`; this write is limited to the import ledger
   and must not mutate product records.
@@ -292,17 +308,63 @@ User-approved merge apply rules:
   by effective time, recorded time, and stable id tie-breaker.
 - Ambiguous or lower-confidence imported events must not replace an existing
   local explicit high-confidence status decision.
-- Accepted note actions may fill `occurrences.note` only for occurrence-attached,
-  non-AI notes when the target occurrence is safely identified and the current
-  local note is empty. Note mappings use the local occurrence id.
+- Accepted note actions store non-AI BehaviorLog notes as `imported_notes`
+  records. Note mappings use the imported note row id.
+- Accepted note actions may additionally fill `occurrences.note` only for
+  occurrence-attached, non-AI notes when the target occurrence is safely
+  identified and the current local note is empty.
 - Note apply must not update occurrence status fields, status events, analytics
   inputs, adherence logic, reminder deliveries, or provider state.
-- Interventions remain preview/provenance-only here; imported intervention
-  records must not be written into operational reminder-delivery tables unless
-  a later passive history model explicitly changes scope.
+- Accepted intervention actions store passive `imported_interventions` rows and
+  provenance mappings. They must not write operational reminder-delivery rows,
+  claim reminders, or call notification providers. Imported intervention
+  promotion remains separate from merge apply and must require its own selected
+  imported-intervention ids plus explicit confirmation.
 - Merge apply must be idempotent for the same accepted run through
   `behaviorlog_import_record_mappings`, and failed partial attempts mark the
   import run `failed`.
+
+User-facing import UI rules:
+
+- The authenticated Export screen is the first-class import entry point.
+- Uploads must be `.behaviorlog.zip` bundles; unsupported files should fail
+  before preview.
+- Preview persists an import-run ledger row and must not write product records.
+- The UI must show validation output, dry-run counts, privacy notes,
+  sensitivity warnings, intervention preview counts, passive intervention
+  storage counts, dropped/redacted intervention field summaries, conflicts,
+  merge actions, imported-note record counts, and inline occurrence-note fill
+  counts before apply.
+- High or restricted sensitivity notes require a dedicated acknowledgement
+  before apply.
+- Create-only apply is available only for valid dry-runs with no unsafe merge
+  decisions.
+- Merge apply requires supported safe actions, no unresolved conflict actions,
+  and explicit user confirmation.
+- Raw uploaded bundle contents are not stored in the import-run ledger.
+- Do not add full restore, destructive overwrite, generalized notes browsing, or
+  intervention-to-reminder writes in this UI milestone.
+
+### Imported intervention promotion
+
+Imported intervention promotion may convert selected passive
+`imported_interventions` rows into operational `reminder_deliveries` rows only
+after explicit user selection and confirmation. This workflow operates on
+stored passive history, not raw bundle files or import preview output.
+
+Eligible records must be future pending reminders that safely link to a current
+active behavior and unresolved occurrence. The imported channel and scheduled
+send time must match what Cadence's current reminder resolver would generate
+from the behavior's present reminder settings. Historical, sent, failed,
+cancelled, dismissed, ambiguous, unresolved-parent, resolved-occurrence,
+inactive-behavior, disabled-channel, or mismatched-current-setting records stay
+passive.
+
+Promotion writes only `reminder_deliveries` rows with `import_run_id` and
+`imported_intervention_id` provenance. It must use the normal
+occurrence/channel/scheduled-send idempotence key, must not create duplicate
+operational sends, and must not call Sequenzy, Web Push, browser APIs, provider
+SDKs, or notification-processing routes.
 
 ## AI summary
 

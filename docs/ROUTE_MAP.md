@@ -17,7 +17,7 @@ surface when ticketed.
 | `/timeline` | implemented, protected | Primary screen for today's occurrences, a floating Needs decision modal for prior unresolved items, and future preview | This is the main screen. |
 | `/behaviors` | implemented, protected | Behavior and category management | Keep CRUD simple. |
 | `/analytics` | implemented, protected | Basic completion counts, adherence, heatmaps, and selected-day Not Completed inspection | No gamified streak language. |
-| `/export` | implemented, protected | JSONL, CSV, full JSON backup, BehaviorLog bundle, and Markdown AI-readable summary export | Export logic belongs in `export.resolver.ts`; the page supports range and archived-behavior options. |
+| `/export` | implemented, protected | JSONL, CSV, full JSON backup, BehaviorLog bundle, Markdown AI-readable summary export, and BehaviorLog bundle import | Export logic belongs in `export.resolver.ts`; BehaviorLog import validation and merge preview belong in `behaviorlog-import.resolver.ts`; the page supports range and archived-behavior export options. |
 | `/settings` | implemented, protected | Profile, timezone, and browser notification permission/subscription settings | Browser notification permission is requested here; category editing and any global email settings remain future Settings work. |
 
 ## Planned marketing routes

@@ -170,11 +170,12 @@ An expanded occurrence holds the same blue background used on row hover, rather
 than adding a separate details box.
 
 BehaviorLog imports may fill this occurrence Note field only when an accepted
-merge plan identifies the target occurrence safely and the local note is empty.
-Imported behavior notes, status-event notes, review notes, and AI-generated
-notes are not displayed as product notes in v1. Imported notes are user-review
-context only; they do not change status, adherence, analytics, or reminder
-behavior.
+import plan identifies the target occurrence safely, the imported note is not
+AI-generated, and the local note is empty. Imported behavior notes,
+status-event notes, review notes, and conflicting occurrence notes are stored as
+passive imported-note records instead of product notes on Timeline or
+Behaviors. Imported notes are user-review context only; they do not change
+status, adherence, analytics, or reminder behavior.
 
 Categories are visible only in expanded card details.
 
@@ -266,6 +267,7 @@ The Export screen supports:
 - Full JSON backup
 - BehaviorLog bundle
 - Markdown AI summary
+- BehaviorLog bundle import
 
 Exports should support download and copy where practical.
 
@@ -277,6 +279,31 @@ Export options:
 - Last 90 days
 - All time
 - Include archived behaviors
+
+BehaviorLog import flow:
+1. Upload a `.behaviorlog.zip` bundle from the Export screen.
+2. Review validation errors, warnings, conflicts, privacy notes, note
+   sensitivity warnings, intervention preview counts, passive imported
+   intervention storage counts, dropped/redacted intervention field summaries,
+   imported-note record counts, inline occurrence-note fill counts, and merge
+   actions.
+3. Apply create-only import only when the dry-run is valid and has no unsafe
+   merge decisions.
+4. Apply a merge plan only when all actions are supported safe actions and the
+   user explicitly confirms the write.
+5. Confirm high or restricted note sensitivity separately when those notes would
+   be imported.
+6. Review recent import runs for status, mode, timestamps, and failure message
+   when present.
+
+The import flow must not add full restore, destructive overwrite, generalized
+notes browsing, or intervention-to-reminder writes during preview/apply.
+
+Imported intervention promotion is separate from the Export import apply flow.
+When exposed, it must require explicit selection of stored
+`imported_interventions` rows and a separate confirmation before any operational
+`reminder_deliveries` rows are created or linked. It should not be added to the
+Export screen unless a scoped UI ticket calls for it.
 
 ## Settings flow
 

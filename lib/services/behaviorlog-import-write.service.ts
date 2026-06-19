@@ -19,6 +19,14 @@ import {
   updateBehaviorLogImportRunStatus as updateImportRunStatus,
 } from "@/lib/db/behaviorLogImports.repo";
 import {
+  createImportedIntervention,
+  getImportedInterventionByImportIdentity,
+} from "@/lib/db/importedInterventions.repo";
+import {
+  createImportedNote,
+  getImportedNoteByImportIdentity,
+} from "@/lib/db/notes.repo";
+import {
   createOccurrenceForImport,
   getOccurrenceById,
   getOccurrenceByBehaviorAndScheduledFor,
@@ -36,6 +44,7 @@ import type {
   BehaviorLogImportBehaviorPlan,
   BehaviorLogImportFile,
   BehaviorLogImportIssue,
+  BehaviorLogImportInterventionPreviewPlan,
   BehaviorLogImportMergePreview,
   BehaviorLogImportMergePreviewResult,
   BehaviorLogImportMergeRecordAction,
@@ -57,6 +66,8 @@ import type {
   Category,
   NewBehavior,
   NewBehaviorScheduleSlot,
+  NewImportedIntervention,
+  NewImportedNote,
   NewOccurrence,
   NewOccurrenceStatusEvent,
   OccurrenceStatusEvent,
@@ -198,6 +209,8 @@ export type BehaviorLogCreateOnlyApplyResult = {
     schedules: number;
     occurrences: number;
     statusEvents: number;
+    notes: number;
+    interventions: number;
     mappings: number;
   };
   skipped: {
@@ -205,6 +218,8 @@ export type BehaviorLogCreateOnlyApplyResult = {
     schedules: number;
     occurrences: number;
     statusEvents: number;
+    notes: number;
+    interventions: number;
   };
   warnings: BehaviorLogImportIssue[];
 };
@@ -227,6 +242,8 @@ export type BehaviorLogMergeApplyResult = {
     schedules: number;
     occurrences: number;
     statusEvents: number;
+    notes: number;
+    interventions: number;
     mappings: number;
   };
   mapped: {
@@ -291,6 +308,8 @@ export async function applyCreateMissingBehaviorLogImportPlan(
       schedules: 0,
       occurrences: 0,
       statusEvents: 0,
+      notes: 0,
+      interventions: 0,
       mappings: 0,
     },
     skipped: {
@@ -298,6 +317,8 @@ export async function applyCreateMissingBehaviorLogImportPlan(
       schedules: 0,
       occurrences: 0,
       statusEvents: 0,
+      notes: 0,
+      interventions: 0,
     },
     warnings: [...input.preview.warnings],
   };
@@ -618,6 +639,29 @@ export async function applyCreateMissingBehaviorLogImportPlan(
       );
     }
 
+    for (const note of input.preview.plan.notes) {
+      await applyCreateOnlyNotePlan(supabase, result, {
+        userId: input.userId,
+        importRunId: input.importRunId,
+        note,
+        behaviorIds,
+        occurrenceIds,
+        statusEventIds,
+        mappings,
+      });
+    }
+
+    for (const intervention of input.preview.plan.interventions) {
+      await applyCreateOnlyInterventionPlan(supabase, result, {
+        userId: input.userId,
+        importRunId: input.importRunId,
+        intervention,
+        behaviorIds,
+        occurrenceIds,
+        mappings,
+      });
+    }
+
     const appliedRun = await updateBehaviorLogImportRunStatus(supabase, {
       userId: input.userId,
       importRunId: input.importRunId,
@@ -656,6 +700,8 @@ export async function applyApprovedBehaviorLogMergePlan(
       schedules: 0,
       occurrences: 0,
       statusEvents: 0,
+      notes: 0,
+      interventions: 0,
       mappings: 0,
     },
     mapped: {
@@ -706,8 +752,17 @@ export async function applyApprovedBehaviorLogMergePlan(
     const scheduleIds = new Map<string, string>();
     const occurrenceIds = new Map<string, string>();
     const statusEventIds = new Map<string, string>();
-    const notePlansByExternalId = new Map(
+    const notePlansByExternalId = new Map<string, BehaviorLogImportNotePlan>(
       input.preview.plan.notes.map((note) => [note.externalId, note]),
+    );
+    const interventionPlansByExternalId = new Map<
+      string,
+      BehaviorLogImportInterventionPreviewPlan
+    >(
+      input.preview.plan.interventions.map((intervention) => [
+        intervention.externalId,
+        intervention,
+      ]),
     );
 
     hydrateMappingTargets({
@@ -1216,16 +1271,22 @@ export async function applyApprovedBehaviorLogMergePlan(
         importRunId: input.importRunId,
         action: noteAction,
         notePlansByExternalId,
+        behaviorIds,
         occurrenceIds,
+        statusEventIds,
         mappings,
       });
     }
 
     for (const interventionAction of acceptedMergePreview.actions.interventions) {
-      await applyNonProductMappingAction(supabase, result, {
+      await applyInterventionMergeAction(supabase, result, {
         userId: input.userId,
         importRunId: input.importRunId,
         action: interventionAction,
+        interventionPlansByExternalId,
+        behaviorIds,
+        occurrenceIds,
+        mappings,
       });
     }
 
@@ -1731,6 +1792,71 @@ async function persistActionMappingIfLocalId(
   });
 }
 
+async function applyCreateOnlyNotePlan(
+  supabase: AppSupabaseClient,
+  result: MutableApplyResult,
+  input: {
+    userId: string;
+    importRunId: string;
+    note: BehaviorLogImportNotePlan;
+    behaviorIds: Map<string, string>;
+    occurrenceIds: Map<string, string>;
+    statusEventIds: Map<string, string>;
+    mappings: MappingIndex;
+  },
+): Promise<void> {
+  if (input.mappings.has(mappingKey("note", input.note.externalId))) {
+    result.skipped.notes += 1;
+    return;
+  }
+
+  if (input.note.action === "skip" || input.note.noteRole === "ai_generated") {
+    result.skipped.notes += 1;
+    return;
+  }
+
+  const targetLocalId = resolveImportedNoteTargetLocalId(input.note, input);
+
+  if (input.note.attachedToType !== "review" && !targetLocalId) {
+    addApplyWarning(
+      result,
+      "note_target_missing",
+      `Note ${input.note.externalId} was skipped because its ${input.note.attachedToType} target was not imported or mapped.`,
+    );
+    result.skipped.notes += 1;
+    return;
+  }
+
+  const persisted = await persistImportedNoteRecord(supabase, result, {
+    userId: input.userId,
+    importRunId: input.importRunId,
+    note: input.note,
+    targetLocalId,
+    mappings: input.mappings,
+    noteDecision: "create_only_imported_note_record",
+  });
+
+  if (!persisted) {
+    result.skipped.notes += 1;
+    return;
+  }
+
+  if (persisted.created) {
+    result.created.notes += 1;
+  } else {
+    result.skipped.notes += 1;
+  }
+
+  if (input.note.attachedToType === "occurrence" && targetLocalId) {
+    await maybeFillOccurrenceNoteFromImportedNote(supabase, result, {
+      userId: input.userId,
+      note: input.note,
+      occurrenceId: targetLocalId,
+      noteDecision: "fill_created_occurrence_note",
+    });
+  }
+}
+
 async function applyNoteMergeAction(
   supabase: AppSupabaseClient,
   result: MutableMergeApplyResult,
@@ -1739,7 +1865,9 @@ async function applyNoteMergeAction(
     importRunId: string;
     action: BehaviorLogImportMergeRecordAction;
     notePlansByExternalId: Map<string, BehaviorLogImportNotePlan>;
+    behaviorIds: Map<string, string>;
     occurrenceIds: Map<string, string>;
+    statusEventIds: Map<string, string>;
     mappings: MappingIndex;
   },
 ): Promise<void> {
@@ -1782,15 +1910,11 @@ async function applyNoteMergeAction(
     return;
   }
 
-  if (
-    note.action === "skip" ||
-    note.attachedToType !== "occurrence" ||
-    note.noteRole === "ai_generated"
-  ) {
+  if (note.action === "skip" || note.noteRole === "ai_generated") {
     addApplyWarning(
       result,
       "note_not_product_importable",
-      `Note ${note.externalId} was skipped because it is not an occurrence-attached human/imported note that Cadence can represent.`,
+      `Note ${note.externalId} was skipped because the validated note plan does not allow importing it.`,
     );
     result.skipped.notes += 1;
     return;
@@ -1809,63 +1933,147 @@ async function applyNoteMergeAction(
     input.action,
     "noteDecision",
   );
-  const occurrenceId =
-    input.action.localId ?? input.occurrenceIds.get(note.attachedToId);
-  const importedNote = normalizeImportedNoteBody(note.bodyMarkdown);
+  const targetLocalId =
+    readActionMetadataString(input.action, "targetLocalId") ??
+    input.action.localId ??
+    resolveImportedNoteTargetLocalId(note, input);
 
-  if (!occurrenceId) {
+  if (note.attachedToType !== "review" && !targetLocalId) {
     addApplyWarning(
       result,
-      "note_target_occurrence_missing",
-      `Note ${note.externalId} was skipped because its occurrence target was not imported or mapped.`,
+      "note_target_missing",
+      `Note ${note.externalId} was skipped because its ${note.attachedToType} target was not imported or mapped.`,
     );
     result.skipped.notes += 1;
     return;
   }
 
+  const persisted = await persistImportedNoteRecord(supabase, result, {
+    userId: input.userId,
+    importRunId: input.importRunId,
+    note,
+    targetLocalId,
+    mappings: input.mappings,
+    noteDecision,
+  });
+
+  if (!persisted) {
+    result.skipped.notes += 1;
+    return;
+  }
+
+  if (persisted.created) {
+    result.created.notes += 1;
+  } else {
+    result.mapped.notes += 1;
+  }
+
+  if (note.attachedToType === "occurrence" && targetLocalId) {
+    await maybeFillOccurrenceNoteFromImportedNote(supabase, result, {
+      userId: input.userId,
+      note,
+      occurrenceId: targetLocalId,
+      noteDecision,
+    });
+  }
+}
+
+async function persistImportedNoteRecord(
+  supabase: AppSupabaseClient,
+  result: MappingApplyResult & { warnings: BehaviorLogImportIssue[] },
+  input: {
+    userId: string;
+    importRunId: string;
+    note: BehaviorLogImportNotePlan;
+    targetLocalId: string | null;
+    mappings: MappingIndex;
+    noteDecision: string | null;
+  },
+): Promise<{ id: string; created: boolean } | null> {
+  const importedNote = normalizeImportedNoteBody(input.note.bodyMarkdown);
+
   if (!importedNote) {
     addApplyWarning(
       result,
       "note_body_empty",
-      `Note ${note.externalId} was skipped because its normalized body is empty.`,
+      `Note ${input.note.externalId} was skipped because its normalized body is empty.`,
     );
-    result.skipped.notes += 1;
+    return null;
+  }
+
+  const existing = await getImportedNoteByImportIdentity(supabase, {
+    userId: input.userId,
+    importRunId: input.importRunId,
+    externalId: input.note.externalId,
+  });
+  const localNote =
+    existing ??
+    (await createImportedNote(
+      supabase,
+      toNewImportedNote({
+        userId: input.userId,
+        importRunId: input.importRunId,
+        note: input.note,
+        bodyMarkdown: importedNote,
+        targetLocalId: input.targetLocalId,
+        noteDecision: input.noteDecision,
+      }),
+    ));
+
+  await persistMapping(supabase, result, {
+    userId: input.userId,
+    importRunId: input.importRunId,
+    recordType: "note",
+    externalId: input.note.externalId,
+    localId: localNote.id,
+  });
+  input.mappings.set(mappingKey("note", input.note.externalId), localNote.id);
+
+  return { id: localNote.id, created: !existing };
+}
+
+async function maybeFillOccurrenceNoteFromImportedNote(
+  supabase: AppSupabaseClient,
+  result: { warnings: BehaviorLogImportIssue[] },
+  input: {
+    userId: string;
+    note: BehaviorLogImportNotePlan;
+    occurrenceId: string;
+    noteDecision: string | null;
+  },
+): Promise<void> {
+  const importedNote = normalizeImportedNoteBody(input.note.bodyMarkdown);
+
+  if (!importedNote) {
     return;
   }
 
   const occurrence = await getOccurrenceById(
     supabase,
     input.userId,
-    occurrenceId,
+    input.occurrenceId,
   );
 
   if (!occurrence) {
     throw new Error(
-      `Accepted merge plan maps note ${note.externalId} to missing local occurrence ${occurrenceId}.`,
+      `Accepted import plan maps note ${input.note.externalId} to missing local occurrence ${input.occurrenceId}.`,
     );
   }
 
   if (noteBodiesEqual(occurrence.note, importedNote)) {
-    await persistNoteMapping(supabase, result, input, note, occurrenceId);
     return;
   }
 
   if (
-    noteDecision !== "fill_created_occurrence_note" &&
-    noteDecision !== "fill_empty_occurrence_note"
+    input.noteDecision !== "fill_created_occurrence_note" &&
+    input.noteDecision !== "fill_empty_occurrence_note"
   ) {
-    addApplyWarning(
-      result,
-      "note_decision_not_safe_fill",
-      `Note ${note.externalId} was skipped because the accepted plan did not explicitly allow filling an empty occurrence note.`,
-    );
-    result.skipped.notes += 1;
     return;
   }
 
   const updatedOccurrence = await updateOccurrenceNoteIfEmpty(supabase, {
     userId: input.userId,
-    occurrenceId,
+    occurrenceId: input.occurrenceId,
     note: importedNote,
   });
 
@@ -1873,98 +2081,321 @@ async function applyNoteMergeAction(
     addApplyWarning(
       result,
       "occurrence_note_not_empty",
-      `Note ${note.externalId} was skipped because local occurrence ${occurrenceId} no longer has an empty note.`,
+      `Note ${input.note.externalId} was stored as passive imported note history, but local occurrence ${input.occurrenceId} no longer has an empty inline note.`,
     );
-    result.skipped.notes += 1;
-    return;
   }
-
-  await persistNoteMapping(supabase, result, input, note, occurrenceId);
 }
 
-async function persistNoteMapping(
+function resolveImportedNoteTargetLocalId(
+  note: BehaviorLogImportNotePlan,
+  input: {
+    behaviorIds: Map<string, string>;
+    occurrenceIds: Map<string, string>;
+    statusEventIds: Map<string, string>;
+  },
+): string | null {
+  switch (note.attachedToType) {
+    case "behavior":
+      return input.behaviorIds.get(note.attachedToId) ?? null;
+    case "occurrence":
+      return input.occurrenceIds.get(note.attachedToId) ?? null;
+    case "status_event":
+      return input.statusEventIds.get(note.attachedToId) ?? null;
+    case "review":
+      return null;
+  }
+}
+
+function toNewImportedNote(input: {
+  userId: string;
+  importRunId: string;
+  note: BehaviorLogImportNotePlan;
+  bodyMarkdown: string;
+  targetLocalId: string | null;
+  noteDecision: string | null;
+}): NewImportedNote {
+  return {
+    user_id: input.userId,
+    import_run_id: input.importRunId,
+    external_id: input.note.externalId,
+    target_type: input.note.attachedToType,
+    target_external_id: input.note.attachedToId,
+    target_local_id: input.targetLocalId,
+    body_markdown: input.bodyMarkdown,
+    note_role: input.note.noteRole,
+    sensitivity: input.note.sensitivity,
+    source_original_id: input.note.sourceOriginalId ?? null,
+    source_capture_method: input.note.sourceCaptureMethod,
+    source_confidence: input.note.sourceConfidence,
+    imported_created_at: input.note.createdAtUtc,
+    imported_updated_at: input.note.updatedAtUtc,
+    metadata: {
+      noteDecision: input.noteDecision,
+      attachment: {
+        type: input.note.attachedToType,
+        externalId: input.note.attachedToId,
+        localId: input.targetLocalId,
+      },
+      passiveImportedNote: true,
+      analyticsStatusSideEffects: false,
+    },
+  } satisfies NewImportedNote;
+}
+
+async function applyCreateOnlyInterventionPlan(
   supabase: AppSupabaseClient,
-  result: MutableMergeApplyResult,
+  result: MutableApplyResult,
   input: {
     userId: string;
     importRunId: string;
+    intervention: BehaviorLogImportInterventionPreviewPlan;
+    behaviorIds: Map<string, string>;
+    occurrenceIds: Map<string, string>;
     mappings: MappingIndex;
   },
-  note: BehaviorLogImportNotePlan,
-  occurrenceId: string,
 ): Promise<void> {
-  await persistMapping(supabase, result, {
+  if (
+    input.mappings.has(mappingKey("intervention", input.intervention.externalId))
+  ) {
+    result.skipped.interventions += 1;
+    return;
+  }
+
+  const persisted = await persistImportedInterventionRecord(supabase, result, {
     userId: input.userId,
     importRunId: input.importRunId,
-    recordType: "note",
-    externalId: note.externalId,
-    localId: occurrenceId,
+    intervention: input.intervention,
+    behaviorId:
+      input.behaviorIds.get(input.intervention.behaviorExternalId) ?? null,
+    occurrenceId:
+      input.occurrenceIds.get(input.intervention.occurrenceExternalId) ?? null,
+    mappings: input.mappings,
+    interventionDecision: "create_only_passive_history",
   });
-  input.mappings.set(mappingKey("note", note.externalId), occurrenceId);
-  result.mapped.notes += 1;
+
+  if (!persisted) {
+    result.skipped.interventions += 1;
+    return;
+  }
+
+  if (persisted.created) {
+    result.created.interventions += 1;
+  } else {
+    result.skipped.interventions += 1;
+  }
 }
 
-async function applyNonProductMappingAction(
+async function applyInterventionMergeAction(
   supabase: AppSupabaseClient,
   result: MutableMergeApplyResult,
   input: {
     userId: string;
     importRunId: string;
     action: BehaviorLogImportMergeRecordAction;
+    interventionPlansByExternalId: Map<
+      string,
+      BehaviorLogImportInterventionPreviewPlan
+    >;
+    behaviorIds: Map<string, string>;
+    occurrenceIds: Map<string, string>;
+    mappings: MappingIndex;
   },
 ): Promise<void> {
-  if (input.action.action === "conflict_requires_decision") {
+  if (input.action.recordType !== "intervention") {
     throw new Error(
-      `BehaviorLog merge action for ${input.action.recordType} ${input.action.externalId} still requires a user decision.`,
+      `Expected an intervention merge action, received ${input.action.recordType}.`,
     );
   }
 
-  if (input.action.action === "map_to_existing") {
-    await persistActionMappingIfLocalId(supabase, result, input);
-    incrementMappedNonProduct(result, input.action.recordType);
+  if (input.action.action === "conflict_requires_decision") {
+    throw new Error(
+      `BehaviorLog merge action for intervention ${input.action.externalId} still requires a user decision.`,
+    );
+  }
+
+  if (input.mappings.has(mappingKey("intervention", input.action.externalId))) {
+    result.skipped.interventions += 1;
     return;
   }
 
   if (input.action.action === "skip_existing") {
-    await persistActionMappingIfLocalId(supabase, result, input);
-    incrementSkippedNonProduct(result, input.action.recordType);
+    await persistActionMappingIfLocalId(supabase, result, {
+      userId: input.userId,
+      importRunId: input.importRunId,
+      action: input.action,
+    });
+    result.skipped.interventions += 1;
     return;
   }
 
-  if (input.action.action === "create_new") {
+  if (input.action.action === "map_to_existing") {
+    await persistActionMappingIfLocalId(supabase, result, {
+      userId: input.userId,
+      importRunId: input.importRunId,
+      action: input.action,
+    });
+    result.mapped.interventions += 1;
+    return;
+  }
+
+  if (input.action.action !== "create_new") {
+    throw new Error(
+      `BehaviorLog merge action ${input.action.action} for intervention ${input.action.externalId} cannot be applied.`,
+    );
+  }
+
+  const intervention = input.interventionPlansByExternalId.get(
+    input.action.externalId,
+  );
+
+  if (!intervention) {
     addApplyWarning(
       result,
-      `${input.action.recordType}_writes_deferred`,
-      `${input.action.recordType} ${input.action.externalId} was not written; unsupported note writes and intervention writes are not product imports in this phase.`,
+      "intervention_plan_missing",
+      `Intervention ${input.action.externalId} was skipped because the validated intervention plan was not found.`,
     );
-    incrementSkippedNonProduct(result, input.action.recordType);
-  }
-}
-
-function incrementMappedNonProduct(
-  result: MutableMergeApplyResult,
-  recordType: BehaviorLogImportRecordType,
-): void {
-  if (recordType === "note") {
-    result.mapped.notes += 1;
+    result.skipped.interventions += 1;
+    return;
   }
 
-  if (recordType === "intervention") {
+  const persisted = await persistImportedInterventionRecord(supabase, result, {
+    userId: input.userId,
+    importRunId: input.importRunId,
+    intervention,
+    behaviorId:
+      input.behaviorIds.get(intervention.behaviorExternalId) ??
+      readActionMetadataString(input.action, "behaviorLocalId"),
+    occurrenceId:
+      input.occurrenceIds.get(intervention.occurrenceExternalId) ??
+      readActionMetadataString(input.action, "occurrenceLocalId"),
+    mappings: input.mappings,
+    interventionDecision: readActionMetadataString(
+      input.action,
+      "interventionDecision",
+    ),
+  });
+
+  if (!persisted) {
+    result.skipped.interventions += 1;
+    return;
+  }
+
+  if (persisted.created) {
+    result.created.interventions += 1;
+  } else {
     result.mapped.interventions += 1;
   }
 }
 
-function incrementSkippedNonProduct(
-  result: MutableMergeApplyResult,
-  recordType: BehaviorLogImportRecordType,
-): void {
-  if (recordType === "note") {
-    result.skipped.notes += 1;
+async function persistImportedInterventionRecord(
+  supabase: AppSupabaseClient,
+  result: MappingApplyResult & { warnings: BehaviorLogImportIssue[] },
+  input: {
+    userId: string;
+    importRunId: string;
+    intervention: BehaviorLogImportInterventionPreviewPlan;
+    behaviorId: string | null;
+    occurrenceId: string | null;
+    mappings: MappingIndex;
+    interventionDecision: string | null;
+  },
+): Promise<{ id: string; created: boolean } | null> {
+  if (!input.intervention.scheduledSendAtUtc) {
+    addApplyWarning(
+      result,
+      "intervention_scheduled_send_missing",
+      `Intervention ${input.intervention.externalId} was skipped because it has no scheduled send timestamp.`,
+    );
+    return null;
   }
 
-  if (recordType === "intervention") {
-    result.skipped.interventions += 1;
+  const existing = await getImportedInterventionByImportIdentity(supabase, {
+    userId: input.userId,
+    importRunId: input.importRunId,
+    externalId: input.intervention.externalId,
+  });
+  const localIntervention =
+    existing ??
+    (await createImportedIntervention(
+      supabase,
+      toNewImportedIntervention(input),
+    ));
+
+  await persistMapping(supabase, result, {
+    userId: input.userId,
+    importRunId: input.importRunId,
+    recordType: "intervention",
+    externalId: input.intervention.externalId,
+    localId: localIntervention.id,
+  });
+  input.mappings.set(
+    mappingKey("intervention", input.intervention.externalId),
+    localIntervention.id,
+  );
+
+  return { id: localIntervention.id, created: !existing };
+}
+
+function toNewImportedIntervention(input: {
+  userId: string;
+  importRunId: string;
+  intervention: BehaviorLogImportInterventionPreviewPlan;
+  behaviorId: string | null;
+  occurrenceId: string | null;
+  interventionDecision: string | null;
+}): NewImportedIntervention {
+  if (!input.intervention.scheduledSendAtUtc) {
+    throw new Error(
+      `Intervention ${input.intervention.externalId} is missing scheduled send timestamp.`,
+    );
   }
+
+  return {
+    user_id: input.userId,
+    import_run_id: input.importRunId,
+    external_id: input.intervention.externalId,
+    behavior_external_id: input.intervention.behaviorExternalId,
+    occurrence_external_id: input.intervention.occurrenceExternalId,
+    behavior_id: input.behaviorId,
+    occurrence_id: input.occurrenceId,
+    intervention_type: input.intervention.interventionType,
+    channel: input.intervention.channel,
+    delivery_status: input.intervention.deliveryStatus,
+    scheduled_send_at: input.intervention.scheduledSendAtUtc,
+    sent_at: input.intervention.sentAtUtc,
+    failure_reason: input.intervention.failureReason,
+    source_original_id: input.intervention.sourceOriginalId ?? null,
+    source_capture_method: input.intervention.sourceCaptureMethod,
+    source_confidence: input.intervention.sourceConfidence,
+    redacted_sensitivity_indicators: {
+      droppedSensitiveFields:
+        input.intervention.storageDecision.droppedSensitiveFields,
+      redactedFields: input.intervention.storageDecision.redactedFields,
+      containsSensitiveDeliveryPayload:
+        input.intervention.storageDecision.droppedSensitiveFields.length > 0 ||
+        input.intervention.storageDecision.redactedFields.length > 0,
+      rawMessageBodyStored: false,
+      rawEndpointStored: false,
+      recipientIdentifiersStored: false,
+    },
+    metadata: {
+      interventionDecision: input.interventionDecision,
+      storageDecision: input.intervention.storageDecision,
+      passiveImportedIntervention: true,
+      reminderDeliverySideEffects: false,
+      providerSideEffects: false,
+      attachment: {
+        behavior: {
+          externalId: input.intervention.behaviorExternalId,
+          localId: input.behaviorId,
+        },
+        occurrence: {
+          externalId: input.intervention.occurrenceExternalId,
+          localId: input.occurrenceId,
+        },
+      },
+    },
+  } satisfies NewImportedIntervention;
 }
 
 function toNewScheduleSlot(input: {
