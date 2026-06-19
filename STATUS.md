@@ -715,6 +715,7 @@ Implementation summary:
 - Changed the Timeline refresh sequence so `router.refresh()` waits until the chime playback path has started instead of immediately refreshing after the successful status action.
 - Follow-up production listener QA showed two real production Completed clicks reached hydrated React status forms, but neither emitted `cadence:completion-chime-played` nor `cadence:completion-chime-blocked`. The issue was the status server action calling `revalidatePath("/timeline")` before the client success effect could run; completing an occurrence can remove or replace the submitting action component, losing the pending chime effect.
 - Removed the eager Timeline revalidation from `markOccurrenceStatusAction`. `StatusButtons` already refreshes the Timeline after success and completion feedback, so server confirmation is preserved while avoiding the unmount race.
+- Production deployment `dpl_HJXgLVV75HTFGbGVY6YYbpVMRywF` from commit `a7f824221aabbc3b756b08a426f447efa0d3b02f` was ready and aliased to `https://cadence-blush-three.vercel.app` on 2026-06-19.
 - Updated the design-system fixture action to mirror the real status action's `nextStatus` return for fixture-backed browser QA.
 - No schema, resolver, product-scope, notification-provider, or real occurrence-data changes were made.
 
@@ -740,6 +741,9 @@ Verification:
 - Pass: `npm run lint`
 - Pass: `npm run test` (32 files, 227 tests).
 - Pass: `npm run build`
+- Pass: Vercel production deployment `dpl_HJXgLVV75HTFGbGVY6YYbpVMRywF` reached `READY`, with canonical alias `cadence-blush-three.vercel.app` and commit `a7f824221aabbc3b756b08a426f447efa0d3b02f`.
+- Pass: Production smoke after deploy: `/login` returned 200; `/timeline`, `/behaviors`, `/settings`, `/analytics`, and `/export` redirected unauthenticated requests to `/login?next=...`; `/api/reminders/process` returned 401 without a secret; `/sounds/completion-chime.mp3` returned 200 with `Content-Type: audio/mpeg`.
+- Pass: Vercel runtime logs showed no production warning/error/fatal entries in the 15 minutes around the deployment smoke check.
 - Pass: design-system-bench classify/theme detection, inventory and usage scans to `/tmp`, and `npm run design-system:check`; a freshly generated full traceability verification still reports unrelated in-progress Settings/Timezone bench coverage gaps from the current dirty worktree, so no design-system source files were changed for this chime-only pass.
 - Browser QA: Chrome remote-debugging profile loaded local `/design-system#ds-module-status-buttons`, clicked the fixture Completed control through CDP mouse events, received the bench server-action success message, and observed `cadence:completion-chime-played` with `source: "media"`.
 - Browser QA: After the eager-revalidation fix, Chrome loaded local `http://localhost:3002/design-system#ds-module-status-buttons`, clicked the fixture Completed control, and observed `cadence:completion-chime-played` with `source: "media"`.
@@ -752,7 +756,6 @@ Remaining risk:
 - The in-app browser cannot play or authorize audio because its media and notification APIs are unavailable; Chrome verified the actual media playback-start path.
 - The synthesized compatibility fallback is covered by unit tests only. The real Chrome fixture used the preferred media element path, so the fallback was not forced in browser QA.
 - Browser notification permission prompts were not accepted during QA. The permission label/control is present, and prompt triggering remains owned by Settings with real push configuration.
-- The production site will continue using the eager-revalidation behavior until this local fix is deployed.
 
 ### Timeline status action text links
 
