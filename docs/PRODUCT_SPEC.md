@@ -136,12 +136,16 @@ Browser reminders default to on.
 
 Email reminders default to off.
 
-Public launch may add a minimal onboarding flow after first login:
+Public launch includes a minimal first-run setup prompt after first login:
 
 - create first behavior
 - request browser notification permission
 - import data when import exists
 - point to Settings timezone confirmation when useful
+
+The setup prompt is optional, can be dismissed locally, and routes into the
+existing Behaviors, Settings, and Export controls instead of creating a separate
+wizard.
 
 Preset time ranges:
 - Morning: 6:00 AM-Noon
@@ -245,6 +249,13 @@ user must acknowledge the export reminder and type the account email, or
 `DELETE` when no email is available. The server signs out the account globally
 and deletes the Supabase auth user through a server-only service-role client.
 
+Public launch monitoring is limited to privacy-safe operational events in
+server/runtime logs. It may report route names, coarse failure categories,
+methods, and numeric counts, but must not include behavior titles,
+descriptions, occurrence notes, account emails, push endpoints, subscription
+keys, provider secrets, tokens, request bodies, uploaded bundles, or reminder
+message bodies.
+
 ## Offline and PWA behavior
 
 Offline support, offline writes, and PWA caching are deferred from v1.
@@ -267,6 +278,8 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - Account deletion with export reminder and typed confirmation
 - Public Terms, Privacy, and Trust routes
 - Simple onboarding for first behavior, notification permission, import, and timezone
+- Privacy-safe monitoring/error reporting
+- Repeatable many-user RLS smoke QA
 - Public Astro marketing site when explicitly ticketed
 
 ## Out of scope

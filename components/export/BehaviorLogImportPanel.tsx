@@ -59,7 +59,8 @@ export function BehaviorLogImportPanel({
 
   return (
     <section
-      className="border border-line bg-background p-5 sm:p-6"
+      id="behaviorlog-import"
+      className="scroll-mt-20 border border-line bg-background p-5 sm:p-6"
       aria-labelledby="behaviorlog-import-title"
     >
       <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">

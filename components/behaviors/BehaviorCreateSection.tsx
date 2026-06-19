@@ -30,7 +30,7 @@ export function BehaviorCreateSection({
   }, []);
 
   return (
-    <section className="border-b border-line">
+    <section id="create-behavior" className="scroll-mt-20 border-b border-line">
       <details
         open={isOpen}
         onToggle={(event) => {

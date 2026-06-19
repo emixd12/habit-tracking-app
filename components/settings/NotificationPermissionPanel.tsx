@@ -108,7 +108,10 @@ export function NotificationPermissionPanel({
   }
 
   return (
-    <section className="border border-line bg-background p-5 sm:p-6 md:col-span-2">
+    <section
+      id="notifications"
+      className="scroll-mt-20 border border-line bg-background p-5 sm:p-6 md:col-span-2"
+    >
       <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">
           <h2 className="text-xl font-bold leading-tight">Notifications</h2>

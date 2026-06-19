@@ -12,6 +12,7 @@
     "design-system:check": "node scripts/check-design-system.mjs",
     "agents:check": "node scripts/check-agents.mjs",
     "resolvers:check": "node scripts/check-resolvers.mjs",
+    "smoke:rls": "node scripts/supabase-rls-smoke.mjs",
     "supabase": "supabase",
     "sequenzy": "sequenzy"
   },

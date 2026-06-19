@@ -4,7 +4,10 @@ Use this file after `AGENTS.md` and `STATUS.md` to run the repository consistent
 
 ## Current state
 
-The repository contains the v1 app implementation through Ticket 012 plus the project-definition layer. `STATUS.md` remains the detailed implementation ledger and should be checked before starting or continuing any ticket.
+The repository contains the v1 app implementation through Ticket 030 plus
+post-ticket refinements recorded in `STATUS.md`. `STATUS.md` remains the
+detailed implementation ledger and should be checked before starting or
+continuing any ticket.
 
 Cadence's product posture has moved from private-only usage to a public
 open-source product with multiple planned surfaces. The current implemented
@@ -57,6 +60,17 @@ For UI changes, also run the app and inspect at least:
 - a desktop viewport
 - a narrow mobile viewport around 390px wide
 
+For many-independent-user RLS smoke QA, point the Supabase environment variables
+at the intended local or hosted project and run:
+
+```bash
+npm run smoke:rls
+```
+
+The command uses service-role credentials only to create and clean up temporary
+auth users. Data access checks run through ordinary signed-in publishable-key
+clients.
+
 ## Source-of-truth order
 
 1. `AGENTS.md`: operating rules and architecture constraints.
@@ -96,10 +110,15 @@ Implemented baseline:
 
 Remaining public-launch follow-up:
 
-- hosted multi-user RLS smoke QA,
-- first-run onboarding for behavior creation, notification permission, import,
-  and timezone,
-- monitoring/error reporting that avoids sensitive behavior payloads.
+- run hosted multi-user RLS smoke QA with `npm run smoke:rls` before broad
+  launch and after material RLS/schema changes.
+
+Implemented follow-up:
+
+- first-run onboarding for behavior creation, notification permission, optional
+  import, and timezone through a dismissible Timeline setup panel,
+- privacy-safe monitoring/error reporting through structured runtime logs that
+  avoid sensitive behavior payloads.
 
 Marketing cookies and analytics are not launch scope, but any future addition
 should include consent and documentation updates.

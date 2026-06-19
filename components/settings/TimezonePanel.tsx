@@ -61,7 +61,10 @@ export function TimezonePanel({
   }, []);
 
   return (
-    <section className="border border-line bg-background p-5 sm:p-6 md:col-span-2">
+    <section
+      id="timezone"
+      className="scroll-mt-20 border border-line bg-background p-5 sm:p-6 md:col-span-2"
+    >
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,28rem)]">
         <div className="min-w-0">
           <h2 className="text-xl leading-tight">Timezone</h2>

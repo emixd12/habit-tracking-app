@@ -6,6 +6,10 @@ import {
   buildAuthFailureRateLimitKey,
   reminderProcessAuthFailureLimiter,
 } from "@/lib/security/auth-failure-rate-limits";
+import {
+  reportMonitoringError,
+  reportMonitoringEvent,
+} from "@/lib/monitoring/privacy-safe-events";
 import type { RateLimitResult } from "@/lib/security/rate-limiter";
 import { processDueReminders } from "@/lib/services/reminder.service";
 
@@ -26,6 +30,11 @@ async function processReminderRequest(request: NextRequest) {
   const configuredSecrets = readConfiguredSecrets();
 
   if (configuredSecrets.length === 0) {
+    reportMonitoringEvent({
+      name: "reminder_process_not_configured",
+      severity: "error",
+      context: routeContext(request),
+    });
     return jsonError("Reminder processing is not configured.", 503);
   }
 
@@ -36,6 +45,11 @@ async function processReminderRequest(request: NextRequest) {
   const rateLimit = reminderProcessAuthFailureLimiter.check(rateLimitKey);
 
   if (!rateLimit.allowed) {
+    reportMonitoringEvent({
+      name: "reminder_process_auth_rate_limited",
+      severity: "warning",
+      context: routeContext(request),
+    });
     return rateLimitError(rateLimit);
   }
 
@@ -46,9 +60,19 @@ async function processReminderRequest(request: NextRequest) {
       reminderProcessAuthFailureLimiter.recordFailure(rateLimitKey);
 
     if (!failureLimit.allowed) {
+      reportMonitoringEvent({
+        name: "reminder_process_auth_rate_limited",
+        severity: "warning",
+        context: routeContext(request),
+      });
       return rateLimitError(failureLimit);
     }
 
+    reportMonitoringEvent({
+      name: "reminder_process_unauthorized",
+      severity: "warning",
+      context: routeContext(request),
+    });
     return jsonError("Unauthorized reminder processing request.", 401);
   }
 
@@ -59,11 +83,24 @@ async function processReminderRequest(request: NextRequest) {
       limit: parseLimit(request.nextUrl.searchParams.get("limit")),
     });
 
+    reportMonitoringEvent({
+      name: "reminder_process_completed",
+      context: {
+        ...routeContext(request),
+        checked: result.checked,
+        claimed: result.claimed,
+        sent: result.sent,
+        failed: result.failed,
+        cancelled: result.cancelled,
+      },
+    });
+
     return NextResponse.json({
       ok: true,
       result,
     });
-  } catch {
+  } catch (error) {
+    reportMonitoringError("reminder_process_failed", error, routeContext(request));
     return jsonError("Unable to process reminders.", 500);
   }
 }
@@ -148,4 +185,11 @@ function rateLimitError(result: RateLimitResult) {
       },
     },
   );
+}
+
+function routeContext(request: NextRequest) {
+  return {
+    route: "/api/reminders/process",
+    method: request.method,
+  };
 }

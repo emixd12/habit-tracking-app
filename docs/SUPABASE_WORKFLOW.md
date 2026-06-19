@@ -125,6 +125,26 @@ Rules:
 - Use `supabase migration list` before hosted deployment when there is any doubt about state.
 - Do not run `supabase db push --include-seed` unless the ticket explicitly authorizes hosted seed data.
 
+## Many-user RLS smoke QA
+
+Use the project smoke command when a ticket calls for hosted or local
+many-independent-user RLS verification:
+
+```bash
+npm run smoke:rls
+```
+
+The command reads `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
+`SUPABASE_SERVICE_ROLE_KEY` from the environment or `.env.local`. It uses the
+service-role key only to create and delete two temporary auth users. It signs
+those users in through ordinary publishable-key clients, creates one behavior
+per user, and verifies one account cannot read, insert, or update another
+account's rows.
+
+Do not print Supabase keys, temporary user ids, emails, or auth responses in
+handoff notes. The command summary intentionally reports only counts.
+
 ## Local and hosted congruence
 
 The desired invariant is: git migrations define schema, local can reset from git, and hosted migration history matches git.

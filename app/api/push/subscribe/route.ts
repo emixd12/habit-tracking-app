@@ -4,6 +4,10 @@ import {
   buildAuthFailureRateLimitKey,
   pushSubscribeAuthFailureLimiter,
 } from "@/lib/security/auth-failure-rate-limits";
+import {
+  reportMonitoringError,
+  reportMonitoringEvent,
+} from "@/lib/monitoring/privacy-safe-events";
 import type { RateLimitResult } from "@/lib/security/rate-limiter";
 import {
   parsePushSubscriptionRequest,
@@ -22,6 +26,11 @@ export async function POST(request: NextRequest) {
   const rateLimit = pushSubscribeAuthFailureLimiter.check(rateLimitKey);
 
   if (!rateLimit.allowed) {
+    reportMonitoringEvent({
+      name: "push_subscribe_auth_rate_limited",
+      severity: "warning",
+      context: routeContext(request),
+    });
     return rateLimitError(rateLimit);
   }
 
@@ -30,6 +39,11 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
+    reportMonitoringEvent({
+      name: "push_subscribe_invalid_json",
+      severity: "warning",
+      context: routeContext(request),
+    });
     return jsonError("Subscription payload must be valid JSON.", 400);
   }
 
@@ -41,6 +55,10 @@ export async function POST(request: NextRequest) {
     const subscription = await registerPushSubscription(input);
 
     pushSubscribeAuthFailureLimiter.reset(rateLimitKey);
+    reportMonitoringEvent({
+      name: "push_subscribe_saved",
+      context: routeContext(request),
+    });
 
     return NextResponse.json({
       ok: true,
@@ -48,6 +66,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof PushSubscriptionValidationError) {
+      reportMonitoringEvent({
+        name: "push_subscribe_validation_failed",
+        severity: "warning",
+        context: routeContext(request),
+      });
       return jsonError(error.message, 400);
     }
 
@@ -56,12 +79,23 @@ export async function POST(request: NextRequest) {
         pushSubscribeAuthFailureLimiter.recordFailure(rateLimitKey);
 
       if (!failureLimit.allowed) {
+        reportMonitoringEvent({
+          name: "push_subscribe_auth_rate_limited",
+          severity: "warning",
+          context: routeContext(request),
+        });
         return rateLimitError(failureLimit);
       }
 
+      reportMonitoringEvent({
+        name: "push_subscribe_unauthorized",
+        severity: "warning",
+        context: routeContext(request),
+      });
       return jsonError(error.message, 401);
     }
 
+    reportMonitoringError("push_subscribe_failed", error, routeContext(request));
     return jsonError("Unable to save browser reminder subscription.", 500);
   }
 }
@@ -89,4 +123,11 @@ function rateLimitError(result: RateLimitResult) {
       },
     },
   );
+}
+
+function routeContext(request: NextRequest) {
+  return {
+    route: "/api/push/subscribe",
+    method: request.method,
+  };
 }

@@ -222,6 +222,14 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Mobile:** Do not use the collapsed rail under 1024px. Use a sticky 64px top header that opens a 60vw left drawer. The drawer keeps the same square navigation vocabulary and its header has no bottom divider. The drawer traps focus while open, locks body scroll, closes from backdrop or Escape, supports edge swipe open from the first 20px of the viewport, and supports left swipe close. The drawer may use a narrow `shadow-lg` only to separate it from the faded backdrop.
 - **Routes:** Use the documented app screens: Timeline, Behaviors, Analytics, Export, Settings. Do not copy placeholder labels from the reference screens.
 
+### First-Run Setup
+
+- **Placement:** Timeline may render a dismissible setup panel before the feed only while required public-launch setup items remain incomplete. Once the user dismisses it in the current browser, or behavior/notification/timezone setup is complete, the Timeline returns to the normal feed-first rule.
+- **Structure:** Use one flat 1px Ash Line panel with a quiet header, Skip setup control, and divider-separated rows. Do not use a wizard, modal, progress meter, reward language, or motivational copy.
+- **Rows:** Create first behavior, Browser reminders, Timezone, and Import existing records. Each row uses a small square icon cell, a factual status label, and a square action link into existing controls: `/behaviors#create-behavior`, `/settings#notifications`, `/settings#timezone`, and `/export#behaviorlog-import`.
+- **State language:** Use direct labels such as Start here, Done, Not enabled, Blocked, Unavailable, Confirmed, Review, Started, and Optional. Import is optional and must not block setup completion.
+- **Permission behavior:** The setup panel reads browser support and permission state, but it never requests notification permission on page load.
+
 ### Timeline Rows
 
 - **Timeline structure:** The current day is the first forward section and uses the strongest date treatment. Do not show a visible Timeline page title above the feed. Day transitions use the date header plus a thin divider, not boxed day sections. Needs decision is reached from a fixed lower-right button on desktop and a full-width lower safe-area button on mobile; it opens a modal rather than appearing as an inline Timeline section.

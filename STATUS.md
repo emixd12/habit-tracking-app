@@ -43,7 +43,7 @@ When updating a ticket row:
 
 ## Current repository state
 
-This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, and the project-definition and agent-bootstrap layer.
+This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, Ticket 013 Vercel production deployment, BehaviorLog interoperability and import work through Ticket 024, Ticket 026 imported notes, Ticket 027 imported intervention history, Ticket 028 imported intervention promotion services, Ticket 029 public web hardening, Ticket 030 public web hardening follow-up, and the project-definition and agent-bootstrap layer. Ticket 025 full restore/overwrite remains intentionally deferred unless explicitly requested.
 
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
@@ -75,12 +75,24 @@ Current evidence:
 - Analytics exists in `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/analytics`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and selected-day Not Completed inspection. Default adherence excludes unresolved occurrences, and the top summary Unresolved count matches the Timeline Needs decision count.
 - Export exists in `lib/resolvers/export.resolver.ts`, `lib/services/export.service.ts`, `/export`, and `/api/export/jsonl`, `/api/export/csv`, `/api/export/json`. The resolver owns range filtering, archived-behavior filtering, JSONL, CSV escaping, full JSON backup shape, and Markdown AI summary adherence math. All-time export includes occurrences through the current local day and excludes generated future rows.
 - Settings now shows profile email, timezone detection/manual override, notification permission status, browser push availability, a browser reminder enable/save control, Trust/Privacy/Terms links, and account deletion with export acknowledgement plus typed confirmation. Timezone detection uses browser/OS `Intl` data without geolocation; saving a changed timezone updates the profile, active behavior timezones, and future unresolved occurrences through the existing occurrence sync. The client path uses only `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; the processing/sending layer uses server-only `VAPID_PRIVATE_KEY`.
+- Timeline now shows a dismissible first-run setup panel for accounts that have
+  not completed required launch setup items. It links into the existing
+  Behaviors create form, Settings notification subscription, Settings timezone,
+  and optional Export import controls without requesting notification permission
+  on page load.
+- Privacy-safe structured monitoring events now cover OAuth callback failures,
+  push subscription route outcomes, and reminder processor outcomes through
+  runtime logs. The sanitizer drops sensitive keys and redacts email-shaped
+  values before logging.
+- `npm run smoke:rls` runs a many-user Supabase RLS smoke check using
+  service-role credentials only for temporary user setup/cleanup and ordinary
+  signed-in publishable-key clients for isolation checks.
 - A minimal `public/push-service-worker.js` displays received push payloads and opens same-origin app URLs, defaulting to `/timeline`. It does not implement PWA install, route caching, background sync, offline writes, or offline mutation.
 - Supabase and Sequenzy CLIs are installed as dev dependencies and exposed through `npm run supabase -- ...` and `npm run sequenzy -- ...`.
 - Agent operations docs now include Supabase CLI workflow, Sequenzy CLI workflow, date/time strategy, route map, and deterministic drift checks.
 - A local/dev-only design-system bench exists at `/design-system`, backed by `design-system.config.json`, `design-system.manifest.json`, `design-system.usage.json`, and `npm run design-system:check`. It renders fixture-backed existing UI only, is not in primary navigation, is disabled in production builds, and is excluded from design-system inventory/product usage scans.
-- The v1 feature ticket sequence is complete through Ticket 012. Ticket 013 Vercel production hardening is deployed and authenticated production smoke QA now passes for Google login, Behavior create/archive, Timeline occurrence generation, status changes, notes, Settings render, Analytics render, and Export page/link rendering. Production reminder processing execution is now verified through Vercel runtime logs; completion remains blocked only on browser push subscription verification in a browser where notifications are not blocked.
-- Vercel plugin inspection found existing project `cadence` under team `Emi's projects`, connected to GitHub repo `emixd12/habit-tracking-app` on `main`. The latest observed production deployment is ready at `cadence-8uihchsc4-emis-projects-4c886aeb.vercel.app`, with canonical public alias `https://cadence-blush-three.vercel.app`, and points at commit `e1bf0bfa56b00264b88ce3cb4307fc6c62823a3b` (`Implement BehaviorLog import promotion tickets`). Production public Supabase config is present, `/login` renders without the missing-config warning, Google OAuth returns to the canonical production domain, and `/api/reminders/process` supports Vercel Cron `GET` with secret protection.
+- The v1 feature ticket sequence is complete through Ticket 012. Ticket 013 Vercel production hardening is complete after later browser-push production verification: authenticated production smoke QA passed for Google login, Behavior create/archive, Timeline occurrence generation, status changes, notes, Settings render, Analytics render, Export page/link rendering, production reminder cron execution, browser push subscription, and a safe browser-push send.
+- Vercel plugin inspection found existing project `cadence` under team `Emi's projects`, connected to GitHub repo `emixd12/habit-tracking-app` on `main`, with canonical public alias `https://cadence-blush-three.vercel.app`. Production public Supabase config is present, `/login` renders without the missing-config warning, Google OAuth returns to the canonical production domain, and `/api/reminders/process` supports Vercel Cron `GET` with secret protection.
 - Project-local design workflow files exist under `.agents/skills/impeccable/` and should be used for UI/design work after the scaffold exists.
 
 ## Agent operations update
@@ -116,7 +128,29 @@ Supabase is initialized for local development. Ticket 003 added the first produc
 | 010: Email reminders | complete | Added a `processing_started_at` claim migration and regenerated Supabase types; extended the existing reminder repository/service to list, claim, cancel, mark sent, and mark failed due email deliveries; added a server-only Sequenzy transactional template adapter; added protected `POST /api/reminders/process`; stale pending email deliveries are cancelled when the behavior is inactive, email reminders are disabled, the occurrence is resolved, or the current resolver-planned offset no longer matches. Runtime uses `SUPABASE_SERVICE_ROLE_KEY`, `REMINDER_PROCESS_SECRET`, `SEQUENZY_API_KEY`, and `SEQUENZY_REMINDER_TEMPLATE_SLUG` only on the server side. Provider setup uses transactional slug `habit-reminder`, and local `.env.local` sets `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`. Hosted Supabase migration `20260608011000_add_reminder_delivery_processing_claim.sql` has been pushed. | Pass: `npm run supabase -- db reset`; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`; Pass: `npm run test -- tests/reminder.resolver.test.ts tests/reminder.service.test.ts tests/reminder-process-route.test.ts tests/sequenzy.service.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `npm run sequenzy -- whoami` with `.env.local` loaded; Pass: `npm run sequenzy -- transactional get habit-reminder --json`; Pass: one user-approved test send to `emibache@gmail.com`; Pass: `npm run supabase -- db push --linked --yes`; Pass: `npm run supabase -- migration list --linked` shows local and remote `20260608011000`. | Start Ticket 011: Analytics. Set `REMINDER_PROCESS_SECRET` in the deployed/server runtime before scheduling calls to `/api/reminders/process`; do not expose it to the browser. |
 | 011: Analytics | complete | Added pure analytics resolver/types/tests; added analytics service orchestration over existing behavior and occurrence repositories; replaced `/analytics` with a sparse server-rendered screen containing overall adherence, 7/30/90 range links, an overall calendar heatmap, selected-day Not Completed inspection, per-behavior counts and heatmaps, and compact category counts. Updated `docs/ROUTE_MAP.md` and `DESIGN.md` from the implemented screen. | Pass: `npx vitest run tests/analytics.resolver.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: in-app browser `/analytics` redirected unauthenticated session to `/login?next=%2Fanalytics` at 1280px and 390px with no horizontal overflow and no console errors. Authenticated Analytics visual QA was not possible because the in-app browser did not have a Supabase session. | Start Ticket 012: Export. No Ticket 011 blockers. |
 | 012: Export | complete | Added pure export resolver/types/tests; added export service orchestration over categories, behaviors, occurrences, and profile timezone; added `/api/export/jsonl`, `/api/export/csv`, and `/api/export/json` download routes; replaced `/export` placeholder with range options, Include archived behaviors, download actions, and Markdown AI summary copy/download controls. JSONL emits category, behavior, and occurrence records one per line; CSV uses the documented occurrence columns with escaping; full JSON backup includes `exported_at`, profile timezone, categories, behaviors, and occurrences; Markdown adherence excludes unresolved occurrences. Updated `docs/ROUTE_MAP.md` and `DESIGN.md` from the implemented screen. | Pass: `npx vitest run tests/export.resolver.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: authenticated in-app browser `/export` rendered at 1280px and 390px with no horizontal overflow, no console warnings/errors, expected download links, and all-time plus archived query option state preserved. | No Ticket 012 blockers. Future restore/import history remains out of scope unless product docs change. |
-| 013: Vercel production deployment | blocked | Added `vercel.json` with hourly Vercel Cron for `/api/reminders/process`; updated the route to support Vercel Cron `GET` plus existing protected manual `POST`; added `CRON_SECRET` support alongside `REMINDER_PROCESS_SECRET`; documented Vercel workflow, env ownership, Supabase Auth redirects, smoke QA, and rollback path in `docs/VERCEL_WORKFLOW.md`; updated operations/route/notification docs and `.env.example`. Vercel inspection confirms existing project `cadence` under `Emi's projects`, connected to `emixd12/habit-tracking-app` on `main`; latest production deployment `dpl_APxAZ7fDhZjuNHvKFPMgZjMTP3eK` is ready at commit `e1bf0bfa56b00264b88ce3cb4307fc6c62823a3b`. | Pass: `npm run test -- tests/reminder-process-route.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `./node_modules/.bin/tsc --noEmit` after preserving the pre-existing local `next-env.d.ts` edit. Vercel build log inspection passed with deployment ready; build logs show root entrypoint `.`, `npm run build`, Next.js 16.2.7, Node runtime `24.x`, and only npm peer warnings from `react-reconciler`/`ink`. Production smoke after env/deploy update: canonical `/login` returns 200 with no missing Supabase config warning; protected routes redirect unauthenticated users to `/login?next=...`; `/api/reminders/process` returns 401 for a wrong bearer secret on `GET`; desktop and 390px mobile login render with no horizontal overflow and no browser console warnings/errors. Authenticated production QA passed after Supabase Site URL correction: Google OAuth returns to `https://cadence-blush-three.vercel.app/timeline`; created `Ticket 013 QA 20260608180323`; Timeline generated current and future occurrences; current occurrence was marked Completed, changed to Not Completed, and saved note `Ticket 013 production QA note 20260608180323`; Analytics rendered the Not Completed occurrence and note; Export page rendered JSONL/CSV/full JSON links and AI summary for the QA occurrence; Settings rendered profile email, `America/New_York`, notification permission `Blocked`, and browser push `Available`; QA behavior was archived and no active behaviors remain. Production runtime logs during QA show 200s for authenticated app routes, 401 for wrong reminder secret, and no error/fatal/warning logs. Follow-up Vercel runtime log inspection on 2026-06-19 found hourly production `GET /api/reminders/process` invocations returning 200 from 2026-06-18T01:00:03Z through 2026-06-19T00:00:03Z, with no production warning/error/fatal logs in the previous seven days. | Remaining blocker: browser push subscription could not be completed because the in-app browser's notification permission is `Blocked`; retry in a real authenticated browser/profile where notifications are allowed. The latest deployment became ready at 2026-06-19T00:46:32Z, after the 00:00Z cron tick, so its first post-deploy hourly cron tick still needs the next cron boundary. Actual file download events could not be verified because Codex in-app browser does not support downloads, but the authenticated Export page and link targets rendered correctly. |
+| 013: Vercel production deployment | complete | Added `vercel.json` with hourly Vercel Cron for `/api/reminders/process`; updated the route to support Vercel Cron `GET` plus existing protected manual `POST`; added `CRON_SECRET` support alongside `REMINDER_PROCESS_SECRET`; documented Vercel workflow, env ownership, Supabase Auth redirects, smoke QA, and rollback path. Later browser-push troubleshooting and production verification completed the original push-subscription/send blocker. | Pass: `npm run test -- tests/reminder-process-route.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; production smoke for login/protected redirects/authenticated app routes; production cron logs returned 200; Chrome verified notification permission plus active FCM PushSubscription; safe production browser-push send returned `{ checked: 1, claimed: 1, sent: 1, failed: 0, cancelled: 0 }`. | No Ticket 013 blocker remains. Chrome will not show the native notification permission prompt again for an origin that is already granted or denied unless site settings are reset. Actual file download events remain limited by browser automation, but Export page/link rendering was verified. |
+
+Later ticket rollup:
+
+| Ticket | Status | Current note |
+|---|---|---|
+| 014: BehaviorLog import validation dry-run | complete | Service/resolver dry-run validation exists; no import writes were added in this ticket. |
+| 015: BehaviorLog core conformance harness | complete | Cadence-generated BehaviorLog bundles pass the pinned upstream Level 1 validator snapshot; future changes should update the snapshot intentionally. |
+| 016: BehaviorLog Level 2 CSV views | complete | Optional BehaviorLog CSV views are emitted from authoritative JSONL and covered by resolver/conformance tests. |
+| 017: BehaviorLog Intervention Profile export | complete | Reminder deliveries export as optional Intervention Profile records without provider side effects or message-body export. |
+| 018: BehaviorLog import persistence foundation | complete | Import-run and mapping tables exist with RLS and hosted migration applied. |
+| 019: BehaviorLog create-only core import | complete | Create-missing-only behavior/schedule/occurrence/status-event import path exists and remains non-destructive. |
+| 020: BehaviorLog conflict-aware merge preview | complete | Merge preview produces deterministic actions/conflicts without mutating product data. |
+| 021: BehaviorLog user-approved merge write | complete | Approved merge writes create/map records and append status events without blind overwrite or destructive restore. |
+| 022: BehaviorLog optional notes import | complete | Occurrence-attached note import was implemented and later expanded by Ticket 026. |
+| 023: BehaviorLog Intervention Profile import preview | complete | Optional intervention import preview was implemented and later expanded by Ticket 027. |
+| 024: User-facing BehaviorLog import UI | complete | Export screen includes upload, preview, recent-run, create-only, and approved-merge UI. |
+| 025: BehaviorLog full restore and overwrite mode | deferred | Intentionally not started. Do not implement unless the user explicitly requests destructive restore/overwrite work and docs are updated. |
+| 026: General BehaviorLog notes data model and import | complete | Passive imported notes table and import/apply support are implemented with sensitivity acknowledgement. |
+| 027: Imported intervention history storage | complete | Passive imported intervention history storage exists with RLS and hosted migration applied. |
+| 028: Promote imported interventions into reminder deliveries | complete | Service-level promotion path exists with explicit selection/confirmation; no user-facing promotion UI has been added. |
+| 029: Public web hardening account safety baseline | complete | Account deletion, legal/trust pages, endpoint hardening, bounded reminder processing, and RLS policy registry are implemented. Remaining public-launch follow-up is hosted multi-user RLS smoke QA, first-run onboarding, and privacy-conscious monitoring/error reporting. |
+| 030: Public web hardening follow-up | complete | Added dismissible Timeline first-run setup, privacy-safe structured runtime monitoring, and `npm run smoke:rls` many-user RLS smoke QA. | Pass: `npm run smoke:rls`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test` (35 files, 241 tests); Pass: `npm run build`; Pass: `npm run design-system:check`; Pass: `git diff --check`; Browser QA with a temporary authenticated Chrome user verified Timeline first-run setup at 1280px and 390px with no horizontal overflow, required links present, no console warnings/errors, and temporary user cleanup. | No Ticket 030 blocker remains. Re-run `npm run smoke:rls` before broad launch and after material RLS/schema changes. |
 
 ## Post-ticket refinements
 
@@ -1158,7 +1192,7 @@ Remaining risk:
 Status: complete.
 
 Implementation summary:
-- Ticket 016 implementation has started. The export resolver now emits optional `csv/behaviors.csv`, `csv/schedules.csv`, `csv/occurrences.csv`, and `csv/status_events.csv` BehaviorLog bundle views generated from the same normalized records as authoritative JSONL.
+- Ticket 016 implementation is complete. The export resolver now emits optional `csv/behaviors.csv`, `csv/schedules.csv`, `csv/occurrences.csv`, and `csv/status_events.csv` BehaviorLog bundle views generated from the same normalized records as authoritative JSONL.
 - CSV files are listed in `manifest.json` as optional `text/csv` files with SHA-256 hashes and null schema references.
 - Tests now compare each CSV view to its JSONL source by record count and stable ID, and cover CSV escaping plus single-column JSON-string extension encoding.
 
@@ -1179,7 +1213,7 @@ Remaining risk:
 Status: complete.
 
 Implementation summary:
-- Ticket 017 implementation has started. The export service now loads user-scoped reminder deliveries for exported occurrence ids and passes sanitized delivery facts into the export resolver.
+- Ticket 017 implementation is complete. The export service now loads user-scoped reminder deliveries for exported occurrence ids and passes sanitized delivery facts into the export resolver.
 - The BehaviorLog resolver now emits optional `data/interventions.jsonl` records when exported occurrences have reminder deliveries, advertises the optional `interventions` profile, adds an Intervention schema definition, and lists the file in `manifest.json` with SHA-256 hash and `required: false`.
 - Intervention records reference exported behaviors and occurrences, preserve channel, scheduled send time, sent time, delivery status, and sanitized failure reason, and keep Cadence delivery metadata under `extensions.app.cadence`.
 - No reminder processing behavior, provider sends, import writes, message-body export, user-facing import UI, schema migration, or notification-provider side effects were added.
@@ -1769,8 +1803,66 @@ Remaining risk:
   cron verification is needed.
 - The rate limiter is per-runtime in-memory protection. It is a practical
   baseline, not distributed abuse prevention across all Vercel instances.
-- Full first-run onboarding and monitoring/error reporting remain public-launch
-  follow-up work.
+- First-run onboarding, privacy-safe monitoring, and many-user RLS smoke QA were
+  completed in Ticket 030 below.
+
+### Ticket 030: Public web hardening follow-up
+
+Status: complete.
+
+Implementation summary:
+- Made the future public web hardening follow-up explicit as Ticket 030 in
+  `docs/TICKETS.md`.
+- Added a server-derived, client-aware first-run setup panel on Timeline. It
+  appears only while required setup remains incomplete and the user has not
+  dismissed it in the current browser.
+- The setup panel links to existing controls:
+  `/behaviors#create-behavior`, `/settings#notifications`,
+  `/settings#timezone`, and `/export#behaviorlog-import`. Import remains
+  optional and non-blocking.
+- Added anchor targets to the existing Behavior create, Settings notification,
+  Settings timezone, and BehaviorLog import sections.
+- Added privacy-safe structured monitoring helpers and wired OAuth callback,
+  push subscription, and reminder processing route outcomes into sanitized
+  runtime logs. No external monitoring SDK or third-party reporting provider was
+  added.
+- Added `npm run smoke:rls` backed by `scripts/supabase-rls-smoke.mjs`. The
+  smoke command creates two temporary auth users with service-role access for
+  setup/cleanup, then signs in with ordinary publishable-key clients and checks
+  profile/category/behavior isolation.
+- Updated product, UI, user-flow, route, notification, data-model, operations,
+  Supabase, Vercel, design, ticket, and status docs.
+- No schema migration, new product route, provider send, marketing site,
+  admin/support dashboard, analytics/cookie SDK, workspace restructuring, or
+  offline/PWA behavior was added.
+
+Verification:
+- Pass: `npm run test -- tests/onboarding.service.test.ts tests/monitoring.test.ts tests/rls-smoke-script.test.ts` (14 focused tests).
+- Pass: targeted ESLint for changed onboarding, monitoring, route, and test
+  files.
+- Pass: `npm run smoke:rls`; configured Supabase target created two temporary
+  users, verified six ownership checks, and cleaned up temporary users.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (35 files, 241 tests).
+- Pass: `npm run build`.
+- Pass: `npm run design-system:check`.
+- Pass: `git diff --check`.
+- Browser QA: local dev server at `http://localhost:3000` with a temporary
+  authenticated Chrome user rendered `/timeline` first-run setup at 1280px and
+  390px. The setup links were present, there was no horizontal overflow, no
+  console warnings/errors were captured, the mobile fixed Needs decision
+  control sat over reserved blank panel space, and the temporary auth user was
+  cleaned up.
+
+Remaining risk:
+- The monitoring implementation intentionally uses platform runtime logs only.
+  If a later ticket adds a third-party monitoring provider, it needs an
+  explicit privacy model and consent posture before sending events off-platform.
+- `npm run smoke:rls` should be rerun before broad public launch and after
+  material RLS/schema changes.
 
 ### Browser push delivery troubleshooting
 
@@ -2008,13 +2100,16 @@ Remaining risk:
 ## Handoff notes
 
 - For the next coding agent: production browser push subscription is now
-  verified in Chrome as permission granted with an active FCM subscription.
-  The remaining notification follow-up is deploying the browser-push delivery
-  processor change and verifying a safe real browser-push send. Production cron
-  execution has been verified through Vercel runtime logs, with the
-  latest-deployment timing nuance recorded above.
-- Ticket 029 completed the first public web hardening baseline. Remaining public-launch follow-up is hosted multi-user RLS smoke QA, first-run onboarding for first behavior/notifications/import entry, and monitoring/error reporting without sensitive behavior payloads.
-- Ticket 025 full restore/overwrite remains not started and should not be implemented unless explicitly requested. It is intentionally more destructive than the current import/create/merge paths.
+  verified in Chrome as permission granted with an active FCM subscription, and
+  browser-push production delivery has been verified with a safe temporary due
+  reminder. Chrome will not show the native notification permission prompt again
+  for an already granted or denied origin unless the site permission is reset.
+  Production cron execution has been verified through Vercel runtime logs.
+- Ticket 029 completed the first public web hardening baseline. Ticket 030 completed
+  first-run onboarding, privacy-safe structured runtime monitoring, and the
+  `npm run smoke:rls` many-user RLS smoke command. Re-run the smoke command
+  before broad public launch and after material RLS/schema changes.
+- Ticket 025 full restore/overwrite is deferred and should not be implemented unless explicitly requested. It is intentionally more destructive than the current import/create/merge paths.
 - Do not start deferred offline/PWA, marketing, workspace restructuring, desktop/mobile, billing, or AI work unless the relevant docs and tickets move that work into active scope.
 - Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.
 - Run `npm run design-system:check` after changing reusable UI, the bench route, or design-system manifest/usage/config files.

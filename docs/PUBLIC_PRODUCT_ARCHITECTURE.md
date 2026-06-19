@@ -115,7 +115,8 @@ Launch auth:
 - The default route after login remains `/timeline`.
 - Public users can create accounts immediately when public launch begins.
 
-Simple onboarding is in scope for public launch:
+Simple onboarding is implemented for public launch as a thin, optional prompt
+that links into existing app controls:
 
 1. Create first behavior.
 2. Request browser notification permission.
@@ -146,7 +147,8 @@ Before public launch, add standard public-product protections:
 - Server-side validation on all mutation routes/actions.
 - Secret scanning discipline and environment variable ownership.
 - Basic monitoring/error reporting without sending sensitive behavior content
-  to third-party tools.
+  to third-party tools. The first implementation uses privacy-safe structured
+  runtime logs rather than adding an external monitoring SDK.
 - Account deletion and export paths.
 - Terms of Service and Privacy Policy.
 - A privacy/trust page explaining ownership, export, reminders, and the

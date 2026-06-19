@@ -646,6 +646,13 @@ product posture is:
 - do not expose routine admin access to user behavior content,
 - avoid sending sensitive behavior content to monitoring tools.
 
+The first public-launch monitoring implementation reports privacy-safe
+structured runtime events only. Monitoring context may include route names,
+methods, coarse event names, and numeric counts. It must not include behavior
+titles, behavior descriptions, occurrence notes, account emails, raw push
+endpoints, subscription keys, provider secrets, tokens, request bodies, uploaded
+BehaviorLog bundles, or reminder message bodies.
+
 ## RLS requirements
 
 For every user-owned table:
@@ -678,9 +685,16 @@ and account creation:
 - route/action validation for all mutations,
 - practical rate limiting for public or secret-protected endpoints,
 - a static RLS policy registry test covering every user-owned table,
+- a repeatable multi-user RLS smoke command for local or hosted Supabase,
 - monitoring that avoids sensitive behavior payloads,
 - clear secret ownership for Supabase, Sequenzy, VAPID, and cron/process
   secrets.
+
+Run `npm run smoke:rls` against the intended Supabase target when performing
+hosted many-independent-user QA. The command creates two temporary auth users
+with service-role access for setup and cleanup, then signs in through ordinary
+publishable-key clients to verify that one user cannot read, insert, or update
+another user's profile/category/behavior rows.
 
 ## Behavior edits and occurrence preservation
 

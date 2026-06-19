@@ -100,7 +100,24 @@ This is the main screen.
 The current day should be prominent and should begin the forward timeline.
 
 Do not show a visible Timeline page title or explanatory helper text above the
-feed. The first visible content should be the current-day section.
+feed. The first visible content should be the current-day section except for
+the optional first-run setup prompt while required launch setup items remain
+incomplete.
+
+### First-run setup
+
+The first-run prompt is a flat bordered panel shown on Timeline only while
+required setup items remain incomplete and the user has not dismissed it in the
+current browser. It should:
+
+- Link to the existing create-behavior, notification, timezone, and import
+  controls.
+- Treat import as optional.
+- Never request notification permission on page load.
+- Use square list rows, quiet borders, and factual state labels such as Done,
+  Not enabled, Blocked, Confirmed, Review, and Optional.
+- Provide a Skip setup control.
+- Avoid motivational copy, progress gamification, or a modal/wizard.
 
 Users should not browse previous days as normal timeline sections. Prior unresolved occurrences appear only in the Needs decision modal.
 
@@ -267,9 +284,9 @@ Preset time ranges:
 Timezone is managed in Settings and should not be shown as a separate panel in
 the behavior creation form.
 
-Public launch may introduce a short first-run onboarding flow, but it should
-reuse the same behavior form, notification permission control, import entry,
-and timezone settings rather than creating a separate onboarding product.
+Public launch includes a short first-run onboarding flow. It reuses the same
+behavior form, notification permission control, import entry, and timezone
+settings rather than creating a separate onboarding product.
 
 ## Recurrence editor
 

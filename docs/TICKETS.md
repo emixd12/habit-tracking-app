@@ -1194,7 +1194,7 @@ Out of scope for this baseline:
 
 ---
 
-## Future ticket: Public web hardening follow-up
+## Ticket 030: Public web hardening follow-up
 
 Complete the remaining public-launch hardening items after Ticket 029:
 
@@ -1205,6 +1205,29 @@ Complete the remaining public-launch hardening items after Ticket 029:
 - Add basic monitoring/error reporting without sensitive behavior payloads.
 - Add hosted many-independent-user RLS smoke QA beyond the static policy
   registry test.
+
+Acceptance criteria:
+- Keep onboarding thin, optional, and routed into existing Behaviors, Settings,
+  and Export controls rather than a separate setup wizard.
+- Do not request notification permission on page load.
+- Treat import as optional and non-blocking.
+- Keep monitoring provider-free unless separately scoped; structured runtime
+  logs must avoid behavior titles, notes, descriptions, email addresses, push
+  endpoints, keys, secrets, tokens, request bodies, and uploaded payloads.
+- Add a repeatable RLS smoke command that uses two ordinary authenticated
+  Supabase sessions for data access and proves one user cannot read, insert, or
+  update another user's rows.
+- Use service-role credentials only for smoke-test user setup and cleanup.
+
+Suggested docs:
+- `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+- `docs/PRODUCT_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `docs/UI_SPEC.md`
+- `docs/DATA_MODEL.md`
+- `docs/OPERATIONS.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `STATUS.md`
 
 ---
 

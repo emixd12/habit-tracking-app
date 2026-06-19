@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
+import { FirstRunOnboardingPanel } from "@/components/onboarding/FirstRunOnboardingPanel";
 import { Timeline } from "@/components/timeline/Timeline";
+import { getFirstRunOnboardingState } from "@/lib/services/onboarding.service";
 import { getTimelinePageData } from "@/lib/services/timeline.service";
 import {
   markOccurrenceStatusAction,
@@ -21,13 +23,17 @@ type TimelinePageProps = Readonly<{
 
 export default async function TimelinePage({ searchParams }: TimelinePageProps) {
   const params = await searchParams;
-  const timeline = await getTimelinePageData({
-    futureDays: parseFutureDays(params?.days),
-  });
+  const [timeline, onboarding] = await Promise.all([
+    getTimelinePageData({
+      futureDays: parseFutureDays(params?.days),
+    }),
+    getFirstRunOnboardingState(),
+  ]);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
       <h1 className="sr-only">Timeline</h1>
+      <FirstRunOnboardingPanel onboarding={onboarding} />
       <Timeline
         timeline={timeline}
         statusAction={markOccurrenceStatusAction}

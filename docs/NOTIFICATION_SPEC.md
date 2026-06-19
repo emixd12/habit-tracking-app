@@ -27,7 +27,9 @@ Requirements:
   blocked; a blocked origin needs browser/site settings changed before Cadence
   can save a working subscription.
 - Public launch onboarding may also request notification permission after the
-  user creates the first behavior.
+  user creates the first behavior, but only through a user-clicked control that
+  routes to the existing Settings subscription action. The onboarding prompt
+  must not call browser permission APIs on page load.
 - V1 does not need a test notification button.
 
 Behavior fields:

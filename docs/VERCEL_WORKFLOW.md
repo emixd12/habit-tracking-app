@@ -176,7 +176,15 @@ Before broad public launch, add smoke checks for:
 - Terms, Privacy, and Trust public route rendering,
 - export/account portability,
 - rate-limit or abuse-protection behavior where implemented,
-- monitoring/error-reporting capture without sensitive behavior content.
+- monitoring/error-reporting capture without sensitive behavior content,
+- hosted many-user RLS isolation with `npm run smoke:rls` pointed at the
+  production Supabase project.
+
+The first monitoring implementation uses privacy-safe structured runtime logs
+captured by Vercel. Do not add a third-party monitoring SDK or send behavior
+titles, notes, email addresses, push endpoints, request bodies, uploaded
+bundles, or reminder message bodies unless a later ticket defines a privacy
+model and consent posture.
 
 ## Rollback
 

@@ -37,7 +37,7 @@ desktop/mobile apps before those surfaces are real or intentionally announced.
 
 ## First-run onboarding flow
 
-Public web launch may add a minimal onboarding path after Google login.
+Public web launch includes a minimal onboarding path after Google login.
 
 Steps:
 
@@ -47,7 +47,16 @@ Steps:
 4. Point to Settings timezone confirmation when useful.
 
 Onboarding should stay thin. It should reuse existing app controls and should
-not become a broad setup wizard.
+not become a broad setup wizard. The Timeline may show a dismissible first-run
+setup prompt before the feed while required setup items remain incomplete. Its
+actions route to:
+
+- `/behaviors#create-behavior`
+- `/settings#notifications`
+- `/settings#timezone`
+- `/export#behaviorlog-import`
+
+Import is optional and does not block setup completion.
 
 ## App shell
 
@@ -96,7 +105,9 @@ The Timeline is the primary screen.
 The current day should be visually prominent and should begin the forward timeline.
 
 The Timeline feed starts directly with the current-day section. Do not show a
-visible Timeline page title or explanatory helper copy above the feed.
+visible Timeline page title or explanatory helper copy above the feed. The only
+allowed exception is the dismissible first-run setup prompt for accounts that
+have not completed required launch setup items.
 
 Timeline order:
 1. Floating Needs decision button
