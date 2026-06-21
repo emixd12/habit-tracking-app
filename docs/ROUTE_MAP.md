@@ -2,10 +2,9 @@
 
 This file keeps route names stable across agents. Add routes here before or during implementation so UI, tests, docs, and navigation do not drift.
 
-The current implemented routes belong to the authenticated web app. Future
-public marketing routes are scoped separately in
-`docs/PUBLIC_PRODUCT_ARCHITECTURE.md` and should be implemented as an Astro
-surface when ticketed.
+The current authenticated product routes belong to the Next.js web app. Public
+marketing routes are implemented separately in the sibling Astro app under
+`apps/marketing` and are scoped in `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
 
 ## Current app routes
 
@@ -20,22 +19,35 @@ surface when ticketed.
 | `/timeline` | implemented, protected | Primary screen for today's occurrences, a floating Needs decision modal for prior unresolved items, future preview, and the optional first-run setup prompt | This is the main screen. First-run setup links into existing controls and can be dismissed locally. |
 | `/behaviors` | implemented, protected | Behavior and category management | Keep CRUD simple. First-run setup may link to `/behaviors#create-behavior`. |
 | `/analytics` | implemented, protected | Basic completion counts, adherence, heatmaps, and selected-day Not Completed inspection | No gamified streak language. |
-| `/export` | implemented, protected | JSONL, CSV, full JSON backup, BehaviorLog bundle, Markdown AI-readable summary export, and BehaviorLog bundle import | Export logic belongs in `export.resolver.ts`; BehaviorLog import validation and merge preview belong in `behaviorlog-import.resolver.ts`; the page supports range and archived-behavior export options. First-run setup may link to `/export#behaviorlog-import`. |
+| `/export` | implemented, protected | JSONL, CSV, full JSON backup, BehaviorLog bundle, Markdown AI-readable summary export, BehaviorLog bundle import, and BehaviorLog restore preview/apply | Export logic belongs in `export.resolver.ts`; BehaviorLog import validation and merge preview belong in `behaviorlog-import.resolver.ts`; BehaviorLog restore preview decisions belong in `behaviorlog-restore.resolver.ts`; the page supports range and archived-behavior export options. First-run setup may link to `/export#behaviorlog-import`. |
 | `/settings` | implemented, protected | Profile, timezone detection/manual override, browser notification permission/subscription settings, trust/legal links, and account deletion | Timezone detection uses browser/OS `Intl` data without geolocation; saving timezone updates the profile, active behavior schedules, and future unresolved occurrences. Browser notification permission is requested here; account deletion requires export acknowledgement and typed confirmation; category editing and any global email settings remain future Settings work. First-run setup may link to `/settings#notifications` and `/settings#timezone`. |
 
-## Planned marketing routes
+## Marketing routes
 
-These routes are not implemented in the current Next.js app. They are planned
-for a future Astro marketing app.
+These routes are implemented in `apps/marketing`, not in the authenticated
+Next.js app shell. Deployments should keep the authenticated app's existing
+entry behavior through an app subdomain or app-specific route if marketing owns
+the apex `/`.
 
 | Route | Status | Purpose | Notes |
 |---|---|---|---|
-| `/` | planned for marketing | Combined landing page explaining Cadence and BehaviorLog | If marketing owns `/`, preserve the authenticated app's entry behavior through an app subdomain or app-specific route. |
-| `/cadence` | planned for marketing | Simple product page for the tracker | Primary CTA: Try Cadence. |
-| `/standard` | planned for marketing | BehaviorLog Bundle overview and adoption case | Primary CTA: Read the Standard. |
-| `/docs` | planned for marketing | Docs/spec entry point | Mostly links to GitHub files at launch. |
-| `/examples` | optional | Sample BehaviorLog bundle page or homepage section | Primary CTA: Download Example Bundle. |
-| `/about` | optional | Philosophy, governance, privacy, or project page/section | Keep sparse and factual. |
+| `/` | implemented in Astro marketing app | Landing page led by BehaviorLog as the standard and Cadence as the demonstration product | Includes Try Cadence, Read the Standard, Download Example Bundle, and View on GitHub CTAs. |
+| `/cadence` | implemented in Astro marketing app | Product page for the tracker | Uses sanitized product captures and links to the authenticated web app. |
+| `/standard` | implemented in Astro marketing app | BehaviorLog Bundle overview and adoption case | Points to the upstream BehaviorLog Bundle repository. |
+| `/docs` | implemented in Astro marketing app | Agent-first technical docs entry point | Links to Markdown mirrors, `llms.txt`, `llms-full.txt`, route manifest, sitemap, robots, and example bundle. |
+| `/examples` | implemented in Astro marketing app | Sanitized sample BehaviorLog bundle page | Downloads a build-generated `.behaviorlog.zip` that passes the pinned BehaviorLog reference validator. |
+| `/about` | implemented in Astro marketing app | Philosophy, governance, scope boundaries, and open-source posture | No desktop/mobile teaser, billing, AI, analytics, or marketing-cookie scope. |
+
+Marketing machine-readable routes:
+
+| Route | Status | Purpose | Notes |
+|---|---|---|---|
+| `/index.md` plus page-specific `.md` mirrors | implemented in Astro marketing app | Clean Markdown mirrors for working agents | Generated from `apps/marketing/src/data/routes.ts`. |
+| `/llms.txt` | implemented in Astro marketing app | Curated index for working agents and developer tools | Also mirrored at `/.well-known/llms.txt`. |
+| `/llms-full.txt` | implemented in Astro marketing app | Small scoped full-site text bundle | Kept under agent-readable size budgets. |
+| `/data/route-manifest.json` | implemented in Astro marketing app | Public route manifest for generators and agents | Source of truth for generated machine-readable outputs. |
+| `/sitemap.xml` | implemented in Astro marketing app | Canonical marketing route sitemap | Generated from the route manifest. |
+| `/robots.txt` | implemented in Astro marketing app | Max-visibility crawl policy and sitemap pointer | Policy decision is recorded in `docs/CRAWL_POLICY.md`. |
 
 ## Internal development routes
 

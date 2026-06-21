@@ -17,25 +17,25 @@
   --line: oklch(83% 0.006 248);
   --focus: oklch(57.69% 0.1656 33.1);
   --ring: var(--focus);
-  /* Shift Tailwind's default type scale down one step for product UI. */
-  --text-xs: 0.6875rem;
+  /* Product UI type ramp: fixed rem scale with readable body text. */
+  --text-xs: 0.75rem;
   --text-xs--line-height: 1rem;
-  --text-sm: 0.75rem;
-  --text-sm--line-height: 1rem;
-  --text-base: 0.875rem;
-  --text-base--line-height: 1.25rem;
-  --text-lg: 1rem;
-  --text-lg--line-height: 1.5rem;
-  --text-xl: 1.125rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.25rem;
   --text-xl--line-height: 1.75rem;
-  --text-2xl: 1.25rem;
-  --text-2xl--line-height: 1.75rem;
-  --text-3xl: 1.5rem;
-  --text-3xl--line-height: 2rem;
-  --text-4xl: 1.875rem;
-  --text-4xl--line-height: 2.25rem;
-  --text-5xl: 2.25rem;
-  --text-5xl--line-height: 2.5rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 1.75rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl: 2rem;
+  --text-4xl--line-height: 2.5rem;
+  --text-5xl: 2.5rem;
+  --text-5xl--line-height: 1.1;
   --text-6xl: 3rem;
   --text-6xl--line-height: 1;
   --text-7xl: 3.75rem;
@@ -44,16 +44,16 @@
   --text-8xl--line-height: 1;
   --text-9xl: 6rem;
   --text-9xl--line-height: 1;
-  /* Experimental no-bold pass: all Tailwind weight utilities resolve to normal. */
+  /* Restrained IBM Plex Sans weights for legible hierarchy. */
   --font-weight-thin: 400;
   --font-weight-extralight: 400;
   --font-weight-light: 400;
   --font-weight-normal: 400;
-  --font-weight-medium: 400;
-  --font-weight-semibold: 400;
-  --font-weight-bold: 400;
-  --font-weight-extrabold: 400;
-  --font-weight-black: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 600;
+  --font-weight-extrabold: 700;
+  --font-weight-black: 700;
 }
 
 @theme inline {
@@ -83,6 +83,7 @@
 html {
   min-height: 100%;
   background: var(--background);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -91,22 +92,36 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-ibm-plex-sans), "IBM Plex Sans", Arial, Helvetica, sans-serif;
+  font-size: var(--text-base);
   font-weight: var(--font-weight-normal);
+  font-kerning: normal;
+  font-optical-sizing: auto;
+  line-height: var(--text-base--line-height);
   text-rendering: optimizeLegibility;
 }
 
 b,
 strong,
+th,
+dt,
+summary {
+  font-weight: var(--font-weight-semibold);
+}
+
 h1,
 h2,
 h3,
 h4,
 h5,
-h6,
-th,
-dt,
-summary {
-  font-weight: var(--font-weight-normal);
+h6 {
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+p,
+li {
+  text-wrap: pretty;
 }
 
 a {
@@ -118,7 +133,7 @@ button,
 input,
 select,
 textarea {
-  font: inherit;
+  font-family: inherit;
 }
 
 button {

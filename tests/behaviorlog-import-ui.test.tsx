@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   listBehaviorLogImportRecordMappings: vi.fn(),
   listBehaviorLogImportRuns: vi.fn(),
   listImportedNotes: vi.fn(),
+  listImportedInterventions: vi.fn(),
   createBehaviorLogImportRunFromPreview: vi.fn(),
   applyCreateMissingBehaviorLogImportPlan: vi.fn(),
   applyApprovedBehaviorLogMergePlan: vi.fn(),
@@ -83,6 +84,15 @@ vi.mock("@/lib/db/notes.repo", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/db/importedInterventions.repo", async (importOriginal) => {
+  const original = await importOriginal<object>();
+
+  return {
+    ...original,
+    listImportedInterventions: mocks.listImportedInterventions,
+  };
+});
+
 vi.mock("@/lib/services/behaviorlog-import-write.service", () => ({
   createBehaviorLogImportRunFromPreview:
     mocks.createBehaviorLogImportRunFromPreview,
@@ -112,6 +122,7 @@ describe("BehaviorLog import UI workflow", () => {
     mocks.listBehaviorLogImportRecordMappings.mockResolvedValue([]);
     mocks.listBehaviorLogImportRuns.mockResolvedValue([]);
     mocks.listImportedNotes.mockResolvedValue([]);
+    mocks.listImportedInterventions.mockResolvedValue([]);
     mocks.createBehaviorLogImportRunFromPreview.mockResolvedValue({
       id: "import-run-preview",
       import_mode: "merge_preview",

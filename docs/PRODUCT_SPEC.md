@@ -30,8 +30,8 @@ active work.
 Target surfaces:
 
 1. Authenticated web app: current Next.js app.
-2. Marketing site: future Astro app for Cadence, BehaviorLog, docs links, and
-   example bundles.
+2. Marketing site: Astro app under `apps/marketing` for Cadence, BehaviorLog,
+   docs links, and example bundles.
 3. Desktop app: future local-first Tauri app, documented as a proposal in
    `docs/DESKTOP_BUILD.md`.
 4. Mobile app: future local-first app following the desktop direction.
@@ -51,21 +51,23 @@ restructuring is not implied by this document alone. See
 ## Public website scope
 
 The current Next.js app includes sparse public account-information routes:
-`/terms`, `/privacy`, and `/trust`. These are not the future marketing site.
+`/terms`, `/privacy`, and `/trust`. These are not the marketing site.
 They exist so users can review product boundaries, privacy, portability, and
 account-deletion behavior before signing in.
 
-The marketing site should be a simple Astro site, SEO-conscious from launch,
-and visually consistent with `PRODUCT.md` and `DESIGN.md`.
+The marketing site is a simple Astro site under `apps/marketing`,
+SEO-conscious from launch, and visually consistent with
+`docs/PRODUCT_SPEC.md` and `DESIGN.md`.
 
 Launch routes:
 
-- `/`: combined landing page explaining Cadence and BehaviorLog
+- `/`: landing page led by BehaviorLog as the standard and Cadence as the
+  demonstration product
 - `/cadence`: product page for the tracker
 - `/standard`: BehaviorLog Bundle overview and adoption case
-- `/docs`: docs entry point, mostly linking to GitHub files at launch
-- `/examples`: optional sample bundle page or homepage section
-- `/about`: optional philosophy, governance, privacy, or project page/section
+- `/docs`: agent-first technical docs entry point
+- `/examples`: sanitized sample bundle page
+- `/about`: philosophy, governance, scope boundaries, and open-source posture
 
 Primary calls to action:
 
@@ -73,6 +75,10 @@ Primary calls to action:
 - Read the Standard
 - Download Example Bundle
 - View on GitHub
+
+The marketing site also publishes `llms.txt`, `llms-full.txt`, Markdown
+mirrors, a route manifest, sitemap, and robots output. It does not include
+marketing cookies or analytics.
 
 ## Core object model
 

@@ -11,6 +11,7 @@ import {
   listBehaviorLogImportRuns,
 } from "@/lib/db/behaviorLogImports.repo";
 import { listImportedNotes } from "@/lib/db/notes.repo";
+import { listImportedInterventions } from "@/lib/db/importedInterventions.repo";
 import {
   listUserBehaviors,
   type AppSupabaseClient,
@@ -53,6 +54,7 @@ import type {
   OccurrenceStatus,
   OccurrenceStatusEvent,
   ImportedNote,
+  ImportedIntervention,
 } from "@/lib/types/database";
 import { DEFAULT_TIMEZONE, type RecurrenceRule } from "@/lib/types/recurrence";
 
@@ -139,7 +141,13 @@ export async function getBehaviorLogImportPageData(): Promise<BehaviorLogImportP
   const recentRuns = await listBehaviorLogImportRuns(supabase, userId, 8);
 
   return {
-    recentRuns: recentRuns.map(toImportRunView),
+    recentRuns: recentRuns
+      .filter(
+        (run) =>
+          run.import_mode !== "restore_preview" &&
+          run.import_mode !== "restore_apply",
+      )
+      .map(toImportRunView),
   };
 }
 
@@ -500,15 +508,22 @@ export function previewRequiresSensitiveNoteConfirmation(
   );
 }
 
-async function listBehaviorLogExistingRecords(
+export async function listBehaviorLogExistingRecords(
   supabase: AppSupabaseClient,
   userId: string,
 ): Promise<BehaviorLogExistingRecords> {
-  const [behaviors, occurrences, mappings, importedNotes] = await Promise.all([
+  const [
+    behaviors,
+    occurrences,
+    mappings,
+    importedNotes,
+    importedInterventions,
+  ] = await Promise.all([
     listUserBehaviors(supabase, userId),
     listUserOccurrences(supabase, userId),
     listBehaviorLogImportRecordMappings(supabase, userId),
     listImportedNotes(supabase, userId),
+    listImportedInterventions(supabase, userId),
   ]);
   const statusEvents = await listOccurrenceStatusEventsByOccurrenceIds(
     supabase,
@@ -527,6 +542,9 @@ async function listBehaviorLogExistingRecords(
     ),
     statusEvents: statusEvents.map(toExistingStatusEvent),
     importedNotes: importedNotes.map(toExistingImportedNote),
+    importedInterventions: importedInterventions.map(
+      toExistingImportedIntervention,
+    ),
     mappings: mappings.map((mapping) => ({
       recordType: normalizeRecordType(mapping.record_type),
       externalId: mapping.external_id,
@@ -630,6 +648,31 @@ function toExistingImportedNote(note: ImportedNote) {
     sourceConfidence: normalizeSourceConfidence(note.source_confidence),
     createdAtUtc: note.imported_created_at,
     updatedAtUtc: note.imported_updated_at,
+  };
+}
+
+function toExistingImportedIntervention(intervention: ImportedIntervention) {
+  return {
+    id: intervention.id,
+    importRunId: intervention.import_run_id,
+    externalId: intervention.external_id,
+    behaviorExternalId: intervention.behavior_external_id,
+    occurrenceExternalId: intervention.occurrence_external_id,
+    behaviorId: intervention.behavior_id,
+    occurrenceId: intervention.occurrence_id,
+    interventionType: intervention.intervention_type,
+    channel: normalizeInterventionChannel(intervention.channel),
+    deliveryStatus: normalizeInterventionDeliveryStatus(
+      intervention.delivery_status,
+    ),
+    scheduledSendAtUtc: intervention.scheduled_send_at,
+    sentAtUtc: intervention.sent_at,
+    failureReason: intervention.failure_reason,
+    sourceOriginalId: intervention.source_original_id,
+    sourceCaptureMethod: normalizeSourceCaptureMethod(
+      intervention.source_capture_method,
+    ),
+    sourceConfidence: normalizeSourceConfidence(intervention.source_confidence),
   };
 }
 
@@ -793,6 +836,25 @@ function normalizeImportedNoteSensitivity(
   }
 
   return null;
+}
+
+function normalizeInterventionChannel(value: string): "browser_push" | "email" {
+  return value === "email" ? "email" : "browser_push";
+}
+
+function normalizeInterventionDeliveryStatus(
+  value: string,
+): "pending" | "sent" | "failed" | "cancelled" {
+  if (
+    value === "pending" ||
+    value === "sent" ||
+    value === "failed" ||
+    value === "cancelled"
+  ) {
+    return value;
+  }
+
+  return "pending";
 }
 
 function normalizeSourceCaptureMethod(

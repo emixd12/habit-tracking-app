@@ -1,0 +1,73 @@
+---
+import { getRouteById } from "../data/routes";
+import { primaryCtas, siteConfig } from "../data/site";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const route = getRouteById("examples");
+---
+
+<BaseLayout route={route}>
+  <section class="page-section hero" aria-labelledby="examples-title">
+    <div class="page-section__inner">
+      <div class="stack">
+        <h1 id="examples-title">Inspect a sanitized bundle.</h1>
+        <p>
+          The example bundle is generated from demo behavior data and is intended for
+          format inspection, tests, and agent workflows. It contains no real account or
+          reminder-provider data.
+        </p>
+        <div class="cta-row">
+          <a class="button button--primary" href={primaryCtas.downloadExample.href}>
+            {primaryCtas.downloadExample.label}
+          </a>
+          <a class="button" href="/docs">Read agent docs</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="example-files-title">
+    <div class="page-section__inner">
+      <div class="stack">
+        <h2 id="example-files-title">Files in the download</h2>
+        <div class="table-scroll">
+          <table class="file-table">
+            <thead>
+              <tr>
+                <th scope="col">Path</th>
+                <th scope="col">Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>manifest.json</code></td>
+                <td>File inventory, hashes, schema version, and producer metadata.</td>
+              </tr>
+              <tr>
+                <td><code>data/behaviors.jsonl</code></td>
+                <td>Demo behavior records with Cadence extension metadata.</td>
+              </tr>
+              <tr>
+                <td><code>data/schedules.jsonl</code></td>
+                <td>Calendar-simple recurrence and local-time schedule slots.</td>
+              </tr>
+              <tr>
+                <td><code>data/occurrences.jsonl</code></td>
+                <td>Scheduled instances with local date, timezone, and current status.</td>
+              </tr>
+              <tr>
+                <td><code>data/status_events.jsonl</code></td>
+                <td>Append-only status history. Agents should analyze this first.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Direct download path: <a class="inline-link" href={siteConfig.exampleBundlePath}>
+            {siteConfig.exampleBundlePath}
+          </a>
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

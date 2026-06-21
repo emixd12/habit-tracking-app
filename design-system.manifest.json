@@ -158,6 +158,20 @@
       "notes": ""
     },
     {
+      "id": "module.behavior-log-restore-panel",
+      "name": "BehaviorLogRestorePanel",
+      "kind": "module",
+      "source": "components/export/BehaviorLogRestorePanel.tsx",
+      "exportName": "BehaviorLogRestorePanel",
+      "usageNames": [
+        "BehaviorLogRestorePanel"
+      ],
+      "benchAnchor": "design-system#ds-module-behavior-log-restore-panel",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": ""
+    },
+    {
       "id": "module.export-panel",
       "name": "ExportPanel",
       "kind": "module",

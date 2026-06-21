@@ -2,6 +2,9 @@
   "name": "cadence-tracker",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,6 +12,10 @@
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "marketing:dev": "npm --workspace apps/marketing run dev",
+    "marketing:build": "npm --workspace apps/marketing run build",
+    "marketing:check": "npm --workspace apps/marketing run check",
+    "marketing:preview": "npm --workspace apps/marketing run preview",
     "design-system:check": "node scripts/check-design-system.mjs",
     "agents:check": "node scripts/check-agents.mjs",
     "resolvers:check": "node scripts/check-resolvers.mjs",

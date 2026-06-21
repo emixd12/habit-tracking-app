@@ -1,0 +1,79 @@
+---
+import { getRouteById } from "../data/routes";
+import { primaryCtas } from "../data/site";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const route = getRouteById("about");
+---
+
+<BaseLayout route={route}>
+  <section class="page-section hero" aria-labelledby="about-title">
+    <div class="page-section__inner">
+      <div class="stack">
+        <h1 id="about-title">A small project for factual behavior records.</h1>
+        <p>
+          BehaviorLog and Cadence are built around one idea: a behavior history should
+          record explicit user decisions, preserve context, and stay portable.
+        </p>
+        <div class="cta-row">
+          <a class="button button--primary" href={primaryCtas.viewGithub.href}>
+            {primaryCtas.viewGithub.label}
+          </a>
+          <a class="button" href={primaryCtas.readStandard.href}>
+            {primaryCtas.readStandard.label}
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="philosophy-title">
+    <div class="page-section__inner">
+      <div class="split-grid">
+        <div class="ledger-row">
+          <h2 id="philosophy-title">Philosophy</h2>
+          <p>
+            Manual truth is the project boundary. A scheduled occurrence remains
+            unresolved until the user marks it Completed or Not Completed. The system
+            does not convert absence into failure.
+          </p>
+        </div>
+        <div class="ledger-row">
+          <h2>Governance</h2>
+          <p>
+            BehaviorLog lives as an open standard in its own repository. Cadence proves
+            the standard through a focused tracker, export path, and import work.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="scope-title">
+    <div class="page-section__inner section-grid">
+      <div class="stack">
+        <h2 id="scope-title">Scope boundaries</h2>
+        <p>
+          Launch scope is intentionally narrow. Cadence is not a collaboration product,
+          social tracker, medical dosing tool, productivity suite, AI coach, payments
+          system, or admin console.
+        </p>
+      </div>
+      <div class="ledger-panel">
+        <div class="ledger-row">
+          <h3>Open source posture</h3>
+          <p>Implementation docs, tests, schemas, and bundle contracts are inspectable.</p>
+        </div>
+        <div class="ledger-row">
+          <h3>Privacy posture</h3>
+          <p>Single-account app data stays behind Supabase Auth and Row Level Security.</p>
+        </div>
+        <div class="ledger-row">
+          <h3>Public site posture</h3>
+          <p>No marketing cookies, analytics tags, or hidden tracking scripts are included.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+

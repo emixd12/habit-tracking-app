@@ -153,7 +153,7 @@ Cadence also demonstrates and promotes the BehaviorLog Bundle standard:
 Use separate shells for separate surfaces:
 
 - authenticated web app: current Next.js app,
-- marketing site: future Astro app,
+- marketing site: implemented sibling Astro app,
 - desktop app: future Tauri proposal,
 - mobile app: future local-first app following the desktop direction.
 
@@ -178,7 +178,7 @@ workspaces unless multi-app task orchestration justifies Turborepo.
 ## Marketing stack
 
 Use Astro for the public marketing site. Keep it SEO-conscious, static-first,
-and visually consistent with `PRODUCT.md` and `DESIGN.md`.
+and visually consistent with `docs/PRODUCT_SPEC.md` and `DESIGN.md`.
 
 ## Pricing and AI
 

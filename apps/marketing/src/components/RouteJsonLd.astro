@@ -1,0 +1,45 @@
+---
+import { getCanonicalUrl, type MarketingRoute } from "../data/routes";
+import { siteConfig } from "../data/site";
+
+type Props = {
+  route: MarketingRoute;
+};
+
+const { route } = Astro.props;
+const isDocs = route.type === "documentation" || route.type === "standard";
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": isDocs ? "TechArticle" : route.type === "product" ? "SoftwareApplication" : "WebPage",
+  headline: route.title,
+  name: route.title,
+  description: route.description,
+  url: getCanonicalUrl(route.path),
+  dateModified: route.lastModified,
+  inLanguage: siteConfig.language,
+  isPartOf: {
+    "@type": "WebSite",
+    name: siteConfig.name,
+    url: getCanonicalUrl("/"),
+  },
+  breadcrumb: {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: getCanonicalUrl("/"),
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: route.title,
+        item: getCanonicalUrl(route.path),
+      },
+    ],
+  },
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

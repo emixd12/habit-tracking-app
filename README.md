@@ -1,6 +1,6 @@
 # Cadence
 
-This repository contains Cadence, a public, open-source personal behavior tracker. The current implemented surface is the authenticated Next.js web app.
+This repository contains Cadence, a public, open-source personal behavior tracker. The implemented surfaces are the authenticated Next.js web app and the sibling Astro marketing site under `apps/marketing`.
 
 Future agents should treat the docs as source-of-truth and use `STATUS.md` to understand what has actually been implemented.
 
@@ -12,7 +12,7 @@ Future agents should treat the docs as source-of-truth and use `STATUS.md` to un
 4. Use `docs/TICKETS.md` for ticket scope and acceptance criteria. For a fresh build, begin with the first ticket whose status is not `complete`.
 5. Update `STATUS.md` whenever a ticket starts, completes, becomes blocked, or materially changes scope.
 
-If these bootstrap files are copied into a new repository, copy the full project-definition layer, including `AGENTS.md`, `STATUS.md`, `PRODUCT.md`, `DESIGN.md`, `.env.example`, `.agents/`, and `docs/`.
+If these bootstrap files are copied into a new repository, copy the full project-definition layer, including `AGENTS.md`, `STATUS.md`, `docs/PRODUCT_SPEC.md`, `DESIGN.md`, `.env.example`, `.agents/`, and `docs/`.
 
 ## Intended product
 
@@ -26,7 +26,7 @@ A sparse personal behavior tracker product:
 - Browser reminders on by default
 - Optional email reminders per behavior through Sequenzy
 - JSONL/CSV/full JSON and BehaviorLog bundle export for AI-readable history
-- A future Astro marketing site for Cadence and the BehaviorLog Bundle standard
+- An Astro marketing site for Cadence and the BehaviorLog Bundle standard
 - Future free open-source desktop and mobile apps
 
 Cadence remains single-player per account. It is not a collaboration product,
@@ -51,6 +51,15 @@ Provider workflows are CLI-first:
 - Supabase: `docs/SUPABASE_WORKFLOW.md`
 - Sequenzy: `docs/SEQUENZY_WORKFLOW.md`
 - Vercel: `docs/VERCEL_WORKFLOW.md`
+
+Marketing workspace commands:
+
+```bash
+npm run marketing:dev
+npm run marketing:build
+npm run marketing:check
+npm run marketing:preview
+```
 
 ## Supabase auth setup
 

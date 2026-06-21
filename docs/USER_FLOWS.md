@@ -3,8 +3,9 @@
 This document describes the main v1 screens, modules, and user flows.
 
 Cadence is a public product with multiple planned surfaces, but the current
-implemented flow remains the authenticated web app. Marketing flows belong to a
-future Astro site and should not add promotional copy inside the logged-in app.
+implemented product flows include the authenticated web app and the sibling
+Astro marketing site. Marketing flows stay out of the logged-in app and should
+not add promotional copy inside the authenticated tracker.
 
 ## Public site flow
 
@@ -16,14 +17,15 @@ Implemented public account-information routes:
 - `/trust`: manual-status, account-isolation, portability, and reminder
   boundary notes
 
-Planned public marketing routes for the future Astro site:
+Implemented public marketing routes in the Astro site under `apps/marketing`:
 
-- `/`: combined landing page explaining Cadence and BehaviorLog
+- `/`: landing page led by BehaviorLog as the standard and Cadence as the
+  demonstration product
 - `/cadence`: product page for the tracker
 - `/standard`: BehaviorLog Bundle overview and adoption case
-- `/docs`: docs entry point that mostly links to GitHub files at launch
-- `/examples`: optional sample bundle page or homepage section
-- `/about`: optional philosophy, governance, privacy, or project page/section
+- `/docs`: agent-first technical docs entry point
+- `/examples`: sanitized sample bundle page
+- `/about`: philosophy, governance, scope boundaries, and open-source posture
 
 Primary actions:
 
@@ -34,6 +36,8 @@ Primary actions:
 
 The site should be simple, static-first, and SEO-conscious. It should not tease
 desktop/mobile apps before those surfaces are real or intentionally announced.
+It also publishes `llms.txt`, `llms-full.txt`, Markdown mirrors, a public route
+manifest, sitemap, and robots output for agents and crawlers.
 
 ## First-run onboarding flow
 
@@ -318,6 +322,39 @@ BehaviorLog import flow:
 The import flow must not add full restore, destructive overwrite, generalized
 notes browsing, or intervention-to-reminder writes during preview/apply.
 
+BehaviorLog restore preview flow:
+1. Parse a trusted `.behaviorlog.zip` backup through the restore preview
+   service.
+2. Review which records would be created, replaced, archived, deleted, kept, or
+   skipped across behaviors, schedule slots, occurrences, status events, inline
+   occurrence notes, passive imported notes, and passive imported interventions.
+3. Review non-restorable fields: auth identity, profile email, browser
+   permissions, push subscriptions, provider accounts, provider secrets, and
+   external provider state.
+4. Review sensitivity and redaction warnings before any future destructive
+   apply flow.
+
+Restore preview is read-only. A later restore apply flow must require the
+accepted preview fingerprint, fresh-backup acknowledgement, typed confirmation,
+sensitivity acknowledgement when relevant, and stale-preview refusal before any
+destructive write.
+
+BehaviorLog restore apply flow:
+1. Start from a valid restore preview on the Export screen.
+2. Confirm that a fresh backup was created or downloaded.
+3. Type `RESTORE`.
+4. Acknowledge high or restricted note sensitivity when the preview contains
+   those notes.
+5. Submit apply. The server re-parses the bundle, re-gathers the current local
+   graph, and refuses the apply if the preview or local-data fingerprint is
+   stale.
+6. Review the applied or failed restore run in Restore history.
+
+Restore apply can archive, replace, or delete behavior data according to the
+accepted preview. It does not restore account identity, profile email, browser
+permissions, push subscriptions, provider accounts, provider secrets, or
+external provider state, and it does not call reminder providers.
+
 Imported intervention promotion is separate from the Export import apply flow.
 When exposed, it must require explicit selection of stored
 `imported_interventions` rows and a separate confirmation before any operational
@@ -353,6 +390,6 @@ signs out the account globally and deletes the Supabase auth user through a
 server-only service-role client, relying on the database ownership cascades to
 remove hosted Cadence records.
 
-Do not include destructive data actions in v1 except explicit account deletion.
-Full restore, overwrite, destructive import, or broad data-reset behavior
-requires a dedicated ticket.
+Do not include destructive data actions in v1 except explicit account deletion
+and dedicated BehaviorLog restore work. Restore preview is read-only; restore
+apply requires its own explicit review, confirmation, and stale-preview gates.

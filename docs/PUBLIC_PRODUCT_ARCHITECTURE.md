@@ -4,8 +4,8 @@ This document records the product posture change from a private personal app to
 a public, multi-surface Cadence product.
 
 It does not schedule implementation by itself. Add or update tickets in
-`docs/TICKETS.md` before restructuring the repository, launching the marketing
-site, adding billing, or starting desktop/mobile work.
+`docs/TICKETS.md` before restructuring the repository, materially changing the
+marketing site, adding billing, or starting desktop/mobile work.
 
 ## Product posture
 
@@ -25,9 +25,10 @@ The final product posture is:
   BehaviorLog Bundle standard:
   `https://github.com/emixd12/BehaviorLog-Bundle`.
 
-The next implementation step is not billing, AI, desktop, or mobile. The next
-step is hardening the current authenticated web app so many independent users
-can access it safely.
+The first public-product implementation steps are now present: the current
+authenticated web app has been hardened for many independent users, and the
+Astro marketing site exists as a sibling app. Billing, AI, desktop, and mobile
+remain future scope unless tickets explicitly move them into active work.
 
 ## Surface model
 
@@ -68,20 +69,20 @@ worthwhile.
 
 ## Marketing site
 
-The public marketing site should be built with Astro. It should share Cadence's
-brand voice and design tokens, but it does not need to share the same app stack
-as the authenticated Next.js web app.
+The public marketing site is implemented with Astro under `apps/marketing`. It
+shares Cadence's brand voice and design tokens, but it does not share the
+authenticated Next.js app shell.
 
 Launch routes:
 
 | Route | Purpose |
 |---|---|
-| `/` | Combined landing page explaining Cadence and BehaviorLog |
-| `/cadence` | Simple product page for the tracker |
+| `/` | Landing page led by BehaviorLog as the standard and Cadence as the demonstration product |
+| `/cadence` | Product page for the tracker |
 | `/standard` | BehaviorLog Bundle overview and adoption case |
-| `/docs` | Spec/docs entry point, mostly linking to GitHub files at launch |
-| `/examples` | Optional sample bundle page or homepage section |
-| `/about` | Optional philosophy, governance, privacy, or project page/section |
+| `/docs` | Agent-first technical docs entry point |
+| `/examples` | Sanitized sample bundle page |
+| `/about` | Philosophy, governance, scope boundaries, and open-source posture |
 
 Primary calls to action:
 
@@ -90,17 +91,34 @@ Primary calls to action:
 - Download Example Bundle
 - View on GitHub
 
-The site should be simple, static-first, and SEO-conscious from the start:
-semantic HTML, canonical URLs, useful metadata, Open Graph/Twitter metadata,
-sitemap/robots support, fast pages, accessible headings, and no client-side
-marketing framework weight unless needed.
+The site is static-first and SEO-conscious from the start: semantic HTML,
+canonical URLs, useful metadata, Open Graph/Twitter metadata, sitemap/robots
+support, accessible headings, generated Markdown mirrors, `llms.txt`,
+`llms-full.txt`, and a public route manifest.
 
-Marketing analytics and cookies are not launch scope, but the site should be
-structured so a cookie consent and analytics layer can be added later without
-rewriting the page model.
+The marketing site is deployed separately from the authenticated Next.js app as
+the Vercel project `cadence-marketing`. Its current production alias is
+`https://cadence-marketing-two.vercel.app`. `MARKETING_SITE_URL` owns the
+Astro `site` value for canonical URLs and sitemap generation.
+
+Marketing analytics and cookies are not launch scope and are not implemented.
+Any future analytics layer must include a consent and documentation update.
 
 Do not tease desktop or mobile apps on the marketing site before those surfaces
 are real or intentionally announced.
+
+The marketing app uses npm workspace scripts:
+
+```bash
+npm run marketing:dev
+npm run marketing:build
+npm run marketing:check
+npm run marketing:preview
+```
+
+`npm run marketing:build` generates the sanitized example
+`cadence-demo.behaviorlog.zip` download. The generated bundle is not source
+data and is rebuilt from `apps/marketing/scripts/build-example-bundle.mjs`.
 
 ## Web app launch posture
 
@@ -198,7 +216,7 @@ the current app without an explicit product-direction update.
 When public-product work starts, keep these files in sync:
 
 - `AGENTS.md`
-- `PRODUCT.md`
+- `docs/PRODUCT_SPEC.md`
 - `README.md`
 - `docs/PRODUCT_SPEC.md`
 - `docs/UI_SPEC.md`

@@ -43,21 +43,28 @@ When updating a ticket row:
 
 ## Current repository state
 
-This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, Ticket 013 Vercel production deployment, BehaviorLog interoperability and import work through Ticket 024, Ticket 026 imported notes, Ticket 027 imported intervention history, Ticket 028 imported intervention promotion services, Ticket 029 public web hardening, Ticket 030 public web hardening follow-up, and the project-definition and agent-bootstrap layer. Ticket 025 full restore/overwrite remains intentionally deferred unless explicitly requested.
+This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, Ticket 013 Vercel production deployment, BehaviorLog interoperability and import work through Ticket 024, Ticket 025A restore preview, Ticket 025B restore apply/UI, Ticket 026 imported notes, Ticket 027 imported intervention history, Ticket 028 imported intervention promotion services, Ticket 029 public web hardening, Ticket 030 public web hardening follow-up, Ticket 031 Astro marketing site, and the project-definition and agent-bootstrap layer.
 
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
-surface remains the authenticated Next.js web app; future surfaces are an Astro
-marketing site, a Tauri desktop app proposal, and a future mobile app. The
-first public-product implementation step is hardening the current web app for
-many independent Google-auth users, not billing, AI, desktop, or mobile work.
-The target composable workspace and public marketing scope live in
+surfaces are the authenticated Next.js web app and a sibling Astro marketing
+site under `apps/marketing`; future surfaces are a Tauri desktop app proposal
+and a future mobile app. The first public-product implementation steps are
+hardening the current web app for many independent Google-auth users and
+launching the static marketing surface, not billing, AI, desktop, or mobile
+work. The target composable workspace and public marketing scope live in
 `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
 
 Current evidence:
 
-- `package.json` and `package-lock.json` exist with Next.js App Router, TypeScript, Tailwind, ESLint, and Vitest scripts.
+- `package.json` and `package-lock.json` exist with Next.js App Router, TypeScript, Tailwind, ESLint, Vitest, npm workspaces, and marketing workspace scripts.
 - `app/`, `components/`, `lib/`, and `tests/` application directories exist.
+- `apps/marketing` exists as a static Astro app with routes `/`, `/standard`,
+  `/cadence`, `/examples`, `/docs`, and `/about`, plus Markdown mirrors,
+  `llms.txt`, `llms-full.txt`, a route manifest, sitemap, robots output, and a
+  build-generated sanitized example BehaviorLog bundle. It is deployed as the
+  separate Vercel project `cadence-marketing` with production alias
+  `https://cadence-marketing-two.vercel.app`.
 - Primary app routes exist for Timeline, Behaviors, Analytics, Export, and Settings. Public account-information routes exist for Terms, Privacy, and Trust. Export is implemented with JSONL, CSV, full JSON backup, BehaviorLog bundle, Markdown AI summary outputs, and BehaviorLog import.
 - Supabase SSR auth utilities exist under `lib/supabase/`, with Google login at `/login`, OAuth callback handling at `/auth/callback`, and protected app routes guarded by `proxy.ts` plus the app layout.
 - Supabase CLI has been initialized with `supabase/config.toml`; local Supabase uses the 5532x port range to avoid conflicts with another local Supabase stack.
@@ -145,7 +152,8 @@ Later ticket rollup:
 | 022: BehaviorLog optional notes import | complete | Occurrence-attached note import was implemented and later expanded by Ticket 026. |
 | 023: BehaviorLog Intervention Profile import preview | complete | Optional intervention import preview was implemented and later expanded by Ticket 027. |
 | 024: User-facing BehaviorLog import UI | complete | Export screen includes upload, preview, recent-run, create-only, and approved-merge UI. |
-| 025: BehaviorLog full restore and overwrite mode | deferred | Intentionally not started. Do not implement unless the user explicitly requests destructive restore/overwrite work and docs are updated. |
+| 025A: BehaviorLog restore preview | complete | Added a preview-only restore resolver/service contract with create/replace/archive/delete/keep/skip action classification, destructive-action flags, non-restorable account/provider/browser fields, status-history policy planning, sensitivity/redaction summaries, stable local/bundle/preview fingerprints, a `restore_preview` import-run mode migration, and focused tests. No product records, reminder deliveries, provider calls, or destructive apply behavior were added. | Pass: `npm run test -- tests/behaviorlog-restore.resolver.test.ts tests/behaviorlog-restore.service.test.ts`; Pass: `npm run supabase -- db reset`; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts` (no generated type diff); Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test` (37 files, 247 tests); Pass: `npm run build`; Pass: `git diff --check`. | Start Ticket 025B only after preserving the 025A preview/fingerprint contract. Hosted Supabase deployment for the new migration still requires explicit user authorization before `npm run supabase -- db push`. |
+| 025B: BehaviorLog restore apply and UI | complete | Added a destructive restore apply path behind accepted restore preview/fingerprint checks, typed `RESTORE` confirmation, fresh-backup acknowledgement, sensitivity acknowledgement when relevant, stale-preview refusal, a transaction-scoped Supabase RPC, and sparse Export-screen restore UI. Restore apply is limited to user-owned BehaviorLog product data and does not call Sequenzy, Web Push, browser APIs, provider SDKs, or notification-processing routes. | Pass: `npm run test -- tests/behaviorlog-restore-ui.test.tsx tests/behaviorlog-restore-apply.service.test.ts tests/behaviorlog-restore.resolver.test.ts tests/behaviorlog-restore.service.test.ts tests/behaviorlog-import-ui.test.tsx`; Pass: `npm run supabase -- db reset`; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test` (39 files, 251 tests); Pass: `npm run build`; Pass: `npm run design-system:check`; Pass: `git diff --check`; Browser QA on `/design-system#ds-module-behavior-log-restore-panel` at 1280px and 390px with no horizontal overflow or console warnings/errors. | Hosted Supabase deployment for the new migrations still requires explicit user authorization before `npm run supabase -- db push`. Destructive restore was not applied against a real account during QA. Current apply expects Cadence/UUID core identifiers for core restore rows and does not recreate categories from BehaviorLog bundles. |
 | 026: General BehaviorLog notes data model and import | complete | Passive imported notes table and import/apply support are implemented with sensitivity acknowledgement. |
 | 027: Imported intervention history storage | complete | Passive imported intervention history storage exists with RLS and hosted migration applied. |
 | 028: Promote imported interventions into reminder deliveries | complete | Service-level promotion path exists with explicit selection/confirmation; no user-facing promotion UI has been added. |
@@ -1767,7 +1775,7 @@ Implementation summary:
   table in the migration set.
 - Updated product, data-model, notification, route, UI, user-flow, operations,
   Vercel workflow, ticket, and design docs.
-- No schema migration, Ticket 025 restore/overwrite mode, marketing site,
+- No schema migration, Ticket 025A/025B restore work, marketing site,
   workspace restructuring, billing, AI, desktop/mobile, PWA/offline, provider
   sends, or admin/support surface was added.
 
@@ -1903,6 +1911,8 @@ Verification:
 - Pass: `npm run test` (31 files, 212 tests).
 - Pass: `npm run build`.
 - Pass: `git diff --check`.
+- Pass: local Astro dev server HTTP smoke for `/`, `/docs`, `/llms.txt`, and
+  `/examples/cadence-demo.behaviorlog.zip` at `http://127.0.0.1:4321/`.
 - NPM install for `web-push` / `@types/web-push` completed with the existing
   `ink` React peer warning and 0 vulnerabilities.
 - Chrome QA: local `http://localhost:3000/login?next=%2Fsettings` reported
@@ -1987,8 +1997,8 @@ Implementation summary:
 - Updated Cadence's source-of-truth posture from private-only personal app to
   public, open-source, single-account personal behavior tracker.
 - Added `docs/PUBLIC_PRODUCT_ARCHITECTURE.md` to scope the target surface model:
-  current authenticated web app, future Astro marketing site, future Tauri
-  desktop app, future mobile app, and eventual shared packages.
+  authenticated web app, Astro marketing site, future Tauri desktop app, future
+  mobile app, and eventual shared packages.
 - Documented the launch sequence: harden the current Google-auth web app for
   many independent accounts first; defer billing, AI speech features,
   desktop/mobile implementation, and workspace restructuring until explicit
@@ -2097,6 +2107,99 @@ Remaining risk:
   in the dev-only bench with a harmless server action, and the real create
   action already returns `Behavior created.`.
 
+### Ticket 031: Astro marketing site
+
+Status: complete.
+
+Implementation summary:
+- Added `apps/marketing` as a sibling Astro app without moving or changing the
+  authenticated Next.js app shell.
+- Implemented `/`, `/standard`, `/cadence`, `/examples`, `/docs`, and `/about`.
+  The homepage leads with BehaviorLog as the standard, while Cadence remains
+  the main product object and demonstration tracker.
+- Kept the current Cadence mark, added a quieter inline BehaviorLog companion
+  mark, and reused the square ledger visual system with sanitized static
+  Timeline and bundle captures.
+- Added primary CTAs for Try Cadence, Read the Standard, Download Example
+  Bundle, and View on GitHub.
+- Added SEO and agent-readability outputs: canonical metadata, Open
+  Graph/Twitter metadata, JSON-LD, Markdown alternate links, `sitemap.xml`,
+  `robots.txt`, `llms.txt`, `llms-full.txt`, page `.md` mirrors, and
+  `/data/route-manifest.json`.
+- Added a build-time generator for a sanitized example
+  `cadence-demo.behaviorlog.zip` bundle and a marketing agent-readability
+  verification script.
+- Added npm workspace scripts for `marketing:dev`, `marketing:build`,
+  `marketing:check`, and `marketing:preview`; root Next scripts remain
+  unchanged.
+- Ran a post-launch impeccable polish pass on the marketing site: fixed the
+  CSS font reset that caused browser-serif rendering, contained mobile table
+  and code-panel overflow, made the sticky header solid, added semantic inline
+  code styling, improved mobile tap-target text sizing, and adjusted the
+  homepage hero/capture layout so it does not collide or clip.
+- Recorded the max-visibility marketing crawl policy in
+  `docs/CRAWL_POLICY.md`.
+- Updated public product architecture, route map, product/UI/user-flow docs,
+  future-update notes, operations, design docs, tickets, and this status ledger.
+
+Verification:
+- Pass: `npm run marketing:build`.
+- Pass: `npm run marketing:check`.
+- Pass: `unzip -t apps/marketing/public/examples/cadence-demo.behaviorlog.zip`.
+- Pass: `node tests/fixtures/behaviorlog-reference/validate.mjs /private/tmp/cadence-demo-bundle-check-current`.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (39 files, 251 tests).
+- Pass: `npm run build`.
+- Pass: `git diff --check`.
+- Pass: Chrome DevTools screenshot QA for `/` and `/docs` at a true 390px
+  mobile viewport; both routes reported `docScrollWidth === docClientWidth`.
+- Pass: Chrome DevTools screenshot QA for `/` at 1440px desktop; the hero
+  product capture stayed inside the viewport and did not collide with the H1.
+- Pass: local agent-readability audit against `http://127.0.0.1:4321` returned
+  13 pass, 1 warn, 0 fail; the warning is uniform sitemap `lastmod` values,
+  expected because all marketing routes launched on 2026-06-20.
+- Pass: Vercel production deployment `dpl_3nZNis38DwHLQDndxyG37URrwRk4`
+  reached `READY` for the separate `cadence-marketing` project and was aliased
+  to `https://cadence-marketing-two.vercel.app`.
+- Pass: live Vercel fetch checks returned 200 for `/`, `/docs`,
+  `/sitemap.xml`, and `/llms.txt`; canonical and sitemap URLs point at
+  `https://cadence-marketing-two.vercel.app`.
+
+Remaining risk:
+- A custom apex/domain is not configured yet. If the marketing site later owns
+  apex `/`, keep the authenticated app entry behavior through an app subdomain
+  or app-specific route.
+
+### Codebase documentation refresh
+
+Status: complete.
+
+Implementation summary:
+- Reviewed the implemented app, marketing workspace, migrations, resolver
+  registry, tests, and source-of-truth docs for current-state drift.
+- Updated bootstrap/governance/deployment docs so they describe the implemented
+  authenticated Next.js app plus sibling Astro marketing site, not a future
+  marketing site.
+- Updated resolver registry text for the implemented BehaviorLog restore
+  preview/apply UI and service test coverage.
+- Updated ticket verification guidance to include the agent and resolver drift
+  checks before the standard lint/typecheck/test/build sequence.
+- No product code, schema, route, provider, or scope changes were made.
+
+Verification:
+- Pass: stale documentation scan for old marketing/future-surface wording.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (39 files, 251 tests).
+- Pass: `npm run build`.
+- Pass: `git diff --check`.
+
 ## Handoff notes
 
 - For the next coding agent: production browser push subscription is now
@@ -2109,8 +2212,10 @@ Remaining risk:
   first-run onboarding, privacy-safe structured runtime monitoring, and the
   `npm run smoke:rls` many-user RLS smoke command. Re-run the smoke command
   before broad public launch and after material RLS/schema changes.
-- Ticket 025 full restore/overwrite is deferred and should not be implemented unless explicitly requested. It is intentionally more destructive than the current import/create/merge paths.
-- Do not start deferred offline/PWA, marketing, workspace restructuring, desktop/mobile, billing, or AI work unless the relevant docs and tickets move that work into active scope.
+- Ticket 025 is now split into 025A restore preview and 025B restore apply/UI.
+  Implement 025A first, verify it fully, then implement 025B. Ticket 025B is
+  intentionally more destructive than the current import/create/merge paths.
+- Do not start deferred offline/PWA, workspace restructuring, desktop/mobile, billing, or AI work unless the relevant docs and tickets move that work into active scope.
 - Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.
 - Run `npm run design-system:check` after changing reusable UI, the bench route, or design-system manifest/usage/config files.
 - Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.

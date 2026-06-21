@@ -118,7 +118,15 @@
     {
       "componentId": "module.behavior-log-import-panel",
       "file": "components/export/ExportPanel.tsx",
-      "line": 184,
+      "line": 191,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.behavior-log-restore-panel",
+      "file": "components/export/ExportPanel.tsx",
+      "line": 192,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -126,7 +134,7 @@
     {
       "componentId": "module.export-panel",
       "file": "app/(app)/export/page.tsx",
-      "line": 36,
+      "line": 38,
       "route": "(app)/export/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -134,7 +142,7 @@
     {
       "componentId": "module.markdown-summary-actions",
       "file": "components/export/ExportPanel.tsx",
-      "line": 173,
+      "line": 180,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"

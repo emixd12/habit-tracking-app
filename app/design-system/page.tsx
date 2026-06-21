@@ -11,6 +11,7 @@ import { BehaviorList } from "@/components/behaviors/BehaviorList";
 import { RecurrenceEditor } from "@/components/behaviors/RecurrenceEditor";
 import { ReminderEditor } from "@/components/behaviors/ReminderEditor";
 import { BehaviorLogImportPanel } from "@/components/export/BehaviorLogImportPanel";
+import { BehaviorLogRestorePanel } from "@/components/export/BehaviorLogRestorePanel";
 import { ExportPanel } from "@/components/export/ExportPanel";
 import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActions";
 import { AppShell } from "@/components/layout/AppShell";
@@ -33,6 +34,7 @@ import type {
   CategoryOption,
 } from "@/lib/types/behavior";
 import type { BehaviorLogImportPageData } from "@/lib/types/behaviorlog-import-ui";
+import type { BehaviorLogRestorePageData } from "@/lib/types/behaviorlog-restore-ui";
 import type { ExportBundle } from "@/lib/types/export";
 import type {
   OccurrenceActionState,
@@ -242,10 +244,10 @@ function Foundations() {
             <ProductPreview>
               <div className="grid gap-3 bg-background text-foreground">
                 <p className="border border-line bg-surface px-3 py-2 text-sm font-bold text-foreground">
-                  Font family: IBM Plex Sans
+                  IBM Plex Sans, 400 / 500 / 600
                 </p>
                 <p className="text-sm font-bold text-muted-readable">
-                  Private behavior ledger
+                  Personal behavior ledger
                 </p>
                 <h2 className="text-4xl font-bold leading-tight">
                   Timeline
@@ -264,12 +266,12 @@ function Foundations() {
           preview={
             <ProductPreview>
               <div className="grid gap-3 bg-background text-foreground">
-                <p className="text-4xl font-bold leading-tight">Display 30</p>
-                <p className="text-3xl font-bold leading-tight">Heading 24</p>
-                <p className="text-2xl font-bold leading-tight">Section 20</p>
-                <p className="text-base leading-7">Body 14 with open leading</p>
+                <p className="text-4xl font-bold leading-tight">Display 32</p>
+                <p className="text-3xl font-bold leading-tight">Heading 28</p>
+                <p className="text-2xl font-bold leading-tight">Section 24</p>
+                <p className="text-base leading-7">Body 16 with open leading</p>
                 <p className="text-sm font-bold text-muted-readable">
-                  Label 12
+                  Label 14
                 </p>
               </div>
             </ProductPreview>
@@ -866,12 +868,18 @@ function buildPreviews(): Record<string, ReactNode> {
         <ExportPanel
           exportData={exportFixture}
           importData={importPageFixture}
+          restoreData={restorePageFixture}
         />
       </ProductPreview>
     ),
     "module.behavior-log-import-panel": (
       <ProductPreview maxHeight="38rem">
         <BehaviorLogImportPanel recentRuns={importPageFixture.recentRuns} />
+      </ProductPreview>
+    ),
+    "module.behavior-log-restore-panel": (
+      <ProductPreview maxHeight="38rem">
+        <BehaviorLogRestorePanel recentRuns={restorePageFixture.recentRuns} />
       </ProductPreview>
     ),
     "module.markdown-summary-actions": (
@@ -1376,6 +1384,19 @@ const importPageFixture: BehaviorLogImportPageData = {
       started_at: "2026-06-08T21:10:00Z",
       completed_at: "2026-06-08T21:10:02Z",
       failure_message: null,
+    },
+  ],
+};
+
+const restorePageFixture: BehaviorLogRestorePageData = {
+  recentRuns: [
+    {
+      id: "restore-run-preview",
+      mode: "restore_preview",
+      status: "previewed",
+      startedAt: "2026-06-08T21:20:00Z",
+      completedAt: null,
+      failureMessage: null,
     },
   ],
 };

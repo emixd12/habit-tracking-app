@@ -7,7 +7,10 @@ const eslintConfig = defineConfig([
   ...nextTs,
   globalIgnores([
     ".agents/**",
+    ".astro/**",
+    "**/.astro/**",
     ".next/**",
+    "apps/marketing/dist/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

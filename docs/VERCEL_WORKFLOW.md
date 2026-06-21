@@ -3,11 +3,12 @@
 This repository deploys to the existing Vercel project `cadence` under team
 `Emi's projects`. Do not create a duplicate Vercel project for this app.
 
-The current Vercel project owns the authenticated web app. A future Astro
-marketing site may use a separate Vercel project or a multi-app workspace
-configuration, but that decision should be made in the marketing/workspace
-ticket. Do not change the current production routing casually: authenticated
-app routes and Supabase OAuth redirects must remain stable.
+The current Vercel project `cadence` owns the authenticated web app. The Astro
+marketing site is deployed separately as the Vercel project
+`cadence-marketing`, currently aliased to
+`https://cadence-marketing-two.vercel.app`. Do not change production routing
+casually: authenticated app routes, marketing canonical URLs, and Supabase OAuth
+redirects must remain stable.
 
 Authoritative upstream docs used for this workflow:
 
@@ -37,6 +38,19 @@ The production deployment observed during Ticket 013 was
 `dpl_3t9JNdQxUEZsR5MnYpVumE4Tc4aJ`, ready at commit
 `64fa1045492b8f0fc3a89babd470a043174b5227`.
 
+## Marketing Project
+
+The public Astro marketing site is deployed separately:
+
+- Project: `cadence-marketing`
+- Current production alias: `https://cadence-marketing-two.vercel.app`
+- Workspace root: `apps/marketing`
+- Build command: `npm run marketing:build`
+- Canonical URL source: `MARKETING_SITE_URL`
+
+Keep this project separate from the authenticated app unless a future scoped
+workspace/routing ticket changes the deployment model.
+
 ## Environment Variables
 
 Set these in Vercel for both Production and Preview unless a preview environment
@@ -55,6 +69,7 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 REMINDER_PROCESS_SECRET=
 CRON_SECRET=
+MARKETING_SITE_URL=
 ```
 
 Rules:
@@ -70,6 +85,8 @@ Rules:
   `REMINDER_PROCESS_SECRET` unless there is a deliberate secret rotation plan.
 - `SEQUENZY_API_URL` can be omitted when using the default
   `https://api.sequenzy.com`.
+- `MARKETING_SITE_URL` belongs to the Astro marketing project and should point
+  at its canonical production URL.
 
 ## Supabase Auth
 

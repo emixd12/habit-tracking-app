@@ -372,7 +372,9 @@ create table behaviorlog_import_runs (
         'preview_only',
         'create_missing_only',
         'merge_preview',
-        'merge_by_user_approved_plan'
+        'merge_by_user_approved_plan',
+        'restore_preview',
+        'restore_apply'
       )
     ),
   dry_run_summary jsonb not null default '{}'::jsonb,
@@ -393,6 +395,46 @@ profile hints, the requested import mode, a dry-run summary snapshot, status,
 and start/completion timestamps. It does not mean imported product records have
 been written; `status = 'previewed'` only means the bundle was validated and
 previewed.
+
+`restore_preview` rows are read-only restore previews. Their `dry_run_summary`
+stores the restore preview fingerprint, local-data fingerprint, bundle
+fingerprint, non-restorable account/provider/browser fields, destructive action
+counts, sensitivity warnings, status-history policy planning, and
+machine-readable create/replace/archive/delete/keep/skip actions. A
+`restore_preview` row must not imply product records were restored.
+
+BehaviorLog restore preview is behavior-data portability only. It can preview
+destructive changes to behaviors, schedule slots, occurrences, status events,
+inline occurrence notes, passive imported notes, and passive imported
+intervention history, but it does not restore auth identity, profile email,
+browser permissions, push subscriptions, provider accounts, provider secrets, or
+external provider state.
+
+Destructive restore apply uses `import_mode = 'restore_apply'` and requires a
+previous accepted `restore_preview` snapshot. The service must require a
+matching preview fingerprint, matching local-data fingerprint, explicit typed
+confirmation, a fresh-backup acknowledgement, high/restricted note
+acknowledgement when relevant, and stale-preview refusal before any archive,
+replace, or delete operation is allowed.
+
+Restore apply uses the transaction-scoped
+`public.apply_behaviorlog_restore(restore_payload jsonb)` database function.
+The function runs under the authenticated user context, filters every archive,
+delete, update, and insert by `auth.uid()`, and applies the prepared restore
+payload in dependency order. This keeps destructive restore atomic at the
+database statement/function boundary instead of using a long multi-call client
+workflow.
+
+The restore payload may archive behaviors absent from the bundle, delete local
+schedule slots, occurrences, status events when a replacement policy is
+explicitly selected, inline occurrence notes, passive imported notes, and
+passive imported interventions according to the accepted preview. It may upsert
+BehaviorLog-represented behaviors, schedule slots, occurrences,
+occurrence-status events, passive imported notes, and passive imported
+interventions. It must not restore auth identity, profile email, browser
+permissions, push subscriptions, provider accounts, provider secrets, or
+external provider state. It must not call notification providers or processing
+routes.
 
 ### `behaviorlog_import_record_mappings`
 

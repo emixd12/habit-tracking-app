@@ -4,14 +4,15 @@ Use this file after `AGENTS.md` and `STATUS.md` to run the repository consistent
 
 ## Current state
 
-The repository contains the v1 app implementation through Ticket 030 plus
-post-ticket refinements recorded in `STATUS.md`. `STATUS.md` remains the
-detailed implementation ledger and should be checked before starting or
-continuing any ticket.
+The repository contains the v1 authenticated web app, BehaviorLog
+interoperability/import/restore work through Ticket 028, public web hardening
+through Ticket 030, and the Ticket 031 Astro marketing site. `STATUS.md`
+remains the detailed implementation ledger and should be checked before
+starting or continuing any ticket.
 
 Cadence's product posture has moved from private-only usage to a public
-open-source product with multiple planned surfaces. The current implemented
-surface is still the authenticated Next.js web app. See
+open-source product with multiple surfaces. The current implemented surfaces
+are the authenticated Next.js web app and the sibling Astro marketing site. See
 `docs/PUBLIC_PRODUCT_ARCHITECTURE.md` before starting public-product,
 marketing-site, workspace, desktop, or mobile work.
 
@@ -122,6 +123,32 @@ Implemented follow-up:
 
 Marketing cookies and analytics are not launch scope, but any future addition
 should include consent and documentation updates.
+
+## Marketing site operations
+
+The public marketing site lives in `apps/marketing` as a sibling Astro app. It
+does not run inside the authenticated Next.js app shell.
+
+Project-local commands:
+
+```bash
+npm run marketing:dev
+npm run marketing:build
+npm run marketing:check
+npm run marketing:preview
+```
+
+`npm run marketing:build` runs `astro check`, builds the static site, and
+generates the sanitized example BehaviorLog bundle under the marketing public
+directory before Astro copies assets into `dist`.
+
+`npm run marketing:check` runs `astro check` and verifies the built agent
+readability outputs in `apps/marketing/dist`: Markdown mirrors, `llms.txt`,
+`llms-full.txt`, route manifest, sitemap, robots, metadata markers, and the
+example bundle path.
+
+The current marketing crawl policy is recorded in `docs/CRAWL_POLICY.md`.
+Update that document before changing robots or Content-Signal behavior.
 
 Use those files instead of searching repeatedly for provider setup.
 

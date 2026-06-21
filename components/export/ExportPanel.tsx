@@ -1,13 +1,16 @@
 import { Download } from "lucide-react";
 
 import { BehaviorLogImportPanel } from "@/components/export/BehaviorLogImportPanel";
+import { BehaviorLogRestorePanel } from "@/components/export/BehaviorLogRestorePanel";
 import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActions";
 import type { BehaviorLogImportPageData } from "@/lib/types/behaviorlog-import-ui";
+import type { BehaviorLogRestorePageData } from "@/lib/types/behaviorlog-restore-ui";
 import type { ExportBundle } from "@/lib/types/export";
 
 type ExportPanelProps = Readonly<{
   exportData: ExportBundle;
   importData: BehaviorLogImportPageData;
+  restoreData: BehaviorLogRestorePageData;
 }>;
 
 const DOWNLOAD_ACTIONS = [
@@ -33,7 +36,11 @@ const DOWNLOAD_ACTIONS = [
   },
 ] as const;
 
-export function ExportPanel({ exportData, importData }: ExportPanelProps) {
+export function ExportPanel({
+  exportData,
+  importData,
+  restoreData,
+}: ExportPanelProps) {
   return (
     <div className="grid gap-8">
       <section
@@ -182,6 +189,7 @@ export function ExportPanel({ exportData, importData }: ExportPanelProps) {
       </section>
 
       <BehaviorLogImportPanel recentRuns={importData.recentRuns} />
+      <BehaviorLogRestorePanel recentRuns={restoreData.recentRuns} />
     </div>
   );
 }

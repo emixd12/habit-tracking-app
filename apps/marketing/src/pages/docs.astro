@@ -1,0 +1,138 @@
+---
+import { getRouteById, marketingRoutes } from "../data/routes";
+import { primaryCtas, siteConfig } from "../data/site";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const route = getRouteById("docs");
+const agentRuleSnippet = JSON.stringify(
+  {
+    standard: siteConfig.standardUrl,
+    example_bundle: siteConfig.exampleBundlePath,
+    status_authority: "data/status_events.jsonl",
+    current_status_role: "snapshot",
+  },
+  null,
+  2,
+);
+const machineFiles = [
+  ["/llms.txt", "Curated index for working agents and developer tools."],
+  ["/llms-full.txt", "Small full-site text bundle with page boundaries."],
+  ["/data/route-manifest.json", "Public route manifest used by generators."],
+  ["/sitemap.xml", "Canonical HTML route sitemap."],
+  ["/robots.txt", "Max-visibility crawl policy and sitemap pointer."],
+  ["/index.md", "Markdown mirror for the homepage."],
+  ["/standard.md", "Markdown mirror for the BehaviorLog standard route."],
+  ["/cadence.md", "Markdown mirror for the Cadence route."],
+  ["/examples.md", "Markdown mirror for the examples route."],
+  ["/about.md", "Markdown mirror for the launch about route."],
+] as const;
+---
+
+<BaseLayout route={route}>
+  <section class="page-section hero" aria-labelledby="docs-title">
+    <div class="page-section__inner">
+      <div class="stack">
+        <h1 id="docs-title">Agent-first docs for BehaviorLog and Cadence.</h1>
+        <p>
+          These pages are built for raw HTML, Markdown mirrors, route manifests, and
+          explicit file contracts. Start here when an agent needs to inspect the
+          standard, cite a canonical page, or parse the example bundle.
+        </p>
+        <div class="cta-row">
+          <a class="button button--primary" href="/llms.txt">Open llms.txt</a>
+          <a class="button" href="/data/route-manifest.json">Open route manifest</a>
+          <a class="button" href={primaryCtas.readStandard.href}>
+            {primaryCtas.readStandard.label}
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="machine-files-title">
+    <div class="page-section__inner">
+      <div class="stack">
+        <h2 id="machine-files-title">Machine files</h2>
+        <div class="table-scroll">
+          <table class="file-table">
+            <thead>
+              <tr>
+                <th scope="col">URL</th>
+                <th scope="col">Use</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                machineFiles.map(([href, purpose]) => (
+                  <tr>
+                    <td>
+                      <a class="inline-link" href={href}>{href}</a>
+                    </td>
+                    <td>{purpose}</td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="route-manifest-title">
+    <div class="page-section__inner">
+      <div class="stack">
+        <h2 id="route-manifest-title">Public route manifest</h2>
+        <div class="table-scroll">
+          <table class="route-table">
+            <thead>
+              <tr>
+                <th scope="col">Route</th>
+                <th scope="col">Type</th>
+                <th scope="col">Markdown</th>
+                <th scope="col">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                marketingRoutes.map((entry) => (
+                  <tr>
+                    <td>
+                      <a class="inline-link" href={entry.path}>{entry.path}</a>
+                    </td>
+                    <td>{entry.type}</td>
+                    <td>
+                      <a class="inline-link" href={entry.markdownPath}>{entry.markdownPath}</a>
+                    </td>
+                    <td>{entry.description}</td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="agent-rules-title">
+    <div class="page-section__inner section-grid">
+      <div class="stack">
+        <h2 id="agent-rules-title">Rules for agents</h2>
+        <ul class="text-list">
+          <li>Prefer Markdown mirrors when context budget matters.</li>
+          <li>Cite canonical HTML URLs when answering humans.</li>
+          <li>
+            Use <code>data/status_events.jsonl</code> as the BehaviorLog history
+            authority.
+          </li>
+          <li>Do not infer a failed behavior from unresolved status.</li>
+          <li>Do not treat the example bundle as real user data.</li>
+        </ul>
+      </div>
+      <div class="code-panel">
+        <pre><code>{agentRuleSnippet}</code></pre>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,92 @@
+---
+import ProductCapture from "../components/ProductCapture.astro";
+import { getRouteById } from "../data/routes";
+import { primaryCtas } from "../data/site";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const route = getRouteById("home");
+---
+
+<BaseLayout route={route}>
+  <section class="page-section hero hero--visual" aria-labelledby="home-title">
+    <div class="hero-background-capture" aria-hidden="true">
+      <ProductCapture variant="timeline" />
+    </div>
+    <div class="page-section__inner">
+      <div class="hero-copy">
+        <h1 id="home-title">BehaviorLog is the standard. Cadence makes it inspectable.</h1>
+        <p>
+          BehaviorLog keeps recurring behavior histories portable. Cadence is the open,
+          square-ledger tracker that produces real bundles from explicit user-marked
+          occurrences.
+        </p>
+        <div class="cta-row" aria-label="Primary actions">
+          <a class="button button--primary" href={primaryCtas.tryCadence.href}>
+            {primaryCtas.tryCadence.label}
+          </a>
+          <a class="button" href={primaryCtas.readStandard.href}>
+            {primaryCtas.readStandard.label}
+          </a>
+          <a class="button" href={primaryCtas.downloadExample.href}>
+            {primaryCtas.downloadExample.label}
+          </a>
+          <a class="button" href={primaryCtas.viewGithub.href}>
+            {primaryCtas.viewGithub.label}
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="standard-first-title">
+    <div class="page-section__inner section-grid">
+      <div class="stack">
+        <h2 id="standard-first-title">Start with the record format.</h2>
+        <p>
+          BehaviorLog is the contract: files, hashes, JSONL records, local dates,
+          timezones, current snapshots, and append-only status events. The standard is
+          useful because a tracker can leave and another tool can still read the
+          history.
+        </p>
+      </div>
+      <div class="ledger-panel">
+        <div class="ledger-panel__header">
+          <span class="quiet-label">BehaviorLog core</span>
+        </div>
+        <div class="ledger-row">
+          <h3>JSONL is authoritative.</h3>
+          <p>CSV views can help migration, but JSONL records carry the source graph.</p>
+        </div>
+        <div class="ledger-row">
+          <h3>Status history is explicit.</h3>
+          <p>
+            Agents should analyze <code>status_events.jsonl</code>, not infer intent
+            from silence.
+          </p>
+        </div>
+        <div class="ledger-row">
+          <h3>Extensions stay namespaced.</h3>
+          <p>Cadence-specific data belongs under <code>extensions.app.cadence</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="cadence-demo-title">
+    <div class="page-section__inner section-grid">
+      <div class="stack">
+        <h2 id="cadence-demo-title">Cadence is the working proof.</h2>
+        <p>
+          The app keeps the product small: create behaviors, generate occurrences, mark
+          Completed or Not Completed, add notes, receive reminders, and export the
+          result. Unresolved remains unresolved until the user acts.
+        </p>
+        <div class="cta-row">
+          <a class="button button--primary" href="/cadence">Open Cadence overview</a>
+          <a class="button" href="/examples">Inspect example files</a>
+        </div>
+      </div>
+      <ProductCapture variant="bundle" />
+    </div>
+  </section>
+</BaseLayout>

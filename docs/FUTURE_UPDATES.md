@@ -11,7 +11,6 @@ Cadence's public-product direction is documented in
 
 Deferred surface work includes:
 
-- Astro marketing site,
 - composable workspace restructuring,
 - shared `packages/core`,
 - shared tokens/primitives in `packages/ui`,
@@ -19,6 +18,28 @@ Deferred surface work includes:
 - mobile app.
 
 Do not implement these without a scoped ticket.
+
+Implemented surface work:
+
+- Astro marketing site under `apps/marketing`.
+
+## Agent readability roadmap
+
+The Ticket 031 marketing site includes static HTML, Markdown mirrors,
+`llms.txt`, `llms-full.txt`, a route manifest, sitemap, and robots output.
+
+Deferred agent-readability work:
+
+- Add a server or edge log measurement pipeline for agent and crawler traffic.
+  Client-side analytics cannot measure this traffic because agents and crawlers
+  do not execute JavaScript.
+- Revisit emerging agent discovery and verification layers when they become
+  stable enough to adopt, including Web Bot Auth or `Signature-Agent`, inline
+  `text/llms.txt`, MCP server cards, A2A agent cards, and agentic-commerce
+  protocols.
+
+Do not add measurement providers, bot-management rules, MCP tools, or emerging
+agent-commerce protocols without a scoped ticket and privacy review.
 
 ## Paid shared account and speech features
 

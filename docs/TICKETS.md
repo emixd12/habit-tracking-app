@@ -14,6 +14,8 @@ For each ticket, Codex should return:
 Before a ticket is complete, run:
 
 ```bash
+npm run agents:check
+npm run resolvers:check
 npm run lint
 npm run typecheck
 npm run test
@@ -21,6 +23,7 @@ npm run build
 ```
 
 If a command does not exist yet, add it or explicitly state why it does not exist.
+For UI/design-system changes, also run `npm run design-system:check`.
 
 ---
 
@@ -983,49 +986,189 @@ Suggested files:
 
 ---
 
-## Ticket 025: BehaviorLog full restore and overwrite mode
+## Ticket 025A: BehaviorLog restore preview
 
-Add an explicit full-restore import mode for users who want to replace local
-Cadence data from a trusted BehaviorLog backup. This ticket tackles
-restore/overwrite import, but it must not perform silent or hidden destructive
-writes.
+Add a restore-preview-only mode for users who want to understand what a trusted
+BehaviorLog backup would do before any destructive restore is allowed. This
+ticket must not mutate product records.
 
 Context:
 - Current import modes are create-only and user-approved merge.
+- Existing merge preview is non-destructive and intentionally avoids
+  overwrite/delete decisions.
 - Full restore is materially more dangerous than merge because it can archive,
   replace, or delete local records.
+- BehaviorLog is a behavior-data portability bundle, not a complete account
+  image. Restore preview must be clear about what is and is not restorable.
+- Current import apply services are multi-call Supabase workflows. Destructive
+  apply is deferred to Ticket 025B and needs a stronger partial-failure plan.
 
 Acceptance criteria:
-- Add a separate restore preview mode; do not reuse merge preview for destructive
-  decisions.
-- Show exactly which local behaviors, schedules, occurrences, status events,
-  occurrence notes, imported note records, and imported intervention-history
-  records would be created, replaced, archived, or deleted.
-- Require an explicit typed confirmation before destructive apply.
-- Require the user to download or create a fresh local backup before restore
-  apply.
-- Preserve Supabase RLS and user ownership for every restored row.
-- Preserve append-only status history unless the user explicitly selects full
-  replacement for status history.
-- Do not automatically convert unresolved occurrences into failures.
-- Restore must be idempotent for the same accepted restore run.
-- Failed restore attempts must mark the import run failed and surface partial
-  work clearly.
-- Tests cover restore preview, typed confirmation, backup requirement,
-  destructive-action refusal without confirmation, replacement semantics,
-  idempotence, and RLS ownership.
+- Add a separate restore preview resolver; do not reuse merge preview for
+  destructive decisions.
+- Add a restore-preview import mode to the import-run ledger, such as
+  `restore_preview`, using a Supabase migration and generated database types if
+  the preview is persisted.
+- The resolver accepts parsed BehaviorLog bundle files plus the full current
+  user-owned local graph needed for comparison.
+- The preview shows exactly which local records would be created, replaced,
+  archived, deleted, kept, or skipped for:
+  - behaviors
+  - behavior schedule slots
+  - occurrences
+  - occurrence status events
+  - inline occurrence notes
+  - passive imported note records
+  - passive imported intervention-history records
+- The preview distinguishes destructive actions from non-destructive actions in
+  machine-readable output suitable for UI review.
+- The preview states that profile data, auth identity, browser push
+  subscriptions, browser permissions, provider accounts, and external provider
+  state are not restored from BehaviorLog.
+- Preserve BehaviorLog semantics:
+  - `status_events.jsonl` is authoritative for status history.
+  - `occurrences.jsonl.current_status` is a snapshot only.
+  - `unresolved` is never converted into `not_completed`.
+  - CSV files are optional views and do not drive restore decisions.
+- Include explicit status-history policy planning:
+  - default `preserve_append_only_history`
+  - optional future `replace_status_history` only as a previewed decision, not
+    an apply behavior in this ticket.
+- Include privacy and sensitivity warnings for high/restricted imported notes
+  and redacted intervention fields.
+- Detect stale or unsupported restore inputs, including unsupported schema
+  version, unsupported recurrence/schedule shapes, missing references, unknown
+  core top-level fields, and current local records that cannot be safely mapped.
+- Return a stable preview fingerprint that Ticket 025B can require before
+  destructive apply.
+- Do not create, update, archive, delete, restore, overwrite, deduplicate, send
+  reminders, create reminder deliveries, call Sequenzy, call Web Push, or call
+  notification-processing routes in this ticket.
+- Update docs so the restore preview contract is distinct from create-only and
+  merge import.
+- Tests cover preview action classification, destructive count reporting,
+  non-restorable account/provider fields, unresolved preservation,
+  status-history policy planning, sensitivity warnings, unsupported records, and
+  preview fingerprint stability.
 
 Suggested files:
 - `lib/resolvers/behaviorlog-restore.resolver.ts`
 - `lib/services/behaviorlog-restore.service.ts`
-- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/types/behaviorlog-restore.ts`
 - `lib/db/behaviorLogImports.repo.ts`
+- `lib/db/database.types.ts`
+- `supabase/migrations/*_add_behaviorlog_restore_preview_mode.sql`
 - `tests/behaviorlog-restore.resolver.test.ts`
 - `tests/behaviorlog-restore.service.test.ts`
 - `docs/DATA_MODEL.md`
 - `docs/EXPORT_FORMATS.md`
+- `docs/AGENT_RESOLVERS.md`
 - `docs/USER_FLOWS.md`
 - `STATUS.md`
+
+Verification:
+- Run focused restore resolver/service tests first.
+- Run `npm run supabase -- db reset` and regenerate database types if a
+  migration is added.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+
+---
+
+## Ticket 025B: BehaviorLog restore apply and UI
+
+Add the destructive restore apply path and user-facing review flow after Ticket
+025A restore preview is implemented and verified. This ticket may archive,
+replace, or delete local user-owned product records, but it must never perform
+silent or hidden destructive writes.
+
+Context:
+- Ticket 025A must provide a stable restore preview, destructive action list,
+  and preview fingerprint.
+- Restore apply is higher risk than create-only or merge apply because partial
+  failure can leave a user's tracker in a mixed state.
+- Current create-only and merge apply paths are multi-call Supabase workflows.
+  Do not blindly copy that approach for destructive restore without addressing
+  atomicity or resumability.
+
+Acceptance criteria:
+- Add a restore apply mode to the import-run ledger, such as `restore_apply`,
+  using a Supabase migration and generated database types if it was not added in
+  Ticket 025A.
+- Require:
+  - a valid Ticket 025A restore preview,
+  - an accepted preview snapshot stored on the import run,
+  - a matching preview fingerprint at apply time,
+  - explicit typed confirmation,
+  - explicit acknowledgement that the user downloaded or created a fresh backup,
+  - explicit acknowledgement for high/restricted imported notes when present.
+- Refuse apply when the local data fingerprint no longer matches the accepted
+  preview or when unsupported/conflict actions remain unresolved.
+- Preserve Supabase RLS and user ownership for every restored row.
+- Prefer a transaction-safe or resumable restore strategy. If implementation
+  uses multiple Supabase client calls, the service must make partial failure
+  visible, mark the import run failed, and be safe to retry without duplicate or
+  contradictory rows.
+- Preserve append-only status history by default. Only replace status history
+  when the accepted preview explicitly selected full status-history replacement.
+- Apply restore decisions in dependency order so referential integrity is
+  preserved across behaviors, schedule slots, occurrences, status events,
+  reminder deliveries, imported notes, and imported interventions.
+- Cancel or remove operational reminder deliveries only according to the
+  accepted restore plan. Do not call Sequenzy, Web Push, browser APIs, provider
+  SDKs, or notification-processing routes during restore.
+- Recreate only data represented by the accepted BehaviorLog restore contract.
+  Do not claim to restore auth identity, profile email, browser permissions,
+  push subscriptions, provider accounts, provider secrets, or external provider
+  state.
+- Make applying the same accepted restore run idempotent.
+- Failed restore attempts must mark the import run `failed` and surface partial
+  work clearly in the UI.
+- Add a sparse authenticated UI, likely on the Export screen, that:
+  - uploads or reuses a `.behaviorlog.zip`,
+  - shows the Ticket 025A restore preview,
+  - highlights destructive actions,
+  - forces backup acknowledgement,
+  - forces typed confirmation,
+  - shows apply result or failure details,
+  - remains mobile-responsive.
+- Do not add admin dashboards, collaboration, social features, billing,
+  offline/PWA writes, provider sends, or support tooling.
+- Tests cover typed confirmation, backup acknowledgement, stale-preview refusal,
+  destructive-action refusal without confirmation, replacement/archive/delete
+  semantics, status-history preservation and explicit replacement, reminder
+  side-effect prevention, idempotence, partial-failure reporting, RLS ownership,
+  and UI gating.
+
+Suggested files:
+- `lib/services/behaviorlog-restore.service.ts`
+- `lib/db/behaviorLogImports.repo.ts`
+- `lib/db/behaviors.repo.ts`
+- `lib/db/occurrences.repo.ts`
+- `lib/db/occurrenceStatusEvents.repo.ts`
+- `lib/db/notes.repo.ts`
+- `lib/db/importedInterventions.repo.ts`
+- `lib/db/reminderDeliveries.repo.ts`
+- `components/export/*`
+- `app/(app)/export/actions.ts`
+- `tests/behaviorlog-restore.service.test.ts`
+- `tests/behaviorlog-restore-ui.test.tsx`
+- `docs/DATA_MODEL.md`
+- `docs/EXPORT_FORMATS.md`
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `docs/ROUTE_MAP.md`
+- `STATUS.md`
+
+Verification:
+- Run focused restore service/UI tests first.
+- Run `npm run supabase -- db reset` and regenerate database types if a
+  migration is added.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- For UI work, run `npm run design-system:check` when reusable UI or design
+  inventory changes, then browser-check `/export` at desktop and around 390px.
+  Do not apply a destructive restore against the user's real account during QA.
 
 ---
 
@@ -1186,7 +1329,7 @@ Suggested docs:
 - `STATUS.md`
 
 Out of scope for this baseline:
-- Ticket 025 full restore/overwrite import.
+- Ticket 025A/025B restore preview and restore apply/UI work.
 - Marketing site or workspace restructuring.
 - Billing, AI, desktop/mobile, PWA/offline, or admin/support surfaces.
 - Full first-run onboarding and monitoring/error-reporting integration, which
@@ -1231,20 +1374,31 @@ Suggested docs:
 
 ---
 
-## Future ticket: Astro marketing site
+## Ticket 031: Astro marketing site
 
 Add a simple public marketing site for Cadence and the BehaviorLog Bundle
 standard.
 
-Acceptance criteria should include:
+Acceptance criteria:
 - Implement as Astro, not inside the authenticated app shell.
-- Support planned routes:
+- Support launch routes:
   - `/`
   - `/cadence`
   - `/standard`
   - `/docs`
-  - optional `/examples`
-  - optional `/about`
+  - `/examples`
+  - `/about`
+- Homepage leads with BehaviorLog as the standard.
+- Cadence is presented as the demonstration product and main brand object.
+- Use the existing Cadence square ledger visual system and keep the current
+  Cadence mark.
+- Add a quieter BehaviorLog companion mark.
+- Use real Cadence product screenshots or static captures where possible,
+  using demo or sanitized data only.
+- `/docs` is agent-first technical documentation, useful to agents first and
+  humans second.
+- `/about` covers philosophy, governance, scope boundaries, and open-source
+  posture for launch.
 - Include primary CTAs:
   - Try Cadence
   - Read the Standard
@@ -1252,16 +1406,22 @@ Acceptance criteria should include:
   - View on GitHub
 - Use SEO-conscious static pages with metadata, canonical URLs, sitemap/robots,
   accessible headings, and fast rendering.
+- Include Open Graph and Twitter metadata.
+- Keep primary content available in raw static HTML.
+- Do not add marketing cookies or analytics.
 - Share Cadence design tokens or token outputs where practical.
-- Do not add marketing cookies or analytics unless separately scoped.
 - Do not tease desktop/mobile apps before they are real or intentionally
   announced.
+- Preserve existing authenticated Next.js app behavior unless a minimal
+  npm-workspace adjustment is required.
+- Update route, public-product architecture, design, status, and ticket docs.
 
 Suggested files:
 - `apps/marketing/*`
 - `packages/ui/*` if tokens/primitives are extracted
 - `docs/ROUTE_MAP.md`
 - `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+- `docs/CRAWL_POLICY.md`
 - `DESIGN.md`
 - `STATUS.md`
 

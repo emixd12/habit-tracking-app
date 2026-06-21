@@ -12,7 +12,9 @@ export type BehaviorLogImportMode =
   | "preview_only"
   | "create_missing_only"
   | "merge_preview"
-  | "merge_by_user_approved_plan";
+  | "merge_by_user_approved_plan"
+  | "restore_preview"
+  | "restore_apply";
 
 export type BehaviorLogImportRunStatus =
   | "previewed"
@@ -176,6 +178,25 @@ export type BehaviorLogExistingImportedNote = {
   updatedAtUtc: string | null;
 };
 
+export type BehaviorLogExistingImportedIntervention = {
+  id: string;
+  importRunId: string;
+  externalId: string;
+  behaviorExternalId: string;
+  occurrenceExternalId: string;
+  behaviorId: string | null;
+  occurrenceId: string | null;
+  interventionType: string | null;
+  channel: BehaviorLogInterventionChannel;
+  deliveryStatus: BehaviorLogInterventionDeliveryStatus;
+  scheduledSendAtUtc: string;
+  sentAtUtc: string | null;
+  failureReason: string | null;
+  sourceOriginalId?: string | null;
+  sourceCaptureMethod: BehaviorLogSourceCaptureMethod;
+  sourceConfidence: BehaviorLogSourceConfidence;
+};
+
 export type BehaviorLogExistingImportMapping = {
   recordType: BehaviorLogImportRecordType;
   externalId: string;
@@ -188,6 +209,7 @@ export type BehaviorLogExistingRecords = {
   occurrences?: BehaviorLogExistingOccurrence[];
   statusEvents?: BehaviorLogExistingStatusEvent[];
   importedNotes?: BehaviorLogExistingImportedNote[];
+  importedInterventions?: BehaviorLogExistingImportedIntervention[];
   mappings?: BehaviorLogExistingImportMapping[];
 };
 

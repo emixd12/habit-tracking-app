@@ -1,0 +1,86 @@
+---
+import BrandMarks from "../components/BrandMarks.astro";
+import RouteJsonLd from "../components/RouteJsonLd.astro";
+import { getCanonicalUrl, marketingRoutes, type MarketingRoute } from "../data/routes";
+import { primaryCtas, siteConfig } from "../data/site";
+import "../styles/global.css";
+
+type Props = {
+  route: MarketingRoute;
+};
+
+const { route } = Astro.props;
+const canonicalUrl = getCanonicalUrl(route.path);
+const markdownUrl = getCanonicalUrl(route.markdownPath);
+const pageTitle =
+  route.path === "/" ? route.title : `${route.title} | BehaviorLog and Cadence`;
+const ogImageUrl = getCanonicalUrl("/brand/cadence-logo.png");
+---
+
+<!doctype html>
+<html lang={siteConfig.language}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={route.description} />
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="alternate" type="text/markdown" href={markdownUrl} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+    />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={route.description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:type" content={route.type === "documentation" ? "article" : "website"} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:site_name" content={siteConfig.name} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={route.description} />
+    <meta name="twitter:image" content={ogImageUrl} />
+    <RouteJsonLd route={route} />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="site-shell">
+      <header class="site-header">
+        <div class="site-header__inner">
+          <a class="brand-lockup" href="/" aria-label="BehaviorLog and Cadence home">
+            <BrandMarks />
+          </a>
+          <nav class="site-nav" aria-label="Marketing">
+            {
+              marketingRoutes.map((item) => (
+                <a
+                  href={item.path}
+                  aria-current={item.path === route.path ? "page" : undefined}
+                >
+                  {item.navLabel}
+                </a>
+              ))
+            }
+          </nav>
+        </div>
+      </header>
+      <main id="main">
+        <slot />
+      </main>
+      <footer class="site-footer">
+        <div class="site-footer__inner">
+          <p>
+            BehaviorLog is the standard. Cadence is the open reference tracker.
+          </p>
+          <div class="cta-row" aria-label="Project links">
+            <a class="inline-link" href={primaryCtas.readStandard.href}>Standard</a>
+            <a class="inline-link" href={primaryCtas.viewGithub.href}>GitHub</a>
+            <a class="inline-link" href="/llms.txt">llms.txt</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -3,8 +3,9 @@
 ## Project
 
 This repository contains Cadence, a public, open-source personal behavior
-tracker product. The current implemented surface is an authenticated web app
-for one account at a time.
+tracker product. The implemented surfaces are an authenticated web app for one
+account at a time and a separate public Astro marketing site under
+`apps/marketing`.
 
 The app lets a user create recurring behaviors, view scheduled occurrences in a timeline, and manually mark each occurrence as Completed or Not Completed. Unmarked occurrences remain Unresolved, and prior-day unresolved occurrences are grouped under Needs decision.
 
@@ -30,10 +31,10 @@ surface for the BehaviorLog Bundle standard:
 - Web Push for browser notifications
 - Vitest for resolver tests
 
-Future public-product surfaces are scoped in
-`docs/PUBLIC_PRODUCT_ARCHITECTURE.md`: an Astro marketing site, a future Tauri
-desktop app, and a future mobile app. Do not restructure the repository into a
-multi-app workspace or add those surfaces without a scoped ticket.
+Public-product surfaces are scoped in `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
+The Astro marketing site is implemented as a sibling app; future Tauri desktop,
+mobile, shared-package, and workspace-restructuring work still requires scoped
+tickets.
 
 ## Agent operating model
 
@@ -48,6 +49,8 @@ Before implementing a task, read in this order:
    - `docs/DATETIME_STRATEGY.md`
    - `docs/ROUTE_MAP.md`
    - `docs/AGENT_RESOLVERS.md`
+   - `docs/VERCEL_WORKFLOW.md`
+   - `docs/CRAWL_POLICY.md`
 5. Product source-of-truth docs relevant to the task.
 6. Existing tests and implementation.
 
@@ -76,6 +79,9 @@ Product and implementation docs:
 15. `/docs/DECISIONS.md`
 16. `/docs/FUTURE_UPDATES.md`
 17. `/docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+18. `/docs/VERCEL_WORKFLOW.md`
+19. `/docs/CRAWL_POLICY.md`
+20. `/docs/DESKTOP_BUILD.md`
 
 ## Product constraints
 
@@ -95,7 +101,8 @@ In scope:
 - Optional email reminders per behavior
 - Basic analytics
 - JSONL/CSV/full JSON/BehaviorLog export
-- Simple public marketing site and workspace split when explicitly ticketed
+- Public Astro marketing site
+- Workspace split only when explicitly ticketed
 
 Out of scope for v1:
 - Multi-user collaboration

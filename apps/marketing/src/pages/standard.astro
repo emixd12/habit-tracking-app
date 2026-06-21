@@ -1,0 +1,69 @@
+---
+import ProductCapture from "../components/ProductCapture.astro";
+import { getRouteById } from "../data/routes";
+import { primaryCtas } from "../data/site";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const route = getRouteById("standard");
+---
+
+<BaseLayout route={route}>
+  <section class="page-section hero" aria-labelledby="standard-title">
+    <div class="page-section__inner">
+      <div class="stack">
+        <h1 id="standard-title">Behavior histories should be portable records.</h1>
+        <p>
+          BehaviorLog defines a compact bundle for recurring behavior data: behaviors,
+          schedules, occurrences, status events, notes, and provenance in files that
+          humans and agents can inspect.
+        </p>
+        <div class="cta-row">
+          <a class="button button--primary" href={primaryCtas.readStandard.href}>
+            {primaryCtas.readStandard.label}
+          </a>
+          <a class="button" href={primaryCtas.downloadExample.href}>
+            {primaryCtas.downloadExample.label}
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="standard-files-title">
+    <div class="page-section__inner section-grid">
+      <div class="stack">
+        <h2 id="standard-files-title">The bundle is a folder with an audit trail.</h2>
+        <p>
+          <code>manifest.json</code> names every file and hash. JSONL files carry
+          records. Optional CSV views exist for migration, but they do not replace the
+          authoritative event stream.
+        </p>
+      </div>
+      <ProductCapture variant="bundle" />
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="standard-contract-title">
+    <div class="page-section__inner">
+      <div class="split-grid">
+        <div class="ledger-row">
+          <h2 id="standard-contract-title">Core contract</h2>
+          <ul class="text-list">
+            <li>Statuses are unresolved, completed, and not_completed.</li>
+            <li>Unresolved is not a failure state.</li>
+            <li>Local dates and IANA timezones travel with occurrences.</li>
+            <li>Custom producer fields stay inside extensions.</li>
+          </ul>
+        </div>
+        <div class="ledger-row">
+          <h2>Agent rule</h2>
+          <p>
+            Use <code>data/status_events.jsonl</code> as the history authority. Treat
+            <code>occurrences.jsonl</code> current_status as a quick-load snapshot only.
+          </p>
+          <a class="button" href="/docs">Open agent docs</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

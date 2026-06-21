@@ -95,6 +95,12 @@ const resolverRegistry = [
     source: "docs/EXPORT_FORMATS.md",
   },
   {
+    domain: "behaviorlog restore preview",
+    resolver: "lib/resolvers/behaviorlog-restore.resolver.ts",
+    test: "tests/behaviorlog-restore.resolver.test.ts",
+    source: "docs/EXPORT_FORMATS.md",
+  },
+  {
     domain: "imported intervention promotion",
     resolver: "lib/resolvers/imported-intervention-promotion.resolver.ts",
     test: "tests/imported-intervention-promotion.test.ts",

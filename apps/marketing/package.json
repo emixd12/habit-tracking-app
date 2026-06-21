@@ -1,0 +1,21 @@
+{
+  "name": "@cadence/marketing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/build-example-bundle.mjs",
+    "dev": "astro dev",
+    "prebuild": "node scripts/build-example-bundle.mjs",
+    "build": "astro check && astro build",
+    "preview": "astro preview",
+    "check": "astro check && node scripts/check-agent-readability.mjs"
+  },
+  "dependencies": {
+    "astro": "^6.4.8"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "typescript": "^5"
+  }
+}

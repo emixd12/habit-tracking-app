@@ -8,7 +8,7 @@ The app should feel like a personal cockpit, not a productivity platform.
 
 Cadence is now a public product, but the authenticated app should not become
 marketing-heavy. Public explanation, SEO content, standard adoption, and GitHub
-links belong on the future Astro marketing site. The app remains direct and
+links belong on the sibling Astro marketing site. The app remains direct and
 work-focused after login.
 
 Avoid:
@@ -65,9 +65,9 @@ Categories should not appear in navigation or timeline filtering.
 
 ## Public marketing site
 
-The marketing site should use Cadence's existing product voice and design
-tokens, but it is a separate Astro shell rather than part of the authenticated
-app shell.
+The marketing site uses Cadence's existing product voice and design tokens, but
+it is a separate Astro shell under `apps/marketing` rather than part of the
+authenticated app shell.
 
 Launch marketing routes:
 
@@ -87,8 +87,14 @@ Primary calls to action:
 
 The marketing site should be SEO-conscious with semantic content structure,
 metadata, canonical URLs, social preview metadata, sitemap/robots support, and
-fast static pages. Do not add heavy client-side marketing interactions unless a
-specific page needs them.
+fast static pages. It also exposes `llms.txt`, `llms-full.txt`, Markdown
+mirrors, and a public route manifest for agents. Do not add heavy client-side
+marketing interactions unless a specific page needs them.
+
+BehaviorLog should lead the homepage as the standard. Cadence should be the
+demonstration product and main brand object. Keep the existing Cadence mark,
+use the square ledger visual system, and pair it with a quieter BehaviorLog
+companion mark.
 
 No public design-system page is launch scope. `/design-system` remains
 dev-only.
@@ -437,6 +443,21 @@ also require a dedicated privacy acknowledgement. Do not add destructive
 restore/overwrite controls, generalized notes browsing, or
 intervention-to-reminder writes in this screen.
 
+BehaviorLog restore preview may also appear on the Export screen when a restore
+ticket is active. It should stay separate from create-only and merge import,
+show create/replace/archive/delete/keep/skip counts, highlight destructive
+replace/archive/delete actions, show non-restorable account/provider/browser
+fields, show note sensitivity and intervention redaction warnings, and display
+the preview fingerprint needed for stale-preview refusal. Preview itself must
+not present as a completed restore and must not write product records.
+
+Restore apply controls should appear only after a valid restore preview. They
+must require a fresh-backup checkbox, typed `RESTORE` confirmation, and a
+separate high/restricted note sensitivity acknowledgement when relevant. The UI
+should show stale-preview or unsupported-action refusal as an alert and keep the
+preview visible for review. Apply result or failure details should appear in the
+Restore section history.
+
 ## Settings screen
 
 Show:
@@ -456,8 +477,9 @@ Timezone detection should use the browser/OS timezone exposed by `Intl.DateTimeF
 Do not include a test notification button in v1.
 
 Do not include destructive data actions in v1 except the explicit public-launch
-account deletion path. Full restore, overwrite, or destructive import actions
-remain out of scope unless a dedicated ticket changes that.
+account deletion path and dedicated BehaviorLog restore work. Restore preview is
+read-only; restore apply must require explicit review, backup acknowledgement,
+typed confirmation, and stale-preview refusal before destructive writes.
 
 ## Offline UI
 

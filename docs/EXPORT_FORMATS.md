@@ -204,8 +204,8 @@ Import tracking rules:
   start/completion timestamps.
 - Import run status values are `previewed`, `applied`, `failed`, and
   `cancelled`.
-- Import modes are `preview_only`, `create_missing_only`, `merge_preview`, and
-  `merge_by_user_approved_plan`.
+- Import modes are `preview_only`, `create_missing_only`, `merge_preview`,
+  `merge_by_user_approved_plan`, `restore_preview`, and `restore_apply`.
 - `behaviorlog_import_record_mappings` maps external BehaviorLog ids to local
   Cadence ids by import run and record type.
 - Mapping record types are `behavior`, `schedule`, `occurrence`,
@@ -344,6 +344,93 @@ User-facing import UI rules:
 - Raw uploaded bundle contents are not stored in the import-run ledger.
 - Do not add full restore, destructive overwrite, generalized notes browsing, or
   intervention-to-reminder writes in this UI milestone.
+
+### BehaviorLog restore preview
+
+Restore preview is separate from create-only import and user-approved merge. It
+is for understanding what a trusted BehaviorLog backup would do before any
+destructive restore can be considered.
+
+Restore preview rules:
+
+- Restore preview must use a dedicated restore resolver, not merge preview.
+- Preview accepts validated BehaviorLog bundle files plus the current
+  user-owned local graph needed for comparison.
+- Preview is read-only for product data. It may persist an import-run ledger row
+  with `import_mode = 'restore_preview'`, but it must not create, update,
+  archive, delete, overwrite, deduplicate, schedule, send, cancel, or claim
+  product records or reminders.
+- Preview emits machine-readable create, replace, archive, delete, keep, and
+  skip actions for behaviors, behavior schedule slots, occurrences, occurrence
+  status events, inline occurrence notes, passive imported notes, and passive
+  imported intervention-history records.
+- Each action flags whether it is destructive. Replace, archive, and delete are
+  destructive.
+- Preview includes stable bundle, local-data, and preview fingerprints. A future
+  restore apply must require the same preview fingerprint and refuse stale local
+  data.
+- BehaviorLog is behavior-data portability, not a full account image. Restore
+  preview must state that auth identity, profile email, browser permissions,
+  push subscriptions, provider accounts, provider secrets, and external
+  provider state are not restored.
+- JSONL is authoritative. CSV views are optional compatibility files and do not
+  drive restore decisions.
+- `status_events.jsonl` is authoritative for status history.
+  `occurrences.jsonl.current_status` remains a current snapshot only.
+- `unresolved` remains unresolved and must never be converted to
+  `not_completed`.
+- The default status-history policy is `preserve_append_only_history`.
+  `replace_status_history` may appear only as a previewed future policy until a
+  later ticket implements and verifies destructive apply behavior.
+- High or restricted imported notes produce sensitivity warnings.
+- Intervention preview keeps showing stored passive-history fields plus
+  dropped/redacted sensitive fields. Restore preview must not write operational
+  `reminder_deliveries` or call Sequenzy, Web Push, browser APIs, provider SDKs,
+  or notification-processing routes.
+- Unsupported schema versions, unsupported recurrence/schedule shapes, missing
+  references, unknown core top-level fields, and records that cannot be safely
+  mapped must produce validation errors or skip actions before any future apply
+  can proceed.
+
+### BehaviorLog restore apply
+
+Restore apply is the destructive counterpart to restore preview and must consume
+an accepted `restore_preview` run.
+
+Restore apply rules:
+
+- Apply requires an accepted restore preview snapshot stored on an import-run
+  ledger row with `import_mode = 'restore_preview'`.
+- Apply creates a separate `restore_apply` ledger row and records the accepted
+  preview summary there before attempting writes.
+- Apply requires all of the following server-side:
+  - matching preview fingerprint,
+  - matching local-data fingerprint,
+  - matching accepted preview-run fingerprint fields,
+  - typed confirmation `RESTORE`,
+  - acknowledgement that the user created or downloaded a fresh backup,
+  - high/restricted note acknowledgement when relevant,
+  - no validation errors,
+  - no skipped or unsupported restore actions.
+- Apply refuses stale previews when local data has changed since preview.
+- Apply uses a transaction-scoped database function for destructive product
+  writes instead of a long multi-call Supabase client workflow.
+- Apply preserves append-only status history by default. Status-history
+  replacement remains a policy that must be present in the accepted preview
+  before local status events can be deleted.
+- Apply may archive, replace, or delete only records represented by the accepted
+  restore contract. It must preserve user ownership and Supabase RLS boundaries.
+- Apply may remove operational reminder deliveries only through normal
+  dependency cascades from accepted occurrence deletes. It must not call
+  Sequenzy, Web Push, browser APIs, provider SDKs, or notification-processing
+  routes.
+- Failed restore attempts mark the `restore_apply` run `failed` with a surfaced
+  failure message. Because the destructive database work is executed by one
+  database function call, partial failure should roll back inside the database
+  transaction; errors before or after the function are reflected in the ledger.
+- Applying the same accepted restore run is designed to be idempotent through
+  deterministic core record ids and passive-history uniqueness on
+  `import_run_id, external_id`.
 
 ### Imported intervention promotion
 

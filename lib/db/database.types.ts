@@ -749,7 +749,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      apply_behaviorlog_restore: {
+        Args: { restore_payload: Json }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

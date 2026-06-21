@@ -1,6 +1,6 @@
 ---
 name: Cadence Tracker
-description: A sparse, square, IBM Plex Sans-forward visual system for a private behavior tracker.
+description: A sparse, square, IBM Plex Sans-forward visual system for a public behavior tracker and BehaviorLog reference surface.
 colors:
   primary: "#3572b3"
   background: "#FDFCFB"
@@ -14,34 +14,34 @@ colors:
 typography:
   display:
     fontFamily: "IBM Plex Sans"
-    fontSize: "30px"
-    fontWeight: 400
-    lineHeight: 1.2
+    fontSize: "32px"
+    fontWeight: 600
+    lineHeight: 1.25
     letterSpacing: "0px"
   headline:
     fontFamily: "IBM Plex Sans"
-    fontSize: "24px"
-    fontWeight: 400
+    fontSize: "28px"
+    fontWeight: 600
     lineHeight: 1.25
     letterSpacing: "0px"
   title:
     fontFamily: "IBM Plex Sans"
-    fontSize: "18px"
-    fontWeight: 400
-    lineHeight: 1.25
+    fontSize: "20px"
+    fontWeight: 600
+    lineHeight: 1.35
     letterSpacing: "0px"
   body:
     fontFamily: "IBM Plex Sans"
-    fontSize: "14px"
+    fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "0px"
   label:
     fontFamily: "IBM Plex Sans"
-    fontSize: "12px"
-    fontWeight: 400
+    fontSize: "14px"
+    fontWeight: 600
     lineHeight: 1.25
-    letterSpacing: "1px"
+    letterSpacing: "0px"
 rounded:
   none: "0px"
 spacing:
@@ -94,7 +94,7 @@ components:
 
 **Creative North Star: "The Quiet Ledger"**
 
-The interface is a private field log: square, calm, legible, and exact. It uses IBM Plex Sans type, quiet rules, broad whitespace, muted blue action blocks, compact form controls, and small heatmap cells across the implemented auth shell, Behaviors screen, Timeline screen, Analytics screen, Export screen, and Settings screen.
+The interface is a private field log and public reference surface: square, calm, legible, and exact. It uses IBM Plex Sans type, quiet rules, broad whitespace, muted blue action blocks, compact form controls, small heatmap cells, and flat product captures across the implemented auth shell, Behaviors screen, Timeline screen, Analytics screen, Export screen, Settings screen, and Astro marketing site.
 
 This is product UI, not a poster. The look can be distinctive, but every screen must still work quickly for marking occurrences, reading Needs decision, editing behaviors, checking basic analytics, and exporting records.
 
@@ -107,6 +107,8 @@ This is product UI, not a poster. The look can be distinctive, but every screen 
 - Rust red used rarely for warnings, destructive actions, or errors.
 - Square corners, no shadows, no blur, no rounded cards.
 - Spacious desktop rhythm with compact, stackable mobile layouts.
+- Public marketing pages keep the same square ledger vocabulary while giving
+  BehaviorLog the first narrative position and Cadence the main product object.
 
 ## 2. Colors
 
@@ -143,19 +145,19 @@ The palette is almost monochrome: black ink, bleached paper, subtle gray, and on
 **Body Font:** IBM Plex Sans
 **Label Font:** IBM Plex Sans
 
-**Character:** The type should feel mechanical and logged, not nostalgic or cute. Use scale, spacing, color, borders, and layout to create hierarchy instead of introducing another font or heavier weights.
+**Character:** The type should feel mechanical and logged, not nostalgic or cute. Use one family, readable scale steps, restrained 500/600 weight contrast, spacing, color, borders, and layout to create hierarchy.
 
 ### Hierarchy
 
-- **Display** (400, 30px, 1.2): Page titles and prominent dates on larger screens only.
-- **Headline** (400, 24px, 1.25): Section titles such as Timeline, Behaviors, Analytics, Export, and Settings.
-- **Section** (400, 20px, 1.25): Major in-page panels and grouped content headings.
-- **Title** (400, 18px, 1.25): Behavior titles, occurrence titles, card headings, and form section titles.
-- **Body** (400, 14px, open leading): Notes, descriptions, recurrence summaries, and normal explanatory text. Keep prose to 65-75ch.
-- **Label** (400, 12px, 1px tracking): Navigation labels, button labels, status pills, table labels, and compact metadata.
+- **Display** (600, 32px, 1.25): Page titles and prominent dates on larger screens only.
+- **Headline** (600, 28px, 1.25): Section titles such as Timeline, Behaviors, Analytics, Export, and Settings.
+- **Section** (600, 24px, 1.33): Major in-page panels and grouped content headings.
+- **Title** (600, 20px, 1.4): Behavior titles, occurrence titles, card headings, and form section titles.
+- **Body** (400, 16px, 1.5): Notes, descriptions, recurrence summaries, and normal explanatory text. Keep prose to 65-75ch.
+- **Label** (600, 14px, 1.25): Navigation labels, button labels, status pills, table labels, and compact metadata. Use 12px only for dense secondary metadata.
 
-The active Tailwind text scale is shifted one step smaller than the framework default: `text-4xl` renders at 30px, `text-3xl` at 24px, `text-2xl` at 20px, `text-base` at 14px, and `text-sm` at 12px.
-The active Tailwind font-weight scale is flattened for this no-bold experiment: `font-medium`, `font-semibold`, `font-bold`, and heavier utilities all render at 400.
+The active Tailwind text scale is app-specific and fixed in rem units: `text-4xl` renders at 32px, `text-3xl` at 28px, `text-2xl` at 24px, `text-base` at 16px, `text-sm` at 14px, and `text-xs` at 12px.
+The active Tailwind font-weight scale is intentionally restrained: `font-medium` renders at 500, `font-semibold` and `font-bold` render at 600, and heavier utilities render at 700.
 
 ### Named Rules
 
@@ -234,7 +236,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 - **Timeline structure:** The current day is the first forward section and uses the strongest date treatment. Do not show a visible Timeline page title above the feed. Day transitions use the date header plus a thin divider, not boxed day sections. Needs decision is reached from a fixed lower-right button on desktop and a full-width lower safe-area button on mobile; it opens a modal rather than appearing as an inline Timeline section.
 - **Collapsed unresolved and Not Completed:** Scheduled time as plain text, behavior title, Completed text-link action, and Not Completed text-link action. Rows are compact and unboxed, with collapsed time, title, and action text vertically centered within the row; do not draw a perimeter border around each behavior row. On mobile, the time and title sit first, then status actions sit in their own full-width touch row before expanded details. Primary status actions are visible for Needs decision rows, current-day unresolved rows, and Not Completed rows. Preset time ranges show only their short label, such as Morning or Evening, in collapsed rows.
-- **Timeline status actions:** Render Completed and Not Completed as inline underlined text-link controls with the check and x icons retained. Do not use boxed, filled, or outlined button chrome for these row-level status actions. Keep status action underlines consistently thin; do not use underline thickness to indicate that a row is already Not Completed. Mobile status and Save note actions should have at least a 44px tap target. Hover-capable devices and keyboard focus may add non-reflowing text emphasis as a targeted exception to the base no-bold type experiment, but should not change the action color or move adjacent actions.
+- **Timeline status actions:** Render Completed and Not Completed as inline underlined text-link controls with the check and x icons retained. Do not use boxed, filled, or outlined button chrome for these row-level status actions. Keep status action underlines consistently thin; do not use underline thickness to indicate that a row is already Not Completed. Mobile status and Save note actions should have at least a 44px tap target. Hover-capable devices and keyboard focus may add non-reflowing text emphasis without changing the action color or moving adjacent actions.
 - **Expanded details:** Native disclosure reveals description, category, schedule summary, and note directly on the row surface, without a grey panel, enclosing border, boxed card treatment, chevron, or separate disclosure icon. While open, the whole occurrence row holds the same blue background used by that row's hover state. The Note textarea keeps its field border; Save note uses the same underlined text-action vocabulary as Completed and Not Completed.
 - **Resolved:** Keep resolved rows visible with distinct states. Completed rows hide primary status actions and use a full Monolith Blue fill instead of a separate status chip. Not Completed rows visually return to the original unresolved card treatment but show the Completed and Not Completed text-link actions without a separate current-choice cue.
 - **Completion feedback:** A successful user-initiated change into Completed may play one short chime. Treat it as state feedback, not a reward loop: no voice, no alarm tone, no repeat sound, and no sound for Not Completed or page load.
@@ -273,6 +275,38 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Routes:** `/terms`, `/privacy`, and `/trust` use the same square, flat product vocabulary as the authenticated app.
 - **Layout:** Keep public legal/trust pages narrow, text-first, and divided by quiet rules. Use plain navigation between the three pages and simple Sign in / Open settings actions.
 - **Copy:** Keep legal/trust copy factual. Explain account isolation, manual statuses, portability, reminders, and deletion without marketing claims or motivational language.
+
+### Astro Marketing Site
+
+- **Routes:** The marketing site lives under `apps/marketing` and implements
+  `/`, `/standard`, `/cadence`, `/examples`, `/docs`, and `/about`.
+- **Layout:** Use full-width page sections separated by 1px Ash Line rules.
+  Keep hero text unboxed and leave the next section visible in the first
+  viewport. Use two-column content grids only after the hero.
+- **Brand relationship:** The homepage leads with BehaviorLog as the standard.
+  Cadence is the demonstration product and main brand object. Keep the existing
+  Cadence mark and pair it with a quieter BehaviorLog companion mark built from
+  the same square ledger cells and Ash Line stroke.
+- **Captures:** Product visuals are sanitized static captures of the Timeline
+  and BehaviorLog bundle file set. They reuse real Cadence row language:
+  scheduled time, behavior title, Completed, Not Completed, Needs decision,
+  Note, and status-history authority. They do not render real account data.
+  In the homepage hero, the capture must fit its available lane without
+  colliding with the headline or clipping offscreen.
+- **CTAs:** Use the same square button vocabulary for Try Cadence, Read the
+  Standard, Download Example Bundle, and View on GitHub. Primary action uses
+  Monolith Blue. Secondary actions stay background with Ash Line borders.
+- **Docs route:** `/docs` is agent-first. It links to Markdown mirrors,
+  `llms.txt`, `llms-full.txt`, `/data/route-manifest.json`, sitemap, robots,
+  and the example bundle. Use tables for machine file indexes rather than
+  decorative cards. On narrow screens, tables wrap inside the page width
+  rather than causing document-level horizontal scroll.
+- **SEO and agent readability:** Pages include canonical URLs, page-specific
+  descriptions, Open Graph/Twitter metadata, JSON-LD, one H1, semantic
+  landmarks, and Markdown alternate links.
+- **Marketing boundaries:** No marketing cookies, analytics scripts,
+  client-side tracking, desktop/mobile teaser, billing teaser, or AI coaching
+  copy appears in the launch site.
 
 ## 6. Do's and Don'ts
 

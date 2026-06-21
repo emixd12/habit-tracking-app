@@ -1,0 +1,183 @@
+---
+type Props = {
+  variant?: "timeline" | "bundle";
+};
+
+const { variant = "timeline" } = Astro.props;
+---
+
+{
+  variant === "timeline" ? (
+    <figure class="product-capture" aria-labelledby="timeline-capture-title">
+      <div class="product-capture__header">
+        <span id="timeline-capture-title">Cadence timeline capture</span>
+        <span>Sanitized demo data</span>
+      </div>
+      <div class="timeline-shot" aria-label="Sanitized Cadence timeline product capture">
+        <div class="timeline-shot__date">
+          <span>Saturday, June 20</span>
+          <span>Needs decision 2</span>
+        </div>
+        <div class="timeline-shot__row">
+          <span>Morning</span>
+          <strong>Morning walk</strong>
+          <span class="timeline-shot__actions">Completed · Not Completed</span>
+        </div>
+        <div class="timeline-shot__row timeline-shot__row--completed">
+          <span>12:30 PM</span>
+          <strong>Lunch notes</strong>
+          <span>Completed</span>
+        </div>
+        <div class="timeline-shot__row">
+          <span>Evening</span>
+          <strong>Read for twenty minutes</strong>
+          <span class="timeline-shot__actions">Completed · Not Completed</span>
+        </div>
+        <div class="timeline-shot__details">
+          <span>Note</span>
+          <p>Short context stays attached to the occurrence. Status history stays explicit.</p>
+        </div>
+      </div>
+    </figure>
+  ) : (
+    <figure class="product-capture" aria-labelledby="bundle-capture-title">
+      <div class="product-capture__header">
+        <span id="bundle-capture-title">BehaviorLog bundle capture</span>
+        <span>Agent-readable files</span>
+      </div>
+      <div class="bundle-shot" aria-label="BehaviorLog file capture">
+        <div class="bundle-shot__line">
+          <span>manifest.json</span>
+          <span>hashes and required files</span>
+        </div>
+        <div class="bundle-shot__line">
+          <span>data/behaviors.jsonl</span>
+          <span>behavior definitions</span>
+        </div>
+        <div class="bundle-shot__line">
+          <span>data/schedules.jsonl</span>
+          <span>calendar-simple recurrence</span>
+        </div>
+        <div class="bundle-shot__line">
+          <span>data/occurrences.jsonl</span>
+          <span>current status snapshots</span>
+        </div>
+        <div class="bundle-shot__line bundle-shot__line--authority">
+          <span>data/status_events.jsonl</span>
+          <span>history authority</span>
+        </div>
+      </div>
+    </figure>
+  )
+}
+
+<style>
+  .product-capture {
+    border: 1px solid var(--line);
+    background: var(--background);
+  }
+
+  .product-capture__header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border-block-end: 1px solid var(--line);
+    background: var(--surface);
+    padding: 0.8rem 1rem;
+    color: var(--foreground);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .timeline-shot,
+  .bundle-shot {
+    display: grid;
+  }
+
+  .timeline-shot__date,
+  .timeline-shot__row,
+  .timeline-shot__details,
+  .bundle-shot__line {
+    display: grid;
+    grid-template-columns: minmax(80px, 0.32fr) minmax(0, 1fr) minmax(120px, 0.6fr);
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+  }
+
+  .timeline-shot__date,
+  .timeline-shot__details {
+    grid-template-columns: 1fr auto;
+    background: var(--surface);
+  }
+
+  .timeline-shot__row + .timeline-shot__row,
+  .timeline-shot__details,
+  .bundle-shot__line + .bundle-shot__line {
+    border-block-start: 1px solid var(--line);
+  }
+
+  .timeline-shot__row strong {
+    font-weight: 600;
+  }
+
+  .timeline-shot__row span,
+  .timeline-shot__details span,
+  .bundle-shot__line span:last-child {
+    color: var(--muted-readable);
+    font-size: 0.875rem;
+  }
+
+  .timeline-shot__actions {
+    color: var(--foreground) !important;
+    text-decoration: underline;
+    text-decoration-color: var(--primary);
+    text-underline-offset: 0.18em;
+  }
+
+  .timeline-shot__row--completed {
+    background: var(--primary);
+    color: var(--background);
+  }
+
+  .timeline-shot__row--completed span {
+    color: var(--background);
+  }
+
+  .timeline-shot__details p {
+    max-width: 42ch;
+  }
+
+  .bundle-shot__line {
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 0.7fr);
+  }
+
+  .bundle-shot__line span:first-child {
+    color: var(--foreground);
+  }
+
+  .bundle-shot__line--authority {
+    background: var(--primary-soft);
+  }
+
+  @media (width < 620px) {
+    .product-capture__header {
+      font-size: 0.875rem;
+    }
+
+    .timeline-shot__row span,
+    .timeline-shot__details span,
+    .bundle-shot__line span:last-child {
+      font-size: 0.875rem;
+    }
+
+    .timeline-shot__date,
+    .timeline-shot__row,
+    .timeline-shot__details,
+    .bundle-shot__line {
+      grid-template-columns: 1fr;
+      gap: 0.4rem;
+    }
+  }
+</style>
