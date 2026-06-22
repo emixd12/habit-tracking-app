@@ -117,6 +117,13 @@ Needs decision is a derived UI state, not a stored status. It applies when an oc
 
 The UI labels `completed` as Completed and `not_completed` as Not Completed.
 
+Submitted occurrence decisions can be corrected later. The immediate correction
+path is the Needs decision modal: rows decided from that modal may remain
+visible in their original prior-day group through the current local day, with
+the same Timeline row cues and correction controls. After that local-day window,
+later corrections should be deliberate and date-based, using Analytics selected
+day review rather than turning Timeline into a past-history browser.
+
 ## Day boundary
 
 The day resets at local midnight.

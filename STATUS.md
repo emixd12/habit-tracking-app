@@ -43,7 +43,7 @@ When updating a ticket row:
 
 ## Current repository state
 
-This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, Ticket 013 Vercel production deployment, BehaviorLog interoperability and import work through Ticket 024, Ticket 025A restore preview, Ticket 025B restore apply/UI, Ticket 026 imported notes, Ticket 027 imported intervention history, Ticket 028 imported intervention promotion services, Ticket 029 public web hardening, Ticket 030 public web hardening follow-up, Ticket 031 Astro marketing site, and the project-definition and agent-bootstrap layer.
+This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, Ticket 013 Vercel production deployment, BehaviorLog interoperability and import work through Ticket 024, Ticket 025A restore preview, Ticket 025B restore apply/UI, Ticket 026 imported notes, Ticket 027 imported intervention history, Ticket 028 imported intervention promotion services, Ticket 029 public web hardening, Ticket 030 public web hardening follow-up, Ticket 031 Astro marketing site, and the project-definition and agent-bootstrap layer. Tickets 032 and 033 are planned but not implemented; they cover submitted occurrence decision correction through Needs Decision same-day retention and Analytics selected-day review.
 
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
@@ -2199,6 +2199,31 @@ Verification:
 - Pass: `npm run test` (39 files, 251 tests).
 - Pass: `npm run build`.
 - Pass: `git diff --check`.
+
+### Occurrence decision correction planning
+
+Status: not_started.
+
+Implementation summary:
+- Added Ticket 032 for Needs Decision same-day correction retention. The planned
+  behavior keeps prior-day occurrences decided from the modal visible in their
+  original day group through the current local day, with the same Timeline row
+  treatment and without a separate recent-decisions section.
+- Added Ticket 033 for Analytics selected-day occurrence correction. The planned
+  behavior uses the Analytics calendar as the deliberate later correction path
+  for submitted occurrence decisions and notes.
+- Updated product, UI, and user-flow docs to describe the planned correction
+  model. No product code, schema, route, resolver, or UI implementation changed.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `git diff --check`.
+
+Remaining risk:
+- Tickets 032 and 033 are documentation/planning only. The current app still
+  removes prior-day occurrences from Needs Decision after they are resolved, and
+  the current Analytics selected-day panel remains read-only and limited to Not
+  Completed occurrences until those tickets are implemented.
 
 ## Handoff notes
 

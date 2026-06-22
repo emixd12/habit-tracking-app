@@ -14,34 +14,34 @@ colors:
 typography:
   display:
     fontFamily: "IBM Plex Sans"
-    fontSize: "32px"
-    fontWeight: 600
-    lineHeight: 1.25
+    fontSize: "30px"
+    fontWeight: 400
+    lineHeight: 1.2
     letterSpacing: "0px"
   headline:
     fontFamily: "IBM Plex Sans"
-    fontSize: "28px"
-    fontWeight: 600
+    fontSize: "24px"
+    fontWeight: 400
     lineHeight: 1.25
     letterSpacing: "0px"
   title:
     fontFamily: "IBM Plex Sans"
-    fontSize: "20px"
-    fontWeight: 600
-    lineHeight: 1.35
+    fontSize: "18px"
+    fontWeight: 400
+    lineHeight: 1.25
     letterSpacing: "0px"
   body:
     fontFamily: "IBM Plex Sans"
-    fontSize: "16px"
+    fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "0px"
   label:
     fontFamily: "IBM Plex Sans"
-    fontSize: "14px"
-    fontWeight: 600
+    fontSize: "12px"
+    fontWeight: 400
     lineHeight: 1.25
-    letterSpacing: "0px"
+    letterSpacing: "1px"
 rounded:
   none: "0px"
 spacing:
@@ -145,19 +145,19 @@ The palette is almost monochrome: black ink, bleached paper, subtle gray, and on
 **Body Font:** IBM Plex Sans
 **Label Font:** IBM Plex Sans
 
-**Character:** The type should feel mechanical and logged, not nostalgic or cute. Use one family, readable scale steps, restrained 500/600 weight contrast, spacing, color, borders, and layout to create hierarchy.
+**Character:** The type should feel mechanical and logged, not nostalgic or cute. Use scale, spacing, color, borders, and layout to create hierarchy instead of introducing another font or heavier weights.
 
 ### Hierarchy
 
-- **Display** (600, 32px, 1.25): Page titles and prominent dates on larger screens only.
-- **Headline** (600, 28px, 1.25): Section titles such as Timeline, Behaviors, Analytics, Export, and Settings.
-- **Section** (600, 24px, 1.33): Major in-page panels and grouped content headings.
-- **Title** (600, 20px, 1.4): Behavior titles, occurrence titles, card headings, and form section titles.
-- **Body** (400, 16px, 1.5): Notes, descriptions, recurrence summaries, and normal explanatory text. Keep prose to 65-75ch.
-- **Label** (600, 14px, 1.25): Navigation labels, button labels, status pills, table labels, and compact metadata. Use 12px only for dense secondary metadata.
+- **Display** (400, 30px, 1.2): Page titles and prominent dates on larger screens only.
+- **Headline** (400, 24px, 1.25): Section titles such as Timeline, Behaviors, Analytics, Export, and Settings.
+- **Section** (400, 20px, 1.25): Major in-page panels and grouped content headings.
+- **Title** (400, 18px, 1.25): Behavior titles, occurrence titles, card headings, and form section titles.
+- **Body** (400, 14px, open leading): Notes, descriptions, recurrence summaries, and normal explanatory text. Keep prose to 65-75ch.
+- **Label** (400, 12px, 1px tracking): Navigation labels, button labels, status pills, table labels, and compact metadata.
 
-The active Tailwind text scale is app-specific and fixed in rem units: `text-4xl` renders at 32px, `text-3xl` at 28px, `text-2xl` at 24px, `text-base` at 16px, `text-sm` at 14px, and `text-xs` at 12px.
-The active Tailwind font-weight scale is intentionally restrained: `font-medium` renders at 500, `font-semibold` and `font-bold` render at 600, and heavier utilities render at 700.
+The active Tailwind text scale is shifted one step smaller than the framework default: `text-4xl` renders at 30px, `text-3xl` at 24px, `text-2xl` at 20px, `text-base` at 14px, and `text-sm` at 12px.
+The active Tailwind font-weight scale is flattened for this no-bold experiment: `font-medium`, `font-semibold`, `font-bold`, and heavier utilities all render at 400.
 
 ### Named Rules
 
@@ -236,7 +236,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 - **Timeline structure:** The current day is the first forward section and uses the strongest date treatment. Do not show a visible Timeline page title above the feed. Day transitions use the date header plus a thin divider, not boxed day sections. Needs decision is reached from a fixed lower-right button on desktop and a full-width lower safe-area button on mobile; it opens a modal rather than appearing as an inline Timeline section.
 - **Collapsed unresolved and Not Completed:** Scheduled time as plain text, behavior title, Completed text-link action, and Not Completed text-link action. Rows are compact and unboxed, with collapsed time, title, and action text vertically centered within the row; do not draw a perimeter border around each behavior row. On mobile, the time and title sit first, then status actions sit in their own full-width touch row before expanded details. Primary status actions are visible for Needs decision rows, current-day unresolved rows, and Not Completed rows. Preset time ranges show only their short label, such as Morning or Evening, in collapsed rows.
-- **Timeline status actions:** Render Completed and Not Completed as inline underlined text-link controls with the check and x icons retained. Do not use boxed, filled, or outlined button chrome for these row-level status actions. Keep status action underlines consistently thin; do not use underline thickness to indicate that a row is already Not Completed. Mobile status and Save note actions should have at least a 44px tap target. Hover-capable devices and keyboard focus may add non-reflowing text emphasis without changing the action color or moving adjacent actions.
+- **Timeline status actions:** Render Completed and Not Completed as inline underlined text-link controls with the check and x icons retained. Do not use boxed, filled, or outlined button chrome for these row-level status actions. Keep status action underlines consistently thin; do not use underline thickness to indicate that a row is already Not Completed. Mobile status and Save note actions should have at least a 44px tap target. Hover-capable devices and keyboard focus may add non-reflowing text emphasis as a targeted exception to the base no-bold type experiment, but should not change the action color or move adjacent actions.
 - **Expanded details:** Native disclosure reveals description, category, schedule summary, and note directly on the row surface, without a grey panel, enclosing border, boxed card treatment, chevron, or separate disclosure icon. While open, the whole occurrence row holds the same blue background used by that row's hover state. The Note textarea keeps its field border; Save note uses the same underlined text-action vocabulary as Completed and Not Completed.
 - **Resolved:** Keep resolved rows visible with distinct states. Completed rows hide primary status actions and use a full Monolith Blue fill instead of a separate status chip. Not Completed rows visually return to the original unresolved card treatment but show the Completed and Not Completed text-link actions without a separate current-choice cue.
 - **Completion feedback:** A successful user-initiated change into Completed may play one short chime. Treat it as state feedback, not a reward loop: no voice, no alarm tone, no repeat sound, and no sound for Not Completed or page load.

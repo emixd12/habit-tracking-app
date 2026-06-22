@@ -1427,6 +1427,164 @@ Suggested files:
 
 ---
 
+## Ticket 032: Needs Decision same-day correction retention
+
+Keep prior-day occurrences that were just decided from the Needs Decision modal
+visible in that same modal for the rest of the current local day, using the same
+row behavior and visual treatment as the Timeline.
+
+Context:
+- The current Timeline service reads prior unresolved occurrences and
+  current/future occurrences. When a prior unresolved occurrence is marked
+  Completed or Not Completed from the Needs Decision modal, it no longer
+  qualifies for the modal after refresh.
+- The existing occurrence status service can already change an owned occurrence
+  by id and writes `explicit_user_correction` status events when a resolved
+  occurrence is changed later.
+- The user need is immediate correction for accidental Needs Decision taps,
+  without turning Needs Decision into a general past-history browser.
+- Interpret "lasts for a day" as "visible through the current local day until
+  the next local midnight" in the user's timezone, matching the app day-boundary
+  model.
+
+Acceptance criteria:
+- Needs Decision remains opened from the existing floating Timeline button.
+  Do not add a new route, past Timeline sections, dashboard, or history page.
+- Recently decided prior-day rows stay in their original prior local-day group
+  in the modal. Do not create a separate `Decided just now`, `Recently decided`,
+  or similar section.
+- A prior unresolved occurrence marked from Needs Decision remains visible in the
+  modal when its `status_marked_at` falls on the current local date in the
+  user's timezone.
+- Retained rows stop appearing in Needs Decision after the next local midnight
+  without writing a separate stored flag, status, or audit marker.
+- Completed retained rows use the same full blue Completed row treatment as
+  Timeline completed rows. Collapsed primary status actions stay hidden, and
+  expanding the row exposes Change status plus Note editing.
+- Not Completed retained rows use the same Timeline Not Completed behavior:
+  they return to the ordinary row treatment and continue exposing Completed and
+  Not Completed actions in the collapsed row.
+- Notes remain editable while a retained row is visible.
+- The Needs Decision count continues to count only prior unresolved occurrences,
+  not retained resolved rows. The button can still open when the count is zero
+  if retained rows exist.
+- The modal empty state appears only when there are no prior unresolved rows and
+  no retained same-day decided rows.
+- Preserve the existing completion chime behavior: a successful change into
+  Completed may chime once, and refresh/revalidation must not unmount the row
+  before that feedback can run.
+- Do not add a stored `missed` status, automatic status changes, bulk edit,
+  confirmation step before a correction, or offline pending mutation behavior.
+- Keep date-boundary and row-visibility planning in resolvers/services. UI
+  components must not implement local-day retention logic directly.
+- Update `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and any relevant tests/docs so
+  the intended modal behavior is explicit.
+
+Suggested files:
+- `lib/resolvers/timeline.resolver.ts`
+- `lib/services/timeline.service.ts`
+- `lib/types/timeline.ts`
+- `components/timeline/Timeline.tsx`
+- `components/timeline/NeedsDecisionDialog.tsx`
+- `components/timeline/OccurrenceRow.tsx`
+- `components/timeline/StatusButtons.tsx`
+- `app/(app)/timeline/actions.ts`
+- `tests/timeline.resolver.test.ts`
+- `tests/completion-feedback.test.ts`
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `STATUS.md`
+
+Verification:
+- Run focused Timeline resolver/component tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- For UI changes, run `npm run design-system:check` if reusable UI or design
+  inventory changes, then browser-check `/timeline` at desktop and around 390px.
+
+---
+
+## Ticket 033: Analytics selected-day occurrence correction
+
+Add a later correction path for submitted occurrence decisions from the
+Analytics calendar, using selected calendar dates to review and correct
+individual occurrences.
+
+Context:
+- Ticket 032 handles immediate accidental taps from the Needs Decision modal for
+  the current local day only.
+- After that same-day retention expires, the app still needs a deliberate path
+  to correct past submitted occurrence decisions.
+- The Timeline should stay forward-looking and should not become a past-history
+  browser.
+- Analytics already has calendar date selection and selected-day inspection, but
+  the current selected-day panel is read-only and only lists Not Completed
+  occurrences.
+- This surface should have enough information scent to be discoverable, without
+  making historical edits feel like the primary logging flow.
+
+Acceptance criteria:
+- Keep the route as `/analytics`; do not add `/history`, `/dashboard`, or a new
+  primary navigation item.
+- Selecting a calendar date shows a sparse `Review selected day` panel when that
+  date has occurrences in the active Analytics range.
+- The selected-day panel lists all occurrences for the selected date, not only
+  Not Completed occurrences.
+- Each listed occurrence shows scheduled time, behavior title, category, current
+  status, and note state using the established occurrence-row vocabulary.
+- The user can change a submitted occurrence decision from Completed to Not
+  Completed or from Not Completed to Completed.
+- Unresolved occurrences in the selected-day panel can be marked Completed or
+  Not Completed, but Needs Decision remains the stronger prompt for prior-day
+  unresolved items.
+- The user can add or edit the occurrence note from the selected-day panel.
+- Corrections reuse the existing occurrence status service and status resolver
+  so status events continue to record `explicit_user_correction` when a resolved
+  status changes.
+- Analytics counts, adherence, heatmaps, and selected-day rows refresh after a
+  correction.
+- The panel should provide clear information scent, for example by naming the
+  area `Review selected day` and adding concise calendar helper text such as
+  `Select a day to review its occurrences`.
+- Do not rely on onboarding copy as the only way to teach this correction path.
+- Keep historical correction deliberate: no bulk edit, no all-time search, no
+  automatic correction suggestions, no AI coaching, and no gamified language.
+- Do not change the default Analytics range behavior unless required for the
+  selected-day review.
+- No schema migration should be necessary unless implementation discovers a
+  missing persisted field. If schema changes become necessary, follow the
+  Supabase migration/data-model/type-generation rules.
+- Update `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and resolver docs if the
+  selected-day data contract changes.
+
+Suggested files:
+- `lib/resolvers/analytics.resolver.ts`
+- `lib/services/analytics.service.ts`
+- `lib/types/analytics.ts`
+- `components/analytics/AnalyticsScreen.tsx`
+- `components/timeline/OccurrenceRow.tsx` or a shared occurrence-row component
+  if reuse is cleaner than duplicating row behavior
+- `components/timeline/StatusButtons.tsx` or a shared status-action component
+- `components/timeline/OccurrenceNoteForm.tsx` or a shared note form component
+- `app/(app)/analytics/actions.ts`
+- `app/(app)/analytics/page.tsx`
+- `tests/analytics.resolver.test.ts`
+- Analytics UI/component tests if added
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `docs/AGENT_RESOLVERS.md` if resolver contracts change
+- `STATUS.md`
+
+Verification:
+- Run focused Analytics resolver/UI tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- For UI changes, run `npm run design-system:check` if reusable UI or design
+  inventory changes, then browser-check `/analytics` at desktop and around
+  390px.
+
+---
+
 ## Future ticket: Workspace restructuring
 
 Move toward the target composable architecture only when needed by marketing,

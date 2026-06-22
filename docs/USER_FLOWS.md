@@ -119,10 +119,16 @@ Timeline order:
 3. Next 7 days
 4. Additional future days when the user chooses to show more
 
-Needs decision contains only prior-day unresolved occurrences. It is not a general past timeline.
+Needs decision contains prior-day unresolved occurrences. It is not a general
+past timeline. As a correction affordance, occurrences decided from Needs
+decision may remain visible in their original prior-day group through the
+current local day.
 
 The Needs decision button is fixed to the lower right of the Timeline screen, shows the current number of prior unresolved occurrences, and opens a modal with the grouped prior-day occurrences. On mobile, it spans the lower safe-area width as one bottom action.
 The count and label sit on one continuous button surface without an internal divider.
+The count includes unresolved prior-day occurrences only. It does not include
+same-day retained rows that were already marked Completed or Not Completed from
+the modal.
 
 Users should not browse previous days as ordinary timeline sections in v1.
 
@@ -204,6 +210,15 @@ Categories are visible only in expanded card details.
 
 If an occurrence is unresolved after the end of its local day, it appears in the Needs decision modal and is visually highlighted. This is a derived UI state based on date and `unresolved`; it must not write a different stored status.
 
+When a user marks a Needs decision row Completed or Not Completed, the row
+should remain available in the modal until the next local midnight in the
+user's timezone. It should stay in its original local-day group rather than
+moving into a separate recent-decisions section. Completed rows keep the same
+blue resolved treatment as Timeline rows, and expanding them exposes status
+correction and Note editing. Not Completed rows keep the same Timeline
+correction controls in the collapsed row. After the next local midnight, these
+retained resolved rows no longer appear in Needs decision.
+
 ## Behavior flow
 
 The Behaviors screen shows active behaviors first as compact unboxed records
@@ -278,7 +293,21 @@ Completed occurrences on that selected day.
 
 For behaviors that occur more than once in a day, represent full completion, partial completion, and not completed day states.
 
-The user should be able to inspect occurrences that were not completed on a selected day.
+The user should be able to select a calendar day and review the occurrences on
+that day. This selected-day review is the deliberate later correction path for
+submitted occurrence decisions after the Needs decision same-day retention
+window has passed.
+
+Selected-day review should:
+- Show all occurrences for the selected local date when rows exist, not only Not
+  Completed occurrences.
+- Allow individual Completed and Not Completed corrections through the same
+  status service used by Timeline.
+- Allow occurrence Note edits.
+- Refresh Analytics counts, adherence, heatmaps, and selected-day rows after a
+  correction.
+- Avoid bulk edit, all-time search, automatic suggestions, AI coaching, or
+  gamified language.
 
 Category-level counts can appear as a compact secondary section.
 

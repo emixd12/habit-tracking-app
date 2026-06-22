@@ -125,7 +125,11 @@ current browser. It should:
 - Provide a Skip setup control.
 - Avoid motivational copy, progress gamification, or a modal/wizard.
 
-Users should not browse previous days as normal timeline sections. Prior unresolved occurrences appear only in the Needs decision modal.
+Users should not browse previous days as normal timeline sections. Prior
+unresolved occurrences appear only in the Needs decision modal, with one narrow
+exception: occurrences just decided from Needs decision may remain visible in
+that modal through the current local day so the user can correct an accidental
+tap.
 
 Timeline access:
 
@@ -144,6 +148,19 @@ The floating button should:
 - Use one continuous surface without an internal divider between the number and text.
 - On mobile, span the lower safe-area width as one bottom action so it stays easy to reach without covering the feed.
 - Open a modal that reveals all prior unresolved occurrences grouped by local day.
+
+After the user marks a prior unresolved occurrence from the Needs decision
+modal, that row should remain in its original local-day group until the next
+local midnight in the user's timezone. Do not move it into a separate "Decided
+just now" or similar section. Completed rows keep the same full blue Completed
+state used on Timeline rows; expanding the row exposes Change status and Note
+editing. Not Completed rows keep the same Timeline Not Completed behavior and
+continue exposing Completed and Not Completed actions. The Needs decision count
+continues to count unresolved prior-day occurrences only, not retained decided
+rows. When there are no unresolved rows but retained decided rows still exist,
+the button may still open the modal with a zero count. Retention must be
+derived from existing occurrence status timing and the local day boundary; do
+not add a stored status or flag for it.
 
 Example:
 
@@ -378,7 +395,7 @@ Show:
 - Tracking-since date for each behavior count row, plus a start marker in that
   behavior's calendar when the start day is inside the selected range
 - Full completion, partial completion, and not completed day states for behaviors that can occur multiple times in one day
-- Not completed occurrences for a selected day
+- Selected-day occurrence review for correcting individual statuses and notes
 - Unresolved count
 - Optional compact counts by category
 - Default adherence rate
@@ -389,9 +406,16 @@ Category counts. Use single horizontal dividers where separation is needed.
 The overall calendar belongs inside the Overall adherence area, and its legend
 should stay hidden behind a simple See Legend disclosure by default.
 
-Do not render a selected-day Not Completed empty-state panel when the selected
-day has no Not Completed occurrences. Only show the selected-day Not Completed
-inspection when it has rows to inspect.
+Calendar selection should provide enough information scent for later
+corrections without making Analytics feel like the primary logging flow. Use
+plain labels such as "Review selected day" and concise helper text such as
+"Select a day to review its occurrences." The selected-day review should list
+all occurrences for the selected local date when rows exist, including
+Completed, Not Completed, and Unresolved rows, and should allow the same
+individual status and note corrections as the Timeline occurrence row pattern.
+Do not add bulk edit, all-time search, automatic suggestions, AI coaching, or
+gamified language. Do not render an empty selected-day panel when the selected
+day has no occurrences.
 
 Default adherence excludes unresolved occurrences. The top summary Unresolved
 count matches the Timeline Needs decision count: active unresolved occurrences
