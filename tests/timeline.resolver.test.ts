@@ -27,6 +27,7 @@ function occurrence(
     scheduledTimeLabel: "9:00 AM",
     localDate: "2026-06-07",
     status: "unresolved",
+    statusMarkedAt: null,
     note: "",
     ...overrides,
   };
@@ -67,6 +68,7 @@ describe("resolveTimeline", () => {
     expect(timeline.needsDecision.daySections[0]?.occurrences[0]).toMatchObject({
       id: "prior-unresolved",
       visualTone: "needs_decision",
+      isVisibleInNeedsDecision: true,
       showDecisionActions: true,
       showCollapsedStatusLabel: false,
     });
@@ -75,6 +77,97 @@ describe("resolveTimeline", () => {
       showDecisionActions: true,
       showCollapsedStatusLabel: false,
     });
+  });
+
+  it("retains prior-day rows decided on the current local day in Needs decision", () => {
+    const timeline = resolveTimeline({
+      now: NOW_BEFORE_LOCAL_MIDNIGHT,
+      timezone: DEFAULT_TIMEZONE,
+      futureDays: 0,
+      occurrences: [
+        occurrence({
+          id: "prior-unresolved",
+          localDate: "2026-06-06",
+          scheduledFor: "2026-06-06T14:00:00Z",
+          status: "unresolved",
+        }),
+        occurrence({
+          id: "retained-completed",
+          localDate: "2026-06-06",
+          scheduledFor: "2026-06-06T15:00:00Z",
+          status: "completed",
+          statusMarkedAt: "2026-06-07T20:00:00Z",
+        }),
+        occurrence({
+          id: "retained-not-completed",
+          localDate: "2026-06-05",
+          scheduledFor: "2026-06-05T15:00:00Z",
+          status: "not_completed",
+          statusMarkedAt: "2026-06-07T21:00:00Z",
+        }),
+      ],
+    });
+
+    expect(timeline.needsDecision.occurrenceCount).toBe(1);
+    expect(timeline.needsDecision.daySections).toHaveLength(2);
+    expect(
+      timeline.needsDecision.daySections.flatMap((section) =>
+        section.occurrences.map((item) => ({
+          id: item.id,
+          localDate: item.localDate,
+          visualTone: item.visualTone,
+          isVisibleInNeedsDecision: item.isVisibleInNeedsDecision,
+          showDecisionActions: item.showDecisionActions,
+          showCollapsedStatusLabel: item.showCollapsedStatusLabel,
+        })),
+      ),
+    ).toEqual([
+      {
+        id: "prior-unresolved",
+        localDate: "2026-06-06",
+        visualTone: "needs_decision",
+        isVisibleInNeedsDecision: true,
+        showDecisionActions: true,
+        showCollapsedStatusLabel: false,
+      },
+      {
+        id: "retained-completed",
+        localDate: "2026-06-06",
+        visualTone: "completed",
+        isVisibleInNeedsDecision: true,
+        showDecisionActions: false,
+        showCollapsedStatusLabel: true,
+      },
+      {
+        id: "retained-not-completed",
+        localDate: "2026-06-05",
+        visualTone: "not_completed",
+        isVisibleInNeedsDecision: true,
+        showDecisionActions: true,
+        showCollapsedStatusLabel: false,
+      },
+    ]);
+  });
+
+  it("drops retained Needs decision rows after the next local midnight", () => {
+    const timeline = resolveTimeline({
+      now: Temporal.Instant.from("2026-06-08T05:30:00Z"),
+      timezone: DEFAULT_TIMEZONE,
+      futureDays: 0,
+      occurrences: [
+        occurrence({
+          id: "expired-retained",
+          localDate: "2026-06-06",
+          scheduledFor: "2026-06-06T14:00:00Z",
+          status: "completed",
+          statusMarkedAt: "2026-06-07T20:00:00Z",
+        }),
+      ],
+    });
+
+    expect(timeline.todayLocalDate).toBe("2026-06-08");
+    expect(timeline.needsDecision.occurrenceCount).toBe(0);
+    expect(timeline.needsDecision.daySections).toHaveLength(0);
   });
 
   it("shows the current day plus the next seven days by default", () => {

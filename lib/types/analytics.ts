@@ -87,20 +87,23 @@ export type AnalyticsCategorySummary = AnalyticsStatusCounts &
     categoryName: string;
   };
 
-export type AnalyticsNotCompletedOccurrence = {
+export type AnalyticsSelectedDayOccurrence = {
   id: string;
   behaviorId: string;
   title: string;
   categoryName: string;
   scheduledFor: string;
   scheduledTimeLabel: string;
+  status: AnalyticsStatus;
+  statusLabel: string;
+  noteStateLabel: string;
   note: string;
 };
 
 export type AnalyticsSelectedDay = {
   localDate: string;
   label: string;
-  notCompletedOccurrences: AnalyticsNotCompletedOccurrence[];
+  occurrences: AnalyticsSelectedDayOccurrence[];
   emptyMessage: string;
 };
 

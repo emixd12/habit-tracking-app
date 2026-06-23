@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
+import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
+import { StatusButtons } from "@/components/timeline/StatusButtons";
 import type {
   AnalyticsBehaviorDayCell,
   AnalyticsBehaviorDayState,
@@ -10,9 +12,12 @@ import type {
   AnalyticsStatusCounts,
   AnalyticsView,
 } from "@/lib/types/analytics";
+import type { OccurrenceFormAction } from "@/lib/types/timeline";
 
 type AnalyticsScreenProps = Readonly<{
   analytics: AnalyticsView;
+  statusAction: OccurrenceFormAction;
+  noteAction: OccurrenceFormAction;
 }>;
 
 const OVERALL_CELL_CLASSES: Record<AnalyticsOverallDayState, string> = {
@@ -31,9 +36,12 @@ const BEHAVIOR_CELL_CLASSES: Record<AnalyticsBehaviorDayState, string> = {
   empty: "border-line bg-background text-muted-readable",
 };
 
-export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
-  const hasSelectedDayNotCompleted =
-    analytics.selectedDay.notCompletedOccurrences.length > 0;
+export function AnalyticsScreen({
+  analytics,
+  statusAction,
+  noteAction,
+}: AnalyticsScreenProps) {
+  const hasSelectedDayOccurrences = analytics.selectedDay.occurrences.length > 0;
 
   return (
     <div className="grid gap-10">
@@ -77,7 +85,7 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
             <div>
               <h3 className="text-xl font-bold leading-tight">Calendar</h3>
               <p className="mt-2 text-sm font-bold text-muted-readable">
-                Selected day: {analytics.selectedDay.localDate}
+                Select a day to review its occurrences.
               </p>
             </div>
             <LegendDisclosure />
@@ -86,14 +94,18 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
           <div
             className={[
               "mt-5 grid gap-6",
-              hasSelectedDayNotCompleted
+              hasSelectedDayOccurrences
                 ? "lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start"
                 : "",
             ].join(" ")}
           >
             <OverallHeatmap analytics={analytics} />
-            {hasSelectedDayNotCompleted ? (
-              <SelectedDayNotCompleted analytics={analytics} />
+            {hasSelectedDayOccurrences ? (
+              <SelectedDayReview
+                analytics={analytics}
+                statusAction={statusAction}
+                noteAction={noteAction}
+              />
             ) : null}
           </div>
         </div>
@@ -165,16 +177,20 @@ export function AnalyticsScreen({ analytics }: AnalyticsScreenProps) {
   );
 }
 
-function SelectedDayNotCompleted({
+function SelectedDayReview({
   analytics,
+  statusAction,
+  noteAction,
 }: Readonly<{
   analytics: AnalyticsView;
+  statusAction: OccurrenceFormAction;
+  noteAction: OccurrenceFormAction;
 }>) {
   return (
     <div className="min-w-0" aria-labelledby="selected-day-title">
       <div>
         <h3 id="selected-day-title" className="text-xl font-bold leading-tight">
-          Not Completed
+          Review selected day
         </h3>
         <p className="mt-2 text-sm font-bold text-muted-readable">
           {analytics.selectedDay.label} · {analytics.selectedDay.localDate}
@@ -182,8 +198,8 @@ function SelectedDayNotCompleted({
       </div>
 
       <div className="mt-3 divide-y divide-line border-t border-line">
-        {analytics.selectedDay.notCompletedOccurrences.map((occurrence) => (
-          <article key={occurrence.id} className="py-3">
+        {analytics.selectedDay.occurrences.map((occurrence) => (
+          <article key={occurrence.id} className="grid gap-3 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <time
                 dateTime={occurrence.scheduledFor}
@@ -194,15 +210,35 @@ function SelectedDayNotCompleted({
               <span className="border border-line bg-background px-2 py-1 text-xs font-bold">
                 {occurrence.categoryName}
               </span>
+              <span className="border border-line bg-surface px-2 py-1 text-xs font-bold">
+                {occurrence.statusLabel}
+              </span>
             </div>
-            <h4 className="mt-3 break-words text-xl font-bold leading-tight">
+            <h4 className="break-words text-xl font-bold leading-tight">
               {occurrence.title}
             </h4>
-            {occurrence.note ? (
-              <p className="mt-3 border-t border-line pt-3 text-sm leading-6 text-muted-readable">
-                {occurrence.note}
-              </p>
-            ) : null}
+            <p className="text-sm font-bold text-muted-readable">
+              {occurrence.noteStateLabel}
+            </p>
+
+            <div className="grid gap-4 border-t border-line pt-3 text-sm leading-6 text-muted-readable">
+              <div className="grid gap-2">
+                <h5 className="font-bold text-foreground">Change status</h5>
+                <StatusButtons
+                  occurrenceId={occurrence.id}
+                  currentStatus={occurrence.status}
+                  action={statusAction}
+                  compact
+                />
+              </div>
+
+              <OccurrenceNoteForm
+                key={`${occurrence.id}-${occurrence.note}`}
+                occurrenceId={occurrence.id}
+                note={occurrence.note}
+                action={noteAction}
+              />
+            </div>
           </article>
         ))}
       </div>

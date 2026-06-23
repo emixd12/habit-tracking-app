@@ -3,6 +3,10 @@ import type { Metadata } from "next";
 import { AnalyticsScreen } from "@/components/analytics/AnalyticsScreen";
 import { ScreenFrame } from "@/components/layout/ScreenFrame";
 import { getAnalyticsPageData } from "@/lib/services/analytics.service";
+import {
+  markAnalyticsOccurrenceStatusAction,
+  updateAnalyticsOccurrenceNoteAction,
+} from "./actions";
 
 export const metadata: Metadata = {
   title: "Analytics",
@@ -31,7 +35,11 @@ export default async function AnalyticsPage({
       title="Analytics"
       description={`Local day boundary: ${analytics.timezone}.`}
     >
-      <AnalyticsScreen analytics={analytics} />
+      <AnalyticsScreen
+        analytics={analytics}
+        statusAction={markAnalyticsOccurrenceStatusAction}
+        noteAction={updateAnalyticsOccurrenceNoteAction}
+      />
     </ScreenFrame>
   );
 }

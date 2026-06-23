@@ -47,6 +47,33 @@ export async function listUnresolvedOccurrencesBeforeLocalDate(
   return data ?? [];
 }
 
+export async function listResolvedOccurrencesBeforeLocalDateMarkedBetween(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    localDate: string;
+    statusMarkedFrom: string;
+    statusMarkedBefore: string;
+  },
+): Promise<Occurrence[]> {
+  const { data, error } = await supabase
+    .from("occurrences")
+    .select("*")
+    .eq("user_id", input.userId)
+    .in("status", ["completed", "not_completed"])
+    .lt("local_date", input.localDate)
+    .gte("status_marked_at", input.statusMarkedFrom)
+    .lt("status_marked_at", input.statusMarkedBefore)
+    .order("local_date", { ascending: false })
+    .order("scheduled_for", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
 export async function listOccurrencesBetweenLocalDates(
   supabase: AppSupabaseClient,
   userId: string,

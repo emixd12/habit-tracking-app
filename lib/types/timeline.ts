@@ -11,6 +11,7 @@ export type TimelineOccurrenceInput = {
   scheduledTimeLabel: string;
   localDate: string;
   status: TimelineStatus;
+  statusMarkedAt: string | null;
   note: string;
 };
 
@@ -28,10 +29,12 @@ export type TimelineOccurrenceView = {
   scheduledTimeLabel: string;
   localDate: string;
   status: TimelineStatus;
+  statusMarkedAt: string | null;
   statusLabel: string;
   statusDetail: string;
   expandedStatusActionLabel: string;
   visualTone: TimelineVisualTone;
+  isVisibleInNeedsDecision: boolean;
   showDecisionActions: boolean;
   showCollapsedStatusLabel: boolean;
   description: string;

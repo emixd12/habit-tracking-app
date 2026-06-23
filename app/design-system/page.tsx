@@ -860,7 +860,11 @@ function buildPreviews(): Record<string, ReactNode> {
     ),
     "module.analytics-screen": (
       <ProductPreview maxHeight="50rem">
-        <AnalyticsScreen analytics={analyticsFixture} />
+        <AnalyticsScreen
+          analytics={analyticsFixture}
+          statusAction={occurrenceAction}
+          noteAction={occurrenceAction}
+        />
       </ProductPreview>
     ),
     "module.export-panel": (
@@ -1002,10 +1006,12 @@ const needsDecisionOccurrence: TimelineOccurrenceView = {
   scheduledTimeLabel: "9:30 PM",
   localDate: "2026-06-06",
   status: "unresolved",
+  statusMarkedAt: null,
   statusLabel: "Unresolved",
   statusDetail: "Awaiting decision",
   expandedStatusActionLabel: "Mark this occurrence",
   visualTone: "needs_decision",
+  isVisibleInNeedsDecision: true,
   showDecisionActions: true,
   showCollapsedStatusLabel: false,
   description: activeBehavior.description,
@@ -1023,6 +1029,7 @@ const currentOccurrence: TimelineOccurrenceView = {
   localDate: "2026-06-08",
   title: "Drink water",
   visualTone: "default",
+  isVisibleInNeedsDecision: false,
   showDecisionActions: true,
   description: "Start the morning with one full glass.",
   categoryName: "Health",
@@ -1035,6 +1042,7 @@ const currentGroupedCompletedOccurrence: TimelineOccurrenceView = {
   scheduledFor: "2026-06-08T22:00:00Z",
   scheduledTimeLabel: "Evening",
   status: "completed",
+  statusMarkedAt: "2026-06-08T22:05:00Z",
   statusLabel: "Completed",
   statusDetail: "Resolved as Completed",
   expandedStatusActionLabel: "Change logged action",
@@ -1052,6 +1060,7 @@ const completedOccurrence: TimelineOccurrenceView = {
   scheduledFor: "2026-06-08T16:00:00Z",
   scheduledTimeLabel: "12:00 PM",
   status: "completed",
+  statusMarkedAt: "2026-06-08T16:10:00Z",
   statusLabel: "Completed",
   statusDetail: "Resolved as Completed",
   expandedStatusActionLabel: "Change logged action",
@@ -1069,6 +1078,7 @@ const notCompletedOccurrence: TimelineOccurrenceView = {
   scheduledFor: "2026-06-08T22:00:00Z",
   scheduledTimeLabel: "6:00 PM",
   status: "not_completed",
+  statusMarkedAt: "2026-06-08T22:05:00Z",
   statusLabel: "Not Completed",
   statusDetail: "Resolved as Not Completed",
   expandedStatusActionLabel: "Change logged action",
@@ -1086,6 +1096,7 @@ const futureOccurrence: TimelineOccurrenceView = {
   scheduledTimeLabel: "9:00 PM",
   localDate: "2026-06-08",
   showDecisionActions: false,
+  isVisibleInNeedsDecision: false,
 };
 
 function toFixtureOccurrenceGroups(occurrences: TimelineOccurrenceView[]) {
@@ -1247,8 +1258,20 @@ const analyticsFixture: AnalyticsView = {
   selectedDay: {
     localDate: "2026-06-08",
     label: "Monday, June 8",
-    emptyMessage: "No Not Completed occurrences on this day.",
-    notCompletedOccurrences: [
+    emptyMessage: "No occurrences on this day.",
+    occurrences: [
+      {
+        id: "occurrence-completed",
+        behaviorId: "behavior-walk",
+        title: "Walk outside",
+        categoryName: "Health",
+        scheduledFor: "2026-06-08T16:00:00Z",
+        scheduledTimeLabel: "12:00 PM",
+        status: "completed",
+        statusLabel: "Completed",
+        noteStateLabel: "Note added",
+        note: "Short walk after lunch.",
+      },
       {
         id: "occurrence-not-completed",
         behaviorId: "behavior-reset",
@@ -1256,7 +1279,22 @@ const analyticsFixture: AnalyticsView = {
         categoryName: "Home",
         scheduledFor: "2026-06-08T22:00:00Z",
         scheduledTimeLabel: "6:00 PM",
+        status: "not_completed",
+        statusLabel: "Not Completed",
+        noteStateLabel: "Note added",
         note: "Skipped while traveling.",
+      },
+      {
+        id: "occurrence-current",
+        behaviorId: "behavior-water",
+        title: "Drink water",
+        categoryName: "Health",
+        scheduledFor: "2026-06-08T13:00:00Z",
+        scheduledTimeLabel: "Morning",
+        status: "unresolved",
+        statusLabel: "Unresolved",
+        noteStateLabel: "No note",
+        note: "",
       },
     ],
   },

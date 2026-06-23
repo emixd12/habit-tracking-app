@@ -403,7 +403,7 @@ describe("resolveAnalytics", () => {
     ]);
   });
 
-  it("returns Not Completed occurrences for the selected day", () => {
+  it("returns all occurrences for the selected-day review", () => {
     const analytics = resolveAnalytics({
       now: NOW,
       timezone: DEFAULT_TIMEZONE,
@@ -432,9 +432,24 @@ describe("resolveAnalytics", () => {
         }),
         occurrence({
           id: "selected-completed",
+          behaviorId: "journal",
+          behaviorTitle: "Journal",
+          categoryName: "Reflection",
           localDate: "2026-06-07",
           scheduledFor: "2026-06-07T14:00:00Z",
+          scheduledTimeLabel: "10:00 AM",
           status: "completed",
+          note: "Done before breakfast.",
+        }),
+        occurrence({
+          id: "selected-unresolved",
+          behaviorId: "water",
+          behaviorTitle: "Drink water",
+          categoryName: "Health",
+          localDate: "2026-06-07",
+          scheduledFor: "2026-06-07T15:00:00Z",
+          scheduledTimeLabel: "11:00 AM",
+          status: "unresolved",
         }),
       ],
     });
@@ -442,12 +457,35 @@ describe("resolveAnalytics", () => {
     expect(analytics.selectedDay).toMatchObject({
       localDate: "2026-06-07",
       label: "Sunday, June 7",
-      notCompletedOccurrences: [
+      occurrences: [
         {
           id: "selected-earlier",
           title: "Brush teeth",
           categoryName: "Grooming",
           scheduledTimeLabel: "9:00 AM",
+          status: "not_completed",
+          statusLabel: "Not Completed",
+          noteStateLabel: "No note",
+          note: "",
+        },
+        {
+          id: "selected-completed",
+          title: "Journal",
+          categoryName: "Reflection",
+          scheduledTimeLabel: "10:00 AM",
+          status: "completed",
+          statusLabel: "Completed",
+          noteStateLabel: "Note added",
+          note: "Done before breakfast.",
+        },
+        {
+          id: "selected-unresolved",
+          title: "Drink water",
+          categoryName: "Health",
+          scheduledTimeLabel: "11:00 AM",
+          status: "unresolved",
+          statusLabel: "Unresolved",
+          noteStateLabel: "No note",
           note: "",
         },
         {
@@ -455,6 +493,9 @@ describe("resolveAnalytics", () => {
           title: "Workout",
           categoryName: "Fitness",
           scheduledTimeLabel: "6:30 PM",
+          status: "not_completed",
+          statusLabel: "Not Completed",
+          noteStateLabel: "Note added",
           note: "Skipped after travel.",
         },
       ],

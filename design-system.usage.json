@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-19T05:57:03.557339+00:00",
+  "generatedAt": "2026-06-23T01:51:52.398516+00:00",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
@@ -15,6 +15,14 @@
       "componentId": "composite.behavior-form",
       "file": "components/behaviors/BehaviorList.tsx",
       "line": 177,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "composite.occurrence-note-form",
+      "file": "components/analytics/AnalyticsScreen.tsx",
+      "line": 235,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -46,7 +54,7 @@
     {
       "componentId": "flow.google-login-button",
       "file": "app/(auth)/login/page.tsx",
-      "line": 70,
+      "line": 78,
       "route": "(auth)/login/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -62,7 +70,7 @@
     {
       "componentId": "layout.screen-frame",
       "file": "app/(app)/analytics/page.tsx",
-      "line": 30,
+      "line": 34,
       "route": "(app)/analytics/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -78,7 +86,7 @@
     {
       "componentId": "layout.screen-frame",
       "file": "app/(app)/export/page.tsx",
-      "line": 32,
+      "line": 34,
       "route": "(app)/export/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -86,7 +94,7 @@
     {
       "componentId": "layout.screen-frame",
       "file": "app/(app)/settings/page.tsx",
-      "line": 15,
+      "line": 22,
       "route": "(app)/settings/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -94,7 +102,7 @@
     {
       "componentId": "module.analytics-screen",
       "file": "app/(app)/analytics/page.tsx",
-      "line": 34,
+      "line": 38,
       "route": "(app)/analytics/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -158,7 +166,7 @@
     {
       "componentId": "module.notification-permission-panel",
       "file": "app/(app)/settings/page.tsx",
-      "line": 35,
+      "line": 38,
       "route": "(app)/settings/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -175,6 +183,14 @@
       "componentId": "module.reminder-editor",
       "file": "components/behaviors/BehaviorForm.tsx",
       "line": 187,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.status-buttons",
+      "file": "components/analytics/AnalyticsScreen.tsx",
+      "line": 227,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -198,7 +214,7 @@
     {
       "componentId": "module.timeline",
       "file": "app/(app)/timeline/page.tsx",
-      "line": 31,
+      "line": 37,
       "route": "(app)/timeline/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -229,7 +245,7 @@
     }
   ],
   "summary": {
-    "productUsages": 27,
+    "productUsages": 30,
     "benchPreviews": 0
   }
 }

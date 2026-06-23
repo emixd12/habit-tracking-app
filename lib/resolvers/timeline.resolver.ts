@@ -29,7 +29,7 @@ export function resolveTimeline(input: ResolveTimelineInput): TimelineView {
   const todayLocalDate = today.toString();
   const visibleFutureDays = normalizeFutureDays(input.futureDays);
   const occurrences = input.occurrences.map((occurrence) =>
-    toOccurrenceView(occurrence, todayLocalDate),
+    toOccurrenceView(occurrence, todayLocalDate, timezone),
   );
 
   return {
@@ -44,7 +44,7 @@ export function resolveTimeline(input: ResolveTimelineInput): TimelineView {
             TIMELINE_MAX_FUTURE_DAYS,
           )
         : null,
-    needsDecision: resolveNeedsDecision(occurrences, todayLocalDate),
+    needsDecision: resolveNeedsDecision(occurrences),
     daySections: resolveForwardDaySections({
       occurrences,
       today,
@@ -55,21 +55,19 @@ export function resolveTimeline(input: ResolveTimelineInput): TimelineView {
 
 function resolveNeedsDecision(
   occurrences: TimelineOccurrenceView[],
-  todayLocalDate: string,
 ): TimelineView["needsDecision"] {
-  const priorUnresolved = occurrences
-    .filter(
-      (occurrence) =>
-        occurrence.status === "unresolved" &&
-        compareLocalDate(occurrence.localDate, todayLocalDate) < 0,
-    )
+  const visibleOccurrences = occurrences
+    .filter((occurrence) => occurrence.isVisibleInNeedsDecision)
     .sort(compareOccurrencesForNeedsDecision);
-  const daySections = groupNeedsDecisionDays(priorUnresolved);
+  const occurrenceCount = visibleOccurrences.filter(
+    (occurrence) => occurrence.status === "unresolved",
+  ).length;
+  const daySections = groupNeedsDecisionDays(visibleOccurrences);
 
   return {
     title: "Needs decision",
     emptyMessage: "No prior unresolved occurrences.",
-    occurrenceCount: priorUnresolved.length,
+    occurrenceCount,
     daySections,
   };
 }
@@ -173,10 +171,15 @@ function groupOccurrencesByBehavior(
 function toOccurrenceView(
   occurrence: TimelineOccurrenceInput,
   todayLocalDate: string,
+  timezone: string,
 ): TimelineOccurrenceView {
   const isPriorUnresolved =
     occurrence.status === "unresolved" &&
     compareLocalDate(occurrence.localDate, todayLocalDate) < 0;
+  const isRetainedNeedsDecision =
+    occurrence.status !== "unresolved" &&
+    compareLocalDate(occurrence.localDate, todayLocalDate) < 0 &&
+    wasStatusMarkedOnLocalDate(occurrence.statusMarkedAt, todayLocalDate, timezone);
   const isTodayUnresolved =
     occurrence.status === "unresolved" &&
     occurrence.localDate === todayLocalDate;
@@ -189,10 +192,28 @@ function toOccurrenceView(
     statusDetail: statusDetail(occurrence.status),
     expandedStatusActionLabel: expandedStatusActionLabel(occurrence.status),
     visualTone: visualTone(occurrence.status, isPriorUnresolved),
+    isVisibleInNeedsDecision: isPriorUnresolved || isRetainedNeedsDecision,
     showDecisionActions,
     showCollapsedStatusLabel:
       occurrence.status !== "unresolved" && !showDecisionActions,
   };
+}
+
+function wasStatusMarkedOnLocalDate(
+  statusMarkedAt: string | null,
+  localDate: string,
+  timezone: string,
+): boolean {
+  if (!statusMarkedAt) {
+    return false;
+  }
+
+  return (
+    Temporal.Instant.from(statusMarkedAt)
+      .toZonedDateTimeISO(timezone)
+      .toPlainDate()
+      .toString() === localDate
+  );
 }
 
 function statusLabel(status: TimelineStatus): string {

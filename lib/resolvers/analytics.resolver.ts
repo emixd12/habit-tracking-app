@@ -276,11 +276,10 @@ function resolveSelectedDay(input: {
   occurrences: AnalyticsOccurrenceInput[];
 }): AnalyticsSelectedDay {
   const date = Temporal.PlainDate.from(input.selectedDayLocalDate);
-  const notCompletedOccurrences = input.occurrences
+  const occurrences = input.occurrences
     .filter(
       (occurrence) =>
-        occurrence.localDate === input.selectedDayLocalDate &&
-        occurrence.status === "not_completed",
+        occurrence.localDate === input.selectedDayLocalDate,
     )
     .sort(compareOccurrences)
     .map((occurrence) => ({
@@ -290,15 +289,29 @@ function resolveSelectedDay(input: {
       categoryName: occurrence.categoryName,
       scheduledFor: occurrence.scheduledFor,
       scheduledTimeLabel: occurrence.scheduledTimeLabel,
+      status: occurrence.status,
+      statusLabel: statusLabel(occurrence.status),
+      noteStateLabel: occurrence.note.trim().length > 0 ? "Note added" : "No note",
       note: occurrence.note,
     }));
 
   return {
     localDate: input.selectedDayLocalDate,
     label: formatDateLabel(date),
-    notCompletedOccurrences,
-    emptyMessage: "No Not Completed occurrences on this day.",
+    occurrences,
+    emptyMessage: "No occurrences on this day.",
   };
+}
+
+function statusLabel(status: AnalyticsStatus): string {
+  switch (status) {
+    case "completed":
+      return "Completed";
+    case "not_completed":
+      return "Not Completed";
+    case "unresolved":
+      return "Unresolved";
+  }
 }
 
 function countOccurrences(

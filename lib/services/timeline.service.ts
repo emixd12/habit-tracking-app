@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/behaviors.repo";
 import {
   listOccurrencesBetweenLocalDates,
+  listResolvedOccurrencesBeforeLocalDateMarkedBetween,
   listUnresolvedOccurrencesBeforeLocalDate,
 } from "@/lib/db/occurrences.repo";
 import { resolveGenerationWindow } from "@/lib/resolvers/occurrence.resolver";
@@ -52,7 +53,16 @@ export async function getTimelinePageData(
     timezone,
     horizonDays: TIMELINE_MAX_FUTURE_DAYS,
   });
-  const [behaviors, priorUnresolvedOccurrences, forwardOccurrences] =
+  const retentionWindow = resolveLocalDayInstantWindow(
+    timelineWindow.startLocalDate,
+    timezone,
+  );
+  const [
+    behaviors,
+    priorUnresolvedOccurrences,
+    retainedPriorOccurrences,
+    forwardOccurrences,
+  ] =
     await Promise.all([
       listUserBehaviors(supabase, userId),
       listUnresolvedOccurrencesBeforeLocalDate(
@@ -60,6 +70,12 @@ export async function getTimelinePageData(
         userId,
         timelineWindow.startLocalDate,
       ),
+      listResolvedOccurrencesBeforeLocalDateMarkedBetween(supabase, {
+        userId,
+        localDate: timelineWindow.startLocalDate,
+        statusMarkedFrom: retentionWindow.startInclusive,
+        statusMarkedBefore: retentionWindow.endExclusive,
+      }),
       listOccurrencesBetweenLocalDates(
         supabase,
         userId,
@@ -72,7 +88,13 @@ export async function getTimelinePageData(
       .filter((behavior) => behavior.active)
       .map((behavior) => [behavior.id, behavior]),
   );
-  const occurrences = [...priorUnresolvedOccurrences, ...forwardOccurrences]
+  const occurrences = [
+    ...dedupeOccurrences([
+      ...priorUnresolvedOccurrences,
+      ...retainedPriorOccurrences,
+    ]),
+    ...forwardOccurrences,
+  ]
     .map((occurrence) =>
       toTimelineOccurrenceInput(occurrence, activeBehaviorById),
     )
@@ -131,8 +153,36 @@ function toTimelineOccurrenceInput(
     }),
     localDate: occurrence.local_date,
     status: normalizeTimelineStatus(occurrence.status),
+    statusMarkedAt: occurrence.status_marked_at,
     note: occurrence.note ?? "",
   };
+}
+
+function resolveLocalDayInstantWindow(
+  localDate: string,
+  timezone: string,
+): { startInclusive: string; endExclusive: string } {
+  const startDate = Temporal.PlainDate.from(localDate);
+  const start = startDate.toZonedDateTime({
+    timeZone: timezone,
+    plainTime: Temporal.PlainTime.from("00:00"),
+  });
+  const end = start.add({ days: 1 });
+
+  return {
+    startInclusive: start.toInstant().toString(),
+    endExclusive: end.toInstant().toString(),
+  };
+}
+
+function dedupeOccurrences(occurrences: Occurrence[]): Occurrence[] {
+  const occurrenceById = new Map<string, Occurrence>();
+
+  for (const occurrence of occurrences) {
+    occurrenceById.set(occurrence.id, occurrence);
+  }
+
+  return Array.from(occurrenceById.values());
 }
 
 function normalizeScheduleKind(value: string): "exact" | "range" {

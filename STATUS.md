@@ -43,7 +43,7 @@ When updating a ticket row:
 
 ## Current repository state
 
-This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, Ticket 013 Vercel production deployment, BehaviorLog interoperability and import work through Ticket 024, Ticket 025A restore preview, Ticket 025B restore apply/UI, Ticket 026 imported notes, Ticket 027 imported intervention history, Ticket 028 imported intervention promotion services, Ticket 029 public web hardening, Ticket 030 public web hardening follow-up, Ticket 031 Astro marketing site, and the project-definition and agent-bootstrap layer. Tickets 032 and 033 are planned but not implemented; they cover submitted occurrence decision correction through Needs Decision same-day retention and Analytics selected-day review.
+This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, Ticket 013 Vercel production deployment, BehaviorLog interoperability and import work through Ticket 024, Ticket 025A restore preview, Ticket 025B restore apply/UI, Ticket 026 imported notes, Ticket 027 imported intervention history, Ticket 028 imported intervention promotion services, Ticket 029 public web hardening, Ticket 030 public web hardening follow-up, Ticket 031 Astro marketing site, Ticket 032 Needs Decision same-day correction retention, Ticket 033 Analytics selected-day occurrence correction, and the project-definition and agent-bootstrap layer.
 
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
@@ -74,12 +74,12 @@ Current evidence:
 - A pure Temporal-based recurrence resolver exists in `lib/resolvers/recurrence.resolver.ts`, with recurrence domain types in `lib/types/recurrence.ts` and paired tests in `tests/recurrence.resolver.test.ts`.
 - Behavior CRUD exists on `/behaviors` with server actions, service/repository access through the authenticated Supabase user, category selection, recurrence editing, scheduled time, browser/email reminder settings, active/archive handling, and active/archived lists.
 - Occurrence generation exists in `lib/resolvers/occurrence.resolver.ts`, `lib/services/occurrence.service.ts`, and `lib/db/occurrences.repo.ts`. Behavior create/edit/archive now syncs a rolling today + 30 day occurrence window, inserts missing rows idempotently, removes stale future unresolved rows, and preserves past or resolved occurrence history.
-- Timeline grouping exists in `lib/resolvers/timeline.resolver.ts`, `lib/services/timeline.service.ts`, and `/timeline`. The page syncs missing occurrences before rendering, surfaces Needs decision for prior unresolved active-behavior occurrences through a floating lower-right button and modal, starts the forward timeline at the current local day, shows the next 7 days by default, and can expand future visibility up to the generated 30-day horizon.
+- Timeline grouping exists in `lib/resolvers/timeline.resolver.ts`, `lib/services/timeline.service.ts`, and `/timeline`. The page syncs missing occurrences before rendering, surfaces Needs decision for prior unresolved active-behavior occurrences plus same-day retained prior decisions through a floating lower-right button and modal, starts the forward timeline at the current local day, shows the next 7 days by default, and can expand future visibility up to the generated 30-day horizon.
 - Status marking and note editing exists in `lib/resolvers/status.resolver.ts`, `lib/services/occurrence.service.ts`, `app/(app)/timeline/actions.ts`, and Timeline row controls. Completed and Not Completed actions update `status_marked_at`; Completed also sets `completed_at`; switching away from Completed clears `completed_at`; note-only edits preserve status timestamps.
 - Browser push subscription storage exists at `app/api/push/subscribe/route.ts`, `lib/services/push-subscription.service.ts`, and `lib/db/pushSubscriptions.repo.ts`; subscription registration validates endpoint/key shape, stores active subscriptions through the authenticated Supabase user context, lists active subscriptions for browser-push sends, and marks expired subscriptions inactive.
 - Reminder delivery planning exists in `lib/resolvers/reminder.resolver.ts`, `lib/services/reminder.service.ts`, and `lib/db/reminderDeliveries.repo.ts`. Occurrence sync now creates missing pending reminder deliveries idempotently from behavior reminder settings, including browser reminders enabled by default, and status resolution cancels pending deliveries for resolved occurrences.
 - Reminder processing code exists at `app/api/reminders/process/route.ts`, `lib/services/reminder.service.ts`, `lib/db/reminderDeliveries.repo.ts`, `lib/services/sequenzy.service.ts`, and `lib/services/web-push.service.ts`. The protected process route validates `REMINDER_PROCESS_SECRET` or `CRON_SECRET`, rate-limits repeated auth failures, bounds manual batch size, claims due pending email and browser-push deliveries with `processing_started_at`, re-checks current occurrence/behavior eligibility through the reminder resolver, sends Sequenzy template emails or VAPID-backed browser push from server-only code, and records sent, failed, or cancelled outcomes. Sequenzy provider setup is verified with transactional slug `habit-reminder`; local `.env.local` has `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`.
-- Analytics exists in `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/analytics`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and selected-day Not Completed inspection. Default adherence excludes unresolved occurrences, and the top summary Unresolved count matches the Timeline Needs decision count.
+- Analytics exists in `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/analytics`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and selected-day occurrence review for status/note correction. Default adherence excludes unresolved occurrences, and the top summary Unresolved count matches the Timeline Needs decision count.
 - Export exists in `lib/resolvers/export.resolver.ts`, `lib/services/export.service.ts`, `/export`, and `/api/export/jsonl`, `/api/export/csv`, `/api/export/json`. The resolver owns range filtering, archived-behavior filtering, JSONL, CSV escaping, full JSON backup shape, and Markdown AI summary adherence math. All-time export includes occurrences through the current local day and excludes generated future rows.
 - Settings now shows profile email, timezone detection/manual override, notification permission status, browser push availability, a browser reminder enable/save control, Trust/Privacy/Terms links, and account deletion with export acknowledgement plus typed confirmation. Timezone detection uses browser/OS `Intl` data without geolocation; saving a changed timezone updates the profile, active behavior timezones, and future unresolved occurrences through the existing occurrence sync. The client path uses only `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; the processing/sending layer uses server-only `VAPID_PRIVATE_KEY`.
 - Timeline now shows a dismissible first-run setup panel for accounts that have
@@ -2200,30 +2200,49 @@ Verification:
 - Pass: `npm run build`.
 - Pass: `git diff --check`.
 
-### Occurrence decision correction planning
+### Occurrence decision correction implementation
 
-Status: not_started.
+Status: complete.
 
 Implementation summary:
-- Added Ticket 032 for Needs Decision same-day correction retention. The planned
-  behavior keeps prior-day occurrences decided from the modal visible in their
-  original day group through the current local day, with the same Timeline row
-  treatment and without a separate recent-decisions section.
-- Added Ticket 033 for Analytics selected-day occurrence correction. The planned
-  behavior uses the Analytics calendar as the deliberate later correction path
-  for submitted occurrence decisions and notes.
-- Updated product, UI, and user-flow docs to describe the planned correction
-  model. No product code, schema, route, resolver, or UI implementation changed.
+- Implemented Ticket 032 Needs Decision same-day correction retention.
+- Timeline resolver input now carries `statusMarkedAt`, and the resolver derives
+  same-day retained prior decisions from `status_marked_at` plus the user's
+  local midnight boundary without adding a stored flag or status.
+- Timeline service now fetches prior unresolved rows and prior resolved rows
+  marked during the current local day, while the Needs Decision count continues
+  to count only prior unresolved occurrences.
+- Implemented Ticket 033 Analytics selected-day occurrence correction.
+- Analytics selected-day data now lists all occurrences for the selected local
+  date, including Completed, Not Completed, and Unresolved rows with status and
+  note-state labels.
+- Analytics selected-day review reuses the existing occurrence status and note
+  services through `/analytics` server actions, preserving status-event
+  semantics and refreshing the route after corrections.
+- Updated route/resolver/design docs, the design-system fixture/usage map, and
+  resolver tests. No schema, provider, navigation, dashboard/history route, bulk
+  edit, offline mutation, stored missed status, or AI/coaching scope was added.
 
 Verification:
+- Pass: `npm run test -- tests/timeline.resolver.test.ts tests/analytics.resolver.test.ts`.
 - Pass: `npm run agents:check`.
-- Pass: `git diff --check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (39 files, 253 tests).
+- Pass: `npm run build`.
+- Browser QA: local Chrome against `http://localhost:3000` verified
+  `/design-system#ds-module-analytics-screen` and
+  `/design-system#ds-module-timeline` at 1280px and 390px with no horizontal
+  overflow, no browser warnings/errors, visible `Review selected day`, selected
+  day status/note controls, and the Needs decision button. Protected
+  `/analytics` and `/timeline` redirected unauthenticated sessions to `/login`
+  at both widths without horizontal overflow or browser warnings/errors.
 
 Remaining risk:
-- Tickets 032 and 033 are documentation/planning only. The current app still
-  removes prior-day occurrences from Needs Decision after they are resolved, and
-  the current Analytics selected-day panel remains read-only and limited to Not
-  Completed occurrences until those tickets are implemented.
+- Browser QA used fixture-backed authenticated UI through `/design-system`
+  because the automated Chrome context did not have a Supabase session.
 
 ## Handoff notes
 
