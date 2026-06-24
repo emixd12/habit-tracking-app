@@ -2299,6 +2299,26 @@ Remaining risk:
 - The worktree already contained unrelated auth/proxy/package/design-system
   edits before this task; this refinement did not revert or normalize them.
 
+### Analytics behavior-day scroll retention
+
+Status: complete.
+
+Implementation summary:
+- Updated behavior calendar review links on Analytics to preserve scroll
+  position while opening a selected behavior day. This prevents the page from
+  jumping back to the top when the in-row Review day panel opens.
+- No resolver, service, schema, route, provider, export, or product-scope
+  changes were added.
+
+Verification:
+- Pass: targeted ESLint for `components/analytics/AnalyticsScreen.tsx`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run build`.
+
+Remaining risk:
+- Authenticated live click QA was not performed because the browser context did
+  not have a Supabase session.
+
 ## Handoff notes
 
 - For the next coding agent: production browser push subscription is now

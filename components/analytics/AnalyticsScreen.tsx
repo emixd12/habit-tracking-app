@@ -327,6 +327,7 @@ function BehaviorHeatmapCell({
           behaviorId,
           day: cell.localDate,
         })}
+        scroll={false}
         aria-label={`${cell.ariaLabel}; review this behavior day`}
         title={`${cell.ariaLabel}; review this behavior day`}
         data-tracking-start={cell.isTrackingStart ? "true" : undefined}
