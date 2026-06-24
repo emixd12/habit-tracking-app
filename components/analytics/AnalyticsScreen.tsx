@@ -42,58 +42,53 @@ export function AnalyticsScreen({
   noteAction,
 }: AnalyticsScreenProps) {
   return (
-    <div className="grid gap-10">
+    <div className="grid gap-8">
       <section
-        className="grid gap-6"
+        className="grid gap-4"
         aria-labelledby="analytics-summary-title"
       >
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <div className="min-w-0">
-            <div>
-              <h2
-                id="analytics-summary-title"
-                className="text-2xl font-bold leading-tight"
-              >
-                Overall adherence
-              </h2>
-              <p className="mt-2 text-sm font-bold text-muted-readable">
-                {analytics.rangeLabel} · {analytics.rangeStartLocalDate} to{" "}
-                {analytics.rangeEndLocalDate}
-              </p>
-            </div>
-
-            <div className="mt-5 grid gap-5 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] sm:items-end">
-              <div>
-                <p className="text-4xl font-bold leading-none sm:text-5xl">
-                  {analytics.summary.percentLabel}
-                </p>
-                <p className="mt-2 text-sm font-bold text-muted-readable">
-                  {analytics.summary.detailLabel}
-                </p>
-              </div>
-              <StatusCountGrid counts={analytics.summary} />
-            </div>
+            <h2
+              id="analytics-summary-title"
+              className="text-2xl font-bold leading-tight"
+            >
+              Overall adherence
+            </h2>
+            <p className="mt-2 text-sm font-bold text-muted-readable">
+              {analytics.rangeLabel} · {analytics.rangeStartLocalDate} to{" "}
+              {analytics.rangeEndLocalDate}
+            </p>
           </div>
 
           <RangeSelector analytics={analytics} />
         </div>
 
-        <div className="border-t border-line pt-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="grid gap-5 lg:grid-cols-[minmax(14rem,0.62fr)_minmax(0,1fr)] lg:items-start">
+          <div className="grid max-w-sm gap-4">
             <div>
-              <h3 className="text-xl font-bold leading-tight">Calendar</h3>
+              <p className="text-4xl font-bold leading-none sm:text-5xl">
+                {analytics.summary.percentLabel}
+              </p>
+              <p className="mt-2 text-sm font-bold text-muted-readable">
+                {analytics.summary.detailLabel}
+              </p>
             </div>
-            <LegendDisclosure />
+
+            <StatusCountGrid counts={analytics.summary} />
           </div>
 
-          <div className="mt-5">
+          <div className="grid w-full max-w-[16rem] gap-3 lg:justify-self-end">
+            <div className="justify-self-end">
+              <LegendDisclosure />
+            </div>
             <OverallHeatmap analytics={analytics} />
           </div>
         </div>
       </section>
 
       <section
-        className="grid gap-4 border-t border-line pt-6"
+        className="grid gap-4"
         aria-labelledby="behavior-counts-title"
       >
         <h2
@@ -207,16 +202,17 @@ function OverallHeatmap({
   analytics: AnalyticsView;
 }>) {
   return (
-    <div className="grid w-full max-w-sm grid-cols-7 gap-1 sm:gap-2">
+    <div className="grid w-full max-w-[16rem] grid-cols-7 gap-1">
       {analytics.overallHeatmap.map((cell) => (
         <span
           key={cell.key}
           aria-label={cell.ariaLabel}
           title={cell.ariaLabel}
           data-completion-rate={cell.completionRate ?? undefined}
+          data-hover-label={cell.shortLabel}
           style={overallCellStyle(cell)}
           className={[
-            "relative aspect-square min-h-9 border",
+            "analytics-heatmap-cell relative aspect-square min-h-8 border",
             OVERALL_CELL_CLASSES[cell.state],
           ].join(" ")}
         >
@@ -247,14 +243,12 @@ function BehaviorAnalyticsRow({
     <article className="py-5">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="break-words text-xl font-bold leading-tight">
-              {behavior.title}
-            </h3>
-            <span className="border border-line bg-surface px-2 py-1 text-xs font-bold">
-              {behavior.categoryName}
-            </span>
-          </div>
+          <h3 className="break-words text-xl font-bold leading-tight">
+            {behavior.title}
+          </h3>
+          <p className="mt-1 text-sm font-bold text-muted-readable">
+            Category: {behavior.categoryName}
+          </p>
           <p className="mt-2 text-sm font-bold text-muted-readable">
             {behavior.percentLabel} · {behavior.detailLabel}
           </p>
@@ -268,7 +262,7 @@ function BehaviorAnalyticsRow({
         </div>
 
         <div
-          className="grid w-full max-w-[15rem] grid-cols-7 gap-1"
+          className="grid w-full max-w-[19rem] grid-cols-7 gap-1 self-stretch lg:min-w-[19rem]"
           aria-label={`${behavior.title} calendar`}
         >
           {behavior.dailyCells.map((cell) => (
@@ -302,7 +296,7 @@ function BehaviorHeatmapCell({
   rangeDays: AnalyticsRangeDays;
 }>) {
   const className = [
-    "relative aspect-square min-h-6 border",
+    "analytics-heatmap-cell relative aspect-square min-h-8 border",
     BEHAVIOR_CELL_CLASSES[cell.state],
     cell.counts.totalCount > 0
       ? "transition-colors hover:border-foreground focus-visible:z-10"
@@ -331,6 +325,7 @@ function BehaviorHeatmapCell({
         aria-label={`${cell.ariaLabel}; review this behavior day`}
         title={`${cell.ariaLabel}; review this behavior day`}
         data-tracking-start={cell.isTrackingStart ? "true" : undefined}
+        data-hover-label={cell.shortLabel}
         className={className}
       >
         {content}
@@ -343,6 +338,7 @@ function BehaviorHeatmapCell({
       aria-label={cell.ariaLabel}
       title={cell.ariaLabel}
       data-tracking-start={cell.isTrackingStart ? "true" : undefined}
+      data-hover-label={cell.shortLabel}
       className={className}
     >
       {content}

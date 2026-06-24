@@ -2319,6 +2319,52 @@ Remaining risk:
 - Authenticated live click QA was not performed because the browser context did
   not have a Supabase session.
 
+### Analytics top-fold layout compaction
+
+Status: complete.
+
+Implementation summary:
+- Reworked the top Overall adherence section so the active range selector sits
+  beside the heading on desktop, while the adherence percentage and status
+  counts stay grouped in the left summary column.
+- Moved the overall calendar into the same fold as the summary on desktop,
+  kept only the See Legend control above it, and removed the extra divider
+  line between the heading/range row and summary body.
+- Added compact date hover/focus labels to Analytics heatmap cells using the
+  existing resolver-provided short date label.
+- Removed the extra divider line above Behavior counts.
+- Changed behavior category display from a bordered chip beside the behavior
+  name to plain `Category: <name>` metadata below the behavior name.
+- Enlarged behavior heatmaps so 30-day calendars fill more of the row height
+  while preserving the seven-column square-cell aspect ratio.
+- Kept the mobile order stacked and readable: heading, range selector,
+  adherence metric, counts, then calendar.
+- No resolver, service, schema, route, provider, export, navigation, or
+  product-scope changes were added.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (41 files, 257 tests).
+- Pass: `npm run design-system:check`.
+- Pass: `npm run build`.
+- Browser QA: authenticated in-app browser `/analytics` at 1024x768 verified no
+  horizontal overflow, no Calendar heading, no top border/padding on the
+  summary body or Behavior counts section, no behavior category chips,
+  `Category: Medical` metadata, 304px by 216px behavior heatmaps in the 30-day
+  view, short date `data-hover-label` values, and no warning/error logs.
+- Browser QA: authenticated in-app browser `/analytics` at 390px verified no
+  horizontal overflow, no Calendar heading, plain category metadata, the larger
+  behavior calendar staying inside the viewport, and no warning/error logs.
+
+Remaining risk:
+- The in-app browser automation did not expose CSS `:hover` state from
+  programmatic mouse movement, including CDP mouse events. The heatmap cells
+  have the expected `data-hover-label` attributes and tooltip CSS, but the
+  visual hover chip was not proven through automated hover-state capture.
+
 ## Handoff notes
 
 - For the next coding agent: production browser push subscription is now

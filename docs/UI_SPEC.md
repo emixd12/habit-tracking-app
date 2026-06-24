@@ -433,7 +433,12 @@ treatment.
 Behavior count rows should be divider-separated rather than boxed. Their
 Completed, Not Completed, and Unresolved labels align vertically with the
 numeric values in a right-hand column. Behavior calendar cells with occurrences
-are selectable; empty cells remain passive.
+are selectable; empty cells remain passive. Behavior categories appear as
+plain metadata text below the behavior name.
+
+Overall and behavior calendar cells show a compact date label on hover or
+keyboard focus while preserving the longer accessible label for screen readers
+and native titles.
 
 ## Export screen
 
