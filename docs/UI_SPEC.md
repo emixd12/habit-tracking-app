@@ -395,7 +395,7 @@ Show:
 - Tracking-since date for each behavior count row, plus a start marker in that
   behavior's calendar when the start day is inside the selected range
 - Full completion, partial completion, and not completed day states for behaviors that can occur multiple times in one day
-- Selected-day occurrence review for correcting individual statuses and notes
+- Behavior-day occurrence review for correcting individual statuses and notes
 - Unresolved count
 - Optional compact counts by category
 - Default adherence rate
@@ -406,16 +406,16 @@ Category counts. Use single horizontal dividers where separation is needed.
 The overall calendar belongs inside the Overall adherence area, and its legend
 should stay hidden behind a simple See Legend disclosure by default.
 
-Calendar selection should provide enough information scent for later
-corrections without making Analytics feel like the primary logging flow. Use
-plain labels such as "Review selected day" and concise helper text such as
-"Select a day to review its occurrences." The selected-day review should list
-all occurrences for the selected local date when rows exist, including
-Completed, Not Completed, and Unresolved rows, and should allow the same
-individual status and note corrections as the Timeline occurrence row pattern.
-Do not add bulk edit, all-time search, automatic suggestions, AI coaching, or
-gamified language. Do not render an empty selected-day panel when the selected
-day has no occurrences.
+The overall calendar is a passive adherence summary, not the correction entry
+point. Later corrections start from a behavior row: selecting a non-empty
+behavior calendar cell opens a compact Review day area inside that behavior
+row. The behavior-day review should list only that behavior's occurrences for
+the selected local date when rows exist, including Completed, Not Completed,
+and Unresolved rows, and should allow the same individual status and note
+corrections as the Timeline occurrence row pattern. Do not add bulk edit,
+all-time search, automatic suggestions, AI coaching, or gamified language. Do
+not render an empty review panel when the selected behavior day has no
+occurrences.
 
 Default adherence excludes unresolved occurrences. The top summary Unresolved
 count matches the Timeline Needs decision count: active unresolved occurrences
@@ -432,7 +432,8 @@ treatment.
 
 Behavior count rows should be divider-separated rather than boxed. Their
 Completed, Not Completed, and Unresolved labels align vertically with the
-numeric values in a right-hand column.
+numeric values in a right-hand column. Behavior calendar cells with occurrences
+are selectable; empty cells remain passive.
 
 ## Export screen
 

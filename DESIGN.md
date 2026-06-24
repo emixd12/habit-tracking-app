@@ -251,8 +251,8 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Not completed cells:** Overall calendar cells with resolved occurrences but no completions use the background end of the completion-intensity scale, without a diagonal overlay.
 - **Unresolved cells:** Cold Surface or background with a neutral border. Do not imply failure.
 - **Grid:** Square cells, consistent gutters, no gradients, no rounded cells.
-- **Behavior rows:** Behavior counts use unboxed divider rows with title, category chip, adherence label, tracking-since text, vertical label/value counts, and a compact seven-column heatmap. Full completion is filled blue; partial and not completed states use factual diagonal marks. The behavior tracking start date is marked in the heatmap when it falls inside the selected range.
-- **Selected day:** Review selected day lists all occurrences for the selected local date when rows exist. Rows use the same occurrence-row vocabulary: scheduled time chip, category chip, status label, title, note state, Completed and Not Completed text-link controls, and the inline Note form. Do not render an empty inspection panel when there are no occurrences on the selected day.
+- **Behavior rows:** Behavior counts use unboxed divider rows with title, category chip, adherence label, tracking-since text, vertical label/value counts, and a compact seven-column heatmap. Full completion is filled blue; partial and not completed states use factual diagonal marks. The behavior tracking start date is marked in the heatmap when it falls inside the selected range. Non-empty behavior calendar cells open that behavior's Review day area.
+- **Behavior day review:** Review day appears inside the selected behavior row and lists only that behavior's occurrences for the selected local date when rows exist. Rows use the same occurrence-row vocabulary: scheduled time chip, status label, note state, Completed and Not Completed text-link controls, and the inline Note form. Do not render an empty inspection panel when there are no occurrences on the selected behavior day.
 
 ### Export Panels
 

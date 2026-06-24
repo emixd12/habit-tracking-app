@@ -288,24 +288,23 @@ Each behavior count row shows when that behavior started being tracked. When
 the tracking start day is within the selected range, the behavior calendar marks
 that day.
 
-Do not show a selected-day Not Completed empty state when there are no Not
-Completed occurrences on that selected day.
-
 For behaviors that occur more than once in a day, represent full completion, partial completion, and not completed day states.
 
-The user should be able to select a calendar day and review the occurrences on
-that day. This selected-day review is the deliberate later correction path for
-submitted occurrence decisions after the Needs decision same-day retention
-window has passed.
+The user should be able to select a non-empty cell in a behavior calendar and
+review that behavior's occurrences on that day. The overall calendar remains a
+passive adherence summary. Behavior-day review is the deliberate later
+correction path for submitted occurrence decisions after the Needs decision
+same-day retention window has passed.
 
-Selected-day review should:
-- Show all occurrences for the selected local date when rows exist, not only Not
-  Completed occurrences.
+Behavior-day review should:
+- Show that behavior's occurrences for the selected local date when rows exist,
+  not only Not Completed occurrences.
 - Allow individual Completed and Not Completed corrections through the same
   status service used by Timeline.
 - Allow occurrence Note edits.
-- Refresh Analytics counts, adherence, heatmaps, and selected-day rows after a
+- Refresh Analytics counts, adherence, heatmaps, and behavior-day rows after a
   correction.
+- Avoid an empty review panel when the selected behavior day has no occurrences.
 - Avoid bulk edit, all-time search, automatic suggestions, AI coaching, or
   gamified language.
 

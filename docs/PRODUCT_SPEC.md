@@ -121,8 +121,8 @@ Submitted occurrence decisions can be corrected later. The immediate correction
 path is the Needs decision modal: rows decided from that modal may remain
 visible in their original prior-day group through the current local day, with
 the same Timeline row cues and correction controls. After that local-day window,
-later corrections should be deliberate and date-based, using Analytics selected
-day review rather than turning Timeline into a past-history browser.
+later corrections should be deliberate and behavior-specific, using Analytics
+behavior day review rather than turning Timeline into a past-history browser.
 
 ## Day boundary
 
@@ -212,7 +212,8 @@ Analytics should be basic:
 - Per-behavior tracking start date, visible in text and marked in the
   per-behavior calendar when it falls inside the selected range
 - Day-level representation of full completion, partial completion, and not completed when a behavior has multiple occurrences in one day
-- A way to see occurrences that were not completed on a given day
+- A way to review one behavior's occurrences on a selected day from the
+  behavior-level calendar
 - Default adherence rate excludes unresolved
 
 The top-level Analytics summary Unresolved count should match the Timeline

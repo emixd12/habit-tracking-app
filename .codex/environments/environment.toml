@@ -12,3 +12,11 @@ command = '''
 npm install
 npm run dev
 '''
+
+[[actions]]
+name = "Run Local Marketing Site"
+icon = "run"
+command = '''
+npm install
+npm run marketing:dev
+'''

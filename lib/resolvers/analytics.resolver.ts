@@ -10,7 +10,7 @@ import type {
   AnalyticsOccurrenceInput,
   AnalyticsOverallDayState,
   AnalyticsRangeDays,
-  AnalyticsSelectedDay,
+  AnalyticsSelectedBehaviorDay,
   AnalyticsStatus,
   AnalyticsStatusCounts,
   AnalyticsSummary,
@@ -34,14 +34,15 @@ export type ResolveAnalyticsInput = {
   now: Temporal.Instant;
   timezone?: string;
   rangeDays?: number;
+  selectedBehaviorId?: string | null;
   selectedDayLocalDate?: string | null;
 };
 
 export function resolveAnalytics(input: ResolveAnalyticsInput): AnalyticsView {
   const dateRange = resolveAnalyticsDateRange(input);
-  const selectedDayLocalDate = resolveSelectedDayLocalDate({
+  const selectedBehaviorDayLocalDate = resolveSelectedBehaviorDayLocalDate({
+    selectedBehaviorId: input.selectedBehaviorId,
     selectedDayLocalDate: input.selectedDayLocalDate,
-    fallbackLocalDate: dateRange.endLocalDate,
     startLocalDate: dateRange.startLocalDate,
     endLocalDate: dateRange.endLocalDate,
   });
@@ -74,15 +75,17 @@ export function resolveAnalytics(input: ResolveAnalyticsInput): AnalyticsView {
     overallHeatmap: resolveOverallHeatmap({
       dates,
       occurrences: rangeOccurrences,
-      selectedDayLocalDate,
     }),
     behaviorSummaries: resolveBehaviorSummaries({
       dates,
       occurrences: rangeOccurrences,
+      selectedBehaviorId: input.selectedBehaviorId ?? null,
+      selectedDayLocalDate: selectedBehaviorDayLocalDate,
     }),
     categorySummaries: resolveCategorySummaries(rangeOccurrences),
-    selectedDay: resolveSelectedDay({
-      selectedDayLocalDate,
+    selectedBehaviorDay: resolveSelectedBehaviorDay({
+      selectedBehaviorId: input.selectedBehaviorId ?? null,
+      selectedDayLocalDate: selectedBehaviorDayLocalDate,
       occurrences: rangeOccurrences,
     }),
   };
@@ -123,7 +126,6 @@ export function normalizeAnalyticsRangeDays(
 function resolveOverallHeatmap(input: {
   dates: Temporal.PlainDate[];
   occurrences: AnalyticsOccurrenceInput[];
-  selectedDayLocalDate: string;
 }): AnalyticsDayCell[] {
   return input.dates.map((date) => {
     const localDate = date.toString();
@@ -139,7 +141,7 @@ function resolveOverallHeatmap(input: {
       localDate,
       label: formatDateLabel(date),
       shortLabel: formatShortDateLabel(date),
-      isSelected: localDate === input.selectedDayLocalDate,
+      isSelected: false,
       state,
       stateLabel,
       completionRate,
@@ -154,6 +156,8 @@ function resolveOverallHeatmap(input: {
 function resolveBehaviorSummaries(input: {
   dates: Temporal.PlainDate[];
   occurrences: AnalyticsOccurrenceInput[];
+  selectedBehaviorId: string | null;
+  selectedDayLocalDate: string | null;
 }): AnalyticsBehaviorSummary[] {
   const behaviorGroups = new Map<string, AnalyticsOccurrenceInput[]>();
 
@@ -179,25 +183,40 @@ function resolveBehaviorSummaries(input: {
         ...counts,
         ...adherence,
         dailyCells: input.dates.map((date) =>
-          resolveBehaviorDayCell(date, occurrences, trackingStart.localDate),
+          resolveBehaviorDayCell({
+            date,
+            occurrences,
+            trackingStartLocalDate: trackingStart.localDate,
+            behaviorId,
+            selectedBehaviorId: input.selectedBehaviorId,
+            selectedDayLocalDate: input.selectedDayLocalDate,
+          }),
         ),
       };
     })
     .sort((left, right) => left.title.localeCompare(right.title));
 }
 
-function resolveBehaviorDayCell(
-  date: Temporal.PlainDate,
-  occurrences: AnalyticsOccurrenceInput[],
-  trackingStartLocalDate: string,
-): AnalyticsBehaviorDayCell {
+function resolveBehaviorDayCell(input: {
+  date: Temporal.PlainDate;
+  occurrences: AnalyticsOccurrenceInput[];
+  trackingStartLocalDate: string;
+  behaviorId: string;
+  selectedBehaviorId: string | null;
+  selectedDayLocalDate: string | null;
+}): AnalyticsBehaviorDayCell {
+  const { date, occurrences } = input;
   const localDate = date.toString();
   const counts = countOccurrences(
     occurrences.filter((occurrence) => occurrence.localDate === localDate),
   );
   const state = resolveBehaviorDayState(counts);
   const stateLabel = behaviorDayStateLabel(state);
-  const isTrackingStart = localDate === trackingStartLocalDate;
+  const isTrackingStart = localDate === input.trackingStartLocalDate;
+  const isSelected =
+    counts.totalCount > 0 &&
+    input.behaviorId === input.selectedBehaviorId &&
+    localDate === input.selectedDayLocalDate;
   const trackingStartSuffix = isTrackingStart ? "; tracking started" : "";
 
   return {
@@ -207,6 +226,7 @@ function resolveBehaviorDayCell(
     shortLabel: formatShortDateLabel(date),
     state,
     stateLabel,
+    isSelected,
     isTrackingStart,
     counts,
     ariaLabel: `${formatDateLabel(date)}: ${stateLabel}; ${countsLabel(
@@ -271,14 +291,20 @@ function resolveCategorySummaries(
     .sort((left, right) => left.categoryName.localeCompare(right.categoryName));
 }
 
-function resolveSelectedDay(input: {
-  selectedDayLocalDate: string;
+function resolveSelectedBehaviorDay(input: {
+  selectedBehaviorId: string | null;
+  selectedDayLocalDate: string | null;
   occurrences: AnalyticsOccurrenceInput[];
-}): AnalyticsSelectedDay {
+}): AnalyticsSelectedBehaviorDay | null {
+  if (!input.selectedBehaviorId || !input.selectedDayLocalDate) {
+    return null;
+  }
+
   const date = Temporal.PlainDate.from(input.selectedDayLocalDate);
   const occurrences = input.occurrences
     .filter(
       (occurrence) =>
+        occurrence.behaviorId === input.selectedBehaviorId &&
         occurrence.localDate === input.selectedDayLocalDate,
     )
     .sort(compareOccurrences)
@@ -295,11 +321,16 @@ function resolveSelectedDay(input: {
       note: occurrence.note,
     }));
 
+  if (occurrences.length === 0) {
+    return null;
+  }
+
   return {
+    behaviorId: input.selectedBehaviorId,
+    behaviorTitle: occurrences[0]?.title ?? "Untitled behavior",
     localDate: input.selectedDayLocalDate,
     label: formatDateLabel(date),
     occurrences,
-    emptyMessage: "No occurrences on this day.",
   };
 }
 
@@ -509,14 +540,14 @@ function behaviorDayStateLabel(state: AnalyticsBehaviorDayState): string {
   }
 }
 
-function resolveSelectedDayLocalDate(input: {
+function resolveSelectedBehaviorDayLocalDate(input: {
+  selectedBehaviorId?: string | null;
   selectedDayLocalDate?: string | null;
-  fallbackLocalDate: string;
   startLocalDate: string;
   endLocalDate: string;
-}): string {
-  if (!input.selectedDayLocalDate) {
-    return input.fallbackLocalDate;
+}): string | null {
+  if (!input.selectedBehaviorId || !input.selectedDayLocalDate) {
+    return null;
   }
 
   try {
@@ -529,9 +560,9 @@ function resolveSelectedDayLocalDate(input: {
       input.endLocalDate,
     )
       ? normalizedSelectedDate
-      : input.fallbackLocalDate;
+      : null;
   } catch {
-    return input.fallbackLocalDate;
+    return null;
   }
 }
 

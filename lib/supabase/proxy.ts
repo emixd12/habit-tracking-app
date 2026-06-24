@@ -30,6 +30,14 @@ function redirectWithSessionCookies(
   return redirectResponse;
 }
 
+function hasSupabaseAuthCookie(request: NextRequest) {
+  return request.cookies
+    .getAll()
+    .some(
+      ({ name }) => name.startsWith("sb-") && name.includes("auth-token"),
+    );
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   const { pathname, search } = request.nextUrl;
@@ -41,6 +49,20 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(
         new URL(buildLoginPath(pathname, MISSING_CONFIG_ERROR), request.url),
       );
+    }
+
+    return response;
+  }
+
+  if (!hasSupabaseAuthCookie(request)) {
+    if (protectedRoute) {
+      return NextResponse.redirect(
+        new URL(buildLoginPath(`${pathname}${search}`), request.url),
+      );
+    }
+
+    if (pathname === "/") {
+      return NextResponse.redirect(new URL(LOGIN_ROUTE, request.url));
     }
 
     return response;

@@ -67,6 +67,7 @@ export type AnalyticsBehaviorDayCell = {
   shortLabel: string;
   state: AnalyticsBehaviorDayState;
   stateLabel: string;
+  isSelected: boolean;
   isTrackingStart: boolean;
   counts: AnalyticsStatusCounts;
   ariaLabel: string;
@@ -100,11 +101,12 @@ export type AnalyticsSelectedDayOccurrence = {
   note: string;
 };
 
-export type AnalyticsSelectedDay = {
+export type AnalyticsSelectedBehaviorDay = {
+  behaviorId: string;
+  behaviorTitle: string;
   localDate: string;
   label: string;
   occurrences: AnalyticsSelectedDayOccurrence[];
-  emptyMessage: string;
 };
 
 export type AnalyticsView = {
@@ -118,5 +120,5 @@ export type AnalyticsView = {
   overallHeatmap: AnalyticsDayCell[];
   behaviorSummaries: AnalyticsBehaviorSummary[];
   categorySummaries: AnalyticsCategorySummary[];
-  selectedDay: AnalyticsSelectedDay;
+  selectedBehaviorDay: AnalyticsSelectedBehaviorDay | null;
 };

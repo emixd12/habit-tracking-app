@@ -41,8 +41,6 @@ export function AnalyticsScreen({
   statusAction,
   noteAction,
 }: AnalyticsScreenProps) {
-  const hasSelectedDayOccurrences = analytics.selectedDay.occurrences.length > 0;
-
   return (
     <div className="grid gap-10">
       <section
@@ -84,29 +82,12 @@ export function AnalyticsScreen({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h3 className="text-xl font-bold leading-tight">Calendar</h3>
-              <p className="mt-2 text-sm font-bold text-muted-readable">
-                Select a day to review its occurrences.
-              </p>
             </div>
             <LegendDisclosure />
           </div>
 
-          <div
-            className={[
-              "mt-5 grid gap-6",
-              hasSelectedDayOccurrences
-                ? "lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start"
-                : "",
-            ].join(" ")}
-          >
+          <div className="mt-5">
             <OverallHeatmap analytics={analytics} />
-            {hasSelectedDayOccurrences ? (
-              <SelectedDayReview
-                analytics={analytics}
-                statusAction={statusAction}
-                noteAction={noteAction}
-              />
-            ) : null}
           </div>
         </div>
       </section>
@@ -129,7 +110,13 @@ export function AnalyticsScreen({
         ) : (
           <div className="divide-y divide-line border-t border-line">
             {analytics.behaviorSummaries.map((behavior) => (
-              <BehaviorAnalyticsRow key={behavior.behaviorId} behavior={behavior} />
+              <BehaviorAnalyticsRow
+                key={behavior.behaviorId}
+                behavior={behavior}
+                analytics={analytics}
+                statusAction={statusAction}
+                noteAction={noteAction}
+              />
             ))}
           </div>
         )}
@@ -177,75 +164,6 @@ export function AnalyticsScreen({
   );
 }
 
-function SelectedDayReview({
-  analytics,
-  statusAction,
-  noteAction,
-}: Readonly<{
-  analytics: AnalyticsView;
-  statusAction: OccurrenceFormAction;
-  noteAction: OccurrenceFormAction;
-}>) {
-  return (
-    <div className="min-w-0" aria-labelledby="selected-day-title">
-      <div>
-        <h3 id="selected-day-title" className="text-xl font-bold leading-tight">
-          Review selected day
-        </h3>
-        <p className="mt-2 text-sm font-bold text-muted-readable">
-          {analytics.selectedDay.label} · {analytics.selectedDay.localDate}
-        </p>
-      </div>
-
-      <div className="mt-3 divide-y divide-line border-t border-line">
-        {analytics.selectedDay.occurrences.map((occurrence) => (
-          <article key={occurrence.id} className="grid gap-3 py-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <time
-                dateTime={occurrence.scheduledFor}
-                className="border border-line bg-surface px-2 py-1 text-sm font-bold text-muted-readable"
-              >
-                {occurrence.scheduledTimeLabel}
-              </time>
-              <span className="border border-line bg-background px-2 py-1 text-xs font-bold">
-                {occurrence.categoryName}
-              </span>
-              <span className="border border-line bg-surface px-2 py-1 text-xs font-bold">
-                {occurrence.statusLabel}
-              </span>
-            </div>
-            <h4 className="break-words text-xl font-bold leading-tight">
-              {occurrence.title}
-            </h4>
-            <p className="text-sm font-bold text-muted-readable">
-              {occurrence.noteStateLabel}
-            </p>
-
-            <div className="grid gap-4 border-t border-line pt-3 text-sm leading-6 text-muted-readable">
-              <div className="grid gap-2">
-                <h5 className="font-bold text-foreground">Change status</h5>
-                <StatusButtons
-                  occurrenceId={occurrence.id}
-                  currentStatus={occurrence.status}
-                  action={statusAction}
-                  compact
-                />
-              </div>
-
-              <OccurrenceNoteForm
-                key={`${occurrence.id}-${occurrence.note}`}
-                occurrenceId={occurrence.id}
-                note={occurrence.note}
-                action={noteAction}
-              />
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function RangeSelector({
   analytics,
 }: Readonly<{
@@ -262,7 +180,11 @@ function RangeSelector({
         return (
           <Link
             key={rangeDays}
-            href={analyticsHref(rangeDays, analytics.selectedDay.localDate)}
+            href={analyticsHref({
+              rangeDays,
+              behaviorId: analytics.selectedBehaviorDay?.behaviorId,
+              day: analytics.selectedBehaviorDay?.localDate,
+            })}
             aria-current={isActive ? "page" : undefined}
             className={[
               "inline-flex min-h-11 items-center justify-center border px-4 py-2 text-sm font-bold transition-colors",
@@ -287,21 +209,19 @@ function OverallHeatmap({
   return (
     <div className="grid w-full max-w-sm grid-cols-7 gap-1 sm:gap-2">
       {analytics.overallHeatmap.map((cell) => (
-        <Link
+        <span
           key={cell.key}
-          href={analyticsHref(analytics.rangeDays, cell.localDate)}
           aria-label={cell.ariaLabel}
           title={cell.ariaLabel}
           data-completion-rate={cell.completionRate ?? undefined}
           style={overallCellStyle(cell)}
           className={[
-            "relative aspect-square min-h-9 border transition-colors hover:border-foreground focus-visible:z-10",
+            "relative aspect-square min-h-9 border",
             OVERALL_CELL_CLASSES[cell.state],
-            cell.isSelected ? "outline outline-2 outline-offset-2 outline-foreground" : "",
           ].join(" ")}
         >
           <span className="sr-only">{cell.shortLabel}</span>
-        </Link>
+        </span>
       ))}
     </div>
   );
@@ -309,9 +229,20 @@ function OverallHeatmap({
 
 function BehaviorAnalyticsRow({
   behavior,
+  analytics,
+  statusAction,
+  noteAction,
 }: Readonly<{
   behavior: AnalyticsBehaviorSummary;
+  analytics: AnalyticsView;
+  statusAction: OccurrenceFormAction;
+  noteAction: OccurrenceFormAction;
 }>) {
+  const selectedBehaviorDay =
+    analytics.selectedBehaviorDay?.behaviorId === behavior.behaviorId
+      ? analytics.selectedBehaviorDay
+      : null;
+
   return (
     <article className="py-5">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
@@ -341,34 +272,154 @@ function BehaviorAnalyticsRow({
           aria-label={`${behavior.title} calendar`}
         >
           {behavior.dailyCells.map((cell) => (
-            <BehaviorHeatmapCell key={cell.key} cell={cell} />
+            <BehaviorHeatmapCell
+              key={cell.key}
+              cell={cell}
+              behaviorId={behavior.behaviorId}
+              rangeDays={analytics.rangeDays}
+            />
           ))}
         </div>
       </div>
+      {selectedBehaviorDay ? (
+        <BehaviorDayReview
+          selectedBehaviorDay={selectedBehaviorDay}
+          statusAction={statusAction}
+          noteAction={noteAction}
+        />
+      ) : null}
     </article>
   );
 }
 
 function BehaviorHeatmapCell({
   cell,
+  behaviorId,
+  rangeDays,
 }: Readonly<{
   cell: AnalyticsBehaviorDayCell;
+  behaviorId: string;
+  rangeDays: AnalyticsRangeDays;
 }>) {
+  const className = [
+    "relative aspect-square min-h-6 border",
+    BEHAVIOR_CELL_CLASSES[cell.state],
+    cell.counts.totalCount > 0
+      ? "transition-colors hover:border-foreground focus-visible:z-10"
+      : "",
+    cell.isSelected ? "outline outline-2 outline-offset-2 outline-foreground" : "",
+  ].join(" ");
+  const content = (
+    <>
+      <span className="sr-only">{cell.shortLabel}</span>
+      {cell.isTrackingStart ? <TrackingStartMarker /> : null}
+      {cell.state === "partial" || cell.state === "not_completed" ? (
+        <DiagonalMark compact />
+      ) : null}
+    </>
+  );
+
+  if (cell.counts.totalCount > 0) {
+    return (
+      <Link
+        href={analyticsHref({
+          rangeDays,
+          behaviorId,
+          day: cell.localDate,
+        })}
+        aria-label={`${cell.ariaLabel}; review this behavior day`}
+        title={`${cell.ariaLabel}; review this behavior day`}
+        data-tracking-start={cell.isTrackingStart ? "true" : undefined}
+        className={className}
+      >
+        {content}
+      </Link>
+    );
+  }
+
   return (
     <span
       aria-label={cell.ariaLabel}
       title={cell.ariaLabel}
       data-tracking-start={cell.isTrackingStart ? "true" : undefined}
-      className={[
-        "relative aspect-square min-h-6 border",
-        BEHAVIOR_CELL_CLASSES[cell.state],
-      ].join(" ")}
+      className={className}
     >
-      {cell.isTrackingStart ? <TrackingStartMarker /> : null}
-      {cell.state === "partial" || cell.state === "not_completed" ? (
-        <DiagonalMark compact />
-      ) : null}
+      {content}
     </span>
+  );
+}
+
+function BehaviorDayReview({
+  selectedBehaviorDay,
+  statusAction,
+  noteAction,
+}: Readonly<{
+  selectedBehaviorDay: NonNullable<AnalyticsView["selectedBehaviorDay"]>;
+  statusAction: OccurrenceFormAction;
+  noteAction: OccurrenceFormAction;
+}>) {
+  return (
+    <div
+      className="mt-5 border-t border-line pt-4"
+      aria-labelledby={`selected-behavior-day-${selectedBehaviorDay.behaviorId}`}
+    >
+      <div>
+        <h4
+          id={`selected-behavior-day-${selectedBehaviorDay.behaviorId}`}
+          className="text-lg font-bold leading-tight"
+        >
+          Review day
+        </h4>
+        <p className="mt-1 text-sm font-bold text-muted-readable">
+          {selectedBehaviorDay.label} · {selectedBehaviorDay.localDate}
+        </p>
+      </div>
+
+      <div className="mt-3 divide-y divide-line border-t border-line">
+        {selectedBehaviorDay.occurrences.map((occurrence) => (
+          <article
+            key={occurrence.id}
+            className="grid gap-3 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:items-start"
+          >
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <time
+                  dateTime={occurrence.scheduledFor}
+                  className="border border-line bg-surface px-2 py-1 text-sm font-bold text-muted-readable"
+                >
+                  {occurrence.scheduledTimeLabel}
+                </time>
+                <span className="border border-line bg-surface px-2 py-1 text-xs font-bold">
+                  {occurrence.statusLabel}
+                </span>
+              </div>
+              <p className="mt-2 text-sm font-bold text-muted-readable">
+                {occurrence.noteStateLabel}
+              </p>
+            </div>
+
+            <div className="grid gap-4 text-sm leading-6 text-muted-readable">
+              <div className="grid gap-2">
+                <h5 className="font-bold text-foreground">Change status</h5>
+                <StatusButtons
+                  occurrenceId={occurrence.id}
+                  currentStatus={occurrence.status}
+                  action={statusAction}
+                  compact
+                />
+              </div>
+
+              <OccurrenceNoteForm
+                key={`${occurrence.id}-${occurrence.note}`}
+                occurrenceId={occurrence.id}
+                note={occurrence.note}
+                action={noteAction}
+              />
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -504,11 +555,23 @@ function DiagonalMark({
   );
 }
 
-function analyticsHref(rangeDays: AnalyticsRangeDays, day: string): string {
+function analyticsHref({
+  rangeDays,
+  behaviorId,
+  day,
+}: Readonly<{
+  rangeDays: AnalyticsRangeDays;
+  behaviorId?: string | null;
+  day?: string | null;
+}>): string {
   const params = new URLSearchParams({
     range: String(rangeDays),
-    day,
   });
+
+  if (behaviorId && day) {
+    params.set("behavior", behaviorId);
+    params.set("day", day);
+  }
 
   return `/analytics?${params.toString()}`;
 }

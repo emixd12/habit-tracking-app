@@ -221,12 +221,11 @@ describe("resolveAnalytics", () => {
     });
   });
 
-  it("builds an overall heatmap with completion intensity", () => {
+  it("builds a passive overall heatmap with completion intensity", () => {
     const analytics = resolveAnalytics({
       now: NOW,
       timezone: DEFAULT_TIMEZONE,
       rangeDays: 7,
-      selectedDayLocalDate: "2026-06-07",
       occurrences: [
         occurrence({
           id: "completed-day",
@@ -303,7 +302,7 @@ describe("resolveAnalytics", () => {
         state: "partial",
         stateLabel: "50% Completed",
         completionRate: 0.5,
-        isSelected: true,
+        isSelected: false,
       },
       {
         localDate: "2026-06-08",
@@ -403,11 +402,12 @@ describe("resolveAnalytics", () => {
     ]);
   });
 
-  it("returns all occurrences for the selected-day review", () => {
+  it("returns the selected behavior day occurrences for review", () => {
     const analytics = resolveAnalytics({
       now: NOW,
       timezone: DEFAULT_TIMEZONE,
       rangeDays: 7,
+      selectedBehaviorId: "brush",
       selectedDayLocalDate: "2026-06-07",
       occurrences: [
         occurrence({
@@ -429,6 +429,17 @@ describe("resolveAnalytics", () => {
           localDate: "2026-06-07",
           scheduledFor: "2026-06-07T13:00:00Z",
           status: "not_completed",
+        }),
+        occurrence({
+          id: "selected-brush-evening",
+          behaviorId: "brush",
+          behaviorTitle: "Brush teeth",
+          categoryName: "Grooming",
+          localDate: "2026-06-07",
+          scheduledFor: "2026-06-07T23:00:00Z",
+          scheduledTimeLabel: "7:00 PM",
+          status: "completed",
+          note: "Before bed.",
         }),
         occurrence({
           id: "selected-completed",
@@ -454,7 +465,9 @@ describe("resolveAnalytics", () => {
       ],
     });
 
-    expect(analytics.selectedDay).toMatchObject({
+    expect(analytics.selectedBehaviorDay).toMatchObject({
+      behaviorId: "brush",
+      behaviorTitle: "Brush teeth",
       localDate: "2026-06-07",
       label: "Sunday, June 7",
       occurrences: [
@@ -469,56 +482,67 @@ describe("resolveAnalytics", () => {
           note: "",
         },
         {
-          id: "selected-completed",
-          title: "Journal",
-          categoryName: "Reflection",
-          scheduledTimeLabel: "10:00 AM",
+          id: "selected-brush-evening",
+          title: "Brush teeth",
+          categoryName: "Grooming",
+          scheduledTimeLabel: "7:00 PM",
           status: "completed",
           statusLabel: "Completed",
           noteStateLabel: "Note added",
-          note: "Done before breakfast.",
-        },
-        {
-          id: "selected-unresolved",
-          title: "Drink water",
-          categoryName: "Health",
-          scheduledTimeLabel: "11:00 AM",
-          status: "unresolved",
-          statusLabel: "Unresolved",
-          noteStateLabel: "No note",
-          note: "",
-        },
-        {
-          id: "selected-later",
-          title: "Workout",
-          categoryName: "Fitness",
-          scheduledTimeLabel: "6:30 PM",
-          status: "not_completed",
-          statusLabel: "Not Completed",
-          noteStateLabel: "Note added",
-          note: "Skipped after travel.",
+          note: "Before bed.",
         },
       ],
     });
+    expect(
+      analytics.behaviorSummaries
+        .find((behavior) => behavior.behaviorId === "brush")
+        ?.dailyCells.find((cell) => cell.localDate === "2026-06-07")
+        ?.isSelected,
+    ).toBe(true);
+    expect(
+      analytics.behaviorSummaries
+        .find((behavior) => behavior.behaviorId === "journal")
+        ?.dailyCells.find((cell) => cell.localDate === "2026-06-07")
+        ?.isSelected,
+    ).toBe(false);
   });
 
-  it("falls back to the range end when the selected day is invalid or outside the range", () => {
+  it("does not return a behavior day review for missing or invalid selections", () => {
+    const noBehavior = resolveAnalytics({
+      now: NOW,
+      timezone: DEFAULT_TIMEZONE,
+      rangeDays: 7,
+      selectedDayLocalDate: "2026-06-07",
+      occurrences: [occurrence({ id: "selected", localDate: "2026-06-07" })],
+    });
     const invalidDay = resolveAnalytics({
       now: NOW,
       timezone: DEFAULT_TIMEZONE,
       rangeDays: 7,
+      selectedBehaviorId: "behavior-a",
       selectedDayLocalDate: "not-a-day",
-      occurrences: [],
+      occurrences: [occurrence({ id: "selected" })],
     });
     const outsideRange = resolveAnalytics({
       now: NOW,
       timezone: DEFAULT_TIMEZONE,
       rangeDays: 7,
+      selectedBehaviorId: "behavior-a",
       selectedDayLocalDate: "2026-05-01",
-      occurrences: [],
+      occurrences: [occurrence({ id: "selected" })],
+    });
+    const emptyBehaviorDay = resolveAnalytics({
+      now: NOW,
+      timezone: DEFAULT_TIMEZONE,
+      rangeDays: 7,
+      selectedBehaviorId: "missing-behavior",
+      selectedDayLocalDate: "2026-06-07",
+      occurrences: [occurrence({ id: "selected", localDate: "2026-06-07" })],
     });
 
-    expect(invalidDay.selectedDay.localDate).toBe("2026-06-08");
-    expect(outsideRange.selectedDay.localDate).toBe("2026-06-08");
+    expect(noBehavior.selectedBehaviorDay).toBeNull();
+    expect(invalidDay.selectedBehaviorDay).toBeNull();
+    expect(outsideRange.selectedBehaviorDay).toBeNull();
+    expect(emptyBehaviorDay.selectedBehaviorDay).toBeNull();
   });
 });

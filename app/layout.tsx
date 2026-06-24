@@ -4,6 +4,7 @@ import "./globals.css";
 
 const ibmPlexSans = IBM_Plex_Sans({
   display: "swap",
+  preload: false,
   subsets: ["latin"],
   variable: "--font-ibm-plex-sans",
   weight: "variable",

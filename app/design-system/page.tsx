@@ -128,13 +128,23 @@ async function benchOccurrenceAction(
   };
 }
 
-export default function DesignSystemPage() {
+type DesignSystemPageProps = Readonly<{
+  searchParams?: Promise<{
+    preview?: string | string[];
+  }>;
+}>;
+
+export default async function DesignSystemPage({
+  searchParams,
+}: DesignSystemPageProps) {
   if (process.env.NODE_ENV === "production") {
     notFound();
   }
 
+  const params = await searchParams;
+  const selectedPreviewId = firstSearchParam(params?.preview);
   const usageByComponent = groupUsages(usage.usages);
-  const previews = buildPreviews();
+  const previews = buildPreviews(selectedPreviewId);
 
   return (
     <main
@@ -588,14 +598,15 @@ function TraceCard({
   preview: ReactNode;
 }>) {
   const anchor = anchorFragment(entry.benchAnchor);
-  const hasPreview = Boolean(preview);
-  const needsVisibleStatus = !hasPreview || usages.length === 0;
+  const hasPreviewFactory = entry.id in previewFactories;
+  const hasRenderedPreview = Boolean(preview);
+  const needsVisibleStatus = !hasPreviewFactory || usages.length === 0;
 
   return (
     <article
       id={anchor}
       data-ds-id={entry.id}
-      data-ds-status={hasPreview ? "covered" : "missing-preview"}
+      data-ds-status={hasPreviewFactory ? "covered" : "missing-preview"}
       className="grid gap-4 border border-neutral-300 bg-white p-4"
     >
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
@@ -606,7 +617,7 @@ function TraceCard({
             </h4>
             {needsVisibleStatus ? (
               <span className="border border-amber-400 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900">
-                {!hasPreview ? "Missing preview" : "Unused"}
+                {!hasPreviewFactory ? "Missing preview" : "Unused"}
               </span>
             ) : null}
           </div>
@@ -623,7 +634,24 @@ function TraceCard({
         </p>
       </div>
 
-      {hasPreview ? preview : null}
+      {hasRenderedPreview ? (
+        <>
+          {preview}
+          <a
+            href={`#${anchor}`}
+            className="w-fit border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200"
+          >
+            Close preview
+          </a>
+        </>
+      ) : hasPreviewFactory ? (
+        <a
+          href={`?preview=${encodeURIComponent(entry.id)}#${anchor}`}
+          className="w-fit border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-200"
+        >
+          Render preview
+        </a>
+      ) : null}
 
       <details className="border border-neutral-300 bg-neutral-50">
         <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-800">
@@ -679,48 +707,65 @@ function ProductPreview({
   );
 }
 
-function buildPreviews(): Record<string, ReactNode> {
-  const behaviorAction: BehaviorFormAction = benchBehaviorAction;
-  const occurrenceAction: OccurrenceFormAction = benchOccurrenceAction;
+function buildPreviews(
+  selectedPreviewId: string | null,
+): Record<string, ReactNode> {
+  if (!selectedPreviewId) {
+    return {};
+  }
+
+  const factory = previewFactories[selectedPreviewId];
+
+  if (!factory) {
+    return {};
+  }
 
   return {
-    "navigation.primary-app-nav": (
-      <ProductPreview>
-        <nav
-          aria-label="Primary route registry"
-          className="grid w-64 border border-line bg-card py-3"
-        >
-          {APP_NAV_ITEMS.map((item, index) => (
-            <a
-              key={item.href}
-              href={item.href}
+    [selectedPreviewId]: factory(),
+  };
+}
+
+const behaviorAction: BehaviorFormAction = benchBehaviorAction;
+const occurrenceAction: OccurrenceFormAction = benchOccurrenceAction;
+
+const previewFactories: Record<string, () => ReactNode> = {
+  "navigation.primary-app-nav": () => (
+    <ProductPreview>
+      <nav
+        aria-label="Primary route registry"
+        className="grid w-64 border border-line bg-card py-3"
+      >
+        {APP_NAV_ITEMS.map((item, index) => (
+          <a
+            key={item.href}
+            href={item.href}
+            className={[
+              "flex h-10 w-full items-center overflow-hidden text-sm",
+              index === 0
+                ? "bg-timeline-row-hover text-foreground"
+                : "text-muted-foreground hover:bg-surface hover:text-foreground",
+            ].join(" ")}
+          >
+            <span className="flex h-10 w-16 shrink-0 items-center justify-center">
+              <span className="h-4 w-4 border border-current" />
+            </span>
+            <span className="min-w-0 truncate whitespace-nowrap">
+              {item.label}
+            </span>
+            <span
               className={[
-                "flex h-10 w-full items-center overflow-hidden text-sm",
-                index === 0
-                  ? "bg-timeline-row-hover text-foreground"
-                  : "text-muted-foreground hover:bg-surface hover:text-foreground",
+                "ml-auto truncate px-3 text-xs",
+                index === 0 ? "text-foreground" : "text-muted-readable",
               ].join(" ")}
             >
-              <span className="flex h-10 w-16 shrink-0 items-center justify-center">
-                <span className="h-4 w-4 border border-current" />
-              </span>
-              <span className="min-w-0 truncate whitespace-nowrap">
-                {item.label}
-              </span>
-              <span
-                className={[
-                  "ml-auto truncate px-3 text-xs",
-                  index === 0 ? "text-foreground" : "text-muted-readable",
-                ].join(" ")}
-              >
-                {item.href}
-              </span>
-            </a>
-          ))}
-        </nav>
-      </ProductPreview>
-    ),
-    "layout.app-shell": (
+              {item.href}
+            </span>
+          </a>
+        ))}
+      </nav>
+    </ProductPreview>
+  ),
+  "layout.app-shell": () => (
       <ProductPreview maxHeight="38rem">
         <AppShell>
           <div className="p-6">
@@ -734,7 +779,7 @@ function buildPreviews(): Record<string, ReactNode> {
         </AppShell>
       </ProductPreview>
     ),
-    "layout.screen-frame": (
+  "layout.screen-frame": () => (
       <ProductPreview>
         <ScreenFrame
           title="Screen frame"
@@ -746,12 +791,12 @@ function buildPreviews(): Record<string, ReactNode> {
         </ScreenFrame>
       </ProductPreview>
     ),
-    "flow.google-login-button": (
+  "flow.google-login-button": () => (
       <ProductPreview>
         <GoogleLoginButton disabled nextPath="/timeline" />
       </ProductPreview>
     ),
-    "module.timeline": (
+  "module.timeline": () => (
       <ProductPreview maxHeight="48rem">
         <Timeline
           timeline={timelineFixture}
@@ -760,7 +805,7 @@ function buildPreviews(): Record<string, ReactNode> {
         />
       </ProductPreview>
     ),
-    "module.timeline-group": (
+  "module.timeline-group": () => (
       <ProductPreview>
         <TimelineGroup
           section={todaySection}
@@ -769,7 +814,7 @@ function buildPreviews(): Record<string, ReactNode> {
         />
       </ProductPreview>
     ),
-    "composite.occurrence-row": (
+  "composite.occurrence-row": () => (
       <ProductPreview>
         <div className="grid gap-3">
           {[needsDecisionOccurrence, completedOccurrence, notCompletedOccurrence].map(
@@ -785,7 +830,7 @@ function buildPreviews(): Record<string, ReactNode> {
         </div>
       </ProductPreview>
     ),
-    "module.status-buttons": (
+  "module.status-buttons": () => (
       <ProductPreview>
         <StatusButtons
           occurrenceId="bench-occurrence-current"
@@ -794,7 +839,7 @@ function buildPreviews(): Record<string, ReactNode> {
         />
       </ProductPreview>
     ),
-    "composite.occurrence-note-form": (
+  "composite.occurrence-note-form": () => (
       <ProductPreview>
         <OccurrenceNoteForm
           occurrenceId="bench-occurrence-note"
@@ -803,7 +848,7 @@ function buildPreviews(): Record<string, ReactNode> {
         />
       </ProductPreview>
     ),
-    "module.needs-decision-dialog": (
+  "module.needs-decision-dialog": () => (
       <ProductPreview maxHeight="24rem">
         <NeedsDecisionDialog title="Needs decision" occurrenceCount={1}>
           <TimelineGroup
@@ -814,7 +859,7 @@ function buildPreviews(): Record<string, ReactNode> {
         </NeedsDecisionDialog>
       </ProductPreview>
     ),
-    "module.behavior-create-section": (
+  "module.behavior-create-section": () => (
       <ProductPreview maxHeight="48rem">
         <BehaviorCreateSection
           action={behaviorAction}
@@ -823,7 +868,7 @@ function buildPreviews(): Record<string, ReactNode> {
         />
       </ProductPreview>
     ),
-    "composite.behavior-form": (
+  "composite.behavior-form": () => (
       <ProductPreview maxHeight="48rem">
         <BehaviorForm
           mode="create"
@@ -832,7 +877,7 @@ function buildPreviews(): Record<string, ReactNode> {
         />
       </ProductPreview>
     ),
-    "module.behavior-list": (
+  "module.behavior-list": () => (
       <ProductPreview maxHeight="50rem">
         <BehaviorList
           activeBehaviors={[activeBehavior]}
@@ -844,12 +889,12 @@ function buildPreviews(): Record<string, ReactNode> {
         />
       </ProductPreview>
     ),
-    "module.recurrence-editor": (
+  "module.recurrence-editor": () => (
       <ProductPreview>
         <RecurrenceEditor defaults={weeklyRecurrenceDefaults} />
       </ProductPreview>
     ),
-    "module.reminder-editor": (
+  "module.reminder-editor": () => (
       <ProductPreview>
         <ReminderEditor
           browserReminderEnabled
@@ -858,7 +903,7 @@ function buildPreviews(): Record<string, ReactNode> {
         />
       </ProductPreview>
     ),
-    "module.analytics-screen": (
+  "module.analytics-screen": () => (
       <ProductPreview maxHeight="50rem">
         <AnalyticsScreen
           analytics={analyticsFixture}
@@ -867,7 +912,7 @@ function buildPreviews(): Record<string, ReactNode> {
         />
       </ProductPreview>
     ),
-    "module.export-panel": (
+  "module.export-panel": () => (
       <ProductPreview maxHeight="50rem">
         <ExportPanel
           exportData={exportFixture}
@@ -876,17 +921,17 @@ function buildPreviews(): Record<string, ReactNode> {
         />
       </ProductPreview>
     ),
-    "module.behavior-log-import-panel": (
+  "module.behavior-log-import-panel": () => (
       <ProductPreview maxHeight="38rem">
         <BehaviorLogImportPanel recentRuns={importPageFixture.recentRuns} />
       </ProductPreview>
     ),
-    "module.behavior-log-restore-panel": (
+  "module.behavior-log-restore-panel": () => (
       <ProductPreview maxHeight="38rem">
         <BehaviorLogRestorePanel recentRuns={restorePageFixture.recentRuns} />
       </ProductPreview>
     ),
-    "module.markdown-summary-actions": (
+  "module.markdown-summary-actions": () => (
       <ProductPreview>
         <MarkdownSummaryActions
           summary={exportFixture.markdownSummary}
@@ -894,14 +939,21 @@ function buildPreviews(): Record<string, ReactNode> {
         />
       </ProductPreview>
     ),
-    "module.notification-permission-panel": (
+  "module.notification-permission-panel": () => (
       <ProductPreview>
         <div className="grid gap-5 md:grid-cols-2">
           <NotificationPermissionPanel vapidPublicKey="" />
         </div>
       </ProductPreview>
-    ),
-  };
+  ),
+};
+
+function firstSearchParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
 }
 
 function groupUsages(items: UsageEntry[]) {
@@ -1203,7 +1255,7 @@ const analyticsFixture: AnalyticsView = {
     dayCell("2026-06-05", "Jun 5", "5", "unresolved", false),
     dayCell("2026-06-06", "Jun 6", "6", "empty", false),
     dayCell("2026-06-07", "Jun 7", "7", "completed", false),
-    dayCell("2026-06-08", "Jun 8", "8", "not_completed", true),
+    dayCell("2026-06-08", "Jun 8", "8", "not_completed", false),
   ],
   behaviorSummaries: [
     {
@@ -1227,7 +1279,7 @@ const analyticsFixture: AnalyticsView = {
         behaviorCell("2026-06-05", "Jun 5", "5", "unresolved"),
         behaviorCell("2026-06-06", "Jun 6", "6", "empty"),
         behaviorCell("2026-06-07", "Jun 7", "7", "full"),
-        behaviorCell("2026-06-08", "Jun 8", "8", "not_completed"),
+        behaviorCell("2026-06-08", "Jun 8", "8", "not_completed", false, true),
       ],
     },
   ],
@@ -1255,27 +1307,16 @@ const analyticsFixture: AnalyticsView = {
       detailLabel: "10 of 12 resolved",
     },
   ],
-  selectedDay: {
+  selectedBehaviorDay: {
+    behaviorId: "behavior-reset",
+    behaviorTitle: "Evening reset",
     localDate: "2026-06-08",
     label: "Monday, June 8",
-    emptyMessage: "No occurrences on this day.",
     occurrences: [
-      {
-        id: "occurrence-completed",
-        behaviorId: "behavior-walk",
-        title: "Walk outside",
-        categoryName: "Health",
-        scheduledFor: "2026-06-08T16:00:00Z",
-        scheduledTimeLabel: "12:00 PM",
-        status: "completed",
-        statusLabel: "Completed",
-        noteStateLabel: "Note added",
-        note: "Short walk after lunch.",
-      },
       {
         id: "occurrence-not-completed",
         behaviorId: "behavior-reset",
-        title: "Desk reset",
+        title: "Evening reset",
         categoryName: "Home",
         scheduledFor: "2026-06-08T22:00:00Z",
         scheduledTimeLabel: "6:00 PM",
@@ -1283,18 +1324,6 @@ const analyticsFixture: AnalyticsView = {
         statusLabel: "Not Completed",
         noteStateLabel: "Note added",
         note: "Skipped while traveling.",
-      },
-      {
-        id: "occurrence-current",
-        behaviorId: "behavior-water",
-        title: "Drink water",
-        categoryName: "Health",
-        scheduledFor: "2026-06-08T13:00:00Z",
-        scheduledTimeLabel: "Morning",
-        status: "unresolved",
-        statusLabel: "Unresolved",
-        noteStateLabel: "No note",
-        note: "",
       },
     ],
   },
@@ -1504,6 +1533,7 @@ function behaviorCell(
   shortLabel: string,
   state: AnalyticsView["behaviorSummaries"][number]["dailyCells"][number]["state"],
   isTrackingStart = false,
+  isSelected = false,
 ) {
   return {
     key: `behavior-${localDate}`,
@@ -1512,6 +1542,7 @@ function behaviorCell(
     shortLabel,
     state,
     stateLabel: state,
+    isSelected,
     isTrackingStart,
     counts:
       state === "full"

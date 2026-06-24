@@ -1,15 +1,11 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import {
   getAuthErrorMessage,
   normalizeRedirectPath,
 } from "@/lib/auth/redirects";
 import { DEFAULT_APP_ROUTE } from "@/lib/navigation";
 import { readSupabaseRuntimeConfig } from "@/lib/supabase/env";
-import { createClient } from "@/lib/supabase/server";
 import { GoogleLoginButton } from "./GoogleLoginButton";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -29,17 +25,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const authErrorMessage = getAuthErrorMessage(params.error);
   const accountDeleted = params.account_deleted === "1";
   const isConfigured = readSupabaseRuntimeConfig() !== null;
-
-  if (isConfigured) {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      redirect(nextPath);
-    }
-  }
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-10 text-foreground sm:px-6">

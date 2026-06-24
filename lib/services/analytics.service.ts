@@ -24,6 +24,7 @@ import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 export type GetAnalyticsPageDataOptions = {
   now?: Temporal.Instant;
   rangeDays?: number;
+  selectedBehaviorId?: string | null;
   selectedDayLocalDate?: string | null;
 };
 
@@ -75,6 +76,7 @@ export async function getAnalyticsPageData(
     now,
     timezone,
     rangeDays: dateRange.rangeDays,
+    selectedBehaviorId: options.selectedBehaviorId,
     selectedDayLocalDate: options.selectedDayLocalDate,
   });
 }

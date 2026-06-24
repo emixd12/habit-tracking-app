@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 type AnalyticsPageProps = Readonly<{
   searchParams?: Promise<{
     range?: string | string[];
+    behavior?: string | string[];
     day?: string | string[];
   }>;
 }>;
@@ -27,14 +28,12 @@ export default async function AnalyticsPage({
   const params = await searchParams;
   const analytics = await getAnalyticsPageData({
     rangeDays: parseNumberParam(params?.range),
+    selectedBehaviorId: parseStringParam(params?.behavior),
     selectedDayLocalDate: parseStringParam(params?.day),
   });
 
   return (
-    <ScreenFrame
-      title="Analytics"
-      description={`Local day boundary: ${analytics.timezone}.`}
-    >
+    <ScreenFrame title="Analytics">
       <AnalyticsScreen
         analytics={analytics}
         statusAction={markAnalyticsOccurrenceStatusAction}

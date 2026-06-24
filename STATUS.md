@@ -79,7 +79,7 @@ Current evidence:
 - Browser push subscription storage exists at `app/api/push/subscribe/route.ts`, `lib/services/push-subscription.service.ts`, and `lib/db/pushSubscriptions.repo.ts`; subscription registration validates endpoint/key shape, stores active subscriptions through the authenticated Supabase user context, lists active subscriptions for browser-push sends, and marks expired subscriptions inactive.
 - Reminder delivery planning exists in `lib/resolvers/reminder.resolver.ts`, `lib/services/reminder.service.ts`, and `lib/db/reminderDeliveries.repo.ts`. Occurrence sync now creates missing pending reminder deliveries idempotently from behavior reminder settings, including browser reminders enabled by default, and status resolution cancels pending deliveries for resolved occurrences.
 - Reminder processing code exists at `app/api/reminders/process/route.ts`, `lib/services/reminder.service.ts`, `lib/db/reminderDeliveries.repo.ts`, `lib/services/sequenzy.service.ts`, and `lib/services/web-push.service.ts`. The protected process route validates `REMINDER_PROCESS_SECRET` or `CRON_SECRET`, rate-limits repeated auth failures, bounds manual batch size, claims due pending email and browser-push deliveries with `processing_started_at`, re-checks current occurrence/behavior eligibility through the reminder resolver, sends Sequenzy template emails or VAPID-backed browser push from server-only code, and records sent, failed, or cancelled outcomes. Sequenzy provider setup is verified with transactional slug `habit-reminder`; local `.env.local` has `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`.
-- Analytics exists in `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/analytics`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and selected-day occurrence review for status/note correction. Default adherence excludes unresolved occurrences, and the top summary Unresolved count matches the Timeline Needs decision count.
+- Analytics exists in `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/analytics`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and behavior-day occurrence review for status/note correction. Default adherence excludes unresolved occurrences, and the top summary Unresolved count matches the Timeline Needs decision count.
 - Export exists in `lib/resolvers/export.resolver.ts`, `lib/services/export.service.ts`, `/export`, and `/api/export/jsonl`, `/api/export/csv`, `/api/export/json`. The resolver owns range filtering, archived-behavior filtering, JSONL, CSV escaping, full JSON backup shape, and Markdown AI summary adherence math. All-time export includes occurrences through the current local day and excludes generated future rows.
 - Settings now shows profile email, timezone detection/manual override, notification permission status, browser push availability, a browser reminder enable/save control, Trust/Privacy/Terms links, and account deletion with export acknowledgement plus typed confirmation. Timezone detection uses browser/OS `Intl` data without geolocation; saving a changed timezone updates the profile, active behavior timezones, and future unresolved occurrences through the existing occurrence sync. The client path uses only `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; the processing/sending layer uses server-only `VAPID_PRIVATE_KEY`.
 - Timeline now shows a dismissible first-run setup panel for accounts that have
@@ -2243,6 +2243,61 @@ Verification:
 Remaining risk:
 - Browser QA used fixture-backed authenticated UI through `/design-system`
   because the automated Chrome context did not have a Supabase session.
+
+### Analytics behavior-day correction refinement
+
+Status: complete.
+
+Implementation summary:
+- Removed the Analytics page header description that showed `Local day
+  boundary: <timezone>`.
+- Converted the Overall adherence calendar into a passive summary. Overall day
+  cells no longer open the correction panel.
+- Added behavior-specific review selection through the `behavior` and `day`
+  query parameters. The Analytics resolver now returns `selectedBehaviorDay`
+  rows filtered by behavior id and local date, and marks the selected
+  behavior calendar cell without making the UI filter review rows.
+- Moved occurrence status/note correction into a compact Review day area inside
+  the selected behavior row. It reuses the existing Analytics server actions
+  and Timeline status/note controls.
+- Updated the dev-only design-system Analytics fixture plus product, UI,
+  user-flow, route, resolver-registry, design, and status docs.
+- No schema, migration, provider, notification, export, route-navigation,
+  dashboard/history route, bulk edit, stored missed status, or AI/coaching
+  scope was added.
+
+Verification:
+- Pass: `npm run test -- tests/analytics.resolver.test.ts`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run typecheck`.
+- Pass: targeted ESLint for Analytics page/component/resolver/service/test and
+  design-system fixture files.
+- Pass: `npm run agents:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run test` (41 files, 257 tests).
+- Pass: `npm run build`.
+- Pass:
+  `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`.
+- Pass: `git diff --check`.
+- Browser QA: Playwright with system Chrome against
+  `http://localhost:3000/design-system?preview=module.analytics-screen#ds-module-analytics-screen`
+  at 1280px and 390px showed the Analytics fixture with no horizontal
+  overflow, no console warnings/errors, no `Local day boundary` copy, no old
+  `Review selected day`/`Select a day to review` copy, passive overall
+  calendar cells, behavior calendar review links, and the in-row Review day
+  panel.
+- Browser QA: unauthenticated `/analytics` redirected to
+  `/login?next=%2Fanalytics` at 1280px and 390px with no horizontal overflow,
+  no console warnings/errors, and no local-boundary copy.
+
+Remaining risk:
+- Authenticated live `/analytics` production-data QA was not performed because
+  the browser context did not have a Supabase session; the same
+  `AnalyticsScreen` was verified through the fixture-backed design-system
+  route.
+- The worktree already contained unrelated auth/proxy/package/design-system
+  edits before this task; this refinement did not revert or normalize them.
 
 ## Handoff notes
 
