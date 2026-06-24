@@ -67,6 +67,41 @@ Use npm workspaces first unless build orchestration becomes painful. Turborepo
 may be added later if caching and multi-app task orchestration become
 worthwhile.
 
+## Design-system surface model
+
+Cadence uses one canonical design system across surfaces, but implementation is
+surface-scoped. The shared design system owns foundations, product language,
+state semantics, accessibility expectations, and canonical component-family
+contracts. Each surface can satisfy those contracts with native implementation
+files for its runtime.
+
+Current design-system inventory layers:
+
+- `DESIGN.md`: human-readable source for the visual system, product voice, and
+  surface-specific design rules.
+- `design-system.surfaces.json`: canonical cross-surface catalog. It defines
+  supported surfaces, component families, shared contracts, and native
+  implementation mappings.
+- `design-system.manifest.json` and `design-system.usage.json`: current live
+  authenticated web-app traceability inventory.
+- `/design-system`: local/dev-only global bench. It shows foundations,
+  canonical surface/component-family mappings, and the live web-app trace
+  cards.
+
+Do not force every surface to share full product components. Astro marketing,
+Next.js authenticated app UI, and future local-first desktop/mobile shells have
+different runtime boundaries. Share tokens, primitive contracts, terminology,
+states, and presentational module specs first. Extract `packages/ui` only when
+it removes real duplication or unblocks a scheduled second runtime; keep it
+focused on tokens and framework-light primitives before full product modules.
+
+When a new surface starts, add or update its entries in
+`design-system.surfaces.json`, then add a native surface manifest or bench only
+when there is live UI to verify. Cross-surface catalog entries may point to
+Astro templates, CSS/token files, static captures, native component files, or
+planned implementation docs, but product usage counts must remain separated
+from bench previews.
+
 ## Marketing site
 
 The public marketing site is implemented with Astro under `apps/marketing`. It

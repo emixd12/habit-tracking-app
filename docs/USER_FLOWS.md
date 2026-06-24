@@ -129,9 +129,12 @@ The count and label sit on one continuous button surface without an internal div
 The count includes unresolved prior-day occurrences only. It does not include
 same-day retained rows that were already marked Completed or Not Completed from
 the modal.
-The modal title is Needs decision. Its date groups should not repeat a Prior
-unresolved label; each group shows the date and then a count of unresolved
-items left to decide for that date.
+The open modal should not show a visible global Needs decision title or total
+count. Its date groups are the visible structure and should start at the top of
+the scroll area, with the close control pinned over the top-right corner. Each
+group stretches to the same modal gutter on the left and right, shows the date,
+then shows a count of unresolved items left to decide for that date. The date
+header text may leave room for the overlaid close control.
 
 Users should not browse previous days as ordinary timeline sections in v1.
 

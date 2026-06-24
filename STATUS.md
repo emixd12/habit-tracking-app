@@ -97,10 +97,57 @@ Current evidence:
 - A minimal `public/push-service-worker.js` displays received push payloads and opens same-origin app URLs, defaulting to `/timeline`. It does not implement PWA install, route caching, background sync, offline writes, or offline mutation.
 - Supabase and Sequenzy CLIs are installed as dev dependencies and exposed through `npm run supabase -- ...` and `npm run sequenzy -- ...`.
 - Agent operations docs now include Supabase CLI workflow, Sequenzy CLI workflow, date/time strategy, route map, and deterministic drift checks.
-- A local/dev-only design-system bench exists at `/design-system`, backed by `design-system.config.json`, `design-system.manifest.json`, `design-system.usage.json`, and `npm run design-system:check`. It renders fixture-backed existing UI only, is not in primary navigation, is disabled in production builds, and is excluded from design-system inventory/product usage scans.
+- A local/dev-only design-system bench exists at `/design-system`, backed by
+  `design-system.config.json`, `design-system.surfaces.json`,
+  `design-system.manifest.json`, `design-system.usage.json`, and
+  `npm run design-system:check`. It renders foundations, canonical
+  cross-surface component-family mappings, and fixture-backed web-app UI. It
+  is not in primary navigation, is disabled in production builds, and keeps
+  bench previews separate from product usage scans.
 - The v1 feature ticket sequence is complete through Ticket 012. Ticket 013 Vercel production hardening is complete after later browser-push production verification: authenticated production smoke QA passed for Google login, Behavior create/archive, Timeline occurrence generation, status changes, notes, Settings render, Analytics render, Export page/link rendering, production reminder cron execution, browser push subscription, and a safe browser-push send.
 - Vercel plugin inspection found existing project `cadence` under team `Emi's projects`, connected to GitHub repo `emixd12/habit-tracking-app` on `main`, with canonical public alias `https://cadence-blush-three.vercel.app`. Production public Supabase config is present, `/login` renders without the missing-config warning, Google OAuth returns to the canonical production domain, and `/api/reminders/process` supports Vercel Cron `GET` with secret protection.
 - Project-local design workflow files exist under `.agents/skills/impeccable/` and should be used for UI/design work after the scaffold exists.
+
+## Design-system surface catalog update
+
+Status: complete.
+
+Implementation summary:
+- Added `design-system.surfaces.json` as the canonical cross-surface design
+  catalog for the authenticated web app, Astro marketing site, future desktop
+  app, and future mobile app.
+- The catalog defines shared component-family contracts for foundations,
+  text actions, form controls, navigation, surface shells, disclosure sections,
+  Timeline feed, Needs decision, Analytics calendar, Behavior editor,
+  Export/portability, and brand marks.
+- Updated `/design-system` so the bench now shows surface cards and a canonical
+  component-family matrix before the existing web-app trace cards. Web-app
+  entries link back to live manifest trace anchors; Astro and future-surface
+  entries point to native source files or planned implementation docs.
+- Extended `npm run design-system:check` to validate the surface catalog for
+  duplicate ids, missing sources, unknown surfaces, and unknown web manifest
+  component references.
+- Updated `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`, `docs/OPERATIONS.md`, and
+  `DESIGN.md` to document one canonical design system with surface-scoped
+  implementations.
+
+Verification:
+- Pass: `npm run design-system:check`
+- Pass: `npm run typecheck`
+- Pass: `npm run lint`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run test` (41 files, 257 tests)
+- Pass: `npm run build`
+- Pass: `git diff --check`
+- HTTP QA: existing Next dev server at `http://localhost:3000/design-system`
+  returned 200 and rendered Surfaces, Canonical component families,
+  Authenticated web app, Astro marketing site, and Timeline feed content.
+
+Remaining risk:
+- The global bench shows Astro and future desktop/mobile mappings, but only the
+  authenticated web app has a strict live manifest today. Add native manifests
+  or surface-specific benches when those surfaces have enough live UI to verify.
 
 ## Timeline UI feedback update
 
@@ -128,6 +175,52 @@ Needs decision button stayed within the safe-area width; the modal was
 full-height; and Completed and Not Completed retained rows had matching row
 heights, labels, and no visible collapsed action buttons. Browser logs showed
 no warnings or errors.
+
+Follow-up modal header refinement:
+- Removed the visible global Needs decision title and total-to-decide label
+  from the open modal header while keeping the close control and accessible
+  dialog label.
+- Updated `DESIGN.md`, `docs/UI_SPEC.md`, and `docs/USER_FLOWS.md` so the open
+  modal is led by date groups only.
+- Verification: Pass: `npm run agents:check`; Pass: `npm run
+  resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass:
+  `npm run test`; Pass: `npm run design-system:check`; Pass: `npm run build`;
+  Pass: `git diff --check`.
+- Browser QA: design-system Needs decision dialog preview at 1127px and 390px
+  opened with an empty visible header, exactly one close button, no visible
+  heading or paragraph in the header, date-group text first, and no horizontal
+  overflow.
+
+Follow-up modal top-space refinement:
+- Removed the remaining reserved header row from the open Needs decision modal.
+  The close control is now pinned over the top-right corner, and the first date
+  group starts at the top of the scroll area with right padding reserved for the
+  close control.
+- Updated `DESIGN.md`, `docs/UI_SPEC.md`, and `docs/USER_FLOWS.md` to specify
+  the overlaid close control and no reserved header row.
+- Verification: Pass: `npm run agents:check`; Pass: `npm run
+  resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass:
+  `npm run test`; Pass: `npm run design-system:check`; Pass: `npm run build`;
+  Pass: `git diff --check`.
+- Browser QA: design-system Needs decision dialog preview at 1127px and 390px
+  opened with no modal header element, the close button pinned top-right, the
+  first date group at the top of the scroll area, and no horizontal overflow.
+
+Follow-up modal gutter refinement:
+- Removed the asymmetric right padding from the Needs decision modal scroll
+  area so date groups and occurrence rows stretch to matching left and right
+  gutters. The date header text row alone reserves space for the overlaid close
+  control.
+- Updated `DESIGN.md`, `docs/UI_SPEC.md`, and `docs/USER_FLOWS.md` to document
+  equal modal gutters with a close-control text guard.
+- Verification: Pass: `npm run agents:check`; Pass: `npm run
+  resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass:
+  `npm run test`; Pass: `npm run design-system:check`; Pass: `npm run build`;
+  Pass: `git diff --check`.
+- Browser QA: design-system Needs decision dialog preview at 1032px, 1127px,
+  and 390px showed equal left/right distances from the modal to the date group
+  and first occurrence row, a pinned top-right close button, no modal header
+  element, and no horizontal overflow.
 
 ## Agent operations update
 

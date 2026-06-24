@@ -1,0 +1,604 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-24T19:30:00.000Z",
+  "name": "Cadence canonical design system surface catalog",
+  "summary": "A global inventory of design-system families across Cadence surfaces. This catalog defines the shared design contract; each surface can satisfy the contract with native implementation files for its runtime.",
+  "rules": [
+    "Canonical families define visual language, state behavior, accessibility expectations, and product semantics; they do not require every surface to share the same source component.",
+    "Surface implementations should reuse shared tokens and primitives where practical, then adapt module code to the runtime only when the framework boundary requires it.",
+    "The authenticated web app manifest remains the strict live React/Next traceability inventory until other surfaces add native manifests or benches.",
+    "Marketing, desktop, and mobile entries may point to Astro templates, CSS, static captures, or planned implementation notes until those surfaces have their own native component inventories."
+  ],
+  "surfaces": [
+    {
+      "id": "web-app",
+      "name": "Authenticated web app",
+      "status": "implemented",
+      "runtime": "Next.js App Router / React",
+      "sourceRoots": ["app", "components", "lib"],
+      "nativeBench": "/design-system",
+      "inventory": "design-system.manifest.json",
+      "notes": "Primary live harness today. It renders fixture-backed React components and verifies product usages through design-system.usage.json."
+    },
+    {
+      "id": "marketing",
+      "name": "Astro marketing site",
+      "status": "implemented",
+      "runtime": "Astro static site",
+      "sourceRoots": ["apps/marketing/src"],
+      "nativeBench": null,
+      "inventory": null,
+      "notes": "Shares Cadence tokens, voice, square ledger marks, CTAs, sections, and product captures, but does not share the authenticated app shell or React component source."
+    },
+    {
+      "id": "desktop",
+      "name": "Desktop app",
+      "status": "proposal",
+      "runtime": "Future Tauri / local-first React SPA",
+      "sourceRoots": ["apps/desktop"],
+      "nativeBench": null,
+      "inventory": null,
+      "notes": "Proposal-track surface. It should reuse tokens and presentational patterns while avoiding Next server components and server actions."
+    },
+    {
+      "id": "mobile",
+      "name": "Mobile app",
+      "status": "proposal",
+      "runtime": "Future local-first mobile shell",
+      "sourceRoots": ["apps/mobile"],
+      "nativeBench": null,
+      "inventory": null,
+      "notes": "Proposal-track surface following the desktop local-first direction. Shared contracts should bias toward tokens, primitives, and presentational module specs."
+    }
+  ],
+  "componentFamilies": [
+    {
+      "id": "foundation.tokens",
+      "name": "Foundations and tokens",
+      "tier": "foundation",
+      "definition": "Color, type, spacing, radius, border, motion, and flat ledger rules shared by every Cadence surface.",
+      "sharedContract": [
+        "IBM Plex Sans typography",
+        "0px radius and no decorative shadow",
+        "Bleached background, Ash Line dividers, Monolith Blue completed/selected state, Rust Signal for explicit Not Completed or caution",
+        "Responsive structure without fluid product type"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["app/globals.css", "DESIGN.md"],
+          "implementationIds": [],
+          "notes": "Tailwind v4 CSS variables and product classes are the current canonical token implementation."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "implemented",
+          "parity": "adapted",
+          "sources": ["apps/marketing/src/styles/global.css", "DESIGN.md"],
+          "implementationIds": [],
+          "notes": "Astro uses matching CSS variables and section vocabulary, with marketing-specific hero and route styles."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Carry over Tailwind tokens or generated token outputs when the desktop track starts."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Use the same token names and semantic meanings even if native platform values are generated."
+        }
+      ]
+    },
+    {
+      "id": "primitive.text-action",
+      "name": "Text actions",
+      "tier": "primitive",
+      "definition": "The default Cadence action vocabulary: underlined text, square geometry, visible focus, and reserved filled surfaces only for selected/destructive/fixed priority actions.",
+      "sharedContract": [
+        "Transparent background by default",
+        "Thin underline with non-reflowing hover emphasis",
+        "Visible focus outline",
+        "At least 44px tap target where the action is row-level or mobile-critical"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["app/globals.css"],
+          "implementationIds": ["module.status-buttons", "composite.occurrence-note-form"],
+          "notes": "Implemented through product-action and timeline-status-action classes plus component-level status actions."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "implemented",
+          "parity": "adapted",
+          "sources": ["apps/marketing/src/styles/global.css"],
+          "implementationIds": [],
+          "notes": "Implemented by .button, .button--primary, .inline-link, and CTA rows."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Should be a presentational primitive in the SPA/native shell."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Native implementation must preserve tap-target and focus/active affordance equivalents."
+        }
+      ]
+    },
+    {
+      "id": "primitive.form-control",
+      "name": "Form controls",
+      "tier": "primitive",
+      "definition": "Square inputs, selects, checkboxes, radio segments, and textareas used for behavior editing, settings, import/restore, and account deletion.",
+      "sharedContract": [
+        "1px Ash Line boundary for true fields",
+        "Bleached background and Ink text",
+        "Readable disabled and error states",
+        "Native controls unless a custom control has a strong accessibility reason"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["app/globals.css", "components/behaviors/BehaviorForm.tsx", "components/settings/SettingsPanels.tsx"],
+          "implementationIds": ["composite.behavior-form", "module.recurrence-editor", "module.reminder-editor"],
+          "notes": "Current field patterns are visible through behavior, settings, import, restore, and note fixtures."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "not-applicable",
+          "parity": "not-applicable",
+          "sources": ["apps/marketing/src/styles/global.css"],
+          "implementationIds": [],
+          "notes": "Marketing has links and tables, but no launch-scope data-entry forms."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Use presentational form controls over local-first hooks/services."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Use native-friendly field sizing and platform keyboard behavior while preserving token semantics."
+        }
+      ]
+    },
+    {
+      "id": "navigation.primary",
+      "name": "Primary navigation",
+      "tier": "navigation",
+      "definition": "Top-level movement through each surface, using the same sparse ledger vocabulary but runtime-specific route structures.",
+      "sharedContract": [
+        "Current route is visibly marked without decorative color",
+        "Routes stay few and named plainly",
+        "Mobile navigation remains reachable without hiding core actions"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["lib/navigation.ts", "components/layout/AppShell.tsx"],
+          "implementationIds": ["navigation.primary-app-nav", "layout.app-shell"],
+          "notes": "Fixed desktop rail and mobile drawer render from APP_NAV_ITEMS."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "implemented",
+          "parity": "adapted",
+          "sources": ["apps/marketing/src/layouts/BaseLayout.astro", "apps/marketing/src/data/routes.ts"],
+          "implementationIds": [],
+          "notes": "Marketing header renders the static route registry and footer links."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Reuse the few-route structure, adapted to local-first shell constraints."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "May use native/mobile navigation primitives but must preserve the same screen model."
+        }
+      ]
+    },
+    {
+      "id": "layout.surface-shell",
+      "name": "Surface shells",
+      "tier": "layout",
+      "definition": "The structural shell around a surface: authenticated app shell, marketing document shell, and future desktop/mobile route shells.",
+      "sharedContract": [
+        "Sections are unboxed or divided by quiet rules",
+        "No marketing-heavy composition inside the authenticated app",
+        "Bench or story surfaces are excluded from product usage counts"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["components/layout/AppShell.tsx", "components/layout/ScreenFrame.tsx", "app/(app)/layout.tsx"],
+          "implementationIds": ["layout.app-shell", "layout.screen-frame"],
+          "notes": "Authenticated shell owns app navigation and route framing."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "implemented",
+          "parity": "adapted",
+          "sources": ["apps/marketing/src/layouts/BaseLayout.astro", "apps/marketing/src/styles/global.css"],
+          "implementationIds": [],
+          "notes": "Static document shell owns marketing metadata, header, footer, and page-section rhythm."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "The shell should be a client SPA shell without Next server assumptions."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Mobile shell may be native or webview, but should keep screen structure compact and task-first."
+        }
+      ]
+    },
+    {
+      "id": "pattern.disclosure-section",
+      "name": "Disclosure sections",
+      "tier": "pattern",
+      "definition": "Open/close sections for progressive detail such as create behavior, edit behavior, review status, note correction, and agent-readable docs groups.",
+      "sharedContract": [
+        "Use native disclosure semantics where possible",
+        "Do not hide primary occurrence decisions behind disclosure",
+        "Collapsed state should remain scannable and factual"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["components/behaviors/BehaviorCreateSection.tsx", "components/behaviors/BehaviorList.tsx", "components/analytics/AnalyticsScreen.tsx"],
+          "implementationIds": ["module.behavior-create-section", "module.behavior-list", "module.analytics-screen"],
+          "notes": "Behavior creation/editing and analytics review use progressive disclosure."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "adapted",
+          "parity": "adapted",
+          "sources": ["apps/marketing/src/pages/docs.astro", "apps/marketing/src/styles/global.css"],
+          "implementationIds": [],
+          "notes": "Marketing uses static sections and tables rather than app-style editable disclosures."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "A shared presentational disclosure pattern is a good candidate for packages/ui later."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Disclosure must preserve mobile tap targets and avoid nested modal flows."
+        }
+      ]
+    },
+    {
+      "id": "module.timeline-feed",
+      "name": "Timeline feed",
+      "tier": "module",
+      "definition": "Current-day and future occurrence feed with compact occurrence rows, status decisions, details, and notes.",
+      "sharedContract": [
+        "Current day leads the logged-in experience",
+        "Rows remain compact and unboxed",
+        "Completed, Not Completed, and Unresolved language stays exact",
+        "Occurrence notes attach to the occurrence, not the behavior"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["components/timeline/Timeline.tsx", "components/timeline/TimelineGroup.tsx", "components/timeline/OccurrenceRow.tsx"],
+          "implementationIds": ["module.timeline", "module.timeline-group", "composite.occurrence-row"],
+          "notes": "Live fixture-backed timeline module is rendered in the current bench."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "implemented-static",
+          "parity": "adapted",
+          "sources": ["apps/marketing/src/components/ProductCapture.astro"],
+          "implementationIds": [],
+          "notes": "Marketing uses sanitized static captures to communicate the same row vocabulary."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Likely reusable as presentational React components after removing server-action assumptions."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Mobile should preserve current mobile row structure and safe-area Needs decision action."
+        }
+      ]
+    },
+    {
+      "id": "module.needs-decision",
+      "name": "Needs decision",
+      "tier": "module",
+      "definition": "The derived prior-day unresolved decision surface, including the fixed entry action and grouped decision modal/sheet.",
+      "sharedContract": [
+        "Needs decision is derived, not a stored status",
+        "Use factual language and avoid missed/failure framing",
+        "Rows stay grouped by original local day",
+        "Resolved rows may remain correction-visible through the current local day"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["components/timeline/NeedsDecisionDialog.tsx", "components/timeline/TimelineGroup.tsx"],
+          "implementationIds": ["module.needs-decision-dialog", "module.timeline-group"],
+          "notes": "Implemented as fixed button plus modal/sheet with accessible dialog labeling."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "implemented-static",
+          "parity": "adapted",
+          "sources": ["apps/marketing/src/components/ProductCapture.astro", "apps/marketing/src/data/routes.ts"],
+          "implementationIds": [],
+          "notes": "Marketing references Needs decision through sanitized copy and captures only."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Reuse the derived-state contract through local services/resolvers."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Likely a native/full-height sheet equivalent with the same date grouping."
+        }
+      ]
+    },
+    {
+      "id": "module.analytics-calendar",
+      "name": "Analytics calendar",
+      "tier": "module",
+      "definition": "Completion-intensity heatmaps and day review patterns for the basic Analytics surface.",
+      "sharedContract": [
+        "Unresolved never implies failure",
+        "Overall calendar uses completion share intensity",
+        "Behavior calendars expose day review only when there are occurrences",
+        "Cells remain square and state-readable without color alone"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["components/analytics/AnalyticsScreen.tsx", "app/globals.css"],
+          "implementationIds": ["module.analytics-screen"],
+          "notes": "Live Analytics fixture owns current heatmap and review behavior."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "not-applicable",
+          "parity": "not-applicable",
+          "sources": ["apps/marketing/src/pages/cadence.astro"],
+          "implementationIds": [],
+          "notes": "Marketing may describe analytics but does not render the live module."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Should be portable once resolver-fed view models are available in the local-first shell."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "May need denser or horizontally scroll-free cell sizing while preserving status semantics."
+        }
+      ]
+    },
+    {
+      "id": "module.behavior-editor",
+      "name": "Behavior editor",
+      "tier": "module",
+      "definition": "Behavior creation/editing, recurrence, schedule slots, reminders, archive/restore, and behavior list management.",
+      "sharedContract": [
+        "Behavior is the recurring tracked object",
+        "Recurrence presets stay explicit; no natural language recurrence UI",
+        "Browser reminders default on, email reminders default off",
+        "Archive preserves history"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["components/behaviors/BehaviorCreateSection.tsx", "components/behaviors/BehaviorForm.tsx", "components/behaviors/BehaviorList.tsx"],
+          "implementationIds": ["module.behavior-create-section", "composite.behavior-form", "module.behavior-list", "module.recurrence-editor", "module.reminder-editor"],
+          "notes": "Current live behavior management modules are fixture-backed in the bench."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "not-applicable",
+          "parity": "not-applicable",
+          "sources": ["apps/marketing/src/pages/cadence.astro"],
+          "implementationIds": [],
+          "notes": "Marketing explains behavior management but does not provide editing controls."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Should extract presentational pieces only after desktop work is scheduled."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Likely needs native-friendly slot editing while preserving recurrence semantics."
+        }
+      ]
+    },
+    {
+      "id": "module.export-portability",
+      "name": "Export and portability",
+      "tier": "module",
+      "definition": "Export downloads, BehaviorLog import/restore, Markdown summary, and marketing bundle/documentation captures.",
+      "sharedContract": [
+        "Portability remains factual and inspectable",
+        "Downloads and restore/import actions must be explicit",
+        "Sensitive imports require acknowledgement",
+        "BehaviorLog files are presented as authoritative records, not marketing decoration"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["components/export/ExportPanel.tsx", "components/export/BehaviorLogImportPanel.tsx", "components/export/BehaviorLogRestorePanel.tsx"],
+          "implementationIds": ["module.export-panel", "module.behavior-log-import-panel", "module.behavior-log-restore-panel", "module.markdown-summary-actions"],
+          "notes": "Current export/import/restore modules are in the web app manifest and bench."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "implemented-static",
+          "parity": "adapted",
+          "sources": ["apps/marketing/src/components/ProductCapture.astro", "apps/marketing/src/pages/examples.astro", "apps/marketing/src/pages/docs.astro"],
+          "implementationIds": [],
+          "notes": "Marketing renders BehaviorLog bundle captures, docs tables, and example download links."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Desktop import/export should bridge local storage and existing full JSON/BehaviorLog outputs."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Mobile export affordances may differ, but warnings and explicitness stay canonical."
+        }
+      ]
+    },
+    {
+      "id": "brand.marks",
+      "name": "Brand marks",
+      "tier": "brand",
+      "definition": "Cadence and BehaviorLog marks, lockups, and square ledger visual motifs.",
+      "sharedContract": [
+        "Cadence remains the tracker brand object",
+        "BehaviorLog leads the standard/adoption narrative",
+        "Marks use square ledger cells, Ash Line strokes, and restrained fills"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "adapted",
+          "sources": ["app/icon.png", "app/apple-icon.png", "components/layout/AppShell.tsx"],
+          "implementationIds": ["layout.app-shell"],
+          "notes": "Web app uses the Cadence app mark and compact shell branding."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["apps/marketing/src/components/BrandMarks.astro", "apps/marketing/public/brand/cadence-logo.png"],
+          "implementationIds": [],
+          "notes": "Marketing owns the combined BehaviorLog/Cadence lockup."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Desktop app icon and shell branding should derive from this family."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Mobile app icon and splash/launch marks should derive from this family when scheduled."
+        }
+      ]
+    }
+  ]
+}

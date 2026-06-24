@@ -112,6 +112,33 @@ This is product UI, not a poster. The look can be distinctive, but every screen 
 - Public marketing pages keep the same square ledger vocabulary while giving
   BehaviorLog the first narrative position and Cadence the main product object.
 
+## 1.1 Surface Model
+
+Cadence has one canonical design system with surface-scoped implementations.
+The canonical system owns foundations, state semantics, accessibility
+expectations, product language, and reusable component-family contracts. Each
+surface may implement those contracts in its native runtime:
+
+- **Authenticated web app:** Next.js/React live product components tracked by
+  `design-system.manifest.json`, `design-system.usage.json`, and the local
+  `/design-system` bench.
+- **Astro marketing site:** static Astro templates and CSS that share Cadence
+  tokens, section rhythm, marks, CTAs, and product-capture vocabulary without
+  importing authenticated React components.
+- **Desktop and mobile:** future local-first surfaces that should reuse tokens,
+  primitive contracts, presentational module specs, and resolver-fed view
+  models when those tracks are scheduled.
+
+`design-system.surfaces.json` is the machine-readable cross-surface catalog.
+It groups tokens, primitives, navigation, layouts, patterns, and product
+modules into canonical families, then maps each family to web, marketing,
+desktop, and mobile implementations or planned notes. A surface may use a
+different language or framework as long as it satisfies the shared contract.
+
+Shared code should start at tokens and framework-light primitives. Do not
+extract full product modules into `packages/ui` until another scheduled runtime
+needs them and the extraction removes real duplication.
+
 ## 2. Colors
 
 The palette is almost monochrome: black ink, bleached paper, subtle gray, and one muted blue. Red is a rare warning signal.
@@ -242,7 +269,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Expanded details:** Native disclosure reveals description, category, schedule summary, and note directly on the row surface, without a grey panel, enclosing border, boxed card treatment, chevron, or separate disclosure icon. While open, the whole occurrence row holds the same blue background used by that row's hover state. The Note textarea keeps its field border; Save note uses the same underlined text-action vocabulary as Completed and Not Completed.
 - **Resolved:** Keep resolved rows visible with distinct states. Completed rows hide primary status actions and use a full Monolith Blue fill instead of a separate status chip. Not Completed rows use the same resolved-row structure with Rust Signal fill, Bleached Newsprint text, and a collapsed Not Completed label; correction is available from the expanded row.
 - **Completion feedback:** A successful user-initiated change into Completed may play one short chime. Treat it as state feedback, not a reward loop: no voice, no alarm tone, no repeat sound, and no sound for Not Completed or page load.
-- **Needs decision:** The floating button shows the unresolved count to decide and uses Monolith Blue when the count is greater than zero. Keep the count and label on one continuous button surface without an internal divider. On mobile, the button spans the lower safe-area width and the modal becomes a full-height sheet with the same flat row vocabulary. On desktop, the modal uses a flat bordered panel. The modal header should not repeat a Prior unresolved eyebrow; each white date group shows the date with the per-date count left to decide underneath. Highlight prior unresolved rows with Cold Surface and thin structural lines, never red error styling. Rows decided from the modal can remain in their original prior-day group through the current local day; Completed retained rows use the full completed treatment, and Not Completed retained rows use the Rust Signal treatment with the same resolved-row structure. Do not write or imply a stored Needs decision status.
+- **Needs decision:** The floating button shows the unresolved count to decide and uses Monolith Blue when the count is greater than zero. Keep the count and label on one continuous button surface without an internal divider. On mobile, the button spans the lower safe-area width and the modal becomes a full-height sheet with the same flat row vocabulary. On desktop, the modal uses a flat bordered panel. The open modal has no visible global Needs decision title, global count, Prior unresolved eyebrow, or reserved header row. Pin the close control over the top-right corner and let the first white date group start at the top of a scroll area with equal left and right modal gutters; only the date header text row may reserve space for the close control. Each date group shows the date with the per-date count left to decide underneath. Highlight prior unresolved rows with Cold Surface and thin structural lines, never red error styling. Rows decided from the modal can remain in their original prior-day group through the current local day; Completed retained rows use the full completed treatment, and Not Completed retained rows use the Rust Signal treatment with the same resolved-row structure. Do not write or imply a stored Needs decision status.
 
 ### Analytics Heatmaps
 

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import manifestJson from "@/design-system.manifest.json";
+import surfacesJson from "@/design-system.surfaces.json";
 import usageJson from "@/design-system.usage.json";
 import { AnalyticsScreen } from "@/components/analytics/AnalyticsScreen";
 import { BehaviorCreateSection } from "@/components/behaviors/BehaviorCreateSection";
@@ -64,6 +65,42 @@ type Manifest = {
   components: ManifestEntry[];
 };
 
+type SurfaceEntry = {
+  id: string;
+  name: string;
+  status: string;
+  runtime: string;
+  sourceRoots: string[];
+  nativeBench: string | null;
+  inventory: string | null;
+  notes: string;
+};
+
+type SurfaceImplementation = {
+  surfaceId: string;
+  status: string;
+  parity: string;
+  sources: string[];
+  implementationIds: string[];
+  notes: string;
+};
+
+type ComponentFamily = {
+  id: string;
+  name: string;
+  tier: string;
+  definition: string;
+  sharedContract: string[];
+  surfaceImplementations: SurfaceImplementation[];
+};
+
+type SurfaceCatalog = {
+  summary: string;
+  rules: string[];
+  surfaces: SurfaceEntry[];
+  componentFamilies: ComponentFamily[];
+};
+
 type UsageEntry = {
   componentId: string;
   file: string;
@@ -82,7 +119,11 @@ type Usage = {
 };
 
 const manifest = manifestJson as Manifest;
+const surfaceCatalog = surfacesJson as SurfaceCatalog;
 const usage = usageJson as Usage;
+const manifestById = new Map(
+  manifest.components.map((entry) => [entry.id, entry] as const),
+);
 
 const kindOrder = [
   "navigation",
@@ -92,6 +133,16 @@ const kindOrder = [
   "composite",
   "primitive",
   "token",
+];
+
+const familyTierOrder = [
+  "foundation",
+  "primitive",
+  "brand",
+  "navigation",
+  "layout",
+  "pattern",
+  "module",
 ];
 
 async function benchBehaviorAction(
@@ -155,6 +206,8 @@ export default async function DesignSystemPage({
         <BenchHeader />
         <BenchNav />
         <Foundations />
+        <SurfaceModel />
+        <CanonicalInventory />
         <TraceInventory usageByComponent={usageByComponent} previews={previews} />
       </div>
     </main>
@@ -178,10 +231,14 @@ function BenchHeader() {
         </p>
       </div>
 
-      <dl className="grid gap-3 text-sm sm:grid-cols-4">
-        <Metric label="Tracked items" value={manifest.components.length} />
+      <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+        <Metric label="Surfaces" value={surfaceCatalog.surfaces.length} />
+        <Metric
+          label="Canonical families"
+          value={surfaceCatalog.componentFamilies.length}
+        />
+        <Metric label="Tracked web items" value={manifest.components.length} />
         <Metric label="Product usages" value={usage.summary.productUsages} />
-        <Metric label="Bench previews" value={usage.summary.benchPreviews} />
         <Metric label="Theme toggle" value="Not detected" />
       </dl>
     </header>
@@ -215,6 +272,8 @@ function BenchNav() {
     >
       <BenchAnchor href="#ds-foundations">Foundations</BenchAnchor>
       <BenchAnchor href="#ds-primitives">Primitives</BenchAnchor>
+      <BenchAnchor href="#bench-surface-model">Surfaces</BenchAnchor>
+      <BenchAnchor href="#bench-canonical-inventory">Canonical inventory</BenchAnchor>
       <BenchAnchor href="#bench-traces">Trace cards</BenchAnchor>
     </nav>
   );
@@ -488,6 +547,255 @@ function Foundations() {
         </ProductPreview>
       </section>
     </section>
+  );
+}
+
+function SurfaceModel() {
+  return (
+    <section id="bench-surface-model" className="grid gap-4">
+      <SectionHeading
+        eyebrow="Global model"
+        title="Surfaces"
+        description={surfaceCatalog.summary}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {surfaceCatalog.surfaces.map((surface) => (
+          <article
+            key={surface.id}
+            id={`bench-surface-${surface.id}`}
+            className="grid gap-4 border border-neutral-300 bg-white p-4"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="break-words text-xl font-semibold tracking-normal text-neutral-950">
+                  {surface.name}
+                </h3>
+                <p className="mt-1 text-sm text-neutral-600">{surface.runtime}</p>
+              </div>
+              <span className="border border-neutral-300 bg-neutral-50 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-neutral-600">
+                {surface.status}
+              </span>
+            </div>
+
+            <dl className="grid gap-2 text-sm text-neutral-700">
+              <div>
+                <dt className="font-semibold text-neutral-950">Source roots</dt>
+                <dd className="mt-1 flex flex-wrap gap-2">
+                  {surface.sourceRoots.map((root) => (
+                    <code
+                      key={root}
+                      className="border border-neutral-300 bg-neutral-50 px-2 py-1 font-mono text-xs"
+                    >
+                      {root}
+                    </code>
+                  ))}
+                </dd>
+              </div>
+              <SurfaceFact label="Native bench" value={surface.nativeBench ?? "None yet"} />
+              <SurfaceFact label="Inventory" value={surface.inventory ?? "None yet"} />
+            </dl>
+
+            <p className="text-sm leading-6 text-neutral-600">{surface.notes}</p>
+          </article>
+        ))}
+      </div>
+
+      <details className="border border-neutral-300 bg-white">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-neutral-800">
+          Cross-surface rules
+        </summary>
+        <ul className="grid gap-2 border-t border-neutral-300 p-4 text-sm leading-6 text-neutral-700">
+          {surfaceCatalog.rules.map((rule) => (
+            <li key={rule}>{rule}</li>
+          ))}
+        </ul>
+      </details>
+    </section>
+  );
+}
+
+function SurfaceFact({
+  label,
+  value,
+}: Readonly<{
+  label: string;
+  value: string;
+}>) {
+  return (
+    <div>
+      <dt className="font-semibold text-neutral-950">{label}</dt>
+      <dd className="mt-1 break-words text-neutral-700">{value}</dd>
+    </div>
+  );
+}
+
+function CanonicalInventory() {
+  const grouped = groupComponentFamilies(surfaceCatalog.componentFamilies);
+
+  return (
+    <section id="bench-canonical-inventory" className="grid gap-5">
+      <SectionHeading
+        eyebrow="Global inventory"
+        title="Canonical component families"
+        description="These families are runtime-agnostic contracts. The web app can link to live React trace cards; other surfaces can satisfy the same contract with Astro templates, native components, generated token outputs, or planned implementation notes."
+      />
+
+      {grouped.map(([tier, families]) => (
+        <section key={tier} className="grid gap-3">
+          <h3 className="border-b border-neutral-400 pb-2 text-lg font-semibold capitalize tracking-normal text-neutral-950">
+            {tier}
+          </h3>
+          <div className="grid gap-4">
+            {families.map((family) => (
+              <ComponentFamilyCard key={family.id} family={family} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </section>
+  );
+}
+
+function ComponentFamilyCard({
+  family,
+}: Readonly<{
+  family: ComponentFamily;
+}>) {
+  return (
+    <article
+      id={`bench-canonical-${slugifyFamilyId(family.id)}`}
+      data-ds-family-id={family.id}
+      className="grid gap-4 border border-neutral-300 bg-white p-4"
+    >
+      <div className="grid gap-2">
+        <p className="font-mono text-xs text-neutral-500">{family.id}</p>
+        <h4 className="text-xl font-semibold tracking-normal text-neutral-950">
+          {family.name}
+        </h4>
+        <p className="max-w-4xl text-sm leading-6 text-neutral-600">
+          {family.definition}
+        </p>
+      </div>
+
+      <div className="grid gap-2">
+        <h5 className="text-sm font-semibold text-neutral-950">Shared contract</h5>
+        <ul className="grid gap-1 text-sm leading-6 text-neutral-700 sm:grid-cols-2">
+          {family.sharedContract.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="overflow-x-auto border border-neutral-300">
+        <table className="min-w-[760px] border-collapse text-left text-sm">
+          <thead className="bg-neutral-50 text-xs uppercase tracking-wider text-neutral-500">
+            <tr>
+              <th className="border-b border-neutral-300 px-3 py-2 font-semibold">
+                Surface
+              </th>
+              <th className="border-b border-neutral-300 px-3 py-2 font-semibold">
+                State
+              </th>
+              <th className="border-b border-neutral-300 px-3 py-2 font-semibold">
+                Implementation
+              </th>
+              <th className="border-b border-neutral-300 px-3 py-2 font-semibold">
+                Notes
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {surfaceCatalog.surfaces.map((surface) => {
+              const implementation = implementationForSurface(family, surface.id);
+
+              return (
+                <tr key={surface.id} className="align-top">
+                  <th className="border-b border-neutral-200 px-3 py-3 font-semibold text-neutral-950">
+                    <a
+                      href={`#bench-surface-${surface.id}`}
+                      className="underline decoration-neutral-400 underline-offset-4 hover:decoration-neutral-950"
+                    >
+                      {surface.name}
+                    </a>
+                  </th>
+                  <td className="border-b border-neutral-200 px-3 py-3 text-neutral-700">
+                    {implementation ? (
+                      <span>
+                        {implementation.status}
+                        <span className="text-neutral-400"> · </span>
+                        {implementation.parity}
+                      </span>
+                    ) : (
+                      "Unmapped"
+                    )}
+                  </td>
+                  <td className="border-b border-neutral-200 px-3 py-3">
+                    {implementation ? (
+                      <ImplementationSources implementation={implementation} />
+                    ) : (
+                      <span className="text-neutral-500">No mapping yet</span>
+                    )}
+                  </td>
+                  <td className="border-b border-neutral-200 px-3 py-3 leading-6 text-neutral-600">
+                    {implementation?.notes ?? "Add a surface implementation mapping when this surface starts."}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  );
+}
+
+function ImplementationSources({
+  implementation,
+}: Readonly<{
+  implementation: SurfaceImplementation;
+}>) {
+  return (
+    <div className="grid gap-2">
+      {implementation.implementationIds.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {implementation.implementationIds.map((id) => {
+            const entry = manifestById.get(id);
+            const anchor = entry ? anchorFragment(entry.benchAnchor) : null;
+
+            return anchor ? (
+              <a
+                key={id}
+                href={`#${anchor}`}
+                className="border border-neutral-300 bg-neutral-50 px-2 py-1 font-mono text-xs text-neutral-800 underline decoration-neutral-400 underline-offset-4 hover:bg-neutral-200 hover:decoration-neutral-950"
+              >
+                {id}
+              </a>
+            ) : (
+              <code
+                key={id}
+                className="border border-amber-300 bg-amber-50 px-2 py-1 font-mono text-xs text-amber-900"
+              >
+                {id}
+              </code>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {implementation.sources.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {implementation.sources.map((source) => (
+            <code
+              key={source}
+              className="border border-neutral-300 bg-neutral-50 px-2 py-1 font-mono text-xs text-neutral-700"
+            >
+              {source}
+            </code>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -981,13 +1289,40 @@ function groupManifestEntries(entries: ManifestEntry[]) {
   );
 }
 
+function groupComponentFamilies(entries: ComponentFamily[]) {
+  const grouped = new Map<string, ComponentFamily[]>();
+
+  for (const entry of entries) {
+    const existing = grouped.get(entry.tier) ?? [];
+    existing.push(entry);
+    grouped.set(entry.tier, existing);
+  }
+
+  return [...grouped.entries()].sort(
+    ([tierA], [tierB]) => familyTierRank(tierA) - familyTierRank(tierB),
+  );
+}
+
 function kindRank(kind: string) {
   const index = kindOrder.indexOf(kind);
   return index === -1 ? kindOrder.length : index;
 }
 
+function familyTierRank(tier: string) {
+  const index = familyTierOrder.indexOf(tier);
+  return index === -1 ? familyTierOrder.length : index;
+}
+
+function implementationForSurface(family: ComponentFamily, surfaceId: string) {
+  return family.surfaceImplementations.find((item) => item.surfaceId === surfaceId);
+}
+
 function anchorFragment(anchor: string) {
   return anchor.split("#", 2)[1] ?? anchor;
+}
+
+function slugifyFamilyId(id: string) {
+  return id.replaceAll(".", "-");
 }
 
 const categoryOptions: CategoryOption[] = [

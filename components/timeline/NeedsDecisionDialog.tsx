@@ -23,8 +23,6 @@ export function NeedsDecisionDialog({
 }: NeedsDecisionDialogProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogId = useId();
-  const titleId = `${dialogId}-title`;
-  const summaryId = `${dialogId}-summary`;
   const [isOpen, setIsOpen] = useState(false);
   const hasDecisions = occurrenceCount > 0;
 
@@ -100,42 +98,21 @@ export function NeedsDecisionDialog({
             id={dialogId}
             role="dialog"
             aria-modal="true"
-            aria-labelledby={titleId}
-            aria-describedby={summaryId}
-            className="grid h-dvh w-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-background text-foreground sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[min(920px,100%)] sm:border sm:border-line"
+            aria-label={title}
+            className="relative flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[min(920px,100%)] sm:border sm:border-line"
           >
-            <header className="border-b border-line bg-background p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <h2
-                    id={titleId}
-                    className="break-words text-2xl font-bold leading-tight sm:text-3xl"
-                  >
-                    {title}
-                  </h2>
-                  <p
-                    id={summaryId}
-                    className="mt-3 text-sm font-bold text-muted-readable"
-                  >
-                    {occurrenceCount} to decide
-                  </p>
-                </div>
+            <button
+              ref={closeButtonRef}
+              type="button"
+              aria-label="Close Needs decision"
+              title="Close"
+              onClick={() => setIsOpen(false)}
+              className="product-icon-action absolute right-2 top-[max(0.5rem,env(safe-area-inset-top))] z-10 min-h-11 min-w-11 shrink-0 bg-background sm:right-3 sm:top-3 sm:min-h-10 sm:min-w-10"
+            >
+              <X aria-hidden="true" size={18} strokeWidth={2.5} />
+            </button>
 
-                <button
-                  ref={closeButtonRef}
-                  type="button"
-                  aria-label="Close Needs decision"
-                  title="Close"
-                  onClick={() => setIsOpen(false)}
-                  className="product-icon-action min-h-11 min-w-11 shrink-0 sm:min-h-10 sm:min-w-10"
-                >
-                  <X aria-hidden="true" size={18} strokeWidth={2.5} />
-                </button>
-              </div>
-
-            </header>
-
-            <div className="min-h-0 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">
               {children}
             </div>
           </section>

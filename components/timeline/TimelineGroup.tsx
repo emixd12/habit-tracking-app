@@ -31,7 +31,12 @@ export function TimelineGroup({
       className={SECTION_CLASSES[section.kind]}
       aria-labelledby={`${section.key}-title`}
     >
-      <div className="flex flex-col gap-2 border-b border-line pb-3 sm:flex-row sm:items-end sm:justify-between">
+      <div
+        className={[
+          "flex flex-col gap-2 border-b border-line pb-3 sm:flex-row sm:items-end sm:justify-between",
+          isNeedsDecisionDialog ? "pr-12" : "",
+        ].join(" ")}
+      >
         {isNeedsDecisionDialog ? (
           <div>
             <h2

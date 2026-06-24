@@ -150,11 +150,14 @@ The floating button should:
 - On mobile, span the lower safe-area width as one bottom action so it stays easy to reach without covering the feed.
 - Open a modal that reveals all prior unresolved occurrences grouped by local day.
 
-The modal should not repeat a Prior unresolved label in both the dialog header
-and the date group. The dialog title is Needs decision. Each date group should
-show the local date first, then a line with how many unresolved occurrences are
-left to decide for that date. Date groups use the normal white background rather
-than a grey container.
+The open modal should be led by the day feed, not by a global title or global
+count. Keep the close control pinned over the modal's top-right corner without
+reserving a header row; the first date group should start at the top of the
+scroll area. The scroll area should keep equal left and right gutters to the
+outer modal container; only the date header text row may reserve space for the
+overlaid close control. Each date group should show the local date first, then a
+line with how many unresolved occurrences are left to decide for that date. Date
+groups use the normal white background rather than a grey container.
 
 After the user marks a prior unresolved occurrence from the Needs decision
 modal, that row should remain in its original local-day group until the next

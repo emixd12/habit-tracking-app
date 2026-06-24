@@ -164,6 +164,22 @@ Then read `.agents/skills/impeccable/reference/product.md` for app UI guidance. 
 
 `DESIGN.md` is seeded. After real UI exists beyond the scaffold, run the impeccable `document` workflow or otherwise update `DESIGN.md` from actual code rather than from intentions.
 
+The local design-system bench is also the cross-surface catalog surface:
+
+- `design-system.surfaces.json` owns the canonical surface list, component
+  families, shared contracts, and per-surface implementation mappings.
+- `design-system.manifest.json` and `design-system.usage.json` remain the
+  current strict live inventory for the authenticated Next.js web app.
+- `/design-system` renders foundations, global surface/component-family
+  mappings, and fixture-backed web-app trace cards.
+
+When changing reusable UI, tokens, surface contracts, component-family
+inventory, or bench mapping, update the relevant design-system files and run:
+
+```bash
+npm run design-system:check
+```
+
 ## Secrets and local files
 
 - Never commit `.env`, `.env.local`, `.env.*.local`, CLI auth config, service-role keys, API keys, approval codes, or generated secrets.
