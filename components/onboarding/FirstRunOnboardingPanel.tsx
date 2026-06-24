@@ -9,6 +9,7 @@ import {
   Clock3,
   ListChecks,
   Upload,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -85,13 +86,27 @@ export function FirstRunOnboardingPanel({
     return null;
   }
 
+  function dismissSetup() {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, "true");
+    } catch {
+      // Local dismissal is a convenience; the app still works without it.
+    }
+
+    setClientSnapshot((current) =>
+      current ? { ...current, dismissed: true } : current,
+    );
+  }
+
   return (
     <section
+      role="dialog"
       aria-labelledby="first-run-onboarding-title"
-      className="mb-8 border border-line bg-background p-5 pb-28 sm:p-6"
+      aria-modal="false"
+      className="fixed left-4 right-4 top-[max(1rem,env(safe-area-inset-top))] z-30 border border-line bg-background text-foreground sm:left-auto sm:right-6 sm:top-6 sm:w-[min(26rem,calc(100vw-2rem))]"
     >
-      <div className="grid gap-4 border-b border-line pb-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-        <div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-line p-4">
+        <div className="min-w-0">
           <h2
             id="first-run-onboarding-title"
             className="text-xl leading-tight"
@@ -105,24 +120,16 @@ export function FirstRunOnboardingPanel({
         </div>
         <button
           type="button"
-          onClick={() => {
-            try {
-              window.localStorage.setItem(STORAGE_KEY, "true");
-            } catch {
-              // Local dismissal is a convenience; the app still works without it.
-            }
-
-            setClientSnapshot((current) =>
-              current ? { ...current, dismissed: true } : current,
-            );
-          }}
-          className="min-h-11 border border-line bg-background px-4 py-2 text-sm transition-colors hover:bg-surface"
+          aria-label="Dismiss setup"
+          title="Dismiss"
+          onClick={dismissSetup}
+          className="product-icon-action min-h-10 min-w-10 shrink-0"
         >
-          Skip setup
+          <X aria-hidden="true" size={18} strokeWidth={2.5} />
         </button>
       </div>
 
-      <ul className="divide-y divide-line border-b border-line">
+      <ul className="divide-y divide-line px-4">
         {model.items.map((item) => {
           const Icon = itemIcons[item.key];
           const StateIcon = item.complete ? CheckCircle2 : Circle;
@@ -130,10 +137,10 @@ export function FirstRunOnboardingPanel({
           return (
             <li
               key={item.key}
-              className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+              className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
             >
-              <div className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3">
-                <span className="flex h-8 w-8 items-center justify-center border border-line bg-surface">
+              <div className="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)] gap-3">
+                <span className="flex h-6 w-6 items-center justify-center text-muted-readable">
                   <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
                 </span>
                 <div className="min-w-0">
@@ -159,7 +166,7 @@ export function FirstRunOnboardingPanel({
               </div>
               <Link
                 href={item.href}
-                className="inline-flex min-h-11 items-center justify-center border border-line bg-background px-4 py-2 text-sm transition-colors hover:bg-primary hover:text-primary-foreground"
+                className="product-action product-action-primary min-h-10 justify-self-start py-2 text-sm sm:justify-self-end"
               >
                 {item.actionLabel}
               </Link>
@@ -167,6 +174,16 @@ export function FirstRunOnboardingPanel({
           );
         })}
       </ul>
+
+      <div className="border-t border-line px-4 py-3">
+        <button
+          type="button"
+          onClick={dismissSetup}
+          className="product-action product-action-secondary min-h-10 py-2 text-sm"
+        >
+          Skip setup
+        </button>
+      </div>
     </section>
   );
 }

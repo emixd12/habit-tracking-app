@@ -60,7 +60,7 @@ export function BehaviorLogImportPanel({
   return (
     <section
       id="behaviorlog-import"
-      className="scroll-mt-20 border border-line bg-background p-5 sm:p-6"
+      className="scroll-mt-20 border-y border-line bg-background py-5 sm:py-6"
       aria-labelledby="behaviorlog-import-title"
     >
       <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">
@@ -92,14 +92,14 @@ export function BehaviorLogImportPanel({
             type="file"
             name="behaviorlog_file"
             accept=".behaviorlog.zip,application/zip"
-            className="min-h-11 w-full border border-line bg-background px-3 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-bold file:text-primary-foreground"
+            className="min-h-11 w-full border border-line bg-background px-3 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-transparent file:px-0 file:py-1 file:text-sm file:font-bold file:text-foreground file:underline file:decoration-1 file:underline-offset-4"
           />
         </label>
         <div>
           <button
             type="submit"
             disabled={isPending}
-            className="inline-flex min-h-11 items-center justify-center gap-2 border border-line bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:bg-surface disabled:text-muted-readable"
+            className="product-action product-action-primary min-h-11 gap-2 py-2 text-sm font-bold"
           >
             <Upload aria-hidden="true" size={18} strokeWidth={2} />
             Preview import
@@ -427,7 +427,7 @@ function ApplyForm({
   state: BehaviorLogImportActionState;
 }>) {
   return (
-    <form action={formAction} className="grid gap-4 border border-line p-4">
+    <form action={formAction} className="grid gap-4 border-t border-line pt-4">
       <input type="hidden" name="intent" value="apply" />
       <input type="hidden" name="import_mode" value={mode} />
       <input type="hidden" name="bundle_payload" value={state.bundlePayload ?? ""} />
@@ -476,7 +476,7 @@ function ApplyForm({
       <button
         type="submit"
         disabled={disabled}
-        className="inline-flex min-h-11 w-fit items-center justify-center gap-2 border border-line bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:bg-surface disabled:text-muted-readable"
+        className="product-action product-action-primary min-h-11 w-fit gap-2 py-2 text-sm font-bold"
       >
         <GitMerge aria-hidden="true" size={18} strokeWidth={2} />
         {buttonLabel}
@@ -495,8 +495,8 @@ function ImportMessage({
 
   return (
     <div
-      className={`mt-5 flex items-start gap-3 border border-line p-4 text-sm font-bold ${
-        isError ? "bg-surface text-accent" : "bg-surface text-foreground"
+      className={`mt-5 flex items-start gap-3 border-t border-line pt-4 text-sm font-bold ${
+        isError ? "text-accent" : "text-foreground"
       }`}
       role={isError ? "alert" : "status"}
     >
@@ -512,7 +512,7 @@ function ApplyResult({
   result: NonNullable<BehaviorLogImportActionState["applyResult"]>;
 }>) {
   return (
-    <section className="mt-5 border border-line bg-surface p-4">
+    <section className="mt-5 border-t border-line pt-4">
       <div className="flex items-center gap-2">
         <CheckCircle2 aria-hidden="true" size={18} strokeWidth={2} />
         <h3 className="text-lg font-bold leading-tight">Applied</h3>
@@ -572,7 +572,7 @@ function ImportRunHistory({
           ))}
         </ul>
       ) : (
-        <p className="mt-4 border border-line bg-surface p-4 text-sm font-bold text-muted-readable">
+        <p className="mt-4 border-t border-line pt-4 text-sm font-bold text-muted-readable">
           No import runs yet.
         </p>
       )}
@@ -633,7 +633,7 @@ function InterventionStorageList({
 }>) {
   if (interventions.length === 0) {
     return (
-      <p className="mt-4 border border-line bg-surface p-4 text-sm font-bold text-muted-readable">
+      <p className="mt-4 border-t border-line pt-4 text-sm font-bold text-muted-readable">
         No intervention history rows.
       </p>
     );
@@ -714,7 +714,7 @@ function IssueList({
           ))}
         </ul>
       ) : (
-        <p className="mt-4 border border-line bg-surface p-4 text-sm font-bold text-muted-readable">
+        <p className="mt-4 border-t border-line pt-4 text-sm font-bold text-muted-readable">
           None
         </p>
       )}
@@ -755,7 +755,7 @@ function ConflictList({
           ))}
         </ul>
       ) : (
-        <p className="mt-4 border border-line bg-surface p-4 text-sm font-bold text-muted-readable">
+        <p className="mt-4 border-t border-line pt-4 text-sm font-bold text-muted-readable">
           None
         </p>
       )}

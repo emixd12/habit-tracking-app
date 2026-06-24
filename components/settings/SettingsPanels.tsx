@@ -17,7 +17,7 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   return (
     <section
-      className={["border border-line bg-background p-5 sm:p-6", className]
+      className={["border-y border-line bg-background py-5 sm:py-6", className]
         .filter(Boolean)
         .join(" ")}
     >
@@ -46,7 +46,7 @@ export function TrustAndLegalPanel() {
             <li key={key}>
               <a
                 href={`/${key}`}
-                className="grid gap-1 px-0 py-3 transition-colors hover:bg-surface sm:grid-cols-[10rem_minmax(0,1fr)]"
+                className="grid gap-1 px-0 py-3 transition-colors hover:text-foreground sm:grid-cols-[10rem_minmax(0,1fr)]"
               >
                 <span className="text-foreground">{page.title}</span>
                 <span className="text-muted-readable">{page.summary}</span>

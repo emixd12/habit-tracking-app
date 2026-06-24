@@ -90,7 +90,7 @@ function BehaviorSection({
       {hasChildren ? (
         <div className="grid divide-y divide-line">{children}</div>
       ) : (
-        <p className="border border-line bg-surface p-5 text-base leading-7 text-muted-readable">
+        <p className="border-t border-line pt-4 text-base leading-7 text-muted-readable">
           {emptyMessage}
         </p>
       )}
@@ -140,7 +140,7 @@ function BehaviorCard({
             action={archiveAction}
             buttonLabel="Archive"
             pendingLabel="Archiving..."
-            hoverClassName="hover:bg-accent hover:text-background"
+            variant="danger"
           />
         ) : (
           <BehaviorStateForm
@@ -148,7 +148,7 @@ function BehaviorCard({
             action={restoreAction}
             buttonLabel="Restore"
             pendingLabel="Restoring..."
-            hoverClassName="hover:bg-primary hover:text-primary-foreground"
+            variant="primary"
           />
         )}
       </div>
@@ -169,7 +169,7 @@ function BehaviorCard({
           }
         }}
       >
-        <summary className="cursor-pointer px-5 py-4 text-sm font-bold marker:text-muted-readable hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <summary className="cursor-pointer px-5 py-4 text-sm font-bold text-foreground underline decoration-1 underline-offset-4 marker:text-muted-readable focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           Edit behavior
         </summary>
         {hasOpenedEdit ? (
@@ -208,13 +208,13 @@ function BehaviorStateForm({
   action,
   buttonLabel,
   pendingLabel,
-  hoverClassName,
+  variant,
 }: Readonly<{
   behaviorId: string;
   action: BehaviorFormAction;
   buttonLabel: string;
   pendingLabel: string;
-  hoverClassName: string;
+  variant: "primary" | "danger";
 }>) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
 
@@ -224,10 +224,10 @@ function BehaviorStateForm({
       <BehaviorStateButton
         label={buttonLabel}
         pendingLabel={pendingLabel}
-        hoverClassName={hoverClassName}
+        variant={variant}
       />
       {state.status === "error" && state.message ? (
-        <p className="max-w-48 border border-line px-3 py-2 text-sm leading-6 text-accent">
+        <p className="max-w-48 border-t border-line pt-2 text-sm leading-6 text-accent">
           {state.message}
         </p>
       ) : null}
@@ -238,11 +238,11 @@ function BehaviorStateForm({
 function BehaviorStateButton({
   label,
   pendingLabel,
-  hoverClassName,
+  variant,
 }: Readonly<{
   label: string;
   pendingLabel: string;
-  hoverClassName: string;
+  variant: "primary" | "danger";
 }>) {
   const { pending } = useFormStatus();
 
@@ -251,8 +251,10 @@ function BehaviorStateButton({
       type="submit"
       disabled={pending}
       className={[
-        "min-h-11 border border-line bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors disabled:bg-surface disabled:text-muted-readable",
-        hoverClassName,
+        "product-action min-h-11 py-2 text-sm font-bold",
+        variant === "danger"
+          ? "product-action-danger"
+          : "product-action-primary",
       ].join(" ")}
     >
       {pending ? pendingLabel : label}

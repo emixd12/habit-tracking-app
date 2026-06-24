@@ -59,7 +59,7 @@ export function BehaviorLogRestorePanel({
   return (
     <section
       id="behaviorlog-restore"
-      className="scroll-mt-20 border border-line bg-background p-5 sm:p-6"
+      className="scroll-mt-20 border-y border-line bg-background py-5 sm:py-6"
       aria-labelledby="behaviorlog-restore-title"
     >
       <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">
@@ -91,14 +91,14 @@ export function BehaviorLogRestorePanel({
             type="file"
             name="restore_behaviorlog_file"
             accept=".behaviorlog.zip,application/zip"
-            className="min-h-11 w-full border border-line bg-background px-3 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-bold file:text-primary-foreground"
+            className="min-h-11 w-full border border-line bg-background px-3 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-transparent file:px-0 file:py-1 file:text-sm file:font-bold file:text-foreground file:underline file:decoration-1 file:underline-offset-4"
           />
         </label>
         <div>
           <button
             type="submit"
             disabled={isPending}
-            className="inline-flex min-h-11 items-center justify-center gap-2 border border-line bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:bg-surface disabled:text-muted-readable"
+            className="product-action product-action-primary min-h-11 gap-2 py-2 text-sm font-bold"
           >
             <Upload aria-hidden="true" size={18} strokeWidth={2} />
             Preview restore
@@ -146,7 +146,7 @@ export function BehaviorLogRestorePreviewDetails({
         </dl>
         <div
           data-testid="restore-destructive-count"
-          className="mt-4 flex items-start gap-3 border border-line bg-surface p-4 text-sm font-bold"
+          className="mt-4 flex items-start gap-3 border-t border-line pt-4 text-sm font-bold"
         >
           <FileWarning aria-hidden="true" size={18} strokeWidth={2} />
           <p>{preview.summary.destructiveActionCount} destructive action(s).</p>
@@ -198,7 +198,7 @@ export function BehaviorLogRestorePreviewDetails({
             Status history
           </h3>
         </div>
-        <p className="mt-4 border border-line bg-surface p-4 text-sm font-bold text-muted-readable">
+        <p className="mt-4 border-t border-line pt-4 text-sm font-bold text-muted-readable">
           {preview.statusHistoryPolicy.selected}. Apply support in this ticket:{" "}
           {preview.statusHistoryPolicy.applySupportedInThisTicket ? "Yes" : "No"}
         </p>
@@ -281,13 +281,13 @@ function RestoreApplyControls({
       {preview && preview.summary.unsupportedActionCount > 0 ? (
         <p
           data-testid="restore-stale-preview-message"
-          className="mt-3 border border-line bg-surface p-4 text-sm font-bold text-accent"
+          className="mt-3 border-t border-line pt-4 text-sm font-bold text-accent"
           role="alert"
         >
           Resolve skipped or unsupported actions before applying restore.
         </p>
       ) : null}
-      <form action={formAction} className="mt-4 grid gap-4 border border-line p-4">
+      <form action={formAction} className="mt-4 grid gap-4 border-t border-line pt-4">
         <input type="hidden" name="intent" value="restore_apply" />
         <input type="hidden" name="bundle_payload" value={state.bundlePayload ?? ""} />
         <input type="hidden" name="restore_preview_run_id" value={state.previewRun?.id ?? ""} />
@@ -334,7 +334,7 @@ function RestoreApplyControls({
           data-testid="restore-apply-button"
           type="submit"
           disabled={disabled}
-          className="inline-flex min-h-11 w-fit items-center justify-center gap-2 border border-line bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:bg-surface disabled:text-muted-readable"
+          className="product-action product-action-primary min-h-11 w-fit gap-2 py-2 text-sm font-bold"
         >
           <RotateCcw aria-hidden="true" size={18} strokeWidth={2} />
           Apply restore
@@ -354,8 +354,8 @@ function RestoreMessage({
 
   return (
     <div
-      className={`mt-5 flex items-start gap-3 border border-line p-4 text-sm font-bold ${
-        isError ? "bg-surface text-accent" : "bg-surface text-foreground"
+      className={`mt-5 flex items-start gap-3 border-t border-line pt-4 text-sm font-bold ${
+        isError ? "text-accent" : "text-foreground"
       }`}
       role={isError ? "alert" : "status"}
     >
@@ -377,7 +377,7 @@ function RestoreApplyResult({
   }
 
   return (
-    <section className="mt-5 border border-line bg-surface p-4">
+    <section className="mt-5 border-t border-line pt-4">
       <div className="flex items-center gap-2">
         <CheckCircle2 aria-hidden="true" size={18} strokeWidth={2} />
         <h3 className="text-lg font-bold leading-tight">Restore applied</h3>
@@ -426,7 +426,7 @@ function RestoreRunHistory({
           ))}
         </ul>
       ) : (
-        <p className="mt-4 border border-line bg-surface p-4 text-sm font-bold text-muted-readable">
+        <p className="mt-4 border-t border-line pt-4 text-sm font-bold text-muted-readable">
           No restore runs yet.
         </p>
       )}

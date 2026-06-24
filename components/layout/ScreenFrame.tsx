@@ -32,7 +32,7 @@ export function PlaceholderPanel({
   children: React.ReactNode;
 }>) {
   return (
-    <section className="border border-line bg-background p-5 sm:p-6">
+    <section className="border-y border-line bg-background py-5 sm:py-6">
       <h2 className="text-xl font-bold leading-tight">{title}</h2>
       <div className="mt-4 text-base leading-7 text-muted-readable">
         {children}

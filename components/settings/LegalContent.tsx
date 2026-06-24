@@ -152,8 +152,10 @@ export function LegalPageContent({
               href={`/${key}`}
               aria-current={key === pageKey ? "page" : undefined}
               className={[
-                "border border-line px-3 py-2 transition-colors hover:bg-surface",
-                key === pageKey ? "bg-timeline-row-hover" : "bg-background",
+                "product-action py-2 text-sm",
+                key === pageKey
+                  ? "product-action-primary"
+                  : "product-action-secondary",
               ].join(" ")}
             >
               {item.title}
@@ -199,13 +201,13 @@ export function LegalPageContent({
       <footer className="flex flex-wrap gap-3 text-sm leading-6">
         <a
           href="/login"
-          className="border border-line bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-foreground"
+          className="product-action product-action-primary py-2"
         >
           Sign in
         </a>
         <a
           href="/settings"
-          className="border border-line bg-background px-4 py-2 transition-colors hover:bg-surface"
+          className="product-action product-action-secondary py-2"
         >
           Open settings
         </a>

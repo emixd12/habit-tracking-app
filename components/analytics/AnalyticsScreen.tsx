@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
 import { StatusButtons } from "@/components/timeline/StatusButtons";
@@ -357,7 +357,7 @@ function BehaviorDayReview({
 }>) {
   return (
     <div
-      className="mt-5 border-t border-line pt-4"
+      className="mt-5 grid gap-4 bg-surface px-4 py-4 sm:px-5"
       aria-labelledby={`selected-behavior-day-${selectedBehaviorDay.behaviorId}`}
     >
       <div>
@@ -365,59 +365,44 @@ function BehaviorDayReview({
           id={`selected-behavior-day-${selectedBehaviorDay.behaviorId}`}
           className="text-lg font-bold leading-tight"
         >
-          Review day
+          Behavior date
         </h4>
         <p className="mt-1 text-sm font-bold text-muted-readable">
           {selectedBehaviorDay.label} · {selectedBehaviorDay.localDate}
         </p>
       </div>
 
-      <div className="mt-3 divide-y divide-line border-t border-line">
+      <div className="grid gap-5">
         {selectedBehaviorDay.occurrences.map((occurrence) => (
           <article
             key={occurrence.id}
-            className="grid gap-3 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:items-start"
+            className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start"
           >
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <time
-                  dateTime={occurrence.scheduledFor}
-                  className="border border-line bg-surface px-2 py-1 text-sm font-bold text-muted-readable"
-                >
-                  {occurrence.scheduledTimeLabel}
-                </time>
-                <span
-                  className={[
-                    "border px-2 py-1 text-xs font-bold",
-                    statusLabelClassName(occurrence.status),
-                  ].join(" ")}
-                >
-                  {occurrence.statusLabel}
-                </span>
-              </div>
-              <p className="mt-2 text-sm font-bold text-muted-readable">
-                {occurrence.noteStateLabel}
-              </p>
-            </div>
+            <BehaviorDayOccurrenceSummary occurrence={occurrence} />
 
-            <div className="grid gap-4 text-sm leading-6 text-muted-readable">
-              <div className="grid gap-2">
-                <h5 className="font-bold text-foreground">Change status</h5>
-                <StatusButtons
+            <details className="min-w-0 [&[open]]:w-full lg:justify-self-end lg:[&[open]]:w-[32rem] lg:[&[open]]:max-w-full">
+              <summary className="timeline-status-action product-action product-action-primary min-h-11 cursor-pointer list-none py-1 text-sm font-bold sm:min-h-8 [&::-webkit-details-marker]:hidden">
+                Review
+              </summary>
+              <div className="mt-3 grid gap-4 text-sm leading-6 text-muted-readable">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <h5 className="font-bold text-foreground">Change status</h5>
+                  <StatusButtons
+                    occurrenceId={occurrence.id}
+                    currentStatus={occurrence.status}
+                    action={statusAction}
+                    compact
+                  />
+                </div>
+
+                <OccurrenceNoteForm
+                  key={`${occurrence.id}-${occurrence.note}`}
                   occurrenceId={occurrence.id}
-                  currentStatus={occurrence.status}
-                  action={statusAction}
-                  compact
+                  note={occurrence.note}
+                  action={noteAction}
                 />
               </div>
-
-              <OccurrenceNoteForm
-                key={`${occurrence.id}-${occurrence.note}`}
-                occurrenceId={occurrence.id}
-                note={occurrence.note}
-                action={noteAction}
-              />
-            </div>
+            </details>
           </article>
         ))}
       </div>
@@ -425,10 +410,55 @@ function BehaviorDayReview({
   );
 }
 
+function BehaviorDayOccurrenceSummary({
+  occurrence,
+}: Readonly<{
+  occurrence: NonNullable<
+    AnalyticsView["selectedBehaviorDay"]
+  >["occurrences"][number];
+}>) {
+  const note = occurrence.note.trim();
+
+  return (
+    <dl className="grid min-w-0 gap-1 text-sm leading-6">
+      <BehaviorDayOccurrenceDetail label="Time of behavior">
+        <time dateTime={occurrence.scheduledFor}>
+          {occurrence.scheduledTimeLabel}
+        </time>
+      </BehaviorDayOccurrenceDetail>
+      <BehaviorDayOccurrenceDetail label="Status">
+        {occurrence.statusLabel}
+      </BehaviorDayOccurrenceDetail>
+      <BehaviorDayOccurrenceDetail label="Note">
+        {note.length > 0 ? (
+          <span className="break-words text-foreground">{note}</span>
+        ) : (
+          <span className="italic text-muted-readable">No note</span>
+        )}
+      </BehaviorDayOccurrenceDetail>
+    </dl>
+  );
+}
+
+function BehaviorDayOccurrenceDetail({
+  label,
+  children,
+}: Readonly<{
+  label: string;
+  children: ReactNode;
+}>) {
+  return (
+    <div className="grid gap-x-4 gap-y-1 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
+      <dt className="font-bold text-foreground">{label}</dt>
+      <dd className="min-w-0 text-foreground">{children}</dd>
+    </div>
+  );
+}
+
 function LegendDisclosure() {
   return (
     <details className="w-full sm:w-auto">
-      <summary className="inline-flex min-h-9 cursor-pointer list-none items-center border border-line bg-background px-3 py-2 text-sm font-bold transition-colors hover:bg-surface [&::-webkit-details-marker]:hidden">
+      <summary className="product-action product-action-secondary min-h-9 cursor-pointer list-none py-2 text-sm font-bold [&::-webkit-details-marker]:hidden">
         See Legend
       </summary>
       <div className="mt-3">
@@ -559,17 +589,6 @@ function DiagonalMark({
       ].join(" ")}
     />
   );
-}
-
-function statusLabelClassName(status: string): string {
-  switch (status) {
-    case "completed":
-      return "border-line bg-primary text-primary-foreground";
-    case "not_completed":
-      return "border-line bg-accent text-primary-foreground";
-    default:
-      return "border-line bg-surface text-muted-readable";
-  }
 }
 
 function analyticsHref({

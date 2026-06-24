@@ -65,6 +65,9 @@ describe("resolveTimeline", () => {
     expect(timeline.needsDecision.occurrenceCount).toBe(1);
     expect(timeline.needsDecision.daySections).toHaveLength(1);
     expect(timeline.needsDecision.daySections[0]?.localDate).toBe("2026-06-06");
+    expect(
+      timeline.needsDecision.daySections[0]?.unresolvedOccurrenceCount,
+    ).toBe(1);
     expect(timeline.needsDecision.daySections[0]?.occurrences[0]).toMatchObject({
       id: "prior-unresolved",
       visualTone: "needs_decision",
@@ -111,6 +114,11 @@ describe("resolveTimeline", () => {
     expect(timeline.needsDecision.occurrenceCount).toBe(1);
     expect(timeline.needsDecision.daySections).toHaveLength(2);
     expect(
+      timeline.needsDecision.daySections.map(
+        (section) => section.unresolvedOccurrenceCount,
+      ),
+    ).toEqual([1, 0]);
+    expect(
       timeline.needsDecision.daySections.flatMap((section) =>
         section.occurrences.map((item) => ({
           id: item.id,
@@ -143,8 +151,8 @@ describe("resolveTimeline", () => {
         localDate: "2026-06-05",
         visualTone: "not_completed",
         isVisibleInNeedsDecision: true,
-        showDecisionActions: true,
-        showCollapsedStatusLabel: false,
+        showDecisionActions: false,
+        showCollapsedStatusLabel: true,
       },
     ]);
   });
@@ -313,8 +321,8 @@ describe("resolveTimeline", () => {
         statusLabel: "Not Completed",
         statusDetail: "Resolved as Not Completed",
         visualTone: "not_completed",
-        showDecisionActions: true,
-        showCollapsedStatusLabel: false,
+        showDecisionActions: false,
+        showCollapsedStatusLabel: true,
       },
     ]);
   });

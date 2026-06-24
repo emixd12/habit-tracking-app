@@ -25,7 +25,7 @@ export function AccountDeletionPanel({
   );
 
   return (
-    <section className="border border-line bg-background p-5 sm:p-6 md:col-span-2">
+    <section className="border-y border-line bg-background py-5 sm:py-6 md:col-span-2">
       <h2 className="text-xl leading-tight">Delete account</h2>
       <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
         <div className="grid max-w-2xl gap-3 text-sm leading-6 text-muted-readable">
@@ -40,14 +40,14 @@ export function AccountDeletionPanel({
           <p>
             <a
               href="/export"
-              className="underline decoration-current underline-offset-4"
+              className="product-action product-action-primary"
             >
               Open Export
             </a>
           </p>
         </div>
 
-        <form action={formAction} className="grid gap-3 border border-line bg-surface p-4">
+        <form action={formAction} className="grid gap-3 border-t border-line pt-4">
           <label className="flex items-start gap-3 text-sm leading-6 text-foreground">
             <input
               type="checkbox"
@@ -75,13 +75,13 @@ export function AccountDeletionPanel({
           <button
             type="submit"
             disabled={isPending}
-            className="min-h-11 border border-line bg-accent px-4 py-2 text-sm text-primary-foreground transition-colors hover:bg-foreground disabled:bg-background disabled:text-muted-readable"
+            className="product-action product-action-danger min-h-11 w-fit py-2 text-sm"
           >
             {isPending ? "Deleting..." : "Delete account"}
           </button>
 
           {state.message ? (
-            <p className="border border-line bg-background px-3 py-2 text-sm leading-6 text-accent">
+            <p className="border-t border-line pt-3 text-sm leading-6 text-accent">
               {state.message}
             </p>
           ) : null}

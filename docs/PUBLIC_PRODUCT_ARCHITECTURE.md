@@ -133,7 +133,7 @@ Launch auth:
 - The default route after login remains `/timeline`.
 - Public users can create accounts immediately when public launch begins.
 
-Simple onboarding is implemented for public launch as a thin, optional prompt
+Simple onboarding is implemented for public launch as a thin, optional pop-up
 that links into existing app controls:
 
 1. Create first behavior.

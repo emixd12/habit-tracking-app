@@ -120,9 +120,11 @@ The UI labels `completed` as Completed and `not_completed` as Not Completed.
 Submitted occurrence decisions can be corrected later. The immediate correction
 path is the Needs decision modal: rows decided from that modal may remain
 visible in their original prior-day group through the current local day, with
-the same Timeline row cues and correction controls. After that local-day window,
-later corrections should be deliberate and behavior-specific, using Analytics
-behavior day review rather than turning Timeline into a past-history browser.
+the same Timeline row cues. Completed and Not Completed retained rows use
+resolved-row labels, with correction available from the expanded row. After
+that local-day window, later corrections should be deliberate and
+behavior-specific, using Analytics behavior day review rather than turning
+Timeline into a past-history browser.
 
 ## Day boundary
 
@@ -156,9 +158,9 @@ Public launch includes a minimal first-run setup prompt after first login:
 - import data when import exists
 - point to Settings timezone confirmation when useful
 
-The setup prompt is optional, can be dismissed locally, and routes into the
-existing Behaviors, Settings, and Export controls instead of creating a separate
-wizard.
+The setup prompt is optional, appears as a non-modal pop-up, can be dismissed
+locally, and routes into the existing Behaviors, Settings, and Export controls
+instead of creating a separate wizard.
 
 Preset time ranges:
 - Morning: 6:00 AM-Noon

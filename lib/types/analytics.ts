@@ -97,7 +97,6 @@ export type AnalyticsSelectedDayOccurrence = {
   scheduledTimeLabel: string;
   status: AnalyticsStatus;
   statusLabel: string;
-  noteStateLabel: string;
   note: string;
 };
 

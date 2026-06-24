@@ -106,13 +106,13 @@ This is the main screen.
 The current day should be prominent and should begin the forward timeline.
 
 Do not show a visible Timeline page title or explanatory helper text above the
-feed. The first visible content should be the current-day section except for
-the optional first-run setup prompt while required launch setup items remain
-incomplete.
+feed. The first visible feed content should be the current-day section; optional
+first-run setup appears as a dismissible pop-up so it does not push the feed
+down while required launch setup items remain incomplete.
 
 ### First-run setup
 
-The first-run prompt is a flat bordered panel shown on Timeline only while
+The first-run prompt is a fixed, non-modal pop-up shown on Timeline only while
 required setup items remain incomplete and the user has not dismissed it in the
 current browser. It should:
 
@@ -120,10 +120,11 @@ current browser. It should:
   controls.
 - Treat import as optional.
 - Never request notification permission on page load.
-- Use square list rows, quiet borders, and factual state labels such as Done,
+- Use compact list rows, quiet dividers, and factual state labels such as Done,
   Not enabled, Blocked, Confirmed, Review, and Optional.
 - Provide a Skip setup control.
-- Avoid motivational copy, progress gamification, or a modal/wizard.
+- Avoid motivational copy, progress gamification, an inline takeover, or a
+  wizard.
 
 Users should not browse previous days as normal timeline sections. Prior
 unresolved occurrences appear only in the Needs decision modal, with one narrow
@@ -143,20 +144,26 @@ Needs decision should not interrupt the forward Timeline flow. It is opened from
 
 The floating button should:
 - Show the number of prior unresolved occurrences.
-- Use the primary action treatment when there is at least one occurrence to decide.
+- Use the reserved fixed-action treatment when there is at least one occurrence to decide.
 - Remain factual and non-punitive. Do not use error styling or missed/failure language.
 - Use one continuous surface without an internal divider between the number and text.
 - On mobile, span the lower safe-area width as one bottom action so it stays easy to reach without covering the feed.
 - Open a modal that reveals all prior unresolved occurrences grouped by local day.
+
+The modal should not repeat a Prior unresolved label in both the dialog header
+and the date group. The dialog title is Needs decision. Each date group should
+show the local date first, then a line with how many unresolved occurrences are
+left to decide for that date. Date groups use the normal white background rather
+than a grey container.
 
 After the user marks a prior unresolved occurrence from the Needs decision
 modal, that row should remain in its original local-day group until the next
 local midnight in the user's timezone. Do not move it into a separate "Decided
 just now" or similar section. Completed rows keep the same full blue Completed
 state used on Timeline rows; expanding the row exposes Change status and Note
-editing. Not Completed rows keep the same Timeline Not Completed behavior and
-continue exposing Completed and Not Completed actions with the red accent
-treatment. The Needs decision count
+editing. Not Completed rows keep the same resolved-row behavior as Completed
+rows: full red accent treatment, a collapsed Not Completed label, and status
+correction from the expanded row. The Needs decision count
 continues to count unresolved prior-day occurrences only, not retained decided
 rows. When there are no unresolved rows but retained decided rows still exist,
 the button may still open the modal with a zero count. Retention must be
@@ -190,8 +197,8 @@ For multi-time behavior groups:
 - Completed rows use the existing full blue completed treatment.
 - Unresolved rows use the existing unresolved treatment and show Completed and
   Not Completed text-link status actions.
-- Not Completed rows use the red accent treatment and show Completed and Not
-  Completed text-link status actions so the logged decision remains correctable.
+- Not Completed rows use the red accent treatment, show the collapsed Not
+  Completed label, and hide primary status actions just like Completed rows.
 - Do not show a "1 of 2 completed" label.
 - Do not add a partial-completion stored status.
 - Partial completion is only a derived visual result of mixed row states within
@@ -228,8 +235,8 @@ Do not show previous days except for unresolved prior-day items inside the Needs
 Collapsed card should show:
 - Scheduled time
 - Behavior title
-- Current status when Completed
-- Completed and Not Completed text-link status actions when unresolved or Not Completed
+- Current status when Completed or Not Completed
+- Completed and Not Completed text-link status actions when unresolved
 
 Preset time-range occurrences should use the short preset label in collapsed
 Timeline rows, such as Morning or Evening, without the full clock range.
@@ -239,15 +246,14 @@ Status text-link actions should be underlined by default with the same thin unde
 Occurrence rows should read as compact unboxed list rows. Do not draw a perimeter border around each Timeline behavior row.
 
 In collapsed rows, the scheduled time, behavior title, and collapsed status/action text should be vertically centered within the row. Expanded rows may pin the status controls to the top-right so the details panel can span the row below.
-On mobile, keep scheduled time and behavior title first, then place Completed and Not Completed on their own full-width touch row before expanded details. Mobile status and note actions should have at least a 44px tap target while still looking like underlined text actions. Do not add a chevron or separate disclosure icon.
+On mobile, keep scheduled time and behavior title first, then place Completed and Not Completed on their own full-width touch row for unresolved rows before expanded details. Mobile status and note actions should have at least a 44px tap target while still looking like underlined text actions. Do not add a chevron or separate disclosure icon.
 
 Expanded card details should show:
 - Description if present
 - Category
 - Behavior schedule
 - Note field
-- Option to change a Completed status. Not Completed rows keep their status
-  controls visible in the collapsed row.
+- Option to change a Completed or Not Completed status.
 
 Categories should only be visible in the expanded card details.
 
@@ -255,9 +261,15 @@ Unresolved prior-day cards in the Needs decision modal should be visually highli
 
 Completed cards should remain visible with a distinct resolved state, hide the primary status actions, and clearly indicate Completed.
 
-Not Completed cards should remain visible with the red accent treatment and expose the same Completed and Not Completed text-link status actions as the original decision card so the user can immediately approve or change the logged action. This is a factual recorded-state cue only; the stored status remains on that occurrence instance as `not_completed`, and the UI must not call it missed or failed.
+Not Completed cards should remain visible with the red accent treatment and a
+collapsed Not Completed label. They should match Completed row structure except
+for color and label; status correction remains available after expanding the
+row. This is a factual recorded-state cue only; the stored status remains on
+that occurrence instance as `not_completed`, and the UI must not call it missed
+or failed.
 
-Clicking a Completed card should reveal the option to change the logged action. Do not require a confirmation step before changing a status.
+Clicking a Completed or Not Completed card should reveal the option to change
+the logged action. Do not require a confirmation step before changing a status.
 
 Notes, category, description, and schedule details are hidden by default and revealed when the user clicks the card outside the status actions.
 Expanded details should sit directly on the background surface without a grey
@@ -373,7 +385,8 @@ Each behavior card/list item should include:
 
 Behavior records should not draw a perimeter border. Separate adjacent
 behaviors with a single quiet divider line, and keep borders only on real
-fields, controls, status labels, and action buttons.
+fields, controls, and status labels. Archive and Restore use underlined
+text-action styling rather than bordered button chrome.
 When a behavior has saved description text, show it as a small Notes block with
 a visible label and no divider lines immediately above or below that block.
 
@@ -408,14 +421,19 @@ should stay hidden behind a simple See Legend disclosure by default.
 
 The overall calendar is a passive adherence summary, not the correction entry
 point. Later corrections start from a behavior row: selecting a non-empty
-behavior calendar cell opens a compact Review day area inside that behavior
+behavior calendar cell opens a compact Behavior date area inside that behavior
 row. The behavior-day review should list only that behavior's occurrences for
 the selected local date when rows exist, including Completed, Not Completed,
-and Unresolved rows, and should allow the same individual status and note
-corrections as the Timeline occurrence row pattern. Do not add bulk edit,
-all-time search, automatic suggestions, AI coaching, or gamified language. Do
-not render an empty review panel when the selected behavior day has no
-occurrences.
+and Unresolved rows. It should use plain text labels for Time of behavior,
+Status, and Note rather than chips, and empty notes should read as italic No
+note. Correction controls stay hidden behind a per-occurrence Review disclosure
+until the user chooses to review that occurrence. Inside the disclosure, Change
+status and the Completed / Not Completed actions should sit on one row when
+space allows, followed by the inline Note form. Do not use internal divider
+lines that visually compete with the behavior-row separators. Do not add bulk
+edit, all-time search, automatic suggestions, AI coaching, or gamified
+language. Do not render an empty review panel when the selected behavior day
+has no occurrences.
 
 Default adherence excludes unresolved occurrences. The top summary Unresolved
 count matches the Timeline Needs decision count: active unresolved occurrences

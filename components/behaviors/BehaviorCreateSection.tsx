@@ -43,7 +43,7 @@ export function BehaviorCreateSection({
           }
         }}
       >
-        <summary className="cursor-pointer py-4 text-xl font-bold leading-tight marker:text-muted-readable hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <summary className="cursor-pointer py-4 text-xl font-bold leading-tight text-foreground underline decoration-1 underline-offset-4 marker:text-muted-readable focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           Create behavior
         </summary>
         <div className="border-t border-line py-5">
@@ -59,7 +59,7 @@ export function BehaviorCreateSection({
 
       {successMessage ? (
         <p
-          className="mb-4 border border-line px-3 py-2 text-sm leading-6 text-foreground"
+          className="mb-4 border-t border-line pt-3 text-sm leading-6 text-foreground"
           role="status"
         >
           {successMessage}

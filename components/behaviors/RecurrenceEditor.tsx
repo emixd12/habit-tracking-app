@@ -133,7 +133,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
       ) : null}
 
       {error ? (
-        <p className="border border-line p-3 text-sm leading-6 text-accent">
+        <p className="border-t border-line pt-3 text-sm leading-6 text-accent">
           {error}
         </p>
       ) : null}

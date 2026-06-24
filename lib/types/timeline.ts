@@ -61,6 +61,7 @@ export type TimelineDaySection = {
   relativeLabel: string;
   emptyMessage: string;
   occurrences: TimelineOccurrenceView[];
+  unresolvedOccurrenceCount: number;
   occurrenceGroups: TimelineOccurrenceGroup[];
 };
 

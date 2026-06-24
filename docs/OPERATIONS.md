@@ -117,7 +117,7 @@ Remaining public-launch follow-up:
 Implemented follow-up:
 
 - first-run onboarding for behavior creation, notification permission, optional
-  import, and timezone through a dismissible Timeline setup panel,
+  import, and timezone through a dismissible Timeline setup pop-up,
 - privacy-safe monitoring/error reporting through structured runtime logs that
   avoid sensitive behavior payloads.
 

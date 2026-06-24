@@ -382,29 +382,25 @@ pre code {
   min-height: 2.9rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  padding: 0.75rem 1rem;
-  color: var(--foreground);
+  border: 0;
+  padding: 0.5rem 0;
+  color: var(--muted-readable);
   font-size: 0.78rem;
-  text-decoration: none;
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
   transition:
-    background-color 160ms ease-out,
-    border-color 160ms ease-out,
-    color 160ms ease-out;
+    color 160ms ease-out,
+    text-shadow 160ms ease-out;
 }
 
 .button--primary {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--background);
+  color: var(--foreground);
 }
 
 .button:hover {
-  border-color: var(--foreground);
-}
-
-.button--primary:hover {
-  background: var(--primary-strong);
+  color: var(--foreground);
+  text-shadow: 0.02em 0 currentColor;
 }
 
 .inline-link {

@@ -9,7 +9,7 @@ export function GoogleLoginButton({
 }>) {
   const href = `/auth/google?next=${encodeURIComponent(nextPath)}`;
   const className =
-    "inline-flex min-h-12 w-full items-center justify-center gap-3 border border-line bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:border-line disabled:bg-surface disabled:text-muted-readable";
+    "product-action product-action-primary min-h-12 w-full gap-3 py-3 text-sm font-bold";
 
   if (disabled) {
     return (

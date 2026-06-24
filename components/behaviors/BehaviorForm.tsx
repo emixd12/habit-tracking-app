@@ -170,7 +170,7 @@ export function BehaviorForm({
             type="button"
             onClick={addScheduleRow}
             disabled={scheduleRows.length >= MAX_SCHEDULE_ROWS}
-            className="inline-flex min-h-11 items-center justify-center gap-2 border border-line bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors hover:bg-primary hover:text-primary-foreground disabled:bg-surface disabled:text-muted-readable"
+            className="product-action product-action-primary min-h-11 gap-2 py-2 text-sm font-bold"
           >
             <Plus aria-hidden="true" size={18} strokeWidth={2.5} />
             <span>Add another time</span>
@@ -332,7 +332,7 @@ function ScheduleRowEditor({
             onClick={onRemove}
             aria-label="Remove scheduled row"
             title="Remove"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center border border-line bg-background text-foreground transition-colors hover:bg-accent hover:text-background"
+            className="product-icon-action min-h-11 min-w-11 text-accent"
           >
             <Trash2 aria-hidden="true" size={18} strokeWidth={2.5} />
           </button>
@@ -410,7 +410,7 @@ function SubmitButton({ label }: Readonly<{ label: string }>) {
     <button
       type="submit"
       disabled={pending}
-      className="min-h-12 border border-line bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:bg-surface disabled:text-muted-readable"
+      className="product-action product-action-primary min-h-12 py-3 text-sm font-bold"
     >
       {pending ? "Saving..." : label}
     </button>
@@ -425,10 +425,8 @@ function ActionMessage({ state }: Readonly<{ state: BehaviorActionState }>) {
   return (
     <p
       className={[
-        "border px-3 py-2 text-sm leading-6",
-        state.status === "success"
-          ? "border-line text-foreground"
-          : "border-line text-accent",
+        "border-t border-line pt-2 text-sm leading-6",
+        state.status === "success" ? "text-foreground" : "text-accent",
       ].join(" ")}
       role={state.status === "error" ? "alert" : "status"}
     >

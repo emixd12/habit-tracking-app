@@ -63,7 +63,7 @@ export function TimezonePanel({
   return (
     <section
       id="timezone"
-      className="scroll-mt-20 border border-line bg-background p-5 sm:p-6 md:col-span-2"
+      className="scroll-mt-20 border-y border-line bg-background py-5 sm:py-6 md:col-span-2"
     >
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,28rem)]">
         <div className="min-w-0">
@@ -115,14 +115,14 @@ export function TimezonePanel({
                   timezoneInputRef.current.value = browserTimezone.value;
                 }
               }}
-              className="min-h-11 border border-line bg-background px-4 py-2 text-sm transition-colors hover:bg-surface disabled:bg-surface disabled:text-muted-readable"
+              className="product-action product-action-secondary min-h-11 py-2 text-sm"
             >
               Use detected timezone
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="min-h-11 border border-line bg-primary px-4 py-2 text-sm text-primary-foreground transition-colors hover:bg-foreground disabled:bg-surface disabled:text-muted-readable"
+              className="product-action product-action-primary min-h-11 py-2 text-sm"
             >
               {isPending ? "Saving..." : "Save timezone"}
             </button>
@@ -132,10 +132,8 @@ export function TimezonePanel({
             <p
               role={state.status === "error" ? "alert" : "status"}
               className={[
-                "border border-line bg-surface px-3 py-2 text-sm leading-6",
-                state.status === "error"
-                  ? "text-accent"
-                  : "text-muted-readable",
+                "border-t border-line pt-3 text-sm leading-6",
+                state.status === "error" ? "text-accent" : "text-muted-readable",
               ].join(" ")}
             >
               {state.message}

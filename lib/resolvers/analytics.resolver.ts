@@ -317,7 +317,6 @@ function resolveSelectedBehaviorDay(input: {
       scheduledTimeLabel: occurrence.scheduledTimeLabel,
       status: occurrence.status,
       statusLabel: statusLabel(occurrence.status),
-      noteStateLabel: occurrence.note.trim().length > 0 ? "Note added" : "No note",
       note: occurrence.note,
     }));
 

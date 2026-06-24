@@ -52,8 +52,8 @@ Steps:
 
 Onboarding should stay thin. It should reuse existing app controls and should
 not become a broad setup wizard. The Timeline may show a dismissible first-run
-setup prompt before the feed while required setup items remain incomplete. Its
-actions route to:
+setup pop-up while required setup items remain incomplete. The pop-up is fixed
+over the page instead of appearing before the feed. Its actions route to:
 
 - `/behaviors#create-behavior`
 - `/settings#notifications`
@@ -109,9 +109,9 @@ The Timeline is the primary screen.
 The current day should be visually prominent and should begin the forward timeline.
 
 The Timeline feed starts directly with the current-day section. Do not show a
-visible Timeline page title or explanatory helper copy above the feed. The only
-allowed exception is the dismissible first-run setup prompt for accounts that
-have not completed required launch setup items.
+visible Timeline page title or explanatory helper copy above the feed. The
+dismissible first-run setup prompt is a fixed pop-up for accounts that have not
+completed required launch setup items, so it does not become feed content.
 
 Timeline order:
 1. Floating Needs decision button
@@ -129,6 +129,9 @@ The count and label sit on one continuous button surface without an internal div
 The count includes unresolved prior-day occurrences only. It does not include
 same-day retained rows that were already marked Completed or Not Completed from
 the modal.
+The modal title is Needs decision. Its date groups should not repeat a Prior
+unresolved label; each group shows the date and then a count of unresolved
+items left to decide for that date.
 
 Users should not browse previous days as ordinary timeline sections in v1.
 
@@ -177,12 +180,14 @@ Collapsed Completed cards show:
 Collapsed Not Completed cards show:
 - Scheduled time
 - Behavior title
-- Completed text-link action
-- Not Completed text-link action
+- Resolved status
 
 Completed cards should have a distinct visual state and should hide the primary status actions.
 
-Not Completed cards use the red accent treatment while exposing both status actions so the logged action can be approved or changed without expanding the card. The stored status remains `not_completed` on that occurrence instance, and the UI must not call it missed or failed.
+Not Completed cards use the red accent treatment, show Not Completed as the
+collapsed status, and hide primary status actions like Completed cards. The
+stored status remains `not_completed` on that occurrence instance, and the UI
+must not call it missed or failed.
 
 Clicking a card outside the status actions expands it.
 
@@ -191,7 +196,7 @@ Expanded cards show:
 - Category
 - Schedule details
 - Note field
-- Option to change a Completed status
+- Option to change a Completed or Not Completed status
 
 Expanded details sit on the normal page background. The note save action is an
 underlined text action, matching the Completed and Not Completed controls.
@@ -214,10 +219,11 @@ When a user marks a Needs decision row Completed or Not Completed, the row
 should remain available in the modal until the next local midnight in the
 user's timezone. It should stay in its original local-day group rather than
 moving into a separate recent-decisions section. Completed rows keep the same
-blue resolved treatment as Timeline rows, and expanding them exposes status
-correction and Note editing. Not Completed rows keep the same Timeline
-correction controls in the collapsed row. After the next local midnight, these
-retained resolved rows no longer appear in Needs decision.
+blue resolved treatment as Timeline rows. Not Completed rows use the same
+resolved-row structure with the red accent treatment and Not Completed label.
+Expanding either resolved row exposes status correction and Note editing. After
+the next local midnight, these retained resolved rows no longer appear in Needs
+decision.
 
 ## Behavior flow
 
@@ -299,11 +305,18 @@ same-day retention window has passed.
 Behavior-day review should:
 - Show that behavior's occurrences for the selected local date when rows exist,
   not only Not Completed occurrences.
+- Use a Behavior date heading for the selected day.
+- Show occurrence details as plain Time of behavior, Status, and Note text.
+- Display empty notes as italic No note.
+- Hide correction controls behind a per-occurrence Review disclosure until the
+  user chooses to review that occurrence.
 - Allow individual Completed and Not Completed corrections through the same
   status service used by Timeline.
 - Allow occurrence Note edits.
 - Refresh Analytics counts, adherence, heatmaps, and behavior-day rows after a
   correction.
+- Avoid internal divider lines that visually compete with the behavior-row
+  separators.
 - Avoid an empty review panel when the selected behavior day has no occurrences.
 - Avoid bulk edit, all-time search, automatic suggestions, AI coaching, or
   gamified language.

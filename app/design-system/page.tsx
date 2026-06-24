@@ -354,7 +354,7 @@ function Foundations() {
                 </div>
                 <button
                   type="button"
-                  className="w-fit bg-transparent py-3 text-sm font-bold text-primary underline decoration-1 underline-offset-4"
+                  className="product-action product-action-primary w-fit py-3 text-sm font-bold"
                 >
                   0px text button
                 </button>
@@ -405,7 +405,7 @@ function Foundations() {
             <ProductPreview>
               <button
                 type="button"
-                className="bg-transparent py-3 text-sm font-bold text-foreground underline decoration-1 underline-offset-4 transition-colors duration-200 hover:text-primary motion-reduce:transition-none"
+                className="product-action product-action-primary py-3 text-sm font-bold duration-200 motion-reduce:transition-none"
               >
                 200ms state transition
               </button>
@@ -425,20 +425,20 @@ function Foundations() {
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                className="min-h-11 bg-transparent px-0 py-2 text-sm font-bold text-primary underline decoration-1 underline-offset-4"
+                className="product-action product-action-primary min-h-11 py-2 text-sm font-bold"
               >
                 Primary
               </button>
               <button
                 type="button"
-                className="min-h-11 bg-transparent px-0 py-2 text-sm font-bold text-muted-readable underline decoration-1 underline-offset-4"
+                className="product-action product-action-secondary min-h-11 py-2 text-sm font-bold"
               >
                 Secondary
               </button>
               <button
                 type="button"
                 disabled
-                className="min-h-11 bg-transparent px-0 py-2 text-sm font-bold text-muted-readable opacity-60"
+                className="product-action product-action-secondary min-h-11 py-2 text-sm font-bold"
               >
                 Disabled
               </button>
@@ -480,8 +480,7 @@ function Foundations() {
 
             <a
               href="/timeline"
-              className="w-fit text-sm font-bold text-foreground underline decoration-1 underline-offset-4 hover:text-primary"
-              style={{ textDecorationLine: "underline" }}
+              className="product-action product-action-primary w-fit text-sm font-bold"
             >
               Product link
             </a>
@@ -768,7 +767,7 @@ const previewFactories: Record<string, () => ReactNode> = {
       <ProductPreview maxHeight="38rem">
         <AppShell>
           <div className="p-6">
-            <section className="border border-line bg-background p-5">
+            <section className="border-y border-line bg-background py-5">
               <h2 className="text-2xl font-bold">App shell preview</h2>
               <p className="mt-2 text-sm leading-6 text-muted-readable">
                 Sidebar and mobile navigation render from the live shell.
@@ -784,7 +783,7 @@ const previewFactories: Record<string, () => ReactNode> = {
           title="Screen frame"
           description="Shared route frame for protected product screens."
         >
-          <div className="border border-line bg-surface p-5 text-sm leading-6 text-muted-readable">
+          <div className="border-t border-line pt-5 text-sm leading-6 text-muted-readable">
             Screen content sits below a consistent title and description.
           </div>
         </ScreenFrame>
@@ -854,6 +853,7 @@ const previewFactories: Record<string, () => ReactNode> = {
             section={needsDecisionSection}
             statusAction={occurrenceAction}
             noteAction={occurrenceAction}
+            variant="needsDecisionDialog"
           />
         </NeedsDecisionDialog>
       </ProductPreview>
@@ -1134,8 +1134,8 @@ const notCompletedOccurrence: TimelineOccurrenceView = {
   statusDetail: "Resolved as Not Completed",
   expandedStatusActionLabel: "Change logged action",
   visualTone: "not_completed",
-  showDecisionActions: true,
-  showCollapsedStatusLabel: false,
+  showDecisionActions: false,
+  showCollapsedStatusLabel: true,
   note: "Skipped while traveling.",
 };
 
@@ -1168,6 +1168,7 @@ const needsDecisionSection: TimelineDaySection = {
   relativeLabel: "Prior unresolved",
   emptyMessage: "No prior unresolved occurrences.",
   occurrences: [needsDecisionOccurrence],
+  unresolvedOccurrenceCount: 1,
   occurrenceGroups: toFixtureOccurrenceGroups([needsDecisionOccurrence]),
 };
 
@@ -1184,6 +1185,7 @@ const todaySection: TimelineDaySection = {
     completedOccurrence,
     notCompletedOccurrence,
   ],
+  unresolvedOccurrenceCount: 1,
   occurrenceGroups: [
     {
       key: "group-water-2026-06-08",
@@ -1204,6 +1206,7 @@ const futureSection: TimelineDaySection = {
   relativeLabel: "Tomorrow",
   emptyMessage: "No behaviors on this day.",
   occurrences: [futureOccurrence],
+  unresolvedOccurrenceCount: 0,
   occurrenceGroups: toFixtureOccurrenceGroups([futureOccurrence]),
 };
 
@@ -1321,7 +1324,6 @@ const analyticsFixture: AnalyticsView = {
         scheduledTimeLabel: "6:00 PM",
         status: "not_completed",
         statusLabel: "Not Completed",
-        noteStateLabel: "Note added",
         note: "Skipped while traveling.",
       },
     ],

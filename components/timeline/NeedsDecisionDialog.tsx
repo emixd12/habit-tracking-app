@@ -24,7 +24,7 @@ export function NeedsDecisionDialog({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogId = useId();
   const titleId = `${dialogId}-title`;
-  const descriptionId = `${dialogId}-description`;
+  const summaryId = `${dialogId}-summary`;
   const [isOpen, setIsOpen] = useState(false);
   const hasDecisions = occurrenceCount > 0;
 
@@ -101,24 +101,24 @@ export function NeedsDecisionDialog({
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            aria-describedby={descriptionId}
+            aria-describedby={summaryId}
             className="grid h-dvh w-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-background text-foreground sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[min(920px,100%)] sm:border sm:border-line"
           >
             <header className="border-b border-line bg-background p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p
-                    id={descriptionId}
-                    className="text-sm font-bold text-muted-readable"
-                  >
-                    Prior unresolved
-                  </p>
                   <h2
                     id={titleId}
-                    className="mt-1 break-words text-2xl font-bold leading-tight sm:text-3xl"
+                    className="break-words text-2xl font-bold leading-tight sm:text-3xl"
                   >
                     {title}
                   </h2>
+                  <p
+                    id={summaryId}
+                    className="mt-3 text-sm font-bold text-muted-readable"
+                  >
+                    {occurrenceCount} to decide
+                  </p>
                 </div>
 
                 <button
@@ -127,15 +127,12 @@ export function NeedsDecisionDialog({
                   aria-label="Close Needs decision"
                   title="Close"
                   onClick={() => setIsOpen(false)}
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center border border-line bg-background text-foreground transition-colors hover:bg-primary hover:text-primary-foreground sm:min-h-10 sm:min-w-10"
+                  className="product-icon-action min-h-11 min-w-11 shrink-0 sm:min-h-10 sm:min-w-10"
                 >
                   <X aria-hidden="true" size={18} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <p className="mt-3 text-sm font-bold text-muted-readable">
-                {occurrenceCount} to decide
-              </p>
             </header>
 
             <div className="min-h-0 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">

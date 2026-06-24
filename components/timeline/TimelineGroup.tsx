@@ -8,20 +8,23 @@ type TimelineGroupProps = Readonly<{
   section: TimelineDaySection;
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
+  variant?: "feed" | "needsDecisionDialog";
 }>;
 
 const SECTION_CLASSES: Record<TimelineDaySection["kind"], string> = {
   today: "bg-background py-2 sm:py-3",
   future: "bg-background py-2 sm:py-3",
-  needs_decision_day: "bg-surface py-2 sm:py-3",
+  needs_decision_day: "bg-background py-2 sm:py-3",
 };
 
 export function TimelineGroup({
   section,
   statusAction,
   noteAction,
+  variant = "feed",
 }: TimelineGroupProps) {
   const isEmpty = section.occurrenceGroups.length === 0;
+  const isNeedsDecisionDialog = variant === "needsDecisionDialog";
 
   return (
     <section
@@ -29,20 +32,34 @@ export function TimelineGroup({
       aria-labelledby={`${section.key}-title`}
     >
       <div className="flex flex-col gap-2 border-b border-line pb-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-bold text-muted-readable">
-            {section.relativeLabel}
-          </p>
-          <h2
-            id={`${section.key}-title`}
-            className={[
-              "font-bold leading-tight",
-              section.kind === "today" ? "text-3xl" : "text-2xl",
-            ].join(" ")}
-          >
-            {section.label}
-          </h2>
-        </div>
+        {isNeedsDecisionDialog ? (
+          <div>
+            <h2
+              id={`${section.key}-title`}
+              className="font-bold leading-tight text-2xl"
+            >
+              {section.label}
+            </h2>
+            <p className="mt-1 text-sm font-bold text-muted-readable">
+              {decisionCountLabel(section.unresolvedOccurrenceCount)}
+            </p>
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm font-bold text-muted-readable">
+              {section.relativeLabel}
+            </p>
+            <h2
+              id={`${section.key}-title`}
+              className={[
+                "font-bold leading-tight",
+                section.kind === "today" ? "text-3xl" : "text-2xl",
+              ].join(" ")}
+            >
+              {section.label}
+            </h2>
+          </div>
+        )}
 
         <time
           dateTime={section.localDate}
@@ -70,6 +87,14 @@ export function TimelineGroup({
       )}
     </section>
   );
+}
+
+function decisionCountLabel(count: number): string {
+  if (count === 1) {
+    return "1 left to decide";
+  }
+
+  return `${count} left to decide`;
 }
 
 function OccurrenceStack({

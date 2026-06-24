@@ -478,7 +478,6 @@ describe("resolveAnalytics", () => {
           scheduledTimeLabel: "9:00 AM",
           status: "not_completed",
           statusLabel: "Not Completed",
-          noteStateLabel: "No note",
           note: "",
         },
         {
@@ -488,7 +487,6 @@ describe("resolveAnalytics", () => {
           scheduledTimeLabel: "7:00 PM",
           status: "completed",
           statusLabel: "Completed",
-          noteStateLabel: "Note added",
           note: "Before bed.",
         },
       ],

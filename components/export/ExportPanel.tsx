@@ -44,7 +44,7 @@ export function ExportPanel({
   return (
     <div className="grid gap-8">
       <section
-        className="border border-line bg-background p-5 sm:p-6"
+        className="border-y border-line bg-background py-5 sm:py-6"
         aria-labelledby="export-options-title"
       >
         <div className="border-b border-line pb-4">
@@ -79,7 +79,7 @@ export function ExportPanel({
             </div>
           </fieldset>
 
-          <label className="flex w-fit items-start gap-3 border border-line bg-surface p-3 text-sm font-bold">
+          <label className="flex w-fit items-start gap-3 text-sm font-bold">
             <input
               type="checkbox"
               name="include_archived"
@@ -93,7 +93,7 @@ export function ExportPanel({
           <div>
             <button
               type="submit"
-              className="inline-flex min-h-11 items-center justify-center border border-line bg-primary px-5 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground"
+              className="product-action product-action-primary min-h-11 py-2 text-sm font-bold"
             >
               Apply options
             </button>
@@ -102,7 +102,7 @@ export function ExportPanel({
       </section>
 
       <section aria-labelledby="export-current-title">
-        <div className="border border-line bg-background">
+        <div className="border-y border-line bg-background">
           <div className="border-b border-line p-5 sm:p-6">
             <h2
               id="export-current-title"
@@ -140,10 +140,10 @@ export function ExportPanel({
             <a
               key={action.format}
               href={downloadHref(action.format, exportData)}
-              className="group flex min-h-24 items-center justify-between gap-4 border border-line bg-background p-4 text-foreground transition-colors hover:bg-surface"
+              className="group flex min-h-20 items-center justify-between gap-4 border-t border-line py-4 text-foreground transition-colors hover:text-foreground"
             >
               <span className="min-w-0">
-                <span className="block break-words text-lg font-bold leading-tight">
+                <span className="block break-words text-lg font-bold leading-tight underline decoration-1 underline-offset-4">
                   {action.label}
                 </span>
                 <span className="mt-1 block text-sm font-bold text-muted-readable">
@@ -162,7 +162,7 @@ export function ExportPanel({
       </section>
 
       <section
-        className="border border-line bg-background p-5 sm:p-6"
+        className="border-y border-line bg-background py-5 sm:py-6"
         aria-labelledby="export-summary-title"
       >
         <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">

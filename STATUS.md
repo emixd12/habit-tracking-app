@@ -82,7 +82,7 @@ Current evidence:
 - Analytics exists in `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/analytics`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and behavior-day occurrence review for status/note correction. Default adherence excludes unresolved occurrences, and the top summary Unresolved count matches the Timeline Needs decision count.
 - Export exists in `lib/resolvers/export.resolver.ts`, `lib/services/export.service.ts`, `/export`, and `/api/export/jsonl`, `/api/export/csv`, `/api/export/json`. The resolver owns range filtering, archived-behavior filtering, JSONL, CSV escaping, full JSON backup shape, and Markdown AI summary adherence math. All-time export includes occurrences through the current local day and excludes generated future rows.
 - Settings now shows profile email, timezone detection/manual override, notification permission status, browser push availability, a browser reminder enable/save control, Trust/Privacy/Terms links, and account deletion with export acknowledgement plus typed confirmation. Timezone detection uses browser/OS `Intl` data without geolocation; saving a changed timezone updates the profile, active behavior timezones, and future unresolved occurrences through the existing occurrence sync. The client path uses only `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; the processing/sending layer uses server-only `VAPID_PRIVATE_KEY`.
-- Timeline now shows a dismissible first-run setup panel for accounts that have
+- Timeline now shows a dismissible first-run setup pop-up for accounts that have
   not completed required launch setup items. It links into the existing
   Behaviors create form, Settings notification subscription, Settings timezone,
   and optional Export import controls without requesting notification permission
@@ -101,6 +101,33 @@ Current evidence:
 - The v1 feature ticket sequence is complete through Ticket 012. Ticket 013 Vercel production hardening is complete after later browser-push production verification: authenticated production smoke QA passed for Google login, Behavior create/archive, Timeline occurrence generation, status changes, notes, Settings render, Analytics render, Export page/link rendering, production reminder cron execution, browser push subscription, and a safe browser-push send.
 - Vercel plugin inspection found existing project `cadence` under team `Emi's projects`, connected to GitHub repo `emixd12/habit-tracking-app` on `main`, with canonical public alias `https://cadence-blush-three.vercel.app`. Production public Supabase config is present, `/login` renders without the missing-config warning, Google OAuth returns to the canonical production domain, and `/api/reminders/process` supports Vercel Cron `GET` with secret protection.
 - Project-local design workflow files exist under `.agents/skills/impeccable/` and should be used for UI/design work after the scaffold exists.
+
+## Timeline UI feedback update
+
+- Reworked first-run setup on `/timeline` from an inline feed band into a
+  dismissible fixed pop-up so the current-day feed remains first in document
+  flow.
+- Updated Timeline resolver metadata so `not_completed` rows now match
+  Completed row structure: compact resolved row, collapsed status label, and
+  correction controls only after expanding.
+- Cleaned up the Needs decision modal by removing the repeated Prior
+  unresolved label, using white date groups, and showing each date's remaining
+  unresolved count under the date label.
+
+Verification for this update: Pass: `npx vitest run tests/timeline.resolver.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `npm run design-system:check`; Pass: `git diff --check`.
+
+Browser QA: authenticated in-app browser `/timeline` desktop render showed the
+first-run setup as a fixed dismissible pop-up with no horizontal overflow. The
+Needs decision modal no longer repeated Prior unresolved in the header, date
+groups used a white background with `0 left to decide` under the date, and Not
+Completed rows matched Completed row structure with a collapsed label and no
+visible collapsed action buttons.
+
+Browser QA: `/timeline` at 390px width showed no horizontal overflow; the fixed
+Needs decision button stayed within the safe-area width; the modal was
+full-height; and Completed and Not Completed retained rows had matching row
+heights, labels, and no visible collapsed action buttons. Browser logs showed
+no warnings or errors.
 
 ## Agent operations update
 
@@ -2364,6 +2391,113 @@ Remaining risk:
   programmatic mouse movement, including CDP mouse events. The heatmap cells
   have the expected `data-hover-label` attributes and tooltip CSS, but the
   visual hover chip was not proven through automated hover-state capture.
+
+### Analytics behavior-day review cohesion
+
+Status: complete.
+
+Implementation summary:
+- Reworked the selected behavior-day Analytics review so it reads as one
+  cohesive expansion inside the selected behavior row rather than a divided
+  subtable.
+- Removed internal divider lines from the review area and replaced the Review
+  day heading with Behavior date.
+- Replaced scheduled-time/status chips and note-state labels with plain text
+  rows for Time of behavior, Status, and Note. Empty notes display as italic
+  No note; saved notes display the note text.
+- Hid per-occurrence status and note editing behind a Review disclosure by
+  default. When opened, Change status sits beside the Completed / Not Completed
+  actions when space allows, followed by the existing Note form.
+- Removed the stale Analytics selected-day `noteStateLabel` resolver/type
+  field and refreshed the design-system usage line numbers.
+- Updated `DESIGN.md`, `docs/UI_SPEC.md`, and `docs/USER_FLOWS.md` for the new
+  behavior-day review contract.
+- No schema, route, provider, notification, export, navigation, dashboard,
+  stored-status, or product-scope changes were added.
+
+Verification:
+- Pass: `npm run test -- tests/analytics.resolver.test.ts`.
+- Pass: targeted ESLint for the Analytics component/resolver/types/test and
+  design-system fixture files.
+- Pass: `npm run typecheck`.
+- Pass: design-system usage scan for current line numbers.
+- Pass:
+  `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run test` (41 files, 257 tests).
+- Pass: `npm run build`.
+- Browser QA: in-app browser against
+  `http://127.0.0.1:3000/design-system?preview=module.analytics-screen#ds-module-analytics-screen`
+  at 1280px verified Behavior date copy, no Review day copy, plain Time of
+  behavior / Status / Note labels, no internal review borders, Review closed by
+  default, no horizontal overflow, and no warning/error logs.
+- Browser QA: the desktop Review disclosure opened with a 512px editor,
+  Change status aligned with the Completed action, visible Note textarea, and
+  no horizontal overflow.
+- Browser QA: at 390px mobile, the closed and opened review states had no
+  horizontal overflow, the Note textarea fit the available panel width, and the
+  status controls wrapped as expected.
+
+Remaining risk:
+- Authenticated live `/analytics` production-data QA was not performed because
+  the browser context did not have a Supabase session; the same
+  `AnalyticsScreen` was verified through the fixture-backed design-system
+  route.
+- The design-system inventory scan still reports broader pre-existing manifest
+  drift outside this touched Analytics surface. This refinement refreshed only
+  the usage map line numbers affected by the edited component.
+
+### Minimal action primitive and divider rollout
+
+Status: complete.
+
+Implementation summary:
+- Replaced the product button primitive with transparent underlined text
+  actions. Primary actions now use Ink Black, secondary actions use Readable
+  Ash, and destructive actions use Rust Signal.
+- Propagated the primitive through auth, Timeline status/note actions,
+  behavior create/edit/archive/restore controls, settings actions, export and
+  BehaviorLog import/restore controls, legal links, design-system previews, and
+  marketing CTAs.
+- Replaced non-functional full perimeter panel borders with divider-based
+  sections across onboarding, login, settings, export, shared placeholder
+  panels, and action feedback messages.
+- Preserved real boundaries for form fields, segmented selected controls,
+  heatmap cells, dense preview tables, dialogs, and the fixed Needs decision
+  launcher.
+- Updated `DESIGN.md` and `docs/UI_SPEC.md` so future UI work keeps primary
+  actions black, secondary actions grey, and structural containers unboxed.
+- No schema, route, provider, notification, export-format, stored-status, or
+  product-scope changes were added.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (41 files, 257 tests).
+- Pass: `npm run build`.
+- Pass: `npm run design-system:check`.
+- Pass:
+  `python3 /Users/emi/.codex/skills/design-system-bench/scripts/verify_traceability.py --root . --manifest design-system.manifest.json --usage design-system.usage.json --bench app/design-system/page.tsx --config design-system.config.json`.
+- Pass: `git diff --check`.
+- Pass: `npm run marketing:check`.
+- Pass: `npm run marketing:build`.
+- Browser QA: restarted local dev server on `http://localhost:3000` and
+  verified `/design-system` at 1280px and 390px. Primary primitive computed as
+  transparent, 0px border, underlined Ink Black; secondary computed as
+  transparent, 0px border, underlined Readable Ash; disabled stayed muted with
+  no underline; overlay panel computed white with no perimeter border; no
+  horizontal overflow on either viewport.
+
+Remaining risk:
+- Authenticated live app routes were not manually walked with a signed-in
+  Supabase session. The changed authenticated components were covered through
+  fixture-backed design-system previews, static scans, typecheck, tests, and
+  build.
 
 ## Handoff notes
 

@@ -94,6 +94,7 @@ function resolveForwardDaySections(input: {
       relativeLabel: relativeDayLabel(offset),
       emptyMessage: EMPTY_DAY_MESSAGE,
       occurrences: dayOccurrences,
+      unresolvedOccurrenceCount: countUnresolvedOccurrences(dayOccurrences),
       occurrenceGroups: groupOccurrencesByBehavior(dayOccurrences),
     });
   }
@@ -125,9 +126,17 @@ function groupNeedsDecisionDays(
         relativeLabel: "Prior unresolved",
         emptyMessage: EMPTY_DAY_MESSAGE,
         occurrences: [...dayOccurrences].sort(compareOccurrencesByScheduledTime),
+        unresolvedOccurrenceCount: countUnresolvedOccurrences(dayOccurrences),
         occurrenceGroups: groupOccurrencesByBehavior(dayOccurrences),
       };
     });
+}
+
+function countUnresolvedOccurrences(
+  occurrences: TimelineOccurrenceView[],
+): number {
+  return occurrences.filter((occurrence) => occurrence.status === "unresolved")
+    .length;
 }
 
 function groupOccurrencesByBehavior(
@@ -183,8 +192,7 @@ function toOccurrenceView(
   const isTodayUnresolved =
     occurrence.status === "unresolved" &&
     occurrence.localDate === todayLocalDate;
-  const showDecisionActions =
-    isPriorUnresolved || isTodayUnresolved || occurrence.status === "not_completed";
+  const showDecisionActions = isPriorUnresolved || isTodayUnresolved;
 
   return {
     ...occurrence,

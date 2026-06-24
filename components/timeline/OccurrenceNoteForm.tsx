@@ -55,7 +55,7 @@ function SaveNoteButton() {
     <button
       type="submit"
       disabled={pending}
-      className="timeline-status-action inline-flex min-h-11 items-center justify-center border-0 bg-transparent px-0 py-1 text-sm font-bold text-foreground underline decoration-1 underline-offset-4 disabled:text-muted-readable disabled:no-underline sm:min-h-8"
+      className="timeline-status-action product-action product-action-primary min-h-11 py-1 text-sm font-bold sm:min-h-8"
     >
       {pending ? "Saving..." : "Save note"}
     </button>
@@ -70,10 +70,8 @@ function ActionMessage({ state }: Readonly<{ state: OccurrenceActionState }>) {
   return (
     <p
       className={[
-        "border px-3 py-2 text-sm leading-6",
-        state.status === "success"
-          ? "border-line text-foreground"
-          : "border-line text-accent",
+        "border-t border-line pt-2 text-sm leading-6",
+        state.status === "success" ? "text-foreground" : "text-accent",
       ].join(" ")}
       role={state.status === "error" ? "alert" : "status"}
     >

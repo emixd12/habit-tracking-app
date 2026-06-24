@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-24T17:31:47.909635+00:00",
+  "generatedAt": "2026-06-24T17:49:23.187906+00:00",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
@@ -22,7 +22,7 @@
     {
       "componentId": "composite.occurrence-note-form",
       "file": "components/analytics/AnalyticsScreen.tsx",
-      "line": 414,
+      "line": 398,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -190,7 +190,7 @@
     {
       "componentId": "module.status-buttons",
       "file": "components/analytics/AnalyticsScreen.tsx",
-      "line": 406,
+      "line": 390,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"

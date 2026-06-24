@@ -110,7 +110,7 @@ export function NotificationPermissionPanel({
   return (
     <section
       id="notifications"
-      className="scroll-mt-20 border border-line bg-background p-5 sm:p-6 md:col-span-2"
+      className="scroll-mt-20 border-y border-line bg-background py-5 sm:py-6 md:col-span-2"
     >
       <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0">
@@ -135,7 +135,7 @@ export function NotificationPermissionPanel({
           type="button"
           disabled={!canRequest}
           onClick={handleEnable}
-          className="min-h-11 border border-line bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-foreground disabled:bg-surface disabled:text-muted-readable"
+          className="product-action product-action-primary min-h-11 py-2 text-sm font-bold"
         >
           {isBusy ? "Saving..." : buttonLabel()}
         </button>
@@ -144,10 +144,8 @@ export function NotificationPermissionPanel({
       {message ? (
         <p
           className={[
-            "mt-5 border px-3 py-2 text-sm leading-6",
-            saveState === "error"
-              ? "border-line text-accent"
-              : "border-line text-muted-readable",
+            "mt-5 border-t border-line pt-3 text-sm leading-6",
+            saveState === "error" ? "text-accent" : "text-muted-readable",
           ].join(" ")}
         >
           {message}

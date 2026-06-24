@@ -139,6 +139,56 @@ button:disabled {
   outline-offset: 3px;
 }
 
+.product-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border: 0;
+  background: transparent;
+  padding: 0.25rem 0;
+  color: var(--foreground);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition:
+    color 200ms ease,
+    text-shadow 200ms ease;
+}
+
+.product-action-primary {
+  color: var(--foreground);
+}
+
+.product-action-secondary {
+  color: var(--muted-readable);
+}
+
+.product-action-danger {
+  color: var(--accent);
+}
+
+.product-action:disabled,
+.product-action[aria-disabled="true"] {
+  color: var(--muted-readable);
+  cursor: not-allowed;
+  opacity: 0.6;
+  text-decoration-line: none;
+  text-shadow: none;
+}
+
+.product-icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
 .timeline-status-action:focus-visible {
   text-shadow: 0.02em 0 currentColor;
 }
@@ -167,6 +217,18 @@ button:disabled {
 }
 
 @media (hover: hover) {
+  .product-action:not(:disabled):not([aria-disabled="true"]):hover {
+    text-shadow: 0.02em 0 currentColor;
+  }
+
+  .product-action-secondary:not(:disabled):not([aria-disabled="true"]):hover {
+    color: var(--foreground);
+  }
+
+  .product-icon-action:not(:disabled):hover {
+    background: var(--surface);
+  }
+
   .timeline-status-action:not(:disabled):hover {
     text-shadow: 0.02em 0 currentColor;
   }
