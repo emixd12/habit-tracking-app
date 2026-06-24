@@ -1388,11 +1388,12 @@ Acceptance criteria:
   - `/docs`
   - `/examples`
   - `/about`
-- Homepage leads with BehaviorLog as the standard.
-- Cadence is presented as the demonstration product and main brand object.
+- Homepage leads with Cadence as the product and site brand.
+- BehaviorLog is presented as the open bundle standard and portability layer
+  behind Cadence exports and imports.
 - Use the existing Cadence square ledger visual system and keep the current
   Cadence mark.
-- Add a quieter BehaviorLog companion mark.
+- Use only the Cadence mark and name in the marketing header.
 - Use real Cadence product screenshots or static captures where possible,
   using demo or sanitized data only.
 - `/docs` is agent-first technical documentation, useful to agents first and
@@ -1401,9 +1402,10 @@ Acceptance criteria:
   posture for launch.
 - Include primary CTAs:
   - Try Cadence
-  - Read the Standard
+  - Read BehaviorLog
   - Download Example Bundle
   - View on GitHub
+  - Log in
 - Use SEO-conscious static pages with metadata, canonical URLs, sitemap/robots,
   accessible headings, and fast rendering.
 - Include Open Graph and Twitter metadata.

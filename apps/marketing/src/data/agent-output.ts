@@ -8,14 +8,14 @@ import { siteConfig } from "./site";
 
 export function getLlmsTxt(): string {
   const lines = [
-    "# BehaviorLog and Cadence",
+    "# Cadence",
     "",
-    "> BehaviorLog is an open behavior-history bundle standard. Cadence is the open tracker that demonstrates practical BehaviorLog export and import work.",
+    "> Cadence is an open personal behavior tracker. BehaviorLog is the open bundle standard behind portable Cadence exports.",
     "",
     "## Start Here",
-    "- [BehaviorLog standard](/standard.md): Bundle structure, status model, JSONL authority, and analysis rules.",
-    "- [Cadence tracker](/cadence.md): Product boundaries and reference implementation role.",
-    "- [Agent docs](/docs.md): Machine files, route manifest, and rules for coding agents.",
+    "- [Cadence tracker](/cadence.md): Product model, boundaries, and portability role.",
+    "- [BehaviorLog](/standard.md): Bundle structure, status model, JSONL authority, and analysis rules.",
+    "- [Cadence docs](/docs.md): Machine files, route manifest, and rules for coding agents.",
     "- [Example bundle](/examples.md): Sanitized sample bundle for inspection.",
     "",
     "## Machine-Readable Files",
@@ -25,9 +25,9 @@ export function getLlmsTxt(): string {
     "- [Robots](/robots.txt): Crawl policy and sitemap pointer.",
     "",
     "## Project Links",
-    `- [BehaviorLog Bundle repository](${siteConfig.standardUrl}): Upstream standard.`,
     `- [Cadence repository](${siteConfig.githubUrl}): Product implementation.`,
     `- [Try Cadence](${siteConfig.cadenceAppUrl}/login): Authenticated web app.`,
+    `- [BehaviorLog Bundle repository](${siteConfig.standardUrl}): Upstream standard.`,
     "",
     "## Notes for Agents",
     "- Prefer .md mirrors for context budget.",
@@ -44,7 +44,7 @@ export function getLlmsTxt(): string {
 
 export function getLlmsFullTxt(): string {
   const lines = [
-    "# BehaviorLog and Cadence Full Agent Text",
+    "# Cadence Full Agent Text",
     "",
     `Generated from route manifest. Last updated: ${siteConfig.lastModified}.`,
     "",
@@ -130,4 +130,3 @@ function escapeXml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 }
-

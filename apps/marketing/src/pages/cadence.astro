@@ -11,11 +11,11 @@ const route = getRouteById("cadence");
   <section class="page-section hero" aria-labelledby="cadence-title">
     <div class="page-section__inner">
       <div class="stack">
-        <h1 id="cadence-title">Cadence is the reference tracker.</h1>
+        <h1 id="cadence-title">Cadence is the behavior tracker.</h1>
         <p>
-          Cadence is a sparse, open-source web app for one account at a time. It turns
-          recurring behaviors into scheduled occurrences, then records only what the
-          user explicitly marks.
+          Cadence helps one person keep a factual record of recurring behaviors. It
+          schedules occurrences, waits for explicit Completed or Not Completed
+          decisions, and keeps the record portable through BehaviorLog exports.
         </p>
         <div class="cta-row">
           <a class="button button--primary" href={primaryCtas.tryCadence.href}>
@@ -32,39 +32,57 @@ const route = getRouteById("cadence");
   <section class="page-section" aria-labelledby="cadence-capture-title">
     <div class="page-section__inner section-grid">
       <div class="stack">
-        <h2 id="cadence-capture-title">The product stays small.</h2>
+        <h2 id="cadence-capture-title">A timeline, not a dashboard.</h2>
         <ul class="text-list">
-          <li>Timeline first.</li>
-          <li>Manual Completed and Not Completed decisions.</li>
-          <li>Unresolved prior days grouped under Needs decision.</li>
-          <li>Notes attached to occurrences.</li>
-          <li>JSONL, CSV, full JSON, Markdown, and BehaviorLog exports.</li>
+          <li>The current day starts the workspace.</li>
+          <li>Prior-day unresolved occurrences gather under Needs decision.</li>
+          <li>Completed and Not Completed are manual status choices.</li>
+          <li>Notes stay attached to the occurrence where context matters.</li>
+          <li>Analytics summarize basic adherence without turning unresolved into failure.</li>
         </ul>
       </div>
       <ProductCapture variant="timeline" />
     </div>
   </section>
 
-  <section class="page-section" aria-labelledby="cadence-boundaries-title">
+  <section class="page-section" aria-labelledby="cadence-portability-title">
+    <div class="page-section__inner section-grid">
+      <div class="stack">
+        <h2 id="cadence-portability-title">Portable by default.</h2>
+        <p>
+          Cadence exports JSONL, CSV, full JSON backup, Markdown summaries, and
+          BehaviorLog bundles. BehaviorLog is the open record layer behind those
+          portable histories, so exports can be inspected without the live Cadence
+          account.
+        </p>
+        <div class="cta-row">
+          <a class="button button--primary" href="/standard">Read BehaviorLog page</a>
+          <a class="button" href="/examples">Inspect example files</a>
+        </div>
+      </div>
+      <ProductCapture variant="bundle" />
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="cadence-limits-title">
     <div class="page-section__inner">
       <div class="ledger-panel">
         <div class="ledger-panel__header">
-          <h2 id="cadence-boundaries-title">Scope boundaries</h2>
+          <h2 id="cadence-limits-title">Small by design</h2>
         </div>
         <div class="ledger-row">
-          <h3>Single-player accounts</h3>
-          <p>No collaboration, shared workspaces, public profiles, or admin-heavy SaaS workflows.</p>
+          <h3>One account at a time</h3>
+          <p>Cadence supports many independent users, but each account is private and single-player.</p>
         </div>
         <div class="ledger-row">
-          <h3>No gamification</h3>
-          <p>No streak rewards, social pressure, coaching copy, or automatic missed status.</p>
+          <h3>Manual truth</h3>
+          <p>The system does not turn silence into failure or automatically mark anything missed.</p>
         </div>
         <div class="ledger-row">
-          <h3>Portability first</h3>
-          <p>Exports and account deletion are part of the trust posture, not an advanced feature.</p>
+          <h3>Focused v1</h3>
+          <p>No collaboration, social features, gamification, medical dosing, calendar sync, billing, or AI coaching.</p>
         </div>
       </div>
     </div>
   </section>
 </BaseLayout>
-

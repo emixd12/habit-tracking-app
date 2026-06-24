@@ -112,24 +112,38 @@ Launch routes:
 
 | Route | Purpose |
 |---|---|
-| `/` | Landing page led by BehaviorLog as the standard and Cadence as the demonstration product |
+| `/` | Cadence-led landing page that introduces BehaviorLog as the open portability standard |
 | `/cadence` | Product page for the tracker |
-| `/standard` | BehaviorLog Bundle overview and adoption case |
-| `/docs` | Agent-first technical docs entry point |
+| `/standard` | BehaviorLog Bundle overview and adoption case, surfaced in navigation as BehaviorLog |
+| `/docs` | Technical docs entry point for Cadence, BehaviorLog, machine-readable mirrors, and future docs structure |
 | `/examples` | Sanitized sample bundle page |
 | `/about` | Philosophy, governance, scope boundaries, and open-source posture |
 
 Primary calls to action:
 
 - Try Cadence
-- Read the Standard
+- Read BehaviorLog
 - Download Example Bundle
 - View on GitHub
+- Log in
 
 The site is static-first and SEO-conscious from the start: semantic HTML,
 canonical URLs, useful metadata, Open Graph/Twitter metadata, sitemap/robots
 support, accessible headings, generated Markdown mirrors, `llms.txt`,
 `llms-full.txt`, and a public route manifest.
+
+Marketing posture:
+
+- Cadence is the site brand, homepage lead, and consumer-facing product name.
+- The header uses the Cadence mark and name only.
+- BehaviorLog is the open bundle standard and portability layer Cadence writes
+  and reads. It should be explained in the same manner as a technical base
+  layer or open package, not as the primary site brand.
+- `/standard` remains the stable route, but visible navigation may label it
+  BehaviorLog for clarity.
+- `/docs` should grow toward a familiar developer-docs structure: Guides,
+  Reference, Examples, Agent policy, and Schema history, while preserving
+  Markdown mirrors, route manifests, `llms.txt`, and static HTML.
 
 The marketing site is deployed separately from the authenticated Next.js app as
 the Vercel project `cadence-marketing`. Its current production alias is

@@ -61,20 +61,34 @@ SEO-conscious from launch, and visually consistent with
 
 Launch routes:
 
-- `/`: landing page led by BehaviorLog as the standard and Cadence as the
-  demonstration product
+- `/`: Cadence-led landing page that introduces BehaviorLog as the open
+  portability standard
 - `/cadence`: product page for the tracker
-- `/standard`: BehaviorLog Bundle overview and adoption case
-- `/docs`: agent-first technical docs entry point
+- `/standard`: BehaviorLog Bundle overview and adoption case, surfaced in
+  navigation as BehaviorLog
+- `/docs`: technical docs entry point for Cadence, BehaviorLog,
+  machine-readable mirrors, and future docs structure
 - `/examples`: sanitized sample bundle page
 - `/about`: philosophy, governance, scope boundaries, and open-source posture
 
 Primary calls to action:
 
 - Try Cadence
-- Read the Standard
+- Read BehaviorLog
 - Download Example Bundle
 - View on GitHub
+- Log in
+
+Marketing posture:
+
+- Cadence is the site brand, homepage lead, and public product name.
+- BehaviorLog is the open bundle standard and portability layer behind Cadence
+  exports and imports.
+- The marketing header uses the Cadence mark and name only.
+- `/standard` remains the stable route for the BehaviorLog page.
+- `/docs` should grow toward familiar developer-docs sections such as Guides,
+  Reference, Examples, Agent policy, and Schema history while keeping
+  agent-readable outputs first-class.
 
 The marketing site also publishes `llms.txt`, `llms-full.txt`, Markdown
 mirrors, a route manifest, sitemap, and robots output. It does not include

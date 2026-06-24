@@ -32,10 +32,10 @@ the apex `/`.
 
 | Route | Status | Purpose | Notes |
 |---|---|---|---|
-| `/` | implemented in Astro marketing app | Landing page led by BehaviorLog as the standard and Cadence as the demonstration product | Includes Try Cadence, Read the Standard, Download Example Bundle, and View on GitHub CTAs. |
+| `/` | implemented in Astro marketing app | Cadence-led landing page that introduces BehaviorLog as the open portability standard | Includes Try Cadence, Read BehaviorLog, Download Example Bundle, View on GitHub, and Log in CTAs. |
 | `/cadence` | implemented in Astro marketing app | Product page for the tracker | Uses sanitized product captures and links to the authenticated web app. |
-| `/standard` | implemented in Astro marketing app | BehaviorLog Bundle overview and adoption case | Points to the upstream BehaviorLog Bundle repository. |
-| `/docs` | implemented in Astro marketing app | Agent-first technical docs entry point | Links to Markdown mirrors, `llms.txt`, `llms-full.txt`, route manifest, sitemap, robots, and example bundle. |
+| `/standard` | implemented in Astro marketing app | BehaviorLog Bundle overview and adoption case, surfaced in navigation as BehaviorLog | Points to the upstream BehaviorLog Bundle repository. |
+| `/docs` | implemented in Astro marketing app | Technical docs entry point for Cadence, BehaviorLog, machine-readable mirrors, and future docs structure | Links to Markdown mirrors, `llms.txt`, `llms-full.txt`, route manifest, sitemap, robots, example bundle, and future docs map. |
 | `/examples` | implemented in Astro marketing app | Sanitized sample BehaviorLog bundle page | Downloads a build-generated `.behaviorlog.zip` that passes the pinned BehaviorLog reference validator. |
 | `/about` | implemented in Astro marketing app | Philosophy, governance, scope boundaries, and open-source posture | No desktop/mobile teaser, billing, AI, analytics, or marketing-cookie scope. |
 

@@ -215,7 +215,7 @@
           "parity": "adapted",
           "sources": ["apps/marketing/src/layouts/BaseLayout.astro", "apps/marketing/src/data/routes.ts"],
           "implementationIds": [],
-          "notes": "Marketing header renders the static route registry and footer links."
+          "notes": "Marketing header renders a Cadence-only brand lockup, product-first route order, footer links, and a persistent login action."
         },
         {
           "surfaceId": "desktop",
@@ -562,7 +562,7 @@
       "definition": "Cadence and BehaviorLog marks, lockups, and square ledger visual motifs.",
       "sharedContract": [
         "Cadence remains the tracker brand object",
-        "BehaviorLog leads the standard/adoption narrative",
+        "BehaviorLog supports the standard/adoption narrative as the portability layer",
         "Marks use square ledger cells, Ash Line strokes, and restrained fills"
       ],
       "surfaceImplementations": [
@@ -580,7 +580,7 @@
           "parity": "canonical",
           "sources": ["apps/marketing/src/components/BrandMarks.astro", "apps/marketing/public/brand/cadence-logo.png"],
           "implementationIds": [],
-          "notes": "Marketing owns the combined BehaviorLog/Cadence lockup."
+          "notes": "Marketing uses the Cadence mark and name in the header; BehaviorLog is represented through page copy, bundle captures, and the BehaviorLog route."
         },
         {
           "surfaceId": "desktop",

@@ -65,7 +65,7 @@ h3 {
 }
 
 h1 {
-  max-width: 10.5ch;
+  max-width: 14ch;
   font-size: clamp(3rem, 8vw, 6rem);
 }
 
@@ -190,16 +190,8 @@ pre code {
 
 .brand-lockup__cadence {
   display: block;
-  width: 2rem;
-  height: 2rem;
-}
-
-.brand-lockup__behaviorlog {
-  width: 2rem;
-  height: 2rem;
-  margin-inline-start: -0.45rem;
-  border: 1px solid var(--line);
-  background: var(--surface);
+  width: 2.15rem;
+  height: 2.15rem;
 }
 
 .brand-lockup__text {
@@ -209,12 +201,15 @@ pre code {
 
 .brand-lockup__name {
   color: var(--foreground);
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
-.brand-lockup__subname {
-  color: var(--muted-readable);
-  font-size: 0.75rem;
+.site-header__nav-area {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 .site-nav {
@@ -223,9 +218,11 @@ pre code {
   align-items: center;
   justify-content: flex-end;
   gap: 0;
+  min-width: 0;
 }
 
-.site-nav a {
+.site-nav a,
+.site-header__login {
   display: inline-flex;
   min-height: 2.75rem;
   align-items: center;
@@ -246,6 +243,19 @@ pre code {
   border-color: var(--line);
   background: var(--primary-soft);
   color: var(--foreground);
+}
+
+.site-header__login {
+  border-color: var(--foreground);
+  background: var(--foreground);
+  color: var(--background);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-header__login:hover {
+  border-color: var(--primary);
+  background: var(--primary);
 }
 
 .page-section {
@@ -303,6 +313,12 @@ pre code {
   display: grid;
   gap: 1.25rem;
   min-width: 0;
+}
+
+.hero--visual h1 {
+  max-width: 11.8ch;
+  font-size: 4.8rem;
+  line-height: 1.08;
 }
 
 .hero-copy > p {
@@ -484,6 +500,12 @@ pre code {
     padding-block: 0.9rem;
   }
 
+  .site-header__nav-area {
+    align-items: flex-start;
+    flex-direction: column;
+    width: 100%;
+  }
+
   .site-nav {
     justify-content: flex-start;
     width: 100%;
@@ -522,8 +544,13 @@ pre code {
   }
 
   h1 {
-    max-width: min(100%, 10ch);
+    max-width: min(100%, 14ch);
     font-size: clamp(2.6rem, 12vw, 3.4rem);
+  }
+
+  .hero--visual h1 {
+    max-width: min(100%, 14ch);
+    font-size: 3.4rem;
   }
 
   h2 {
@@ -538,20 +565,29 @@ pre code {
     width: min(100% - 1rem, var(--max-width));
   }
 
-  .site-nav a {
+  .site-nav a,
+  .site-header__login {
     padding: 0.65rem 0.7rem;
   }
 
   .site-nav {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .site-nav a,
   .button,
   .quiet-label,
-  .brand-lockup__subname {
+  .site-header__login {
     font-size: 0.875rem;
+  }
+
+  .site-header__login {
+    width: 100%;
+  }
+
+  .hero--visual h1 {
+    font-size: 3.1rem;
   }
 
   .button {
@@ -561,8 +597,6 @@ pre code {
   .route-table,
   .file-table {
     font-size: 0.875rem;
-    min-width: 0;
-    table-layout: fixed;
   }
 
   .route-table th,

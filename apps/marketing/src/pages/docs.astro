@@ -21,10 +21,17 @@ const machineFiles = [
   ["/sitemap.xml", "Canonical HTML route sitemap."],
   ["/robots.txt", "Max-visibility crawl policy and sitemap pointer."],
   ["/index.md", "Markdown mirror for the homepage."],
-  ["/standard.md", "Markdown mirror for the BehaviorLog standard route."],
   ["/cadence.md", "Markdown mirror for the Cadence route."],
+  ["/standard.md", "Markdown mirror for the BehaviorLog route."],
   ["/examples.md", "Markdown mirror for the examples route."],
   ["/about.md", "Markdown mirror for the launch about route."],
+] as const;
+const docsRoadmap = [
+  ["Guides", "Cadence setup, behavior modeling, exports, imports, and account portability."],
+  ["Reference", "BehaviorLog files, schemas, statuses, extension fields, and validation rules."],
+  ["Examples", "Sanitized bundles, parser fixtures, and expected reader behavior."],
+  ["Agent policy", "Crawl posture, llms files, route manifests, and safe interpretation rules."],
+  ["Schema history", "Version notes and migration guidance as BehaviorLog evolves."],
 ] as const;
 ---
 
@@ -32,11 +39,11 @@ const machineFiles = [
   <section class="page-section hero" aria-labelledby="docs-title">
     <div class="page-section__inner">
       <div class="stack">
-        <h1 id="docs-title">Agent-first docs for BehaviorLog and Cadence.</h1>
+        <h1 id="docs-title">Docs for Cadence and portable behavior records.</h1>
         <p>
-          These pages are built for raw HTML, Markdown mirrors, route manifests, and
-          explicit file contracts. Start here when an agent needs to inspect the
-          standard, cite a canonical page, or parse the example bundle.
+          Start here when a developer or agent needs to understand Cadence, inspect a
+          BehaviorLog bundle, cite a canonical page, or parse the example export
+          without opening the app.
         </p>
         <div class="cta-row">
           <a class="button button--primary" href="/llms.txt">Open llms.txt</a>
@@ -44,6 +51,29 @@ const machineFiles = [
           <a class="button" href={primaryCtas.readStandard.href}>
             {primaryCtas.readStandard.label}
           </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="quick-start-title">
+    <div class="page-section__inner">
+      <div class="split-grid">
+        <div class="ledger-row">
+          <h2 id="quick-start-title">Quick start</h2>
+          <ul class="text-list">
+            <li>Open <a class="inline-link" href="/cadence">Cadence</a> for product scope and user-facing behavior.</li>
+            <li>Open <a class="inline-link" href="/standard">BehaviorLog</a> for bundle structure and status semantics.</li>
+            <li>Download the <a class="inline-link" href={primaryCtas.downloadExample.href}>example bundle</a> for parser tests.</li>
+          </ul>
+        </div>
+        <div class="ledger-row">
+          <h2>Reader contract</h2>
+          <p>
+            Cadence stores manual behavior decisions. BehaviorLog preserves those
+            decisions in files. A reader should never convert unresolved into failure
+            or treat a current-status snapshot as the full event history.
+          </p>
         </div>
       </div>
     </div>
@@ -105,6 +135,39 @@ const machineFiles = [
                       <a class="inline-link" href={entry.markdownPath}>{entry.markdownPath}</a>
                     </td>
                     <td>{entry.description}</td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="docs-roadmap-title">
+    <div class="page-section__inner">
+      <div class="stack">
+        <h2 id="docs-roadmap-title">Documentation structure to grow into</h2>
+        <p>
+          The current site keeps docs static and small. The next docs pass should add a
+          full developer structure without dropping Markdown mirrors, route manifests,
+          or agent-readable outputs.
+        </p>
+        <div class="table-scroll">
+          <table class="file-table">
+            <thead>
+              <tr>
+                <th scope="col">Section</th>
+                <th scope="col">Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                docsRoadmap.map(([section, purpose]) => (
+                  <tr>
+                    <td>{section}</td>
+                    <td>{purpose}</td>
                   </tr>
                 ))
               }

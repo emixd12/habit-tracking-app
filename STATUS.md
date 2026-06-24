@@ -149,6 +149,57 @@ Remaining risk:
   authenticated web app has a strict live manifest today. Add native manifests
   or surface-specific benches when those surfaces have enough live UI to verify.
 
+## Marketing Cadence positioning update
+
+Status: complete.
+
+Implementation summary:
+- Repositioned the Astro marketing site around Cadence as the site brand,
+  homepage lead, and public product name. BehaviorLog now reads as the open
+  bundle standard and portability layer behind Cadence exports and imports.
+- Updated the marketing header to use only the Cadence logo and name, a
+  product-first route order (`Cadence`, `BehaviorLog`, `Docs`, `Examples`,
+  `About`), and a persistent `Log in` action to the authenticated app.
+- Expanded marketing copy on the homepage, Cadence page, BehaviorLog page,
+  Docs page, and About page. The Docs page now includes a quick-start contract
+  and a future developer-docs structure for Guides, Reference, Examples, Agent
+  policy, and Schema history.
+- Applied the existing square ledger design primitives to the marketing header,
+  CTA treatment, hero sizing, favicon, and docs tables. Mobile docs tables now
+  scroll inside their own containers without document-level horizontal
+  overflow.
+- Updated source-of-truth docs and the cross-surface design catalog so future
+  work does not restore the older BehaviorLog-led homepage posture.
+
+Verification:
+- Pass: `npm run marketing:build`
+- Pass: `npm run marketing:check`
+- Pass: `npm run design-system:check`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (41 files, 257 tests)
+- Pass: `npm run build`
+
+Browser QA:
+- Astro preview served at `http://localhost:4322/` because port `4321` was in
+  use.
+- Chrome/Playwright checks passed for `/`, `/cadence`, `/standard`, `/docs`,
+  `/examples`, and `/about` at 1280x900 and 390x844.
+- Verified 200 responses, no console warnings/errors, Cadence-only header
+  brand with one logo image, `BehaviorLog` nav label, visible `Log in` action,
+  no document-level horizontal overflow, and internally scrollable docs/example
+  tables on mobile.
+- Focused homepage QA verified that the hero capture does not overlap headline
+  or body copy and that the next section is visible in the first 1280x900
+  viewport.
+
+Remaining risk:
+- `/docs` is still a compact static entry point. The full developer-docs
+  structure is scoped as future documentation work, now recorded in the site
+  copy and source docs.
+
 ## Timeline UI feedback update
 
 - Reworked first-run setup on `/timeline` from an inline feed band into a

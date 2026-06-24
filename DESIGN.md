@@ -109,8 +109,9 @@ This is product UI, not a poster. The look can be distinctive, but every screen 
 - Rust red used for explicit Not Completed decisions and rare caution states.
 - Square corners, no shadows, no blur, no rounded cards.
 - Spacious desktop rhythm with compact, stackable mobile layouts.
-- Public marketing pages keep the same square ledger vocabulary while giving
-  BehaviorLog the first narrative position and Cadence the main product object.
+- Public marketing pages keep the same square ledger vocabulary while making
+  Cadence the first narrative position and treating BehaviorLog as the open
+  portability layer behind Cadence exports.
 
 ## 1.1 Surface Model
 
@@ -312,10 +313,11 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Layout:** Use full-width page sections separated by 1px Ash Line rules.
   Keep hero text unboxed and leave the next section visible in the first
   viewport. Use two-column content grids only after the hero.
-- **Brand relationship:** The homepage leads with BehaviorLog as the standard.
-  Cadence is the demonstration product and main brand object. Keep the existing
-  Cadence mark and pair it with a quieter BehaviorLog companion mark built from
-  the same square ledger cells and Ash Line stroke.
+- **Brand relationship:** The homepage leads with Cadence as the product and
+  site brand. BehaviorLog is explained as the open bundle standard and
+  portability layer Cadence writes and reads. Keep the existing Cadence mark,
+  and use only the Cadence logo and name in the marketing header. Do not use a
+  combined BehaviorLog/Cadence lockup in top navigation.
 - **Captures:** Product visuals are sanitized static captures of the Timeline
   and BehaviorLog bundle file set. They reuse real Cadence row language:
   scheduled time, behavior title, Completed, Not Completed, Needs decision,
@@ -323,13 +325,17 @@ This system is flat by default. Depth is created with borders, spacing, surface 
   In the homepage hero, the capture must fit its available lane without
   colliding with the headline or clipping offscreen.
 - **CTAs:** Use the same underlined text-action vocabulary for Try Cadence, Read
-  the Standard, Download Example Bundle, and View on GitHub. Primary actions use
-  Ink Black. Secondary actions use Readable Ash.
-- **Docs route:** `/docs` is agent-first. It links to Markdown mirrors,
-  `llms.txt`, `llms-full.txt`, `/data/route-manifest.json`, sitemap, robots,
-  and the example bundle. Use tables for machine file indexes rather than
-  decorative cards. On narrow screens, tables wrap inside the page width
-  rather than causing document-level horizontal scroll.
+  BehaviorLog, Download Example Bundle, and View on GitHub. The persistent
+  header Log in action may use a square filled treatment because it is an app
+  entry point. Primary content actions use Ink Black. Secondary actions use
+  Readable Ash.
+- **Docs route:** `/docs` is agent-first and developer-familiar. It links to
+  Markdown mirrors, `llms.txt`, `llms-full.txt`, `/data/route-manifest.json`,
+  sitemap, robots, and the example bundle. Use tables for machine file indexes
+  rather than decorative cards. On narrow screens, tables wrap inside the page
+  width rather than causing document-level horizontal scroll. Future docs
+  should grow toward Guides, Reference, Examples, Agent policy, and Schema
+  history without dropping machine-readable mirrors.
 - **SEO and agent readability:** Pages include canonical URLs, page-specific
   descriptions, Open Graph/Twitter metadata, JSON-LD, one H1, semantic
   landmarks, and Markdown alternate links.

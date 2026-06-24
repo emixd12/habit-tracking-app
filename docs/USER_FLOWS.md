@@ -19,20 +19,23 @@ Implemented public account-information routes:
 
 Implemented public marketing routes in the Astro site under `apps/marketing`:
 
-- `/`: landing page led by BehaviorLog as the standard and Cadence as the
-  demonstration product
+- `/`: Cadence-led landing page that introduces BehaviorLog as the open
+  portability standard
 - `/cadence`: product page for the tracker
-- `/standard`: BehaviorLog Bundle overview and adoption case
-- `/docs`: agent-first technical docs entry point
+- `/standard`: BehaviorLog Bundle overview and adoption case, surfaced in
+  navigation as BehaviorLog
+- `/docs`: technical docs entry point for Cadence, BehaviorLog,
+  machine-readable mirrors, and future docs structure
 - `/examples`: sanitized sample bundle page
 - `/about`: philosophy, governance, scope boundaries, and open-source posture
 
 Primary actions:
 
 - Try Cadence
-- Read the Standard
+- Read BehaviorLog
 - Download Example Bundle
 - View on GitHub
+- Log in
 
 The site should be simple, static-first, and SEO-conscious. It should not tease
 desktop/mobile apps before those surfaces are real or intentionally announced.

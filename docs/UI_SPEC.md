@@ -81,9 +81,10 @@ Launch marketing routes:
 Primary calls to action:
 
 - Try Cadence
-- Read the Standard
+- Read BehaviorLog
 - Download Example Bundle
 - View on GitHub
+- Log in
 
 The marketing site should be SEO-conscious with semantic content structure,
 metadata, canonical URLs, social preview metadata, sitemap/robots support, and
@@ -91,10 +92,12 @@ fast static pages. It also exposes `llms.txt`, `llms-full.txt`, Markdown
 mirrors, and a public route manifest for agents. Do not add heavy client-side
 marketing interactions unless a specific page needs them.
 
-BehaviorLog should lead the homepage as the standard. Cadence should be the
-demonstration product and main brand object. Keep the existing Cadence mark,
-use the square ledger visual system, and pair it with a quieter BehaviorLog
-companion mark.
+Cadence should lead the homepage as the product and site brand. BehaviorLog is
+the open bundle standard and portability layer behind Cadence exports and
+imports. Keep the existing Cadence mark, use the square ledger visual system,
+and show only the Cadence logo and name in the marketing header. The stable
+route `/standard` may remain, but visible navigation should call the page
+BehaviorLog.
 
 No public design-system page is launch scope. `/design-system` remains
 dev-only.

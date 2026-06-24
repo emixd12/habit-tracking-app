@@ -1,7 +1,7 @@
 ---
 import BrandMarks from "../components/BrandMarks.astro";
 import RouteJsonLd from "../components/RouteJsonLd.astro";
-import { getCanonicalUrl, marketingRoutes, type MarketingRoute } from "../data/routes";
+import { getCanonicalUrl, getRouteById, type MarketingRoute } from "../data/routes";
 import { primaryCtas, siteConfig } from "../data/site";
 import "../styles/global.css";
 
@@ -12,9 +12,15 @@ type Props = {
 const { route } = Astro.props;
 const canonicalUrl = getCanonicalUrl(route.path);
 const markdownUrl = getCanonicalUrl(route.markdownPath);
-const pageTitle =
-  route.path === "/" ? route.title : `${route.title} | BehaviorLog and Cadence`;
+const pageTitle = route.path === "/" ? route.title : `${route.title} | Cadence`;
 const ogImageUrl = getCanonicalUrl("/brand/cadence-logo.png");
+const headerRoutes = [
+  getRouteById("cadence"),
+  getRouteById("standard"),
+  getRouteById("docs"),
+  getRouteById("examples"),
+  getRouteById("about"),
+];
 ---
 
 <!doctype html>
@@ -25,6 +31,7 @@ const ogImageUrl = getCanonicalUrl("/brand/cadence-logo.png");
     <title>{pageTitle}</title>
     <meta name="description" content={route.description} />
     <link rel="canonical" href={canonicalUrl} />
+    <link rel="icon" type="image/png" href="/brand/cadence-logo.png" />
     <link rel="alternate" type="text/markdown" href={markdownUrl} />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={route.description} />
@@ -43,21 +50,26 @@ const ogImageUrl = getCanonicalUrl("/brand/cadence-logo.png");
     <div class="site-shell">
       <header class="site-header">
         <div class="site-header__inner">
-          <a class="brand-lockup" href="/" aria-label="BehaviorLog and Cadence home">
+          <a class="brand-lockup" href="/" aria-label="Cadence home">
             <BrandMarks />
           </a>
-          <nav class="site-nav" aria-label="Marketing">
-            {
-              marketingRoutes.map((item) => (
-                <a
-                  href={item.path}
-                  aria-current={item.path === route.path ? "page" : undefined}
-                >
-                  {item.navLabel}
-                </a>
-              ))
-            }
-          </nav>
+          <div class="site-header__nav-area">
+            <nav class="site-nav" aria-label="Marketing">
+              {
+                headerRoutes.map((item) => (
+                  <a
+                    href={item.path}
+                    aria-current={item.path === route.path ? "page" : undefined}
+                  >
+                    {item.navLabel}
+                  </a>
+                ))
+              }
+            </nav>
+            <a class="site-header__login" href={primaryCtas.logIn.href}>
+              {primaryCtas.logIn.label}
+            </a>
+          </div>
         </div>
       </header>
       <main id="main">
@@ -66,10 +78,11 @@ const ogImageUrl = getCanonicalUrl("/brand/cadence-logo.png");
       <footer class="site-footer">
         <div class="site-footer__inner">
           <p>
-            BehaviorLog is the standard. Cadence is the open reference tracker.
+            Cadence is the tracker. BehaviorLog is the open standard behind portable records.
           </p>
           <div class="cta-row" aria-label="Project links">
-            <a class="inline-link" href={primaryCtas.readStandard.href}>Standard</a>
+            <a class="inline-link" href="/cadence">Cadence</a>
+            <a class="inline-link" href="/standard">BehaviorLog</a>
             <a class="inline-link" href={primaryCtas.viewGithub.href}>GitHub</a>
             <a class="inline-link" href="/llms.txt">llms.txt</a>
           </div>
@@ -78,4 +91,3 @@ const ogImageUrl = getCanonicalUrl("/brand/cadence-logo.png");
     </div>
   </body>
 </html>
-
