@@ -97,7 +97,9 @@ the open bundle standard and portability layer behind Cadence exports and
 imports. Keep the existing Cadence mark, use the square ledger visual system,
 and show only the Cadence logo and name in the marketing header. The stable
 route `/standard` may remain, but visible navigation should call the page
-BehaviorLog.
+BehaviorLog. Marketing header links use the same underlined text-action
+convention as content buttons, without a divider under the header. The
+persistent Log in action may keep its square filled app-entry treatment.
 
 No public design-system page is launch scope. `/design-system` remains
 dev-only.
@@ -106,12 +108,14 @@ dev-only.
 
 This is the main screen.
 
-The current day should be prominent and should begin the forward timeline.
+The current day should be prominent and should begin the forward timeline feed.
 
 Do not show a visible Timeline page title or explanatory helper text above the
-feed. The first visible feed content should be the current-day section; optional
-first-run setup appears as a dismissible pop-up so it does not push the feed
-down while required launch setup items remain incomplete.
+feed. The Timeline may show the decorative Cadence trajectory image directly
+above the feed, spanning the full app content width. The first visible feed
+content should still be the current-day section; optional first-run setup
+appears as a dismissible pop-up so it does not push the feed down while required
+launch setup items remain incomplete.
 
 ### First-run setup
 

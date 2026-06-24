@@ -2643,6 +2643,52 @@ Remaining risk:
   fixture-backed design-system previews, static scans, typecheck, tests, and
   build.
 
+### Marketing hero and header cleanup
+
+Status: complete.
+
+Implementation summary:
+- Reworked the Astro homepage hero into a cleaner two-column composition with
+  the supplied trajectory horse illustration and supplied MacBook Pro frame.
+  The sanitized Cadence Timeline capture is clipped into the MacBook screen
+  through `HeroVisual.astro`.
+- Removed the marketing header bottom divider and changed marketing navigation
+  links to the underlined text-action convention while keeping the square
+  filled Log in app-entry action.
+- Added the supplied hero images under `apps/marketing/public/brand/`.
+- Updated `DESIGN.md`, `docs/UI_SPEC.md`, and `design-system.surfaces.json`
+  so the header treatment and MacBook-framed hero visual are documented and
+  traceable.
+- No schema, route, provider, resolver, stored-status, notification, export, or
+  product-scope changes were added.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (41 files, 257 tests).
+- Pass: `npm run build`.
+- Pass: `npm run marketing:build`.
+- Pass: `npm run marketing:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `git diff --check`.
+- Design-system maintenance scan: usage scan still reports 30 product usages
+  and 0 bench previews. The generic inventory scan detects broader Astro
+  surface files that remain intentionally cataloged through
+  `design-system.surfaces.json` rather than the strict web-app manifest.
+- Browser QA: local Astro dev server rendered the homepage at 1280x900 with no
+  header divider, underlined text-action navigation, the trajectory
+  illustration visible, and the Timeline capture readable inside the MacBook
+  screen.
+- Browser QA: 390x844 capture showed wrapped CTAs, no measured document-level
+  horizontal overflow, and the compact mobile hero visual below the copy.
+
+Remaining risk:
+- The MacBook screen capture is a clipped static HTML representation of the
+  existing sanitized `ProductCapture` component, not a live authenticated app
+  screenshot.
+
 ## Handoff notes
 
 - For the next coding agent: production browser push subscription is now

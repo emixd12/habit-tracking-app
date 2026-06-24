@@ -1,4 +1,5 @@
 ---
+import HeroVisual from "../components/HeroVisual.astro";
 import ProductCapture from "../components/ProductCapture.astro";
 import { getRouteById } from "../data/routes";
 import { primaryCtas } from "../data/site";
@@ -8,10 +9,7 @@ const route = getRouteById("home");
 ---
 
 <BaseLayout route={route}>
-  <section class="page-section hero hero--visual" aria-labelledby="home-title">
-    <div class="hero-background-capture" aria-hidden="true">
-      <ProductCapture variant="timeline" />
-    </div>
+  <section class="page-section hero hero--home" aria-labelledby="home-title">
     <div class="page-section__inner">
       <div class="hero-copy">
         <h1 id="home-title">Cadence keeps behavior records portable.</h1>
@@ -35,6 +33,7 @@ const route = getRouteById("home");
           </a>
         </div>
       </div>
+      <HeroVisual />
     </div>
   </section>
 

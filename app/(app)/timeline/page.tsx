@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 
 import { FirstRunOnboardingPanel } from "@/components/onboarding/FirstRunOnboardingPanel";
 import { Timeline } from "@/components/timeline/Timeline";
@@ -31,14 +32,32 @@ export default async function TimelinePage({ searchParams }: TimelinePageProps) 
   ]);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
-      <h1 className="sr-only">Timeline</h1>
-      <FirstRunOnboardingPanel onboarding={onboarding} />
-      <Timeline
-        timeline={timeline}
-        statusAction={markOccurrenceStatusAction}
-        noteAction={updateOccurrenceNoteAction}
-      />
+    <div className="flex w-full flex-col py-6 lg:py-10">
+      <div className="mx-auto flex w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-10">
+        <h1 className="sr-only">Timeline</h1>
+        <FirstRunOnboardingPanel onboarding={onboarding} />
+      </div>
+
+      <div className="mb-8 w-full overflow-hidden border-y border-line bg-background">
+        <Image
+          src="/brand/cadence-timeline-banner.png"
+          alt=""
+          aria-hidden="true"
+          width={2172}
+          height={724}
+          priority
+          sizes="100vw"
+          className="block h-auto w-full"
+        />
+      </div>
+
+      <div className="mx-auto flex w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-10">
+        <Timeline
+          timeline={timeline}
+          statusAction={markOccurrenceStatusAction}
+          noteAction={updateOccurrenceNoteAction}
+        />
+      </div>
     </div>
   );
 }

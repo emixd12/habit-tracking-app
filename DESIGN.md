@@ -264,7 +264,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 ### Timeline Rows
 
-- **Timeline structure:** The current day is the first forward section and uses the strongest date treatment. Do not show a visible Timeline page title above the feed. Day transitions use the date header plus a thin divider, not boxed day sections. Needs decision is reached from a fixed lower-right button on desktop and a full-width lower safe-area button on mobile; it opens a modal rather than appearing as an inline Timeline section.
+- **Timeline structure:** The current day is the first forward feed section and uses the strongest date treatment. Do not show a visible Timeline page title above the feed. The decorative Cadence trajectory image may sit directly above the feed as a full app-content-width banner. Day transitions use the date header plus a thin divider, not boxed day sections. Needs decision is reached from a fixed lower-right button on desktop and a full-width lower safe-area button on mobile; it opens a modal rather than appearing as an inline Timeline section.
 - **Collapsed unresolved:** Scheduled time as plain text, behavior title, Completed text-link action, and Not Completed text-link action. Rows are compact and unboxed, with collapsed time, title, and action text vertically centered within the row; do not draw a perimeter border around each behavior row. On mobile, the time and title sit first, then unresolved status actions sit in their own full-width touch row before expanded details. Primary status actions are visible for Needs decision rows and current-day unresolved rows. Preset time ranges show only their short label, such as Morning or Evening, in collapsed rows.
 - **Timeline status actions:** Render Completed and Not Completed as inline underlined text-link controls with the check and x icons retained. Do not use boxed, filled, or outlined button chrome for these row-level status actions. Keep status action underlines consistently thin; do not use underline thickness to indicate that a row is already Not Completed. Mobile status and Save note actions should have at least a 44px tap target. Hover-capable devices and keyboard focus may add non-reflowing text emphasis as a targeted exception to the base no-bold type experiment, but should not change the action color or move adjacent actions.
 - **Expanded details:** Native disclosure reveals description, category, schedule summary, and note directly on the row surface, without a grey panel, enclosing border, boxed card treatment, chevron, or separate disclosure icon. While open, the whole occurrence row holds the same blue background used by that row's hover state. The Note textarea keeps its field border; Save note uses the same underlined text-action vocabulary as Completed and Not Completed.
@@ -312,18 +312,22 @@ This system is flat by default. Depth is created with borders, spacing, surface 
   `/`, `/standard`, `/cadence`, `/examples`, `/docs`, and `/about`.
 - **Layout:** Use full-width page sections separated by 1px Ash Line rules.
   Keep hero text unboxed and leave the next section visible in the first
-  viewport. Use two-column content grids only after the hero.
+  viewport. The homepage hero may use a two-column copy/media composition when
+  the media is a direct product capture, not a decorative card.
 - **Brand relationship:** The homepage leads with Cadence as the product and
   site brand. BehaviorLog is explained as the open bundle standard and
   portability layer Cadence writes and reads. Keep the existing Cadence mark,
   and use only the Cadence logo and name in the marketing header. Do not use a
-  combined BehaviorLog/Cadence lockup in top navigation.
+  combined BehaviorLog/Cadence lockup in top navigation. Header navigation
+  links use the underlined text-action convention and no bottom divider.
 - **Captures:** Product visuals are sanitized static captures of the Timeline
   and BehaviorLog bundle file set. They reuse real Cadence row language:
   scheduled time, behavior title, Completed, Not Completed, Needs decision,
   Note, and status-history authority. They do not render real account data.
-  In the homepage hero, the capture must fit its available lane without
-  colliding with the headline or clipping offscreen.
+  The homepage hero frames the sanitized Timeline capture inside the supplied
+  MacBook Pro screen and pairs it with the trajectory horse illustration. The
+  composition must stay quiet, keep the capture readable, and fit its available
+  lane without colliding with the headline or clipping offscreen.
 - **CTAs:** Use the same underlined text-action vocabulary for Try Cadence, Read
   BehaviorLog, Download Example Bundle, and View on GitHub. The persistent
   header Log in action may use a square filled treatment because it is an app
