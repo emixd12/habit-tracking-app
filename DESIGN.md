@@ -51,17 +51,19 @@ spacing:
   xl: "120px"
 components:
   button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.background}"
+    backgroundColor: "transparent"
+    textColor: "{colors.primary}"
     typography: "{typography.label}"
     rounded: "{rounded.none}"
-    padding: "12px 20px"
+    padding: "0"
+    textDecoration: "underline"
   button-secondary:
-    backgroundColor: "{colors.background}"
-    textColor: "{colors.text}"
+    backgroundColor: "transparent"
+    textColor: "{colors.muted-readable}"
     typography: "{typography.label}"
     rounded: "{rounded.none}"
-    padding: "12px 20px"
+    padding: "0"
+    textDecoration: "underline"
   input-field:
     backgroundColor: "{colors.background}"
     textColor: "{colors.text}"
@@ -104,7 +106,7 @@ This is product UI, not a poster. The look can be distinctive, but every screen 
 - Bleached off-white background with quiet ash dividers.
 - Muted blue used for selected recurrence presets, completed cells, and primary actions.
 - Pale timeline blue used for the current navigation route state.
-- Rust red used rarely for warnings, destructive actions, or errors.
+- Rust red used for explicit Not Completed decisions and rare caution states.
 - Square corners, no shadows, no blur, no rounded cards.
 - Spacious desktop rhythm with compact, stackable mobile layouts.
 - Public marketing pages keep the same square ledger vocabulary while giving
@@ -123,7 +125,7 @@ The palette is almost monochrome: black ink, bleached paper, subtle gray, and on
 
 ### Secondary
 
-- **Rust Signal**: Warning and destructive color only. Do not use it for ordinary Not Completed status actions by default; Not Completed should feel factual, not punitive.
+- **Rust Signal**: Used for explicit Not Completed decisions and rare destructive or caution states. Keep the language factual so the color marks a recorded state, not a moral failure.
 
 ### Neutral
 
@@ -135,7 +137,7 @@ The palette is almost monochrome: black ink, bleached paper, subtle gray, and on
 
 ### Named Rules
 
-**The Four-Color Rule.** Most screens should read as black, background, blue, and surface gray. Rust appears only when the user needs caution.
+**The Four-Color Rule.** Most screens should read as black, background, blue, and surface gray. Rust appears for explicit Not Completed decisions and genuine caution.
 
 **The Contrast Rule.** Use Ash Line for all borders and quiet separators. Use Readable Ash or Ink Black for text that the user must read.
 
@@ -175,17 +177,17 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 **The No-Shadow Rule.** Do not use drop shadows, glass effects, blurred panels, or soft floating cards.
 
-**The Quiet Border Rule.** Use the same 1px Ash Line rule for all product borders. Dividers, controls, panels, rows, inputs, overlays, and heatmap cells share the quiet divider; hierarchy comes from fill, spacing, and typography rather than heavier border weight.
+**The Quiet Divider Rule.** Prefer single 1px Ash Line dividers over full perimeter boxes. Inputs, select controls, compact chips, true dialogs, and dense data tables may still use enclosure when the boundary is functional. Hierarchy comes from fill, spacing, and typography rather than heavier border weight.
 
 ## 5. Components
 
 ### Buttons
 
-- **Shape:** Square corners (0px).
-- **Primary:** Monolith Blue fill, Bleached Newsprint text, 1px Ash Line border, Label typography, and 12px 20px padding.
-- **Secondary:** Bleached Newsprint fill, Ink Black text, 1px Ash Line border, same padding.
-- **Destructive:** Rust Signal fill only for destructive or risky actions. Not Completed is not destructive by default.
-- **Hover / Focus:** Hover may invert or fill with Monolith Blue. Focus must use a visible 2px outline with offset.
+- **Primitive:** Text on a transparent background with a thin underline. This is the default action/link vocabulary in the design-system harness and for lightweight product actions.
+- **Primary:** Monolith Blue text, underline, Label typography, and no perimeter box.
+- **Secondary:** Readable Ash text, underline, Label typography, and no perimeter box.
+- **Reserved fills:** Use filled button surfaces only for selected controls, destructive confirmations, fixed high-priority actions such as Needs decision, and cases where the target needs a larger touch surface.
+- **Hover / Focus:** Hover may shift text to Monolith Blue or Ink Black without reflow. Focus must use a visible 2px outline with offset.
 
 ### Chips
 
@@ -197,7 +199,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Corner Style:** Square corners (0px).
 - **Background:** Bleached Newsprint for normal rows; Cold Surface for empty states, expanded details, and low-emphasis panels.
 - **Shadow Strategy:** No shadows.
-- **Border:** 1px Ash Line for important panels, controls, and internal dividers. Behavior records and Timeline occurrence rows are unboxed list rows and do not use a perimeter border.
+- **Border:** Prefer single Ash Line dividers and unboxed sections. Behavior records and Timeline occurrence rows are unboxed list rows. Use perimeter borders only where a real field, modal, table, or dense control needs an explicit boundary.
 - **Internal Padding:** 20px for behavior rows, 10-12px for compact Timeline occurrence rows, 64px for major page sections on desktop, 24px or less on mobile.
 
 ### Inputs / Fields
@@ -238,9 +240,9 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Collapsed unresolved and Not Completed:** Scheduled time as plain text, behavior title, Completed text-link action, and Not Completed text-link action. Rows are compact and unboxed, with collapsed time, title, and action text vertically centered within the row; do not draw a perimeter border around each behavior row. On mobile, the time and title sit first, then status actions sit in their own full-width touch row before expanded details. Primary status actions are visible for Needs decision rows, current-day unresolved rows, and Not Completed rows. Preset time ranges show only their short label, such as Morning or Evening, in collapsed rows.
 - **Timeline status actions:** Render Completed and Not Completed as inline underlined text-link controls with the check and x icons retained. Do not use boxed, filled, or outlined button chrome for these row-level status actions. Keep status action underlines consistently thin; do not use underline thickness to indicate that a row is already Not Completed. Mobile status and Save note actions should have at least a 44px tap target. Hover-capable devices and keyboard focus may add non-reflowing text emphasis as a targeted exception to the base no-bold type experiment, but should not change the action color or move adjacent actions.
 - **Expanded details:** Native disclosure reveals description, category, schedule summary, and note directly on the row surface, without a grey panel, enclosing border, boxed card treatment, chevron, or separate disclosure icon. While open, the whole occurrence row holds the same blue background used by that row's hover state. The Note textarea keeps its field border; Save note uses the same underlined text-action vocabulary as Completed and Not Completed.
-- **Resolved:** Keep resolved rows visible with distinct states. Completed rows hide primary status actions and use a full Monolith Blue fill instead of a separate status chip. Not Completed rows visually return to the original unresolved card treatment but show the Completed and Not Completed text-link actions without a separate current-choice cue.
+- **Resolved:** Keep resolved rows visible with distinct states. Completed rows hide primary status actions and use a full Monolith Blue fill instead of a separate status chip. Not Completed rows use the Rust Signal fill with Bleached Newsprint text and keep Completed and Not Completed text-link actions available for correction.
 - **Completion feedback:** A successful user-initiated change into Completed may play one short chime. Treat it as state feedback, not a reward loop: no voice, no alarm tone, no repeat sound, and no sound for Not Completed or page load.
-- **Needs decision:** The floating button shows the unresolved count to decide and uses Monolith Blue when the count is greater than zero. Keep the count and label on one continuous button surface without an internal divider. On mobile, the button spans the lower safe-area width and the modal becomes a full-height sheet with the same flat row vocabulary. On desktop, the modal uses a flat bordered panel. Highlight prior unresolved rows with Cold Surface and thin structural lines, never red error styling. Rows decided from the modal can remain in their original prior-day group through the current local day; Completed retained rows use the full completed treatment, and Not Completed retained rows keep the normal status-action treatment. Do not write or imply a stored Needs decision status.
+- **Needs decision:** The floating button shows the unresolved count to decide and uses Monolith Blue when the count is greater than zero. Keep the count and label on one continuous button surface without an internal divider. On mobile, the button spans the lower safe-area width and the modal becomes a full-height sheet with the same flat row vocabulary. On desktop, the modal uses a flat bordered panel. Highlight prior unresolved rows with Cold Surface and thin structural lines, never red error styling. Rows decided from the modal can remain in their original prior-day group through the current local day; Completed retained rows use the full completed treatment, and Not Completed retained rows use the Rust Signal treatment. Do not write or imply a stored Needs decision status.
 
 ### Analytics Heatmaps
 
@@ -248,10 +250,10 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Legend disclosure:** The overall calendar legend stays hidden behind a simple See Legend disclosure by default.
 - **Top summary unresolved count:** Match the Timeline Needs decision count by counting only active unresolved occurrences before the current local day, regardless of the selected Analytics range. Current-day unresolved occurrences may still show in heatmap and detail counts.
 - **Completion-intensity cells:** Overall calendar cells mix Monolith Blue with Bleached Newsprint by completed share: 100% uses full Monolith Blue, 50% uses a half-strength blue, and lower shares keep fading toward the background.
-- **Not completed cells:** Overall calendar cells with resolved occurrences but no completions use the background end of the completion-intensity scale, without a diagonal overlay.
+- **Not completed cells:** Overall calendar cells with resolved occurrences but no completions use Rust Signal rather than the neutral completion-intensity scale.
 - **Unresolved cells:** Cold Surface or background with a neutral border. Do not imply failure.
 - **Grid:** Square cells, consistent gutters, no gradients, no rounded cells. Calendar cells show a compact date label on hover or keyboard focus while keeping the longer accessible label available.
-- **Behavior rows:** Behavior counts use unboxed divider rows with title, category metadata text, adherence label, tracking-since text, vertical label/value counts, and a seven-column heatmap sized to the row. Full completion is filled blue; partial and not completed states use factual diagonal marks. The behavior tracking start date is marked in the heatmap when it falls inside the selected range. Non-empty behavior calendar cells open that behavior's Review day area.
+- **Behavior rows:** Behavior counts use unboxed divider rows with title, category metadata text, adherence label, tracking-since text, vertical label/value counts, and a seven-column heatmap sized to the row. Full completion is filled blue; partial states use factual diagonal marks; not completed states use Rust Signal. The behavior tracking start date is marked in the heatmap when it falls inside the selected range. Non-empty behavior calendar cells open that behavior's Review day area.
 - **Behavior day review:** Review day appears inside the selected behavior row and lists only that behavior's occurrences for the selected local date when rows exist. Rows use the same occurrence-row vocabulary: scheduled time chip, status label, note state, Completed and Not Completed text-link controls, and the inline Note form. Do not render an empty inspection panel when there are no occurrences on the selected behavior day.
 
 ### Export Panels
@@ -314,12 +316,12 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 - **Do** use IBM Plex Sans everywhere.
 - **Do** use 0px border radius throughout the app.
-- **Do** use the same quiet 1px Ash Line divider for Timeline structure, controls, panels, rows, inputs, overlays, and heatmap cells.
+- **Do** prefer single quiet 1px Ash Line dividers over full perimeter boxes.
 - **Do** keep the Timeline as the primary screen and `/timeline` as the default authenticated route.
 - **Do** keep categories hidden from primary navigation and Timeline filtering.
 - **Do** make mobile layouts stack vertically with comfortable 24px spacing.
 - **Do** use Timeline Row Hover for active navigation and Monolith Blue for selected states, completed cells, and primary actions.
-- **Do** use Rust Signal only when the interface truly needs caution.
+- **Do** use Rust Signal for explicit Not Completed decisions and true caution states.
 
 ### Don't:
 
@@ -333,5 +335,5 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Don't** use calendar-sync or task-manager complexity.
 - **Don't** use offline or PWA mutation flows in v1.
 - **Don't** add rounded cards, soft shadows, blurred panels, gradients, glass effects, or decorative stripes.
-- **Don't** treat Not Completed as an error state.
+- **Don't** use missed, failed, or punitive language for Not Completed.
 - **Don't** copy the reference screen content, sample habits, route labels, or flows.

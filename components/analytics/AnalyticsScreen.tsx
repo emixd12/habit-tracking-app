@@ -23,7 +23,7 @@ type AnalyticsScreenProps = Readonly<{
 const OVERALL_CELL_CLASSES: Record<AnalyticsOverallDayState, string> = {
   completed: "border-line text-primary-foreground",
   partial: "border-line text-foreground",
-  not_completed: "border-line bg-background text-foreground",
+  not_completed: "border-line bg-accent text-primary-foreground",
   unresolved: "border-line bg-surface text-muted-readable",
   empty: "border-line bg-background text-muted-readable",
 };
@@ -31,7 +31,7 @@ const OVERALL_CELL_CLASSES: Record<AnalyticsOverallDayState, string> = {
 const BEHAVIOR_CELL_CLASSES: Record<AnalyticsBehaviorDayState, string> = {
   full: "border-line bg-primary text-primary-foreground",
   partial: "border-line bg-surface text-foreground",
-  not_completed: "border-line bg-background text-foreground",
+  not_completed: "border-line bg-accent text-primary-foreground",
   unresolved: "border-line bg-surface text-muted-readable",
   empty: "border-line bg-background text-muted-readable",
 };
@@ -386,7 +386,12 @@ function BehaviorDayReview({
                 >
                   {occurrence.scheduledTimeLabel}
                 </time>
-                <span className="border border-line bg-surface px-2 py-1 text-xs font-bold">
+                <span
+                  className={[
+                    "border px-2 py-1 text-xs font-bold",
+                    statusLabelClassName(occurrence.status),
+                  ].join(" ")}
+                >
                   {occurrence.statusLabel}
                 </span>
               </div>
@@ -446,7 +451,7 @@ function HeatmapLegend() {
         className="border-line"
         style={completionShadeStyle(0.5)}
       />
-      <LegendItem label="Not Completed" className="border-line bg-background" />
+      <LegendItem label="Not Completed" className="border-line bg-accent" />
       <LegendItem label="Unresolved" className="border-line bg-surface" />
     </ul>
   );
@@ -476,6 +481,10 @@ function LegendItem({
 function overallCellStyle(
   cell: AnalyticsView["overallHeatmap"][number],
 ): CSSProperties | undefined {
+  if (cell.state === "not_completed") {
+    return { backgroundColor: "var(--accent)" };
+  }
+
   if (cell.completionRate === null) {
     return undefined;
   }
@@ -531,7 +540,7 @@ function TrackingStartMarker() {
   return (
     <span
       aria-hidden="true"
-      className="absolute left-0 top-0 h-2 w-2 border-l-2 border-t-2 border-foreground"
+      className="absolute left-0 top-0 h-2 w-2 border-l-2 border-t-2 border-current"
     />
   );
 }
@@ -545,11 +554,22 @@ function DiagonalMark({
     <span
       aria-hidden="true"
       className={[
-        "absolute left-1/2 top-1/2 h-px -translate-x-1/2 -translate-y-1/2 rotate-45 bg-foreground",
+        "absolute left-1/2 top-1/2 h-px -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current",
         compact ? "w-3" : "w-5",
       ].join(" ")}
     />
   );
+}
+
+function statusLabelClassName(status: string): string {
+  switch (status) {
+    case "completed":
+      return "border-line bg-primary text-primary-foreground";
+    case "not_completed":
+      return "border-line bg-accent text-primary-foreground";
+    default:
+      return "border-line bg-surface text-muted-readable";
+  }
 }
 
 function analyticsHref({

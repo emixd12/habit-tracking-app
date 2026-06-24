@@ -182,7 +182,7 @@ Collapsed Not Completed cards show:
 
 Completed cards should have a distinct visual state and should hide the primary status actions.
 
-Not Completed cards should visually return to the original unresolved card treatment while exposing both status actions so the logged action can be approved or changed without expanding the card. The stored status remains `not_completed` on that occurrence instance.
+Not Completed cards use the red accent treatment while exposing both status actions so the logged action can be approved or changed without expanding the card. The stored status remains `not_completed` on that occurrence instance, and the UI must not call it missed or failed.
 
 Clicking a card outside the status actions expands it.
 
@@ -279,8 +279,8 @@ local day, regardless of the selected Analytics range.
 
 Show a completion-intensity calendar heatmap for overall adherence. A fully
 completed day uses the full completed color; partial completion uses a lighter
-blue proportional to the completed share; days with no completed occurrences
-use the background end of the scale.
+blue proportional to the completed share; days with resolved occurrences but
+no completed occurrences use the red accent treatment.
 
 Show behavior-level counts and charts.
 

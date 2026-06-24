@@ -192,6 +192,10 @@ button:disabled {
   background: var(--timeline-completed-hover);
 }
 
+.timeline-occurrence-row[data-visual-tone="not_completed"]:has(details[open]) {
+  background: var(--accent);
+}
+
 .timeline-occurrence-row[data-visual-tone="completed"]:has(details[open])
   .timeline-occurrence-details,
 .timeline-occurrence-row[data-visual-tone="completed"]:has(details[open])
@@ -204,6 +208,32 @@ button:disabled {
 }
 
 .timeline-occurrence-row[data-visual-tone="completed"]:has(details[open])
+  .timeline-occurrence-details textarea {
+  color: var(--foreground);
+}
+
+.timeline-occurrence-row[data-visual-tone="not_completed"]
+  .timeline-status-action,
+.timeline-occurrence-row[data-visual-tone="not_completed"]:has(details[open])
+  .timeline-occurrence-details,
+.timeline-occurrence-row[data-visual-tone="not_completed"]:has(details[open])
+  .timeline-occurrence-details h4,
+.timeline-occurrence-row[data-visual-tone="not_completed"]:has(details[open])
+  .timeline-occurrence-details label {
+  color: var(--primary-foreground);
+}
+
+.timeline-occurrence-row[data-visual-tone="not_completed"]
+  .timeline-status-action:disabled {
+  color: color-mix(in srgb, var(--primary-foreground) 68%, var(--accent));
+}
+
+.timeline-occurrence-row[data-visual-tone="not_completed"]:has(details[open])
+  .timeline-occurrence-details {
+  border-color: color-mix(in srgb, var(--primary-foreground) 34%, var(--accent));
+}
+
+.timeline-occurrence-row[data-visual-tone="not_completed"]:has(details[open])
   .timeline-occurrence-details textarea {
   color: var(--foreground);
 }

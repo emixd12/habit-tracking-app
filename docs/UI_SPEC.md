@@ -155,7 +155,8 @@ local midnight in the user's timezone. Do not move it into a separate "Decided
 just now" or similar section. Completed rows keep the same full blue Completed
 state used on Timeline rows; expanding the row exposes Change status and Note
 editing. Not Completed rows keep the same Timeline Not Completed behavior and
-continue exposing Completed and Not Completed actions. The Needs decision count
+continue exposing Completed and Not Completed actions with the red accent
+treatment. The Needs decision count
 continues to count unresolved prior-day occurrences only, not retained decided
 rows. When there are no unresolved rows but retained decided rows still exist,
 the button may still open the modal with a zero count. Retention must be
@@ -189,9 +190,8 @@ For multi-time behavior groups:
 - Completed rows use the existing full blue completed treatment.
 - Unresolved rows use the existing unresolved treatment and show Completed and
   Not Completed text-link status actions.
-- Not Completed rows return to the original unresolved card treatment and show
-  Completed and Not Completed text-link status actions without a separate
-  current-choice cue.
+- Not Completed rows use the red accent treatment and show Completed and Not
+  Completed text-link status actions so the logged decision remains correctable.
 - Do not show a "1 of 2 completed" label.
 - Do not add a partial-completion stored status.
 - Partial completion is only a derived visual result of mixed row states within
@@ -255,7 +255,7 @@ Unresolved prior-day cards in the Needs decision modal should be visually highli
 
 Completed cards should remain visible with a distinct resolved state, hide the primary status actions, and clearly indicate Completed.
 
-Not Completed cards should remain visible with the original unresolved card treatment and expose the same Completed and Not Completed text-link status actions as the original decision card so the user can immediately approve or change the logged action. This is a visual reset only; the stored status remains on that occurrence instance as `not_completed`.
+Not Completed cards should remain visible with the red accent treatment and expose the same Completed and Not Completed text-link status actions as the original decision card so the user can immediately approve or change the logged action. This is a factual recorded-state cue only; the stored status remains on that occurrence instance as `not_completed`, and the UI must not call it missed or failed.
 
 Clicking a Completed card should reveal the option to change the logged action. Do not require a confirmation step before changing a status.
 
@@ -423,12 +423,12 @@ before the current local day, regardless of the selected Analytics range.
 Current-day unresolved occurrences can still show as unresolved in heatmap
 cells and behavior/category detail counts.
 
-Overall calendar cells use completion intensity: 100% Completed uses the full
-primary blue, and lower completion shares mix that blue with the background in
-the same proportion. A 50% completed day should appear as a half-strength blue
-cell. A day with resolved occurrences but no completed occurrences uses the
-background end of the scale. Fully unresolved days use the neutral unresolved
-treatment.
+Overall calendar cells use completion intensity for completed share: 100%
+Completed uses the full primary blue, and lower completion shares mix that blue
+with the background in the same proportion. A 50% completed day should appear
+as a half-strength blue cell. A day with resolved occurrences but no completed
+occurrences uses the red accent treatment. Fully unresolved days use the
+neutral unresolved treatment.
 
 Behavior count rows should be divider-separated rather than boxed. Their
 Completed, Not Completed, and Unresolved labels align vertically with the

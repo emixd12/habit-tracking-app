@@ -349,14 +349,14 @@ function Foundations() {
           preview={
             <ProductPreview>
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="border border-line bg-background p-4 text-sm font-bold">
+                <div className="border-y border-line bg-background py-4 text-sm font-bold">
                   0px card
                 </div>
                 <button
                   type="button"
-                  className="border border-line bg-primary px-4 py-3 text-sm font-bold text-primary-foreground"
+                  className="w-fit bg-transparent py-3 text-sm font-bold text-primary underline decoration-1 underline-offset-4"
                 >
-                  0px button
+                  0px text button
                 </button>
                 <input
                   aria-label="Square input sample"
@@ -373,12 +373,12 @@ function Foundations() {
           title="Border"
           preview={
             <ProductPreview>
-              <div className="grid gap-3 bg-background text-foreground">
-                <div className="border border-line p-3 text-sm">
-                  1px quiet divider
+              <div className="grid bg-background text-foreground">
+                <div className="border-t border-line py-3 text-sm">
+                  Single-line divider
                 </div>
-                <div className="border border-line p-3 text-sm font-bold">
-                  Same quiet divider on controls and panels
+                <div className="border-t border-line py-3 text-sm font-bold">
+                  Avoid perimeter boxes unless the control needs enclosure
                 </div>
               </div>
             </ProductPreview>
@@ -390,7 +390,7 @@ function Foundations() {
           title="Shadow"
           preview={
             <ProductPreview>
-              <div className="border border-line bg-background p-4 text-sm leading-6 text-muted-readable shadow-none">
+              <div className="border-t border-line bg-background pt-4 text-sm leading-6 text-muted-readable shadow-none">
                 Elevation is intentionally flat: borders, spacing, and fills
                 carry hierarchy.
               </div>
@@ -405,7 +405,7 @@ function Foundations() {
             <ProductPreview>
               <button
                 type="button"
-                className="border border-line bg-background px-4 py-3 text-sm font-bold text-foreground transition-colors duration-200 hover:bg-primary hover:text-primary-foreground motion-reduce:transition-none"
+                className="bg-transparent py-3 text-sm font-bold text-foreground underline decoration-1 underline-offset-4 transition-colors duration-200 hover:text-primary motion-reduce:transition-none"
               >
                 200ms state transition
               </button>
@@ -425,20 +425,20 @@ function Foundations() {
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                className="min-h-11 border border-line bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
+                className="min-h-11 bg-transparent px-0 py-2 text-sm font-bold text-primary underline decoration-1 underline-offset-4"
               >
                 Primary
               </button>
               <button
                 type="button"
-                className="min-h-11 border border-line bg-background px-4 py-2 text-sm font-bold text-foreground"
+                className="min-h-11 bg-transparent px-0 py-2 text-sm font-bold text-muted-readable underline decoration-1 underline-offset-4"
               >
                 Secondary
               </button>
               <button
                 type="button"
                 disabled
-                className="min-h-11 border border-line bg-surface px-4 py-2 text-sm font-bold text-muted-readable"
+                className="min-h-11 bg-transparent px-0 py-2 text-sm font-bold text-muted-readable opacity-60"
               >
                 Disabled
               </button>
@@ -464,25 +464,24 @@ function Foundations() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <article className="border border-line bg-background p-4">
+              <article className="border-y border-line bg-background py-4">
                 <h3 className="text-lg font-bold">Card surface</h3>
                 <p className="mt-2 text-sm leading-6 text-muted-readable">
-                  Square, flat, and structured by borders.
+                  Square, flat, and structured by spacing and single rules.
                 </p>
               </article>
-              <div className="border border-line bg-surface p-4">
-                <div className="border border-line bg-background p-4">
-                  <h3 className="text-lg font-bold">Overlay panel</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-readable">
-                    Modal vocabulary uses the same flat product surfaces.
-                  </p>
-                </div>
+              <div className="bg-background p-4">
+                <h3 className="text-lg font-bold">Overlay panel</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-readable">
+                  Modal vocabulary uses the same white product surface.
+                </p>
               </div>
             </div>
 
             <a
               href="/timeline"
-              className="w-fit border border-line bg-background px-3 py-2 text-sm font-bold text-foreground hover:bg-surface"
+              className="w-fit text-sm font-bold text-foreground underline decoration-1 underline-offset-4 hover:text-primary"
+              style={{ textDecorationLine: "underline" }}
             >
               Product link
             </a>
