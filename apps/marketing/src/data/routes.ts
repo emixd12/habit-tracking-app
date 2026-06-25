@@ -31,16 +31,16 @@ export const marketingRoutes = [
     includeInMarkdownMirror: true,
     markdown: `# Cadence
 
-Cadence is an open personal behavior tracker for recurring life patterns. It is the product people use: create behaviors, review scheduled occurrences, mark Completed or Not Completed, add notes, receive reminders, review basic analytics, and export the record.
+Cadence is an open tracker for recurring life patterns. It is the product people use to create behaviors, review scheduled occurrences, mark Completed or Not Completed, add notes, receive reminders, review basic analytics, and export their record.
 
-BehaviorLog is the open bundle standard Cadence uses for portability. It keeps behaviors, schedules, occurrences, status events, notes, and provenance portable across tools.
+BehaviorLog is the open bundle format behind Cadence exports and imports. It stores behaviors, schedules, occurrences, status changes, notes, and provenance in files that can be inspected outside the app.
 
 ## Read First
 
-- Use Cadence when you want a working personal tracker for recurring behaviors.
+- Use Cadence to track recurring behaviors one account at a time.
 - Use BehaviorLog when a behavior history needs to move between tools without losing local dates, timezones, or explicit status history.
 - Status values are unresolved, completed, and not_completed.
-- Needs decision is a derived UI group in Cadence, not a stored BehaviorLog status.
+- Needs decision is a derived Cadence UI group, not a stored BehaviorLog status.
 `,
   },
   {

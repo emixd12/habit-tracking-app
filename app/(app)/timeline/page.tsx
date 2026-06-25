@@ -3,8 +3,7 @@ import Image from "next/image";
 
 import { FirstRunOnboardingPanel } from "@/components/onboarding/FirstRunOnboardingPanel";
 import { Timeline } from "@/components/timeline/Timeline";
-import { getFirstRunOnboardingState } from "@/lib/services/onboarding.service";
-import { getTimelinePageData } from "@/lib/services/timeline.service";
+import { getTimelinePageBundle } from "@/lib/services/timeline.service";
 import {
   markOccurrenceStatusAction,
   updateOccurrenceNoteAction,
@@ -24,12 +23,9 @@ type TimelinePageProps = Readonly<{
 
 export default async function TimelinePage({ searchParams }: TimelinePageProps) {
   const params = await searchParams;
-  const [timeline, onboarding] = await Promise.all([
-    getTimelinePageData({
-      futureDays: parseFutureDays(params?.days),
-    }),
-    getFirstRunOnboardingState(),
-  ]);
+  const { timeline, onboarding } = await getTimelinePageBundle({
+    futureDays: parseFutureDays(params?.days),
+  });
 
   return (
     <div className="flex w-full flex-col">

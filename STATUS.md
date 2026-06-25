@@ -139,16 +139,22 @@ Current state:
   reads existing occurrences and schedule slots in parallel, and reminder
   planning reuses the already-fetched occurrence list when generation made no
   occurrence mutations.
+- A third local optimization batch is complete: route-load occurrence sync now
+  preserves parallel per-behavior reads while batching stable create/delete and
+  reminder delivery writes across behaviors; protected route services reuse a
+  request-scoped Supabase Auth user lookup; Timeline now shares behavior and
+  timezone reads between the feed and first-run setup state.
 - Local production-build after-change route measurements have been recorded.
   Production after-change measurements are still pending deployment of this
   batch.
 
 Verification:
+- Pass: `npx vitest run tests/occurrence.service.test.ts tests/reminder.service.test.ts tests/settings.service.test.ts tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-restore-ui.test.tsx`
 - Pass: `npm run resolvers:check`
 - Pass: `npm run typecheck`
 - Pass: `npm run lint`
 - Pass: `npm run agents:check`
-- Pass: `npm run test`
+- Pass: `npm run test` (44 files, 271 tests)
 - Pass: `npx vitest run tests/completion-feedback.test.ts`
 - Pass: `npx vitest run tests/reminder.service.test.ts`
 - Pass: `npm run build`

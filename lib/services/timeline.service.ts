@@ -1,5 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 
+import { listBehaviorLogImportRuns } from "@/lib/db/behaviorLogImports.repo";
 import {
   getProfileTimezone,
   listUserBehaviors,
@@ -22,9 +23,12 @@ import {
   summarizeRecurrenceRule,
 } from "@/lib/services/behavior-form";
 import { formatCompactOccurrenceScheduleLabel } from "@/lib/services/schedule";
+import { createFirstRunOnboardingState } from "@/lib/services/onboarding.service";
 import { syncUserOccurrences } from "@/lib/services/occurrence.service";
+import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import type { Occurrence } from "@/lib/types/database";
+import type { FirstRunOnboardingState } from "@/lib/types/onboarding";
 import type {
   TimelineOccurrenceInput,
   TimelineStatus,
@@ -37,6 +41,41 @@ export type GetTimelinePageDataOptions = {
   futureDays?: number;
 };
 
+export type TimelinePageBundle = {
+  timeline: TimelineView;
+  onboarding: FirstRunOnboardingState;
+};
+
+export async function getTimelinePageBundle(
+  options: GetTimelinePageDataOptions = {},
+): Promise<TimelinePageBundle> {
+  const supabase = await createClient();
+  const userId = await requireUserId(supabase);
+  const now = options.now ?? Temporal.Now.instant();
+  const [profileTimezone, behaviors, importRuns] = await Promise.all([
+    getProfileTimezone(supabase, userId),
+    listUserBehaviors(supabase, userId),
+    listBehaviorLogImportRuns(supabase, userId, 1),
+  ]);
+  const timeline = await getTimelineViewForUser({
+    supabase,
+    userId,
+    now,
+    futureDays: options.futureDays,
+    profileTimezone,
+    behaviors,
+  });
+
+  return {
+    timeline,
+    onboarding: createFirstRunOnboardingState({
+      hasAnyBehavior: behaviors.length > 0,
+      hasImportRuns: importRuns.length > 0,
+      timezone: profileTimezone,
+    }),
+  };
+}
+
 export async function getTimelinePageData(
   options: GetTimelinePageDataOptions = {},
 ): Promise<TimelineView> {
@@ -48,9 +87,29 @@ export async function getTimelinePageData(
     listUserBehaviors(supabase, userId),
   ]);
 
+  return getTimelineViewForUser({
+    supabase,
+    userId,
+    now,
+    futureDays: options.futureDays,
+    profileTimezone,
+    behaviors,
+  });
+}
+
+async function getTimelineViewForUser(input: {
+  supabase: AppSupabaseClient;
+  userId: string;
+  now: Temporal.Instant;
+  futureDays?: number;
+  profileTimezone: string | null;
+  behaviors: BehaviorWithCategory[];
+}): Promise<TimelineView> {
+  const { supabase, userId, now, behaviors } = input;
+
   await syncUserOccurrences(supabase, userId, { now, behaviors });
 
-  const timezone = profileTimezone ?? DEFAULT_TIMEZONE;
+  const timezone = input.profileTimezone ?? DEFAULT_TIMEZONE;
   const timelineWindow = resolveGenerationWindow({
     now,
     timezone,
@@ -106,21 +165,14 @@ export async function getTimelinePageData(
     occurrences,
     now,
     timezone,
-    futureDays: options.futureDays,
+    futureDays: input.futureDays,
   });
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  void supabase;
 
-  if (error || !user) {
-    throw new Error("Sign in again before viewing the timeline.");
-  }
-
-  return user.id;
+  return requireCurrentUserId("Sign in again before viewing the timeline.");
 }
 
 function toTimelineOccurrenceInput(

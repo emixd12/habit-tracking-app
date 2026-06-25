@@ -26,6 +26,7 @@ import {
 } from "@/lib/services/behaviorlog-import-write.service";
 import { normalizeRecurrenceRule } from "@/lib/services/behavior-form";
 import { readZipEntries } from "@/lib/services/zip";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import type {
   BehaviorLogExistingRecords,
@@ -354,10 +355,9 @@ function inferMediaType(path: string): string {
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  void supabase;
+
+  const { user, error } = await getCurrentUser();
 
   if (error || !user) {
     throw new BehaviorLogImportAuthError();

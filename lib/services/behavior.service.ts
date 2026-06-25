@@ -34,6 +34,7 @@ import {
   formatScheduleSlotsSummary,
   toScheduleSlotView,
 } from "@/lib/services/schedule";
+import { requireCurrentUserId } from "@/lib/auth/current-user";
 import type { ScheduleKind, TimeRangePreset } from "@/lib/types/schedule";
 
 export { behaviorErrorToActionState };
@@ -303,16 +304,9 @@ function toCategoryOption(category: { id: string; name: string }): CategoryOptio
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  void supabase;
 
-  if (error || !user) {
-    throw new Error("Sign in again before saving behaviors.");
-  }
-
-  return user.id;
+  return requireCurrentUserId("Sign in again before saving behaviors.");
 }
 
 function resolveArchiveTimestamp(

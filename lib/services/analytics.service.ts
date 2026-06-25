@@ -14,6 +14,7 @@ import {
   resolveAnalytics,
   resolveAnalyticsDateRange,
 } from "@/lib/resolvers/analytics.resolver";
+import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { formatOccurrenceScheduleLabel } from "@/lib/services/schedule";
 import { syncUserOccurrences } from "@/lib/services/occurrence.service";
 import { createClient } from "@/lib/supabase/server";
@@ -84,16 +85,9 @@ export async function getAnalyticsPageData(
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  void supabase;
 
-  if (error || !user) {
-    throw new Error("Sign in again before viewing analytics.");
-  }
-
-  return user.id;
+  return requireCurrentUserId("Sign in again before viewing analytics.");
 }
 
 function toAnalyticsOccurrenceInput(

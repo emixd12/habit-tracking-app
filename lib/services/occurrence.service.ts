@@ -33,8 +33,10 @@ import {
 } from "@/lib/resolvers/status.resolver";
 import { normalizeRecurrenceRule, normalizeScheduledTime } from "@/lib/services/behavior-form";
 import { compareScheduleSlots, toScheduleSlotView } from "@/lib/services/schedule";
+import { requireCurrentUserId } from "@/lib/auth/current-user";
 import {
   cancelReminderDeliveriesForResolvedOccurrence,
+  syncReminderDeliveriesForBehaviors,
   syncReminderDeliveriesForBehavior,
 } from "@/lib/services/reminder.service";
 import { createClient } from "@/lib/supabase/server";
@@ -67,12 +69,108 @@ export async function syncUserOccurrences(
   options: SyncUserOccurrencesOptions = {},
 ): Promise<OccurrenceGenerationPlan[]> {
   const behaviors = options.behaviors ?? (await listUserBehaviors(supabase, userId));
+  const now = options.now ?? Temporal.Now.instant();
 
-  return Promise.all(
-    behaviors.map((behavior) =>
-      syncBehaviorOccurrences(supabase, userId, behavior, options),
+  if (behaviors.length === 0) {
+    return [];
+  }
+
+  const behaviorWindows = behaviors.map((behavior) => ({
+    behavior,
+    generationWindow: resolveGenerationWindow({
+      now,
+      timezone: behavior.timezone,
+      horizonDays: options.horizonDays,
+    }),
+  }));
+  const existingOccurrencesByBehaviorId =
+    await listExistingOccurrencesForBehaviorWindows(
+      supabase,
+      userId,
+      behaviorWindows,
+    );
+  const plans = await Promise.all(
+    behaviorWindows.map(async ({ behavior, generationWindow }) => {
+      const scheduleSlots = await resolveBehaviorScheduleSlots(
+        supabase,
+        userId,
+        behavior,
+      );
+      const behaviorOccurrences = occurrencesFromWindowStart(
+        existingOccurrencesByBehaviorId.get(behavior.id) ?? [],
+        generationWindow.rangeStart,
+      );
+
+      return planOccurrenceGeneration({
+        behavior: {
+          id: behavior.id,
+          userId,
+          recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
+          scheduleSlots,
+          timezone: behavior.timezone,
+          active: behavior.active,
+          createdAt: behavior.created_at,
+        },
+        existingOccurrences: behaviorOccurrences.map(
+          toExistingOccurrenceForGeneration,
+        ),
+        now,
+        horizonDays: options.horizonDays,
+      });
+    }),
+  );
+  const createdOccurrences = plans.flatMap((plan) =>
+    plan.create.map(toNewOccurrence),
+  );
+  const scheduleUpdates = plans.flatMap((plan) => plan.updateUnresolved);
+  const deleteIds = plans.flatMap((plan) => plan.deleteUnresolvedIds);
+
+  await createMissingOccurrences(supabase, createdOccurrences);
+  await Promise.all(
+    scheduleUpdates.map((occurrence) =>
+      updateUnresolvedOccurrenceScheduleById(supabase, {
+        userId,
+        occurrenceId: occurrence.id,
+        occurrence: {
+          behavior_schedule_slot_id: occurrence.scheduleSlotId,
+          schedule_kind: occurrence.scheduleKind,
+          schedule_preset: occurrence.schedulePreset,
+          schedule_start_time: occurrence.scheduleStartTime,
+          schedule_end_time: occurrence.scheduleEndTime,
+          local_date: occurrence.localDate,
+        },
+      }),
     ),
   );
+  await deleteUnresolvedOccurrencesById(supabase, userId, deleteIds);
+
+  const mutatedOccurrences =
+    createdOccurrences.length > 0 ||
+    scheduleUpdates.length > 0 ||
+    deleteIds.length > 0;
+  const reminderOccurrences = mutatedOccurrences
+    ? await listExistingOccurrencesForBehaviorWindows(
+        supabase,
+        userId,
+        behaviorWindows,
+      )
+    : existingOccurrencesByBehaviorId;
+  const reminderOccurrencesByBehaviorId =
+    reminderOccurrences;
+
+  await syncReminderDeliveriesForBehaviors(
+    supabase,
+    userId,
+    behaviorWindows.map(({ behavior, generationWindow }) => ({
+      behavior,
+      occurrences: occurrencesFromWindowStart(
+        reminderOccurrencesByBehaviorId.get(behavior.id) ?? [],
+        generationWindow.rangeStart,
+      ),
+    })),
+  );
+
+  return plans;
 }
 
 export async function syncBehaviorOccurrences(
@@ -274,6 +372,42 @@ function toExistingOccurrenceForGeneration(
   };
 }
 
+async function listExistingOccurrencesForBehaviorWindows(
+  supabase: AppSupabaseClient,
+  userId: string,
+  behaviorWindows: Array<{
+    behavior: BehaviorWithCategory;
+    generationWindow: ReturnType<typeof resolveGenerationWindow>;
+  }>,
+): Promise<Map<string, Occurrence[]>> {
+  return new Map(
+    await Promise.all(
+      behaviorWindows.map(async ({ behavior, generationWindow }) => [
+        behavior.id,
+        await listBehaviorOccurrencesFrom(
+          supabase,
+          userId,
+          behavior.id,
+          generationWindow.rangeStart.toString(),
+        ),
+      ] as const),
+    ),
+  );
+}
+
+function occurrencesFromWindowStart(
+  occurrences: Occurrence[],
+  rangeStart: Temporal.Instant,
+): Occurrence[] {
+  return occurrences.filter(
+    (occurrence) =>
+      Temporal.Instant.compare(
+        Temporal.Instant.from(occurrence.scheduled_for),
+        rangeStart,
+      ) >= 0,
+  );
+}
+
 function toNewOccurrence(occurrence: {
   userId: string;
   behaviorId: string;
@@ -377,16 +511,9 @@ function normalizeSchedulePreset(value: string | null): TimeRangePreset | null {
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  void supabase;
 
-  if (error || !user) {
-    throw new Error("Sign in again before updating occurrences.");
-  }
-
-  return user.id;
+  return requireCurrentUserId("Sign in again before updating occurrences.");
 }
 
 async function getRequiredOccurrence(

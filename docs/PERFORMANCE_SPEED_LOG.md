@@ -294,6 +294,101 @@ Verification:
 - Pass: `npm run build`
 - Pass: `git diff --check`
 
+### 2026-06-25 Batch 3: Batched Stable Sync Writes And Auth Read Reuse
+
+Continuation baseline:
+- In-app Browser was not authenticated on production, so production coverage in
+  this pass was limited to public routes and protected-route redirects.
+- Production unauthenticated Node `fetch` timings showed protected app redirects
+  around 0.16-0.35s warm TTFB, `/login` around 0.21-0.53s warm TTFB, and
+  legal routes around 0.14-0.38s warm TTFB.
+- Raw brand/sound assets now return the expected durable cache headers from
+  the earlier batch:
+  `public, max-age=86400, stale-while-revalidate=604800`.
+- Authenticated local production-build measurements used the existing local
+  browser session at `http://localhost:3000`. The guarded local test-login path
+  is unavailable under `next start` because `NODE_ENV=production`, so no
+  write-flow interaction tests were run in this pass.
+
+Authenticated local production-build route baseline before this batch:
+
+| Route | Run 1 | Run 2 | Run 3 | CDP finding |
+|---|---:|---:|---:|---|
+| `/timeline` | 3150ms | 2144ms | 2653ms | DCL 1560-2664ms after first load; client CPU small |
+| `/behaviors` | 1204ms | 1093ms | 1260ms | DCL 559-708ms |
+| `/analytics` | 2335ms | 1980ms | 1903ms | DCL 1359-1773ms |
+| `/export` | 2502ms | 1965ms | 2459ms | DCL 1403-1970ms |
+| `/settings` | 1179ms | 1157ms | 1143ms | DCL 592-640ms |
+
+Observed bottleneck:
+- CDP metrics showed route time was dominated by server/data work; scripting,
+  layout, and style recalculation were near zero on warm loads.
+- `syncUserOccurrences` still performed independent create/delete/reminder
+  writes per behavior during read-heavy route loads.
+- Protected page rendering asked Supabase Auth for the same user in the app
+  layout and again in route services.
+- `/timeline` read behaviors and timezone once for Timeline data and again for
+  first-run onboarding state.
+
+Implementation kept:
+- `syncUserOccurrences` now keeps the proven parallel per-behavior occurrence
+  reads, but batches missing occurrence upserts, unresolved deletes, and
+  reminder delivery planning/upserts across all behaviors for the route-load
+  sync path.
+- Added `syncReminderDeliveriesForBehaviors` so stable route loads can create
+  missing pending reminder deliveries with one grouped service call while
+  preserving inactive-behavior cancellation.
+- Added request-scoped `getCurrentUser` / `requireCurrentUserId` helpers using
+  React `cache`, then reused that auth result from the protected layout and the
+  measured page services.
+- Added `getTimelinePageBundle` so `/timeline` shares behavior/timezone reads
+  between Timeline data and first-run onboarding state.
+
+Final authenticated local production-build route timing after this batch:
+
+| Route | Run 1 | Run 2 | Run 3 |
+|---|---:|---:|---:|
+| `/timeline` | 3816ms | 1962ms | 2622ms |
+| `/behaviors` | 1215ms | 1180ms | 1207ms |
+| `/analytics` | 2642ms | 2281ms | 2392ms |
+| `/export` | 2486ms | 2316ms | 2671ms |
+| `/settings` | 1135ms | 1183ms | 1188ms |
+
+Focused final route timing, five runs after warm-up:
+
+| Route | Runs | Median |
+|---|---:|---:|
+| `/timeline` | 2373ms, 2039ms, 1992ms, 2145ms, 2107ms | 2107ms |
+| `/analytics` | 1920ms, 1913ms, 1935ms, 1891ms, 1915ms | 1915ms |
+| `/export` | 2206ms, 2409ms, 2155ms, 2239ms, 2093ms | 2206ms |
+
+Authenticated local production-build client navigation after this batch:
+
+| Click | Time To Target |
+|---|---:|
+| Timeline -> Behaviors | 748ms |
+| Behaviors -> Analytics | 1743ms |
+| Analytics -> Export | 2107ms |
+| Export -> Settings | 709ms |
+| Settings -> Timeline | 1489ms |
+
+Decision:
+- Kept. Compared with this pass's same-session pre-change local route
+  baseline, median route timing improved for Timeline, Analytics, and Export.
+- Client navigation remains server-bound and did not materially improve for
+  Analytics or Export; that is logged as follow-up rather than hidden.
+- No console warnings or errors appeared in the measured local browser runs.
+
+Verification:
+- Pass: `npx vitest run tests/occurrence.service.test.ts tests/reminder.service.test.ts tests/settings.service.test.ts tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-restore-ui.test.tsx`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (44 files, 271 tests)
+- Pass: `npm run build`
+- Pass: `git diff --check`
+
 ## Future-Only Recommendations
 
 - Add a scoped note form state update for Analytics so note saves can avoid a

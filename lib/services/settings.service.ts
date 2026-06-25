@@ -5,6 +5,7 @@ import {
   getProfileSettings,
   updateProfileTimezone,
 } from "@/lib/db/profiles.repo";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { syncBehaviorOccurrences } from "@/lib/services/occurrence.service";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
@@ -32,10 +33,7 @@ export class TimezoneSettingsUserError extends Error {
 
 export async function getSettingsPageData(): Promise<SettingsPageData> {
   const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  const { user, error } = await getCurrentUser();
 
   if (error || !user) {
     throw new Error("Sign in again before opening settings.");
@@ -57,10 +55,7 @@ export async function updateCurrentUserTimezoneFromFormData(
   formData: FormData,
 ): Promise<TimezoneUpdateResult> {
   const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  const { user, error } = await getCurrentUser();
 
   if (error || !user) {
     throw new TimezoneSettingsUserError(

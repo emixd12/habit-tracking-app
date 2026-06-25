@@ -14,6 +14,7 @@ import {
   parseBehaviorLogZipFiles,
   type BehaviorLogZipInput,
 } from "@/lib/services/behaviorlog-import.service";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import type {
   BehaviorLogExistingRecords,
   BehaviorLogImportFile,
@@ -908,10 +909,9 @@ function assertFreshAcceptedPreview(input: {
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  void supabase;
+
+  const { user, error } = await getCurrentUser();
 
   if (error || !user) {
     throw new BehaviorLogRestoreAuthError();

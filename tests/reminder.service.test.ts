@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/occurrences.repo";
 import { getProfileSettings } from "@/lib/db/profiles.repo";
 import {
+  cancelPendingReminderDeliveriesForOccurrences,
   cancelPendingReminderDeliveryById,
   claimPendingBrowserPushReminderDelivery,
   claimPendingEmailReminderDelivery,
@@ -25,6 +26,7 @@ import {
   processDueBrowserPushReminders,
   processDueEmailReminders,
   processDueReminders,
+  syncReminderDeliveriesForBehaviors,
   syncReminderDeliveriesForBehavior,
 } from "@/lib/services/reminder.service";
 import { BrowserPushSubscriptionExpiredError } from "@/lib/services/web-push.service";
@@ -159,6 +161,42 @@ describe("syncReminderDeliveriesForBehavior", () => {
         .mocked(createMissingReminderDeliveries)
         .mock.calls[0]?.[1].map((delivery) => delivery.channel),
     ).toEqual(["browser_push", "email"]);
+  });
+
+  it("batches active reminder creation and inactive cancellation", async () => {
+    const inactiveBehavior: Behavior = {
+      ...BASE_BEHAVIOR,
+      id: "behavior-2",
+      active: false,
+    };
+    const inactiveOccurrence: Occurrence = {
+      ...BASE_OCCURRENCE,
+      id: "occurrence-2",
+      behavior_id: inactiveBehavior.id,
+    };
+
+    await syncReminderDeliveriesForBehaviors(SUPABASE, "user-1", [
+      {
+        behavior: BASE_BEHAVIOR,
+        occurrences: [BASE_OCCURRENCE],
+      },
+      {
+        behavior: inactiveBehavior,
+        occurrences: [inactiveOccurrence],
+      },
+    ]);
+
+    expect(createMissingReminderDeliveries).toHaveBeenCalledOnce();
+    expect(
+      vi
+        .mocked(createMissingReminderDeliveries)
+        .mock.calls[0]?.[1].map((delivery) => delivery.channel),
+    ).toEqual(["browser_push", "email"]);
+    expect(cancelPendingReminderDeliveriesForOccurrences).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      ["occurrence-2"],
+    );
   });
 });
 

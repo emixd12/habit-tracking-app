@@ -4,6 +4,7 @@ import {
   listUserBehaviors,
   type AppSupabaseClient,
 } from "@/lib/db/behaviors.repo";
+import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type { FirstRunOnboardingState } from "@/lib/types/onboarding";
@@ -17,10 +18,22 @@ export async function getFirstRunOnboardingState(): Promise<FirstRunOnboardingSt
     getProfileTimezone(supabase, userId),
   ]);
 
-  return {
+  return createFirstRunOnboardingState({
     hasAnyBehavior: behaviors.length > 0,
     hasImportRuns: importRuns.length > 0,
-    timezone: profileTimezone ?? DEFAULT_TIMEZONE,
+    timezone: profileTimezone,
+  });
+}
+
+export function createFirstRunOnboardingState(input: {
+  hasAnyBehavior: boolean;
+  hasImportRuns: boolean;
+  timezone: string | null;
+}): FirstRunOnboardingState {
+  return {
+    hasAnyBehavior: input.hasAnyBehavior,
+    hasImportRuns: input.hasImportRuns,
+    timezone: input.timezone ?? DEFAULT_TIMEZONE,
     vapidPublicKey: normalizePublicVapidKey(
       process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
     ),
@@ -28,16 +41,9 @@ export async function getFirstRunOnboardingState(): Promise<FirstRunOnboardingSt
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  void supabase;
 
-  if (error || !user) {
-    throw new Error("Sign in again before viewing onboarding.");
-  }
-
-  return user.id;
+  return requireCurrentUserId("Sign in again before viewing onboarding.");
 }
 
 function normalizePublicVapidKey(value: string | undefined): string {

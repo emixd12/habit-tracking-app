@@ -19,6 +19,7 @@ import {
   resolveExportBundle,
   resolveExportDateRange,
 } from "@/lib/resolvers/export.resolver";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import {
   normalizeRecurrenceRule,
   normalizeScheduledTime,
@@ -190,10 +191,9 @@ function toExportReminderDeliveryInput(
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  void supabase;
+
+  const { user, error } = await getCurrentUser();
 
   if (error || !user) {
     throw new ExportAuthError();

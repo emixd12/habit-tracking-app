@@ -80,6 +80,11 @@ export type ProcessDueRemindersResult = {
 
 export type ProcessDueEmailRemindersResult = ProcessDueRemindersResult;
 
+export type SyncReminderDeliveriesForBehaviorsInput = {
+  behavior: Behavior | BehaviorWithCategory;
+  occurrences: Occurrence[];
+};
+
 const DEFAULT_PROCESS_LIMIT = 25;
 const MAX_PROCESS_LIMIT = 100;
 
@@ -119,6 +124,41 @@ export async function syncReminderDeliveriesForBehavior(
     supabase,
     deliveries.map(toNewReminderDelivery),
   );
+}
+
+export async function syncReminderDeliveriesForBehaviors(
+  supabase: AppSupabaseClient,
+  userId: string,
+  inputs: SyncReminderDeliveriesForBehaviorsInput[],
+): Promise<void> {
+  const inactiveOccurrenceIds: string[] = [];
+  const deliveries: NewReminderDelivery[] = [];
+
+  for (const input of inputs) {
+    if (!input.behavior.active) {
+      inactiveOccurrenceIds.push(
+        ...input.occurrences.map((occurrence) => occurrence.id),
+      );
+      continue;
+    }
+
+    deliveries.push(
+      ...resolveReminderDeliveriesForBehaviorOccurrences(
+        input.behavior,
+        userId,
+        input.occurrences,
+      ),
+    );
+  }
+
+  await Promise.all([
+    cancelPendingReminderDeliveriesForOccurrences(
+      supabase,
+      userId,
+      inactiveOccurrenceIds,
+    ),
+    createMissingReminderDeliveries(supabase, deliveries),
+  ]);
 }
 
 export async function cancelReminderDeliveriesForResolvedOccurrence(
@@ -594,6 +634,23 @@ function toReminderResolverBehavior(
     emailReminderEnabled: behavior.email_reminder_enabled,
     reminderOffsetMinutes: behavior.reminder_offset_minutes,
   };
+}
+
+function resolveReminderDeliveriesForBehaviorOccurrences(
+  behavior: Behavior | BehaviorWithCategory,
+  userId: string,
+  occurrences: Occurrence[],
+): NewReminderDelivery[] {
+  const resolverBehavior = toReminderResolverBehavior(behavior, userId);
+
+  return occurrences
+    .flatMap((occurrence) =>
+      resolveReminderDeliveries({
+        behavior: resolverBehavior,
+        occurrence: toReminderResolverOccurrence(occurrence),
+      }),
+    )
+    .map(toNewReminderDelivery);
 }
 
 function toReminderResolverOccurrence(
