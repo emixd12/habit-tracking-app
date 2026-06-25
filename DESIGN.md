@@ -260,7 +260,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Structure:** Use a non-modal pop-up with a quiet header, Skip setup control, and divider-separated rows. Do not use an inline band, wizard, modal takeover, progress meter, reward language, or motivational copy.
 - **Rows:** Create first behavior, Browser reminders, Timezone, and Import existing records. Each row uses a small icon, a factual status label, and an underlined text link into existing controls: `/behaviors#create-behavior`, `/settings#notifications`, `/settings#timezone`, and `/export#behaviorlog-import`.
 - **State language:** Use direct labels such as Start here, Done, Not enabled, Blocked, Unavailable, Confirmed, Review, Started, and Optional. Import is optional and must not block setup completion.
-- **Permission behavior:** The setup pop-up reads browser support and permission state, but it never requests notification permission on page load.
+- **Permission behavior:** The setup pop-up reads browser support and permission state, but it never requests notification permission on page load. Denied or blocked notification permission is a completed onboarding decision, not a reason to keep the setup pop-up open after the other required setup items are done.
 
 ### Timeline Rows
 

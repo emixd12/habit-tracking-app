@@ -89,6 +89,29 @@ describe("resolveFirstRunOnboardingModel", () => {
     });
   });
 
+  it("treats blocked browser permission as a completed onboarding decision", () => {
+    const model = resolveFirstRunOnboardingModel(
+      {
+        ...BASE_STATE,
+        hasAnyBehavior: true,
+      },
+      {
+        ...BASE_CLIENT,
+        notificationPermission: "denied",
+      },
+    );
+    const notifications = model.items.find(
+      (item) => item.key === "notifications",
+    );
+
+    expect(notifications).toMatchObject({
+      complete: true,
+      statusLabel: "Blocked",
+    });
+    expect(model.requiredComplete).toBe(true);
+    expect(model.shouldRender).toBe(false);
+  });
+
   it("asks for timezone review when browser and saved timezones differ", () => {
     const model = resolveFirstRunOnboardingModel(BASE_STATE, {
       ...BASE_CLIENT,

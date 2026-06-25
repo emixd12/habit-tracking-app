@@ -1587,6 +1587,116 @@ Verification:
 
 ---
 
+## Ticket 034: Multi-account Supabase launch readiness sign-off
+
+Close the remaining readiness gates before inviting additional public accounts
+onto the hosted Cadence web app.
+
+Context:
+- The app and database are already designed for many independent single-player
+  accounts, with user-owned rows scoped by Supabase Auth and RLS.
+- The remaining work is sign-off work, not a new product surface: verify hosted
+  isolation, confirm hosted auth/account settings, and fix any readiness defects
+  found by that verification.
+- A prior readiness review found one restore-apply migration defect to address:
+  `public.apply_behaviorlog_restore` attempts to upsert `behaviors` with
+  `on conflict (import_run_id, external_id)`, but those columns do not exist on
+  `behaviors`.
+- Hosted Supabase commands and smoke checks are mutating operations. Run them
+  only after the target project is explicit and the user authorizes the hosted
+  verification/deployment step.
+
+Implementation strategy:
+1. Reconfirm the target hosted Supabase project and deployment domain.
+2. Review current Supabase changelog/docs for Auth redirect settings, RLS,
+   security-definer functions, and CLI commands relevant to the work.
+3. Fix the restore-apply database defect locally with a new migration:
+   - create the migration through `npm run supabase -- migration new ...`;
+   - correct the invalid `behaviors` upsert conflict target while preserving
+     per-user ownership checks;
+   - review `public.apply_behaviorlog_restore` as a privileged function,
+     including explicit execute grants/revokes so it is callable only by the
+     intended role;
+   - add or update tests that would fail if the invalid conflict target or
+     unsafe function permissions return.
+4. Verify local database rebuild and schema safety:
+   - run `npm run supabase -- db reset`;
+   - run Supabase advisors if the installed CLI supports them, or document the
+     fallback if not;
+   - regenerate database types if the effective schema changes;
+   - run focused restore/RLS tests before the full verification suite.
+5. Check hosted schema congruence before changing hosted state:
+   - run `npm run supabase -- migration list` against the authorized project;
+   - stop and document drift if hosted history does not match git;
+   - push migrations with `npm run supabase -- db push` only after explicit
+     user authorization.
+6. Run hosted many-user RLS smoke QA:
+   - point `NEXT_PUBLIC_SUPABASE_URL`,
+     `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or
+     `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` at the
+     authorized hosted project;
+   - run `npm run smoke:rls`;
+   - record only sanitized pass/fail counts in `STATUS.md`, never keys,
+     temporary emails, user ids, or auth responses.
+7. Audit hosted Auth/account settings for launch:
+   - Google provider enabled and tested;
+   - canonical production callback URL allow-listed at `/auth/callback`;
+   - localhost callback URLs retained only where appropriate for development;
+   - public signup intentionally enabled for Google accounts;
+   - anonymous sign-ins disabled;
+   - email/password signup either disabled for hosted public launch or
+     explicitly justified as non-user-facing operational/test support;
+   - provider-level abuse protections, captcha/bot protection, and rate limits
+     reviewed against current Supabase capabilities;
+   - service-role, Sequenzy, VAPID, and cron/process secrets accounted for in
+     hosted environment ownership without printing secret values.
+8. Perform a minimal production account smoke:
+   - sign in with Google on the canonical production domain;
+   - verify profile/default categories are created;
+   - create a behavior and confirm Timeline generation works;
+   - verify Export and account deletion remain available.
+
+Acceptance criteria:
+- The restore-apply migration defect is fixed by a git-tracked migration, not a
+  hosted dashboard edit.
+- Any `SECURITY DEFINER` restore function remains scoped to the authenticated
+  user and has explicit execute permissions that do not expose it to anonymous
+  callers.
+- Local migrations rebuild cleanly from scratch.
+- Static RLS policy tests cover every user-owned public table.
+- Hosted migration history is checked and documented before any hosted push.
+- Hosted `npm run smoke:rls` passes against the intended project after any
+  required migration deployment.
+- Hosted Auth/provider/account settings are audited and recorded without
+  secrets.
+- Minimal production Google sign-in and first-account data creation pass.
+- `STATUS.md` records exact commands run, whether they targeted local or
+  hosted Supabase, and any remaining launch risk.
+- No collaboration, shared workspaces, social features, billing, admin
+  dashboards, offline/PWA behavior, AI coaching, or desktop/mobile work is
+  added.
+
+Suggested files:
+- `supabase/migrations/*`
+- `lib/db/database.types.ts` if generated types change
+- `tests/rls-policy-registry.test.ts`
+- `tests/behaviorlog-restore-apply.service.test.ts`
+- a focused migration/static test for restore RPC safety if useful
+- `docs/OPERATIONS.md`
+- `docs/SUPABASE_WORKFLOW.md` if the hosted readiness checklist changes
+- `STATUS.md`
+
+Verification:
+- Run focused restore/RLS tests first.
+- Run `npm run supabase -- db reset` locally after migration changes.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Run hosted `npm run smoke:rls` only after target-project authorization.
+- If hosted migrations are pushed, run a post-push hosted smoke pass and record
+  the sanitized result in `STATUS.md`.
+
+---
+
 ## Future ticket: Workspace restructuring
 
 Move toward the target composable architecture only when needed by marketing,

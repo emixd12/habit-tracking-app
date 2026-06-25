@@ -148,8 +148,10 @@ Implemented baseline:
 
 Remaining public-launch follow-up:
 
-- run hosted multi-user RLS smoke QA with `npm run smoke:rls` before broad
-  launch and after material RLS/schema changes.
+- execute Ticket 034 before broad account expansion: fix the restore-apply
+  database readiness defect, verify hosted schema congruence, run hosted
+  multi-user RLS smoke QA with `npm run smoke:rls`, audit hosted Auth/provider
+  settings, and record sanitized results in `STATUS.md`.
 
 Implemented follow-up:
 

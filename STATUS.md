@@ -43,7 +43,7 @@ When updating a ticket row:
 
 ## Current repository state
 
-This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, Ticket 013 Vercel production deployment, BehaviorLog interoperability and import work through Ticket 024, Ticket 025A restore preview, Ticket 025B restore apply/UI, Ticket 026 imported notes, Ticket 027 imported intervention history, Ticket 028 imported intervention promotion services, Ticket 029 public web hardening, Ticket 030 public web hardening follow-up, Ticket 031 Astro marketing site, Ticket 032 Needs Decision same-day correction retention, Ticket 033 Analytics selected-day occurrence correction, and the project-definition and agent-bootstrap layer.
+This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, Ticket 013 Vercel production deployment, BehaviorLog interoperability and import work through Ticket 024, Ticket 025A restore preview, Ticket 025B restore apply/UI, Ticket 026 imported notes, Ticket 027 imported intervention history, Ticket 028 imported intervention promotion services, Ticket 029 public web hardening, Ticket 030 public web hardening follow-up, Ticket 031 Astro marketing site, Ticket 032 Needs Decision same-day correction retention, Ticket 033 Analytics selected-day occurrence correction, Ticket 034 multi-account Supabase launch readiness sign-off planning, and the project-definition and agent-bootstrap layer.
 
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
@@ -107,6 +107,29 @@ Current evidence:
 - The v1 feature ticket sequence is complete through Ticket 012. Ticket 013 Vercel production hardening is complete after later browser-push production verification: authenticated production smoke QA passed for Google login, Behavior create/archive, Timeline occurrence generation, status changes, notes, Settings render, Analytics render, Export page/link rendering, production reminder cron execution, browser push subscription, and a safe browser-push send.
 - Vercel plugin inspection found existing project `cadence` under team `Emi's projects`, connected to GitHub repo `emixd12/habit-tracking-app` on `main`, with canonical public alias `https://cadence-blush-three.vercel.app`. Production public Supabase config is present, `/login` renders without the missing-config warning, Google OAuth returns to the canonical production domain, and `/api/reminders/process` supports Vercel Cron `GET` with secret protection.
 - Project-local design workflow files exist under `.agents/skills/impeccable/` and should be used for UI/design work after the scaffold exists.
+
+## Multi-account Supabase launch readiness sign-off
+
+Status: not_started.
+
+Scope:
+- Ticket 034 has been added to `docs/TICKETS.md` to close the remaining
+  readiness gates before inviting additional public accounts onto the hosted
+  web app.
+- The ticket covers the restore-apply migration defect, hosted schema
+  congruence, hosted many-user RLS smoke QA, hosted Auth/provider/account
+  settings, and a minimal production Google sign-in smoke.
+
+Current state:
+- This is planning only. No migration, hosted Supabase command, hosted smoke
+  run, or Auth/provider setting change has been performed for Ticket 034 yet.
+
+Next actions:
+- Confirm the intended hosted Supabase project and production domain.
+- Fix and verify the restore RPC locally through a git-tracked migration before
+  hosted deployment.
+- Run hosted `npm run smoke:rls` only after target-project authorization.
+- Record sanitized hosted verification results in this ledger.
 
 ## Web App Performance Speed Loop
 

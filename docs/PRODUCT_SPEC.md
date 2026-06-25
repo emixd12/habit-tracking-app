@@ -175,6 +175,9 @@ Public launch includes a minimal first-run setup prompt after first login:
 The setup prompt is optional, appears as a non-modal pop-up, can be dismissed
 locally, and routes into the existing Behaviors, Settings, and Export controls
 instead of creating a separate wizard.
+A denied or blocked browser notification permission counts as a completed
+onboarding decision because recovery happens in browser site settings; Cadence
+continues to work without browser reminders until permission is allowed again.
 
 Preset time ranges:
 - Morning: 6:00 AM-Noon

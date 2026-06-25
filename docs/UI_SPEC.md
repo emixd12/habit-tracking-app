@@ -135,6 +135,9 @@ current browser. It should:
 - Provide a Skip setup control.
 - Avoid motivational copy, progress gamification, an inline takeover, or a
   wizard.
+- Treat a denied or blocked browser notification permission as a completed
+  onboarding decision while still showing the factual Blocked label when the
+  prompt is otherwise visible.
 
 Users should not browse previous days as normal timeline sections. Prior
 unresolved occurrences appear only in the Needs decision modal, with one narrow

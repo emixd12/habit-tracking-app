@@ -65,7 +65,10 @@ function notificationComplete(
     return true;
   }
 
-  return client.notificationPermission === "granted";
+  return (
+    client.notificationPermission === "granted" ||
+    client.notificationPermission === "denied"
+  );
 }
 
 function notificationStatusLabel(

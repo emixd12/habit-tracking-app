@@ -64,6 +64,10 @@ over the page instead of appearing before the feed. Its actions route to:
 - `/export#behaviorlog-import`
 
 Import is optional and does not block setup completion.
+If browser notifications are denied or already blocked, that permission state
+counts as a completed onboarding decision because the app cannot unblock it from
+inside Cadence. The user can still use the tracker and may re-enable browser
+reminders later from browser site settings plus Settings.
 
 ## App shell
 
