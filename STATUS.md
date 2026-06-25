@@ -210,7 +210,7 @@ Next actions:
 
 ## Web App Performance Speed Loop
 
-Status: in_progress.
+Status: complete.
 
 Scope:
 - Measure production-first and local user-perceived speed for route loads,
@@ -246,8 +246,8 @@ Current state:
   request-scoped Supabase Auth user lookup; Timeline now shares behavior and
   timezone reads between the feed and first-run setup state.
 - Local production-build after-change route measurements have been recorded.
-  Production after-change measurements are still pending deployment of this
-  batch.
+  Production after-change measurements are now recorded in
+  `docs/PERFORMANCE_SPEED_LOG.md`.
 - Ticket 035 performance server timing instrumentation is complete locally.
   `CADENCE_PERF_LOG=1` now enables privacy-safe JSON timing spans for protected
   app layout auth, route data loads, occurrence sync phases, reminder
@@ -286,8 +286,8 @@ Current state:
   `service.ensure_user_occurrences_fresh` with `covered=1` and `synced=0`.
 - The hosted schema blocker for Ticket 038 production timing is resolved:
   hosted Supabase migration history now matches local through
-  `20260625221334`, including `occurrence_sync_state`. New hosted production
-  timing still needs a separate measurement pass after deployment.
+  `20260625221334`, including `occurrence_sync_state`. Hosted production timing
+  has now been measured against the current production deployment.
 - Ticket 039 reminder planning decoupling is complete locally. Occurrence
   freshness repair during Timeline, Analytics, and Export page reads now
   suppresses reminder-delivery planning writes, while behavior/timezone/import/
@@ -311,8 +311,29 @@ Current state:
   the measured Timeline, Analytics, Export, and reminder due-delivery query
   shapes. No Supabase migration, generated type update, or Timeline read RPC was
   added because the evidence does not show an index/RPC bottleneck.
-- Hosted production query evidence no longer needs a schema push, but remains
-  pending a separate hosted measurement pass after deployment.
+- Ticket 041 production-side validation is complete. Vercel production
+  deployment `dpl_3XUkDXzhPi2M7oexyJWGAvuRn4md` is `READY`, points at commit
+  `8ed1b3b734814d2fcd6725a252a8972f6160b6c5`, and built successfully in
+  `iad1`.
+- Authenticated production route medians improved materially for the previously
+  slow routes compared with the baseline: Timeline `833ms` versus `2272ms`,
+  Analytics `850ms` versus `2263ms`, and Export `967ms` versus `1642ms`.
+  Behaviors improved to `637ms`; Settings stayed roughly similar at `644ms`.
+- Authenticated production navigation is now around `0.8-1.1s` across the
+  primary app routes in the measured pass. Timeline -> Behaviors is essentially
+  unchanged from baseline, while Behaviors -> Analytics, Analytics -> Export,
+  and Settings -> Timeline improved substantially.
+- Production static asset cache headers are active for the raw logo and
+  completion chime assets, returning
+  `public, max-age=86400, stale-while-revalidate=604800` and Vercel cache hits
+  during the header check.
+- Mobile production sanity at `390x844` rendered Timeline, Behaviors,
+  Analytics, Export, and Settings with no document-level horizontal overflow.
+  A clean mobile-first production tab had no warning or error console entries.
+- No index, RPC, cache, offline, or UI-scope expansion is justified by the
+  production validation evidence. Future performance ideas remain future-only
+  until a later hosted or seeded high-cardinality timing pass identifies a
+  specific bottleneck.
 
 Verification:
 - Pass: `npx vitest run tests/occurrence.service.test.ts tests/reminder.service.test.ts tests/settings.service.test.ts tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-restore-ui.test.tsx`
@@ -399,6 +420,32 @@ Verification:
 - Ticket 041 pass: `npm run test` (47 files, 297 tests)
 - Ticket 041 pass: `npm run build`
 - Ticket 041 pass: `git diff --check`
+- Ticket 041 production validation pass: Vercel project/deployment inspection
+  confirmed production `READY` at commit
+  `8ed1b3b734814d2fcd6725a252a8972f6160b6c5`.
+- Ticket 041 production validation pass: Vercel build-log inspection for
+  deployment `dpl_3XUkDXzhPi2M7oexyJWGAvuRn4md`.
+- Ticket 041 production validation pass: unauthenticated production timing with
+  `npm run perf:routes`.
+- Ticket 041 production validation pass: authenticated production Chrome
+  route-load timing and navigation timing for `/timeline`, `/behaviors`,
+  `/analytics`, `/export`, and `/settings`.
+- Ticket 041 production validation pass: authenticated mobile production
+  sanity at `390x844` with no horizontal overflow.
+- Ticket 041 production validation pass: safe missing-secret 401 checks for
+  `/api/reminders/process` and `/api/occurrences/sync`.
+- Ticket 041 production validation pass: production asset cache-header check
+  for the raw logo and completion chime assets.
+- Ticket 041 production validation documentation pass:
+  `npm run agents:check`.
+- Ticket 041 production validation documentation pass:
+  `npm run resolvers:check`.
+- Ticket 041 production validation documentation pass: `npm run lint`.
+- Ticket 041 production validation documentation pass: `npm run typecheck`.
+- Ticket 041 production validation documentation pass:
+  `npm run test` (49 files, 302 tests).
+- Ticket 041 production validation documentation pass: `npm run build`.
+- Ticket 041 production validation documentation pass: `git diff --check`.
 - Restore/Ticket 037 hosted schema pass:
   `npm run supabase -- db push --linked --dry-run` showed pending restore
   preview/apply, Ticket 037, and corrective restore RPC migrations.

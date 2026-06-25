@@ -785,22 +785,139 @@ Verification:
 - Pass: `npm run build`
 - Pass: `git diff --check`
 
+### 2026-06-25 Production Validation After Tickets 035-041
+
+Environment:
+- Production deployment: `dpl_3XUkDXzhPi2M7oexyJWGAvuRn4md`
+- Production commit: `8ed1b3b734814d2fcd6725a252a8972f6160b6c5`
+- Vercel region: `iad1`
+- Canonical production URL: `https://cadence-blush-three.vercel.app`
+- Chrome authenticated production tab: signed in with an existing session
+
+Vercel deployment observations:
+- The latest production deployment is `READY` and points at the current local
+  `main` commit.
+- Build completed successfully. The only build warning observed was the
+  existing npm peer-dependency warning involving `ink` and
+  `react-reconciler`; no app build failure or route-generation failure was
+  present.
+- Build output still classifies protected app routes as dynamic
+  server-rendered routes, and legal/static utility routes as static output.
+
+Unauthenticated production HTTP timing from this machine:
+
+| Route/asset | Status | Runs | Notes |
+|---|---:|---:|---|
+| `/` | 307 | 0.690s, 0.303s, 0.220s TTFB | redirects to login |
+| `/login` | 200 | 0.454s, 0.514s, 0.332s TTFB | 13.9 KB HTML |
+| `/timeline` | 307 | 0.229s, 0.290s, 0.153s TTFB | protected redirect |
+| `/behaviors` | 307 | 0.202s, 0.160s, 0.199s TTFB | protected redirect |
+| `/analytics` | 307 | 0.154s, 0.155s, 0.205s TTFB | protected redirect |
+| `/export` | 307 | 0.161s, 0.180s, 0.163s TTFB | protected redirect |
+| `/settings` | 307 | 0.204s, 0.163s, 0.161s TTFB | protected redirect |
+| `/terms` | 200 | 0.231s, 0.155s, 0.149s TTFB | static public route |
+| `/privacy` | 200 | 0.264s, 0.149s, 0.155s TTFB | static public route |
+| `/trust` | 200 | 0.162s, 0.233s, 0.166s TTFB | static public route |
+| `/brand/cadence-logo.png` | 200 | 1.044s, 0.248s, 0.378s total | 748 KB raw source, Vercel cache hit on header check |
+| `/sounds/completion-chime.mp3` | 200 | 0.197s, 0.144s, 0.185s total | 26 KB, Vercel cache hit on header check |
+
+Static asset header check:
+- `/brand/cadence-logo.png` and `/sounds/completion-chime.mp3` now return
+  `Cache-Control: public, max-age=86400, stale-while-revalidate=604800` in
+  production.
+- Both assets returned `x-vercel-cache: HIT` during the header check.
+
+Authenticated production full route loads in Chrome:
+
+| Route | Run 1 | Run 2 | Run 3 | Median | Baseline median |
+|---|---:|---:|---:|---:|---:|
+| `/timeline` | 833ms | 1228ms | 795ms | 833ms | 2272ms |
+| `/behaviors` | 637ms | 752ms | 612ms | 637ms | 798ms |
+| `/analytics` | 850ms | 890ms | 723ms | 850ms | 2263ms |
+| `/export` | 1123ms | 967ms | 786ms | 967ms | 1642ms |
+| `/settings` | 644ms | 790ms | 516ms | 644ms | 608ms |
+
+Authenticated production client navigation clicks:
+
+| Click | Time To Target Heading | Baseline |
+|---|---:|---:|
+| Timeline -> Behaviors | 1051ms | 1063ms |
+| Behaviors -> Analytics | 1026ms | 1622ms |
+| Analytics -> Export | 1091ms | 1761ms |
+| Export -> Settings | 802ms | 746ms |
+| Settings -> Timeline | 1011ms | 1622ms |
+
+Mobile production sanity:
+
+| Route | Time To Heading | Viewport | Horizontal overflow |
+|---|---:|---|---|
+| `/timeline` | 1359ms | `390x844` | no |
+| `/behaviors` | 810ms | `390x844` | no |
+| `/analytics` | 718ms | `390x844` | no |
+| `/export` | 883ms | `390x844` | no |
+| `/settings` | 765ms | `390x844` | no |
+
+Safe process-route checks:
+- Missing-secret `/api/reminders/process?limit=1` returned 401 in 946ms,
+  527ms, and 238ms.
+- Missing-secret `/api/occurrences/sync?limit=1` returned 401 in 278ms,
+  517ms, and 169ms.
+- No production reminder send or occurrence sync job was triggered.
+
+Console findings:
+- A fresh authenticated desktop production tab rendered `/timeline` with no
+  warning or error console entries.
+- A mobile-first authenticated production check at `390x844` also rendered
+  `/timeline` with no warning or error console entries.
+- One React hydration `#418` entry appeared when mobile emulation was applied
+  to an already loaded desktop tab and then routes were navigated. A clean
+  mobile-first tab did not reproduce it, so this pass records it as an
+  emulation-transition artifact unless it recurs in ordinary mobile browsing.
+
+Interpretation:
+- The production deployment includes the performance architecture work and
+  validates the main goal: Timeline, Analytics, and Export no longer show the
+  1.6-2.3s median route loads recorded in the baseline production pass.
+- Client navigation is better for Analytics, Export, and Timeline return
+  paths, but Timeline -> Behaviors is essentially unchanged and
+  Export -> Settings is slightly slower in this single pass. This looks like
+  normal dynamic-route variance rather than a new product issue.
+- Settings did not benefit from occurrence-sync changes because it was not one
+  of the sync-heavy routes.
+- No index, RPC, cache, offline, or UI-scope expansion is justified by this
+  production validation pass.
+
+Verification:
+- Pass: Vercel project/deployment inspection confirmed production `READY` at
+  commit `8ed1b3b734814d2fcd6725a252a8972f6160b6c5`.
+- Pass: Vercel build-log inspection for deployment
+  `dpl_3XUkDXzhPi2M7oexyJWGAvuRn4md`.
+- Pass: unauthenticated production route timing with `npm run perf:routes`.
+- Pass: authenticated production Chrome route-load timing for `/timeline`,
+  `/behaviors`, `/analytics`, `/export`, and `/settings`.
+- Pass: authenticated production Chrome navigation timing across the primary
+  app routes.
+- Pass: authenticated mobile production sanity at `390x844` for primary app
+  routes with no horizontal overflow.
+- Pass: safe missing-secret 401 checks for `/api/reminders/process` and
+  `/api/occurrences/sync`.
+- Pass: production asset cache-header check for the raw logo and completion
+  chime assets.
+
 ## Future-Only Recommendations
 
 - The architectural follow-up work from this section has been filed in
-  `docs/TICKETS.md` as Tickets 035-041, in this order: instrumentation, loading
-  boundaries, occurrence sync freshness state, removal of hot-route occurrence
-  sync, reminder planning decoupling, auth/app-shell latency reduction, and
-  query/index/RPC evidence.
+  `docs/TICKETS.md` as Tickets 035-041 and completed through the production
+  validation pass above.
 - Add a scoped note form state update for Analytics so note saves can avoid a
   full route refresh while still updating the review summary immediately.
 - Revisit the occurrence-generation planner contract before attempting smaller
   sync horizons for Analytics or Export. The current planner can delete future
   unresolved rows outside the requested horizon, so a smaller horizon is not a
   safe drop-in optimization.
-- After production deployment, inspect hosted route timing and Supabase query
-  evidence before adding database indexes. Add indexes only through migrations
-  with `docs/DATA_MODEL.md` and type updates when the evidence is clear.
+- Add database indexes only if a later hosted or seeded high-cardinality timing
+  pass shows a specific slow query. Add indexes only through migrations with
+  `docs/DATA_MODEL.md` and type updates when the evidence is clear.
 - Consider a low-risk service cache or background refresh strategy for
-  occurrence sync only after production after-change timings show route sync is
-  still the dominant cost.
+  occurrence sync only if a later production timing pass shows route sync is
+  again the dominant cost.
