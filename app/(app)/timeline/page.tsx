@@ -40,11 +40,11 @@ export default async function TimelinePage({ searchParams }: TimelinePageProps) 
 
       <div className="w-full overflow-hidden bg-background">
         <Image
-          src="/brand/cadence-timeline-horse-lines-transparent.png"
+          src="/brand/cadence-timeline-horse-lines-dots-clear-background.png"
           alt=""
           aria-hidden="true"
-          width={2048}
-          height={352}
+          width={2041}
+          height={239}
           priority
           sizes="100vw"
           className="block h-auto w-full"
