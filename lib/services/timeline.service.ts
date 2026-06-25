@@ -43,10 +43,13 @@ export async function getTimelinePageData(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
+  const [profileTimezone, behaviors] = await Promise.all([
+    getProfileTimezone(supabase, userId),
+    listUserBehaviors(supabase, userId),
+  ]);
 
-  await syncUserOccurrences(supabase, userId, { now });
+  await syncUserOccurrences(supabase, userId, { now, behaviors });
 
-  const profileTimezone = await getProfileTimezone(supabase, userId);
   const timezone = profileTimezone ?? DEFAULT_TIMEZONE;
   const timelineWindow = resolveGenerationWindow({
     now,
@@ -58,31 +61,28 @@ export async function getTimelinePageData(
     timezone,
   );
   const [
-    behaviors,
     priorUnresolvedOccurrences,
     retainedPriorOccurrences,
     forwardOccurrences,
-  ] =
-    await Promise.all([
-      listUserBehaviors(supabase, userId),
-      listUnresolvedOccurrencesBeforeLocalDate(
-        supabase,
-        userId,
-        timelineWindow.startLocalDate,
-      ),
-      listResolvedOccurrencesBeforeLocalDateMarkedBetween(supabase, {
-        userId,
-        localDate: timelineWindow.startLocalDate,
-        statusMarkedFrom: retentionWindow.startInclusive,
-        statusMarkedBefore: retentionWindow.endExclusive,
-      }),
-      listOccurrencesBetweenLocalDates(
-        supabase,
-        userId,
-        timelineWindow.startLocalDate,
-        timelineWindow.endLocalDate,
-      ),
-    ]);
+  ] = await Promise.all([
+    listUnresolvedOccurrencesBeforeLocalDate(
+      supabase,
+      userId,
+      timelineWindow.startLocalDate,
+    ),
+    listResolvedOccurrencesBeforeLocalDateMarkedBetween(supabase, {
+      userId,
+      localDate: timelineWindow.startLocalDate,
+      statusMarkedFrom: retentionWindow.startInclusive,
+      statusMarkedBefore: retentionWindow.endExclusive,
+    }),
+    listOccurrencesBetweenLocalDates(
+      supabase,
+      userId,
+      timelineWindow.startLocalDate,
+      timelineWindow.endLocalDate,
+    ),
+  ]);
   const activeBehaviorById = new Map(
     behaviors
       .filter((behavior) => behavior.active)

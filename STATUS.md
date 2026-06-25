@@ -108,6 +108,53 @@ Current evidence:
 - Vercel plugin inspection found existing project `cadence` under team `Emi's projects`, connected to GitHub repo `emixd12/habit-tracking-app` on `main`, with canonical public alias `https://cadence-blush-three.vercel.app`. Production public Supabase config is present, `/login` renders without the missing-config warning, Google OAuth returns to the canonical production domain, and `/api/reminders/process` supports Vercel Cron `GET` with secret protection.
 - Project-local design workflow files exist under `.agents/skills/impeccable/` and should be used for UI/design work after the scaffold exists.
 
+## Web App Performance Speed Loop
+
+Status: in_progress.
+
+Scope:
+- Measure production-first and local user-perceived speed for route loads,
+  navigation, feature buttons, behavior CRUD, Timeline status/note actions,
+  Analytics review, Export downloads, Settings controls, and app-shell
+  interactions.
+- Implement low-risk improvements sequentially without broad data-model
+  rewrites, product-scope expansion, offline/PWA mutation support, or major
+  architecture changes.
+- Keep a before/after measurement record in
+  `docs/PERFORMANCE_SPEED_LOG.md`.
+
+Current state:
+- Initial measurement plan, feature test matrix, and intervention backlog have
+  been added in `docs/PERFORMANCE_SPEED_LOG.md`.
+- Production baseline measurements have been recorded for unauthenticated HTTP,
+  authenticated Chrome route loads, authenticated client navigation, Behavior
+  create/archive, Timeline status, and Timeline note save behavior.
+- First low-risk implementation batch is complete locally: service reads are
+  parallelized/reused for Timeline, Analytics, and Export; sync now processes
+  independent behaviors in parallel; static brand/sound assets have short
+  durable cache headers; Chrome-extension body hydration noise is suppressed;
+  completion chime preloading is deduped; Timeline note saves avoid full route
+  revalidation.
+- A second low-risk sync batch is complete locally: per-behavior generation
+  reads existing occurrences and schedule slots in parallel, and reminder
+  planning reuses the already-fetched occurrence list when generation made no
+  occurrence mutations.
+- Local production-build after-change route measurements have been recorded.
+  Production after-change measurements are still pending deployment of this
+  batch.
+
+Verification:
+- Pass: `npm run resolvers:check`
+- Pass: `npm run typecheck`
+- Pass: `npm run lint`
+- Pass: `npm run agents:check`
+- Pass: `npm run test`
+- Pass: `npx vitest run tests/completion-feedback.test.ts`
+- Pass: `npx vitest run tests/reminder.service.test.ts`
+- Pass: `npm run build`
+- Pass: `npm run design-system:check`
+- Pass: `git diff --check`
+
 ## Design-system surface catalog update
 
 Status: complete.
@@ -157,9 +204,10 @@ Implementation summary:
 - Repositioned the Astro marketing site around Cadence as the site brand,
   homepage lead, and public product name. BehaviorLog now reads as the open
   bundle standard and portability layer behind Cadence exports and imports.
-- Updated the marketing header to use only the Cadence logo and name, a
-  product-first route order (`Cadence`, `BehaviorLog`, `Docs`, `Examples`,
-  `About`), and a persistent `Log in` action to the authenticated app.
+- Updated the marketing header to use only the Cadence logo and name, launch
+  route links for `Cadence` and `BehaviorLog`, and a persistent `Log in`
+  action to the authenticated app. The footer keeps project links including
+  `About`.
 - Expanded marketing copy on the homepage, Cadence page, BehaviorLog page,
   Docs page, and About page. The Docs page now includes a quick-start contract
   and a future developer-docs structure for Guides, Reference, Examples, Agent

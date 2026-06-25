@@ -60,5 +60,13 @@ export function getAuthErrorMessage(value: RedirectParam) {
     return "The Google sign-in callback could not be verified. Try signing in again.";
   }
 
+  if (error === "test_login_unavailable") {
+    return "Temporary test login is not available in this environment.";
+  }
+
+  if (error === "test_login_failed") {
+    return "Temporary test login could not be started. Check the local Supabase test login settings.";
+  }
+
   return "Sign-in could not finish. Try again.";
 }

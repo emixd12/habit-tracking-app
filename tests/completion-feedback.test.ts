@@ -115,6 +115,19 @@ describe("completion feedback", () => {
     ).toBe(false);
   });
 
+  it("preloads the completion chime only once per module instance", async () => {
+    const { MockAudio } = installAudioMocks({ mediaPlay: "resolve" });
+    const { preloadCompletionChime } = await import(
+      "../lib/ui/completion-feedback"
+    );
+
+    preloadCompletionChime();
+    preloadCompletionChime();
+
+    expect(MockAudio.instances).toHaveLength(1);
+    expect(MockAudio.instances[0]?.load).toHaveBeenCalledTimes(1);
+  });
+
   it("primes Web Audio synchronously inside the user gesture", async () => {
     const { MockAudioContext, dispatchEvent } = installAudioMocks();
     const { prepareCompletionChimeForUserGesture } = await import(

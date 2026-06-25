@@ -2,12 +2,16 @@ import { Temporal } from "@js-temporal/polyfill";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getBehaviorById } from "@/lib/db/behaviors.repo";
-import { getOccurrenceById } from "@/lib/db/occurrences.repo";
+import {
+  getOccurrenceById,
+  listBehaviorOccurrencesFrom,
+} from "@/lib/db/occurrences.repo";
 import { getProfileSettings } from "@/lib/db/profiles.repo";
 import {
   cancelPendingReminderDeliveryById,
   claimPendingBrowserPushReminderDelivery,
   claimPendingEmailReminderDelivery,
+  createMissingReminderDeliveries,
   listDuePendingBrowserPushReminderDeliveries,
   listDuePendingEmailReminderDeliveries,
   markReminderDeliveryFailed,
@@ -21,6 +25,7 @@ import {
   processDueBrowserPushReminders,
   processDueEmailReminders,
   processDueReminders,
+  syncReminderDeliveriesForBehavior,
 } from "@/lib/services/reminder.service";
 import { BrowserPushSubscriptionExpiredError } from "@/lib/services/web-push.service";
 import type {
@@ -135,6 +140,27 @@ const BASE_BEHAVIOR: Behavior = {
   created_at: "2026-06-01T00:00:00Z",
   updated_at: "2026-06-01T00:00:00Z",
 };
+
+describe("syncReminderDeliveriesForBehavior", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses provided occurrences instead of re-reading them", async () => {
+    await syncReminderDeliveriesForBehavior(SUPABASE, "user-1", BASE_BEHAVIOR, {
+      scheduledFrom: "2026-06-08T00:00:00Z",
+      occurrences: [BASE_OCCURRENCE],
+    });
+
+    expect(listBehaviorOccurrencesFrom).not.toHaveBeenCalled();
+    expect(createMissingReminderDeliveries).toHaveBeenCalledOnce();
+    expect(
+      vi
+        .mocked(createMissingReminderDeliveries)
+        .mock.calls[0]?.[1].map((delivery) => delivery.channel),
+    ).toEqual(["browser_push", "email"]);
+  });
+});
 
 describe("processDueEmailReminders", () => {
   beforeEach(() => {

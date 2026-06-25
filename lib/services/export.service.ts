@@ -124,7 +124,11 @@ async function getUserExportBundle(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
-  const profileTimezone = await getProfileTimezone(supabase, userId);
+  const [profileTimezone, behaviors, categories] = await Promise.all([
+    getProfileTimezone(supabase, userId),
+    listUserBehaviors(supabase, userId),
+    listBehaviorCategories(supabase, userId),
+  ]);
   const timezone = profileTimezone ?? DEFAULT_TIMEZONE;
   const range = resolveExportDateRange({
     now,
@@ -132,30 +136,21 @@ async function getUserExportBundle(
     range: options.range,
   });
 
-  await syncUserOccurrences(supabase, userId, { now });
+  await syncUserOccurrences(supabase, userId, { now, behaviors });
 
-  const [categories, behaviors, occurrences] = await Promise.all([
-    listBehaviorCategories(supabase, userId),
-    listUserBehaviors(supabase, userId),
-    range.startLocalDate
-      ? listOccurrencesBetweenLocalDates(
-          supabase,
-          userId,
-          range.startLocalDate,
-          range.endLocalDate,
-        )
-      : listOccurrencesThroughLocalDate(supabase, userId, range.endLocalDate),
+  const occurrences = range.startLocalDate
+    ? await listOccurrencesBetweenLocalDates(
+        supabase,
+        userId,
+        range.startLocalDate,
+        range.endLocalDate,
+      )
+    : await listOccurrencesThroughLocalDate(supabase, userId, range.endLocalDate);
+  const occurrenceIds = occurrences.map((occurrence) => occurrence.id);
+  const [statusEvents, reminderDeliveries] = await Promise.all([
+    listOccurrenceStatusEventsByOccurrenceIds(supabase, userId, occurrenceIds),
+    listReminderDeliveriesByOccurrenceIds(supabase, userId, occurrenceIds),
   ]);
-  const statusEvents = await listOccurrenceStatusEventsByOccurrenceIds(
-    supabase,
-    userId,
-    occurrences.map((occurrence) => occurrence.id),
-  );
-  const reminderDeliveries = await listReminderDeliveriesByOccurrenceIds(
-    supabase,
-    userId,
-    occurrences.map((occurrence) => occurrence.id),
-  );
 
   return resolveExportBundle({
     profile: {

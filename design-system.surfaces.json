@@ -215,7 +215,7 @@
           "parity": "adapted",
           "sources": ["apps/marketing/src/layouts/BaseLayout.astro", "apps/marketing/src/data/routes.ts"],
           "implementationIds": [],
-          "notes": "Marketing header renders a Cadence-only brand lockup, product-first route order, footer links, and a persistent login action."
+          "notes": "Marketing header renders a Cadence-only brand lockup, Cadence and BehaviorLog route links, footer links including About, and a persistent login action."
         },
         {
           "surfaceId": "desktop",

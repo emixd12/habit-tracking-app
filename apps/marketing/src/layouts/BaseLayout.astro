@@ -17,9 +17,6 @@ const ogImageUrl = getCanonicalUrl("/brand/cadence-logo.png");
 const headerRoutes = [
   getRouteById("cadence"),
   getRouteById("standard"),
-  getRouteById("docs"),
-  getRouteById("examples"),
-  getRouteById("about"),
 ];
 ---
 
@@ -83,6 +80,7 @@ const headerRoutes = [
           <div class="cta-row" aria-label="Project links">
             <a class="inline-link" href="/cadence">Cadence</a>
             <a class="inline-link" href="/standard">BehaviorLog</a>
+            <a class="inline-link" href="/about">About</a>
             <a class="inline-link" href={primaryCtas.viewGithub.href}>GitHub</a>
             <a class="inline-link" href="/llms.txt">llms.txt</a>
           </div>

@@ -25,7 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${ibmPlexSans.className} ${ibmPlexSans.variable}`}>
+      <body
+        suppressHydrationWarning
+        className={`${ibmPlexSans.className} ${ibmPlexSans.variable}`}
+      >
         {children}
       </body>
     </html>

@@ -321,7 +321,10 @@ This system is flat by default. Depth is created with borders, spacing, surface 
   portability layer Cadence writes and reads. Keep the existing Cadence mark,
   and use only the Cadence logo and name in the marketing header. Do not use a
   combined BehaviorLog/Cadence lockup in top navigation. Header navigation
-  links use the underlined text-action convention and no bottom divider.
+  links use the underlined text-action convention and no bottom divider. The
+  launch header shows only Cadence and BehaviorLog route links plus Log in.
+  About is footer-only, and Docs/Examples stay available by direct link and
+  machine-readable outputs rather than top navigation.
 - **Captures:** Product visuals are sanitized static captures of the Timeline
   and BehaviorLog bundle file set. They reuse real Cadence row language:
   scheduled time, behavior title, Completed, Not Completed, Needs decision,

@@ -34,7 +34,10 @@ export async function getAnalyticsPageData(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
-  const profileTimezone = await getProfileTimezone(supabase, userId);
+  const [profileTimezone, behaviors] = await Promise.all([
+    getProfileTimezone(supabase, userId),
+    listUserBehaviors(supabase, userId),
+  ]);
   const timezone = profileTimezone ?? DEFAULT_TIMEZONE;
   const dateRange = resolveAnalyticsDateRange({
     now,
@@ -42,10 +45,9 @@ export async function getAnalyticsPageData(
     rangeDays: options.rangeDays,
   });
 
-  await syncUserOccurrences(supabase, userId, { now });
+  await syncUserOccurrences(supabase, userId, { now, behaviors });
 
-  const [behaviors, occurrences, needsDecisionOccurrences] = await Promise.all([
-    listUserBehaviors(supabase, userId),
+  const [occurrences, needsDecisionOccurrences] = await Promise.all([
     listOccurrencesBetweenLocalDates(
       supabase,
       userId,

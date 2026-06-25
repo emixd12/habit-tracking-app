@@ -87,14 +87,16 @@ export async function syncReminderDeliveriesForBehavior(
   supabase: AppSupabaseClient,
   userId: string,
   behavior: Behavior | BehaviorWithCategory,
-  options: { scheduledFrom: string },
+  options: { scheduledFrom: string; occurrences?: Occurrence[] },
 ): Promise<void> {
-  const occurrences = await listBehaviorOccurrencesFrom(
-    supabase,
-    userId,
-    behavior.id,
-    options.scheduledFrom,
-  );
+  const occurrences =
+    options.occurrences ??
+    (await listBehaviorOccurrencesFrom(
+      supabase,
+      userId,
+      behavior.id,
+      options.scheduledFrom,
+    ));
 
   if (!behavior.active) {
     await cancelPendingReminderDeliveriesForOccurrences(

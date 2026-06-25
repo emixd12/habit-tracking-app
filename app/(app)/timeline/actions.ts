@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import {
   markOccurrenceStatusFromFormData,
   occurrenceErrorToActionState,
@@ -41,7 +39,6 @@ export async function updateOccurrenceNoteAction(
 ): Promise<OccurrenceActionState> {
   try {
     await updateOccurrenceNoteFromFormData(formData);
-    revalidatePath("/timeline");
 
     return {
       status: "success",

@@ -20,6 +20,7 @@
     "agents:check": "node scripts/check-agents.mjs",
     "resolvers:check": "node scripts/check-resolvers.mjs",
     "smoke:rls": "node scripts/supabase-rls-smoke.mjs",
+    "test-login:cleanup": "node scripts/supabase-test-login-cleanup.mjs",
     "supabase": "supabase",
     "sequenzy": "sequenzy"
   },

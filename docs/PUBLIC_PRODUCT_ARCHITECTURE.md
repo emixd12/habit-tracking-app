@@ -141,6 +141,10 @@ Marketing posture:
   layer or open package, not as the primary site brand.
 - `/standard` remains the stable route, but visible navigation may label it
   BehaviorLog for clarity.
+- Launch header navigation shows only Cadence and BehaviorLog route links plus
+  Log in. About is linked from the footer. Docs and Examples stay available by
+  direct URL, machine-readable mirrors, and in-page content links rather than
+  top navigation.
 - `/docs` should grow toward a familiar developer-docs structure: Guides,
   Reference, Examples, Agent policy, and Schema history, while preserving
   Markdown mirrors, route manifests, `llms.txt`, and static HTML.

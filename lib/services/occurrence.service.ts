@@ -54,24 +54,25 @@ export type SyncBehaviorOccurrencesOptions = {
   horizonDays?: number;
 };
 
+export type SyncUserOccurrencesOptions = SyncBehaviorOccurrencesOptions & {
+  behaviors?: BehaviorWithCategory[];
+};
+
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function syncUserOccurrences(
   supabase: AppSupabaseClient,
   userId: string,
-  options: SyncBehaviorOccurrencesOptions = {},
+  options: SyncUserOccurrencesOptions = {},
 ): Promise<OccurrenceGenerationPlan[]> {
-  const behaviors = await listUserBehaviors(supabase, userId);
-  const plans: OccurrenceGenerationPlan[] = [];
+  const behaviors = options.behaviors ?? (await listUserBehaviors(supabase, userId));
 
-  for (const behavior of behaviors) {
-    plans.push(
-      await syncBehaviorOccurrences(supabase, userId, behavior, options),
-    );
-  }
-
-  return plans;
+  return Promise.all(
+    behaviors.map((behavior) =>
+      syncBehaviorOccurrences(supabase, userId, behavior, options),
+    ),
+  );
 }
 
 export async function syncBehaviorOccurrences(
@@ -86,17 +87,15 @@ export async function syncBehaviorOccurrences(
     timezone: behavior.timezone,
     horizonDays: options.horizonDays,
   });
-  const existingOccurrences = await listBehaviorOccurrencesFrom(
-    supabase,
-    userId,
-    behavior.id,
-    generationWindow.rangeStart.toString(),
-  );
-  const scheduleSlots = await resolveBehaviorScheduleSlots(
-    supabase,
-    userId,
-    behavior,
-  );
+  const [existingOccurrences, scheduleSlots] = await Promise.all([
+    listBehaviorOccurrencesFrom(
+      supabase,
+      userId,
+      behavior.id,
+      generationWindow.rangeStart.toString(),
+    ),
+    resolveBehaviorScheduleSlots(supabase, userId, behavior),
+  ]);
   const plan = planOccurrenceGeneration({
     behavior: {
       id: behavior.id,
@@ -134,8 +133,14 @@ export async function syncBehaviorOccurrences(
     userId,
     plan.deleteUnresolvedIds,
   );
+  const mutatedOccurrences =
+    plan.create.length > 0 ||
+    plan.updateUnresolved.length > 0 ||
+    plan.deleteUnresolvedIds.length > 0;
+
   await syncReminderDeliveriesForBehavior(supabase, userId, behavior, {
     scheduledFrom: generationWindow.rangeStart.toString(),
+    occurrences: mutatedOccurrences ? undefined : existingOccurrences,
   });
 
   return plan;

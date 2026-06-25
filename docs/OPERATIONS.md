@@ -72,6 +72,43 @@ The command uses service-role credentials only to create and clean up temporary
 auth users. Data access checks run through ordinary signed-in publishable-key
 clients.
 
+## Clean-session onboarding QA
+
+Use the dev/test-only login route when a clean browser session needs to exercise
+first-run onboarding but Google account access would block the test.
+
+Enable it locally:
+
+```bash
+CADENCE_ENABLE_TEST_LOGIN=1
+```
+
+If the local app points at a hosted Supabase project, also set:
+
+```bash
+CADENCE_ALLOW_HOSTED_TEST_LOGIN=1
+```
+
+Safety gates:
+
+- `/auth/test-login` is blocked unless `CADENCE_ENABLE_TEST_LOGIN=1`.
+- The route is blocked when `NODE_ENV=production` or `VERCEL_ENV=production`.
+- The route only accepts localhost request hosts.
+- Hosted Supabase projects require `CADENCE_ALLOW_HOSTED_TEST_LOGIN=1`.
+- The service-role key is used only server-side to create a temporary confirmed
+  Supabase Auth user. The route then signs in through the ordinary Supabase
+  password flow so app code still uses normal auth cookies and RLS.
+
+Clean up stale temporary test users:
+
+```bash
+npm run test-login:cleanup
+```
+
+The cleanup command deletes only `cadence-test-*@example.invalid` users older
+than `CADENCE_TEST_LOGIN_MAX_AGE_HOURS`, defaulting to 24 hours, and reports
+counts without printing emails, ids, or auth responses.
+
 ## Source-of-truth order
 
 1. `AGENTS.md`: operating rules and architecture constraints.

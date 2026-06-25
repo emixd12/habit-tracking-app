@@ -28,6 +28,7 @@ let completionChimeArrayBufferPromise: Promise<ArrayBuffer | null> | null = null
 let completionChimeBufferPromise: Promise<AudioBuffer | null> | null = null;
 let completionChimePlaybackAudio: HTMLAudioElement | null = null;
 let completionChimePrimerAudio: HTMLAudioElement | null = null;
+let completionChimePreloadStarted = false;
 const activeCompletionChimeSources = new Set<AudioBufferSourceNode>();
 
 export function shouldPlayCompletionChime({
@@ -58,6 +59,11 @@ export function shouldPlayCompletionChimeForStatusSuccess({
 }
 
 export function preloadCompletionChime(): void {
+  if (completionChimePreloadStarted) {
+    return;
+  }
+
+  completionChimePreloadStarted = true;
   void loadCompletionChimeArrayBuffer();
   getCompletionChimePlaybackAudio()?.load();
 }

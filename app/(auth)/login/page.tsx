@@ -5,6 +5,7 @@ import {
 } from "@/lib/auth/redirects";
 import { DEFAULT_APP_ROUTE } from "@/lib/navigation";
 import { readSupabaseRuntimeConfig } from "@/lib/supabase/env";
+import { shouldShowTestLogin } from "@/lib/auth/test-login";
 import { GoogleLoginButton } from "./GoogleLoginButton";
 
 export const metadata: Metadata = {
@@ -25,6 +26,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const authErrorMessage = getAuthErrorMessage(params.error);
   const accountDeleted = params.account_deleted === "1";
   const isConfigured = readSupabaseRuntimeConfig() !== null;
+  const testLoginEnabled = shouldShowTestLogin();
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-10 text-foreground sm:px-6">
@@ -61,6 +63,18 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           ) : null}
 
           <GoogleLoginButton disabled={!isConfigured} nextPath={nextPath} />
+
+          {testLoginEnabled ? (
+            <div className="border-t border-line pt-4 text-sm leading-6 text-muted-readable">
+              <p>Local QA only.</p>
+              <a
+                href={`/auth/test-login?next=${encodeURIComponent(nextPath)}`}
+                className="product-action product-action-secondary mt-2 min-h-10 py-2"
+              >
+                Continue as temporary test user
+              </a>
+            </div>
+          ) : null}
 
           <p className="text-sm leading-6 text-muted-readable">
             Google sign-in is required for Cadence.
