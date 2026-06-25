@@ -3,6 +3,7 @@ import Image from "next/image";
 
 import { FirstRunOnboardingPanel } from "@/components/onboarding/FirstRunOnboardingPanel";
 import { Timeline } from "@/components/timeline/Timeline";
+import { withPerformanceRoute } from "@/lib/services/performance-timing";
 import { getTimelinePageBundle } from "@/lib/services/timeline.service";
 import {
   markOccurrenceStatusAction,
@@ -23,9 +24,21 @@ type TimelinePageProps = Readonly<{
 
 export default async function TimelinePage({ searchParams }: TimelinePageProps) {
   const params = await searchParams;
-  const { timeline, onboarding } = await getTimelinePageBundle({
-    futureDays: parseFutureDays(params?.days),
-  });
+  const { timeline, onboarding } = await withPerformanceRoute(
+    "/timeline",
+    "page.bundle_load",
+    () =>
+      getTimelinePageBundle({
+        futureDays: parseFutureDays(params?.days),
+      }),
+    {
+      counts: (bundle) => ({
+        timeline_sections: bundle.timeline.daySections.length,
+        has_behavior: Number(bundle.onboarding.hasAnyBehavior),
+        has_import_runs: Number(bundle.onboarding.hasImportRuns),
+      }),
+    },
+  );
 
   return (
     <div className="flex w-full flex-col">

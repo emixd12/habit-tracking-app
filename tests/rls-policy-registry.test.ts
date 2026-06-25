@@ -11,6 +11,7 @@ const MIGRATION_SQL = [
   "20260612221022_add_behaviorlog_import_tracking.sql",
   "20260618120000_add_imported_notes.sql",
   "20260618220226_add_imported_intervention_history.sql",
+  "20260625204148_add_occurrence_sync_state.sql",
 ]
   .map((fileName) => readFileSync(join(MIGRATION_DIR, fileName), "utf8"))
   .join("\n");
@@ -24,11 +25,30 @@ const USER_OWNED_TABLES = [
   "reminder_deliveries",
   "push_subscriptions",
   "occurrence_status_events",
+  "occurrence_sync_state",
   "behaviorlog_import_runs",
   "behaviorlog_import_record_mappings",
   "imported_notes",
   "imported_interventions",
 ] as const;
+
+const NORMALIZED_MIGRATION_SQL = MIGRATION_SQL.replace(/\s+/g, " ");
+
+const AUTHENTICATED_TABLE_GRANTS = new Map<(typeof USER_OWNED_TABLES)[number], string>([
+  ["profiles", "select, insert, update, delete"],
+  ["categories", "select, insert, update, delete"],
+  ["behaviors", "select, insert, update, delete"],
+  ["behavior_schedule_slots", "select, insert, update, delete"],
+  ["occurrences", "select, insert, update, delete"],
+  ["reminder_deliveries", "select, insert, update, delete"],
+  ["push_subscriptions", "select, insert, update, delete"],
+  ["occurrence_status_events", "select, insert"],
+  ["occurrence_sync_state", "select, insert, update, delete"],
+  ["behaviorlog_import_runs", "select, insert, update, delete"],
+  ["behaviorlog_import_record_mappings", "select, insert, update, delete"],
+  ["imported_notes", "select, insert, update, delete"],
+  ["imported_interventions", "select, insert, update, delete"],
+]);
 
 describe("RLS policy registry", () => {
   it("keeps every user-owned public table behind row level security", () => {
@@ -47,6 +67,19 @@ describe("RLS policy registry", () => {
       );
 
       expect(MIGRATION_SQL).toMatch(policyPattern);
+    }
+  });
+
+  it("keeps every user-owned public table explicitly granted to authenticated clients", () => {
+    for (const table of USER_OWNED_TABLES) {
+      const expectedPrivileges = AUTHENTICATED_TABLE_GRANTS.get(table);
+
+      expect(expectedPrivileges).toBeDefined();
+      expect(NORMALIZED_MIGRATION_SQL).toMatch(
+        new RegExp(
+          `grant ${expectedPrivileges} on table public\\.${table} to [^;]*\\bauthenticated\\b[^;]*;`,
+        ),
+      );
     }
   });
 });

@@ -389,6 +389,402 @@ Verification:
 - Pass: `npm run build`
 - Pass: `git diff --check`
 
+### 2026-06-25 Ticket 035: Server Timing Instrumentation
+
+Implementation:
+- Added server-only performance timing spans behind `CADENCE_PERF_LOG=1`.
+  Default runtime behavior remains silent.
+- Instrumented protected app layout auth lookup, authenticated route data loads
+  for `/timeline`, `/behaviors`, `/analytics`, and `/export`, occurrence sync
+  phases, reminder planning/writes, and primary repository reads used by those
+  routes.
+- Added `npm run perf:routes` as a repeatable dependency-free HTTP route timing
+  harness. It reports route, status, TTFB, total time, and bytes without
+  printing cookies, response bodies, or user data.
+- Timing events emit JSON with route, span, duration, status, error type, and
+  aggregate counts only. The sanitizer drops sensitive count keys and redacts
+  UUID-shaped route/span segments.
+
+Local production-build measurement with `CADENCE_PERF_LOG=1`:
+- Server: `npm run build`, then `CADENCE_PERF_LOG=1 npm run start -- -p 3000`
+- Authenticated Chrome tab at `http://localhost:3000`
+- Route elapsed timings:
+
+| Route | Elapsed |
+|---|---:|
+| `/timeline` | 4379ms |
+| `/behaviors` | 1102ms |
+| `/analytics` | 1832ms |
+| `/export` | 2370ms |
+| `/settings` | 779ms |
+
+Unauthenticated harness smoke:
+- `CADENCE_PERF_BASE_URL=http://localhost:3000 CADENCE_PERF_RUNS=2 CADENCE_PERF_WARMUPS=1 npm run perf:routes`
+- Protected routes correctly returned 307 redirects in about 1-4ms local TTFB.
+
+Slowest authenticated local server spans from the first instrumentation pass:
+
+| Route | Span | Duration | Counts |
+|---|---|---:|---|
+| `/timeline` | `page.bundle_load` | 2455.0ms | 8 timeline sections |
+| `/timeline` | `service.sync_user_occurrences` | 1221.6ms | 18 behaviors, 0 created/updated/deleted |
+| `/timeline` | `occurrence_sync.existing_occurrence_reads` | 588.7ms | 18 behaviors, 308 occurrences |
+| `/timeline` | `db.list_behaviorlog_import_runs` | 578.2ms | 1 import run |
+| `/timeline` | `db.list_user_behaviors` | 560.5ms | 18 behaviors, 18 schedule slots |
+| `/timeline` | `occurrence_sync.reminder_planning_writes` | 506.7ms | 18 behaviors, 308 occurrences |
+| `/timeline` | `db.create_missing_reminder_deliveries` | 501.2ms | 306 reminders planned |
+| `/analytics` | `page.data_load` | 1468.2ms | 30-day range, 16 behavior summaries |
+| `/analytics` | `service.sync_user_occurrences` | 817.9ms | 18 behaviors, 0 created/updated/deleted |
+| `/export` | `page.data_load` | 1981.9ms | 12 behaviors, 127 exported occurrences |
+| `/export` | `service.sync_user_occurrences` | 1026.4ms | 18 behaviors, 0 created/updated/deleted |
+| `/export` | `occurrence_sync.existing_occurrence_reads` | 506.3ms | 18 behaviors, 308 occurrences |
+
+Interpretation:
+- This ticket did not attempt a speed improvement; it added evidence.
+- The first authenticated local span sample supports the existing hypothesis:
+  route time is dominated by occurrence sync and reminder delivery planning on
+  read routes, even when there are no occurrence creates, updates, or deletes.
+- `/behaviors` is comparatively faster because it does not run occurrence sync
+  during page data load.
+- Auth lookup remained visible but smaller than route data work in this sample:
+  app layout `auth.get_current_user` ranged from about 168-312ms.
+
+Verification:
+- Pass: `npx vitest run tests/performance-timing.test.ts tests/occurrence.service.test.ts tests/reminder.service.test.ts`
+- Pass: `npm run typecheck`
+- Pass: `npm run lint`
+- Pass: `npm run build`
+
+### 2026-06-25 Ticket 036: Route Loading Boundaries And Navigation Response
+
+Implementation:
+- Added a shared authenticated app `loading.tsx` boundary for `/timeline`,
+  `/behaviors`, `/analytics`, `/export`, and `/settings`.
+- Added a small app-shell pending state for primary navigation links. It keeps
+  Next `Link` and default prefetch behavior intact, marks the clicked link with
+  `aria-busy`, and clears visually once the pathname reaches the target.
+- The loading and pending states use the existing square, divider-based
+  Cadence vocabulary: no spinner-only state, no shadows, no gradients, no
+  rounded cards, and no data or resolver changes.
+
+Local production-build measurement:
+- Server: `npm run build`, then `CADENCE_PERF_LOG=1 npm run start -- -p 3000`
+- Authenticated browser tab at `http://localhost:3000`
+- Concurrent polling around nav clicks:
+
+| Transition | Click to route loading | Click to nav pending | Click to target |
+|---|---:|---:|---:|
+| Timeline -> Behaviors | 124ms | not captured in this run | 814ms |
+| Settings -> Timeline | 36ms | 117ms | 1891ms |
+
+Browser QA:
+- Desktop viewport `1280x900`: `/timeline`, `/behaviors`, `/analytics`,
+  `/export`, and `/settings` reached the expected route and heading with no
+  document-level horizontal overflow.
+- Mobile viewport `390x844`: the same routes reached the expected route and
+  heading with no document-level horizontal overflow.
+- Browser console showed no warnings or errors during the route checks.
+
+Interpretation:
+- This ticket improves immediate feedback during route transitions but does not
+  reduce server/data time. Ticket 037 and Ticket 038 remain the next steps for
+  removing occurrence sync from hot reads.
+
+### 2026-06-25 Ticket 037: Occurrence Sync Freshness State
+
+Implementation:
+- Added `occurrence_sync_state` as a user-owned Supabase table with RLS,
+  explicit authenticated grants, per-user timezone/horizon coverage fields,
+  stale reason, last successful sync timestamp, and aggregate sync counts.
+- Added repository and service helpers to read sync state, mark state stale,
+  mark state fresh after successful account occurrence sync, and decide whether
+  a requested local-date horizon is covered.
+- `syncUserOccurrences` now marks the account sync state fresh after successful
+  generation and reminder planning. It still runs on read routes in this
+  ticket; hot-route removal is deferred to Ticket 038.
+- Behavior create/edit/archive/restore and Settings timezone update now mark
+  occurrence sync stale before occurrence-affecting writes and then run an
+  account sync. BehaviorLog import and restore apply paths mark the state stale
+  when accepted plans can create or update occurrence records.
+- Updated generated Supabase database types, data-model docs, and RLS registry
+  tests for the new table.
+
+Interpretation:
+- This ticket creates the persisted freshness contract needed by Ticket 038.
+- No route-speed improvement is claimed here because Timeline, Analytics, and
+  Export still call `syncUserOccurrences` before rendering.
+- The state table is intentionally per-user, not per-behavior. A successful
+  account sync can mark the account horizon fresh; direct import/restore data
+  repair remains conservative and leaves the state stale for a later repair
+  sync.
+
+Verification:
+- Pass: `npx vitest run tests/behaviorlog-import-intervention-history.test.ts tests/occurrence-sync-state.service.test.ts tests/occurrence.service.test.ts tests/settings.service.test.ts tests/behaviorlog-import-write.service.test.ts tests/behaviorlog-restore-apply.service.test.ts tests/rls-policy-registry.test.ts`
+- Pass: `npm run supabase -- db reset`
+- Pass: `npm run --silent supabase -- gen types typescript --local > lib/db/database.types.ts`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (46 files, 280 tests)
+- Pass: `npm run build`
+- Pass: `git diff --check`
+
+Hosted schema deployment:
+- On 2026-06-25, after user authorization, hosted Supabase migration history
+  was brought into congruence with local migrations through
+  `20260625221334`. The push included the pending restore preview/apply
+  migrations, Ticket 037 `occurrence_sync_state`, a corrective restore RPC
+  migration that changes Behavior restore upserts to `on conflict (id)`, and
+  an internal function-permission hardening migration.
+- Hosted schema probes confirmed `public.occurrence_sync_state` exists,
+  `public.apply_behaviorlog_restore(jsonb)` has the corrected Behavior upsert,
+  the imported-intervention upsert still uses `(import_run_id, external_id)`,
+  `anon` cannot execute restore/internal trigger functions, and
+  `authenticated` can execute the restore RPC.
+- Hosted advisors passed with `--fail-on error`. Remaining warnings are the
+  intentional authenticated restore `SECURITY DEFINER` RPC, hosted Auth leaked
+  password protection being disabled, and pre-existing RLS init-plan
+  performance warnings on older policies.
+
+### 2026-06-25 Ticket 038: Move Occurrence Sync Off Hot Read Routes
+
+Implementation:
+- Added `ensureUserOccurrencesFresh` to check `occurrence_sync_state` before
+  route rendering and to run `syncUserOccurrences` only when the account is
+  stale or the requested local-date horizon is not covered.
+- Timeline now asks for today plus the future Timeline horizon. Analytics and
+  Export ask only through the current/exported local day and do not trigger a
+  full rolling sync when the account horizon is already covered.
+- Tightened occurrence generation cleanup so smaller read-route horizons cannot
+  delete valid unresolved rows beyond the requested generation window.
+- Added protected, idempotent `/api/occurrences/sync` processing with bounded
+  `limit`, reused secret protection, auth-failure rate limiting, aggregate
+  counts only, and a daily Vercel Cron entry.
+- Kept behavior create/edit/archive/restore and Settings timezone writes on the
+  immediate occurrence sync path so user mutations still repair future rows
+  before returning.
+
+Local production-build route timing:
+- Normal `.env.local` production timing against the hosted Supabase project was
+  originally blocked because the hosted schema had not yet received the Ticket
+  037 `occurrence_sync_state` migration. That schema blocker was removed by
+  the authorized hosted Supabase push on 2026-06-25; new hosted route timing is
+  still pending a separate measurement pass.
+- A local Supabase stack timing pass was run with `CADENCE_PERF_LOG=1` and the
+  local test-login route against a production build. After one temporary daily
+  behavior existed and the write path had synced its horizon, route spans
+  showed `service.ensure_user_occurrences_fresh` with `covered=1` and
+  `synced=0` for Timeline, Analytics, and Export.
+
+Local stack full route timing after Ticket 038:
+
+| Route | Run 1 | Run 2 | Run 3 |
+|---|---:|---:|---:|
+| `/timeline` | 554ms | 684ms | 1000ms |
+| `/behaviors` | 804ms | 672ms | 1258ms |
+| `/analytics` | 755ms | 656ms | 655ms |
+| `/export` | 1009ms | 1003ms | 682ms |
+| `/settings` | 610ms | 236ms | 877ms |
+
+Representative local server spans after Ticket 038:
+
+| Route/action | Span | Result |
+|---|---|---|
+| `/timeline` | `service.ensure_user_occurrences_fresh` | `covered=1`, `synced=0`, `horizon_days=30` |
+| `/analytics` | `service.ensure_user_occurrences_fresh` | `covered=1`, `synced=0`, `horizon_days=0` |
+| `/export` | `service.ensure_user_occurrences_fresh` | `covered=1`, `synced=0`, `horizon_days=0` |
+| Behavior edit | `service.sync_user_occurrences` | write path synced immediately, no route-role service client |
+| Behavior archive | `service.sync_user_occurrences` | unresolved future rows deleted and pending reminders cancelled |
+| Behavior restore | `service.sync_user_occurrences` | future horizon recreated and reminders replanned |
+
+Functional QA:
+- Timeline status action updated the visible occurrence status message.
+- Export API downloads returned 200 for JSONL, CSV, full JSON, and BehaviorLog
+  bundle with authenticated local test-login cookies.
+- Settings timezone changed from `America/New_York` to `America/Chicago` and
+  back, each time updating the one active behavior.
+- Behavior edit, archive, and restore succeeded through the UI.
+- The Analytics selected-day review panel rendered the correct occurrence and
+  correction controls. The browser automation wrapper did not successfully
+  submit the nested status form during this run; focused status/analytics
+  service coverage remains the verification for that unchanged path.
+- Desktop browser route sanity for `/timeline`, `/behaviors`, `/analytics`,
+  `/export`, and `/settings` showed no document-level horizontal overflow. The
+  only captured browser error came from the browser automation clipboard
+  bridge, not app code.
+
+Interpretation:
+- Ticket 038 removes the dominant no-op occurrence sync from covered read
+  routes. The remaining read-route time in the local stack is regular data
+  fetching and route rendering.
+- Write paths intentionally still perform immediate occurrence sync because
+  correctness after behavior/timezone/archive mutations is more important than
+  deferring those repairs.
+- Hosted production timing no longer needs a schema push, but still needs a
+  separate hosted measurement pass after the performance code is deployed.
+
+Verification:
+- Pass: `npx vitest run tests/occurrence.resolver.test.ts tests/occurrence.service.test.ts tests/occurrence-sync-route.test.ts tests/occurrence-sync-state.service.test.ts`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (47 files, 289 tests)
+- Pass: `npm run build`
+
+### 2026-06-25 Ticket 039: Decouple Reminder Planning From Read-Route Rendering
+
+Implementation:
+- `syncUserOccurrences` now supports an explicit reminder-planning switch.
+  Existing behavior/timezone/import/restore write paths keep the default
+  planning behavior.
+- `ensureUserOccurrencesFresh` defaults reminder planning off when it has to
+  repair occurrence rows during a page read. The protected background
+  occurrence sync process explicitly opts reminder planning back in.
+- Status resolution still cancels pending reminder deliveries for the resolved
+  occurrence through the existing occurrence-status service path.
+- `docs/NOTIFICATION_SPEC.md` now states that operational reminder planning
+  belongs on occurrence-generation write paths and protected/background horizon
+  syncs, not Timeline/Analytics/Export page rendering.
+
+Interpretation:
+- This is a write-boundary hardening change. No new route timing claim is made
+  here because Ticket 038 already removed covered read-route occurrence sync;
+  Ticket 039 prevents stale read-route fallback from creating or cancelling
+  reminder deliveries while rendering.
+- Reminder processor idempotence and duplicate-send safety remain based on the
+  existing claim-before-send flow and due-delivery eligibility recheck.
+
+Verification:
+- Pass: `npx vitest run tests/occurrence.service.test.ts tests/reminder.service.test.ts`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (47 files, 293 tests)
+- Pass: `npm run build`
+- Pass: `git diff --check`
+
+### 2026-06-25 Ticket 040: Auth And App-Shell Latency Reduction
+
+Documentation check:
+- Current Supabase SSR documentation recommends `getClaims()` for protecting
+  pages and refreshing SSR cookies, and warns not to trust `getSession()` in
+  server code.
+- Supabase JavaScript reference says `getClaims()` verifies JWT claims against
+  the project's JWKS endpoint and can be faster than `getUser()`, while
+  `getUser()` still performs an Auth server request and is appropriate when the
+  full current user record is needed.
+
+Implementation:
+- Protected-route proxy gating now uses `supabase.auth.getClaims()` instead of
+  `getUser()` to decide protected-route access, authenticated `/login`
+  redirects, and `/` redirects.
+- The proxy emits `proxy.auth.get_claims` timing spans when
+  `CADENCE_PERF_LOG=1`.
+- The authenticated app layout still uses `getCurrentUser()`/`getUser()` for
+  account display name and email. Settings/account and other code paths that
+  need authoritative user details are unchanged.
+- No service-role client, RLS bypass, or user-editable metadata authorization
+  was introduced.
+
+Local stack smoke and timing:
+- Server: local Supabase env, production build, `CADENCE_ENABLE_TEST_LOGIN=1`,
+  `CADENCE_PERF_LOG=1`.
+- HTTP smoke:
+  - unauthenticated `/timeline`: 307 to `/login?next=%2Ftimeline`, 22ms
+  - anonymous `/login`: 200, 32ms
+  - `/auth/test-login?next=/settings`: reached `/settings`, 296ms
+  - authenticated `/settings`: 200, 36ms
+  - authenticated `/login?next=/settings`: redirected to `/settings`, 33ms
+- Browser smoke:
+  - authenticated `/timeline`, `/behaviors`, and `/settings` rendered expected
+    headings with no document-level horizontal overflow.
+  - authenticated `/login?next=/settings` redirected to `/settings`.
+  - only captured browser error was the automation clipboard bridge, not app
+    code.
+
+Representative local server spans:
+
+| Span | Observed durations |
+|---|---:|
+| `proxy.auth.get_claims` | commonly 0.3-7.9ms |
+| `proxy.auth.get_claims` | occasional 55.9-63.9ms outliers during refresh/key work |
+| app layout `auth.get_current_user` | 18.0-52.5ms |
+
+Interpretation:
+- The proxy no longer needs the full Auth user object just to gate routes, so
+  the route gate now follows Supabase's lower-latency claims path.
+- The app layout remains a visible auth cost because account display still
+  needs authoritative user metadata. Further reduction would require moving
+  account display to a profile/database read or a deferred client path, which
+  is intentionally left for evidence-driven future work.
+
+Verification:
+- Pass: `npx vitest run tests/supabase-proxy.test.ts tests/auth-callback-route.test.ts tests/auth-google-route.test.ts tests/test-login.test.ts`
+- Pass: `npm run typecheck`
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (47 files, 297 tests)
+- Pass: `npm run build`
+- Pass: `git diff --check`
+
+### 2026-06-25 Ticket 041: Query Evidence, Indexes, And Optional Timeline RPC
+
+Local route timing after Tickets 038-040:
+- Server: local Supabase env, production build, `CADENCE_ENABLE_TEST_LOGIN=1`,
+  `CADENCE_PERF_LOG=1`.
+- Account shape: temporary authenticated local test user with no active
+  behaviors. This keeps the route matrix comparable for post-architecture read
+  overhead, but it is not a high-cardinality index benchmark.
+- Hosted production query evidence was not collected in the original Ticket
+  041 pass because hosted schema deployment had not yet been authorized. The
+  schema blocker was removed by the authorized 2026-06-25 Supabase push; hosted
+  query evidence still needs a separate measurement pass after deployment.
+
+| Route | Run 1 | Run 2 | Run 3 |
+|---|---:|---:|---:|
+| `/timeline` | 40.7ms | 30.4ms | 34.5ms |
+| `/behaviors` | 41.6ms | 24.1ms | 29.5ms |
+| `/analytics` | 44.1ms | 35.3ms | 52.0ms |
+| `/export` | 56.2ms | 30.5ms | 33.0ms |
+| `/settings` | 28.1ms | 22.1ms | 22.9ms |
+
+Representative warm repository spans:
+
+| Query family | Existing support | Observed spans | Decision |
+|---|---|---:|---|
+| Timeline forward local-date range | `occurrences_user_local_date_idx (user_id, local_date, scheduled_for)` | 2.1-3.5ms | no new index |
+| Needs decision prior unresolved | `occurrences_user_status_idx (user_id, status, local_date)` | 1.9-3.6ms | no new index |
+| Retained prior resolved by `status_marked_at` | `occurrences_user_status_idx`, then `status_marked_at` filter | 2.2-4.0ms | no new index until real retained-prior volume shows need |
+| Analytics local-date range | `occurrences_user_local_date_idx` | 1.6-2.7ms | no new index |
+| Export through current day | `occurrences_user_local_date_idx` for current range path | 1.7-4.6ms | no new index |
+| Per-behavior occurrence sync reads | unique `(behavior_id, scheduled_for)` plus behavior id uniqueness; sync skipped on covered reads | 0 behaviors in this matrix; prior Ticket 038 write-path spans acceptable locally | defer until real multi-behavior hosted evidence |
+| Due pending reminders | existing `reminder_deliveries_due_unclaimed_idx (channel, scheduled_send_at) where status='pending' and processing_started_at is null` | no production send smoke; existing partial index matches processor query shape | no new index |
+
+RPC/index decision:
+- No Supabase migration was added.
+- No Timeline read RPC was added. Timeline's three occurrence reads are now
+  low single-digit millisecond spans locally, and total route time is dominated
+  by app layout auth, rendering, and normal route work rather than repeated slow
+  occurrence queries.
+- Candidate indexes remain future-only until hosted production or seeded
+  high-cardinality local evidence shows a specific slow query.
+
+Verification:
+- Pass: local production route timing matrix for `/timeline`, `/behaviors`,
+  `/analytics`, `/export`, and `/settings`.
+- Pass: `npm run agents:check`
+- Pass: `npm run resolvers:check`
+- Pass: `npm run lint`
+- Pass: `npm run typecheck`
+- Pass: `npm run test` (47 files, 297 tests)
+- Pass: `npm run build`
+- Pass: `git diff --check`
+
 ## Future-Only Recommendations
 
 - The architectural follow-up work from this section has been filed in

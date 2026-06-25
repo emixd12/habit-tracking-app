@@ -162,6 +162,37 @@ create table occurrences (
 app-native export reads. Status history is stored separately in
 `occurrence_status_events`.
 
+### `occurrence_sync_state`
+
+```sql
+create table occurrence_sync_state (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+
+  timezone text not null default 'America/New_York',
+  last_synced_local_date date,
+  synced_through_local_date date,
+  last_successful_sync_at timestamptz,
+
+  stale boolean not null default true,
+  stale_reason text default 'never_synced',
+
+  last_sync_behavior_count int not null default 0,
+  last_sync_created_count int not null default 0,
+  last_sync_updated_count int not null default 0,
+  last_sync_deleted_count int not null default 0,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+`occurrence_sync_state` is a per-user freshness contract for generated
+occurrence rows. Write paths mark it stale when behavior schedules, account
+timezone, or import/restore flows can affect generated occurrences. A successful
+account occurrence sync marks it fresh with the local-date horizon that was
+covered and aggregate counts for observability. Read routes still run the
+existing sync until the freshness-aware route work is implemented.
+
 ### `occurrence_status_events`
 
 ```sql
@@ -423,7 +454,10 @@ The function runs under the authenticated user context, filters every archive,
 delete, update, and insert by `auth.uid()`, and applies the prepared restore
 payload in dependency order. This keeps destructive restore atomic at the
 database statement/function boundary instead of using a long multi-call client
-workflow.
+workflow. The function is callable by the `authenticated` role only, not
+`anon`, and it keeps behavior upserts keyed by the Behavior `id` primary key.
+Internal trigger helpers such as `public.handle_new_user()` and
+`public.set_updated_at()` are not directly executable by app roles.
 
 The restore payload may archive behaviors absent from the bundle, delete local
 schedule slots, occurrences, status events when a replacement policy is

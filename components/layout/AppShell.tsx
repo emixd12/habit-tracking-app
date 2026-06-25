@@ -82,18 +82,21 @@ function getAccountInitials(name: string) {
 
 function PrimaryNav({
   pathname,
+  pendingHref,
   isCollapsed,
   onNavigate,
 }: Readonly<{
   pathname: string;
+  pendingHref?: AppNavHref | null;
   isCollapsed: boolean;
-  onNavigate?: () => void;
+  onNavigate?: (href: AppNavHref) => void;
 }>) {
   return (
     <nav aria-label="Primary" className="flex flex-1 flex-col py-3">
       {APP_NAV_ITEMS.map((item) => {
         const Icon = navIcons[item.href];
         const isActive = pathname === item.href;
+        const isPending = pendingHref === item.href && !isActive;
 
         return (
           <Link
@@ -101,13 +104,18 @@ function PrimaryNav({
             href={item.href}
             title={isCollapsed ? item.label : undefined}
             aria-current={isActive ? "page" : undefined}
-            onClick={onNavigate}
+            aria-busy={isPending ? true : undefined}
+            onClick={() => onNavigate?.(item.href)}
             className={[
               "group flex h-10 w-full items-center overflow-hidden text-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
               isCollapsed
-                ? "text-muted-foreground"
+                ? isPending
+                  ? "bg-surface text-foreground"
+                  : "text-muted-foreground"
                 : isActive
                   ? "bg-timeline-row-hover text-foreground"
+                  : isPending
+                    ? "bg-surface text-foreground"
                   : "text-muted-foreground hover:bg-surface hover:text-foreground",
             ].join(" ")}
           >
@@ -117,6 +125,8 @@ function PrimaryNav({
                 isCollapsed
                   ? isActive
                     ? "bg-timeline-row-hover text-foreground"
+                    : isPending
+                      ? "bg-surface text-foreground"
                     : "group-hover:bg-surface group-hover:text-foreground"
                   : "",
               ].join(" ")}
@@ -125,13 +135,19 @@ function PrimaryNav({
             </span>
             <span
               className={[
-                "min-w-0 overflow-hidden whitespace-nowrap transition-opacity duration-200",
+                "relative min-w-0 overflow-hidden whitespace-nowrap transition-opacity duration-200",
                 isCollapsed
                   ? "w-0 opacity-0 pointer-events-none"
                   : "w-[calc(100%-4rem)] opacity-100",
               ].join(" ")}
             >
               {item.label}
+              {isPending ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-0 left-0 h-px w-8 bg-foreground"
+                />
+              ) : null}
             </span>
           </Link>
         );
@@ -196,6 +212,7 @@ export function AppShell({
   const pathname = usePathname();
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [pendingHref, setPendingHref] = useState<AppNavHref | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const hasStoredSidebarPreferenceRef = useRef(false);
   const touchGestureRef = useRef<TouchGesture | null>(null);
@@ -205,6 +222,17 @@ export function AppShell({
   const closeMobileNav = useCallback(() => {
     setIsMobileOpen(false);
   }, []);
+
+  const handlePrimaryNavNavigate = useCallback(
+    (href: AppNavHref) => {
+      if (href !== pathname) {
+        setPendingHref(href);
+      }
+
+      closeMobileNav();
+    },
+    [closeMobileNav, pathname],
+  );
 
   const toggleDesktopSidebar = useCallback(() => {
     setIsDesktopSidebarOpen((current) => {
@@ -473,7 +501,12 @@ export function AppShell({
             </button>
           </div>
 
-          <PrimaryNav pathname={pathname} isCollapsed={false} onNavigate={closeMobileNav} />
+          <PrimaryNav
+            pathname={pathname}
+            pendingHref={pendingHref}
+            isCollapsed={false}
+            onNavigate={handlePrimaryNavNavigate}
+          />
 
           <div className="border-t border-line">
             <AccountTrigger
@@ -539,7 +572,12 @@ export function AppShell({
             ) : null}
           </div>
 
-          <PrimaryNav pathname={pathname} isCollapsed={!isDesktopSidebarOpen} />
+          <PrimaryNav
+            pathname={pathname}
+            pendingHref={pendingHref}
+            isCollapsed={!isDesktopSidebarOpen}
+            onNavigate={handlePrimaryNavNavigate}
+          />
 
           <div className="border-t border-line">
             <AccountTrigger

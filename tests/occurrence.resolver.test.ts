@@ -194,6 +194,7 @@ describe("planOccurrenceGeneration", () => {
         existingOccurrence("past-unresolved", "2026-01-01T15:00:00Z", "2026-01-01"),
         existingOccurrence("future-unresolved", "2026-01-02T15:00:00Z", "2026-01-02"),
         existingOccurrence("future-completed", "2026-01-03T15:00:00Z", "2026-01-03", "completed"),
+        existingOccurrence("beyond-window-unresolved", "2026-01-05T15:00:00Z", "2026-01-05"),
       ],
       now: NOW,
       horizonDays: 1,

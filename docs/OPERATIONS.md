@@ -109,6 +109,18 @@ The cleanup command deletes only `cadence-test-*@example.invalid` users older
 than `CADENCE_TEST_LOGIN_MAX_AGE_HOURS`, defaulting to 24 hours, and reports
 counts without printing emails, ids, or auth responses.
 
+## Auth route protection
+
+Protected-route proxy gating uses Supabase Auth `getClaims()` to validate the
+cookie-backed access token and refresh cookies when needed. This follows the
+current Supabase SSR guidance for page protection and avoids using
+`getSession()` in server code.
+
+Keep strict `getUser()` lookups where the app needs full user details, email,
+display metadata, or security-sensitive account actions. The authenticated app
+layout still uses `getUser()` for account display, and RLS-backed database
+access still runs through the ordinary authenticated Supabase client.
+
 ## Source-of-truth order
 
 1. `AGENTS.md`: operating rules and architecture constraints.
@@ -144,7 +156,9 @@ Implemented baseline:
 - public `/terms`, `/privacy`, and `/trust` routes,
 - auth-failure rate limiting for push subscription and reminder processing
   routes,
-- bounded reminder processing batch size.
+- bounded reminder processing batch size,
+- protected occurrence horizon sync at `/api/occurrences/sync`, scheduled daily
+  through Vercel Cron and guarded by `REMINDER_PROCESS_SECRET` or `CRON_SECRET`.
 
 Remaining public-launch follow-up:
 

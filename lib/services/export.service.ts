@@ -24,7 +24,7 @@ import {
   normalizeRecurrenceRule,
   normalizeScheduledTime,
 } from "@/lib/services/behavior-form";
-import { syncUserOccurrences } from "@/lib/services/occurrence.service";
+import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
 import {
   compareScheduleSlots,
   formatOccurrenceScheduleLabel,
@@ -137,7 +137,12 @@ async function getUserExportBundle(
     range: options.range,
   });
 
-  await syncUserOccurrences(supabase, userId, { now, behaviors });
+  await ensureUserOccurrencesFresh(supabase, userId, {
+    now,
+    behaviors,
+    timezone,
+    horizonDays: 0,
+  });
 
   const occurrences = range.startLocalDate
     ? await listOccurrencesBetweenLocalDates(

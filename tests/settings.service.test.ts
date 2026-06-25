@@ -13,7 +13,8 @@ import {
   TimezoneSettingsUserError,
   updateCurrentUserTimezoneFromFormData,
 } from "@/lib/services/settings.service";
-import { syncBehaviorOccurrences } from "@/lib/services/occurrence.service";
+import { syncUserOccurrences } from "@/lib/services/occurrence.service";
+import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import { createClient } from "@/lib/supabase/server";
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -30,7 +31,11 @@ vi.mock("@/lib/db/behaviors.repo", () => ({
 }));
 
 vi.mock("@/lib/services/occurrence.service", () => ({
-  syncBehaviorOccurrences: vi.fn(),
+  syncUserOccurrences: vi.fn(),
+}));
+
+vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
+  markOccurrenceSyncStale: vi.fn(),
 }));
 
 const getUser = vi.fn();
@@ -106,7 +111,8 @@ describe("updateCurrentUserTimezoneFromFormData", () => {
     vi.mocked(updateActiveBehaviorTimezones).mockResolvedValue([
       ACTIVE_BEHAVIOR,
     ]);
-    vi.mocked(syncBehaviorOccurrences).mockResolvedValue({} as never);
+    vi.mocked(markOccurrenceSyncStale).mockResolvedValue({} as never);
+    vi.mocked(syncUserOccurrences).mockResolvedValue([]);
   });
 
   it("updates the profile, active behavior timezones, and resyncs active occurrences", async () => {
@@ -130,12 +136,18 @@ describe("updateCurrentUserTimezoneFromFormData", () => {
       "user-1",
       "America/Los_Angeles",
     );
-    expect(syncBehaviorOccurrences).toHaveBeenCalledWith(
+    expect(markOccurrenceSyncStale).toHaveBeenCalledWith(SUPABASE, {
+      userId: "user-1",
+      reason: "timezone_changed",
+      timezone: "America/Los_Angeles",
+    });
+    expect(syncUserOccurrences).toHaveBeenCalledWith(
       SUPABASE,
       "user-1",
-      ACTIVE_BEHAVIOR,
       {
+        behaviors: [ACTIVE_BEHAVIOR],
         now: expect.any(Object),
+        timezone: "America/Los_Angeles",
       },
     );
   });
@@ -151,6 +163,7 @@ describe("updateCurrentUserTimezoneFromFormData", () => {
 
     expect(updateProfileTimezone).not.toHaveBeenCalled();
     expect(updateActiveBehaviorTimezones).not.toHaveBeenCalled();
-    expect(syncBehaviorOccurrences).not.toHaveBeenCalled();
+    expect(markOccurrenceSyncStale).not.toHaveBeenCalled();
+    expect(syncUserOccurrences).not.toHaveBeenCalled();
   });
 });

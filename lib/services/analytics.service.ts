@@ -16,7 +16,7 @@ import {
 } from "@/lib/resolvers/analytics.resolver";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { formatOccurrenceScheduleLabel } from "@/lib/services/schedule";
-import { syncUserOccurrences } from "@/lib/services/occurrence.service";
+import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
 import { createClient } from "@/lib/supabase/server";
 import type { AnalyticsOccurrenceInput, AnalyticsView } from "@/lib/types/analytics";
 import type { Occurrence, OccurrenceStatus } from "@/lib/types/database";
@@ -46,7 +46,12 @@ export async function getAnalyticsPageData(
     rangeDays: options.rangeDays,
   });
 
-  await syncUserOccurrences(supabase, userId, { now, behaviors });
+  await ensureUserOccurrencesFresh(supabase, userId, {
+    now,
+    behaviors,
+    timezone,
+    horizonDays: 0,
+  });
 
   const [occurrences, needsDecisionOccurrences] = await Promise.all([
     listOccurrencesBetweenLocalDates(

@@ -144,6 +144,14 @@ Reminder deliveries should be generated from:
 - Occurrence scheduled start
 - Reminder offset
 
+Operational delivery planning belongs on occurrence-generation write paths,
+not ordinary page reads. Behavior create/edit/archive/restore, timezone changes,
+approved import/restore apply work, and protected/background occurrence horizon
+syncs may create missing pending deliveries or cancel pending deliveries for
+inactive behavior occurrences. Timeline, Analytics, and Export read-route
+freshness checks may repair occurrence rows when stale, but must not create or
+cancel reminder deliveries while rendering a page.
+
 For exact-time occurrences, the scheduled start is the exact time. For range
 occurrences, the scheduled start is the beginning of the preset range.
 

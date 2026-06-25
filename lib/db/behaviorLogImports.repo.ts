@@ -1,5 +1,6 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import type { Json } from "@/lib/db/database.types";
+import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   BehaviorLogImportRecordMappingInput,
   BehaviorLogImportRunCreateInput,
@@ -53,19 +54,27 @@ export async function listBehaviorLogImportRuns(
   userId: string,
   limit = 10,
 ): Promise<BehaviorLogImportRun[]> {
-  const { data, error } = await supabase
-    .from("behaviorlog_import_runs")
-    .select("*")
-    .eq("user_id", userId)
-    .order("started_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  return measurePerformanceSpan(
+    {
+      span: "db.list_behaviorlog_import_runs",
+      counts: (runs) => ({ import_runs: runs.length }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("behaviorlog_import_runs")
+        .select("*")
+        .eq("user_id", userId)
+        .order("started_at", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(limit);
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data ?? [];
+      return data ?? [];
+    },
+  );
 }
 
 export async function updateBehaviorLogImportRunStatus(

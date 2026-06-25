@@ -20,11 +20,13 @@ import {
   getLatestOccurrenceStatusEventForOccurrence,
 } from "@/lib/db/occurrenceStatusEvents.repo";
 import {
+  DEFAULT_OCCURRENCE_HORIZON_DAYS,
   planOccurrenceGeneration,
   resolveGenerationWindow,
   type ExistingOccurrenceForGeneration,
   type OccurrenceGenerationPlan,
 } from "@/lib/resolvers/occurrence.resolver";
+import { listProfileOccurrenceSyncTargets } from "@/lib/db/profiles.repo";
 import {
   resolveNoteUpdate,
   resolveStatusEvent,
@@ -39,6 +41,15 @@ import {
   syncReminderDeliveriesForBehaviors,
   syncReminderDeliveriesForBehavior,
 } from "@/lib/services/reminder.service";
+import {
+  decideOccurrenceSyncCoverage,
+  markOccurrenceSyncFreshForPlans,
+  markOccurrenceSyncStale,
+  readOccurrenceSyncState,
+  type OccurrenceSyncCoverageDecision,
+} from "@/lib/services/occurrence-sync-state.service";
+import { measurePerformanceSpan } from "@/lib/services/performance-timing";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Behavior,
@@ -58,8 +69,37 @@ export type SyncBehaviorOccurrencesOptions = {
 
 export type SyncUserOccurrencesOptions = SyncBehaviorOccurrencesOptions & {
   behaviors?: BehaviorWithCategory[];
+  timezone?: string | null;
+  planReminderDeliveries?: boolean;
 };
 
+export type EnsureUserOccurrencesFreshOptions = SyncUserOccurrencesOptions;
+
+export type EnsureUserOccurrencesFreshResult = {
+  synced: boolean;
+  coverage: OccurrenceSyncCoverageDecision;
+  startLocalDate: string;
+  endLocalDate: string;
+  horizonDays: number;
+  plans: OccurrenceGenerationPlan[];
+};
+
+export type ProcessOccurrenceSyncHorizonsOptions = {
+  now?: Temporal.Instant;
+  horizonDays?: number;
+  limit?: number;
+  supabase?: AppSupabaseClient;
+};
+
+export type ProcessOccurrenceSyncHorizonsResult = {
+  checked: number;
+  synced: number;
+  skipped: number;
+  failed: number;
+};
+
+const DEFAULT_OCCURRENCE_SYNC_PROCESS_LIMIT = 25;
+const MAX_OCCURRENCE_SYNC_PROCESS_LIMIT = 100;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -68,109 +108,367 @@ export async function syncUserOccurrences(
   userId: string,
   options: SyncUserOccurrencesOptions = {},
 ): Promise<OccurrenceGenerationPlan[]> {
-  const behaviors = options.behaviors ?? (await listUserBehaviors(supabase, userId));
-  const now = options.now ?? Temporal.Now.instant();
-
-  if (behaviors.length === 0) {
-    return [];
-  }
-
-  const behaviorWindows = behaviors.map((behavior) => ({
-    behavior,
-    generationWindow: resolveGenerationWindow({
-      now,
-      timezone: behavior.timezone,
-      horizonDays: options.horizonDays,
-    }),
-  }));
-  const existingOccurrencesByBehaviorId =
-    await listExistingOccurrencesForBehaviorWindows(
-      supabase,
-      userId,
-      behaviorWindows,
-    );
-  const plans = await Promise.all(
-    behaviorWindows.map(async ({ behavior, generationWindow }) => {
-      const scheduleSlots = await resolveBehaviorScheduleSlots(
-        supabase,
-        userId,
-        behavior,
-      );
-      const behaviorOccurrences = occurrencesFromWindowStart(
-        existingOccurrencesByBehaviorId.get(behavior.id) ?? [],
-        generationWindow.rangeStart,
-      );
-
-      return planOccurrenceGeneration({
-        behavior: {
-          id: behavior.id,
-          userId,
-          recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
-          scheduleSlots,
-          timezone: behavior.timezone,
-          active: behavior.active,
-          createdAt: behavior.created_at,
+  return measurePerformanceSpan(
+    {
+      span: "service.sync_user_occurrences",
+      counts: (plans) => countGenerationPlans(plans),
+    },
+    async () => {
+      const behaviors = await measurePerformanceSpan(
+        {
+          span: "occurrence_sync.behavior_list_reuse",
+          counts: (resolvedBehaviors) => ({
+            behaviors: resolvedBehaviors.length,
+            reused_behavior_list: options.behaviors ? 1 : 0,
+          }),
         },
-        existingOccurrences: behaviorOccurrences.map(
-          toExistingOccurrenceForGeneration,
-        ),
+        async () => options.behaviors ?? listUserBehaviors(supabase, userId),
+      );
+      const now = options.now ?? Temporal.Now.instant();
+      const syncTimezone = resolveUserSyncTimezone(behaviors, options.timezone);
+      const fallbackWindow = resolveGenerationWindow({
         now,
+        timezone: syncTimezone ?? DEFAULT_TIMEZONE,
         horizonDays: options.horizonDays,
       });
-    }),
-  );
-  const createdOccurrences = plans.flatMap((plan) =>
-    plan.create.map(toNewOccurrence),
-  );
-  const scheduleUpdates = plans.flatMap((plan) => plan.updateUnresolved);
-  const deleteIds = plans.flatMap((plan) => plan.deleteUnresolvedIds);
 
-  await createMissingOccurrences(supabase, createdOccurrences);
-  await Promise.all(
-    scheduleUpdates.map((occurrence) =>
-      updateUnresolvedOccurrenceScheduleById(supabase, {
-        userId,
-        occurrenceId: occurrence.id,
-        occurrence: {
-          behavior_schedule_slot_id: occurrence.scheduleSlotId,
-          schedule_kind: occurrence.scheduleKind,
-          schedule_preset: occurrence.schedulePreset,
-          schedule_start_time: occurrence.scheduleStartTime,
-          schedule_end_time: occurrence.scheduleEndTime,
-          local_date: occurrence.localDate,
+      if (behaviors.length === 0) {
+        await markOccurrenceSyncFreshForPlans(supabase, {
+          userId,
+          plans: [],
+          fallbackWindow,
+          syncedAt: now.toString(),
+          timezone: syncTimezone,
+        });
+
+        return [];
+      }
+
+      const behaviorWindows = behaviors.map((behavior) => ({
+        behavior,
+        generationWindow: resolveGenerationWindow({
+          now,
+          timezone: behavior.timezone,
+          horizonDays: options.horizonDays,
+        }),
+      }));
+      const existingOccurrencesByBehaviorId = await measurePerformanceSpan(
+        {
+          span: "occurrence_sync.existing_occurrence_reads",
+          counts: (occurrencesByBehaviorId) => ({
+            behaviors: occurrencesByBehaviorId.size,
+            occurrences: countMapValues(occurrencesByBehaviorId),
+          }),
         },
-      }),
-    ),
-  );
-  await deleteUnresolvedOccurrencesById(supabase, userId, deleteIds);
+        () =>
+          listExistingOccurrencesForBehaviorWindows(
+            supabase,
+            userId,
+            behaviorWindows,
+          ),
+      );
+      const scheduleSlotsByBehaviorId = await measurePerformanceSpan(
+        {
+          span: "occurrence_sync.schedule_slot_resolution",
+          counts: (slotsByBehaviorId) => ({
+            behaviors: slotsByBehaviorId.size,
+            schedule_slots: countMapValues(slotsByBehaviorId),
+          }),
+        },
+        async () =>
+          new Map(
+            await Promise.all(
+              behaviorWindows.map(async ({ behavior }) => [
+                behavior.id,
+                await resolveBehaviorScheduleSlots(supabase, userId, behavior),
+              ] as const),
+            ),
+          ),
+      );
+      const plans = await measurePerformanceSpan(
+        {
+          span: "occurrence_sync.generation_planning",
+          counts: (resolvedPlans) => countGenerationPlans(resolvedPlans),
+        },
+        async () =>
+          Promise.all(
+            behaviorWindows.map(async ({ behavior, generationWindow }) => {
+              const scheduleSlots =
+                scheduleSlotsByBehaviorId.get(behavior.id) ?? [];
+              const behaviorOccurrences = occurrencesFromWindowStart(
+                existingOccurrencesByBehaviorId.get(behavior.id) ?? [],
+                generationWindow.rangeStart,
+              );
 
-  const mutatedOccurrences =
-    createdOccurrences.length > 0 ||
-    scheduleUpdates.length > 0 ||
-    deleteIds.length > 0;
-  const reminderOccurrences = mutatedOccurrences
-    ? await listExistingOccurrencesForBehaviorWindows(
-        supabase,
+              return planOccurrenceGeneration({
+                behavior: {
+                  id: behavior.id,
+                  userId,
+                  recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
+                  scheduleSlots,
+                  timezone: behavior.timezone,
+                  active: behavior.active,
+                  createdAt: behavior.created_at,
+                },
+                existingOccurrences: behaviorOccurrences.map(
+                  toExistingOccurrenceForGeneration,
+                ),
+                now,
+                horizonDays: options.horizonDays,
+              });
+            }),
+          ),
+      );
+      const createdOccurrences = plans.flatMap((plan) =>
+        plan.create.map(toNewOccurrence),
+      );
+      const scheduleUpdates = plans.flatMap((plan) => plan.updateUnresolved);
+      const deleteIds = plans.flatMap((plan) => plan.deleteUnresolvedIds);
+
+      await measurePerformanceSpan(
+        {
+          span: "occurrence_sync.occurrence_writes",
+          counts: {
+            created: createdOccurrences.length,
+            updated: scheduleUpdates.length,
+            deleted: deleteIds.length,
+          },
+        },
+        async () => {
+          await createMissingOccurrences(supabase, createdOccurrences);
+          await Promise.all(
+            scheduleUpdates.map((occurrence) =>
+              updateUnresolvedOccurrenceScheduleById(supabase, {
+                userId,
+                occurrenceId: occurrence.id,
+                occurrence: {
+                  behavior_schedule_slot_id: occurrence.scheduleSlotId,
+                  schedule_kind: occurrence.scheduleKind,
+                  schedule_preset: occurrence.schedulePreset,
+                  schedule_start_time: occurrence.scheduleStartTime,
+                  schedule_end_time: occurrence.scheduleEndTime,
+                  local_date: occurrence.localDate,
+                },
+              }),
+            ),
+          );
+          await deleteUnresolvedOccurrencesById(supabase, userId, deleteIds);
+        },
+      );
+
+      const mutatedOccurrences =
+        createdOccurrences.length > 0 ||
+        scheduleUpdates.length > 0 ||
+        deleteIds.length > 0;
+      if (options.planReminderDeliveries !== false) {
+        const reminderOccurrences = mutatedOccurrences
+          ? await measurePerformanceSpan(
+              {
+                span: "occurrence_sync.reminder_occurrence_refresh",
+                counts: (occurrencesByBehaviorId) => ({
+                  behaviors: occurrencesByBehaviorId.size,
+                  occurrences: countMapValues(occurrencesByBehaviorId),
+                }),
+              },
+              () =>
+                listExistingOccurrencesForBehaviorWindows(
+                  supabase,
+                  userId,
+                  behaviorWindows,
+                ),
+            )
+          : existingOccurrencesByBehaviorId;
+        const reminderOccurrencesByBehaviorId =
+          reminderOccurrences;
+
+        const reminderInputs = behaviorWindows.map(
+          ({ behavior, generationWindow }) => ({
+            behavior,
+            occurrences: occurrencesFromWindowStart(
+              reminderOccurrencesByBehaviorId.get(behavior.id) ?? [],
+              generationWindow.rangeStart,
+            ),
+          }),
+        );
+
+        await measurePerformanceSpan(
+          {
+            span: "occurrence_sync.reminder_planning_writes",
+            counts: {
+              behaviors: reminderInputs.length,
+              occurrences: reminderInputs.reduce(
+                (sum, input) => sum + input.occurrences.length,
+                0,
+              ),
+            },
+          },
+          () =>
+            syncReminderDeliveriesForBehaviors(
+              supabase,
+              userId,
+              reminderInputs,
+            ),
+        );
+      }
+
+      await markOccurrenceSyncFreshForPlans(supabase, {
         userId,
-        behaviorWindows,
-      )
-    : existingOccurrencesByBehaviorId;
-  const reminderOccurrencesByBehaviorId =
-    reminderOccurrences;
+        plans,
+        fallbackWindow,
+        syncedAt: now.toString(),
+        timezone: syncTimezone,
+      });
 
-  await syncReminderDeliveriesForBehaviors(
-    supabase,
-    userId,
-    behaviorWindows.map(({ behavior, generationWindow }) => ({
-      behavior,
-      occurrences: occurrencesFromWindowStart(
-        reminderOccurrencesByBehaviorId.get(behavior.id) ?? [],
-        generationWindow.rangeStart,
-      ),
-    })),
+      return plans;
+    },
   );
+}
 
-  return plans;
+export async function ensureUserOccurrencesFresh(
+  supabase: AppSupabaseClient,
+  userId: string,
+  options: EnsureUserOccurrencesFreshOptions = {},
+): Promise<EnsureUserOccurrencesFreshResult> {
+  const now = options.now ?? Temporal.Now.instant();
+  const timezone =
+    options.timezone ??
+    resolveUserSyncTimezone(options.behaviors ?? [], null) ??
+    DEFAULT_TIMEZONE;
+  const horizonDays =
+    options.horizonDays ?? DEFAULT_OCCURRENCE_HORIZON_DAYS;
+  const requiredWindow = resolveGenerationWindow({
+    now,
+    timezone,
+    horizonDays,
+  });
+
+  return measurePerformanceSpan(
+    {
+      span: "service.ensure_user_occurrences_fresh",
+      counts: (result) => ({
+        covered: result.coverage.covered ? 1 : 0,
+        synced: result.synced ? 1 : 0,
+        horizon_days: result.horizonDays,
+        behaviors: result.plans.length,
+        created: result.plans.reduce(
+          (sum, plan) => sum + plan.create.length,
+          0,
+        ),
+        updated: result.plans.reduce(
+          (sum, plan) => sum + plan.updateUnresolved.length,
+          0,
+        ),
+        deleted: result.plans.reduce(
+          (sum, plan) => sum + plan.deleteUnresolvedIds.length,
+          0,
+        ),
+      }),
+    },
+    async () => {
+      const state = await readOccurrenceSyncState(supabase, userId);
+      const coverage = decideOccurrenceSyncCoverage(state, {
+        timezone,
+        startLocalDate: requiredWindow.startLocalDate,
+        endLocalDate: requiredWindow.endLocalDate,
+      });
+
+      if (coverage.covered) {
+        return {
+          synced: false,
+          coverage,
+          startLocalDate: requiredWindow.startLocalDate,
+          endLocalDate: requiredWindow.endLocalDate,
+          horizonDays,
+          plans: [],
+        };
+      }
+
+      try {
+        const plans = await syncUserOccurrences(supabase, userId, {
+          behaviors: options.behaviors,
+          horizonDays,
+          now,
+          planReminderDeliveries: options.planReminderDeliveries ?? false,
+          timezone,
+        });
+
+        return {
+          synced: true,
+          coverage,
+          startLocalDate: requiredWindow.startLocalDate,
+          endLocalDate: requiredWindow.endLocalDate,
+          horizonDays,
+          plans,
+        };
+      } catch (error) {
+        await markSyncFailedWithoutMaskingError(supabase, {
+          userId,
+          timezone,
+        });
+
+        throw error;
+      }
+    },
+  );
+}
+
+export async function processOccurrenceSyncHorizons(
+  options: ProcessOccurrenceSyncHorizonsOptions = {},
+): Promise<ProcessOccurrenceSyncHorizonsResult> {
+  const supabase = options.supabase ?? createServiceRoleClient();
+  const now = options.now ?? Temporal.Now.instant();
+  const horizonDays =
+    options.horizonDays ?? DEFAULT_OCCURRENCE_HORIZON_DAYS;
+  const targets = await listProfileOccurrenceSyncTargets(supabase, {
+    limit: normalizeOccurrenceSyncProcessLimit(options.limit),
+  });
+  const result: ProcessOccurrenceSyncHorizonsResult = {
+    checked: targets.length,
+    synced: 0,
+    skipped: 0,
+    failed: 0,
+  };
+
+  return measurePerformanceSpan(
+    {
+      span: "service.process_occurrence_sync_horizons",
+      counts: (resolvedResult) => ({
+        users: resolvedResult.checked,
+        synced: resolvedResult.synced,
+        skipped: resolvedResult.skipped,
+        failed: resolvedResult.failed,
+        horizon_days: horizonDays,
+      }),
+    },
+    async () => {
+      for (const target of targets) {
+        try {
+          const behaviors = await listUserBehaviors(supabase, target.id);
+          const syncResult = await ensureUserOccurrencesFresh(
+            supabase,
+            target.id,
+            {
+              now,
+              horizonDays,
+              planReminderDeliveries: true,
+              timezone: target.timezone || DEFAULT_TIMEZONE,
+              behaviors,
+            },
+          );
+
+          if (syncResult.synced) {
+            result.synced += 1;
+          } else {
+            result.skipped += 1;
+          }
+        } catch {
+          result.failed += 1;
+        }
+      }
+
+      return result;
+    },
+  );
 }
 
 export async function syncBehaviorOccurrences(
@@ -406,6 +704,85 @@ function occurrencesFromWindowStart(
         rangeStart,
       ) >= 0,
   );
+}
+
+function countMapValues<T>(valuesByKey: Map<string, T[]>): number {
+  let count = 0;
+
+  for (const values of valuesByKey.values()) {
+    count += values.length;
+  }
+
+  return count;
+}
+
+function countGenerationPlans(plans: OccurrenceGenerationPlan[]) {
+  return {
+    behaviors: plans.length,
+    created: plans.reduce((sum, plan) => sum + plan.create.length, 0),
+    updated: plans.reduce(
+      (sum, plan) => sum + plan.updateUnresolved.length,
+      0,
+    ),
+    deleted: plans.reduce(
+      (sum, plan) => sum + plan.deleteUnresolvedIds.length,
+      0,
+    ),
+  };
+}
+
+function resolveUserSyncTimezone(
+  behaviors: BehaviorWithCategory[],
+  explicitTimezone?: string | null,
+): string | null {
+  if (explicitTimezone) {
+    return explicitTimezone;
+  }
+
+  const timezoneSource = behaviors.some((behavior) => behavior.active)
+    ? behaviors.filter((behavior) => behavior.active)
+    : behaviors;
+  const timezones = new Set(timezoneSource.map((behavior) => behavior.timezone));
+
+  if (timezones.size === 1) {
+    return [...timezones][0] ?? DEFAULT_TIMEZONE;
+  }
+
+  if (timezones.size === 0) {
+    return DEFAULT_TIMEZONE;
+  }
+
+  return null;
+}
+
+async function markSyncFailedWithoutMaskingError(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    timezone: string;
+  },
+): Promise<void> {
+  try {
+    await markOccurrenceSyncStale(supabase, {
+      userId: input.userId,
+      reason: "sync_failed",
+      timezone: input.timezone,
+    });
+  } catch {
+    // Preserve the sync failure as the error surfaced to the route.
+  }
+}
+
+function normalizeOccurrenceSyncProcessLimit(value: number | undefined): number {
+  if (value === undefined) {
+    return DEFAULT_OCCURRENCE_SYNC_PROCESS_LIMIT;
+  }
+
+  if (!Number.isInteger(value) || value < 1) {
+    return DEFAULT_OCCURRENCE_SYNC_PROCESS_LIMIT;
+  }
+
+  return Math.min(value, MAX_OCCURRENCE_SYNC_PROCESS_LIMIT);
 }
 
 function toNewOccurrence(occurrence: {

@@ -24,7 +24,7 @@ import {
 } from "@/lib/services/behavior-form";
 import { formatCompactOccurrenceScheduleLabel } from "@/lib/services/schedule";
 import { createFirstRunOnboardingState } from "@/lib/services/onboarding.service";
-import { syncUserOccurrences } from "@/lib/services/occurrence.service";
+import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import type { Occurrence } from "@/lib/types/database";
@@ -106,10 +106,15 @@ async function getTimelineViewForUser(input: {
   behaviors: BehaviorWithCategory[];
 }): Promise<TimelineView> {
   const { supabase, userId, now, behaviors } = input;
-
-  await syncUserOccurrences(supabase, userId, { now, behaviors });
-
   const timezone = input.profileTimezone ?? DEFAULT_TIMEZONE;
+
+  await ensureUserOccurrencesFresh(supabase, userId, {
+    now,
+    behaviors,
+    timezone,
+    horizonDays: TIMELINE_MAX_FUTURE_DAYS,
+  });
+
   const timelineWindow = resolveGenerationWindow({
     now,
     timezone,

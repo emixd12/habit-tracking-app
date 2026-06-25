@@ -2,6 +2,7 @@ import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import type { Profile } from "@/lib/types/database";
 
 export type ProfileSettings = Pick<Profile, "email" | "timezone">;
+export type ProfileOccurrenceSyncTarget = Pick<Profile, "id" | "timezone">;
 
 export async function getProfileSettings(
   supabase: AppSupabaseClient,
@@ -37,4 +38,21 @@ export async function updateProfileTimezone(
   }
 
   return data ?? null;
+}
+
+export async function listProfileOccurrenceSyncTargets(
+  supabase: AppSupabaseClient,
+  options: { limit: number },
+): Promise<ProfileOccurrenceSyncTarget[]> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, timezone")
+    .order("created_at", { ascending: true })
+    .limit(options.limit);
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
 }

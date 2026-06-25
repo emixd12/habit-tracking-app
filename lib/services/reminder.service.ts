@@ -33,6 +33,7 @@ import {
   type ReminderResolverOccurrence,
 } from "@/lib/resolvers/reminder.resolver";
 import { formatOccurrenceScheduleLabel } from "@/lib/services/schedule";
+import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import {
   createSequenzyReminderEmailSender,
   type SequenzyReminderEmailInput,
@@ -94,35 +95,45 @@ export async function syncReminderDeliveriesForBehavior(
   behavior: Behavior | BehaviorWithCategory,
   options: { scheduledFrom: string; occurrences?: Occurrence[] },
 ): Promise<void> {
-  const occurrences =
-    options.occurrences ??
-    (await listBehaviorOccurrencesFrom(
-      supabase,
-      userId,
-      behavior.id,
-      options.scheduledFrom,
-    ));
+  await measurePerformanceSpan(
+    {
+      span: "service.sync_reminder_deliveries_for_behavior",
+      counts: {
+        behaviors: 1,
+      },
+    },
+    async () => {
+      const occurrences =
+        options.occurrences ??
+        (await listBehaviorOccurrencesFrom(
+          supabase,
+          userId,
+          behavior.id,
+          options.scheduledFrom,
+        ));
 
-  if (!behavior.active) {
-    await cancelPendingReminderDeliveriesForOccurrences(
-      supabase,
-      userId,
-      occurrences.map((occurrence) => occurrence.id),
-    );
-    return;
-  }
+      if (!behavior.active) {
+        await cancelPendingReminderDeliveriesForOccurrences(
+          supabase,
+          userId,
+          occurrences.map((occurrence) => occurrence.id),
+        );
+        return;
+      }
 
-  const resolverBehavior = toReminderResolverBehavior(behavior, userId);
-  const deliveries = occurrences.flatMap((occurrence) =>
-    resolveReminderDeliveries({
-      behavior: resolverBehavior,
-      occurrence: toReminderResolverOccurrence(occurrence),
-    }),
-  );
+      const resolverBehavior = toReminderResolverBehavior(behavior, userId);
+      const deliveries = occurrences.flatMap((occurrence) =>
+        resolveReminderDeliveries({
+          behavior: resolverBehavior,
+          occurrence: toReminderResolverOccurrence(occurrence),
+        }),
+      );
 
-  await createMissingReminderDeliveries(
-    supabase,
-    deliveries.map(toNewReminderDelivery),
+      await createMissingReminderDeliveries(
+        supabase,
+        deliveries.map(toNewReminderDelivery),
+      );
+    },
   );
 }
 
@@ -131,34 +142,59 @@ export async function syncReminderDeliveriesForBehaviors(
   userId: string,
   inputs: SyncReminderDeliveriesForBehaviorsInput[],
 ): Promise<void> {
-  const inactiveOccurrenceIds: string[] = [];
-  const deliveries: NewReminderDelivery[] = [];
+  await measurePerformanceSpan(
+    {
+      span: "service.sync_reminder_deliveries_for_behaviors",
+      counts: {
+        behaviors: inputs.length,
+        occurrences: inputs.reduce(
+          (sum, input) => sum + input.occurrences.length,
+          0,
+        ),
+      },
+    },
+    async () => {
+      const inactiveOccurrenceIds: string[] = [];
+      const deliveries: NewReminderDelivery[] = [];
 
-  for (const input of inputs) {
-    if (!input.behavior.active) {
-      inactiveOccurrenceIds.push(
-        ...input.occurrences.map((occurrence) => occurrence.id),
+      for (const input of inputs) {
+        if (!input.behavior.active) {
+          inactiveOccurrenceIds.push(
+            ...input.occurrences.map((occurrence) => occurrence.id),
+          );
+          continue;
+        }
+
+        deliveries.push(
+          ...resolveReminderDeliveriesForBehaviorOccurrences(
+            input.behavior,
+            userId,
+            input.occurrences,
+          ),
+        );
+      }
+
+      await measurePerformanceSpan(
+        {
+          span: "reminder_sync.planning_writes",
+          counts: {
+            reminders_planned: deliveries.length,
+            inactive_occurrences: inactiveOccurrenceIds.length,
+          },
+        },
+        async () => {
+          await Promise.all([
+            cancelPendingReminderDeliveriesForOccurrences(
+              supabase,
+              userId,
+              inactiveOccurrenceIds,
+            ),
+            createMissingReminderDeliveries(supabase, deliveries),
+          ]);
+        },
       );
-      continue;
-    }
-
-    deliveries.push(
-      ...resolveReminderDeliveriesForBehaviorOccurrences(
-        input.behavior,
-        userId,
-        input.occurrences,
-      ),
-    );
-  }
-
-  await Promise.all([
-    cancelPendingReminderDeliveriesForOccurrences(
-      supabase,
-      userId,
-      inactiveOccurrenceIds,
-    ),
-    createMissingReminderDeliveries(supabase, deliveries),
-  ]);
+    },
+  );
 }
 
 export async function cancelReminderDeliveriesForResolvedOccurrence(

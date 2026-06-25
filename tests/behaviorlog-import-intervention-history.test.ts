@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveBehaviorLogImportPreview } from "../lib/resolvers/behaviorlog-import.resolver";
 import {
@@ -20,7 +20,20 @@ const USER_ID = "11111111-1111-4111-8111-111111111111";
 const IMPORT_RUN_ID = "22222222-2222-4222-8222-222222222222";
 const COMPLETED_AT = "2026-06-18T12:00:00Z";
 
+const occurrenceSyncMocks = vi.hoisted(() => ({
+  markOccurrenceSyncStale: vi.fn(),
+}));
+
+vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
+  markOccurrenceSyncStale: occurrenceSyncMocks.markOccurrenceSyncStale,
+}));
+
 describe("BehaviorLog imported intervention history", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    occurrenceSyncMocks.markOccurrenceSyncStale.mockResolvedValue({} as never);
+  });
+
   it("previews passive storage and redacts or drops sensitive delivery fields", () => {
     const preview = resolveBehaviorLogImportPreview({
       files: behaviorLogFiles({
@@ -73,6 +86,13 @@ describe("BehaviorLog imported intervention history", () => {
       completedAt: COMPLETED_AT,
     });
 
+    expect(occurrenceSyncMocks.markOccurrenceSyncStale).toHaveBeenCalledWith(
+      supabase,
+      {
+        userId: USER_ID,
+        reason: "behaviorlog_import_applied",
+      },
+    );
     expect(result.created.interventions).toBe(1);
     expect(tables.imported_interventions).toEqual([
       expect.objectContaining({
@@ -145,6 +165,13 @@ describe("BehaviorLog imported intervention history", () => {
       completedAt: COMPLETED_AT,
     });
 
+    expect(occurrenceSyncMocks.markOccurrenceSyncStale).toHaveBeenCalledWith(
+      supabase,
+      {
+        userId: USER_ID,
+        reason: "behaviorlog_import_applied",
+      },
+    );
     expect(first.created.interventions).toBe(1);
     expect(second.created.interventions).toBe(0);
     expect(second.skipped.interventions).toBe(1);

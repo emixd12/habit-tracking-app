@@ -73,6 +73,7 @@ Do not create `/dashboard` in v1. The locked primary route is `/timeline`.
 |---|---:|---|---|
 | `/api/push/subscribe` | implemented in 009; auth-failure rate limit added in 029 | Store browser push subscriptions | Route validates request shape, requires the authenticated Supabase user, rate-limits repeated unauthenticated attempts, and calls a service/repository. |
 | `/api/reminders/process` | implemented in 010; Vercel Cron GET support added in 013; auth-failure rate limit and bounded `limit` added in 029; browser-push sending added after notification troubleshooting | Protected process route for due reminder deliveries | Route validates `REMINDER_PROCESS_SECRET` or `CRON_SECRET`, supports Vercel Cron `GET` and manual protected `POST`, rate-limits repeated auth failures, bounds batch size, and calls `reminder.service.ts` for email and browser-push channels. |
+| `/api/occurrences/sync` | implemented in 038 | Protected process route for daily occurrence horizon extension | Route validates `REMINDER_PROCESS_SECRET` or `CRON_SECRET`, supports Vercel Cron `GET` and manual protected `POST`, rate-limits repeated auth failures, bounds batch size, and calls `occurrence.service.ts` to keep generated occurrence horizons fresh. |
 | `/api/export/jsonl` | implemented in 012 | JSONL export | Route calls export service/resolver. |
 | `/api/export/csv` | implemented in 012 | CSV export | Route calls export service/resolver. |
 | `/api/export/json` | implemented in 012 | Full JSON backup | Route calls export service/resolver. |

@@ -14,6 +14,11 @@ export const reminderProcessAuthFailureLimiter = new InMemoryRateLimiter({
   windowMs: AUTH_FAILURE_WINDOW_MS,
 });
 
+export const occurrenceSyncAuthFailureLimiter = new InMemoryRateLimiter({
+  maxAttempts: AUTH_FAILURE_LIMIT,
+  windowMs: AUTH_FAILURE_WINDOW_MS,
+});
+
 export function buildAuthFailureRateLimitKey(
   scope: string,
   headers: Pick<Headers, "get">,
@@ -24,6 +29,7 @@ export function buildAuthFailureRateLimitKey(
 export function resetAuthFailureRateLimitersForTests(): void {
   pushSubscribeAuthFailureLimiter.clear();
   reminderProcessAuthFailureLimiter.clear();
+  occurrenceSyncAuthFailureLimiter.clear();
 }
 
 export function getClientIp(headers: Pick<Headers, "get">): string {

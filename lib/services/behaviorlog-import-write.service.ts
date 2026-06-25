@@ -39,6 +39,7 @@ import {
   listOccurrenceStatusEventsByOccurrenceIds,
 } from "@/lib/db/occurrenceStatusEvents.repo";
 import { resolveBehaviorLogImportMergePreview } from "@/lib/resolvers/behaviorlog-import.resolver";
+import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import type {
   BehaviorLogExistingRecords,
   BehaviorLogImportBehaviorPlan,
@@ -326,6 +327,10 @@ export async function applyCreateMissingBehaviorLogImportPlan(
   try {
     assertPreviewCanApply(input.preview);
     assertImportRunHasAcceptedDryRun(importRun);
+    await markOccurrenceSyncStale(supabase, {
+      userId: input.userId,
+      reason: "behaviorlog_import_applied",
+    });
 
     const categories = await listBehaviorCategories(supabase, input.userId);
     const existingMappings = await listBehaviorLogImportRecordMappingsByRun(
@@ -731,6 +736,10 @@ export async function applyApprovedBehaviorLogMergePlan(
 
     assertMergePreviewMatchesInput(input.preview.mergePreview, acceptedMergePreview);
     assertMergePlanCanApply(acceptedMergePreview);
+    await markOccurrenceSyncStale(supabase, {
+      userId: input.userId,
+      reason: "behaviorlog_import_applied",
+    });
 
     const actionIndex = createMergeActionIndex(acceptedMergePreview);
     const categories = await listBehaviorCategories(supabase, input.userId);

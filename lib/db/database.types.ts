@@ -525,6 +525,54 @@ export type Database = {
           },
         ]
       }
+      occurrence_sync_state: {
+        Row: {
+          created_at: string
+          last_successful_sync_at: string | null
+          last_sync_behavior_count: number
+          last_sync_created_count: number
+          last_sync_deleted_count: number
+          last_sync_updated_count: number
+          last_synced_local_date: string | null
+          stale: boolean
+          stale_reason: string | null
+          synced_through_local_date: string | null
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          last_successful_sync_at?: string | null
+          last_sync_behavior_count?: number
+          last_sync_created_count?: number
+          last_sync_deleted_count?: number
+          last_sync_updated_count?: number
+          last_synced_local_date?: string | null
+          stale?: boolean
+          stale_reason?: string | null
+          synced_through_local_date?: string | null
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          last_successful_sync_at?: string | null
+          last_sync_behavior_count?: number
+          last_sync_created_count?: number
+          last_sync_deleted_count?: number
+          last_sync_updated_count?: number
+          last_synced_local_date?: string | null
+          stale?: boolean
+          stale_reason?: string | null
+          synced_through_local_date?: string | null
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       occurrences: {
         Row: {
           behavior_id: string

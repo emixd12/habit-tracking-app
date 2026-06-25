@@ -1,4 +1,5 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   NewReminderDelivery,
   ReminderDelivery,
@@ -15,16 +16,26 @@ export async function createMissingReminderDeliveries(
     return;
   }
 
-  const { error } = await supabase
-    .from("reminder_deliveries")
-    .upsert(deliveries, {
-      onConflict: "occurrence_id,channel,scheduled_send_at",
-      ignoreDuplicates: true,
-    });
+  await measurePerformanceSpan(
+    {
+      span: "db.create_missing_reminder_deliveries",
+      counts: {
+        reminders_planned: deliveries.length,
+      },
+    },
+    async () => {
+      const { error } = await supabase
+        .from("reminder_deliveries")
+        .upsert(deliveries, {
+          onConflict: "occurrence_id,channel,scheduled_send_at",
+          ignoreDuplicates: true,
+        });
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
+    },
+  );
 }
 
 export async function attachImportProvenanceToPendingReminderDelivery(
@@ -134,19 +145,30 @@ export async function listReminderDeliveriesByOccurrenceIds(
     return [];
   }
 
-  const { data, error } = await supabase
-    .from("reminder_deliveries")
-    .select("*")
-    .eq("user_id", userId)
-    .in("occurrence_id", occurrenceIds)
-    .order("scheduled_send_at", { ascending: true })
-    .order("id", { ascending: true });
+  return measurePerformanceSpan(
+    {
+      span: "db.list_reminder_deliveries_by_occurrence_ids",
+      counts: (deliveries) => ({
+        reminders: deliveries.length,
+        occurrences: occurrenceIds.length,
+      }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("reminder_deliveries")
+        .select("*")
+        .eq("user_id", userId)
+        .in("occurrence_id", occurrenceIds)
+        .order("scheduled_send_at", { ascending: true })
+        .order("id", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data ?? [];
+      return data ?? [];
+    },
+  );
 }
 
 export async function claimPendingEmailReminderDelivery(
@@ -286,17 +308,27 @@ export async function cancelPendingReminderDeliveriesForOccurrences(
     return;
   }
 
-  const { error } = await supabase
-    .from("reminder_deliveries")
-    .update({
-      status: "cancelled",
-      error: null,
-    })
-    .eq("user_id", userId)
-    .eq("status", "pending")
-    .in("occurrence_id", occurrenceIds);
+  await measurePerformanceSpan(
+    {
+      span: "db.cancel_pending_reminder_deliveries_for_occurrences",
+      counts: {
+        occurrences: occurrenceIds.length,
+      },
+    },
+    async () => {
+      const { error } = await supabase
+        .from("reminder_deliveries")
+        .update({
+          status: "cancelled",
+          error: null,
+        })
+        .eq("user_id", userId)
+        .eq("status", "pending")
+        .in("occurrence_id", occurrenceIds);
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
+    },
+  );
 }

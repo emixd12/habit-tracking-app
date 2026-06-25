@@ -140,9 +140,9 @@ export function planOccurrenceGeneration(
       .filter(
         (occurrence) =>
           occurrence.status === "unresolved" &&
-          isAtOrAfter(
+          isWithinGenerationWindow(
             normalizeInstant(occurrence.scheduledFor),
-            generationWindow.rangeStart,
+            generationWindow,
           ),
       )
       .flatMap((occurrence) => {
@@ -171,9 +171,9 @@ export function planOccurrenceGeneration(
       .filter(
         (occurrence) =>
           occurrence.status === "unresolved" &&
-          isAtOrAfter(
+          isWithinGenerationWindow(
             normalizeInstant(occurrence.scheduledFor),
-            generationWindow.rangeStart,
+            generationWindow,
           ) &&
           !desiredScheduledKeys.has(normalizeInstantString(occurrence.scheduledFor)),
       )
@@ -301,6 +301,23 @@ function isAtOrAfter(
   floor: Temporal.Instant,
 ): boolean {
   return Temporal.Instant.compare(candidate, floor) >= 0;
+}
+
+function isAtOrBefore(
+  candidate: Temporal.Instant,
+  ceiling: Temporal.Instant,
+): boolean {
+  return Temporal.Instant.compare(candidate, ceiling) <= 0;
+}
+
+function isWithinGenerationWindow(
+  candidate: Temporal.Instant,
+  generationWindow: OccurrenceGenerationWindow,
+): boolean {
+  return (
+    isAtOrAfter(candidate, generationWindow.rangeStart) &&
+    isAtOrBefore(candidate, generationWindow.rangeEnd)
+  );
 }
 
 function validateHorizonDays(value: number): number {

@@ -9,6 +9,10 @@ import {
 import { DEFAULT_APP_ROUTE, isProtectedAppRoute } from "@/lib/navigation";
 import { readSupabaseRuntimeConfig } from "@/lib/supabase/env";
 
+type ClaimsAuthResult = {
+  authenticated: boolean;
+};
+
 function redirectWithSessionCookies(
   request: NextRequest,
   sessionResponse: NextResponse,
@@ -36,6 +40,50 @@ function hasSupabaseAuthCookie(request: NextRequest) {
     .some(
       ({ name }) => name.startsWith("sb-") && name.includes("auth-token"),
     );
+}
+
+async function measureProxyAuth<T>(
+  request: NextRequest,
+  span: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  if (process.env.CADENCE_PERF_LOG !== "1") {
+    return operation();
+  }
+
+  const start = performance.now();
+  const route = request.nextUrl.pathname;
+
+  try {
+    const result = await operation();
+
+    console.info(
+      JSON.stringify({
+        source: "cadence",
+        kind: "performance_timing",
+        route,
+        span,
+        duration_ms: Math.round((performance.now() - start) * 10) / 10,
+        status: "success",
+      }),
+    );
+
+    return result;
+  } catch (error) {
+    console.info(
+      JSON.stringify({
+        source: "cadence",
+        kind: "performance_timing",
+        route,
+        span,
+        duration_ms: Math.round((performance.now() - start) * 10) / 10,
+        status: "error",
+        error_name: error instanceof Error ? error.name : "UnknownError",
+      }),
+    );
+
+    throw error;
+  }
 }
 
 export async function updateSession(request: NextRequest) {
@@ -91,11 +139,20 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const authResult = await measureProxyAuth<ClaimsAuthResult>(
+    request,
+    "proxy.auth.get_claims",
+    async () => {
+      const { data, error } = await supabase.auth.getClaims();
+      const subject = data?.claims?.sub;
 
-  if (protectedRoute && !user) {
+      return {
+        authenticated: !error && typeof subject === "string" && subject.length > 0,
+      };
+    },
+  );
+
+  if (protectedRoute && !authResult.authenticated) {
     return redirectWithSessionCookies(
       request,
       response,
@@ -103,7 +160,7 @@ export async function updateSession(request: NextRequest) {
     );
   }
 
-  if (pathname === LOGIN_ROUTE && user) {
+  if (pathname === LOGIN_ROUTE && authResult.authenticated) {
     const nextPath = normalizeRedirectPath(
       request.nextUrl.searchParams.get("next"),
     );
@@ -114,7 +171,7 @@ export async function updateSession(request: NextRequest) {
     return redirectWithSessionCookies(
       request,
       response,
-      user ? DEFAULT_APP_ROUTE : LOGIN_ROUTE,
+      authResult.authenticated ? DEFAULT_APP_ROUTE : LOGIN_ROUTE,
     );
   }
 

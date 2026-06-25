@@ -10,7 +10,8 @@ import {
   type BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
 import { createClient } from "@/lib/supabase/server";
-import { syncBehaviorOccurrences } from "@/lib/services/occurrence.service";
+import { syncUserOccurrences } from "@/lib/services/occurrence.service";
+import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import type {
   BehaviorPageData,
   BehaviorView,
@@ -87,23 +88,20 @@ export async function createBehaviorFromFormData(
     archived_at: null,
   };
 
+  await markOccurrenceSyncStale(supabase, {
+    userId,
+    reason: "behavior_changed",
+    timezone: behavior.timezone,
+  });
   const createdBehavior = await createBehavior(supabase, behavior);
   await replaceBehaviorScheduleSlots(supabase, {
     userId,
     behaviorId: createdBehavior.id,
     slots: input.scheduleSlots.map(toBehaviorScheduleSlotMutation),
   });
-  const behaviorWithSlots = await getBehaviorById(
-    supabase,
-    userId,
-    createdBehavior.id,
-  );
-
-  if (!behaviorWithSlots) {
-    throw new Error("Behavior not found after saving schedule.");
-  }
-
-  await syncBehaviorOccurrences(supabase, userId, behaviorWithSlots);
+  await syncUserOccurrences(supabase, userId, {
+    behaviors: await listUserBehaviors(supabase, userId),
+  });
 }
 
 export async function updateBehaviorFromFormData(
@@ -125,6 +123,12 @@ export async function updateBehaviorFromFormData(
   if (!existingBehavior) {
     throw new Error("Behavior not found.");
   }
+
+  await markOccurrenceSyncStale(supabase, {
+    userId,
+    reason: "behavior_changed",
+    timezone: existingBehavior.timezone,
+  });
 
   const behavior: BehaviorUpdate = {
     category_id: input.categoryId,
@@ -155,17 +159,9 @@ export async function updateBehaviorFromFormData(
     slots: input.scheduleSlots.map(toBehaviorScheduleSlotMutation),
   });
 
-  const behaviorWithSlots = await getBehaviorById(
-    supabase,
-    userId,
-    updatedBehavior.id,
-  );
-
-  if (!behaviorWithSlots) {
-    throw new Error("Behavior not found after saving schedule.");
-  }
-
-  await syncBehaviorOccurrences(supabase, userId, behaviorWithSlots);
+  await syncUserOccurrences(supabase, userId, {
+    behaviors: await listUserBehaviors(supabase, userId),
+  });
 }
 
 export async function archiveBehaviorFromFormData(
@@ -174,6 +170,10 @@ export async function archiveBehaviorFromFormData(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const behaviorId = getBehaviorIdForArchive(formData);
+  await markOccurrenceSyncStale(supabase, {
+    userId,
+    reason: "behavior_changed",
+  });
   const updatedBehavior = await updateBehavior(supabase, userId, behaviorId, {
     active: false,
     archived_at: new Date().toISOString(),
@@ -183,7 +183,9 @@ export async function archiveBehaviorFromFormData(
     throw new Error("Behavior not found.");
   }
 
-  await syncBehaviorOccurrences(supabase, userId, updatedBehavior);
+  await syncUserOccurrences(supabase, userId, {
+    behaviors: await listUserBehaviors(supabase, userId),
+  });
 }
 
 export async function restoreBehaviorFromFormData(
@@ -192,6 +194,10 @@ export async function restoreBehaviorFromFormData(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const behaviorId = getBehaviorIdForArchive(formData);
+  await markOccurrenceSyncStale(supabase, {
+    userId,
+    reason: "behavior_changed",
+  });
   const updatedBehavior = await updateBehavior(supabase, userId, behaviorId, {
     active: true,
     archived_at: null,
@@ -201,7 +207,9 @@ export async function restoreBehaviorFromFormData(
     throw new Error("Behavior not found.");
   }
 
-  await syncBehaviorOccurrences(supabase, userId, updatedBehavior);
+  await syncUserOccurrences(supabase, userId, {
+    behaviors: await listUserBehaviors(supabase, userId),
+  });
 }
 
 function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {

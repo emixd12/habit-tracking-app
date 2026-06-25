@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveBehaviorLogImportPreview } from "../lib/resolvers/behaviorlog-import.resolver";
 import {
@@ -23,7 +23,20 @@ const COMPLETED_AT = "2026-06-12T10:00:01Z";
 const USER_ID = "11111111-1111-4111-8111-111111111111";
 const IMPORT_RUN_ID = "22222222-2222-4222-8222-222222222222";
 
+const occurrenceSyncMocks = vi.hoisted(() => ({
+  markOccurrenceSyncStale: vi.fn(),
+}));
+
+vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
+  markOccurrenceSyncStale: occurrenceSyncMocks.markOccurrenceSyncStale,
+}));
+
 describe("BehaviorLog import write service", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    occurrenceSyncMocks.markOccurrenceSyncStale.mockResolvedValue({} as never);
+  });
+
   it("creates an import run with manifest metadata and a dry-run summary snapshot", async () => {
     const files = behaviorLogFiles();
     const preview = behaviorLogPreview();
@@ -199,6 +212,13 @@ describe("BehaviorLog import write service", () => {
       statusEvents: 1,
       mappings: 4,
     });
+    expect(occurrenceSyncMocks.markOccurrenceSyncStale).toHaveBeenCalledWith(
+      supabase,
+      {
+        userId: USER_ID,
+        reason: "behaviorlog_import_applied",
+      },
+    );
     expect(tables.behaviors).toHaveLength(1);
     expect(tables.behaviors[0]).toMatchObject({
       user_id: USER_ID,
@@ -408,6 +428,13 @@ describe("BehaviorLog import write service", () => {
       completedAt: COMPLETED_AT,
     });
 
+    expect(occurrenceSyncMocks.markOccurrenceSyncStale).toHaveBeenCalledWith(
+      supabase,
+      {
+        userId: USER_ID,
+        reason: "behaviorlog_import_applied",
+      },
+    );
     expect(result.created).toMatchObject({
       behaviors: 1,
       schedules: 1,

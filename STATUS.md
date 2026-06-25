@@ -110,7 +110,7 @@ Current evidence:
 
 ## Multi-account Supabase launch readiness sign-off
 
-Status: not_started.
+Status: in_progress.
 
 Scope:
 - Ticket 034 has been added to `docs/TICKETS.md` to close the remaining
@@ -121,15 +121,81 @@ Scope:
   settings, and a minimal production Google sign-in smoke.
 
 Current state:
-- This is planning only. No migration, hosted Supabase command, hosted smoke
-  run, or Auth/provider setting change has been performed for Ticket 034 yet.
+- The restore-apply readiness defect has been fixed by
+  `supabase/migrations/20260625220756_fix_behaviorlog_restore_apply_rpc.sql`.
+  The corrective migration replaces the invalid Behavior restore upsert
+  conflict target with `on conflict (id)` while preserving authenticated-user
+  ownership filtering.
+- `supabase/migrations/20260625221334_harden_internal_function_permissions.sql`
+  pins `public.set_updated_at()` to `search_path = public` and removes direct
+  app-role execute privileges from internal trigger functions.
+- Hosted Supabase migrations have been pushed through `20260625221334`.
+  Hosted migration history now matches local migration history, and hosted
+  schema probes confirmed `occurrence_sync_state` exists, the restore RPC is
+  corrected, internal trigger functions are not directly executable by
+  `anon` or `authenticated`, and restore apply remains callable only by
+  `authenticated`.
+- Hosted Supabase advisors passed with `--fail-on error`. Remaining hosted
+  warnings are the intentional authenticated restore `SECURITY DEFINER` RPC,
+  leaked password protection being disabled in hosted Auth settings, and
+  pre-existing RLS init-plan performance warnings on older policies.
+- Static RLS registry coverage now also checks that every user-owned public
+  table has explicit authenticated Data API grants, matching Supabase's 2026
+  default-grants posture. The intentionally append-only
+  `occurrence_status_events` table remains limited to `select, insert`.
+- Current Supabase docs/changelog were reviewed on 2026-06-25 for Auth redirect
+  allow lists, Google OAuth callback handling, RLS/Data API grants, and
+  `SECURITY DEFINER` function permissions. The relevant launch-readiness rules
+  remain: production OAuth should use an exact callback redirect, exposed public
+  tables need both RLS and explicit grants, and privileged functions need
+  explicit execute grants/revokes plus pinned `search_path`.
+- A read-only hosted recheck on 2026-06-25 confirmed local and hosted migration
+  histories match through `20260625221334`, all 50 expected authenticated table
+  privileges across user-owned tables are present, `anon` cannot execute the
+  restore RPC or internal updated-at trigger function, `authenticated` can
+  execute the restore RPC, and `authenticated` cannot directly execute the
+  internal updated-at trigger function.
+- A non-mutating production HTTP smoke on 2026-06-25 confirmed `/login`
+  returns 200, unauthenticated `/timeline` redirects to `/login?next=...`, and
+  `/auth/google?next=/timeline` redirects to Supabase Google OAuth with the
+  production `/auth/callback` redirect URL.
+- Hosted many-user RLS smoke QA passed on 2026-06-25 against the confirmed
+  project `qjodzutjxtmtzczbloxa.supabase.co`. The smoke created two temporary
+  hosted users, verified six cross-account ownership checks through ordinary
+  signed-in publishable-key clients, and cleaned up the temporary users.
+- Hosted Auth/provider settings were audited on 2026-06-25 through the
+  Supabase Management API without printing secret values. Passing launch
+  signals: production Site URL is `https://cadence-blush-three.vercel.app`,
+  the production `/auth/callback` URL is allow-listed, Google provider is
+  enabled, public signup is enabled, anonymous users are disabled, manual
+  identity linking is disabled, phone/SMS auth is disabled, Google nonce checks
+  are not skipped, secure email change is enabled, and Auth rate limits are
+  configured.
+- Hosted Auth audit findings still needing owner decision before broad launch:
+  email/password auth remains enabled at the provider level even though the
+  product UI exposes Google login only; CAPTCHA/bot protection is disabled;
+  leaked-password protection is disabled; localhost callback URLs remain
+  allow-listed for development.
+- Production authenticated smoke passed on 2026-06-25 using an existing Chrome
+  production session: protected Timeline rendered, profile/default account data
+  was present, a temporary smoke behavior was created, Timeline occurrence
+  generation showed the new occurrence with Completed/Not Completed controls,
+  Export showed JSONL/CSV/full JSON/BehaviorLog download links, Settings showed
+  the account deletion export acknowledgement, typed confirmation input, and
+  Delete account button, and the temporary smoke behavior was archived.
+- A fresh Google OAuth attempt on 2026-06-25 reached the Google account chooser
+  with the production callback URL, but the account selection/callback was not
+  completed because it requires the user to choose a Google account in Chrome.
 
 Next actions:
-- Confirm the intended hosted Supabase project and production domain.
-- Fix and verify the restore RPC locally through a git-tracked migration before
-  hosted deployment.
-- Run hosted `npm run smoke:rls` only after target-project authorization.
-- Record sanitized hosted verification results in this ledger.
+- Owner decision: disable hosted email/password auth for public launch, or
+  explicitly document why it remains enabled as non-user-facing operational/test
+  support.
+- Owner decision: enable hosted CAPTCHA/bot protection and leaked-password
+  protection before broad account expansion, or explicitly accept the current
+  risk.
+- Finish the fresh production Google OAuth callback by choosing the intended
+  Google account in Chrome, then record the sanitized callback result.
 
 ## Web App Performance Speed Loop
 
@@ -171,12 +237,71 @@ Current state:
 - Local production-build after-change route measurements have been recorded.
   Production after-change measurements are still pending deployment of this
   batch.
-- The next performance work is now filed as numbered implementation tickets in
-  `docs/TICKETS.md`: Ticket 035 performance server timing instrumentation,
-  Ticket 036 route loading/navigation response, Ticket 037 occurrence sync
-  freshness state, Ticket 038 moving occurrence sync off hot read routes,
-  Ticket 039 reminder planning decoupling, Ticket 040 auth/app-shell latency
-  reduction, and Ticket 041 query/index/RPC evidence.
+- Ticket 035 performance server timing instrumentation is complete locally.
+  `CADENCE_PERF_LOG=1` now enables privacy-safe JSON timing spans for protected
+  app layout auth, route data loads, occurrence sync phases, reminder
+  planning/writes, and primary repository reads used by Timeline, Behaviors,
+  Analytics, and Export. `npm run perf:routes` provides a repeatable local or
+  production HTTP route timing harness without printing cookies or response
+  bodies.
+- Ticket 035 authenticated local production-build measurement is recorded in
+  `docs/PERFORMANCE_SPEED_LOG.md`. The first span sample shows read-route
+  occurrence sync and reminder planning remain the dominant costs; no speed
+  improvement was attempted in this evidence-only ticket.
+- Ticket 036 route loading/navigation response is complete locally. A shared
+  authenticated app loading boundary now covers Timeline, Behaviors,
+  Analytics, Export, and Settings, and the app shell marks clicked primary nav
+  links as pending without changing Next `Link` prefetch behavior. Local
+  production-build browser QA covered desktop `1280x900` and mobile `390x844`
+  route checks with no horizontal overflow or browser console warnings.
+- Ticket 037 occurrence sync freshness state is complete locally. A new
+  RLS-protected `occurrence_sync_state` table records each user's sync
+  timezone/horizon, stale reason, last successful sync timestamp, and aggregate
+  counts. Repository/service helpers read state, mark it stale, mark it fresh
+  after successful account sync, and decide if a requested local-date horizon is
+  covered. Behavior create/edit/archive/restore, Settings timezone save, and
+  BehaviorLog import/restore apply paths now update the freshness contract
+  without removing read-route occurrence sync yet. The hosted Supabase project
+  now has the Ticket 037 migration after the authorized 2026-06-25 `db push`.
+- Ticket 038 occurrence sync removal from hot read routes is complete locally.
+  Timeline, Analytics, and Export now use freshness-aware occurrence sync
+  checks instead of unconditional full sync. The occurrence planner no longer
+  lets smaller read-route horizons delete unresolved rows beyond the requested
+  window. A new protected `/api/occurrences/sync` route and daily Vercel Cron
+  entry keep account horizons extendable in the background. Behavior
+  create/edit/archive/restore and Settings timezone save still run immediate
+  write-path syncs for correctness. Local stack timing with
+  `CADENCE_PERF_LOG=1` confirmed covered read routes emit
+  `service.ensure_user_occurrences_fresh` with `covered=1` and `synced=0`.
+- The hosted schema blocker for Ticket 038 production timing is resolved:
+  hosted Supabase migration history now matches local through
+  `20260625221334`, including `occurrence_sync_state`. New hosted production
+  timing still needs a separate measurement pass after deployment.
+- Ticket 039 reminder planning decoupling is complete locally. Occurrence
+  freshness repair during Timeline, Analytics, and Export page reads now
+  suppresses reminder-delivery planning writes, while behavior/timezone/import/
+  restore write paths and the protected occurrence horizon sync process still
+  plan or cancel reminder deliveries. `docs/NOTIFICATION_SPEC.md` documents
+  that reminder delivery planning belongs on write/background paths, not route
+  rendering.
+- Ticket 040 auth/app-shell latency reduction is complete locally. The
+  protected proxy now uses Supabase Auth `getClaims()` for route gating and
+  login/root redirects, with a `proxy.auth.get_claims` timing span. The
+  authenticated app layout still uses `getUser()` for account display name and
+  email, and settings/account paths that need authoritative user details remain
+  unchanged. Local stack smoke confirmed unauthenticated protected-route
+  redirect, anonymous `/login`, authenticated `/settings`, authenticated
+  `/login?next=/settings` redirect, and browser-rendered `/timeline`,
+  `/behaviors`, and `/settings`.
+- Ticket 041 query evidence review is complete locally with no schema change.
+  A local production-build route matrix after Tickets 038-040 showed primary
+  routes in roughly 22-56ms through authenticated curl, and warm occurrence
+  repository spans in the low single-digit milliseconds. Existing indexes cover
+  the measured Timeline, Analytics, Export, and reminder due-delivery query
+  shapes. No Supabase migration, generated type update, or Timeline read RPC was
+  added because the evidence does not show an index/RPC bottleneck.
+- Hosted production query evidence no longer needs a schema push, but remains
+  pending a separate hosted measurement pass after deployment.
 
 Verification:
 - Pass: `npx vitest run tests/occurrence.service.test.ts tests/reminder.service.test.ts tests/settings.service.test.ts tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-restore-ui.test.tsx`
@@ -190,6 +315,165 @@ Verification:
 - Pass: `npm run build`
 - Pass: `npm run design-system:check`
 - Pass: `git diff --check`
+- Ticket 035 pass: `npx vitest run tests/performance-timing.test.ts tests/occurrence.service.test.ts tests/reminder.service.test.ts`
+- Ticket 035 pass: `npm run agents:check`
+- Ticket 035 pass: `npm run resolvers:check`
+- Ticket 035 pass: `npm run lint`
+- Ticket 035 pass: `npm run typecheck`
+- Ticket 035 pass: `npm run test` (45 files, 276 tests)
+- Ticket 035 pass: `npm run build`
+- Ticket 035 pass: local production-build measurement with
+  `CADENCE_PERF_LOG=1`, authenticated Chrome route run, and unauthenticated
+  `npm run perf:routes` smoke.
+- Ticket 036 pass: `npm run agents:check`
+- Ticket 036 pass: `npm run resolvers:check`
+- Ticket 036 pass: `npm run design-system:check`
+- Ticket 036 pass: `npm run lint`
+- Ticket 036 pass: `npm run typecheck`
+- Ticket 036 pass: `npm run test` (45 files, 276 tests)
+- Ticket 036 pass: `npm run build`
+- Ticket 036 pass: local production-build browser QA for `/timeline`,
+  `/behaviors`, `/analytics`, `/export`, and `/settings` at desktop `1280x900`
+  and mobile `390x844`; measured Timeline -> Behaviors and Settings ->
+  Timeline click-to-loading/click-to-target timings in
+  `docs/PERFORMANCE_SPEED_LOG.md`.
+- Ticket 037 pass: `npx vitest run tests/behaviorlog-import-intervention-history.test.ts tests/occurrence-sync-state.service.test.ts tests/occurrence.service.test.ts tests/settings.service.test.ts tests/behaviorlog-import-write.service.test.ts tests/behaviorlog-restore-apply.service.test.ts tests/rls-policy-registry.test.ts`
+- Ticket 037 pass: `npm run supabase -- db reset`
+- Ticket 037 pass: `npm run --silent supabase -- gen types typescript --local > lib/db/database.types.ts`
+- Ticket 037 pass: `npm run agents:check`
+- Ticket 037 pass: `npm run resolvers:check`
+- Ticket 037 pass: `npm run lint`
+- Ticket 037 pass: `npm run typecheck`
+- Ticket 037 pass: `npm run test` (46 files, 280 tests)
+- Ticket 037 pass: `npm run build`
+- Ticket 037 pass: `git diff --check`
+- Ticket 038 pass: `npx vitest run tests/occurrence.resolver.test.ts tests/occurrence.service.test.ts tests/occurrence-sync-route.test.ts tests/occurrence-sync-state.service.test.ts`
+- Ticket 038 pass: `npm run agents:check`
+- Ticket 038 pass: `npm run resolvers:check`
+- Ticket 038 pass: `npm run lint`
+- Ticket 038 pass: `npm run typecheck`
+- Ticket 038 pass: `npm run test` (47 files, 289 tests)
+- Ticket 038 pass: `npm run build`
+- Ticket 038 browser/API QA: local production-build route sanity for
+  `/timeline`, `/behaviors`, `/analytics`, `/export`, and `/settings`; Export
+  JSONL/CSV/full JSON/BehaviorLog API downloads returned 200; Settings
+  timezone save updated one active behavior; Behavior edit/archive/restore
+  succeeded. Analytics selected-day review rendered correction controls, but
+  browser automation did not successfully submit that nested status form during
+  this run; unchanged status/analytics server paths remain covered by focused
+  tests.
+- Ticket 039 focused pass: `npx vitest run tests/occurrence.service.test.ts tests/reminder.service.test.ts`
+- Ticket 039 pass: `npm run agents:check`
+- Ticket 039 pass: `npm run resolvers:check`
+- Ticket 039 pass: `npm run lint`
+- Ticket 039 pass: `npm run typecheck`
+- Ticket 039 pass: `npm run test` (47 files, 293 tests)
+- Ticket 039 pass: `npm run build`
+- Ticket 039 pass: `git diff --check`
+- Ticket 040 focused pass: `npx vitest run tests/supabase-proxy.test.ts tests/auth-callback-route.test.ts tests/auth-google-route.test.ts tests/test-login.test.ts`
+- Ticket 040 focused pass: `npm run typecheck`
+- Ticket 040 pass: `npm run agents:check`
+- Ticket 040 pass: `npm run resolvers:check`
+- Ticket 040 pass: `npm run lint`
+- Ticket 040 pass: `npm run typecheck`
+- Ticket 040 pass: `npm run test` (47 files, 297 tests)
+- Ticket 040 pass: `npm run build`
+- Ticket 040 pass: `git diff --check`
+- Ticket 041 pass: local production-build route timing matrix for `/timeline`,
+  `/behaviors`, `/analytics`, `/export`, and `/settings`.
+- Ticket 041 pass: `npm run agents:check`
+- Ticket 041 pass: `npm run resolvers:check`
+- Ticket 041 pass: `npm run lint`
+- Ticket 041 pass: `npm run typecheck`
+- Ticket 041 pass: `npm run test` (47 files, 297 tests)
+- Ticket 041 pass: `npm run build`
+- Ticket 041 pass: `git diff --check`
+- Restore/Ticket 037 hosted schema pass:
+  `npm run supabase -- db push --linked --dry-run` showed pending restore
+  preview/apply, Ticket 037, and corrective restore RPC migrations.
+- Restore/Ticket 037 hosted schema pass:
+  `npm run supabase -- db push --linked --yes` applied
+  `20260619090000`, `20260619093000`, `20260625204148`, and
+  `20260625220756`; a second authorized push applied `20260625221334`.
+- Restore/Ticket 037 hosted schema pass:
+  `npm run supabase -- migration list --linked` confirmed local and hosted
+  migration history match through `20260625221334`.
+- Restore/Ticket 037 hosted schema pass: hosted `db query --linked` confirmed
+  `occurrence_sync_state` exists, restore Behavior upserts use
+  `on conflict (id)`, imported intervention upserts still use
+  `(import_run_id, external_id)`, `anon` cannot execute restore/internal
+  trigger functions, and `authenticated` can execute the restore RPC.
+- Restore/Ticket 037 hosted schema pass:
+  `npm run supabase -- db advisors --linked --type all --fail-on error`
+  returned no error-level findings; remaining warnings are documented in the
+  Ticket 034 and performance ledgers.
+- Restore/Ticket 037 local pass:
+  `npx vitest run tests/behaviorlog-restore-rpc-migration.test.ts tests/supabase-function-permissions-migration.test.ts tests/behaviorlog-restore-apply.service.test.ts tests/rls-policy-registry.test.ts tests/occurrence-sync-state.service.test.ts tests/occurrence.service.test.ts`
+  (6 files, 20 tests).
+- Restore/Ticket 037 local pass: `npm run supabase -- db reset`.
+- Restore/Ticket 037 local pass:
+  `npm run --silent supabase -- gen types typescript --local > lib/db/database.types.ts`.
+- Restore/Ticket 037 local pass:
+  `npm run supabase -- db advisors --local --type all --fail-on error`
+  returned no error-level findings; remaining warnings are pre-existing RLS
+  init-plan performance warnings.
+- Ticket 034 pass: current Supabase docs/changelog reviewed for Auth redirect
+  URLs, Google OAuth callback setup, RLS/Data API grants, and database function
+  execute privileges. The relevant 2026 platform change is that new public
+  tables need explicit grants in addition to RLS for Data API access.
+- Ticket 034 pass:
+  `npx vitest run tests/behaviorlog-restore-rpc-migration.test.ts tests/supabase-function-permissions-migration.test.ts tests/behaviorlog-restore-apply.service.test.ts tests/rls-policy-registry.test.ts`
+  (4 files, 10 tests).
+- Ticket 034 pass: `npm run supabase -- --version` returned `2.105.0`.
+- Ticket 034 pass: `npm run supabase -- db reset`.
+- Ticket 034 pass:
+  `npm run supabase -- db advisors --local --type all --fail-on error`
+  returned no error-level findings; remaining warnings are pre-existing RLS
+  init-plan performance warnings.
+- Ticket 034 read-only hosted pass:
+  `npm run supabase -- migration list --linked` confirmed local and hosted
+  migration history match through `20260625221334`.
+- Ticket 034 read-only hosted pass: hosted `db query --linked` confirmed all
+  50 expected authenticated table privileges are present across user-owned
+  tables and restore/internal function execute privileges match the intended
+  callable surface.
+- Ticket 034 non-mutating production HTTP pass: `curl` checks confirmed
+  `/login` returns 200, unauthenticated `/timeline` redirects to login, and
+  `/auth/google?next=/timeline` starts Supabase Google OAuth with the
+  production callback URL.
+- Ticket 034 hosted smoke pass: `npm run smoke:rls` against
+  `qjodzutjxtmtzczbloxa.supabase.co` created two temporary users, verified six
+  ownership checks, and cleaned up the temporary users.
+- Ticket 034 hosted Auth audit pass/finding: Supabase Management API
+  `GET /v1/projects/qjodzutjxtmtzczbloxa/config/auth` confirmed production Site
+  URL, production callback allow-listing, Google provider enabled, signup
+  enabled, anonymous users disabled, manual identity linking disabled,
+  phone/SMS auth disabled, Google nonce checks enforced, secure email change
+  enabled, and Auth rate-limit values present. Findings: email/password auth
+  enabled, CAPTCHA disabled, leaked-password protection disabled, and localhost
+  callback URLs retained.
+- Ticket 034 production authenticated smoke pass: Chrome session reached
+  `/timeline`; a temporary behavior named `Ticket 034 production smoke ...` was
+  created, appeared on Timeline with status controls, Export showed
+  JSONL/CSV/full JSON/BehaviorLog links, Settings showed account deletion
+  controls, and the temporary behavior was archived.
+- Ticket 034 partial fresh Google OAuth pass: `/auth/google?next=/timeline`
+  reached the Google account chooser with the production callback URL. The final
+  account selection/callback is pending user action in Chrome.
+- Ticket 034 pass: `npm run agents:check`.
+- Ticket 034 pass: `npm run resolvers:check`.
+- Ticket 034 pass: `npm run lint`.
+- Ticket 034 pass: `npm run typecheck`.
+- Ticket 034 pass: `npm run test` (49 files, 302 tests).
+- Ticket 034 pass: `npm run build`.
+- Ticket 034 pass: `git diff --check`.
+- Restore/Ticket 037 local pass: `npm run agents:check`.
+- Restore/Ticket 037 local pass: `npm run resolvers:check`.
+- Restore/Ticket 037 local pass: `npm run lint`.
+- Restore/Ticket 037 local pass: `npm run typecheck`.
+- Restore/Ticket 037 local pass: `npm run test` (49 files, 301 tests).
+- Restore/Ticket 037 local pass: `npm run build`.
+- Restore/Ticket 037 local pass: `git diff --check`.
 
 ## Design-system surface catalog update
 
@@ -407,8 +691,8 @@ Later ticket rollup:
 | 022: BehaviorLog optional notes import | complete | Occurrence-attached note import was implemented and later expanded by Ticket 026. |
 | 023: BehaviorLog Intervention Profile import preview | complete | Optional intervention import preview was implemented and later expanded by Ticket 027. |
 | 024: User-facing BehaviorLog import UI | complete | Export screen includes upload, preview, recent-run, create-only, and approved-merge UI. |
-| 025A: BehaviorLog restore preview | complete | Added a preview-only restore resolver/service contract with create/replace/archive/delete/keep/skip action classification, destructive-action flags, non-restorable account/provider/browser fields, status-history policy planning, sensitivity/redaction summaries, stable local/bundle/preview fingerprints, a `restore_preview` import-run mode migration, and focused tests. No product records, reminder deliveries, provider calls, or destructive apply behavior were added. | Pass: `npm run test -- tests/behaviorlog-restore.resolver.test.ts tests/behaviorlog-restore.service.test.ts`; Pass: `npm run supabase -- db reset`; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts` (no generated type diff); Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test` (37 files, 247 tests); Pass: `npm run build`; Pass: `git diff --check`. | Start Ticket 025B only after preserving the 025A preview/fingerprint contract. Hosted Supabase deployment for the new migration still requires explicit user authorization before `npm run supabase -- db push`. |
-| 025B: BehaviorLog restore apply and UI | complete | Added a destructive restore apply path behind accepted restore preview/fingerprint checks, typed `RESTORE` confirmation, fresh-backup acknowledgement, sensitivity acknowledgement when relevant, stale-preview refusal, a transaction-scoped Supabase RPC, and sparse Export-screen restore UI. Restore apply is limited to user-owned BehaviorLog product data and does not call Sequenzy, Web Push, browser APIs, provider SDKs, or notification-processing routes. | Pass: `npm run test -- tests/behaviorlog-restore-ui.test.tsx tests/behaviorlog-restore-apply.service.test.ts tests/behaviorlog-restore.resolver.test.ts tests/behaviorlog-restore.service.test.ts tests/behaviorlog-import-ui.test.tsx`; Pass: `npm run supabase -- db reset`; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test` (39 files, 251 tests); Pass: `npm run build`; Pass: `npm run design-system:check`; Pass: `git diff --check`; Browser QA on `/design-system#ds-module-behavior-log-restore-panel` at 1280px and 390px with no horizontal overflow or console warnings/errors. | Hosted Supabase deployment for the new migrations still requires explicit user authorization before `npm run supabase -- db push`. Destructive restore was not applied against a real account during QA. Current apply expects Cadence/UUID core identifiers for core restore rows and does not recreate categories from BehaviorLog bundles. |
+| 025A: BehaviorLog restore preview | complete | Added a preview-only restore resolver/service contract with create/replace/archive/delete/keep/skip action classification, destructive-action flags, non-restorable account/provider/browser fields, status-history policy planning, sensitivity/redaction summaries, stable local/bundle/preview fingerprints, a `restore_preview` import-run mode migration, and focused tests. No product records, reminder deliveries, provider calls, or destructive apply behavior were added. Hosted migration `20260619090000_add_behaviorlog_restore_preview_mode.sql` has been pushed. | Pass: `npm run test -- tests/behaviorlog-restore.resolver.test.ts tests/behaviorlog-restore.service.test.ts`; Pass: `npm run supabase -- db reset`; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts` (no generated type diff); Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test` (37 files, 247 tests); Pass: `npm run build`; Pass: `git diff --check`; later hosted push/migration-list verification recorded in the Web App Performance Speed Loop ledger. | None for hosted preview schema. |
+| 025B: BehaviorLog restore apply and UI | complete | Added a destructive restore apply path behind accepted restore preview/fingerprint checks, typed `RESTORE` confirmation, fresh-backup acknowledgement, sensitivity acknowledgement when relevant, stale-preview refusal, a transaction-scoped Supabase RPC, and sparse Export-screen restore UI. Restore apply is limited to user-owned BehaviorLog product data and does not call Sequenzy, Web Push, browser APIs, provider SDKs, or notification-processing routes. Hosted migration `20260619093000_add_behaviorlog_restore_apply_mode_and_rpc.sql` has been pushed, followed by corrective migration `20260625220756_fix_behaviorlog_restore_apply_rpc.sql` and internal function hardening migration `20260625221334_harden_internal_function_permissions.sql`. | Pass: `npm run test -- tests/behaviorlog-restore-ui.test.tsx tests/behaviorlog-restore-apply.service.test.ts tests/behaviorlog-restore.resolver.test.ts tests/behaviorlog-restore.service.test.ts tests/behaviorlog-import-ui.test.tsx`; Pass: `npm run supabase -- db reset`; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test` (39 files, 251 tests); Pass: `npm run build`; Pass: `npm run design-system:check`; Pass: `git diff --check`; Browser QA on `/design-system#ds-module-behavior-log-restore-panel` at 1280px and 390px with no horizontal overflow or console warnings/errors; later hosted schema probes verified the restore RPC conflict target and execute permissions. | Destructive restore was not applied against a real account during QA. Current apply expects Cadence/UUID core identifiers for core restore rows and does not recreate categories from BehaviorLog bundles. |
 | 026: General BehaviorLog notes data model and import | complete | Passive imported notes table and import/apply support are implemented with sensitivity acknowledgement. |
 | 027: Imported intervention history storage | complete | Passive imported intervention history storage exists with RLS and hosted migration applied. |
 | 028: Promote imported interventions into reminder deliveries | complete | Service-level promotion path exists with explicit selection/confirmation; no user-facing promotion UI has been added. |

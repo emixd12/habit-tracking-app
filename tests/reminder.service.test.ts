@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/occurrences.repo";
 import { getProfileSettings } from "@/lib/db/profiles.repo";
 import {
+  cancelPendingReminderDeliveriesForOccurrence,
   cancelPendingReminderDeliveriesForOccurrences,
   cancelPendingReminderDeliveryById,
   claimPendingBrowserPushReminderDelivery,
@@ -23,6 +24,7 @@ import {
   listActivePushSubscriptionsForUser,
 } from "@/lib/db/pushSubscriptions.repo";
 import {
+  cancelReminderDeliveriesForResolvedOccurrence,
   processDueBrowserPushReminders,
   processDueEmailReminders,
   processDueReminders,
@@ -197,6 +199,41 @@ describe("syncReminderDeliveriesForBehavior", () => {
       "user-1",
       ["occurrence-2"],
     );
+  });
+});
+
+describe("cancelReminderDeliveriesForResolvedOccurrence", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("cancels pending reminder deliveries when an occurrence is resolved", async () => {
+    await cancelReminderDeliveriesForResolvedOccurrence(
+      SUPABASE,
+      "user-1",
+      {
+        ...BASE_OCCURRENCE,
+        status: "completed",
+        completed_at: NOW_STRING,
+        status_marked_at: NOW_STRING,
+      },
+    );
+
+    expect(cancelPendingReminderDeliveriesForOccurrence).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      "occurrence-1",
+    );
+  });
+
+  it("leaves pending reminder deliveries alone for unresolved occurrences", async () => {
+    await cancelReminderDeliveriesForResolvedOccurrence(
+      SUPABASE,
+      "user-1",
+      BASE_OCCURRENCE,
+    );
+
+    expect(cancelPendingReminderDeliveriesForOccurrence).not.toHaveBeenCalled();
   });
 });
 

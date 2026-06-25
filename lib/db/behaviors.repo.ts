@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/db/database.types";
+import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   Behavior,
   BehaviorScheduleSlot,
@@ -25,38 +26,61 @@ export async function listBehaviorCategories(
   supabase: AppSupabaseClient,
   userId: string,
 ): Promise<Category[]> {
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("user_id", userId)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  return measurePerformanceSpan(
+    {
+      span: "db.list_behavior_categories",
+      counts: (categories) => ({ categories: categories.length }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("user_id", userId)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data ?? [];
+      return data ?? [];
+    },
+  );
 }
 
 export async function listUserBehaviors(
   supabase: AppSupabaseClient,
   userId: string,
 ): Promise<BehaviorWithCategory[]> {
-  const { data, error } = await supabase
-    .from("behaviors")
-    .select(BEHAVIOR_WITH_CATEGORY_SELECT)
-    .eq("user_id", userId)
-    .order("active", { ascending: false })
-    .order("scheduled_time", { ascending: true })
-    .order("title", { ascending: true });
+  return measurePerformanceSpan(
+    {
+      span: "db.list_user_behaviors",
+      counts: (behaviors) => ({
+        behaviors: behaviors.length,
+        active_behaviors: behaviors.filter((behavior) => behavior.active).length,
+        schedule_slots: behaviors.reduce(
+          (sum, behavior) => sum + behavior.schedule_slots.length,
+          0,
+        ),
+      }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("behaviors")
+        .select(BEHAVIOR_WITH_CATEGORY_SELECT)
+        .eq("user_id", userId)
+        .order("active", { ascending: false })
+        .order("scheduled_time", { ascending: true })
+        .order("title", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return sortBehaviorScheduleSlots(
-    (data ?? []) as unknown as BehaviorWithCategory[],
+      return sortBehaviorScheduleSlots(
+        (data ?? []) as unknown as BehaviorWithCategory[],
+      );
+    },
   );
 }
 
@@ -65,37 +89,56 @@ export async function getBehaviorById(
   userId: string,
   behaviorId: string,
 ): Promise<BehaviorWithCategory | null> {
-  const { data, error } = await supabase
-    .from("behaviors")
-    .select(BEHAVIOR_WITH_CATEGORY_SELECT)
-    .eq("user_id", userId)
-    .eq("id", behaviorId)
-    .maybeSingle();
+  return measurePerformanceSpan(
+    {
+      span: "db.get_behavior_by_id",
+      counts: (behavior) => ({
+        behaviors: behavior ? 1 : 0,
+        schedule_slots: behavior?.schedule_slots.length ?? 0,
+      }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("behaviors")
+        .select(BEHAVIOR_WITH_CATEGORY_SELECT)
+        .eq("user_id", userId)
+        .eq("id", behaviorId)
+        .maybeSingle();
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data
-    ? sortBehaviorScheduleSlots([data as unknown as BehaviorWithCategory])[0]
-    : null;
+      return data
+        ? sortBehaviorScheduleSlots([data as unknown as BehaviorWithCategory])[0]
+        : null;
+    },
+  );
 }
 
 export async function getProfileTimezone(
   supabase: AppSupabaseClient,
   userId: string,
 ): Promise<string | null> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("timezone")
-    .eq("id", userId)
-    .maybeSingle();
+  return measurePerformanceSpan(
+    {
+      span: "db.get_profile_timezone",
+      counts: (timezone) => ({ profiles: timezone ? 1 : 0 }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("timezone")
+        .eq("id", userId)
+        .maybeSingle();
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data?.timezone ?? null;
+      return data?.timezone ?? null;
+    },
+  );
 }
 
 export async function createBehavior(
@@ -164,19 +207,27 @@ export async function listBehaviorScheduleSlots(
   userId: string,
   behaviorId: string,
 ): Promise<BehaviorScheduleSlot[]> {
-  const { data, error } = await supabase
-    .from("behavior_schedule_slots")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("behavior_id", behaviorId)
-    .order("sort_order", { ascending: true })
-    .order("start_time", { ascending: true });
+  return measurePerformanceSpan(
+    {
+      span: "db.list_behavior_schedule_slots",
+      counts: (slots) => ({ schedule_slots: slots.length }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("behavior_schedule_slots")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("behavior_id", behaviorId)
+        .order("sort_order", { ascending: true })
+        .order("start_time", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data ?? [];
+      return data ?? [];
+    },
+  );
 }
 
 export async function getBehaviorScheduleSlotByStartTime(

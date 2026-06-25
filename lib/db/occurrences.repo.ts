@@ -1,4 +1,5 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   NewOccurrence,
   Occurrence,
@@ -11,19 +12,27 @@ export async function listBehaviorOccurrencesFrom(
   behaviorId: string,
   scheduledFrom: string,
 ): Promise<Occurrence[]> {
-  const { data, error } = await supabase
-    .from("occurrences")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("behavior_id", behaviorId)
-    .gte("scheduled_for", scheduledFrom)
-    .order("scheduled_for", { ascending: true });
+  return measurePerformanceSpan(
+    {
+      span: "db.list_behavior_occurrences_from",
+      counts: (occurrences) => ({ occurrences: occurrences.length }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("occurrences")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("behavior_id", behaviorId)
+        .gte("scheduled_for", scheduledFrom)
+        .order("scheduled_for", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data ?? [];
+      return data ?? [];
+    },
+  );
 }
 
 export async function listUnresolvedOccurrencesBeforeLocalDate(
@@ -31,20 +40,28 @@ export async function listUnresolvedOccurrencesBeforeLocalDate(
   userId: string,
   localDate: string,
 ): Promise<Occurrence[]> {
-  const { data, error } = await supabase
-    .from("occurrences")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("status", "unresolved")
-    .lt("local_date", localDate)
-    .order("local_date", { ascending: false })
-    .order("scheduled_for", { ascending: true });
+  return measurePerformanceSpan(
+    {
+      span: "db.list_unresolved_occurrences_before_local_date",
+      counts: (occurrences) => ({ occurrences: occurrences.length }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("occurrences")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("status", "unresolved")
+        .lt("local_date", localDate)
+        .order("local_date", { ascending: false })
+        .order("scheduled_for", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data ?? [];
+      return data ?? [];
+    },
+  );
 }
 
 export async function listResolvedOccurrencesBeforeLocalDateMarkedBetween(
@@ -56,22 +73,30 @@ export async function listResolvedOccurrencesBeforeLocalDateMarkedBetween(
     statusMarkedBefore: string;
   },
 ): Promise<Occurrence[]> {
-  const { data, error } = await supabase
-    .from("occurrences")
-    .select("*")
-    .eq("user_id", input.userId)
-    .in("status", ["completed", "not_completed"])
-    .lt("local_date", input.localDate)
-    .gte("status_marked_at", input.statusMarkedFrom)
-    .lt("status_marked_at", input.statusMarkedBefore)
-    .order("local_date", { ascending: false })
-    .order("scheduled_for", { ascending: true });
+  return measurePerformanceSpan(
+    {
+      span: "db.list_resolved_occurrences_before_local_date_marked_between",
+      counts: (occurrences) => ({ occurrences: occurrences.length }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("occurrences")
+        .select("*")
+        .eq("user_id", input.userId)
+        .in("status", ["completed", "not_completed"])
+        .lt("local_date", input.localDate)
+        .gte("status_marked_at", input.statusMarkedFrom)
+        .lt("status_marked_at", input.statusMarkedBefore)
+        .order("local_date", { ascending: false })
+        .order("scheduled_for", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data ?? [];
+      return data ?? [];
+    },
+  );
 }
 
 export async function listOccurrencesBetweenLocalDates(
@@ -80,20 +105,28 @@ export async function listOccurrencesBetweenLocalDates(
   startLocalDate: string,
   endLocalDate: string,
 ): Promise<Occurrence[]> {
-  const { data, error } = await supabase
-    .from("occurrences")
-    .select("*")
-    .eq("user_id", userId)
-    .gte("local_date", startLocalDate)
-    .lte("local_date", endLocalDate)
-    .order("local_date", { ascending: true })
-    .order("scheduled_for", { ascending: true });
+  return measurePerformanceSpan(
+    {
+      span: "db.list_occurrences_between_local_dates",
+      counts: (occurrences) => ({ occurrences: occurrences.length }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("occurrences")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("local_date", startLocalDate)
+        .lte("local_date", endLocalDate)
+        .order("local_date", { ascending: true })
+        .order("scheduled_for", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data ?? [];
+      return data ?? [];
+    },
+  );
 }
 
 export async function listOccurrencesThroughLocalDate(
@@ -101,19 +134,27 @@ export async function listOccurrencesThroughLocalDate(
   userId: string,
   endLocalDate: string,
 ): Promise<Occurrence[]> {
-  const { data, error } = await supabase
-    .from("occurrences")
-    .select("*")
-    .eq("user_id", userId)
-    .lte("local_date", endLocalDate)
-    .order("local_date", { ascending: true })
-    .order("scheduled_for", { ascending: true });
+  return measurePerformanceSpan(
+    {
+      span: "db.list_occurrences_through_local_date",
+      counts: (occurrences) => ({ occurrences: occurrences.length }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("occurrences")
+        .select("*")
+        .eq("user_id", userId)
+        .lte("local_date", endLocalDate)
+        .order("local_date", { ascending: true })
+        .order("scheduled_for", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data ?? [];
+      return data ?? [];
+    },
+  );
 }
 
 export async function listUserOccurrences(

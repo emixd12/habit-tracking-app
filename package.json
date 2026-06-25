@@ -19,6 +19,7 @@
     "design-system:check": "node scripts/check-design-system.mjs",
     "agents:check": "node scripts/check-agents.mjs",
     "resolvers:check": "node scripts/check-resolvers.mjs",
+    "perf:routes": "node scripts/performance-route-harness.mjs",
     "smoke:rls": "node scripts/supabase-rls-smoke.mjs",
     "test-login:cleanup": "node scripts/supabase-test-login-cleanup.mjs",
     "supabase": "supabase",

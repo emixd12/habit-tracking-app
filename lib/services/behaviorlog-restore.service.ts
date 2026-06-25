@@ -14,6 +14,7 @@ import {
   parseBehaviorLogZipFiles,
   type BehaviorLogZipInput,
 } from "@/lib/services/behaviorlog-import.service";
+import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import type {
   BehaviorLogExistingRecords,
@@ -268,6 +269,10 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
     acceptedLocalDataFingerprint,
   });
   assertRestorePreviewCanApply(preview, formData);
+  await markOccurrenceSyncStale(supabase, {
+    userId,
+    reason: "behaviorlog_restore_applied",
+  });
 
   const manifest = readManifestMetadata(bundle.files);
   const applyRun = await createBehaviorLogImportRun(supabase, {

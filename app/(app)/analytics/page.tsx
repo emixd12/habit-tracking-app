@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AnalyticsScreen } from "@/components/analytics/AnalyticsScreen";
 import { ScreenFrame } from "@/components/layout/ScreenFrame";
 import { getAnalyticsPageData } from "@/lib/services/analytics.service";
+import { withPerformanceRoute } from "@/lib/services/performance-timing";
 import {
   markAnalyticsOccurrenceStatusAction,
   updateAnalyticsOccurrenceNoteAction,
@@ -26,11 +27,24 @@ export default async function AnalyticsPage({
   searchParams,
 }: AnalyticsPageProps) {
   const params = await searchParams;
-  const analytics = await getAnalyticsPageData({
-    rangeDays: parseNumberParam(params?.range),
-    selectedBehaviorId: parseStringParam(params?.behavior),
-    selectedDayLocalDate: parseStringParam(params?.day),
-  });
+  const analytics = await withPerformanceRoute(
+    "/analytics",
+    "page.data_load",
+    () =>
+      getAnalyticsPageData({
+        rangeDays: parseNumberParam(params?.range),
+        selectedBehaviorId: parseStringParam(params?.behavior),
+        selectedDayLocalDate: parseStringParam(params?.day),
+      }),
+    {
+      counts: (view) => ({
+        range_days: view.rangeDays,
+        behaviors: view.behaviorSummaries.length,
+        selected_day_occurrences:
+          view.selectedBehaviorDay?.occurrences.length ?? 0,
+      }),
+    },
+  );
 
   return (
     <ScreenFrame title="Analytics">

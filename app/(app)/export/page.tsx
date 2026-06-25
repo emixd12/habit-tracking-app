@@ -5,6 +5,7 @@ import { ScreenFrame } from "@/components/layout/ScreenFrame";
 import { getBehaviorLogImportPageData } from "@/lib/services/behaviorlog-import.service";
 import { getBehaviorLogRestorePageData } from "@/lib/services/behaviorlog-restore.service";
 import { getExportPageData } from "@/lib/services/export.service";
+import { withPerformanceRoute } from "@/lib/services/performance-timing";
 
 export const metadata: Metadata = {
   title: "Export",
@@ -21,14 +22,27 @@ type ExportPageProps = Readonly<{
 
 export default async function ExportPage({ searchParams }: ExportPageProps) {
   const params = await searchParams;
-  const [exportData, importData, restoreData] = await Promise.all([
-    getExportPageData({
-      range: parseStringParam(params?.range),
-      includeArchived: parseBooleanParam(params?.include_archived),
-    }),
-    getBehaviorLogImportPageData(),
-    getBehaviorLogRestorePageData(),
-  ]);
+  const [exportData, importData, restoreData] = await withPerformanceRoute(
+    "/export",
+    "page.data_load",
+    () =>
+      Promise.all([
+        getExportPageData({
+          range: parseStringParam(params?.range),
+          includeArchived: parseBooleanParam(params?.include_archived),
+        }),
+        getBehaviorLogImportPageData(),
+        getBehaviorLogRestorePageData(),
+      ]),
+    {
+      counts: ([bundle, importPageData, restorePageData]) => ({
+        behaviors: bundle.behaviorCount,
+        occurrences: bundle.occurrenceCount,
+        import_runs: importPageData.recentRuns.length,
+        restore_runs: restorePageData.recentRuns.length,
+      }),
+    },
+  );
 
   return (
     <ScreenFrame

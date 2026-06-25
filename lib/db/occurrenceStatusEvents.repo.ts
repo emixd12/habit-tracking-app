@@ -1,4 +1,5 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   NewOccurrenceStatusEvent,
   OccurrenceStatusEvent,
@@ -58,19 +59,30 @@ export async function listOccurrenceStatusEventsByOccurrenceIds(
     return [];
   }
 
-  const { data, error } = await supabase
-    .from("occurrence_status_events")
-    .select("*")
-    .eq("user_id", userId)
-    .in("occurrence_id", occurrenceIds)
-    .order("recorded_at", { ascending: true })
-    .order("id", { ascending: true });
+  return measurePerformanceSpan(
+    {
+      span: "db.list_occurrence_status_events_by_occurrence_ids",
+      counts: (events) => ({
+        status_events: events.length,
+        occurrences: occurrenceIds.length,
+      }),
+    },
+    async () => {
+      const { data, error } = await supabase
+        .from("occurrence_status_events")
+        .select("*")
+        .eq("user_id", userId)
+        .in("occurrence_id", occurrenceIds)
+        .order("recorded_at", { ascending: true })
+        .order("id", { ascending: true });
 
-  if (error) {
-    throw error;
-  }
+      if (error) {
+        throw error;
+      }
 
-  return data ?? [];
+      return data ?? [];
+    },
+  );
 }
 
 export async function getLatestOccurrenceStatusEventForOccurrence(

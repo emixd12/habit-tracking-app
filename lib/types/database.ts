@@ -5,6 +5,7 @@ export type Category = Tables<"categories">;
 export type Behavior = Tables<"behaviors">;
 export type BehaviorScheduleSlot = Tables<"behavior_schedule_slots">;
 export type Occurrence = Tables<"occurrences">;
+export type OccurrenceSyncState = Tables<"occurrence_sync_state">;
 export type OccurrenceStatusEvent = Tables<"occurrence_status_events">;
 export type BehaviorLogImportRun = Tables<"behaviorlog_import_runs">;
 export type BehaviorLogImportRecordMapping =
@@ -18,6 +19,7 @@ export type NewCategory = TablesInsert<"categories">;
 export type NewBehavior = TablesInsert<"behaviors">;
 export type NewBehaviorScheduleSlot = TablesInsert<"behavior_schedule_slots">;
 export type NewOccurrence = TablesInsert<"occurrences">;
+export type NewOccurrenceSyncState = TablesInsert<"occurrence_sync_state">;
 export type NewOccurrenceStatusEvent = TablesInsert<"occurrence_status_events">;
 export type NewBehaviorLogImportRun =
   TablesInsert<"behaviorlog_import_runs">;
@@ -32,6 +34,7 @@ export type CategoryUpdate = TablesUpdate<"categories">;
 export type BehaviorUpdate = TablesUpdate<"behaviors">;
 export type BehaviorScheduleSlotUpdate = TablesUpdate<"behavior_schedule_slots">;
 export type OccurrenceUpdate = TablesUpdate<"occurrences">;
+export type OccurrenceSyncStateUpdate = TablesUpdate<"occurrence_sync_state">;
 export type OccurrenceStatusEventUpdate = TablesUpdate<"occurrence_status_events">;
 export type BehaviorLogImportRunUpdate =
   TablesUpdate<"behaviorlog_import_runs">;

@@ -6,7 +6,8 @@ import {
   updateProfileTimezone,
 } from "@/lib/db/profiles.repo";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { syncBehaviorOccurrences } from "@/lib/services/occurrence.service";
+import { syncUserOccurrences } from "@/lib/services/occurrence.service";
+import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type { TimezoneActionState } from "@/lib/types/settings";
@@ -75,6 +76,11 @@ export async function updateCurrentUserTimezoneFromFormData(
     };
   }
 
+  await markOccurrenceSyncStale(supabase, {
+    userId: user.id,
+    reason: "timezone_changed",
+    timezone,
+  });
   await updateProfileTimezone(supabase, user.id, timezone);
   const activeBehaviors = await updateActiveBehaviorTimezones(
     supabase,
@@ -83,9 +89,11 @@ export async function updateCurrentUserTimezoneFromFormData(
   );
   const now = Temporal.Now.instant();
 
-  for (const behavior of activeBehaviors) {
-    await syncBehaviorOccurrences(supabase, user.id, behavior, { now });
-  }
+  await syncUserOccurrences(supabase, user.id, {
+    behaviors: activeBehaviors,
+    now,
+    timezone,
+  });
 
   return {
     timezone,
