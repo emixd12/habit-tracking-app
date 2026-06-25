@@ -2649,15 +2649,16 @@ Status: complete.
 
 Implementation summary:
 - Reworked the Astro homepage hero into a cleaner two-column composition with
-  the supplied trajectory horse illustration and supplied MacBook Pro frame.
-  The sanitized Cadence Timeline capture is clipped into the MacBook screen
-  through `HeroVisual.astro`.
+  the supplied single exported image that combines the trajectory horse,
+  MacBook Pro frame, and sanitized Cadence Timeline capture.
 - Removed the marketing header bottom divider and changed marketing navigation
-  links to the underlined text-action convention while keeping the square
-  filled Log in app-entry action.
-- Added the supplied hero images under `apps/marketing/public/brand/`.
+  links to the underlined text-action convention. The Log in app-entry action
+  now uses the same primitive with stronger weight instead of a filled button.
+- Reduced marketing H2 scale by one step so secondary section headings no
+  longer compete with the homepage H1.
+- Added the supplied hero image under `apps/marketing/public/brand/`.
 - Updated `DESIGN.md`, `docs/UI_SPEC.md`, and `design-system.surfaces.json`
-  so the header treatment and MacBook-framed hero visual are documented and
+  so the header treatment, H2 scale, and hero visual are documented and
   traceable.
 - No schema, route, provider, resolver, stored-status, notification, export, or
   product-scope changes were added.
@@ -2678,16 +2679,18 @@ Verification:
   surface files that remain intentionally cataloged through
   `design-system.surfaces.json` rather than the strict web-app manifest.
 - Browser QA: local Astro dev server rendered the homepage at 1280x900 with no
-  header divider, underlined text-action navigation, the trajectory
-  illustration visible, and the Timeline capture readable inside the MacBook
-  screen.
+- Browser QA: `http://localhost:4321/` rendered the homepage at 1280x900 with
+  no header divider, underlined text-action navigation, the supplied hero image
+  in place, `Log in` computed as transparent, borderless, underlined, and
+  `font-weight: 600`, and the first H2 computed at 46.08px instead of the prior
+  larger scale.
 - Browser QA: 390x844 capture showed wrapped CTAs, no measured document-level
-  horizontal overflow, and the compact mobile hero visual below the copy.
+  horizontal overflow, `Log in` computed as transparent, borderless,
+  underlined, and `font-weight: 600`, and the first H2 computed at 31.2px.
 
 Remaining risk:
-- The MacBook screen capture is a clipped static HTML representation of the
-  existing sanitized `ProductCapture` component, not a live authenticated app
-  screenshot.
+- The homepage hero is now a static exported image. Future copy or sample-data
+  changes inside the image require regenerating the source image asset.
 
 ## Handoff notes
 

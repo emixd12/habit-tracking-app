@@ -70,7 +70,8 @@ h1 {
 }
 
 h2 {
-  font-size: clamp(2rem, 5vw, 4.4rem);
+  font-size: clamp(1.75rem, 3.6vw, 3.2rem);
+  line-height: 1.12;
 }
 
 h3 {
@@ -250,21 +251,15 @@ pre code {
 }
 
 .site-header__login {
-  border: 1px solid var(--foreground);
-  background: var(--foreground);
-  color: var(--background);
-  padding: 0.75rem 0.9rem;
-  text-decoration: none;
+  color: var(--foreground);
+  font-weight: 600;
   white-space: nowrap;
-  transition:
-    background-color 160ms ease-out,
-    border-color 160ms ease-out,
-    color 160ms ease-out;
 }
 
 .site-header__login:hover {
-  border-color: var(--primary);
-  background: var(--primary);
+  color: var(--foreground);
+  text-decoration-color: var(--primary);
+  text-shadow: 0.02em 0 currentColor;
 }
 
 .page-section {
@@ -314,78 +309,13 @@ pre code {
 }
 
 .hero-media {
-  position: relative;
-  min-height: clamp(28rem, 48vw, 37rem);
   min-width: 0;
 }
 
-.hero-media__illustration {
-  position: absolute;
-  inset-block-start: -0.75rem;
-  inset-inline-start: -1.25rem;
-  z-index: 2;
-  width: min(38%, 18rem);
-  opacity: 0.72;
-}
-
-.hero-device {
-  position: absolute;
-  inset-block-end: 0;
-  inset-inline-end: 0;
-  z-index: 1;
-  width: min(92%, 43rem);
-}
-
-.hero-device__frame {
+.hero-media__image {
   display: block;
   width: 100%;
-}
-
-.hero-device__screen {
-  position: absolute;
-  inset-block-start: 13.4%;
-  inset-inline-start: 14.4%;
-  width: 64%;
-  height: 43.2%;
-  overflow: hidden;
-  background: var(--background);
-  clip-path: polygon(0 7%, 98% 0, 100% 94%, 2.5% 100%);
-}
-
-.hero-device__screen-inner {
-  width: 156%;
-  transform: scale(0.64);
-  transform-origin: 0 0;
-}
-
-.hero-device__screen .product-capture.product-capture {
-  border: 0;
-}
-
-.hero-device__screen .product-capture .product-capture__header {
-  padding: 0.58rem 0.72rem;
-  font-size: 0.68rem;
-}
-
-.hero-device__screen .product-capture .timeline-shot__date,
-.hero-device__screen .product-capture .timeline-shot__row,
-.hero-device__screen .product-capture .timeline-shot__details {
-  gap: 0.68rem;
-  padding: 0.62rem 0.72rem;
-}
-
-.hero-device__screen .product-capture .timeline-shot__date,
-.hero-device__screen .product-capture .timeline-shot__row {
-  grid-template-columns: minmax(64px, 0.32fr) minmax(0, 1fr) minmax(104px, 0.6fr);
-}
-
-.hero-device__screen .product-capture .timeline-shot__details {
-  grid-template-columns: minmax(64px, 0.28fr) minmax(0, 1fr);
-}
-
-.hero-device__screen .product-capture .timeline-shot__row span,
-.hero-device__screen .product-capture .timeline-shot__details span {
-  font-size: 0.74rem;
+  height: auto;
 }
 
 .section-grid {
@@ -598,25 +528,8 @@ pre code {
     font-size: clamp(3rem, 12vw, 3.8rem);
   }
 
-  .hero-media {
-    min-height: clamp(24rem, 92vw, 34rem);
-  }
-
-  .hero-media__illustration {
-    inset-block-start: 0;
-    inset-inline-start: 0;
-    width: min(42%, 18rem);
-  }
-
-  .hero-device {
-    inset-inline-start: 50%;
-    inset-inline-end: auto;
-    width: min(94%, 36rem);
-    translate: -50% 0;
-  }
-
   h2 {
-    font-size: clamp(2rem, 10vw, 3rem);
+    font-size: clamp(1.75rem, 8vw, 2.4rem);
   }
 }
 
@@ -646,7 +559,6 @@ pre code {
 
   .site-header__login {
     width: auto;
-    padding-inline: 0.8rem;
   }
 
   .hero--home h1 {
@@ -664,18 +576,6 @@ pre code {
 
   .hero-copy .cta-row {
     max-width: 20rem;
-  }
-
-  .hero-media {
-    min-height: clamp(11.5rem, 48vw, 15rem);
-  }
-
-  .hero-media__illustration {
-    width: min(32%, 10rem);
-  }
-
-  .hero-device {
-    width: min(58%, 18rem);
   }
 
   .button {

@@ -351,7 +351,7 @@
           "parity": "adapted",
           "sources": ["apps/marketing/src/components/ProductCapture.astro", "apps/marketing/src/components/HeroVisual.astro"],
           "implementationIds": [],
-          "notes": "Marketing uses sanitized static captures to communicate the same row vocabulary; the homepage frames the Timeline capture inside the MacBook hero visual."
+          "notes": "Marketing uses sanitized static captures to communicate the same row vocabulary; the homepage uses the supplied exported hero image with the Timeline capture in the MacBook visual."
         },
         {
           "surfaceId": "desktop",
@@ -578,9 +578,9 @@
           "surfaceId": "marketing",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["apps/marketing/src/components/BrandMarks.astro", "apps/marketing/src/components/HeroVisual.astro", "apps/marketing/public/brand/cadence-logo.png", "apps/marketing/public/brand/cadence-horse-trajectory.png", "apps/marketing/public/brand/macbook-pro-frame.png"],
+          "sources": ["apps/marketing/src/components/BrandMarks.astro", "apps/marketing/src/components/HeroVisual.astro", "apps/marketing/public/brand/cadence-logo.png", "apps/marketing/public/brand/cadence-home-hero.png"],
           "implementationIds": [],
-          "notes": "Marketing uses the Cadence mark and name in the header plus the trajectory horse and MacBook capture assets in the homepage hero; BehaviorLog is represented through page copy, bundle captures, and the BehaviorLog route."
+          "notes": "Marketing uses the Cadence mark and name in the header plus the supplied trajectory horse and MacBook capture image in the homepage hero; BehaviorLog is represented through page copy, bundle captures, and the BehaviorLog route."
         },
         {
           "surfaceId": "desktop",
