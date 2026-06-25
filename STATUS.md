@@ -176,6 +176,16 @@ Current state:
   product UI exposes Google login only; CAPTCHA/bot protection is disabled;
   leaked-password protection is disabled; localhost callback URLs remain
   allow-listed for development.
+- Launch posture decision: first-stage public production launch remains
+  Google-login only. Hosted email/password auth is temporarily retained as
+  non-user-facing operational/test support while more hosted verification is in
+  progress; it should be disabled before broad public account expansion unless
+  a later explicit decision changes the product auth posture.
+- Launch posture decision: leaked-password protection is not launch-blocking
+  once production email/password auth is disabled, because no user password
+  flow will remain. CAPTCHA/bot protection is not required for the Google-only
+  first-stage launch, but should be revisited before any future email/password,
+  passwordless email, OTP, anonymous sign-in, or native Supabase auth surface.
 - Production authenticated smoke passed on 2026-06-25 using an existing Chrome
   production session: protected Timeline rendered, profile/default account data
   was present, a temporary smoke behavior was created, Timeline occurrence
@@ -188,12 +198,13 @@ Current state:
   completed because it requires the user to choose a Google account in Chrome.
 
 Next actions:
-- Owner decision: disable hosted email/password auth for public launch, or
-  explicitly document why it remains enabled as non-user-facing operational/test
-  support.
-- Owner decision: enable hosted CAPTCHA/bot protection and leaked-password
-  protection before broad account expansion, or explicitly accept the current
-  risk.
+- Keep hosted email/password auth enabled only while current hosted testing
+  needs it; disable it before broad public account expansion, or record a new
+  explicit auth-scope decision.
+- Before disabling hosted email/password auth, update or replace hosted smoke
+  paths that currently rely on temporary password users.
+- Remove localhost callback URLs from the production Supabase project before
+  broad public account expansion, or record a time-boxed development exception.
 - Finish the fresh production Google OAuth callback by choosing the intended
   Google account in Chrome, then record the sanitized callback result.
 
