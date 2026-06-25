@@ -140,9 +140,10 @@ Scope:
   navigation, feature buttons, behavior CRUD, Timeline status/note actions,
   Analytics review, Export downloads, Settings controls, and app-shell
   interactions.
-- Implement low-risk improvements sequentially without broad data-model
-  rewrites, product-scope expansion, offline/PWA mutation support, or major
-  architecture changes.
+- Implement improvements sequentially, starting with low-risk changes and now
+  including scoped performance architecture tickets where evidence shows the
+  read-route sync model is the bottleneck. Avoid product-scope expansion,
+  offline/PWA mutation support, and unrelated rewrites.
 - Keep a before/after measurement record in
   `docs/PERFORMANCE_SPEED_LOG.md`.
 
@@ -170,6 +171,12 @@ Current state:
 - Local production-build after-change route measurements have been recorded.
   Production after-change measurements are still pending deployment of this
   batch.
+- The next performance work is now filed as numbered implementation tickets in
+  `docs/TICKETS.md`: Ticket 035 performance server timing instrumentation,
+  Ticket 036 route loading/navigation response, Ticket 037 occurrence sync
+  freshness state, Ticket 038 moving occurrence sync off hot read routes,
+  Ticket 039 reminder planning decoupling, Ticket 040 auth/app-shell latency
+  reduction, and Ticket 041 query/index/RPC evidence.
 
 Verification:
 - Pass: `npx vitest run tests/occurrence.service.test.ts tests/reminder.service.test.ts tests/settings.service.test.ts tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-restore-ui.test.tsx`

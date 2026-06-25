@@ -391,6 +391,11 @@ Verification:
 
 ## Future-Only Recommendations
 
+- The architectural follow-up work from this section has been filed in
+  `docs/TICKETS.md` as Tickets 035-041, in this order: instrumentation, loading
+  boundaries, occurrence sync freshness state, removal of hot-route occurrence
+  sync, reminder planning decoupling, auth/app-shell latency reduction, and
+  query/index/RPC evidence.
 - Add a scoped note form state update for Analytics so note saves can avoid a
   full route refresh while still updating the review summary immediately.
 - Revisit the occurrence-generation planner contract before attempting smaller

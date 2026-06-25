@@ -1697,6 +1697,511 @@ Verification:
 
 ---
 
+## Ticket 035: Performance server timing instrumentation
+
+Add privacy-safe timing evidence for authenticated app route loads before
+making larger performance architecture changes.
+
+Context:
+- `docs/PERFORMANCE_SPEED_LOG.md` shows the current local production-build
+  medians after Batch 3 are still too slow for a small app:
+  - `/timeline`: about 2107ms
+  - `/analytics`: about 1915ms
+  - `/export`: about 2206ms
+  - Timeline -> Behaviors client navigation: about 748ms
+  - Settings -> Timeline client navigation: about 1489ms
+- The same log found scripting, style, and layout work are near zero on warm
+  loads; route time is dominated by server/data work.
+- The current strongest hypothesis is that read routes are blocked by auth,
+  Supabase REST round trips, occurrence sync, reminder planning, and repeated
+  repository reads.
+- This ticket is evidence-gathering only. It should not rewrite route data
+  ownership, database schema, auth strategy, or occurrence generation.
+
+Acceptance criteria:
+- Add a small server timing utility that can measure named spans without
+  logging behavior titles, notes, emails, UUIDs, cookies, tokens, provider
+  responses, or other sensitive user data.
+- Instrument at least:
+  - protected app layout auth/user lookup
+  - `/timeline` page bundle load
+  - `/behaviors` page data load
+  - `/analytics` page data load
+  - `/export` page data load
+  - `syncUserOccurrences`
+  - major occurrence-sync phases: behavior list reuse, existing occurrence
+    reads, schedule-slot resolution, generation planning, occurrence writes,
+    reminder planning/writes
+  - primary repository calls used by Timeline, Behaviors, Analytics, and Export
+- Keep instrumentation server-only and disabled or low-noise by default. Use an
+  explicit environment flag such as `CADENCE_PERF_LOG=1` for detailed local and
+  production sampling.
+- Emit structured logs that include route/span name, duration, status, and
+  aggregate counts only. Counts may include number of behaviors, occurrences,
+  created/deleted/updated rows, and reminders planned.
+- Add or update a repeatable measurement harness if needed so local and
+  authenticated production route timings can be captured consistently.
+- Record before/after timings and the slowest server spans in
+  `docs/PERFORMANCE_SPEED_LOG.md`.
+- Do not add user-facing UI in this ticket.
+- Do not add database indexes, RPCs, caching, background jobs, or auth-strategy
+  changes in this ticket.
+- Update `STATUS.md` with current ticket state and verification results.
+
+Suggested files:
+- `lib/services/performance-timing.ts`
+- `lib/services/timeline.service.ts`
+- `lib/services/behavior.service.ts`
+- `lib/services/analytics.service.ts`
+- `lib/services/export.service.ts`
+- `lib/services/occurrence.service.ts`
+- `lib/db/*.repo.ts` where lightweight timing wrappers are useful
+- `scripts/performance-route-harness.mjs` if a durable harness is added
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `STATUS.md`
+
+Verification:
+- Run focused tests for any touched services.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Run at least one local production-build measurement pass with
+  `CADENCE_PERF_LOG=1`.
+- If production timing is sampled, record sanitized results only.
+
+---
+
+## Ticket 036: App route loading boundaries and navigation response
+
+Make route switches feel immediate while deeper server work is being reduced.
+This is a user-perceived speed improvement, not a substitute for reducing the
+actual server time in later tickets.
+
+Context:
+- The app currently has no `loading.tsx` route boundaries under the
+  authenticated app routes.
+- Next.js App Router dynamic routes can wait on the server response before the
+  new page appears. Official Next.js guidance recommends loading boundaries and
+  streaming for dynamic routes so shared layouts stay interactive and the
+  fallback can be prefetched.
+- User feedback specifically calls out page switching, such as Timeline to
+  Behaviors, as feeling too slow.
+- Keep the interface sparse and consistent with Cadence's existing app shell.
+
+Acceptance criteria:
+- Add route-level loading UI for the authenticated app routes, using a shared
+  sparse skeleton that matches the current screen frames.
+- At minimum cover:
+  - `/timeline`
+  - `/behaviors`
+  - `/analytics`
+  - `/export`
+  - `/settings`
+- Keep the app shell and navigation interactive during route transitions.
+- Avoid spinners-only loading if a stable skeleton better preserves layout.
+- Ensure loading UI does not introduce layout shift, oversized marketing-style
+  placeholders, or dense dashboard treatment.
+- Confirm nav links still use Next `Link` and do not disable default prefetch
+  behavior unless evidence requires it.
+- If needed, split slow page sections behind local `Suspense` boundaries so the
+  first usable route frame appears before all route data is ready. Do not move
+  resolver or database logic into client components.
+- Do not change stored data, resolver behavior, occurrence generation, reminder
+  delivery, or auth semantics.
+- Update `DESIGN.md` or design-system files only if reusable UI inventory or
+  design contracts change.
+- Update `docs/PERFORMANCE_SPEED_LOG.md` with click-to-loading and
+  click-to-target timings.
+- Update `STATUS.md` with verification results.
+
+Suggested files:
+- `app/(app)/loading.tsx`
+- route-specific `app/(app)/*/loading.tsx` files if one shared loading boundary
+  is too generic
+- `components/layout/ScreenLoading.tsx` or equivalent shared component
+- `components/layout/AppShell.tsx` if navigation pending state is added
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `DESIGN.md` if reusable UI guidance changes
+- `STATUS.md`
+
+Verification:
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- For UI changes, run `npm run design-system:check` if reusable UI or design
+  inventory changes.
+- Browser-check `/timeline`, `/behaviors`, `/analytics`, `/export`, and
+  `/settings` at desktop and around 390px.
+- Measure at least:
+  - Timeline -> Behaviors click-to-loading
+  - Timeline -> Behaviors click-to-target
+  - Settings -> Timeline click-to-loading
+  - Settings -> Timeline click-to-target
+
+---
+
+## Ticket 037: Occurrence sync freshness state
+
+Create a persisted per-user freshness contract so read routes can know whether
+occurrences are already generated for the required horizon without running the
+full sync job on every page load.
+
+Context:
+- Current read-heavy routes call `syncUserOccurrences` before rendering.
+- `syncUserOccurrences` plans generation for all behaviors, reads occurrences,
+  resolves schedule slots, performs missing occurrence upserts, deletes stale
+  future unresolved occurrences, and syncs reminder deliveries.
+- Earlier optimization batches parallelized and batched parts of this work, but
+  the read routes remain server-bound.
+- The desired architecture is: write paths and background jobs keep occurrence
+  rows ready; read routes render from ready data and only trigger repair when
+  the freshness state is stale.
+
+Acceptance criteria:
+- Add a Supabase migration for a user-owned occurrence sync state table, likely
+  `occurrence_sync_state`.
+- The table should track enough information to decide whether the user's
+  occurrence horizon is fresh, such as:
+  - `user_id`
+  - timezone or timezone version used for the last sync
+  - last synced local date
+  - synced-through local date or horizon end
+  - last successful sync timestamp
+  - stale flag or stale reason
+  - optional aggregate counts for observability
+  - created/updated timestamps
+- Add RLS policies and explicit grants for the new user-owned table.
+- Add repository and service helpers for:
+  - reading sync state
+  - marking sync stale after behavior, schedule, timezone, import, restore, or
+    other occurrence-affecting writes
+  - marking sync fresh after a successful sync
+  - deciding whether a given route's required local-date horizon is covered
+- Keep resolver logic pure. Freshness decision helpers may live in services or a
+  small pure resolver if useful, but database access must stay in repositories.
+- Update occurrence-affecting write paths to mark freshness stale or fresh as
+  appropriate:
+  - behavior create/edit/archive/restore
+  - settings timezone update
+  - BehaviorLog import/restore apply paths that create/update occurrences
+  - future occurrence-affecting write paths if present
+- Do not remove `syncUserOccurrences` from read routes in this ticket. This is
+  the state foundation only.
+- Update `docs/DATA_MODEL.md`, generated database types, and relevant service
+  tests.
+- Update `docs/PERFORMANCE_SPEED_LOG.md` with implementation notes, not speed
+  claims unless measured.
+- Update `STATUS.md`.
+
+Suggested files:
+- `supabase/migrations/*_add_occurrence_sync_state.sql`
+- `lib/db/occurrenceSyncState.repo.ts`
+- `lib/services/occurrence-sync-state.service.ts`
+- `lib/services/occurrence.service.ts`
+- `lib/services/behavior.service.ts`
+- `lib/services/settings.service.ts`
+- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/services/behaviorlog-restore.service.ts`
+- `lib/db/database.types.ts`
+- `docs/DATA_MODEL.md`
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `STATUS.md`
+- focused service tests for freshness decisions and stale marking
+
+Verification:
+- Create the migration through `npm run supabase -- migration new ...`.
+- Run `npm run supabase -- db reset`.
+- Regenerate database types if schema changes.
+- Run focused occurrence/behavior/settings/import tests.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+
+---
+
+## Ticket 038: Move occurrence sync off hot read routes
+
+Use the freshness state from Ticket 037 to stop doing full occurrence sync on
+every Timeline, Analytics, and Export page render.
+
+Context:
+- This is the core architectural change for the current performance problem.
+- Timeline, Analytics, and Export currently run `syncUserOccurrences` before
+  reading route data.
+- The app is small and single-player per account; a rolling generated horizon is
+  acceptable as long as behavior changes, timezone changes, imports/restores,
+  and daily horizon extension keep rows correct.
+- The system must still preserve the domain rules:
+  - no automatic `not_completed` or missed status
+  - past/resolved occurrence history is preserved
+  - Needs decision remains derived from unresolved prior-day occurrences
+  - recurrence and day-boundary logic stays in resolvers/services
+
+Acceptance criteria:
+- Add a service-level `ensureUserOccurrencesFresh` or equivalent that:
+  - checks `occurrence_sync_state`
+  - runs `syncUserOccurrences` only when stale or insufficient for the route's
+    required horizon
+  - marks sync fresh on success
+  - records sanitized timing and count data when performance logging is enabled
+- Replace unconditional route-load `syncUserOccurrences` calls in Timeline,
+  Analytics, and Export with freshness-aware logic.
+- Choose route horizons deliberately:
+  - Timeline must cover current local day plus the documented future timeline
+    horizon.
+  - Analytics must cover the selected analytics range through the current local
+    day without deleting future rows outside its view.
+  - Export must cover through the exported end local date, with all-time export
+    still including occurrences through the current local day and excluding
+    generated future rows.
+- Fix the occurrence planner contract if needed so smaller read-route horizons
+  cannot delete valid future unresolved rows outside the requested view.
+- Add or update a daily/background horizon extension path. This may use the
+  existing protected process route pattern or a new protected route, but it
+  must be secret-protected and idempotent.
+- Ensure behavior create/edit/archive/restore and timezone save still produce
+  correct future unresolved occurrences immediately for the affected behavior or
+  account.
+- If sync is stale and fails, choose a conservative failure mode:
+  - do not show silently incorrect data as fresh;
+  - surface a route-safe error or fallback consistent with current error
+    handling.
+- Keep Supabase RLS in normal app code. Do not use service-role clients for
+  ordinary authenticated user route reads.
+- Update `docs/PERFORMANCE_SPEED_LOG.md` with before/after route timings.
+- Update `docs/OPERATIONS.md` and `docs/ROUTE_MAP.md` if a new process route or
+  cron workflow is added.
+- Update `STATUS.md`.
+
+Suggested files:
+- `lib/services/occurrence.service.ts`
+- `lib/services/occurrence-sync-state.service.ts`
+- `lib/services/timeline.service.ts`
+- `lib/services/analytics.service.ts`
+- `lib/services/export.service.ts`
+- `lib/resolvers/occurrence.resolver.ts` if planner contract changes
+- `app/api/occurrences/sync/route.ts` or an existing process route if a
+  background sync endpoint is added
+- `vercel.json` if Vercel Cron is used for horizon extension
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `docs/OPERATIONS.md`
+- `docs/ROUTE_MAP.md`
+- `STATUS.md`
+- focused occurrence service/resolver tests
+
+Verification:
+- Run focused occurrence resolver/service tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Run local production-build route timing for `/timeline`, `/analytics`,
+  `/export`, `/behaviors`, and `/settings`.
+- Verify behavior create/edit/archive/restore, timezone save, Timeline status
+  actions, Analytics selected-day correction, and Export downloads still use
+  correct occurrence data.
+
+---
+
+## Ticket 039: Decouple reminder planning from read-route rendering
+
+Move reminder-delivery planning fully onto occurrence/behavior mutation paths
+and reminder processing repair paths so ordinary page reads do not create or
+cancel reminder deliveries.
+
+Context:
+- `syncUserOccurrences` currently calls `syncReminderDeliveriesForBehaviors`
+  after occurrence generation planning.
+- Browser reminders are enabled by default; email reminders are optional per
+  behavior.
+- Pending reminders must still be cancelled when an occurrence is resolved
+  before the send time.
+- Reminder processing must remain idempotent and must avoid duplicate sends.
+- This ticket follows Ticket 038 because read-route occurrence sync must first
+  have a freshness contract.
+
+Acceptance criteria:
+- Make behavior create/edit/archive/restore, timezone changes, import/restore
+  apply, and occurrence-generation jobs responsible for planning/cancelling
+  pending reminder deliveries for affected future occurrences.
+- Keep status resolution cancellation in the existing occurrence status service
+  path.
+- Add a safe reminder processor repair step if needed:
+  - before sending a due reminder, re-check occurrence/behavior eligibility;
+  - create or cancel missing/stale pending deliveries only when needed and only
+    for the due window;
+  - never send duplicate reminders.
+- Remove reminder planning writes from ordinary fresh read-route rendering.
+- Preserve inactive-behavior cancellation semantics.
+- Preserve all Sequenzy and Web Push server-only secret boundaries.
+- Add tests for:
+  - behavior changes plan expected reminder deliveries
+  - route reads do not create reminder deliveries when sync state is fresh
+  - resolving an occurrence cancels pending deliveries
+  - reminder processor remains idempotent
+  - duplicate sends are not introduced
+- Update `docs/NOTIFICATION_SPEC.md` and `docs/PERFORMANCE_SPEED_LOG.md` if the
+  reminder planning lifecycle changes.
+- Update `STATUS.md`.
+
+Suggested files:
+- `lib/services/reminder.service.ts`
+- `lib/services/occurrence.service.ts`
+- `lib/services/behavior.service.ts`
+- `lib/services/settings.service.ts`
+- `lib/db/reminderDeliveries.repo.ts`
+- `app/api/reminders/process/route.ts`
+- `tests/reminder.service.test.ts`
+- `tests/occurrence.service.test.ts`
+- `docs/NOTIFICATION_SPEC.md`
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `STATUS.md`
+
+Verification:
+- Run focused reminder and occurrence service tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- If production reminder behavior is smoke-tested, do not send real emails
+  without explicit user-approved recipient instructions.
+
+---
+
+## Ticket 040: Auth and app-shell latency reduction
+
+Reduce protected-route auth and shell overhead after measuring it, without
+weakening Supabase Auth, RLS, or route protection.
+
+Context:
+- The protected proxy currently calls Supabase Auth `getUser` for matched app
+  routes, and the protected app layout also verifies the user server-side.
+- Supabase documents that `getUser` performs a network request to the Auth
+  server. Supabase also documents `getClaims`, which can verify JWT claims
+  faster when the project uses an asymmetric signing key, with fallback behavior
+  when it does not.
+- The app must keep Google login, cookie-backed SSR auth, RLS, and server-side
+  route protection.
+- This ticket must be evidence-driven. Do not switch auth methods blindly.
+
+Acceptance criteria:
+- Use Ticket 035 instrumentation to measure protected proxy auth time, app
+  layout auth time, and total shell render time.
+- Check current Supabase docs/changelog before changing auth behavior.
+- Determine whether the hosted Supabase project supports a safe `getClaims`
+  path for route gating. Document the result in
+  `docs/PERFORMANCE_SPEED_LOG.md`.
+- If safe, replace one or more redundant route-gating `getUser` calls with a
+  lower-latency claims/session-validation path while preserving:
+  - server-side route protection
+  - cookie refresh correctness
+  - redirect behavior for unauthenticated users
+  - RLS-backed database access for user-owned rows
+  - no trust in user-editable metadata for authorization decisions
+- Keep strict `getUser` or equivalent authoritative user lookup where the code
+  needs full user details, email/display metadata, or security-sensitive account
+  actions.
+- Consider splitting app-shell account display from route gating if full user
+  metadata is the only reason every navigation waits on Auth network I/O.
+- Add tests or smoke coverage for:
+  - unauthenticated protected route redirect
+  - authenticated route access
+  - `/login` redirect for already-authenticated users
+  - OAuth callback flow remains unchanged
+  - account/settings paths that require authoritative user data still work
+- Do not bypass Supabase RLS or use service-role clients for normal app pages.
+- Update `docs/OPERATIONS.md` or auth notes if the auth validation approach
+  changes.
+- Update `docs/PERFORMANCE_SPEED_LOG.md` with before/after timings.
+- Update `STATUS.md`.
+
+Suggested files:
+- `proxy.ts`
+- `lib/supabase/proxy.ts`
+- `lib/auth/current-user.ts`
+- `app/(app)/layout.tsx`
+- `lib/services/settings.service.ts`
+- `tests/*auth*.test.ts` if auth tests exist or are added
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `docs/OPERATIONS.md`
+- `STATUS.md`
+
+Verification:
+- Run focused auth/proxy tests or route smoke tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Browser-smoke authenticated and unauthenticated access to `/timeline`,
+  `/behaviors`, `/settings`, and `/login`.
+
+---
+
+## Ticket 041: Query evidence, indexes, and optional Timeline read RPC
+
+After the hot-route sync and auth work, use concrete query evidence to decide
+whether database indexes or a narrow RLS-safe read RPC are needed.
+
+Context:
+- Existing occurrence indexes cover common user/local-date and user/status/date
+  reads, but current repository query shapes include additional filters such as
+  `behavior_id`, `scheduled_for`, `status_marked_at`, and reminder status.
+- The previous speed loop intentionally deferred index changes until hosted
+  route timing and Supabase query evidence showed a clear need.
+- The app should remain simple. Do not add database views or RPCs as a generic
+  abstraction layer.
+
+Acceptance criteria:
+- Measure query timings for the post-Ticket-040 app on local production build
+  and, if authorized, hosted production.
+- Use Supabase/Postgres evidence such as `EXPLAIN` plans, slow query logs,
+  repository timing spans, or local seeded data tests before adding indexes.
+- Evaluate at least these query families:
+  - Timeline forward local-date range reads
+  - Needs decision prior unresolved reads
+  - same-day retained prior resolved reads using `status_marked_at`
+  - Analytics local-date range reads
+  - Export through-current-day reads
+  - per-behavior occurrence sync reads when sync does run
+  - due pending reminder delivery reads
+- Add indexes only when evidence shows an expected benefit, through Supabase
+  migrations with updated `docs/DATA_MODEL.md`.
+- Candidate indexes may include, but are not limited to:
+  - `(user_id, behavior_id, scheduled_for)` for per-behavior sync reads
+  - a partial or composite index for prior unresolved occurrence reads
+  - `(user_id, status, status_marked_at, local_date)` or another measured shape
+    for retained same-day prior decisions
+- If route timing is dominated by multiple network round trips rather than
+  individual query plans, consider one narrow Timeline read RPC that returns the
+  three Timeline occurrence sets in one call.
+- Any RPC must:
+  - preserve per-user ownership checks
+  - avoid `SECURITY DEFINER` unless there is a documented, reviewed reason
+  - have explicit grants/revokes
+  - return only the fields needed by the service
+  - keep Timeline grouping logic in the resolver/service layer, not SQL
+- Do not move recurrence generation, status semantics, adherence math, export
+  formatting, or reminder planning into SQL.
+- Update generated database types after schema changes.
+- Update `docs/PERFORMANCE_SPEED_LOG.md` with query evidence and route timing
+  deltas.
+- Update `STATUS.md`.
+
+Suggested files:
+- `supabase/migrations/*_add_performance_indexes.sql`
+- `lib/db/occurrences.repo.ts`
+- `lib/db/reminderDeliveries.repo.ts`
+- `lib/services/timeline.service.ts` only if a narrow read RPC is added
+- `lib/db/database.types.ts`
+- `docs/DATA_MODEL.md`
+- `docs/SUPABASE_WORKFLOW.md` only if workflow guidance changes
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `STATUS.md`
+- focused repository/service tests
+
+Verification:
+- Create migrations through `npm run supabase -- migration new ...`.
+- Run `npm run supabase -- db reset`.
+- Regenerate database types if schema changes.
+- Run focused repository/service tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Re-run the route timing matrix for `/timeline`, `/behaviors`, `/analytics`,
+  `/export`, and `/settings`.
+
+---
+
 ## Future ticket: Workspace restructuring
 
 Move toward the target composable architecture only when needed by marketing,
