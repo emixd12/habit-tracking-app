@@ -170,8 +170,9 @@ Do not commit `.vercel/project.json`; `.vercel/` is gitignored.
 Unauthenticated checks:
 
 - `/login` renders without server errors.
-- `/timeline`, `/behaviors`, `/settings`, `/analytics`, and `/export` redirect
-  unauthenticated users to `/login?next=...`.
+- `/timeline`, `/behaviors`, `/settings`, `/export`, and the compatibility
+  `/analytics` redirect route redirect unauthenticated users to
+  `/login?next=...`.
 - `/api/reminders/process` rejects missing or wrong secrets.
 
 Authenticated checks:
@@ -181,7 +182,7 @@ Authenticated checks:
 - Timeline status marking and notes work.
 - Settings shows browser notification support and can save a push subscription
   when browser permission allows it.
-- Analytics renders.
+- Behaviors shows behavior settings plus adherence and behavior-date review.
 - Export download links respond.
 
 Check both a desktop viewport and a narrow viewport around 390px wide.

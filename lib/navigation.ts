@@ -1,9 +1,10 @@
 export type AppNavHref =
   | "/timeline"
   | "/behaviors"
-  | "/analytics"
   | "/export"
   | "/settings";
+
+export type ProtectedAppHref = AppNavHref | "/analytics";
 
 export type AppNavItem = {
   href: AppNavHref;
@@ -22,12 +23,7 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   {
     href: "/behaviors",
     label: "Behaviors",
-    description: "Recurring behavior definitions",
-  },
-  {
-    href: "/analytics",
-    label: "Analytics",
-    description: "Basic completion counts and adherence",
+    description: "Behavior settings, adherence, and dated review",
   },
   {
     href: "/export",
@@ -41,8 +37,13 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   },
 ];
 
+const PROTECTED_APP_ROUTES: ProtectedAppHref[] = [
+  ...APP_NAV_ITEMS.map((item) => item.href),
+  "/analytics",
+];
+
 export function isProtectedAppRoute(pathname: string) {
-  return APP_NAV_ITEMS.some(
-    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  return PROTECTED_APP_ROUTES.some(
+    (href) => pathname === href || pathname.startsWith(`${href}/`),
   );
 }

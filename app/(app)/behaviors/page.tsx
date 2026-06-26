@@ -7,13 +7,16 @@ import {
   ScreenContentLoading,
   ScreenFrame,
 } from "@/components/layout/ScreenFrame";
+import { getAnalyticsPageData } from "@/lib/services/analytics.service";
 import { getBehaviorPageData } from "@/lib/services/behavior.service";
 import { withPerformanceRoute } from "@/lib/services/performance-timing";
 import {
   archiveBehaviorAction,
   createBehaviorAction,
+  markBehaviorReviewOccurrenceStatusAction,
   restoreBehaviorAction,
   updateBehaviorAction,
+  updateBehaviorReviewOccurrenceNoteAction,
 } from "./actions";
 
 export const metadata: Metadata = {
@@ -22,26 +25,65 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default function BehaviorsPage() {
+type BehaviorsPageProps = Readonly<{
+  searchParams?: Promise<{
+    range?: string | string[];
+    behavior?: string | string[];
+    day?: string | string[];
+  }>;
+}>;
+
+export default async function BehaviorsPage({
+  searchParams,
+}: BehaviorsPageProps) {
+  const params = await searchParams;
+  const rangeDays = parseNumberParam(params?.range);
+  const selectedBehaviorId = parseStringParam(params?.behavior);
+  const selectedDayLocalDate = parseStringParam(params?.day);
+
   return (
     <ScreenFrame title="Behaviors">
       <Suspense fallback={<ScreenContentLoading label="Loading behaviors" />}>
-        <BehaviorsContent />
+        <BehaviorsContent
+          rangeDays={rangeDays}
+          selectedBehaviorId={selectedBehaviorId}
+          selectedDayLocalDate={selectedDayLocalDate}
+        />
       </Suspense>
     </ScreenFrame>
   );
 }
 
-async function BehaviorsContent() {
-  const data = await withPerformanceRoute(
+async function BehaviorsContent({
+  rangeDays,
+  selectedBehaviorId,
+  selectedDayLocalDate,
+}: Readonly<{
+  rangeDays?: number;
+  selectedBehaviorId?: string;
+  selectedDayLocalDate?: string;
+}>) {
+  const [data, analytics] = await withPerformanceRoute(
     "/behaviors",
     "page.data_load",
-    () => getBehaviorPageData(),
+    () =>
+      Promise.all([
+        getBehaviorPageData(),
+        getAnalyticsPageData({
+          rangeDays,
+          selectedBehaviorId,
+          selectedDayLocalDate,
+        }),
+      ]),
     {
-      counts: (pageData) => ({
+      counts: ([pageData, analyticsView]) => ({
         categories: pageData.categories.length,
         active_behaviors: pageData.activeBehaviors.length,
         archived_behaviors: pageData.archivedBehaviors.length,
+        range_days: analyticsView.rangeDays,
+        behavior_summaries: analyticsView.behaviorSummaries.length,
+        selected_day_occurrences:
+          analyticsView.selectedBehaviorDay?.occurrences.length ?? 0,
       }),
     },
   );
@@ -61,10 +103,31 @@ async function BehaviorsContent() {
         activeBehaviors={data.activeBehaviors}
         archivedBehaviors={data.archivedBehaviors}
         categories={data.categories}
+        analytics={analytics}
         updateAction={updateBehaviorAction}
         archiveAction={archiveBehaviorAction}
         restoreAction={restoreBehaviorAction}
+        statusAction={markBehaviorReviewOccurrenceStatusAction}
+        noteAction={updateBehaviorReviewOccurrenceNoteAction}
       />
     </>
   );
+}
+
+function parseNumberParam(value: string | string[] | undefined): number | undefined {
+  const rawValue = parseStringParam(value);
+
+  if (!rawValue) {
+    return undefined;
+  }
+
+  const parsedValue = Number(rawValue);
+
+  return Number.isFinite(parsedValue) ? parsedValue : undefined;
+}
+
+function parseStringParam(value: string | string[] | undefined): string | undefined {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+
+  return rawValue || undefined;
 }

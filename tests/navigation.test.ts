@@ -10,7 +10,6 @@ describe("app navigation", () => {
     expect(APP_NAV_ITEMS.map((item) => item.label)).toEqual([
       "Timeline",
       "Behaviors",
-      "Analytics",
       "Export",
       "Settings",
     ]);
@@ -27,6 +26,7 @@ describe("app navigation", () => {
   it("treats documented app routes as protected", () => {
     expect(isProtectedAppRoute("/timeline")).toBe(true);
     expect(isProtectedAppRoute("/timeline/day")).toBe(true);
+    expect(isProtectedAppRoute("/analytics")).toBe(true);
     expect(isProtectedAppRoute("/login")).toBe(false);
     expect(isProtectedAppRoute("/auth/callback")).toBe(false);
   });

@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-24T17:49:23.187906+00:00",
+  "generatedAt": "2026-06-26T04:59:33.162547+00:00",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
       "componentId": "composite.behavior-form",
       "file": "components/behaviors/BehaviorCreateSection.tsx",
-      "line": 50,
+      "line": 59,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -14,15 +14,15 @@
     {
       "componentId": "composite.behavior-form",
       "file": "components/behaviors/BehaviorList.tsx",
-      "line": 177,
+      "line": 348,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
     },
     {
       "componentId": "composite.occurrence-note-form",
-      "file": "components/analytics/AnalyticsScreen.tsx",
-      "line": 398,
+      "file": "components/behaviors/BehaviorList.tsx",
+      "line": 553,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -30,7 +30,7 @@
     {
       "componentId": "composite.occurrence-note-form",
       "file": "components/timeline/OccurrenceRow.tsx",
-      "line": 117,
+      "line": 201,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -38,7 +38,7 @@
     {
       "componentId": "composite.occurrence-row",
       "file": "components/timeline/TimelineGroup.tsx",
-      "line": 92,
+      "line": 122,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -46,7 +46,7 @@
     {
       "componentId": "composite.occurrence-row",
       "file": "components/timeline/TimelineGroup.tsx",
-      "line": 109,
+      "line": 139,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -54,7 +54,7 @@
     {
       "componentId": "flow.google-login-button",
       "file": "app/(auth)/login/page.tsx",
-      "line": 63,
+      "line": 65,
       "route": "(auth)/login/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -62,23 +62,15 @@
     {
       "componentId": "layout.app-shell",
       "file": "app/(app)/layout.tsx",
-      "line": 31,
+      "line": 30,
       "route": "(app)/layout",
       "usageKind": "render",
       "confidence": "exact"
     },
     {
       "componentId": "layout.screen-frame",
-      "file": "app/(app)/analytics/page.tsx",
-      "line": 36,
-      "route": "(app)/analytics/page",
-      "usageKind": "render",
-      "confidence": "exact"
-    },
-    {
-      "componentId": "layout.screen-frame",
       "file": "app/(app)/behaviors/page.tsx",
-      "line": 26,
+      "line": 45,
       "route": "(app)/behaviors/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -86,7 +78,7 @@
     {
       "componentId": "layout.screen-frame",
       "file": "app/(app)/export/page.tsx",
-      "line": 34,
+      "line": 36,
       "route": "(app)/export/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -94,23 +86,15 @@
     {
       "componentId": "layout.screen-frame",
       "file": "app/(app)/settings/page.tsx",
-      "line": 22,
+      "line": 25,
       "route": "(app)/settings/page",
-      "usageKind": "render",
-      "confidence": "exact"
-    },
-    {
-      "componentId": "module.analytics-screen",
-      "file": "app/(app)/analytics/page.tsx",
-      "line": 37,
-      "route": "(app)/analytics/page",
       "usageKind": "render",
       "confidence": "exact"
     },
     {
       "componentId": "module.behavior-create-section",
       "file": "app/(app)/behaviors/page.tsx",
-      "line": 27,
+      "line": 95,
       "route": "(app)/behaviors/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -118,7 +102,7 @@
     {
       "componentId": "module.behavior-list",
       "file": "app/(app)/behaviors/page.tsx",
-      "line": 33,
+      "line": 102,
       "route": "(app)/behaviors/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -142,7 +126,7 @@
     {
       "componentId": "module.export-panel",
       "file": "app/(app)/export/page.tsx",
-      "line": 38,
+      "line": 85,
       "route": "(app)/export/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -166,7 +150,7 @@
     {
       "componentId": "module.notification-permission-panel",
       "file": "app/(app)/settings/page.tsx",
-      "line": 38,
+      "line": 56,
       "route": "(app)/settings/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -174,7 +158,7 @@
     {
       "componentId": "module.recurrence-editor",
       "file": "components/behaviors/BehaviorForm.tsx",
-      "line": 182,
+      "line": 187,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -182,31 +166,31 @@
     {
       "componentId": "module.reminder-editor",
       "file": "components/behaviors/BehaviorForm.tsx",
+      "line": 192,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.status-buttons",
+      "file": "components/behaviors/BehaviorList.tsx",
+      "line": 545,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.status-buttons",
+      "file": "components/timeline/OccurrenceRow.tsx",
+      "line": 147,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.status-buttons",
+      "file": "components/timeline/OccurrenceRow.tsx",
       "line": 187,
-      "route": null,
-      "usageKind": "render",
-      "confidence": "exact"
-    },
-    {
-      "componentId": "module.status-buttons",
-      "file": "components/analytics/AnalyticsScreen.tsx",
-      "line": 390,
-      "route": null,
-      "usageKind": "render",
-      "confidence": "exact"
-    },
-    {
-      "componentId": "module.status-buttons",
-      "file": "components/timeline/OccurrenceRow.tsx",
-      "line": 75,
-      "route": null,
-      "usageKind": "render",
-      "confidence": "exact"
-    },
-    {
-      "componentId": "module.status-buttons",
-      "file": "components/timeline/OccurrenceRow.tsx",
-      "line": 108,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -214,7 +198,7 @@
     {
       "componentId": "module.timeline",
       "file": "app/(app)/timeline/page.tsx",
-      "line": 37,
+      "line": 83,
       "route": "(app)/timeline/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -230,7 +214,7 @@
     {
       "componentId": "module.timeline-group",
       "file": "components/timeline/Timeline.tsx",
-      "line": 45,
+      "line": 46,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -245,7 +229,7 @@
     }
   ],
   "summary": {
-    "productUsages": 30,
+    "productUsages": 28,
     "benchPreviews": 0
   }
 }

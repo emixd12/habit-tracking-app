@@ -5,7 +5,6 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  BarChart3,
   CalendarDays,
   Download,
   ListChecks,
@@ -21,7 +20,6 @@ import { APP_NAV_ITEMS, type AppNavHref } from "@/lib/navigation";
 const navIcons: Record<AppNavHref, LucideIcon> = {
   "/timeline": CalendarDays,
   "/behaviors": ListChecks,
-  "/analytics": BarChart3,
   "/export": Download,
   "/settings": Settings,
 };

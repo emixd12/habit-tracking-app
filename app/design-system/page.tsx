@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import manifestJson from "@/design-system.manifest.json";
 import surfacesJson from "@/design-system.surfaces.json";
 import usageJson from "@/design-system.usage.json";
-import { AnalyticsScreen } from "@/components/analytics/AnalyticsScreen";
 import { BehaviorCreateSection } from "@/components/behaviors/BehaviorCreateSection";
 import { BehaviorForm } from "@/components/behaviors/BehaviorForm";
 import { BehaviorList } from "@/components/behaviors/BehaviorList";
@@ -1197,9 +1196,12 @@ const previewFactories: Record<string, () => ReactNode> = {
           activeBehaviors={[activeBehavior]}
           archivedBehaviors={[archivedBehavior]}
           categories={categoryOptions}
+          analytics={analyticsFixture}
           updateAction={behaviorAction}
           archiveAction={behaviorAction}
           restoreAction={behaviorAction}
+          statusAction={occurrenceAction}
+          noteAction={occurrenceAction}
         />
       </ProductPreview>
     ),
@@ -1214,15 +1216,6 @@ const previewFactories: Record<string, () => ReactNode> = {
           browserReminderEnabled
           emailReminderEnabled={false}
           reminderOffsetMinutes={60}
-        />
-      </ProductPreview>
-    ),
-  "module.analytics-screen": () => (
-      <ProductPreview maxHeight="50rem">
-        <AnalyticsScreen
-          analytics={analyticsFixture}
-          statusAction={occurrenceAction}
-          noteAction={occurrenceAction}
         />
       </ProductPreview>
     ),

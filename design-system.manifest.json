@@ -102,20 +102,6 @@
       "notes": ""
     },
     {
-      "id": "module.analytics-screen",
-      "name": "AnalyticsScreen",
-      "kind": "module",
-      "source": "components/analytics/AnalyticsScreen.tsx",
-      "exportName": "AnalyticsScreen",
-      "usageNames": [
-        "AnalyticsScreen"
-      ],
-      "benchAnchor": "design-system#ds-module-analytics-screen",
-      "trackUsages": "required",
-      "status": "active",
-      "notes": ""
-    },
-    {
       "id": "module.behavior-create-section",
       "name": "BehaviorCreateSection",
       "kind": "module",

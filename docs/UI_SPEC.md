@@ -48,13 +48,12 @@ the first 20px viewport edge is supported. While open, the drawer traps focus
 and locks body scrolling. A narrow drawer shadow is allowed for separation from
 the backdrop. The mobile drawer header does not draw a bottom divider.
 
-Use five primary screens:
+Use four primary screens:
 
 1. Timeline
 2. Behaviors
-3. Analytics
-4. Export
-5. Settings
+3. Export
+4. Settings
 
 The Timeline screen is the default screen after login.
 
@@ -382,54 +381,84 @@ text for options such as Reminder offset.
 
 ## Behaviors screen
 
-Show active behaviors first as compact cards.
+Behaviors is the primary behavior object surface. It combines recurring
+behavior setup, compact active behavior metadata, range-based adherence, and
+behavior date review. This is a UI composition change only: it must not add
+schema, stored statuses, duplicate resolver logic, or date/time mutation for
+occurrences.
+
+Overall adherence appears near the top of the Behaviors screen with compact
+7 / 30 / 90 day underlined text-action range controls and the overall calendar
+inside that same area. The overall calendar remains passive; selecting days for
+correction starts from an individual behavior row.
+
+Show active behaviors first as compact unboxed rows.
 
 The behavior creation form should be available from the Behaviors page without
 pushing existing behavior cards far below the first viewport. When behaviors
 already exist, keep creation behind a simple in-page disclosure. When no
 behaviors exist, the creation disclosure may open by default.
 
-Each behavior card/list item should include:
+Each behavior card/list item should keep the repeatedly used review information visible:
 - Title
-- Category
-- Recurrence summary
-- Scheduled times or ranges
-- Reminder indicators
-- Edit
+- Range-based adherence label and resolved outcome counts when occurrences exist in the selected range
+- A per-behavior calendar/heatmap sized to the row
 - Archive
 - Restore for archived behaviors
+- Details and edit settings
+
+The Details and edit settings disclosure should reveal lower-use behavior
+configuration fields such as category, scheduled times or ranges, recurrence
+summary, reminder indicators, and description when present, then expose the
+existing edit form. These characteristics should not take over the collapsed
+behavior row.
 
 Behavior records should not draw a perimeter border. Separate adjacent
 behaviors with a single quiet divider line, and keep borders only on real
 fields, controls, and status labels. Archive and Restore use underlined
 text-action styling rather than bordered button chrome.
-When a behavior has saved description text, show it as a small Notes block with
-a visible label and no divider lines immediately above or below that block.
+Separate behavior settings edits from behavior date review:
 
-Archived behaviors should appear in a separate archived section and should not appear on the timeline.
+- Details and edit settings opens the existing behavior metadata and edit form
+  for recurring behavior configuration: title, description, category,
+  recurrence, schedule, reminders, and active/archive state.
+- Behavior date review opens from a selected non-empty per-behavior calendar
+  cell and is for reviewing or correcting dated records only.
+- Behavior date review displays Date of behavior, Time of behavior, Status, and
+  Note as plain rows.
+- Date of behavior and Time of behavior are display-only in date review.
+- Status and note correction controls stay hidden behind a per-occurrence
+  Review disclosure until the user chooses to review that occurrence.
+
+Archived behaviors should not appear in the main active behavior feed or on the
+timeline. They should sit at the bottom of the Behaviors screen behind a
+low-priority Archived behaviors disclosure with a count, where Restore remains
+available.
 
 Category editing belongs in Settings.
 
-## Analytics screen
+## Behavior review details
 
 Default range:
 - Last 30 days
 
 Show:
-- Overall adherence at the top
+- Overall adherence at the top of Behaviors
 - Completion-intensity calendar heatmap for overall adherence
-- Date range selector: 7 / 30 / 90 days
-- Completion counts by behavior
+- Date range selector: 7 / 30 / 90 days as underlined text actions. The current
+  range uses primary black text, and inactive ranges use readable muted text.
+- Resolved completion counts by behavior
 - Per-behavior chart or calendar heatmap
-- Tracking-since date for each behavior count row, plus a start marker in that
-  behavior's calendar when the start day is inside the selected range
+- Tracking-since date for each behavior count row in MM-DD-YY format, plus a
+  start marker in that behavior's calendar when the start day is inside the
+  selected range
 - Full completion, partial completion, and not completed day states for behaviors that can occur multiple times in one day
-- Behavior-day occurrence review for correcting individual statuses and notes
-- Unresolved count
-- Optional compact counts by category
+- Behavior date review for correcting individual statuses and notes
+- Top summary Unresolved count when the count is greater than zero
+- Optional compact resolved counts by category
 - Default adherence rate
 
-The Analytics screen should read as one sparse report surface. Avoid boxed
+The Behaviors screen's review area should read as one sparse report surface. Avoid boxed
 section panels around Overall adherence, the calendar, Behavior counts, and
 Category counts. Use single horizontal dividers where separation is needed.
 The overall calendar belongs inside the Overall adherence area, and its legend
@@ -438,7 +467,7 @@ should stay hidden behind a simple See Legend disclosure by default.
 The overall calendar is a passive adherence summary, not the correction entry
 point. Later corrections start from a behavior row: selecting a non-empty
 behavior calendar cell opens a compact Behavior date area inside that behavior
-row. The behavior-day review should list only that behavior's occurrences for
+row. The behavior date review should list only that behavior's occurrences for
 the selected local date when rows exist, including Completed, Not Completed,
 and Unresolved rows. It should use plain text labels for Time of behavior,
 Status, and Note rather than chips, and empty notes should read as italic No
@@ -451,11 +480,13 @@ edit, all-time search, automatic suggestions, AI coaching, or gamified
 language. Do not render an empty review panel when the selected behavior day
 has no occurrences.
 
-Default adherence excludes unresolved occurrences. The top summary Unresolved
-count matches the Timeline Needs decision count: active unresolved occurrences
-before the current local day, regardless of the selected Analytics range.
+Default adherence excludes unresolved occurrences. When shown, the top summary
+Unresolved count matches the Timeline Needs decision count: active unresolved
+occurrences before the current local day, regardless of the selected Behaviors range.
+Hide the top summary Unresolved row when the count is zero.
 Current-day unresolved occurrences can still show as unresolved in heatmap
-cells and behavior/category detail counts.
+cells and behavior date review rows. Do not render an Unresolved row in
+per-behavior or category count grids.
 
 Overall calendar cells use completion intensity for completed share: 100%
 Completed uses the full primary blue, and lower completion shares mix that blue
@@ -465,10 +496,11 @@ occurrences uses the red accent treatment. Fully unresolved days use the
 neutral unresolved treatment.
 
 Behavior count rows should be divider-separated rather than boxed. Their
-Completed, Not Completed, and Unresolved labels align vertically with the
-numeric values in a right-hand column. Behavior calendar cells with occurrences
-are selectable; empty cells remain passive. Behavior categories appear as
-plain metadata text below the behavior name.
+Completed and Not Completed labels align vertically with numeric values in the
+same left-start value column used by other behavior-row metadata. Behavior
+calendar cells with occurrences are selectable; empty cells remain passive.
+Behavior categories appear as plain metadata text inside Details and edit
+settings.
 
 Overall and behavior calendar cells show a compact date label on hover or
 keyboard focus while preserving the longer accessible label for screen readers

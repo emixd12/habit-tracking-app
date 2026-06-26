@@ -80,7 +80,6 @@ export async function applyBehaviorLogImportAction(
     revalidatePath("/export");
     revalidatePath("/behaviors");
     revalidatePath("/timeline");
-    revalidatePath("/analytics");
 
     return state;
   } catch (error) {
@@ -113,7 +112,6 @@ export async function applyBehaviorLogRestoreAction(
     revalidatePath("/export");
     revalidatePath("/behaviors");
     revalidatePath("/timeline");
-    revalidatePath("/analytics");
     revalidatePath("/settings");
 
     return state;

@@ -42,8 +42,7 @@ passwords, local storage, or secrets.
 | Login | `/login` | cold load, warm reload, Google button click start |
 | App entry | `/` | auth-aware redirect latency |
 | Timeline | `/timeline` | cold load, warm reload, sidebar nav from every primary route |
-| Behaviors | `/behaviors` | cold load, warm reload, create-section open |
-| Analytics | `/analytics` | cold load, warm reload, range changes, behavior-day review open |
+| Behaviors | `/behaviors` | cold load, warm reload, create-section open, range changes, behavior-date review open |
 | Export | `/export` | cold load, warm reload, range/archive option changes |
 | Settings | `/settings` | cold load, warm reload, timezone panel interaction |
 | Legal | `/terms`, `/privacy`, `/trust` | public static-route load |
@@ -61,7 +60,7 @@ passwords, local storage, or secrets.
 | Timeline status | mark Not Completed | row becomes Not Completed without page jank |
 | Timeline note | save note | note is visible after save |
 | Needs decision | open dialog, mark prior unresolved if present | count and row state update |
-| Analytics correction | open behavior-day review and change status/note | report refreshes |
+| Behavior date review | open behavior-date review and change status/note | report refreshes |
 | Export links | JSONL, CSV, JSON, BehaviorLog downloads | response starts successfully |
 | Export summary | copy/download Markdown summary | user-visible success or file response |
 | Import preview | select invalid or fixture bundle when safe | validation feedback appears |

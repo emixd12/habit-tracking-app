@@ -44,9 +44,8 @@ restructuring is not implied by this document alone. See
 
 1. Timeline
 2. Behaviors
-3. Analytics
-4. Export
-5. Settings
+3. Export
+4. Settings
 
 ## Public website scope
 
@@ -137,8 +136,8 @@ visible in their original prior-day group through the current local day, with
 the same Timeline row cues. Completed and Not Completed retained rows use
 resolved-row labels, with correction available from the expanded row. After
 that local-day window, later corrections should be deliberate and
-behavior-specific, using Analytics behavior day review rather than turning
-Timeline into a past-history browser.
+behavior-specific, using the Behaviors screen's behavior date review rather than
+turning Timeline into a past-history browser.
 
 ## Day boundary
 
@@ -218,29 +217,36 @@ Example:
 - Behavior title: "Take body measurements"
 - Description: "Weight, hips, waist, chest. Add values in the note."
 
-## Analytics
+## Behavior review and adherence
 
-Analytics should be basic:
-- Overall adherence at the top
-- Counts by behavior
-- Counts by category
+The Behaviors screen is the primary behavior object surface. It combines
+behavior setup, collapsed behavior metadata, range-based adherence, and
+deliberate behavior date review. This is a UI composition change over the
+existing analytics resolver/service contract, not a separate data model.
+
+Behavior review should be basic:
+- Overall adherence at the top of the Behaviors screen
+- Resolved counts by active behavior
+- Optional compact resolved counts by category
 - 7/30/90-day windows, defaulting to 30 days
-- `completed` / `not_completed` / `unresolved`
+- `completed` and `not_completed` detail counts, with `unresolved` kept as a neutral heatmap and review state
 - A completion-intensity calendar heatmap for overall adherence
 - Per-behavior charts or heatmaps where useful
-- Per-behavior tracking start date, visible in text and marked in the
-  per-behavior calendar when it falls inside the selected range
+- Per-behavior tracking start date, visible in compact MM-DD-YY text and marked
+  in the per-behavior calendar when it falls inside the selected range
 - Day-level representation of full completion, partial completion, and not completed when a behavior has multiple occurrences in one day
 - A way to review one behavior's occurrences on a selected day from the
   behavior-level calendar
 - Default adherence rate excludes unresolved
 
-The top-level Analytics summary Unresolved count should match the Timeline
-Needs decision count: active unresolved occurrences before the current local
-day, regardless of the selected Analytics range. Current-day unresolved
-occurrences may still appear as unresolved in the overall heatmap and
-behavior/category detail counts, but they are not included in the top summary
-Unresolved count until they become prior-day unresolved.
+When nonzero, the top-level adherence summary Unresolved count should match the
+Timeline Needs decision count: active unresolved occurrences before the current
+local day, regardless of the selected Behaviors range. Hide the top summary
+Unresolved row when the count is zero. Current-day unresolved occurrences may
+still appear as unresolved in the overall heatmap, behavior heatmaps, and
+behavior date review rows, but they are not shown as per-behavior or category
+count rows and are not included in the top summary Unresolved count until they
+become prior-day unresolved.
 
 The overall calendar should shade each day by completion share: full blue when
 all scheduled occurrences that day are Completed, and proportionally lighter

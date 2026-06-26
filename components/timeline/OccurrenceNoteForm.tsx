@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 
 import type {
@@ -25,6 +26,13 @@ export function OccurrenceNoteForm({
   action,
 }: OccurrenceNoteFormProps) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (state.status === "success") {
+      router.refresh();
+    }
+  }, [router, state.status]);
 
   return (
     <form action={formAction} className="grid gap-3">

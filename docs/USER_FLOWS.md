@@ -96,9 +96,8 @@ Mobile behavior:
 Primary navigation:
 1. Timeline
 2. Behaviors
-3. Analytics
-4. Export
-5. Settings
+3. Export
+4. Settings
 
 The default authenticated route is:
 `/timeline`
@@ -237,10 +236,11 @@ decision.
 
 ## Behavior flow
 
-The Behaviors screen shows active behaviors first as compact unboxed records
-separated by quiet divider lines.
-Behavior description text appears in the record as a labeled Notes block
-without local divider lines.
+The Behaviors screen is the primary behavior object surface. It shows active
+behaviors first as compact unboxed records separated by quiet divider lines,
+with behavior setup metadata and range-based behavior review in the same row.
+Behavior description text appears in the record as a labeled Description block
+without local divider lines. Occurrence-specific text remains a Note.
 
 Behavior create/edit is accessible from the Behaviors page. When behaviors
 already exist, creation is opened from a simple in-page disclosure so the
@@ -262,10 +262,19 @@ At least one schedule slot is required.
 
 The recurrence editor should use segmented presets first, with advanced options below.
 
-Archived behaviors appear in a separate archived section and do not appear on
-the timeline. Archived behaviors can be restored from that section.
+Archived behaviors appear in a separate low-priority bottom disclosure and do
+not appear on the timeline. Archived behaviors can be restored from that
+section.
 
 Categories are edited in Settings.
+
+The Behaviors screen distinguishes two edit modes:
+
+- Behavior settings edits change the recurring behavior definition, schedule,
+  category, description, and reminder settings.
+- Behavior date review revisits or corrects a specific dated occurrence record.
+  It shows Date of behavior, Time of behavior, Status, and Note as plain rows.
+  Date and time are display-only in this review path.
 
 ## Reminder flow
 
@@ -279,9 +288,9 @@ Behavior-specific reminder settings live on the behavior create/edit page.
 
 V1 does not need a test notification button.
 
-## Analytics flow
+## Behavior review flow
 
-The Analytics screen defaults to the last 30 days.
+Behavior review on the Behaviors screen defaults to the last 30 days.
 
 Show overall adherence at the top.
 
@@ -291,14 +300,16 @@ disclosure.
 
 The top summary Unresolved count should match the Timeline Needs decision
 count, so it includes only active unresolved occurrences before the current
-local day, regardless of the selected Analytics range.
+local day, regardless of the selected Behaviors range.
 
 Show a completion-intensity calendar heatmap for overall adherence. A fully
 completed day uses the full completed color; partial completion uses a lighter
 blue proportional to the completed share; days with resolved occurrences but
 no completed occurrences use the red accent treatment.
 
-Show behavior-level counts and charts.
+Show behavior-level Completed and Not Completed counts plus calendars inside
+each active behavior row. Unresolved remains visible through neutral heatmap
+and behavior date review states, but not as a behavior or category count row.
 
 Each behavior count row shows when that behavior started being tracked. When
 the tracking start day is within the selected range, the behavior calendar marks
@@ -307,23 +318,23 @@ that day.
 For behaviors that occur more than once in a day, represent full completion, partial completion, and not completed day states.
 
 The user should be able to select a non-empty cell in a behavior calendar and
-review that behavior's occurrences on that day. The overall calendar remains a
-passive adherence summary. Behavior-day review is the deliberate later
-correction path for submitted occurrence decisions after the Needs decision
-same-day retention window has passed.
+review that behavior's occurrences on that day inside the selected behavior
+row. The overall calendar remains a passive adherence summary. Behavior date
+review is the deliberate later correction path for submitted occurrence
+decisions after the Needs decision same-day retention window has passed.
 
-Behavior-day review should:
+Behavior date review should:
 - Show that behavior's occurrences for the selected local date when rows exist,
   not only Not Completed occurrences.
-- Use a Behavior date heading for the selected day.
-- Show occurrence details as plain Time of behavior, Status, and Note text.
+- Show occurrence details as plain Date of behavior, Time of behavior, Status,
+  and Note text.
 - Display empty notes as italic No note.
 - Hide correction controls behind a per-occurrence Review disclosure until the
   user chooses to review that occurrence.
 - Allow individual Completed and Not Completed corrections through the same
   status service used by Timeline.
 - Allow occurrence Note edits.
-- Refresh Analytics counts, adherence, heatmaps, and behavior-day rows after a
+- Refresh Behaviors counts, adherence, heatmaps, and behavior date rows after a
   correction.
 - Avoid internal divider lines that visually compete with the behavior-row
   separators.

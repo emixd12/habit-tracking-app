@@ -5,7 +5,6 @@ import { performance } from "node:perf_hooks";
 const DEFAULT_ROUTES = [
   "/timeline",
   "/behaviors",
-  "/analytics",
   "/export",
   "/settings",
 ];

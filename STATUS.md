@@ -65,7 +65,7 @@ Current evidence:
   build-generated sanitized example BehaviorLog bundle. It is deployed as the
   separate Vercel project `cadence-marketing` with production alias
   `https://cadence-marketing-two.vercel.app`.
-- Primary app routes exist for Timeline, Behaviors, Analytics, Export, and Settings. Public account-information routes exist for Terms, Privacy, and Trust. Export is implemented with JSONL, CSV, full JSON backup, BehaviorLog bundle, Markdown AI summary outputs, and BehaviorLog import.
+- Primary app routes exist for Timeline, Behaviors, Export, and Settings. `/analytics` remains as a protected compatibility redirect to `/behaviors`. Public account-information routes exist for Terms, Privacy, and Trust. Export is implemented with JSONL, CSV, full JSON backup, BehaviorLog bundle, Markdown AI summary outputs, and BehaviorLog import.
 - Supabase SSR auth utilities exist under `lib/supabase/`, with Google login at `/login`, OAuth callback handling at `/auth/callback`, and protected app routes guarded by `proxy.ts` plus the app layout.
 - Supabase CLI has been initialized with `supabase/config.toml`; local Supabase uses the 5532x port range to avoid conflicts with another local Supabase stack.
 - Product database schema exists in `supabase/migrations/20260607204951_create_database_schema.sql` with RLS-enabled profiles, categories, behaviors, occurrences, reminder_deliveries, and push_subscriptions tables. Ticket 010 adds `supabase/migrations/20260608011000_add_reminder_delivery_processing_claim.sql` for an internal `reminder_deliveries.processing_started_at` claim timestamp.
@@ -73,13 +73,13 @@ Current evidence:
 - Supabase database types are generated in `lib/db/database.types.ts`, with hand-written domain aliases in `lib/types/database.ts`.
 - A pure Temporal-based recurrence resolver exists in `lib/resolvers/recurrence.resolver.ts`, with recurrence domain types in `lib/types/recurrence.ts` and paired tests in `tests/recurrence.resolver.test.ts`.
 - Behavior CRUD exists on `/behaviors` with server actions, service/repository access through the authenticated Supabase user, category selection, recurrence editing, scheduled time, browser/email reminder settings, active/archive handling, and active/archived lists.
-- Occurrence generation exists in `lib/resolvers/occurrence.resolver.ts`, `lib/services/occurrence.service.ts`, and `lib/db/occurrences.repo.ts`. Behavior create/edit/archive marks the user's occurrence horizon stale, while Timeline, Analytics, Export, and the protected occurrence sync route repair the rolling occurrence window before generated occurrences are needed. Sync inserts missing rows idempotently, removes stale future unresolved rows, and preserves past or resolved occurrence history.
+- Occurrence generation exists in `lib/resolvers/occurrence.resolver.ts`, `lib/services/occurrence.service.ts`, and `lib/db/occurrences.repo.ts`. Behavior create/edit/archive marks the user's occurrence horizon stale, while Timeline, Behaviors review, Export, and the protected occurrence sync route repair the rolling occurrence window before generated occurrences are needed. Sync inserts missing rows idempotently, removes stale future unresolved rows, and preserves past or resolved occurrence history.
 - Timeline grouping exists in `lib/resolvers/timeline.resolver.ts`, `lib/services/timeline.service.ts`, and `/timeline`. The page syncs missing occurrences before rendering, surfaces Needs decision for prior unresolved active-behavior occurrences plus same-day retained prior decisions through a floating lower-right button and modal, starts the forward timeline at the current local day, shows the next 7 days by default, and can expand future visibility up to the generated 30-day horizon.
 - Status marking and note editing exists in `lib/resolvers/status.resolver.ts`, `lib/services/occurrence.service.ts`, `app/(app)/timeline/actions.ts`, and Timeline row controls. Completed and Not Completed actions update `status_marked_at`; Completed also sets `completed_at`; switching away from Completed clears `completed_at`; note-only edits preserve status timestamps.
 - Browser push subscription storage exists at `app/api/push/subscribe/route.ts`, `lib/services/push-subscription.service.ts`, and `lib/db/pushSubscriptions.repo.ts`; subscription registration validates endpoint/key shape, stores active subscriptions through the authenticated Supabase user context, lists active subscriptions for browser-push sends, and marks expired subscriptions inactive.
 - Reminder delivery planning exists in `lib/resolvers/reminder.resolver.ts`, `lib/services/reminder.service.ts`, and `lib/db/reminderDeliveries.repo.ts`. Occurrence sync now creates missing pending reminder deliveries idempotently from behavior reminder settings, including browser reminders enabled by default, and status resolution cancels pending deliveries for resolved occurrences.
 - Reminder processing code exists at `app/api/reminders/process/route.ts`, `lib/services/reminder.service.ts`, `lib/db/reminderDeliveries.repo.ts`, `lib/services/sequenzy.service.ts`, and `lib/services/web-push.service.ts`. The protected process route validates `REMINDER_PROCESS_SECRET` or `CRON_SECRET`, rate-limits repeated auth failures, bounds manual batch size, claims due pending email and browser-push deliveries with `processing_started_at`, re-checks current occurrence/behavior eligibility through the reminder resolver, sends Sequenzy template emails or VAPID-backed browser push from server-only code, and records sent, failed, or cancelled outcomes. Sequenzy provider setup is verified with transactional slug `habit-reminder`; local `.env.local` has `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`.
-- Analytics exists in `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/analytics`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and behavior-day occurrence review for status/note correction. Default adherence excludes unresolved occurrences, and the top summary Unresolved count matches the Timeline Needs decision count.
+- Behavior review uses `lib/resolvers/analytics.resolver.ts`, `lib/services/analytics.service.ts`, and `/behaviors`. The resolver owns range normalization, adherence math, status counts, overall and per-behavior heatmap day states, category counts, and behavior date review rows for status/note correction. Default adherence excludes unresolved occurrences, the top summary Unresolved count matches the Timeline Needs decision count, and per-behavior/category detail count grids render only Completed and Not Completed while unresolved remains visible through heatmap and review states.
 - Export exists in `lib/resolvers/export.resolver.ts`, `lib/services/export.service.ts`, `/export`, and `/api/export/jsonl`, `/api/export/csv`, `/api/export/json`. The resolver owns range filtering, archived-behavior filtering, JSONL, CSV escaping, full JSON backup shape, and Markdown AI summary adherence math. All-time export includes occurrences through the current local day and excludes generated future rows.
 - Settings now shows profile email, timezone detection/manual override, notification permission status, browser push availability, a browser reminder enable/save control, Trust/Privacy/Terms links, and account deletion with export acknowledgement plus typed confirmation. Timezone detection uses browser/OS `Intl` data without geolocation; saving a changed timezone updates the profile, active behavior timezones, and future unresolved occurrences through the existing occurrence sync. The client path uses only `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; the processing/sending layer uses server-only `VAPID_PRIVATE_KEY`.
 - Timeline now shows a dismissible first-run setup pop-up for accounts that have
@@ -3252,6 +3252,39 @@ Verification:
 Remaining risk:
 - The homepage hero is now a static exported image. Future copy or sample-data
   changes inside the image require regenerating the source image asset.
+
+### Behaviors unresolved detail count removal
+
+Status: complete.
+
+Implementation summary:
+- Removed the Unresolved row from per-behavior and category detail count grids
+  on Behaviors while preserving the top Overall adherence Unresolved count,
+  neutral unresolved heatmap cells, and behavior date review rows.
+- Updated product, UI, user-flow, and design docs so behavior/category detail
+  count grids are resolved-outcome summaries only.
+- No resolver, schema, route, provider, export, navigation, or product-scope
+  expansion was added.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (55 files, 320 tests).
+- Pass: `npm run build`.
+- Browser QA: headless Chrome against
+  `http://localhost:3000/design-system?preview=module.behavior-list#ds-module-behavior-list`
+  at 1024px and 390px showed no horizontal overflow, the Overall adherence
+  count grid still showing Unresolved, and behavior/category count grids
+  showing only Completed and Not Completed.
+
+Remaining risk:
+- Authenticated in-app browser QA for live `/behaviors` could not be automated:
+  the Browser MCP was unavailable in this thread and Computer Use is blocked
+  from inspecting the Codex app. The same `BehaviorList` surface was verified
+  through the fixture-backed design-system route.
 
 ## Handoff notes
 

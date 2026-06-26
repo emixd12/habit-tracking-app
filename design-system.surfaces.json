@@ -295,9 +295,9 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/behaviors/BehaviorCreateSection.tsx", "components/behaviors/BehaviorList.tsx", "components/analytics/AnalyticsScreen.tsx"],
-          "implementationIds": ["module.behavior-create-section", "module.behavior-list", "module.analytics-screen"],
-          "notes": "Behavior creation/editing and analytics review use progressive disclosure."
+          "sources": ["components/behaviors/BehaviorCreateSection.tsx", "components/behaviors/BehaviorList.tsx"],
+          "implementationIds": ["module.behavior-create-section", "module.behavior-list"],
+          "notes": "Behavior creation, settings editing, archived behavior access, and behavior date review use progressive disclosure."
         },
         {
           "surfaceId": "marketing",
@@ -418,10 +418,10 @@
       ]
     },
     {
-      "id": "module.analytics-calendar",
-      "name": "Analytics calendar",
+      "id": "module.behavior-review-calendar",
+      "name": "Behavior review calendar",
       "tier": "module",
-      "definition": "Completion-intensity heatmaps and day review patterns for the basic Analytics surface.",
+      "definition": "Completion-intensity heatmaps and behavior date review patterns on the Behaviors surface.",
       "sharedContract": [
         "Unresolved never implies failure",
         "Overall calendar uses completion share intensity",
@@ -433,9 +433,9 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/analytics/AnalyticsScreen.tsx", "app/globals.css"],
-          "implementationIds": ["module.analytics-screen"],
-          "notes": "Live Analytics fixture owns current heatmap and review behavior."
+          "sources": ["components/behaviors/BehaviorList.tsx", "app/globals.css"],
+          "implementationIds": ["module.behavior-list"],
+          "notes": "Live Behaviors fixture owns current heatmap and behavior date review behavior."
         },
         {
           "surfaceId": "marketing",
