@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { ExportPanel } from "@/components/export/ExportPanel";
-import { ScreenFrame } from "@/components/layout/ScreenFrame";
-import { getBehaviorLogImportPageData } from "@/lib/services/behaviorlog-import.service";
-import { getBehaviorLogRestorePageData } from "@/lib/services/behaviorlog-restore.service";
+import {
+  ScreenContentLoading,
+  ScreenFrame,
+} from "@/components/layout/ScreenFrame";
+import {
+  createBehaviorLogImportPageDataFromRuns,
+  listCurrentUserBehaviorLogImportRuns,
+} from "@/lib/services/behaviorlog-import.service";
+import { createBehaviorLogRestorePageDataFromRuns } from "@/lib/services/behaviorlog-restore.service";
 import { getExportPageData } from "@/lib/services/export.service";
 import { withPerformanceRoute } from "@/lib/services/performance-timing";
 
@@ -22,39 +29,64 @@ type ExportPageProps = Readonly<{
 
 export default async function ExportPage({ searchParams }: ExportPageProps) {
   const params = await searchParams;
-  const [exportData, importData, restoreData] = await withPerformanceRoute(
+  const range = parseStringParam(params?.range);
+  const includeArchived = parseBooleanParam(params?.include_archived);
+
+  return (
+    <ScreenFrame title="Export">
+      <Suspense fallback={<ScreenContentLoading label="Loading export data" />}>
+        <ExportContent range={range} includeArchived={includeArchived} />
+      </Suspense>
+    </ScreenFrame>
+  );
+}
+
+async function ExportContent({
+  range,
+  includeArchived,
+}: Readonly<{
+  range?: string;
+  includeArchived: boolean;
+}>) {
+  const [exportData, recentBehaviorLogRuns] = await withPerformanceRoute(
     "/export",
     "page.data_load",
     () =>
       Promise.all([
         getExportPageData({
-          range: parseStringParam(params?.range),
-          includeArchived: parseBooleanParam(params?.include_archived),
+          range,
+          includeArchived,
         }),
-        getBehaviorLogImportPageData(),
-        getBehaviorLogRestorePageData(),
+        listCurrentUserBehaviorLogImportRuns(12),
       ]),
     {
-      counts: ([bundle, importPageData, restorePageData]) => ({
+      counts: ([bundle, recentRuns]) => ({
         behaviors: bundle.behaviorCount,
         occurrences: bundle.occurrenceCount,
-        import_runs: importPageData.recentRuns.length,
-        restore_runs: restorePageData.recentRuns.length,
+        import_runs: recentRuns.filter(
+          (run) =>
+            run.import_mode !== "restore_preview" &&
+            run.import_mode !== "restore_apply",
+        ).length,
+        restore_runs: recentRuns.filter(
+          (run) =>
+            run.import_mode === "restore_preview" ||
+            run.import_mode === "restore_apply",
+        ).length,
       }),
     },
   );
+  const importData =
+    createBehaviorLogImportPageDataFromRuns(recentBehaviorLogRuns);
+  const restoreData =
+    createBehaviorLogRestorePageDataFromRuns(recentBehaviorLogRuns);
 
   return (
-    <ScreenFrame
-      title="Export"
-      description={`Local day boundary: ${exportData.timezone}.`}
-    >
-      <ExportPanel
-        exportData={exportData}
-        importData={importData}
-        restoreData={restoreData}
-      />
-    </ScreenFrame>
+    <ExportPanel
+      exportData={exportData}
+      importData={importData}
+      restoreData={restoreData}
+    />
   );
 }
 

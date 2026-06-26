@@ -25,6 +25,7 @@ import {
 import { formatCompactOccurrenceScheduleLabel } from "@/lib/services/schedule";
 import { createFirstRunOnboardingState } from "@/lib/services/onboarding.service";
 import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
+import { readOccurrenceSyncState } from "@/lib/services/occurrence-sync-state.service";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import type { Occurrence } from "@/lib/types/database";
@@ -52,10 +53,11 @@ export async function getTimelinePageBundle(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
-  const [profileTimezone, behaviors, importRuns] = await Promise.all([
+  const [profileTimezone, behaviors, importRuns, syncState] = await Promise.all([
     getProfileTimezone(supabase, userId),
     listUserBehaviors(supabase, userId),
     listBehaviorLogImportRuns(supabase, userId, 1),
+    readOccurrenceSyncState(supabase, userId),
   ]);
   const timeline = await getTimelineViewForUser({
     supabase,
@@ -64,6 +66,7 @@ export async function getTimelinePageBundle(
     futureDays: options.futureDays,
     profileTimezone,
     behaviors,
+    syncState,
   });
 
   return {
@@ -82,9 +85,10 @@ export async function getTimelinePageData(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
-  const [profileTimezone, behaviors] = await Promise.all([
+  const [profileTimezone, behaviors, syncState] = await Promise.all([
     getProfileTimezone(supabase, userId),
     listUserBehaviors(supabase, userId),
+    readOccurrenceSyncState(supabase, userId),
   ]);
 
   return getTimelineViewForUser({
@@ -94,6 +98,7 @@ export async function getTimelinePageData(
     futureDays: options.futureDays,
     profileTimezone,
     behaviors,
+    syncState,
   });
 }
 
@@ -104,6 +109,7 @@ async function getTimelineViewForUser(input: {
   futureDays?: number;
   profileTimezone: string | null;
   behaviors: BehaviorWithCategory[];
+  syncState?: Awaited<ReturnType<typeof readOccurrenceSyncState>>;
 }): Promise<TimelineView> {
   const { supabase, userId, now, behaviors } = input;
   const timezone = input.profileTimezone ?? DEFAULT_TIMEZONE;
@@ -113,6 +119,7 @@ async function getTimelineViewForUser(input: {
     behaviors,
     timezone,
     horizonDays: TIMELINE_MAX_FUTURE_DAYS,
+    syncState: input.syncState,
   });
 
   const timelineWindow = resolveGenerationWindow({

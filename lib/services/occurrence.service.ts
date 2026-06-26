@@ -3,17 +3,17 @@ import { Temporal } from "@js-temporal/polyfill";
 import {
   type AppSupabaseClient,
   type BehaviorWithCategory,
-  getBehaviorById,
   listBehaviorScheduleSlots,
   listUserBehaviors,
 } from "@/lib/db/behaviors.repo";
 import {
   createMissingOccurrences,
   deleteUnresolvedOccurrencesById,
-  getOccurrenceById,
+  getOccurrenceWithBehaviorTimezoneById,
   listBehaviorOccurrencesFrom,
   updateUnresolvedOccurrenceScheduleById,
   updateOccurrenceById,
+  type OccurrenceWithBehaviorTimezone,
 } from "@/lib/db/occurrences.repo";
 import {
   createOccurrenceStatusEvent,
@@ -55,6 +55,7 @@ import type {
   Behavior,
   NewOccurrence,
   Occurrence,
+  OccurrenceSyncState,
   OccurrenceStatus,
   OccurrenceUpdate,
 } from "@/lib/types/database";
@@ -73,7 +74,9 @@ export type SyncUserOccurrencesOptions = SyncBehaviorOccurrencesOptions & {
   planReminderDeliveries?: boolean;
 };
 
-export type EnsureUserOccurrencesFreshOptions = SyncUserOccurrencesOptions;
+export type EnsureUserOccurrencesFreshOptions = SyncUserOccurrencesOptions & {
+  syncState?: OccurrenceSyncState | null;
+};
 
 export type EnsureUserOccurrencesFreshResult = {
   synced: boolean;
@@ -365,7 +368,9 @@ export async function ensureUserOccurrencesFresh(
       }),
     },
     async () => {
-      const state = await readOccurrenceSyncState(supabase, userId);
+      const state = hasPreloadedSyncState(options)
+        ? options.syncState ?? null
+        : await readOccurrenceSyncState(supabase, userId);
       const coverage = decideOccurrenceSyncCoverage(state, {
         timezone,
         startLocalDate: requiredWindow.startLocalDate,
@@ -410,6 +415,14 @@ export async function ensureUserOccurrencesFresh(
       }
     },
   );
+}
+
+function hasPreloadedSyncState(
+  options: EnsureUserOccurrencesFreshOptions,
+): options is EnsureUserOccurrencesFreshOptions & {
+  syncState: OccurrenceSyncState | null;
+} {
+  return options.syncState !== undefined;
 }
 
 export async function processOccurrenceSyncHorizons(
@@ -549,7 +562,11 @@ export async function markOccurrenceStatusFromFormData(
   const userId = await requireUserId(supabase);
   const occurrenceId = getOccurrenceIdFromFormData(formData);
   const nextStatus = getStatusFromFormData(formData);
-  const occurrence = await getRequiredOccurrence(supabase, userId, occurrenceId);
+  const occurrence = await getRequiredOccurrenceWithBehaviorTimezone(
+    supabase,
+    userId,
+    occurrenceId,
+  );
   const statusOccurrence = toStatusResolverOccurrence(occurrence);
   const now = Temporal.Now.instant();
   const update = resolveStatusTransition({
@@ -583,12 +600,6 @@ export async function markOccurrenceStatusFromFormData(
   }
 
   if (eventPlan) {
-    const behavior = await getBehaviorById(
-      supabase,
-      userId,
-      updatedOccurrence.behavior_id,
-    );
-
     await createOccurrenceStatusEvent(supabase, {
       user_id: userId,
       occurrence_id: updatedOccurrence.id,
@@ -599,7 +610,7 @@ export async function markOccurrenceStatusFromFormData(
       recorded_at: eventPlan.recordedAt,
       effective_at: eventPlan.effectiveAt,
       local_date: updatedOccurrence.local_date,
-      timezone: behavior?.timezone || DEFAULT_TIMEZONE,
+      timezone: occurrence.behavior?.timezone || DEFAULT_TIMEZONE,
       source_capture_method: eventPlan.sourceCaptureMethod,
       source_confidence: eventPlan.sourceConfidence,
       revises_event_id: latestStatusEvent?.id ?? null,
@@ -623,15 +634,10 @@ export async function updateOccurrenceNoteFromFormData(
   const update = resolveNoteUpdate({
     note: getNoteFromFormData(formData),
   });
-  const existingOccurrence = await getRequiredOccurrence(
-    supabase,
-    userId,
-    occurrenceId,
-  );
   const updatedOccurrence = await updateOccurrenceById(
     supabase,
     userId,
-    existingOccurrence.id,
+    occurrenceId,
     update,
   );
 
@@ -893,12 +899,16 @@ async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
   return requireCurrentUserId("Sign in again before updating occurrences.");
 }
 
-async function getRequiredOccurrence(
+async function getRequiredOccurrenceWithBehaviorTimezone(
   supabase: AppSupabaseClient,
   userId: string,
   occurrenceId: string,
-): Promise<Occurrence> {
-  const occurrence = await getOccurrenceById(supabase, userId, occurrenceId);
+): Promise<OccurrenceWithBehaviorTimezone> {
+  const occurrence = await getOccurrenceWithBehaviorTimezoneById(
+    supabase,
+    userId,
+    occurrenceId,
+  );
 
   if (!occurrence) {
     throw new Error("Occurrence not found.");

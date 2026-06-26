@@ -1,5 +1,6 @@
 import {
   createBehavior,
+  createBehaviorScheduleSlots,
   getBehaviorById,
   getProfileTimezone,
   listBehaviorCategories,
@@ -10,7 +11,6 @@ import {
   type BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
 import { createClient } from "@/lib/supabase/server";
-import { syncUserOccurrences } from "@/lib/services/occurrence.service";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import type {
   BehaviorPageData,
@@ -65,13 +65,12 @@ export async function createBehaviorFromFormData(
 ): Promise<void> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
-  const [categories, profileTimezone] = await Promise.all([
-    listBehaviorCategories(supabase, userId),
-    getProfileTimezone(supabase, userId),
-  ]);
+  const timezone =
+    getTimezoneFromFormData(formData) ??
+    (await getProfileTimezone(supabase, userId)) ??
+    DEFAULT_TIMEZONE;
   const input = parseBehaviorFormData(formData, {
     mode: "create",
-    categories: categories.map(toCategoryOption),
   });
   const behavior: NewBehavior = {
     user_id: userId,
@@ -80,7 +79,7 @@ export async function createBehaviorFromFormData(
     description: input.description,
     recurrence_rule: recurrenceRuleToJson(input.recurrenceRule),
     scheduled_time: input.scheduledTime,
-    timezone: profileTimezone ?? DEFAULT_TIMEZONE,
+    timezone,
     browser_reminder_enabled: input.browserReminderEnabled,
     email_reminder_enabled: input.emailReminderEnabled,
     reminder_offset_minutes: input.reminderOffsetMinutes,
@@ -88,20 +87,22 @@ export async function createBehaviorFromFormData(
     archived_at: null,
   };
 
-  await markOccurrenceSyncStale(supabase, {
-    userId,
-    reason: "behavior_changed",
-    timezone: behavior.timezone,
-  });
-  const createdBehavior = await createBehavior(supabase, behavior);
-  await replaceBehaviorScheduleSlots(supabase, {
-    userId,
-    behaviorId: createdBehavior.id,
-    slots: input.scheduleSlots.map(toBehaviorScheduleSlotMutation),
-  });
-  await syncUserOccurrences(supabase, userId, {
-    behaviors: await listUserBehaviors(supabase, userId),
-  });
+  const [createdBehavior] = await Promise.all([
+    createBehavior(supabase, behavior),
+    markOccurrenceSyncStale(supabase, {
+      userId,
+      reason: "behavior_changed",
+      timezone: behavior.timezone,
+    }),
+  ]);
+  await createBehaviorScheduleSlots(
+    supabase,
+    input.scheduleSlots.map((slot) => ({
+      ...toBehaviorScheduleSlotMutation(slot),
+      user_id: userId,
+      behavior_id: createdBehavior.id,
+    })),
+  );
 }
 
 export async function updateBehaviorFromFormData(
@@ -109,10 +110,8 @@ export async function updateBehaviorFromFormData(
 ): Promise<void> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
-  const categories = await listBehaviorCategories(supabase, userId);
   const input = parseBehaviorFormData(formData, {
     mode: "update",
-    categories: categories.map(toCategoryOption),
   });
   const existingBehavior = await getBehaviorById(
     supabase,
@@ -123,12 +122,6 @@ export async function updateBehaviorFromFormData(
   if (!existingBehavior) {
     throw new Error("Behavior not found.");
   }
-
-  await markOccurrenceSyncStale(supabase, {
-    userId,
-    reason: "behavior_changed",
-    timezone: existingBehavior.timezone,
-  });
 
   const behavior: BehaviorUpdate = {
     category_id: input.categoryId,
@@ -142,12 +135,14 @@ export async function updateBehaviorFromFormData(
     active: input.active,
     archived_at: resolveArchiveTimestamp(existingBehavior, input.active),
   };
-  const updatedBehavior = await updateBehavior(
-    supabase,
-    userId,
-    input.behaviorId,
-    behavior,
-  );
+  const [updatedBehavior] = await Promise.all([
+    updateBehavior(supabase, userId, input.behaviorId, behavior),
+    markOccurrenceSyncStale(supabase, {
+      userId,
+      reason: "behavior_changed",
+      timezone: existingBehavior.timezone,
+    }),
+  ]);
 
   if (!updatedBehavior) {
     throw new Error("Behavior not found.");
@@ -158,10 +153,6 @@ export async function updateBehaviorFromFormData(
     behaviorId: updatedBehavior.id,
     slots: input.scheduleSlots.map(toBehaviorScheduleSlotMutation),
   });
-
-  await syncUserOccurrences(supabase, userId, {
-    behaviors: await listUserBehaviors(supabase, userId),
-  });
 }
 
 export async function archiveBehaviorFromFormData(
@@ -170,22 +161,20 @@ export async function archiveBehaviorFromFormData(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const behaviorId = getBehaviorIdForArchive(formData);
-  await markOccurrenceSyncStale(supabase, {
-    userId,
-    reason: "behavior_changed",
-  });
-  const updatedBehavior = await updateBehavior(supabase, userId, behaviorId, {
-    active: false,
-    archived_at: new Date().toISOString(),
-  });
+  const [updatedBehavior] = await Promise.all([
+    updateBehavior(supabase, userId, behaviorId, {
+      active: false,
+      archived_at: new Date().toISOString(),
+    }),
+    markOccurrenceSyncStale(supabase, {
+      userId,
+      reason: "behavior_changed",
+    }),
+  ]);
 
   if (!updatedBehavior) {
     throw new Error("Behavior not found.");
   }
-
-  await syncUserOccurrences(supabase, userId, {
-    behaviors: await listUserBehaviors(supabase, userId),
-  });
 }
 
 export async function restoreBehaviorFromFormData(
@@ -194,22 +183,20 @@ export async function restoreBehaviorFromFormData(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const behaviorId = getBehaviorIdForArchive(formData);
-  await markOccurrenceSyncStale(supabase, {
-    userId,
-    reason: "behavior_changed",
-  });
-  const updatedBehavior = await updateBehavior(supabase, userId, behaviorId, {
-    active: true,
-    archived_at: null,
-  });
+  const [updatedBehavior] = await Promise.all([
+    updateBehavior(supabase, userId, behaviorId, {
+      active: true,
+      archived_at: null,
+    }),
+    markOccurrenceSyncStale(supabase, {
+      userId,
+      reason: "behavior_changed",
+    }),
+  ]);
 
   if (!updatedBehavior) {
     throw new Error("Behavior not found.");
   }
-
-  await syncUserOccurrences(supabase, userId, {
-    behaviors: await listUserBehaviors(supabase, userId),
-  });
 }
 
 function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {
@@ -336,4 +323,24 @@ function getBehaviorIdForArchive(formData: FormData): string {
   }
 
   return value;
+}
+
+function getTimezoneFromFormData(formData: FormData): string | null {
+  const value = formData.get("timezone");
+
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return null;
+  }
+
+  return canonicalizeTimezone(value.trim());
+}
+
+function canonicalizeTimezone(timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-US", { timeZone: timezone })
+      .resolvedOptions()
+      .timeZone;
+  } catch {
+    throw new Error("Behavior timezone is invalid.");
+  }
 }

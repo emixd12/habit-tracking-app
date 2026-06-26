@@ -921,3 +921,71 @@ Verification:
 - Consider a low-risk service cache or background refresh strategy for
   occurrence sync only if a later production timing pass shows route sync is
   again the dominant cost.
+
+## 2026-06-26 Follow-Up Speed Pass
+
+Trigger: after the Web App Performance Speed Loop completed, the app still felt
+sluggish. This pass continued local production-build optimization using the
+same protected route matrix and authenticated temporary test-login account.
+
+Changes:
+
+- Replaced ordinary app-route user-id reads with verified Supabase Auth claims
+  (`getClaims()`) while keeping full `getUser()` for strict account operations.
+- Preloaded `occurrence_sync_state` in Timeline, Analytics, and Export so
+  covered freshness checks avoid their own duplicate state read.
+- Streamed protected page content behind immediate route shells for Timeline,
+  Behaviors, Analytics, Export, and Settings.
+- Reused one BehaviorLog import-run query for both Export import and restore
+  panels.
+- Removed redundant occurrence reads from note saves and status-event timezone
+  lookups.
+- Deferred behavior CRUD occurrence/reminder repair through the existing stale
+  freshness contract instead of running heavy sync inside the action.
+- Optimized create behavior by relying on database category ownership
+  constraints, submitting the page-loaded default timezone, returning only the
+  inserted behavior row, and inserting new schedule slots without a pre-read.
+
+Significant-change measurements:
+
+| Stage | Local production-build result |
+|---|---:|
+| Auth claims + preloaded freshness state | route TTFB under 20ms; full stream medians: Timeline ~396ms, Behaviors ~177ms, Analytics ~346ms, Export ~363ms, Settings ~180ms |
+| Streaming route shells | route TTFB under 21ms; full streams stayed DB-bound |
+| Export import-run reuse | Export full stream remained ~340-400ms on empty test data |
+| Create behavior before action changes | `2446ms` |
+| Create behavior after deferring sync | `1285ms` |
+| Create behavior after removing category read/parallelizing writes | `1056ms` |
+| Create behavior after insert-only slots + submitted timezone | `715ms` |
+
+Final local production-build route matrix after warmup, authenticated temporary
+test account with 5 active behaviors:
+
+| Route | Median TTFB | Median full stream | Notes |
+|---|---:|---:|---|
+| `/timeline` | 12.5ms | 386.8ms | 155 generated occurrences in payload |
+| `/behaviors` | 10.8ms | 188.3ms | 5 active behaviors |
+| `/analytics` | 7.7ms | 366.8ms | 5 occurrences in range |
+| `/export` | 11.3ms | 588.4ms | export status/reminder history reads dominate |
+| `/settings` | 8.7ms | 179.8ms | single profile/settings read |
+
+Interpretation:
+
+- The app now delivers protected route shells in under 100ms locally.
+- Full authenticated data streams and normal form-action responses did not
+  reach the requested 100ms target under local-to-hosted-Supabase conditions.
+  The remaining warm spans are dominated by required hosted Supabase reads or
+  writes at roughly 155-200ms each from this machine.
+- Reaching sub-100ms full data responses would require a different architecture
+  boundary, such as database-side page RPC aggregation, colocated backend/data
+  execution with measured sub-100ms database round trips, or client-side
+  optimistic action flows that do not wait for full route re-rendering.
+
+Production deployment:
+
+- Deployed this follow-up pass with
+  `npx vercel deploy --prod --yes --scope emis-projects-4c886aeb`.
+- Vercel deployment `dpl_VgjDqGJ82FoMK4SK6Kafh8yw78sX` is `Ready` and aliased
+  to `https://cadence-blush-three.vercel.app`.
+- Unauthenticated production smoke after deploy: `/login` returned `200`, and
+  protected app routes returned expected `307` redirects to login.

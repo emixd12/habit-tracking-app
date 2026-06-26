@@ -11,12 +11,14 @@ import type {
 type BehaviorCreateSectionProps = Readonly<{
   action: BehaviorFormAction;
   categories: CategoryOption[];
+  defaultTimezone: string;
   defaultOpen: boolean;
 }>;
 
 export function BehaviorCreateSection({
   action,
   categories,
+  defaultTimezone,
   defaultOpen,
 }: BehaviorCreateSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -52,6 +54,7 @@ export function BehaviorCreateSection({
             mode="create"
             action={action}
             categories={categories}
+            defaultTimezone={defaultTimezone}
             onSuccess={handleSuccess}
           />
         </div>

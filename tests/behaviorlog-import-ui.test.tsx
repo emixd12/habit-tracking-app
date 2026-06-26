@@ -106,10 +106,10 @@ describe("BehaviorLog import UI workflow", () => {
     vi.clearAllMocks();
     mocks.createClient.mockResolvedValue({
       auth: {
-        getUser: vi.fn(async () => ({
+        getClaims: vi.fn(async () => ({
           data: {
-            user: {
-              id: USER_ID,
+            claims: {
+              sub: USER_ID,
             },
           },
           error: null,

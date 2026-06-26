@@ -19,7 +19,7 @@ import {
   resolveExportBundle,
   resolveExportDateRange,
 } from "@/lib/resolvers/export.resolver";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { requireCurrentUserId } from "@/lib/auth/current-user";
 import {
   normalizeRecurrenceRule,
   normalizeScheduledTime,
@@ -30,6 +30,7 @@ import {
   formatOccurrenceScheduleLabel,
   toScheduleSlotView,
 } from "@/lib/services/schedule";
+import { readOccurrenceSyncState } from "@/lib/services/occurrence-sync-state.service";
 import { createStoredZip } from "@/lib/services/zip";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -125,10 +126,11 @@ async function getUserExportBundle(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
-  const [profileTimezone, behaviors, categories] = await Promise.all([
+  const [profileTimezone, behaviors, categories, syncState] = await Promise.all([
     getProfileTimezone(supabase, userId),
     listUserBehaviors(supabase, userId),
     listBehaviorCategories(supabase, userId),
+    readOccurrenceSyncState(supabase, userId),
   ]);
   const timezone = profileTimezone ?? DEFAULT_TIMEZONE;
   const range = resolveExportDateRange({
@@ -142,6 +144,7 @@ async function getUserExportBundle(
     behaviors,
     timezone,
     horizonDays: 0,
+    syncState,
   });
 
   const occurrences = range.startLocalDate
@@ -198,13 +201,11 @@ function toExportReminderDeliveryInput(
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
   void supabase;
 
-  const { user, error } = await getCurrentUser();
-
-  if (error || !user) {
+  try {
+    return await requireCurrentUserId("Sign in again before exporting data.");
+  } catch {
     throw new ExportAuthError();
   }
-
-  return user.id;
 }
 
 function toExportCategoryInput(category: Category): ExportCategoryInput {

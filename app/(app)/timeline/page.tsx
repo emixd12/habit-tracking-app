@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { Suspense } from "react";
 
+import { ScreenContentLoading } from "@/components/layout/ScreenFrame";
 import { FirstRunOnboardingPanel } from "@/components/onboarding/FirstRunOnboardingPanel";
 import { Timeline } from "@/components/timeline/Timeline";
 import { withPerformanceRoute } from "@/lib/services/performance-timing";
@@ -24,27 +26,12 @@ type TimelinePageProps = Readonly<{
 
 export default async function TimelinePage({ searchParams }: TimelinePageProps) {
   const params = await searchParams;
-  const { timeline, onboarding } = await withPerformanceRoute(
-    "/timeline",
-    "page.bundle_load",
-    () =>
-      getTimelinePageBundle({
-        futureDays: parseFutureDays(params?.days),
-      }),
-    {
-      counts: (bundle) => ({
-        timeline_sections: bundle.timeline.daySections.length,
-        has_behavior: Number(bundle.onboarding.hasAnyBehavior),
-        has_import_runs: Number(bundle.onboarding.hasImportRuns),
-      }),
-    },
-  );
+  const futureDays = parseFutureDays(params?.days);
 
   return (
     <div className="flex w-full flex-col">
       <div className="mx-auto flex w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-10">
         <h1 className="sr-only">Timeline</h1>
-        <FirstRunOnboardingPanel onboarding={onboarding} />
       </div>
 
       <div className="w-full overflow-hidden bg-background">
@@ -61,13 +48,44 @@ export default async function TimelinePage({ searchParams }: TimelinePageProps) 
       </div>
 
       <div className="mx-auto flex w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-10">
-        <Timeline
-          timeline={timeline}
-          statusAction={markOccurrenceStatusAction}
-          noteAction={updateOccurrenceNoteAction}
-        />
+        <Suspense fallback={<ScreenContentLoading label="Loading timeline" />}>
+          <TimelineContent futureDays={futureDays} />
+        </Suspense>
       </div>
     </div>
+  );
+}
+
+async function TimelineContent({
+  futureDays,
+}: Readonly<{
+  futureDays?: number;
+}>) {
+  const { timeline, onboarding } = await withPerformanceRoute(
+    "/timeline",
+    "page.bundle_load",
+    () =>
+      getTimelinePageBundle({
+        futureDays,
+      }),
+    {
+      counts: (bundle) => ({
+        timeline_sections: bundle.timeline.daySections.length,
+        has_behavior: Number(bundle.onboarding.hasAnyBehavior),
+        has_import_runs: Number(bundle.onboarding.hasImportRuns),
+      }),
+    },
+  );
+
+  return (
+    <>
+      <FirstRunOnboardingPanel onboarding={onboarding} />
+      <Timeline
+        timeline={timeline}
+        statusAction={markOccurrenceStatusAction}
+        noteAction={updateOccurrenceNoteAction}
+      />
+    </>
   );
 }
 

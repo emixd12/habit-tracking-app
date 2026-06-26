@@ -26,7 +26,7 @@ import {
 } from "@/lib/services/behaviorlog-import-write.service";
 import { normalizeRecurrenceRule } from "@/lib/services/behavior-form";
 import { readZipEntries } from "@/lib/services/zip";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import type {
   BehaviorLogExistingRecords,
@@ -51,6 +51,7 @@ import {
   toImportRunView,
 } from "@/lib/types/behaviorlog-import-ui";
 import type {
+  BehaviorLogImportRun,
   Occurrence,
   OccurrenceStatus,
   OccurrenceStatusEvent,
@@ -141,6 +142,21 @@ export async function getBehaviorLogImportPageData(): Promise<BehaviorLogImportP
   const userId = await requireUserId(supabase);
   const recentRuns = await listBehaviorLogImportRuns(supabase, userId, 8);
 
+  return createBehaviorLogImportPageDataFromRuns(recentRuns);
+}
+
+export async function listCurrentUserBehaviorLogImportRuns(
+  limit: number,
+): Promise<BehaviorLogImportRun[]> {
+  const supabase = await createClient();
+  const userId = await requireUserId(supabase);
+
+  return listBehaviorLogImportRuns(supabase, userId, limit);
+}
+
+export function createBehaviorLogImportPageDataFromRuns(
+  recentRuns: BehaviorLogImportRun[],
+): BehaviorLogImportPageData {
   return {
     recentRuns: recentRuns
       .filter(
@@ -357,13 +373,11 @@ function inferMediaType(path: string): string {
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
   void supabase;
 
-  const { user, error } = await getCurrentUser();
-
-  if (error || !user) {
+  try {
+    return await requireCurrentUserId("Sign in again before importing data.");
+  } catch {
     throw new BehaviorLogImportAuthError();
   }
-
-  return user.id;
 }
 
 async function readUploadBundle(

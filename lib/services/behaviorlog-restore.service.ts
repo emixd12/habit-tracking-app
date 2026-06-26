@@ -15,7 +15,7 @@ import {
   type BehaviorLogZipInput,
 } from "@/lib/services/behaviorlog-import.service";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { requireCurrentUserId } from "@/lib/auth/current-user";
 import type {
   BehaviorLogExistingRecords,
   BehaviorLogImportFile,
@@ -176,6 +176,12 @@ export async function getBehaviorLogRestorePageData(): Promise<BehaviorLogRestor
   const userId = await requireUserId(supabase);
   const recentRuns = await listBehaviorLogImportRuns(supabase, userId, 12);
 
+  return createBehaviorLogRestorePageDataFromRuns(recentRuns);
+}
+
+export function createBehaviorLogRestorePageDataFromRuns(
+  recentRuns: BehaviorLogImportRun[],
+): BehaviorLogRestorePageData {
   return {
     recentRuns: recentRuns
       .filter(
@@ -916,13 +922,11 @@ function assertFreshAcceptedPreview(input: {
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
   void supabase;
 
-  const { user, error } = await getCurrentUser();
-
-  if (error || !user) {
+  try {
+    return await requireCurrentUserId("Sign in again before restoring data.");
+  } catch {
     throw new BehaviorLogRestoreAuthError();
   }
-
-  return user.id;
 }
 
 async function readUploadBundle(

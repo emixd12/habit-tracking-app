@@ -144,18 +144,18 @@ export async function getProfileTimezone(
 export async function createBehavior(
   supabase: AppSupabaseClient,
   behavior: NewBehavior,
-): Promise<BehaviorWithCategory> {
+): Promise<Behavior> {
   const { data, error } = await supabase
     .from("behaviors")
     .insert(behavior)
-    .select(BEHAVIOR_WITH_CATEGORY_SELECT)
+    .select("*")
     .single();
 
   if (error) {
     throw error;
   }
 
-  return sortBehaviorScheduleSlots([data as unknown as BehaviorWithCategory])[0];
+  return data;
 }
 
 export async function updateBehavior(
@@ -289,6 +289,23 @@ export async function createBehaviorScheduleSlot(
   }
 
   return data;
+}
+
+export async function createBehaviorScheduleSlots(
+  supabase: AppSupabaseClient,
+  slots: NewBehaviorScheduleSlot[],
+): Promise<void> {
+  if (slots.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("behavior_schedule_slots")
+    .insert(slots);
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function replaceBehaviorScheduleSlots(

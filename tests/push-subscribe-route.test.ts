@@ -46,8 +46,8 @@ describe("push subscribe route", () => {
   it("requires an authenticated Supabase user", async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getUser: vi.fn().mockResolvedValue({
-          data: { user: null },
+        getClaims: vi.fn().mockResolvedValue({
+          data: null,
           error: null,
         }),
       },
@@ -70,8 +70,8 @@ describe("push subscribe route", () => {
   it("stores a valid browser push subscription for the current user", async () => {
     const supabase = {
       auth: {
-        getUser: vi.fn().mockResolvedValue({
-          data: { user: { id: "user-1" } },
+        getClaims: vi.fn().mockResolvedValue({
+          data: { claims: { sub: "user-1" } },
           error: null,
         }),
       },
@@ -108,8 +108,8 @@ describe("push subscribe route", () => {
   it("rate limits repeated unauthenticated subscription attempts", async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getUser: vi.fn().mockResolvedValue({
-          data: { user: null },
+        getClaims: vi.fn().mockResolvedValue({
+          data: null,
           error: null,
         }),
       },

@@ -73,7 +73,7 @@ Current evidence:
 - Supabase database types are generated in `lib/db/database.types.ts`, with hand-written domain aliases in `lib/types/database.ts`.
 - A pure Temporal-based recurrence resolver exists in `lib/resolvers/recurrence.resolver.ts`, with recurrence domain types in `lib/types/recurrence.ts` and paired tests in `tests/recurrence.resolver.test.ts`.
 - Behavior CRUD exists on `/behaviors` with server actions, service/repository access through the authenticated Supabase user, category selection, recurrence editing, scheduled time, browser/email reminder settings, active/archive handling, and active/archived lists.
-- Occurrence generation exists in `lib/resolvers/occurrence.resolver.ts`, `lib/services/occurrence.service.ts`, and `lib/db/occurrences.repo.ts`. Behavior create/edit/archive now syncs a rolling today + 30 day occurrence window, inserts missing rows idempotently, removes stale future unresolved rows, and preserves past or resolved occurrence history.
+- Occurrence generation exists in `lib/resolvers/occurrence.resolver.ts`, `lib/services/occurrence.service.ts`, and `lib/db/occurrences.repo.ts`. Behavior create/edit/archive marks the user's occurrence horizon stale, while Timeline, Analytics, Export, and the protected occurrence sync route repair the rolling occurrence window before generated occurrences are needed. Sync inserts missing rows idempotently, removes stale future unresolved rows, and preserves past or resolved occurrence history.
 - Timeline grouping exists in `lib/resolvers/timeline.resolver.ts`, `lib/services/timeline.service.ts`, and `/timeline`. The page syncs missing occurrences before rendering, surfaces Needs decision for prior unresolved active-behavior occurrences plus same-day retained prior decisions through a floating lower-right button and modal, starts the forward timeline at the current local day, shows the next 7 days by default, and can expand future visibility up to the generated 30-day horizon.
 - Status marking and note editing exists in `lib/resolvers/status.resolver.ts`, `lib/services/occurrence.service.ts`, `app/(app)/timeline/actions.ts`, and Timeline row controls. Completed and Not Completed actions update `status_marked_at`; Completed also sets `completed_at`; switching away from Completed clears `completed_at`; note-only edits preserve status timestamps.
 - Browser push subscription storage exists at `app/api/push/subscribe/route.ts`, `lib/services/push-subscription.service.ts`, and `lib/db/pushSubscriptions.repo.ts`; subscription registration validates endpoint/key shape, stores active subscriptions through the authenticated Supabase user context, lists active subscriptions for browser-push sends, and marks expired subscriptions inactive.
@@ -280,8 +280,11 @@ Current state:
   lets smaller read-route horizons delete unresolved rows beyond the requested
   window. A new protected `/api/occurrences/sync` route and daily Vercel Cron
   entry keep account horizons extendable in the background. Behavior
-  create/edit/archive/restore and Settings timezone save still run immediate
-  write-path syncs for correctness. Local stack timing with
+  create/edit/archive/restore now mark the horizon stale and defer the heavy
+  sync to the next freshness-aware read or background sync process; Settings
+  timezone save still performs immediate sync because the timezone contract
+  requires updating active behavior schedules and future unresolved occurrences
+  together. Local stack timing with
   `CADENCE_PERF_LOG=1` confirmed covered read routes emit
   `service.ensure_user_occurrences_fresh` with `covered=1` and `synced=0`.
 - The hosted schema blocker for Ticket 038 production timing is resolved:
@@ -334,8 +337,59 @@ Current state:
   production validation evidence. Future performance ideas remain future-only
   until a later hosted or seeded high-cardinality timing pass identifies a
   specific bottleneck.
+- A 2026-06-26 follow-up speed pass is complete locally. It switched ordinary
+  authenticated app user-id reads from full Supabase Auth `getUser()` calls to
+  verified claims, preloads occurrence freshness state into Timeline,
+  Analytics, and Export, streams protected route content behind immediate page
+  shells, reuses one BehaviorLog import-run query for both Export import and
+  restore panels, removes redundant occurrence reads from note/status actions,
+  and moves behavior CRUD off eager occurrence/reminder sync.
+- Final local production-build authenticated route matrix after the follow-up,
+  using the same cookie harness and a populated temporary test account, showed
+  median TTFB under 15ms for every app page: Timeline `12.5ms`, Behaviors
+  `10.8ms`, Analytics `7.7ms`, Export `11.3ms`, Settings `8.7ms`. Full HTML
+  stream medians were Timeline `386.8ms`, Behaviors `188.3ms`, Analytics
+  `366.8ms`, Export `588.4ms`, Settings `179.8ms`.
+- Create-behavior action timing on the same local production build improved
+  from `2446ms` before behavior-action changes to `715ms` after deferring
+  occurrence sync, removing the category/profile pre-reads from create, using
+  insert-only schedule-slot creation, and avoiding the heavy joined behavior
+  insert result. It remains above the requested 100ms because a normal Next
+  form action still performs hosted database writes and re-renders the
+  Behaviors page.
+- The strict "every full page and action under 100ms" target was not reached
+  under the repeatable local-to-hosted-Supabase conditions. Warm server auth
+  and shell TTFB are now under 100ms; full authenticated data streams and
+  mutation actions are bounded by one or more hosted Supabase round trips
+  measured around 155-200ms from this machine, plus required post-action
+  re-render work.
 
 Verification:
+- 2026-06-26 follow-up pass: `npm run agents:check`.
+- 2026-06-26 follow-up pass: `npm run resolvers:check`.
+- 2026-06-26 follow-up pass: `npm run lint`.
+- 2026-06-26 follow-up pass: `npm run typecheck`.
+- 2026-06-26 follow-up pass: `npm run test` (50 files, 307 tests).
+- 2026-06-26 follow-up pass: `npm run build`.
+- 2026-06-26 follow-up pass: `npm run design-system:check`.
+- 2026-06-26 follow-up pass: `git diff --check`.
+- 2026-06-26 follow-up measurement: local production-build
+  `npm run perf:routes` with authenticated cookie header across `/timeline`,
+  `/behaviors`, `/analytics`, `/export`, and `/settings`.
+- 2026-06-26 follow-up measurement: HTTP form-action probe for create
+  behavior against local `next start`, improving from `2446ms` to `715ms`.
+- 2026-06-26 follow-up production deploy:
+  `npx vercel deploy --prod --yes --scope emis-projects-4c886aeb` created deployment
+  `dpl_VgjDqGJ82FoMK4SK6Kafh8yw78sX`, which is `Ready` and aliased to
+  `https://cadence-blush-three.vercel.app`.
+- 2026-06-26 follow-up production smoke:
+  `npx vercel inspect cadence-f8scieqv5-emis-projects-4c886aeb.vercel.app --scope emis-projects-4c886aeb`;
+  unauthenticated production `npm run perf:routes` returned protected-route
+  `307` redirects; direct `curl` confirmed `/login` returns `200` and
+  `/timeline` redirects to `/login?next=%2Ftimeline`.
+- 2026-06-26 cleanup pass:
+  `CADENCE_TEST_LOGIN_MAX_AGE_HOURS=0.001 npm run test-login:cleanup`
+  checked 5 hosted users and deleted 4 stale temporary test-login users.
 - Pass: `npx vitest run tests/occurrence.service.test.ts tests/reminder.service.test.ts tests/settings.service.test.ts tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-restore-ui.test.tsx`
 - Pass: `npm run resolvers:check`
 - Pass: `npm run typecheck`

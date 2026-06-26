@@ -9,6 +9,7 @@ import {
   updateProfileTimezone,
 } from "@/lib/db/profiles.repo";
 import {
+  getSettingsPageData,
   normalizeTimezoneInput,
   TimezoneSettingsUserError,
   updateCurrentUserTimezoneFromFormData,
@@ -38,10 +39,10 @@ vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
   markOccurrenceSyncStale: vi.fn(),
 }));
 
-const getUser = vi.fn();
+const getClaims = vi.fn();
 const SUPABASE = {
   auth: {
-    getUser,
+    getClaims,
   },
 } as never;
 
@@ -86,15 +87,57 @@ describe("normalizeTimezoneInput", () => {
   });
 });
 
+describe("getSettingsPageData", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    vi.mocked(createClient).mockResolvedValue(SUPABASE);
+    getClaims.mockResolvedValue({
+      data: {
+        claims: {
+          sub: "user-1",
+          email: "user@example.com",
+        },
+      },
+      error: null,
+    });
+  });
+
+  it("uses profile settings while keeping the auth email for delete confirmation", async () => {
+    vi.mocked(getProfileSettings).mockResolvedValue({
+      email: "profile@example.com",
+      timezone: "America/Los_Angeles",
+    });
+
+    await expect(getSettingsPageData()).resolves.toMatchObject({
+      email: "profile@example.com",
+      timezone: "America/Los_Angeles",
+      deleteConfirmationLabel: "user@example.com",
+    });
+
+    expect(getProfileSettings).toHaveBeenCalledWith(SUPABASE, "user-1");
+  });
+
+  it("falls back to the auth email when the profile email is unavailable", async () => {
+    vi.mocked(getProfileSettings).mockResolvedValue(null);
+
+    await expect(getSettingsPageData()).resolves.toMatchObject({
+      email: "user@example.com",
+      timezone: "America/New_York",
+      deleteConfirmationLabel: "user@example.com",
+    });
+  });
+});
+
 describe("updateCurrentUserTimezoneFromFormData", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
     vi.mocked(createClient).mockResolvedValue(SUPABASE);
-    getUser.mockResolvedValue({
+    getClaims.mockResolvedValue({
       data: {
-        user: {
-          id: "user-1",
+        claims: {
+          sub: "user-1",
           email: "user@example.com",
         },
       },

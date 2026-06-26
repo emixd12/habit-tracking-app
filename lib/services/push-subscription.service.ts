@@ -3,6 +3,7 @@ import {
   upsertPushSubscription,
   type PushSubscriptionInput,
 } from "@/lib/db/pushSubscriptions.repo";
+import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import type { PushSubscription } from "@/lib/types/database";
 
@@ -64,16 +65,15 @@ export async function registerPushSubscription(
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  void supabase;
 
-  if (error || !user) {
+  try {
+    return await requireCurrentUserId(
+      "Sign in again before enabling browser reminders.",
+    );
+  } catch {
     throw new PushSubscriptionAuthError();
   }
-
-  return user.id;
 }
 
 function parseEndpoint(value: unknown): string {

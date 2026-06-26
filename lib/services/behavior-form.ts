@@ -36,7 +36,7 @@ export type ParsedBehaviorFormData = {
 
 export type ParseBehaviorFormOptions = {
   mode: "create" | "update";
-  categories: CategoryOption[];
+  categories?: CategoryOption[];
 };
 
 export class BehaviorValidationError extends Error {
@@ -96,6 +96,7 @@ export function parseBehaviorFormData(
     fieldErrors.category_id = "Choose one of your categories.";
   } else if (
     categoryId &&
+    options.categories &&
     !options.categories.some((category) => category.id === categoryId)
   ) {
     fieldErrors.category_id = "Choose one of your categories.";

@@ -40,3 +40,53 @@ export function PlaceholderPanel({
     </section>
   );
 }
+
+export function ScreenContentLoading({
+  label = "Loading screen content",
+}: Readonly<{
+  label?: string;
+}>) {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+      className="grid gap-6"
+    >
+      <span className="sr-only">{label}</span>
+
+      <section aria-hidden="true" className="border-y border-line py-5 sm:py-6">
+        <SkeletonBlock className="h-5 w-36" />
+        <div className="mt-4 grid gap-3">
+          <SkeletonBlock className="h-3 w-full max-w-2xl" />
+          <SkeletonBlock className="h-3 w-5/6 max-w-xl" />
+          <SkeletonBlock className="h-3 w-2/3 max-w-md" />
+        </div>
+      </section>
+
+      <section aria-hidden="true" className="grid divide-y divide-line border-y border-line">
+        {["w-3/4", "w-2/3", "w-5/6"].map((width) => (
+          <div key={width} className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <div className="grid gap-2">
+              <SkeletonBlock className={["h-4 max-w-full", width].join(" ")} />
+              <SkeletonBlock className="h-3 w-40 max-w-[70%]" />
+            </div>
+            <div className="flex flex-wrap gap-4 sm:justify-end">
+              <SkeletonBlock className="h-3 w-20" />
+              <SkeletonBlock className="h-3 w-24" />
+            </div>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function SkeletonBlock({ className }: Readonly<{ className: string }>) {
+  return (
+    <span
+      aria-hidden="true"
+      className={["block bg-surface", className].join(" ")}
+    />
+  );
+}

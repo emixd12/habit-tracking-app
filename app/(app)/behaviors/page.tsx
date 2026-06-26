@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { BehaviorCreateSection } from "@/components/behaviors/BehaviorCreateSection";
 import { BehaviorList } from "@/components/behaviors/BehaviorList";
-import { ScreenFrame } from "@/components/layout/ScreenFrame";
+import {
+  ScreenContentLoading,
+  ScreenFrame,
+} from "@/components/layout/ScreenFrame";
 import { getBehaviorPageData } from "@/lib/services/behavior.service";
 import { withPerformanceRoute } from "@/lib/services/performance-timing";
 import {
@@ -18,7 +22,17 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function BehaviorsPage() {
+export default function BehaviorsPage() {
+  return (
+    <ScreenFrame title="Behaviors">
+      <Suspense fallback={<ScreenContentLoading label="Loading behaviors" />}>
+        <BehaviorsContent />
+      </Suspense>
+    </ScreenFrame>
+  );
+}
+
+async function BehaviorsContent() {
   const data = await withPerformanceRoute(
     "/behaviors",
     "page.data_load",
@@ -35,10 +49,11 @@ export default async function BehaviorsPage() {
     data.activeBehaviors.length > 0 || data.archivedBehaviors.length > 0;
 
   return (
-    <ScreenFrame title="Behaviors">
+    <>
       <BehaviorCreateSection
         action={createBehaviorAction}
         categories={data.categories}
+        defaultTimezone={data.defaultTimezone}
         defaultOpen={!hasBehaviors}
       />
 
@@ -50,6 +65,6 @@ export default async function BehaviorsPage() {
         archiveAction={archiveBehaviorAction}
         restoreAction={restoreBehaviorAction}
       />
-    </ScreenFrame>
+    </>
   );
 }

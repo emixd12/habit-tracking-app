@@ -20,6 +20,7 @@ type BehaviorFormProps = Readonly<{
   action: BehaviorFormAction;
   categories: CategoryOption[];
   behavior?: BehaviorView;
+  defaultTimezone?: string;
   onSuccess?: (message: string) => void;
 }>;
 
@@ -53,6 +54,7 @@ export function BehaviorForm({
   action,
   categories,
   behavior,
+  defaultTimezone,
   onSuccess,
 }: BehaviorFormProps) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
@@ -104,6 +106,9 @@ export function BehaviorForm({
     <form action={formAction} className="grid gap-5">
       {behavior ? (
         <input type="hidden" name="behavior_id" value={behavior.id} />
+      ) : null}
+      {mode === "create" && defaultTimezone ? (
+        <input type="hidden" name="timezone" value={defaultTimezone} />
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">

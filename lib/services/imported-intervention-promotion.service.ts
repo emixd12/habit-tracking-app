@@ -19,6 +19,7 @@ import {
   type ImportedInterventionPromotionRecord,
   type ImportedInterventionPromotionResult,
 } from "@/lib/resolvers/imported-intervention-promotion.resolver";
+import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Behavior,
@@ -254,11 +255,13 @@ function normalizeOccurrenceStatus(value: string): OccurrenceStatus {
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
-  const { data, error } = await supabase.auth.getUser();
+  void supabase;
 
-  if (error || !data.user) {
+  try {
+    return await requireCurrentUserId(
+      "Sign in again before promoting imported reminders.",
+    );
+  } catch {
     throw new ImportedInterventionPromotionAuthError();
   }
-
-  return data.user.id;
 }

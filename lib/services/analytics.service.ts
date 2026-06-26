@@ -17,6 +17,7 @@ import {
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { formatOccurrenceScheduleLabel } from "@/lib/services/schedule";
 import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
+import { readOccurrenceSyncState } from "@/lib/services/occurrence-sync-state.service";
 import { createClient } from "@/lib/supabase/server";
 import type { AnalyticsOccurrenceInput, AnalyticsView } from "@/lib/types/analytics";
 import type { Occurrence, OccurrenceStatus } from "@/lib/types/database";
@@ -35,9 +36,10 @@ export async function getAnalyticsPageData(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
-  const [profileTimezone, behaviors] = await Promise.all([
+  const [profileTimezone, behaviors, syncState] = await Promise.all([
     getProfileTimezone(supabase, userId),
     listUserBehaviors(supabase, userId),
+    readOccurrenceSyncState(supabase, userId),
   ]);
   const timezone = profileTimezone ?? DEFAULT_TIMEZONE;
   const dateRange = resolveAnalyticsDateRange({
@@ -51,6 +53,7 @@ export async function getAnalyticsPageData(
     behaviors,
     timezone,
     horizonDays: 0,
+    syncState,
   });
 
   const [occurrences, needsDecisionOccurrences] = await Promise.all([

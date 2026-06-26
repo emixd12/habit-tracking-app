@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { AnalyticsScreen } from "@/components/analytics/AnalyticsScreen";
-import { ScreenFrame } from "@/components/layout/ScreenFrame";
+import {
+  ScreenContentLoading,
+  ScreenFrame,
+} from "@/components/layout/ScreenFrame";
 import { getAnalyticsPageData } from "@/lib/services/analytics.service";
 import { withPerformanceRoute } from "@/lib/services/performance-timing";
 import {
@@ -27,14 +31,40 @@ export default async function AnalyticsPage({
   searchParams,
 }: AnalyticsPageProps) {
   const params = await searchParams;
+  const rangeDays = parseNumberParam(params?.range);
+  const selectedBehaviorId = parseStringParam(params?.behavior);
+  const selectedDayLocalDate = parseStringParam(params?.day);
+
+  return (
+    <ScreenFrame title="Analytics">
+      <Suspense fallback={<ScreenContentLoading label="Loading analytics" />}>
+        <AnalyticsContent
+          rangeDays={rangeDays}
+          selectedBehaviorId={selectedBehaviorId}
+          selectedDayLocalDate={selectedDayLocalDate}
+        />
+      </Suspense>
+    </ScreenFrame>
+  );
+}
+
+async function AnalyticsContent({
+  rangeDays,
+  selectedBehaviorId,
+  selectedDayLocalDate,
+}: Readonly<{
+  rangeDays?: number;
+  selectedBehaviorId?: string;
+  selectedDayLocalDate?: string;
+}>) {
   const analytics = await withPerformanceRoute(
     "/analytics",
     "page.data_load",
     () =>
       getAnalyticsPageData({
-        rangeDays: parseNumberParam(params?.range),
-        selectedBehaviorId: parseStringParam(params?.behavior),
-        selectedDayLocalDate: parseStringParam(params?.day),
+        rangeDays,
+        selectedBehaviorId,
+        selectedDayLocalDate,
       }),
     {
       counts: (view) => ({
@@ -47,13 +77,11 @@ export default async function AnalyticsPage({
   );
 
   return (
-    <ScreenFrame title="Analytics">
-      <AnalyticsScreen
-        analytics={analytics}
-        statusAction={markAnalyticsOccurrenceStatusAction}
-        noteAction={updateAnalyticsOccurrenceNoteAction}
-      />
-    </ScreenFrame>
+    <AnalyticsScreen
+      analytics={analytics}
+      statusAction={markAnalyticsOccurrenceStatusAction}
+      noteAction={updateAnalyticsOccurrenceNoteAction}
+    />
   );
 }
 

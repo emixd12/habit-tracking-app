@@ -116,10 +116,11 @@ cookie-backed access token and refresh cookies when needed. This follows the
 current Supabase SSR guidance for page protection and avoids using
 `getSession()` in server code.
 
-Keep strict `getUser()` lookups where the app needs full user details, email,
-display metadata, or security-sensitive account actions. The authenticated app
-layout still uses `getUser()` for account display, and RLS-backed database
-access still runs through the ordinary authenticated Supabase client.
+Keep strict `getUser()` lookups where the app needs the full Auth user record
+or security-sensitive account actions. Ordinary app-route user id and account
+label reads should use verified Supabase Auth claims through the shared current
+user helper; RLS-backed database access still runs through the ordinary
+authenticated Supabase client.
 
 ## Source-of-truth order
 
@@ -159,6 +160,11 @@ Implemented baseline:
 - bounded reminder processing batch size,
 - protected occurrence horizon sync at `/api/occurrences/sync`, scheduled daily
   through Vercel Cron and guarded by `REMINDER_PROCESS_SECRET` or `CRON_SECRET`.
+- behavior create/edit/archive/restore marks occurrence sync state stale and
+  defers heavy occurrence/reminder repair to the next freshness-aware read
+  route or the protected sync process; Settings timezone changes still sync
+  immediately because timezone, active behavior schedules, and future
+  unresolved occurrences must change together.
 
 Remaining public-launch follow-up:
 

@@ -194,6 +194,29 @@ export async function getOccurrenceById(
   return data ?? null;
 }
 
+export type OccurrenceWithBehaviorTimezone = Occurrence & {
+  behavior: { timezone: string | null } | null;
+};
+
+export async function getOccurrenceWithBehaviorTimezoneById(
+  supabase: AppSupabaseClient,
+  userId: string,
+  occurrenceId: string,
+): Promise<OccurrenceWithBehaviorTimezone | null> {
+  const { data, error } = await supabase
+    .from("occurrences")
+    .select("*, behavior:behaviors!occurrences_behavior_id_fkey(timezone)")
+    .eq("user_id", userId)
+    .eq("id", occurrenceId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? (data as unknown as OccurrenceWithBehaviorTimezone) : null;
+}
+
 export async function getOccurrenceByBehaviorAndScheduledFor(
   supabase: AppSupabaseClient,
   input: {

@@ -16,7 +16,10 @@ import { BehaviorLogRestorePanel } from "@/components/export/BehaviorLogRestoreP
 import { ExportPanel } from "@/components/export/ExportPanel";
 import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActions";
 import { AppShell } from "@/components/layout/AppShell";
-import { ScreenFrame } from "@/components/layout/ScreenFrame";
+import {
+  ScreenContentLoading,
+  ScreenFrame,
+} from "@/components/layout/ScreenFrame";
 import { NotificationPermissionPanel } from "@/components/settings/NotificationPermissionPanel";
 import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
@@ -1094,6 +1097,9 @@ const previewFactories: Record<string, () => ReactNode> = {
           <div className="border-t border-line pt-5 text-sm leading-6 text-muted-readable">
             Screen content sits below a consistent title and description.
           </div>
+          <div className="mt-6">
+            <ScreenContentLoading label="Loading screen frame preview" />
+          </div>
         </ScreenFrame>
       </ProductPreview>
     ),
@@ -1171,6 +1177,7 @@ const previewFactories: Record<string, () => ReactNode> = {
         <BehaviorCreateSection
           action={behaviorAction}
           categories={categoryOptions}
+          defaultTimezone="America/New_York"
           defaultOpen
         />
       </ProductPreview>

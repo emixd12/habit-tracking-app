@@ -216,6 +216,25 @@ describe("ensureUserOccurrencesFresh", () => {
     expect(markOccurrenceSyncFreshForPlans).not.toHaveBeenCalled();
   });
 
+  it("uses caller-provided freshness state instead of reading it again", async () => {
+    const result = await ensureUserOccurrencesFresh(SUPABASE, "user-1", {
+      behaviors: [],
+      now: NOW,
+      timezone: "America/New_York",
+      horizonDays: 30,
+      syncState: buildSyncState({
+        last_synced_local_date: "2026-06-08",
+        synced_through_local_date: "2026-07-08",
+      }),
+    });
+
+    expect(result.synced).toBe(false);
+    expect(result.coverage).toEqual({ covered: true, reason: "covered" });
+    expect(readOccurrenceSyncState).not.toHaveBeenCalled();
+    expect(listBehaviorOccurrencesFrom).not.toHaveBeenCalled();
+    expect(markOccurrenceSyncFreshForPlans).not.toHaveBeenCalled();
+  });
+
   it("runs occurrence sync when the stored horizon is stale or insufficient", async () => {
     const behavior = buildBehavior({
       id: "behavior-1",

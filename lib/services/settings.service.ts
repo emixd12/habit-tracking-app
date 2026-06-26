@@ -5,7 +5,10 @@ import {
   getProfileSettings,
   updateProfileTimezone,
 } from "@/lib/db/profiles.repo";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import {
+  getCurrentUserClaims,
+  requireCurrentUserId,
+} from "@/lib/auth/current-user";
 import { syncUserOccurrences } from "@/lib/services/occurrence.service";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import { createClient } from "@/lib/supabase/server";
@@ -34,21 +37,22 @@ export class TimezoneSettingsUserError extends Error {
 
 export async function getSettingsPageData(): Promise<SettingsPageData> {
   const supabase = await createClient();
-  const { user, error } = await getCurrentUser();
+  const { userId, email: claimsEmail, error } = await getCurrentUserClaims();
 
-  if (error || !user) {
+  if (error || !userId) {
     throw new Error("Sign in again before opening settings.");
   }
 
-  const profile = await getProfileSettings(supabase, user.id);
+  const profile = await getProfileSettings(supabase, userId);
+  const email = profile?.email ?? claimsEmail ?? "Signed in";
 
   return {
-    email: profile?.email ?? user.email ?? "Signed in",
+    email,
     timezone: profile?.timezone ?? DEFAULT_TIMEZONE,
     vapidPublicKey: normalizePublicVapidKey(
       process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
     ),
-    deleteConfirmationLabel: user.email?.trim() || "DELETE",
+    deleteConfirmationLabel: claimsEmail?.trim() || "DELETE",
   };
 }
 
@@ -56,16 +60,12 @@ export async function updateCurrentUserTimezoneFromFormData(
   formData: FormData,
 ): Promise<TimezoneUpdateResult> {
   const supabase = await createClient();
-  const { user, error } = await getCurrentUser();
-
-  if (error || !user) {
-    throw new TimezoneSettingsUserError(
-      "Sign in again before changing timezone.",
-    );
-  }
+  const userId = await requireTimezoneUserId(
+    "Sign in again before changing timezone.",
+  );
 
   const timezone = normalizeTimezoneInput(formData.get("timezone"));
-  const profile = await getProfileSettings(supabase, user.id);
+  const profile = await getProfileSettings(supabase, userId);
   const currentTimezone = profile?.timezone ?? DEFAULT_TIMEZONE;
 
   if (currentTimezone === timezone) {
@@ -77,19 +77,19 @@ export async function updateCurrentUserTimezoneFromFormData(
   }
 
   await markOccurrenceSyncStale(supabase, {
-    userId: user.id,
+    userId,
     reason: "timezone_changed",
     timezone,
   });
-  await updateProfileTimezone(supabase, user.id, timezone);
+  await updateProfileTimezone(supabase, userId, timezone);
   const activeBehaviors = await updateActiveBehaviorTimezones(
     supabase,
-    user.id,
+    userId,
     timezone,
   );
   const now = Temporal.Now.instant();
 
-  await syncUserOccurrences(supabase, user.id, {
+  await syncUserOccurrences(supabase, userId, {
     behaviors: activeBehaviors,
     now,
     timezone,
@@ -100,6 +100,14 @@ export async function updateCurrentUserTimezoneFromFormData(
     activeBehaviorCount: activeBehaviors.length,
     changed: true,
   };
+}
+
+async function requireTimezoneUserId(message: string): Promise<string> {
+  try {
+    return await requireCurrentUserId(message);
+  } catch {
+    throw new TimezoneSettingsUserError(message);
+  }
 }
 
 export function timezoneErrorToActionState(
