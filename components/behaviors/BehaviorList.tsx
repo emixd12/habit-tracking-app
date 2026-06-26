@@ -337,7 +337,7 @@ function BehaviorRecord({
         <summary className="flex min-h-12 cursor-pointer list-none items-center px-5 py-4 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
           <span
             aria-hidden="true"
-            className="mr-1 h-0 w-0 shrink-0 border-y-[0.25rem] border-l-[0.375rem] border-y-transparent border-l-muted-readable transition-transform duration-200 group-open:rotate-90"
+            className="mr-1 h-0 w-0 shrink-0 -translate-y-0.5 border-y-[0.25rem] border-l-[0.375rem] border-y-transparent border-l-muted-readable transition-transform duration-200 group-open:rotate-90"
           />
           <span
             className="block min-w-0 whitespace-nowrap"

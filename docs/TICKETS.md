@@ -2533,6 +2533,501 @@ Verification:
 
 ---
 
+## UX backlog posture
+
+The following UX tickets come from `docs/UX_RESEARCH_LOG.md` and
+`docs/UX_JOURNEY_INVENTORY.md`.
+
+Product stance:
+- Cadence optimizes first for efficient visual use, sparse interaction, and
+  readability for the primary abled-user workflow.
+- Cadence should still preserve baseline web correctness: unique ids, valid
+  labels, keyboard-safe close behavior for overlays, reliable mobile layout,
+  factual state copy, and no unreachable core controls.
+- Cadence is not pursuing a comprehensive screen-reader remediation or WCAG
+  compliance program in this ticket set unless a later product decision changes
+  that posture.
+- BehaviorLog export/import remains the strategic portability path for users
+  who need a different interface or interaction model.
+- Avoid granular accessibility changes that materially compromise the sparse
+  visual workflow. Prefer interventions that also improve general robustness,
+  mobile usability, implementation clarity, or safety comprehension.
+
+Adjusted UX priority:
+1. Fix duplicate ids, broken anchors/labels, and any confirmed layout overlap.
+2. Preserve the efficient visual UI while adding low-cost robustness such as
+   correct buttons, labels, focus return, and Escape close behavior.
+3. Improve mobile tap reliability only where it affects daily status marking,
+   note editing, or high-risk confirmation flows.
+4. Treat keyboard-only and 200 percent zoom checks as smoke tests for impossible
+   or overlapped workflows, not as a full assistive-technology program.
+5. Treat screen-reader-specific announcements, exhaustive ARIA descriptions,
+   and specialized screen-reader journey tuning as optional unless they also
+   improve maintainability or general usability.
+6. Prioritize import, restore, reminder, deletion, and trust comprehension
+   where confusion can cause unsafe data decisions.
+
+---
+
+## Ticket 048: UX research reproduction and triage pass
+
+Turn the source-review findings in `docs/UX_RESEARCH_LOG.md` into a verified UX
+backlog, separating confirmed implementation bugs from optional design
+refinements.
+
+Context:
+- The first UX research pass logged findings UX-001 through UX-035.
+- Many findings are marked `Needs reproduction` because they came from source
+  review rather than browser observation.
+- The current product posture favors efficient visual operation and baseline
+  web correctness over comprehensive assistive-technology remediation.
+
+Acceptance criteria:
+- Run a browser-based reproduction pass for the highest-risk journeys:
+  - J04 First-run activation
+  - J07 Daily timeline use
+  - J09 Needs decision
+  - J12 Browser reminders
+  - J14 Timezone management
+  - J16 Import BehaviorLog bundle
+  - J17 Restore backup
+  - J19 Account deletion
+  - J21 Mobile navigation and task flow
+- Test at desktop and narrow mobile widths around 390px and 320px where
+  relevant.
+- Treat keyboard-only and 200 percent zoom as smoke checks for impossible,
+  overlapped, or hidden workflows rather than a full accessibility audit.
+- Update each reproduced finding in `docs/UX_RESEARCH_LOG.md` with:
+  - observed result,
+  - whether the issue is confirmed, not reproduced, deferred, or fixed,
+  - which follow-up ticket owns it.
+- Do not change product behavior in this ticket except for tiny documentation
+  corrections needed to record the triage result.
+- Do not add new product scope, new routes, dashboards, social features,
+  gamification, AI coaching, calendar sync, or offline behavior.
+
+Suggested files:
+- `docs/UX_RESEARCH_LOG.md`
+- `docs/UX_JOURNEY_INVENTORY.md` only if journey wording needs clarification
+- `docs/TICKETS.md` only if follow-up tickets need scope adjustment
+- `STATUS.md`
+
+Verification:
+- Run `npm run agents:check`.
+- Run `git diff --check`.
+- If any UI code is changed despite the expected doc-only scope, also run the
+  standard UI verification for the affected route.
+
+---
+
+## Ticket 049: Settings baseline web correctness
+
+Fix low-risk Settings issues that affect ordinary browser behavior, anchors,
+labels, and destructive-action affordances without redesigning the Settings
+surface.
+
+Context:
+- UX-015 flags duplicate `timezone` ids in Settings.
+- UX-027 flags that timezone-save impact may be unclear before submit.
+- UX-028 flags that account deletion server gates may not be mirrored in the
+  client button state.
+- These are baseline correctness and safety issues, not a broad accessibility
+  redesign.
+
+Acceptance criteria:
+- Ensure the timezone section anchor and timezone input have unique ids.
+- Preserve `/settings#timezone` as a stable route target unless a documented
+  redirect or compatibility strategy is added.
+- Ensure labels point to the intended controls after the id fix.
+- Add concise pre-save timezone impact text if browser testing confirms users
+  cannot predict that future unresolved occurrences and active behavior
+  timezones are affected.
+- Mirror account deletion gates in the client affordance if testing confirms
+  the enabled button implies permission to proceed before acknowledgement and
+  typed confirmation are complete.
+- Preserve server-side account deletion validation regardless of client button
+  state.
+- Do not add account recovery, provider-account deletion claims, admin support
+  tooling, or broad account-management scope.
+
+Suggested files:
+- `app/(app)/settings/page.tsx`
+- Settings client components, if split from the page
+- `components/*` only if Settings uses shared form controls
+- `docs/UI_SPEC.md` if the Settings contract changes
+- `docs/USER_FLOWS.md` if timezone or deletion copy requirements change
+- `STATUS.md`
+
+Verification:
+- Run focused Settings tests if present or added.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Browser-check `/settings`, `/settings#timezone`, and account deletion gates
+  at desktop and around 390px.
+
+---
+
+## Ticket 050: First-run mobile layout robustness
+
+Verify and fix first-run setup layout issues that can block or obscure the
+Timeline on mobile.
+
+Context:
+- UX-013 flags that the first-run setup pop-up may collide with the sticky
+  mobile header.
+- UX-016 flags that setup dismissal is browser-local rather than account-scoped.
+- UX-017 flags that the non-modal setup panel may be missed by some non-pointer
+  users, but the product posture does not require a screen-reader-specific
+  onboarding redesign unless it improves general use.
+
+Acceptance criteria:
+- Reproduce first-run setup with a clean account at desktop, 390px, and 320px.
+- If the setup pop-up overlaps the header, drawer trigger, Needs decision
+  control, or primary Timeline content, adjust layout or positioning.
+- Preserve the setup prompt as optional and non-blocking.
+- Do not request notification permission on page load.
+- Decide whether browser-local dismissal remains acceptable for v1 or whether
+  account-scoped dismissal is worth implementing. Record the decision in
+  `docs/USER_FLOWS.md` or `docs/UI_SPEC.md` if it changes product behavior.
+- Keep focus behavior simple: no focus stealing from the Timeline unless a
+  confirmed general usability problem requires it.
+- Do not add a setup wizard, dashboard, checklist route, or multi-step
+  onboarding product surface.
+
+Suggested files:
+- `components/timeline/*`
+- `components/layout/*`
+- `app/(app)/timeline/page.tsx`
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `STATUS.md`
+
+Verification:
+- Run focused Timeline/component tests if present or added.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Browser-check first-run `/timeline` at desktop, 390px, and 320px.
+- Run `npm run design-system:check` if reusable UI or design inventory changes.
+
+---
+
+## Ticket 051: Timeline daily workflow usability pass
+
+Improve the primary daily Timeline workflow where issues affect fast visual use,
+mobile taps, or implementation clarity.
+
+Context:
+- UX-002 flags quiet text actions and mobile/hurry-state tap reliability.
+- UX-019 flags possible scroll-context loss after Show more days.
+- UX-020 flags implicit row-expansion semantics.
+- UX-035 flags possible duplicate titles in multi-slot Timeline groups.
+- The goal is not to make the Timeline verbose. Preserve the sparse, efficient
+  visual workflow.
+
+Acceptance criteria:
+- Verify unresolved current-day rows expose Completed, Not Completed, and Note
+  affordances clearly enough on desktop and mobile.
+- Confirm primary daily actions have reliable tap targets on mobile without
+  making the row visually heavy.
+- Prefer invisible hit-area padding or spacing changes before replacing quiet
+  text actions with heavier controls.
+- If row expansion is confusing to visual users or fragile in implementation,
+  clarify the toggle area using native disclosure semantics or a simple button
+  pattern while preserving the no-dashboard, no-chevron-heavy visual style.
+- Verify Show more days preserves or restores useful scroll context on long
+  Timelines. Add an anchor or targeted scroll behavior only if context loss is
+  confirmed.
+- Test a multi-slot behavior on mobile and reduce repeated title noise only if
+  it materially slows scanning.
+- Do not add bulk status updates, streaks, gamified feedback, past-history
+  browsing, AI suggestions, or a dense dashboard.
+
+Suggested files:
+- `components/timeline/Timeline.tsx`
+- `components/timeline/TimelineGroup.tsx`
+- `components/timeline/OccurrenceRow.tsx`
+- `components/timeline/StatusButtons.tsx`
+- `components/timeline/OccurrenceNoteForm.tsx`
+- `app/(app)/timeline/page.tsx`
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `STATUS.md`
+
+Verification:
+- Run focused Timeline/component tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Browser-check `/timeline` at desktop, 390px, and 320px, including 200 percent
+  zoom as a smoke test.
+- Run `npm run design-system:check` if reusable UI or design inventory changes.
+
+---
+
+## Ticket 052: Needs Decision interaction correctness
+
+Make the Needs Decision modal reliable for ordinary keyboard and mobile use
+without turning it into a broad accessibility redesign.
+
+Context:
+- UX-003 flags that a zero-count Needs Decision button can still open retained
+  same-day decided rows, which may read as broken.
+- UX-018 flags possible missing focus trap and focus restoration.
+- UX-021 flags ambiguity around whether same-day retained rows are specifically
+  Needs-decision-origin rows or any prior-day row resolved today.
+- The adjusted posture prioritizes close behavior, focus return, and factual
+  state clarity over exhaustive screen-reader tuning.
+
+Acceptance criteria:
+- Confirm the modal can be opened, used, and closed on desktop and mobile.
+- Ensure `Escape` and the visible close action work consistently.
+- Return focus to the Needs Decision launcher after close when the launcher
+  remains mounted.
+- Add a simple focus trap only if testing confirms keyboard users can tab into
+  obscured page content or lose operational context.
+- Clarify the zero-count retained-row state if users read it as empty or
+  broken. Prefer concise label/state copy over adding a new modal section.
+- Decide and document whether same-day retention includes only rows decided
+  inside Needs Decision or any prior-day row resolved today.
+- Keep Needs decision as a derived UI group, not a stored status.
+- Do not add a past-history route, bulk decision flow, dashboard, stored missed
+  status, or automatic status changes.
+
+Suggested files:
+- `components/timeline/NeedsDecisionDialog.tsx`
+- `components/timeline/Timeline.tsx`
+- `lib/resolvers/timeline.resolver.ts` if retention semantics change
+- `lib/services/timeline.service.ts` if retention semantics change
+- `tests/timeline.resolver.test.ts` if resolver behavior changes
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `STATUS.md`
+
+Verification:
+- Run focused Timeline resolver/component tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Browser-check Needs Decision at desktop, 390px, keyboard-only smoke, and 200
+  percent zoom.
+- Run `npm run design-system:check` if reusable UI or design inventory changes.
+
+---
+
+## Ticket 053: Browser reminder readiness clarity
+
+Separate reminder intent from delivery readiness so users understand permission,
+subscription, and behavior-level reminder state.
+
+Context:
+- UX-005 flags browser permission recovery paths.
+- UX-014 and UX-024 flag that notification permission can look complete even
+  when a saved push subscription is missing or unverified on revisit.
+- UX-025 flags that behavior-level browser reminders can overpromise delivery.
+- UX-026 flags that clicking a browser notification may focus the wrong page.
+
+Acceptance criteria:
+- Distinguish, in concise UI state, between:
+  - browser notification support,
+  - browser permission,
+  - saved active push subscription,
+  - per-behavior browser reminder intent.
+- Show saved subscription state on Settings revisit if the data is available
+  without adding heavy polling or provider complexity.
+- Make behavior-level browser reminder copy clear that delivery requires global
+  browser permission and a saved subscription.
+- Keep browser reminders enabled by default at the behavior level.
+- Keep email reminders opt-in per behavior.
+- Ensure clicking a reminder notification focuses or opens the intended
+  Timeline URL instead of leaving the user on an unrelated same-origin page.
+- Keep tracking usable when push is unavailable, denied, blocked, expired, or
+  failed.
+- Do not add provider test-send buttons, reminder dashboards, notification
+  troubleshooting wizards, or PWA/offline behavior.
+
+Suggested files:
+- `app/(app)/settings/page.tsx`
+- Settings notification components, if split from the page
+- `components/behaviors/ReminderEditor.tsx`
+- `public/push-service-worker.js`
+- `lib/services/push-subscription.service.ts` if page data needs saved state
+- `lib/db/pushSubscriptions.repo.ts` if page data needs saved state
+- `docs/NOTIFICATION_SPEC.md`
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `STATUS.md`
+
+Verification:
+- Run focused push subscription/reminder tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Browser-check `/settings#notifications` and behavior reminder controls at
+  desktop and around 390px.
+- Test at least allowed, denied, and unavailable/unsupported notification
+  states where practical. Do not send real emails without explicit recipient
+  approval.
+
+---
+
+## Ticket 054: Later correction and review discoverability
+
+Clarify deliberate correction paths without turning Timeline into a history
+browser or Analytics into a dense dashboard.
+
+Context:
+- UX-004 flags that behavior heatmap interactivity may be undiscoverable.
+- UX-022 flags that the resolver supports returning to Unresolved, but the UI
+  exposes only Completed and Not Completed corrections.
+- UX-023 flags that the selected-day correction area heading is too vague.
+- Ticket 033 already scopes Analytics selected-day occurrence correction; this
+  ticket should refine discoverability and decide any remaining correction
+  model gaps.
+
+Acceptance criteria:
+- Verify whether users discover behavior/date review from behavior heatmap
+  cells without prompting.
+- Improve information scent for actionable behavior heatmap cells if needed,
+  without making the overall passive calendar look actionable.
+- Rename vague selected-day review copy if needed, for example toward `Review
+  selected day` or similarly explicit date-specific language.
+- Decide whether v1 should expose `Clear decision` back to Unresolved in
+  Timeline, Needs Decision, or later review. If yes, update product docs before
+  implementation and add service/UI tests.
+- Preserve manual status language: Unresolved, Completed, Not Completed.
+- Preserve Needs decision as the stronger prompt for prior-day unresolved
+  occurrences.
+- Do not add a global history route, all-time occurrence search, bulk edit,
+  automatic correction suggestions, AI coaching, or streak/gamification
+  language.
+
+Suggested files:
+- `components/behaviors/BehaviorList.tsx`
+- Analytics or behavior review components currently owning selected-day review
+- `lib/resolvers/analytics.resolver.ts` only if data contracts change
+- `lib/resolvers/status.resolver.ts` only if Clear decision behavior changes
+- `tests/analytics.resolver.test.ts`
+- `tests/status.resolver.test.ts` if status transitions change
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `docs/PRODUCT_SPEC.md` if status correction scope changes
+- `STATUS.md`
+
+Verification:
+- Run focused Analytics/status tests first when code changes.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Browser-check the relevant review path at desktop and around 390px.
+- Run `npm run design-system:check` if reusable UI or design inventory changes.
+
+---
+
+## Ticket 055: Portability flow comprehension hardening
+
+Make export, import, and restore choices easier to understand at the moments
+where confusion can cause unsafe data decisions.
+
+Context:
+- UX-006 flags that users may not know which export format to choose.
+- UX-007 flags that import and restore density is necessary but high risk.
+- UX-029 through UX-033 flag restore history, import preview binding, full JSON
+  backup labeling, hidden import details, and sensitivity summary clarity.
+- Cadence's portability posture depends on users trusting these flows.
+
+Acceptance criteria:
+- Add concise task-based guidance for export formats:
+  - spreadsheet review,
+  - full backup,
+  - BehaviorLog portability,
+  - Markdown summary.
+- Verify whether Full JSON backup includes status event history. If not, revise
+  label/copy or docs so BehaviorLog is clearly the complete interoperability
+  and restore-oriented path.
+- Reproduce whether restore previews can appear as `Open` after completion and
+  fix status/timestamp handling if confirmed.
+- Decide whether import apply must be bound to the exact reviewed preview run,
+  bundle fingerprint, or accepted preview snapshot. If yes, implement the gate
+  before relying on import apply for account-safety workflows.
+- Surface unsupported fields, intervention counts, sensitivity counts, and
+  redaction summaries enough for a user to make an informed import/restore
+  decision.
+- Keep high-risk flows explicit and auditable, with stale-preview refusal and
+  destructive-action confirmation preserved.
+- Do not add broad restore automation, hidden destructive writes, provider
+  sends, admin repair tools, AI interpretation, or new product data categories
+  outside existing BehaviorLog import/restore scope.
+
+Suggested files:
+- `components/export/*`
+- `app/(app)/export/actions.ts`
+- `lib/services/behaviorlog-import.service.ts`
+- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/services/behaviorlog-restore.service.ts`
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `lib/resolvers/behaviorlog-restore.resolver.ts`
+- focused import/restore/export tests
+- `docs/EXPORT_FORMATS.md`
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `STATUS.md`
+
+Verification:
+- Run focused export/import/restore tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Browser-check `/export` at desktop and around 390px with valid, invalid,
+  warning-heavy, and destructive-preview fixtures.
+- Do not apply a destructive restore against the user's real account during QA.
+
+---
+
+## Ticket 056: Public trust and marketing comprehension
+
+Tighten public-facing trust, legal, and BehaviorLog explanation paths without
+expanding the marketing surface beyond the current launch scope.
+
+Context:
+- UX-001 flags that first-time users may not understand BehaviorLog before they
+  have data.
+- UX-009 flags that Terms, Privacy, and Trust appear late in the pre-auth
+  journey.
+- UX-010 flags that public legal pages lack a clear marketing return path.
+- UX-011 flags that Trust copy may understate the implemented RLS-backed
+  account-isolation posture.
+- UX-012 flags that marketing machine-file links may omit `/docs.md`.
+
+Acceptance criteria:
+- Test whether marketing users can explain Cadence and BehaviorLog in their
+  own words before sign-in.
+- Add low-priority footer access to Terms, Privacy, and Trust from marketing if
+  users look for trust material before clicking Log in.
+- Add a clear Cadence overview return path from public legal/trust pages if
+  users expect it.
+- Tune Trust copy so account isolation is factual and confidence-building
+  without overclaiming support, security guarantees, or provider behavior.
+- Verify marketing `/docs` machine-readable file index includes generated
+  Markdown mirrors such as `/docs.md` when those files exist.
+- Preserve the narrow marketing navigation model and avoid turning legal pages
+  into marketing-heavy landing pages.
+- Do not add analytics cookies, tracking scripts, billing language, desktop or
+  mobile promises, AI coaching claims, social positioning, or admin/support
+  surfaces.
+
+Suggested files:
+- `apps/marketing/*`
+- public legal/trust route files
+- `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+- `docs/CRAWL_POLICY.md`
+- `docs/USER_FLOWS.md`
+- `docs/UI_SPEC.md`
+- `STATUS.md`
+
+Verification:
+- Run `npm run marketing:build`.
+- Run `npm run marketing:check`.
+- Run `npm run agents:check`.
+- Run the standard app checks if public legal/trust routes in the Next.js app
+  change.
+
+---
+
 ## Future ticket: Workspace restructuring
 
 Move toward the target composable architecture only when needed by marketing,

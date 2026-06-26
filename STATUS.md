@@ -3286,6 +3286,44 @@ Remaining risk:
   from inspecting the Codex app. The same `BehaviorList` surface was verified
   through the fixture-backed design-system route.
 
+### UX journey inventory and testing backbone
+
+Status: complete.
+
+Implementation summary:
+- Added `docs/UX_JOURNEY_INVENTORY.md` with seven testing personas and 22
+  current-scope journey families across marketing, login, first-run setup,
+  behavior creation/maintenance, Timeline, Needs decision, review/correction,
+  reminders, timezone, export/import/restore, legal/trust, account deletion,
+  mobile navigation, and machine-readable public docs.
+- Added `docs/UX_TESTING_PLAN.md` with persona assignment, environment and
+  viewport matrix, safe-data rules, severity model, observation rubric, and 13
+  task scripts for future expert or participant testing.
+- Added `docs/UX_RESEARCH_LOG.md` as the durable research and bug/glitch log.
+  The initial pass records UX-001 through UX-035, including sub-agent findings
+  for acquisition/trust, first-run activation, daily Timeline,
+  recovery/review, reminders/settings, and portability.
+- The pass intentionally did not implement UI or behavior fixes. Findings that
+  came from source review are marked Open or Needs reproduction so future work
+  can verify them in browser before changing product behavior.
+- Existing dirty files in auth/behavior UI components were not touched.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (55 files, 324 tests).
+- Pass: `npm run build`.
+- Pass: `npm run marketing:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `git diff --check`.
+
+Remaining risk:
+- No live browser walkthrough was performed in this pass. Several source-review
+  findings in `docs/UX_RESEARCH_LOG.md` are explicitly marked Needs
+  reproduction before implementation.
+
 ## Handoff notes
 
 - For the next coding agent: production browser push subscription is now
