@@ -16,13 +16,13 @@ export async function createBehaviorAction(
   formData: FormData,
 ): Promise<BehaviorActionState> {
   try {
-    await createBehaviorFromFormData(formData);
-    revalidatePath("/behaviors");
+    const behavior = await createBehaviorFromFormData(formData);
     revalidatePath("/timeline");
 
     return {
       status: "success",
       message: "Behavior created.",
+      behavior,
     };
   } catch (error) {
     return behaviorErrorToActionState(error);

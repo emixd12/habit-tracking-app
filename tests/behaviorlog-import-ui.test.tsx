@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { clearUserReadCache } from "../lib/cache/user-read-cache";
 
 import {
   BehaviorLogImportPreviewDetails,
@@ -103,6 +104,7 @@ vi.mock("@/lib/services/behaviorlog-import-write.service", () => ({
 
 describe("BehaviorLog import UI workflow", () => {
   beforeEach(() => {
+    clearUserReadCache();
     vi.clearAllMocks();
     mocks.createClient.mockResolvedValue({
       auth: {

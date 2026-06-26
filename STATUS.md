@@ -110,7 +110,7 @@ Current evidence:
 
 ## Multi-account Supabase launch readiness sign-off
 
-Status: in_progress.
+Status: complete.
 
 Scope:
 - Ticket 034 has been added to `docs/TICKETS.md` to close the remaining
@@ -225,6 +225,19 @@ Scope:
   `docs/PERFORMANCE_SPEED_LOG.md`.
 
 Current state:
+- Tickets 042-046 are complete as a coordinated performance follow-up.
+  Ticket 042 found no Vercel/Supabase region mismatch: production functions are
+  in Vercel `iad1`, and the linked Supabase project is in `us-east-1`.
+  Ticket 043 added and deployed a narrow authenticated Export-page read RPC.
+  Ticket 044 added a per-user read-through cache for stable authenticated data.
+  Ticket 045 added Timeline optimistic UI for Completed and Not Completed
+  status actions. Ticket 046 changed Behavior create to return a small
+  server-confirmed view model and update the current list without revalidating
+  `/behaviors`.
+- Ticket 047 is complete. `CADENCE_PERF_LOG=1` is now configured in Vercel
+  Production, deployment `dpl_GyGQSJX5dCQzyRxA4zXyiEH8K7SN` is `READY`, and
+  production Vercel logs now include sanitized `performance_timing` server
+  spans for authenticated route loads.
 - Initial measurement plan, feature test matrix, and intervention backlog have
   been added in `docs/PERFORMANCE_SPEED_LOG.md`.
 - Production baseline measurements have been recorded for unauthenticated HTTP,
@@ -390,6 +403,74 @@ Verification:
 - 2026-06-26 cleanup pass:
   `CADENCE_TEST_LOGIN_MAX_AGE_HOURS=0.001 npm run test-login:cleanup`
   checked 5 hosted users and deleted 4 stale temporary test-login users.
+- Ticket 042 pass: read-only production provider evidence confirmed Vercel
+  production deployment `dpl_J82v2C9abHaoPSZBRR7EcdEsLNFB` is in region
+  `iad1`, the linked Supabase project `qjodzutjxtmtzczbloxa` is in `us-east-1`,
+  and authenticated Chrome route medians were Timeline `710ms`, Behaviors
+  `582ms`, Analytics `591ms`, Export `634ms`, and Settings `253ms`.
+- Ticket 042 note: production server-side Supabase timing spans were
+  unavailable because `CADENCE_PERF_LOG` is not configured in production and
+  Vercel logs contained no `performance_timing` events.
+- Ticket 042 pass: `npm run agents:check`.
+- Ticket 043 pass: `SUPABASE_NO_TELEMETRY=1 npm run supabase -- db reset`.
+- Ticket 043 pass:
+  `SUPABASE_NO_TELEMETRY=1 npm run --silent supabase -- gen types typescript --local > lib/db/database.types.ts`.
+- Ticket 043 pass:
+  `SUPABASE_NO_TELEMETRY=1 npm run supabase -- db advisors --local --type all --fail-on error`
+  returned no error-level findings; remaining warnings are pre-existing RLS
+  init-plan performance warnings.
+- Ticket 043 hosted pass:
+  `SUPABASE_NO_TELEMETRY=1 npm run supabase -- db push --linked --dry-run`
+  showed only `20260626032324_add_export_page_read_rpc.sql`.
+- Ticket 043 hosted pass:
+  `SUPABASE_NO_TELEMETRY=1 npm run supabase -- db push --linked --yes`
+  applied `20260626032324_add_export_page_read_rpc.sql`.
+- Ticket 043 hosted pass:
+  `SUPABASE_NO_TELEMETRY=1 npm run supabase -- migration list --linked`
+  confirmed local and hosted migration histories match through `20260626032324`.
+- Ticket 043 hosted pass: hosted `db query --linked` confirmed
+  `get_export_page_read_bundle(date, date)` is `SECURITY INVOKER`
+  (`prosecdef=false`), has `search_path=public`, is not executable by `anon`,
+  and is executable by `authenticated`.
+- Ticket 044/045/046 focused pass:
+  `npx vitest run tests/user-read-cache.test.ts tests/behavior-create.service.test.ts tests/behavior-actions.test.ts tests/behavior-list-state.test.ts tests/timeline-optimistic-status.test.ts tests/settings.service.test.ts tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-restore-ui.test.tsx tests/export.resolver.test.ts`
+  (9 files, 42 tests).
+- Tickets 043-046 pass: `npm run agents:check`.
+- Tickets 043-046 pass: `npm run resolvers:check`.
+- Tickets 043-046 pass: `npm run lint`.
+- Tickets 043-046 pass: `npm run typecheck`.
+- Tickets 043-046 pass: `npm run test` (55 files, 320 tests).
+- Tickets 043-046 pass: `npm run build`.
+- Tickets 043-046 pass: `npm run design-system:check`.
+- Tickets 043-046 pass: `git diff --check`.
+- Tickets 043-046 production deploy:
+  `npx vercel deploy --prod --yes --scope emis-projects-4c886aeb` created
+  deployment `dpl_4FtW7Fhw9gmJeDLtHL5e836huGog`, which is `READY`, aliased to
+  `https://cadence-blush-three.vercel.app`, and built in `iad1`.
+- Tickets 043-046 production smoke: `curl` confirmed `/login` returns `200`,
+  unauthenticated `/timeline` redirects to `/login?next=%2Ftimeline`, and
+  unauthenticated `/export` redirects to `/login?next=%2Fexport`.
+- Tickets 043-046 production authenticated Chrome timing medians:
+  Timeline `963ms`, Behaviors `280ms`, Analytics `429ms`, Export `539ms`, and
+  Settings `264ms`. All five routes rendered authenticated app content and did
+  not redirect to login.
+- Ticket 047 hosted pass:
+  `npx vercel env ls production --scope emis-projects-4c886aeb` confirmed
+  `CADENCE_PERF_LOG` is present in Production.
+- Ticket 047 production deploy:
+  `npx vercel deploy --prod --yes --scope emis-projects-4c886aeb` created
+  deployment `dpl_GyGQSJX5dCQzyRxA4zXyiEH8K7SN`, which is `READY`, aliased to
+  `https://cadence-blush-three.vercel.app`, and built in `iad1`.
+- Ticket 047 authenticated Chrome route timing after enabling production
+  server timing: Timeline median `1605ms`, Behaviors `275ms`, Analytics
+  `748ms`, Export `417ms`, and Settings `344ms`; all five routes rendered
+  authenticated app content and did not redirect to login.
+- Ticket 047 hosted log pass:
+  `npx vercel logs cadence-blush-three.vercel.app --scope emis-projects-4c886aeb --since 35m --query performance_timing --json`
+  returned sanitized `performance_timing` events for proxy auth, app layout
+  auth, Timeline bundle load, primary page data loads, Export RPC reads,
+  occurrence freshness, and repository reads. The sampled app timing messages
+  contained route/span names, durations, statuses, and aggregate counts only.
 - Pass: `npx vitest run tests/occurrence.service.test.ts tests/reminder.service.test.ts tests/settings.service.test.ts tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-restore-ui.test.tsx`
 - Pass: `npm run resolvers:check`
 - Pass: `npm run typecheck`

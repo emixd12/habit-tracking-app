@@ -87,6 +87,9 @@ Rules:
   `https://api.sequenzy.com`.
 - `MARKETING_SITE_URL` belongs to the Astro marketing project and should point
   at its canonical production URL.
+- `CADENCE_PERF_LOG=1` is an optional short-term Production sampling flag for
+  privacy-safe server timing spans. It is not a secret, but it should be enabled
+  deliberately and reviewed through sanitized Vercel runtime logs.
 
 ## Supabase Auth
 

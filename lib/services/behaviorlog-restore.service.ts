@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import {
   createBehaviorLogImportRun,
   getBehaviorLogImportRunById,
-  listBehaviorLogImportRuns,
   updateBehaviorLogImportRunStatus,
 } from "@/lib/db/behaviorLogImports.repo";
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
@@ -15,6 +14,11 @@ import {
   type BehaviorLogZipInput,
 } from "@/lib/services/behaviorlog-import.service";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
+import {
+  invalidateBehaviorData,
+  invalidateImportRunData,
+  readCachedBehaviorLogImportRuns,
+} from "@/lib/cache/stable-user-data.cache";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import type {
   BehaviorLogExistingRecords,
@@ -167,6 +171,7 @@ export async function createBehaviorLogRestorePreviewRun(
     failureMessage: null,
     completedAt: null,
   });
+  invalidateImportRunData(input.userId);
 
   return { preview, importRun };
 }
@@ -174,7 +179,7 @@ export async function createBehaviorLogRestorePreviewRun(
 export async function getBehaviorLogRestorePageData(): Promise<BehaviorLogRestorePageData> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
-  const recentRuns = await listBehaviorLogImportRuns(supabase, userId, 12);
+  const recentRuns = await readCachedBehaviorLogImportRuns(supabase, userId, 12);
 
   return createBehaviorLogRestorePageDataFromRuns(recentRuns);
 }
@@ -297,6 +302,7 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
     failureMessage: null,
     completedAt: null,
   } satisfies BehaviorLogImportRunCreateInput);
+  invalidateImportRunData(userId);
   const completedAt = new Date().toISOString();
 
   try {
@@ -325,6 +331,8 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
         status: "applied",
         completedAt,
       })) ?? applyRun;
+    invalidateBehaviorData(userId);
+    invalidateImportRunData(userId);
 
     return {
       status: "applied",
@@ -349,6 +357,7 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
       failureMessage: errorMessage(error),
       completedAt,
     });
+    invalidateImportRunData(userId);
 
     throw error;
   }

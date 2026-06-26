@@ -18,15 +18,21 @@ import type {
   OccurrenceFormAction,
   TimelineStatus,
 } from "@/lib/types/timeline";
+import type { TimelineStatusActionStatus } from "@/components/timeline/optimistic-status";
 
 type StatusButtonsProps = Readonly<{
   occurrenceId: string;
   currentStatus: TimelineStatus;
   action: OccurrenceFormAction;
   compact?: boolean;
+  disabled?: boolean;
+  pendingStatus?: TimelineStatusActionStatus | null;
+  onStatusSubmit?: (status: TimelineStatusActionStatus) => void;
+  onStatusSuccess?: (status: TimelineStatusActionStatus | null) => void;
+  onStatusError?: () => void;
 }>;
 
-type StatusButtonValue = Extract<TimelineStatus, "completed" | "not_completed">;
+type StatusButtonValue = TimelineStatusActionStatus;
 type StatusFormAction = (formData: FormData) => void;
 
 const EMPTY_ACTION_STATE: OccurrenceActionState = {
@@ -39,6 +45,11 @@ export function StatusButtons({
   currentStatus,
   action,
   compact = false,
+  disabled = false,
+  pendingStatus = null,
+  onStatusSubmit,
+  onStatusSuccess,
+  onStatusError,
 }: StatusButtonsProps) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
   const router = useRouter();
@@ -51,19 +62,24 @@ export function StatusButtons({
 
   useEffect(() => {
     if (state.status === "success") {
+      const confirmedStatus = state.nextStatus ?? null;
       const shouldChimeAfterSuccess = shouldPlayCompletionChimeForStatusSuccess(
         {
           intent: completionChimeIntentRef.current,
-          serverNextStatus: state.nextStatus ?? null,
+          serverNextStatus: confirmedStatus,
         },
       );
+      const refreshTimeline = () => {
+        router.refresh();
+        onStatusSuccess?.(confirmedStatus);
+      };
 
       if (shouldChimeAfterSuccess) {
         void playCompletionChime().finally(() => {
-          router.refresh();
+          refreshTimeline();
         });
       } else {
-        router.refresh();
+        refreshTimeline();
       }
 
       completionChimeIntentRef.current = null;
@@ -73,8 +89,9 @@ export function StatusButtons({
     if (state.status === "error") {
       completionChimeIntentRef.current = null;
       preparedChimeForSubmitRef.current = false;
+      onStatusError?.();
     }
-  }, [router, state]);
+  }, [onStatusError, onStatusSuccess, router, state]);
 
   function prepareForSubmittedStatus(submittedStatus: StatusButtonValue | null) {
     if (!submittedStatus) {
@@ -119,6 +136,9 @@ export function StatusButtons({
           label="Completed"
           action={formAction}
           onStatusIntent={prepareForSubmittedStatus}
+          onStatusSubmit={onStatusSubmit}
+          disabled={disabled}
+          pendingStatus={pendingStatus}
         />
         <StatusSubmitForm
           occurrenceId={occurrenceId}
@@ -126,6 +146,9 @@ export function StatusButtons({
           label="Not Completed"
           action={formAction}
           onStatusIntent={prepareForSubmittedStatus}
+          onStatusSubmit={onStatusSubmit}
+          disabled={disabled}
+          pendingStatus={pendingStatus}
         />
       </div>
       <ActionMessage state={state} />
@@ -139,18 +162,25 @@ function StatusSubmitForm({
   label,
   action,
   onStatusIntent,
+  onStatusSubmit,
+  disabled,
+  pendingStatus,
 }: Readonly<{
   occurrenceId: string;
   status: StatusButtonValue;
   label: string;
   action: StatusFormAction;
   onStatusIntent: (status: StatusButtonValue) => void;
+  onStatusSubmit?: (status: StatusButtonValue) => void;
+  disabled: boolean;
+  pendingStatus: StatusButtonValue | null;
 }>) {
   return (
     <form
       action={action}
       onSubmit={() => {
         onStatusIntent(status);
+        onStatusSubmit?.(status);
       }}
       className="contents"
     >
@@ -160,6 +190,8 @@ function StatusSubmitForm({
         status={status}
         label={label}
         onStatusIntent={onStatusIntent}
+        disabled={disabled}
+        pendingStatus={pendingStatus}
       />
     </form>
   );
@@ -169,18 +201,24 @@ function StatusSubmitButton({
   status,
   label,
   onStatusIntent,
+  disabled,
+  pendingStatus,
 }: Readonly<{
   status: StatusButtonValue;
   label: string;
   onStatusIntent: (status: StatusButtonValue) => void;
+  disabled: boolean;
+  pendingStatus: StatusButtonValue | null;
 }>) {
   const { pending } = useFormStatus();
   const Icon = status === "completed" ? Check : X;
+  const isSavingThisStatus = pending || pendingStatus === status;
 
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
+      aria-disabled={pending || disabled ? "true" : undefined}
       onClick={() => {
         onStatusIntent(status);
       }}
@@ -192,7 +230,7 @@ function StatusSubmitButton({
       ].join(" ")}
     >
       <Icon aria-hidden="true" size={14} strokeWidth={2.5} />
-      <span>{pending ? "Saving..." : label}</span>
+      <span>{isSavingThisStatus ? `Saving ${label}...` : label}</span>
     </button>
   );
 }

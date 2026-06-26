@@ -3,7 +3,9 @@
 import { useCallback, useState } from "react";
 
 import { BehaviorForm } from "@/components/behaviors/BehaviorForm";
+import { dispatchBehaviorCreated } from "@/components/behaviors/behavior-events";
 import type {
+  BehaviorActionState,
   BehaviorFormAction,
   CategoryOption,
 } from "@/lib/types/behavior";
@@ -25,8 +27,13 @@ export function BehaviorCreateSection({
   const [successMessage, setSuccessMessage] = useState("");
   const [formKey, setFormKey] = useState(0);
 
-  const handleSuccess = useCallback((message: string) => {
-    setSuccessMessage(message);
+  const handleSuccess = useCallback((state: BehaviorActionState) => {
+    setSuccessMessage(state.message);
+
+    if (state.behavior) {
+      dispatchBehaviorCreated(state.behavior);
+    }
+
     setIsOpen(false);
     setFormKey((key) => key + 1);
   }, []);

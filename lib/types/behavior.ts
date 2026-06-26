@@ -65,6 +65,7 @@ export type BehaviorFormField =
 export type BehaviorActionState = {
   status: "idle" | "success" | "error";
   message: string;
+  behavior?: BehaviorView;
   fieldErrors?: Partial<Record<BehaviorFormField, string>>;
 };
 

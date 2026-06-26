@@ -1,9 +1,17 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { BehaviorForm } from "@/components/behaviors/BehaviorForm";
+import {
+  BEHAVIOR_CREATED_EVENT,
+  isBehaviorCreatedEvent,
+} from "@/components/behaviors/behavior-events";
+import {
+  removeBehaviorView,
+  upsertBehaviorView,
+} from "@/components/behaviors/behavior-list-state";
 import type {
   BehaviorActionState,
   BehaviorFormAction,
@@ -33,13 +41,62 @@ export function BehaviorList({
   archiveAction,
   restoreAction,
 }: BehaviorListProps) {
+  const [createdBehaviors, setCreatedBehaviors] = useState<BehaviorView[]>([]);
+  const confirmedBehaviorIds = useMemo(
+    () =>
+      new Set([
+        ...activeBehaviors.map((behavior) => behavior.id),
+        ...archivedBehaviors.map((behavior) => behavior.id),
+      ]),
+    [activeBehaviors, archivedBehaviors],
+  );
+  const localActiveBehaviors = useMemo(
+    () =>
+      createdBehaviors
+        .filter(
+          (behavior) => behavior.active && !confirmedBehaviorIds.has(behavior.id),
+        )
+        .reduce(upsertBehaviorView, activeBehaviors),
+    [activeBehaviors, confirmedBehaviorIds, createdBehaviors],
+  );
+  const localArchivedBehaviors = useMemo(
+    () =>
+      createdBehaviors
+        .filter(
+          (behavior) =>
+            !behavior.active && !confirmedBehaviorIds.has(behavior.id),
+        )
+        .reduce(upsertBehaviorView, archivedBehaviors),
+    [archivedBehaviors, confirmedBehaviorIds, createdBehaviors],
+  );
+
+  useEffect(() => {
+    function handleBehaviorCreated(event: Event) {
+      if (!isBehaviorCreatedEvent(event)) {
+        return;
+      }
+
+      const { behavior } = event.detail;
+
+      setCreatedBehaviors((behaviors) =>
+        upsertBehaviorView(removeBehaviorView(behaviors, behavior.id), behavior),
+      );
+    }
+
+    window.addEventListener(BEHAVIOR_CREATED_EVENT, handleBehaviorCreated);
+
+    return () => {
+      window.removeEventListener(BEHAVIOR_CREATED_EVENT, handleBehaviorCreated);
+    };
+  }, []);
+
   return (
     <div className="grid gap-8">
       <BehaviorSection
         title="Active behaviors"
         emptyMessage="No active behaviors."
       >
-        {activeBehaviors.map((behavior) => (
+        {localActiveBehaviors.map((behavior) => (
           <BehaviorCard
             key={behavior.id}
             behavior={behavior}
@@ -55,7 +112,7 @@ export function BehaviorList({
         title="Archived behaviors"
         emptyMessage="No archived behaviors."
       >
-        {archivedBehaviors.map((behavior) => (
+        {localArchivedBehaviors.map((behavior) => (
           <BehaviorCard
             key={behavior.id}
             behavior={behavior}

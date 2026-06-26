@@ -1,16 +1,18 @@
 import { Temporal } from "@js-temporal/polyfill";
 
 import { updateActiveBehaviorTimezones } from "@/lib/db/behaviors.repo";
-import {
-  getProfileSettings,
-  updateProfileTimezone,
-} from "@/lib/db/profiles.repo";
+import { updateProfileTimezone } from "@/lib/db/profiles.repo";
 import {
   getCurrentUserClaims,
   requireCurrentUserId,
 } from "@/lib/auth/current-user";
 import { syncUserOccurrences } from "@/lib/services/occurrence.service";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
+import {
+  invalidateBehaviorData,
+  invalidateProfileData,
+  readCachedProfileSettings,
+} from "@/lib/cache/stable-user-data.cache";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type { TimezoneActionState } from "@/lib/types/settings";
@@ -43,7 +45,7 @@ export async function getSettingsPageData(): Promise<SettingsPageData> {
     throw new Error("Sign in again before opening settings.");
   }
 
-  const profile = await getProfileSettings(supabase, userId);
+  const profile = await readCachedProfileSettings(supabase, userId);
   const email = profile?.email ?? claimsEmail ?? "Signed in";
 
   return {
@@ -65,7 +67,7 @@ export async function updateCurrentUserTimezoneFromFormData(
   );
 
   const timezone = normalizeTimezoneInput(formData.get("timezone"));
-  const profile = await getProfileSettings(supabase, userId);
+  const profile = await readCachedProfileSettings(supabase, userId);
   const currentTimezone = profile?.timezone ?? DEFAULT_TIMEZONE;
 
   if (currentTimezone === timezone) {
@@ -94,6 +96,8 @@ export async function updateCurrentUserTimezoneFromFormData(
     now,
     timezone,
   });
+  invalidateProfileData(userId);
+  invalidateBehaviorData(userId);
 
   return {
     timezone,

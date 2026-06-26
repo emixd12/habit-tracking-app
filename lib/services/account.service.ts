@@ -1,5 +1,6 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { invalidateStableUserData } from "@/lib/cache/stable-user-data.cache";
 import type { AccountDeletionActionState } from "@/lib/types/account";
 
 export class AccountDeletionUserError extends Error {
@@ -43,6 +44,8 @@ export async function deleteCurrentAccountFromFormData(
   if (deleteError) {
     throw new Error("Unable to delete this account.");
   }
+
+  invalidateStableUserData(user.id);
 }
 
 export function accountDeletionErrorToActionState(

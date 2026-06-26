@@ -40,6 +40,10 @@ import {
 } from "@/lib/db/occurrenceStatusEvents.repo";
 import { resolveBehaviorLogImportMergePreview } from "@/lib/resolvers/behaviorlog-import.resolver";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
+import {
+  invalidateBehaviorData,
+  invalidateImportRunData,
+} from "@/lib/cache/stable-user-data.cache";
 import type {
   BehaviorLogExistingRecords,
   BehaviorLogImportBehaviorPlan,
@@ -173,17 +177,28 @@ export async function createBehaviorLogImportRun(
   supabase: AppSupabaseClient,
   input: BehaviorLogImportRunCreateInput,
 ): Promise<BehaviorLogImportRun> {
-  return insertBehaviorLogImportRun(supabase, normalizeImportRunInput(input));
+  const importRun = await insertBehaviorLogImportRun(
+    supabase,
+    normalizeImportRunInput(input),
+  );
+
+  invalidateImportRunData(input.userId);
+
+  return importRun;
 }
 
 export async function updateBehaviorLogImportRunStatus(
   supabase: AppSupabaseClient,
   input: BehaviorLogImportRunStatusUpdateInput,
 ): Promise<BehaviorLogImportRun | null> {
-  return updateImportRunStatus(supabase, {
+  const importRun = await updateImportRunStatus(supabase, {
     ...input,
     failureMessage: input.failureMessage?.trim() || null,
   });
+
+  invalidateImportRunData(input.userId);
+
+  return importRun;
 }
 
 export async function createBehaviorLogImportRecordMappings(
@@ -678,6 +693,8 @@ export async function applyCreateMissingBehaviorLogImportPlan(
     if (appliedRun) {
       result.importRun = appliedRun;
     }
+
+    invalidateBehaviorData(input.userId);
 
     return result;
   } catch (error) {
@@ -1310,6 +1327,8 @@ export async function applyApprovedBehaviorLogMergePlan(
     if (appliedRun) {
       result.importRun = appliedRun;
     }
+
+    invalidateBehaviorData(input.userId);
 
     return result;
   } catch (error) {

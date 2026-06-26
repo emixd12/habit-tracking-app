@@ -8,7 +8,6 @@ import {
 } from "@/lib/resolvers/behaviorlog-import.resolver";
 import {
   listBehaviorLogImportRecordMappings,
-  listBehaviorLogImportRuns,
 } from "@/lib/db/behaviorLogImports.repo";
 import { listImportedNotes } from "@/lib/db/notes.repo";
 import { listImportedInterventions } from "@/lib/db/importedInterventions.repo";
@@ -24,6 +23,7 @@ import {
   applyCreateMissingBehaviorLogImportPlan,
   createBehaviorLogImportRunFromPreview,
 } from "@/lib/services/behaviorlog-import-write.service";
+import { readCachedBehaviorLogImportRuns } from "@/lib/cache/stable-user-data.cache";
 import { normalizeRecurrenceRule } from "@/lib/services/behavior-form";
 import { readZipEntries } from "@/lib/services/zip";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
@@ -140,7 +140,7 @@ export function previewBehaviorLogMergeImportFromFiles(
 export async function getBehaviorLogImportPageData(): Promise<BehaviorLogImportPageData> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
-  const recentRuns = await listBehaviorLogImportRuns(supabase, userId, 8);
+  const recentRuns = await readCachedBehaviorLogImportRuns(supabase, userId, 8);
 
   return createBehaviorLogImportPageDataFromRuns(recentRuns);
 }
@@ -151,7 +151,7 @@ export async function listCurrentUserBehaviorLogImportRuns(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
 
-  return listBehaviorLogImportRuns(supabase, userId, limit);
+  return readCachedBehaviorLogImportRuns(supabase, userId, limit);
 }
 
 export function createBehaviorLogImportPageDataFromRuns(

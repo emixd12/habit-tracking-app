@@ -17,6 +17,7 @@ import {
 import { syncUserOccurrences } from "@/lib/services/occurrence.service";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import { createClient } from "@/lib/supabase/server";
+import { clearUserReadCache } from "@/lib/cache/user-read-cache";
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
@@ -89,6 +90,7 @@ describe("normalizeTimezoneInput", () => {
 
 describe("getSettingsPageData", () => {
   beforeEach(() => {
+    clearUserReadCache();
     vi.clearAllMocks();
 
     vi.mocked(createClient).mockResolvedValue(SUPABASE);
@@ -131,6 +133,7 @@ describe("getSettingsPageData", () => {
 
 describe("updateCurrentUserTimezoneFromFormData", () => {
   beforeEach(() => {
+    clearUserReadCache();
     vi.clearAllMocks();
 
     vi.mocked(createClient).mockResolvedValue(SUPABASE);

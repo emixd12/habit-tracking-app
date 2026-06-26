@@ -2,19 +2,19 @@ import { createHash } from "node:crypto";
 
 import { Temporal } from "@js-temporal/polyfill";
 
-import {
-  getProfileTimezone,
-  listBehaviorCategories,
-  listUserBehaviors,
-  type AppSupabaseClient,
-  type BehaviorWithCategory,
+import type {
+  AppSupabaseClient,
+  BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
 import {
-  listOccurrencesBetweenLocalDates,
-  listOccurrencesThroughLocalDate,
-} from "@/lib/db/occurrences.repo";
-import { listOccurrenceStatusEventsByOccurrenceIds } from "@/lib/db/occurrenceStatusEvents.repo";
-import { listReminderDeliveriesByOccurrenceIds } from "@/lib/db/reminderDeliveries.repo";
+  readExportPageBundle,
+  type ExportPageBehaviorRow,
+  type ExportPageCategoryRow,
+  type ExportPageOccurrenceRow,
+  type ExportPageReminderDeliveryRow,
+  type ExportPageStatusEventRow,
+  type ExportPageSyncStateRow,
+} from "@/lib/db/exportPageRead.repo";
 import {
   resolveExportBundle,
   resolveExportDateRange,
@@ -30,9 +30,9 @@ import {
   formatOccurrenceScheduleLabel,
   toScheduleSlotView,
 } from "@/lib/services/schedule";
-import { readOccurrenceSyncState } from "@/lib/services/occurrence-sync-state.service";
 import { createStoredZip } from "@/lib/services/zip";
 import { createClient } from "@/lib/supabase/server";
+import { readCachedProfileTimezone } from "@/lib/cache/stable-user-data.cache";
 import type {
   ExportBehaviorInput,
   ExportBundle,
@@ -44,12 +44,7 @@ import type {
   ExportReminderDeliveryStatus,
   ExportStatusEventInput,
 } from "@/lib/types/export";
-import type {
-  Category,
-  Occurrence,
-  OccurrenceStatusEvent,
-  ReminderDelivery,
-} from "@/lib/types/database";
+import type { OccurrenceSyncState } from "@/lib/types/database";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type {
   ScheduleKind,
@@ -126,40 +121,31 @@ async function getUserExportBundle(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
-  const [profileTimezone, behaviors, categories, syncState] = await Promise.all([
-    getProfileTimezone(supabase, userId),
-    listUserBehaviors(supabase, userId),
-    listBehaviorCategories(supabase, userId),
-    readOccurrenceSyncState(supabase, userId),
-  ]);
+  const profileTimezone = await readCachedProfileTimezone(supabase, userId);
   const timezone = profileTimezone ?? DEFAULT_TIMEZONE;
   const range = resolveExportDateRange({
     now,
     timezone,
     range: options.range,
   });
-
-  await ensureUserOccurrencesFresh(supabase, userId, {
-    now,
-    behaviors,
-    timezone,
-    horizonDays: 0,
-    syncState,
+  const initialRead = await readExportPageBundle(supabase, {
+    startLocalDate: range.startLocalDate,
+    endLocalDate: range.endLocalDate,
   });
 
-  const occurrences = range.startLocalDate
-    ? await listOccurrencesBetweenLocalDates(
-        supabase,
-        userId,
-        range.startLocalDate,
-        range.endLocalDate,
-      )
-    : await listOccurrencesThroughLocalDate(supabase, userId, range.endLocalDate);
-  const occurrenceIds = occurrences.map((occurrence) => occurrence.id);
-  const [statusEvents, reminderDeliveries] = await Promise.all([
-    listOccurrenceStatusEventsByOccurrenceIds(supabase, userId, occurrenceIds),
-    listReminderDeliveriesByOccurrenceIds(supabase, userId, occurrenceIds),
-  ]);
+  const syncResult = await ensureUserOccurrencesFresh(supabase, userId, {
+    now,
+    behaviors: toSyncBehaviors(initialRead.behaviors, userId),
+    timezone,
+    horizonDays: 0,
+    syncState: toSyncState(initialRead.syncState, userId),
+  });
+  const exportRead = syncResult.synced
+    ? await readExportPageBundle(supabase, {
+        startLocalDate: range.startLocalDate,
+        endLocalDate: range.endLocalDate,
+      })
+    : initialRead;
 
   return resolveExportBundle({
     profile: {
@@ -169,11 +155,13 @@ async function getUserExportBundle(
       producerName: "Cadence Tracker",
       producerVersion: "0.1.0",
     },
-    categories: categories.map(toExportCategoryInput),
-    behaviors: behaviors.map(toExportBehaviorInput),
-    occurrences: occurrences.map(toExportOccurrenceInput),
-    statusEvents: statusEvents.map(toExportStatusEventInput),
-    reminderDeliveries: reminderDeliveries.map(toExportReminderDeliveryInput),
+    categories: exportRead.categories.map(toExportCategoryInput),
+    behaviors: exportRead.behaviors.map(toExportBehaviorInput),
+    occurrences: exportRead.occurrences.map(toExportOccurrenceInput),
+    statusEvents: exportRead.statusEvents.map(toExportStatusEventInput),
+    reminderDeliveries: exportRead.reminderDeliveries.map(
+      toExportReminderDeliveryInput,
+    ),
     now,
     timezone,
     range: range.key,
@@ -182,7 +170,7 @@ async function getUserExportBundle(
 }
 
 function toExportReminderDeliveryInput(
-  delivery: ReminderDelivery,
+  delivery: ExportPageReminderDeliveryRow,
 ): ExportReminderDeliveryInput {
   return {
     id: delivery.id,
@@ -208,7 +196,7 @@ async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
   }
 }
 
-function toExportCategoryInput(category: Category): ExportCategoryInput {
+function toExportCategoryInput(category: ExportPageCategoryRow): ExportCategoryInput {
   return {
     id: category.id,
     name: category.name,
@@ -219,7 +207,7 @@ function toExportCategoryInput(category: Category): ExportCategoryInput {
 }
 
 function toExportBehaviorInput(
-  behavior: BehaviorWithCategory,
+  behavior: ExportPageBehaviorRow,
 ): ExportBehaviorInput {
   return {
     id: behavior.id,
@@ -253,7 +241,7 @@ function toExportBehaviorInput(
 }
 
 function toExportOccurrenceInput(
-  occurrence: Occurrence,
+  occurrence: ExportPageOccurrenceRow,
 ): ExportOccurrenceInput {
   return {
     id: occurrence.id,
@@ -285,7 +273,7 @@ function toExportOccurrenceInput(
 }
 
 function toExportStatusEventInput(
-  event: OccurrenceStatusEvent,
+  event: ExportPageStatusEventRow,
 ): ExportStatusEventInput {
   return {
     id: event.id,
@@ -421,4 +409,25 @@ function normalizeReminderDeliveryStatus(
 
 function pseudonymousSubjectId(userId: string): string {
   return `subject_${createHash("sha256").update(userId).digest("hex").slice(0, 16)}`;
+}
+
+function toSyncBehaviors(
+  behaviors: ExportPageBehaviorRow[],
+  userId: string,
+): BehaviorWithCategory[] {
+  return behaviors.map((behavior) => ({
+    ...behavior,
+    user_id: userId,
+    schedule_slots: behavior.schedule_slots.map((slot) => ({
+      ...slot,
+      user_id: userId,
+    })),
+  }));
+}
+
+function toSyncState(
+  syncState: ExportPageSyncStateRow | null,
+  userId: string,
+): OccurrenceSyncState | null {
+  return syncState ? { ...syncState, user_id: userId } : null;
 }

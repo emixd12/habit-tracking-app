@@ -2202,6 +2202,337 @@ Verification:
 
 ---
 
+## Ticket 042: Production region and database round-trip latency evidence
+
+Verify whether hosted app and Supabase region placement is adding avoidable
+latency before introducing more complex caching or database aggregation.
+
+Context:
+- The follow-up speed pass found that app shells can respond under 100 ms, but
+  full authenticated data loads and form actions remain bounded by hosted
+  Supabase round trips measured at roughly 155-200 ms each from the test
+  machine.
+- Prior measurements showed production functions running in `iad1`; the
+  Supabase project region and function-to-database latency need explicit
+  confirmation.
+- Region changes can involve downtime, data migration, provider limits, or
+  OAuth/domain follow-up, so this ticket is evidence and recommendation only
+  unless a later ticket explicitly authorizes an environment change.
+
+Acceptance criteria:
+- Confirm the production Vercel function region and current Supabase project
+  region without exposing secrets or provider tokens.
+- Measure authenticated server-side Supabase round-trip timing from the
+  production deployment using existing timing instrumentation where possible.
+- Measure the same page-load route matrix used in the performance speed loop:
+  `/timeline`, `/behaviors`, `/analytics`, `/export`, and `/settings`.
+- Record whether observed latency appears dominated by region distance, cold
+  start, individual query plans, multiple sequential Supabase calls, or
+  post-action re-render work.
+- If region mismatch is found, document the lowest-risk options and tradeoffs:
+  moving Supabase, pinning or moving Vercel functions, accepting the current
+  placement, or using cache/RPC mitigation instead.
+- Do not move production infrastructure, rotate secrets, or change provider
+  settings in this ticket unless a separate user instruction explicitly
+  authorizes that mutation.
+- Update `docs/PERFORMANCE_SPEED_LOG.md` with measurements and the final
+  recommendation.
+- Update `STATUS.md`.
+
+Suggested files:
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `docs/VERCEL_WORKFLOW.md` only if deployment-region guidance changes
+- `docs/SUPABASE_WORKFLOW.md` only if project-region guidance changes
+- `STATUS.md`
+- `vercel.json` only if a separate approved implementation ticket changes
+  region configuration
+
+Verification:
+- Re-run the route timing matrix under the same repeatable test conditions.
+- Run `npm run agents:check`.
+- If provider config files change, also run `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+
+---
+
+## Ticket 043: Page-level authenticated read RPC aggregation
+
+Collapse repeated Supabase network round trips for page data where measurements
+show that batching reads is more valuable than another client or framework
+optimization.
+
+Context:
+- Ticket 041 allows one narrow Timeline read RPC if route timing is dominated
+  by network round trips rather than individual query plans.
+- The follow-up speed pass indicates the remaining full data loads are often
+  bounded by multiple hosted Supabase calls, not by the app shell itself.
+- This ticket generalizes that investigation to all primary authenticated pages
+  while preserving resolver-first boundaries.
+
+Acceptance criteria:
+- Start with the highest-value page shown by current measurements, likely
+  `/export` or `/timeline`, and prove the pattern before applying it elsewhere.
+- For each page considered, capture before/after counts for Supabase calls,
+  server timing spans, and full page-load timing.
+- Any PostgreSQL function must be narrow and page-specific. Do not introduce a
+  generic database abstraction layer.
+- Preserve user ownership through RLS or explicit `auth.uid()` ownership
+  checks. Avoid `SECURITY DEFINER` unless there is a documented, reviewed
+  reason, a pinned `search_path`, and explicit grants/revokes.
+- Return only the fields needed by the service for the page.
+- Keep recurrence generation, timeline grouping, status semantics, adherence
+  math, export formatting, and reminder planning in resolvers/services rather
+  than SQL.
+- Add Supabase migrations for any RPCs or indexes.
+- Update generated database types after schema changes.
+- Update `docs/DATA_MODEL.md` if database functions or indexes become part of
+  the documented data-access contract.
+- Update `docs/PERFORMANCE_SPEED_LOG.md` after each significant page change.
+- Update `STATUS.md`.
+
+Suggested files:
+- `supabase/migrations/*_add_page_read_rpc.sql`
+- `lib/db/*`
+- `lib/services/timeline.service.ts`
+- `lib/services/analytics.service.ts`
+- `lib/services/export.service.ts`
+- `lib/services/behavior.service.ts`
+- `lib/services/settings.service.ts`
+- `lib/db/database.types.ts`
+- `docs/DATA_MODEL.md`
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `STATUS.md`
+- focused repository/service tests
+
+Verification:
+- Create migrations through `npm run supabase -- migration new ...`.
+- Run `npm run supabase -- db reset`.
+- Regenerate database types if schema changes.
+- Run focused repository/service tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Re-run the route timing matrix after each page-level RPC change.
+
+---
+
+## Ticket 044: Per-user read-through cache for stable authenticated data
+
+Add explicit, user-scoped caching for stable authenticated read bundles so
+unchanged private data does not require a hosted Supabase round trip on every
+page render.
+
+Context:
+- The app repeatedly reads stable per-user data such as settings, categories,
+  behavior lists, and import/restore metadata.
+- Authenticated caching is only acceptable if keys are scoped to the current
+  user and invalidation is tied to the mutations that change that data.
+- This must not become PWA/offline caching; offline mutation and sync conflict
+  handling remain deferred from v1.
+
+Acceptance criteria:
+- Define a small cache contract for user-owned read bundles, including key
+  shape, tags or invalidation handles, TTL expectations, and allowed data
+  categories.
+- Cache only low-volatility authenticated data where stale reads are either
+  invalidated by known mutations or have a documented short TTL.
+- Include `userId` in cache keys and tags. Do not include emails, provider
+  tokens, or secrets in keys, tags, logs, or timing output.
+- Preserve normal RLS-protected Supabase access on cache misses. Do not use a
+  service-role client for normal app reads.
+- Invalidate affected cache entries on behavior create/update/archive/restore,
+  category changes, settings timezone changes, import/restore apply, and
+  account deletion.
+- Keep occurrence rows, status histories, and reminder delivery state uncached
+  unless a later measurement proves a specific safe cache boundary.
+- Measure before/after page loads for every primary authenticated route under
+  the same speed-loop test conditions.
+- Add focused tests or low-level assertions that prove cache keys are
+  user-scoped and mutations invalidate the intended data.
+- Update `docs/PERFORMANCE_SPEED_LOG.md`.
+- Update `STATUS.md`.
+
+Suggested files:
+- `lib/cache/*`
+- `lib/services/settings.service.ts`
+- `lib/services/behavior.service.ts`
+- `lib/services/categories.service.ts` if present
+- `lib/services/import*.ts` or restore services if present
+- related server actions that mutate cached data
+- focused cache/service tests
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `STATUS.md`
+
+Verification:
+- Run focused cache/service tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Re-run the route timing matrix for `/timeline`, `/behaviors`, `/analytics`,
+  `/export`, and `/settings`.
+
+---
+
+## Ticket 045: Optimistic UI for common Timeline actions
+
+Make common occurrence actions feel immediate by updating the visible UI before
+the hosted Supabase mutation finishes, while still reconciling against the
+server result.
+
+Context:
+- True server completion remains bounded by hosted Supabase round trips, but
+  user-perceived action response can be under 100 ms for local UI feedback.
+- The highest-value actions are Timeline status changes and note edits because
+  they are frequent and small.
+- This ticket is not offline support. It must not add background mutation
+  queues, persistent local writes, or sync conflict handling.
+
+Acceptance criteria:
+- Implement optimistic UI first for occurrence `Completed` and `Not Completed`
+  actions on the Timeline.
+- Include note save only if the same pattern remains small and low risk after
+  status actions are working.
+- Show an accessible pending state for actions whose server confirmation has
+  not returned.
+- Revert the optimistic change and surface the existing error path if the
+  server action fails.
+- Keep stored occurrence statuses authoritative on the server. The optimistic
+  state is visual until confirmed.
+- Preserve the domain language: Unresolved, Completed, Not Completed, and
+  Needs decision.
+- Measure click-to-visible-feedback separately from server action completion.
+- Re-run page-load measurements after the change to ensure optimistic state
+  does not regress initial loads.
+- Add focused tests for the optimistic state transition and rollback behavior
+  if the component structure supports it.
+- Update `docs/PERFORMANCE_SPEED_LOG.md`.
+- Update `STATUS.md`.
+
+Suggested files:
+- Timeline occurrence row components
+- Timeline action state hooks or reducers
+- status/note server actions only if response shapes need to change
+- focused component or reducer tests
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `STATUS.md`
+
+Verification:
+- Run focused component or action-state tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Browser-smoke status changes, note edits if included, action failure handling,
+  and mobile Timeline layout.
+
+---
+
+## Ticket 046: Small mutation responses and targeted route refresh
+
+Reduce form-action latency by returning small server-confirmed view models and
+refreshing only the data that actually needs to be reloaded.
+
+Context:
+- The follow-up speed pass found that behavior create/edit/archive actions are
+  still affected by hosted Supabase writes plus post-action route re-render
+  work.
+- Prior performance work already moved occurrence sync off hot read paths and
+  allowed behavior mutations to mark occurrence sync state stale instead of
+  synchronously generating all future occurrences.
+- Broad route revalidation is still useful for correctness in some places, but
+  it should not be the default when the client can update a local list from a
+  small server-confirmed response.
+
+Acceptance criteria:
+- Audit current server actions for behavior create/update/archive/restore,
+  Timeline status/note changes, Analytics correction actions, and Settings
+  timezone changes.
+- Identify which actions require `revalidatePath`, which can use targeted cache
+  invalidation, and which can return a small confirmed result for local UI
+  update.
+- Start with behavior create because it is a visible form workflow and currently
+  pays for both database work and page refresh behavior.
+- Return enough validated server data for the UI to insert or update the
+  affected row without forcing a full route re-render.
+- Preserve server-side validation, ownership checks, RLS, and the occurrence
+  sync freshness contract.
+- Keep cross-route consistency explicit. If another route may be stale until
+  navigation or refresh, document why that is acceptable or add targeted
+  invalidation.
+- Do not introduce a broad client-side data framework solely for this ticket.
+- Measure form submit-to-visible-result and server action completion separately.
+- Re-run page-load measurements for every primary authenticated route after
+  each significant change.
+- Update `docs/PERFORMANCE_SPEED_LOG.md`.
+- Update `STATUS.md`.
+
+Suggested files:
+- behavior server actions
+- behavior list/form components
+- Timeline and Analytics action handlers if included after the behavior flow
+- `lib/services/behavior.service.ts`
+- `lib/services/timeline.service.ts`
+- focused action/component tests
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `STATUS.md`
+
+Verification:
+- Run focused action/component tests first.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Browser-smoke create, edit, archive, and restore behavior flows plus Timeline
+  and Analytics action flows if they are changed.
+
+---
+
+## Ticket 047: Production performance timing log sampling
+
+Enable the existing privacy-safe server timing instrumentation in production
+long enough to capture authenticated route span evidence for the current
+performance architecture.
+
+Context:
+- Ticket 035 added `CADENCE_PERF_LOG=1` gated server timing spans for
+  protected app layout auth, route data loads, occurrence freshness checks,
+  reminder planning/writes, and primary repository reads.
+- Ticket 042 could not capture production server span evidence because
+  `CADENCE_PERF_LOG` was not configured in the hosted production environment.
+- Tickets 043-046 added RPC, read-through cache, optimistic UI, and targeted
+  mutation improvements. A production log sample is needed to distinguish
+  route/server work, Supabase round trips, and cache behavior from browser
+  wall-clock timing variance.
+
+Acceptance criteria:
+- Configure `CADENCE_PERF_LOG=1` for the Vercel Production environment without
+  exposing secrets or changing public runtime config.
+- Redeploy production so the runtime receives the new environment variable.
+- Run an authenticated production route matrix for `/timeline`, `/behaviors`,
+  `/analytics`, `/export`, and `/settings`.
+- Query production Vercel logs for sanitized `performance_timing` events and
+  record representative route/page/auth/repository spans.
+- Confirm that timing output contains route/span names, duration, status, and
+  aggregate counts only. Do not record cookies, emails, behavior titles, notes,
+  push endpoints, provider tokens, request bodies, or response bodies.
+- Record whether cache hits are visible through missing or reduced repository
+  spans on repeated route loads. Treat the cache as best-effort per instance,
+  not durable shared infrastructure.
+- Update `docs/PERFORMANCE_SPEED_LOG.md` with production span evidence,
+  browser timing notes, and any remaining risk.
+- Update `docs/VERCEL_WORKFLOW.md` so `CADENCE_PERF_LOG` is documented as an
+  optional production sampling flag.
+- Update `STATUS.md`.
+
+Suggested files:
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `STATUS.md`
+
+Verification:
+- Confirm `vercel env ls production` includes `CADENCE_PERF_LOG`.
+- Confirm the post-change production deployment is `READY`.
+- Confirm `vercel logs --query performance_timing` returns sanitized timing
+  events after authenticated route loads.
+- Run `npm run agents:check`.
+- Run `git diff --check`.
+
+---
+
 ## Future ticket: Workspace restructuring
 
 Move toward the target composable architecture only when needed by marketing,

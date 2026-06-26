@@ -989,3 +989,243 @@ Production deployment:
   to `https://cadence-blush-three.vercel.app`.
 - Unauthenticated production smoke after deploy: `/login` returned `200`, and
   protected app routes returned expected `307` redirects to login.
+
+## 2026-06-26 Ticket 042: Production Region And DB Round-Trip Evidence
+
+Read-only evidence pass against production found no app/database region
+mismatch.
+
+Environment:
+
+- Production deployment: `dpl_J82v2C9abHaoPSZBRR7EcdEsLNFB`
+- Production status: `READY`
+- Canonical production URL: `https://cadence-blush-three.vercel.app`
+- Vercel function region evidence: deployment API reports `regions: ["iad1"]`;
+  Vercel inspect/build output also shows dynamic lambda outputs in `iad1`.
+- Supabase project: `qjodzutjxtmtzczbloxa`
+- Supabase project region: `us-east-1`
+- Supabase project status: `ACTIVE_HEALTHY`
+
+Authenticated production full route loads in Chrome:
+
+| Route | Run 1 | Run 2 | Run 3 | Median |
+|---|---:|---:|---:|---:|
+| `/timeline` | 796ms | 710ms | 646ms | 710ms |
+| `/behaviors` | 582ms | 647ms | 534ms | 582ms |
+| `/analytics` | 591ms | 662ms | 586ms | 591ms |
+| `/export` | 670ms | 581ms | 634ms | 634ms |
+| `/settings` | 541ms | 253ms | 249ms | 253ms |
+
+Server-side timing limitation:
+
+- Existing production instrumentation could not provide Supabase span evidence
+  because `CADENCE_PERF_LOG` is not configured in production.
+- `vercel logs --query performance_timing` returned no timing messages.
+- Vercel runtime request logs showed authenticated route requests returning
+  `200` with `cache: MISS`, but no app timing payloads.
+- A local-machine probe to the Supabase REST endpoint returned the expected
+  unauthenticated `401` with the project ref header and about `89ms` to first
+  byte. This confirms endpoint reachability from the test machine but is not
+  function-to-database timing evidence.
+
+Interpretation:
+
+- Do not move production infrastructure based on current evidence. Vercel
+  `iad1` and Supabase `us-east-1` are already both US East placement.
+- The remaining latency is more likely from dynamic route work, multiple
+  Supabase/Auth/Data API round trips, RSC streaming, and post-action render
+  work than from geographic distance.
+- The lowest-risk path is to keep the current placement and pursue narrow
+  RPC/cache/action-flow mitigation only where measurements identify repeated
+  Supabase round trips or post-action re-rendering as the bottleneck.
+
+Verification:
+
+- Pass: production Vercel deployment/API inspection for deployment region.
+- Pass: Supabase project list inspection for project region.
+- Pass: authenticated Chrome route matrix for `/timeline`, `/behaviors`,
+  `/analytics`, `/export`, and `/settings`.
+- Pass: production log inspection confirmed no `performance_timing` span events
+  were available.
+- Pass: `npm run agents:check`.
+
+## 2026-06-26 Tickets 043-046: RPC, Cache, Optimistic UI, And Targeted Mutation Follow-Up
+
+Implementation:
+
+- Ticket 043 adds `public.get_export_page_read_bundle(date, date)` as a narrow
+  `SECURITY INVOKER` Export-page RPC. It keeps export date-range resolution,
+  occurrence freshness, formatting, and BehaviorLog bundle creation in
+  TypeScript, but collapses the normal fresh Export read from seven
+  authenticated data reads after auth/profile flow to profile timezone plus one
+  page bundle RPC.
+- Ticket 044 adds a per-user read-through cache for stable authenticated data:
+  profile timezone/settings, behavior lists, categories, and BehaviorLog
+  import-run metadata. Cache misses still use the ordinary authenticated
+  Supabase client and RLS. Occurrences, status events, reminder deliveries,
+  push subscriptions, and account deletion authorization data remain uncached.
+- Ticket 045 adds row-local optimistic Timeline status projection for
+  Completed and Not Completed. The visual row updates immediately with
+  `aria-busy`/status feedback, rolls back on server-action error, and still
+  reconciles through the server result and existing `router.refresh()` path.
+  Note-save optimism was left out because the note form remount/default-value
+  pattern needs a separate scoped change.
+- Ticket 046 changes Behavior create to return a server-confirmed
+  `BehaviorView`, skip current-route `/behaviors` revalidation, and insert the
+  confirmed row into the client list. It still revalidates `/timeline` because
+  a new active behavior can affect generated occurrences.
+
+Call-count expectations:
+
+| Surface/action | Before | After |
+|---|---:|---:|
+| Fresh Export page data after auth/profile | categories, behaviors, sync state, occurrences, status events, reminder deliveries, plus profile | profile timezone plus `get_export_page_read_bundle` |
+| Timeline/Analytics stable reads | profile timezone and behavior list on every render | warm per-user cache hit until mutation invalidation or TTL expiry |
+| Behaviors page stable reads | categories, behaviors, profile timezone on every render | warm per-user cache hit until mutation invalidation or TTL expiry |
+| Settings profile read | profile settings on every render | warm per-user cache hit until timezone/account invalidation or TTL expiry |
+| Behavior create visible update | server write plus `/behaviors` and `/timeline` revalidation | server write, small confirmed result, local list insert, `/timeline` revalidation only |
+
+Cache invalidation:
+
+- Behavior create/update/archive/restore clears behavior/category/timezone
+  buckets for that user.
+- Settings timezone change clears profile and behavior buckets for that user.
+- BehaviorLog import/restore preview/status updates clear import-run buckets.
+- BehaviorLog import/restore apply clears behavior/category buckets.
+- Account deletion clears all read-cache buckets for the deleted user.
+
+Verification:
+
+- Pass: `SUPABASE_NO_TELEMETRY=1 npm run supabase -- db reset`.
+- Pass: local SQL probe confirmed the Export RPC is not `SECURITY DEFINER`, has
+  `search_path=public`, is not executable by `anon`, and is executable by
+  `authenticated`.
+- Pass: local RPC shape probe returned the expected top-level bundle keys.
+- Pass: `SUPABASE_NO_TELEMETRY=1 npm run supabase -- db advisors --local --type all --fail-on error`
+  with only pre-existing RLS init-plan warnings.
+- Pass: `npx vitest run tests/user-read-cache.test.ts tests/behavior-create.service.test.ts tests/behavior-actions.test.ts tests/behavior-list-state.test.ts tests/timeline-optimistic-status.test.ts tests/settings.service.test.ts tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-restore-ui.test.tsx tests/export.resolver.test.ts`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+
+Remaining measurement:
+
+- Hosted Supabase received migration
+  `20260626032324_add_export_page_read_rpc.sql` with
+  `npm run supabase -- db push --linked --yes`.
+- Production deployment `dpl_4FtW7Fhw9gmJeDLtHL5e836huGog` is `READY`, aliased
+  to `https://cadence-blush-three.vercel.app`, and built in `iad1`.
+- Unauthenticated production smoke after deploy: `/login` returned `200`;
+  `/timeline` and `/export` returned expected `307` redirects to login.
+
+Authenticated production full route loads in Chrome after deploy:
+
+| Route | Run 1 | Run 2 | Run 3 | Median |
+|---|---:|---:|---:|---:|
+| `/timeline` | 963ms | 426ms | 1206ms | 963ms |
+| `/behaviors` | 532ms | 280ms | 231ms | 280ms |
+| `/analytics` | 384ms | 429ms | 445ms | 429ms |
+| `/export` | 539ms | 322ms | 1500ms | 539ms |
+| `/settings` | 431ms | 251ms | 264ms | 264ms |
+
+The Chrome timing method used wall-clock navigation-to-load timing plus a
+small DOM state check, because the browser runtime used for this pass did not
+expose page `performance` APIs. All five routes rendered authenticated app
+content and did not redirect to login.
+
+## 2026-06-26 Ticket 047: Production Performance Timing Log Sampling
+
+Implementation:
+
+- Added Ticket 047 to `docs/TICKETS.md` for hosted production sampling of the
+  existing Ticket 035 instrumentation.
+- Documented `CADENCE_PERF_LOG=1` in `docs/VERCEL_WORKFLOW.md` as an optional
+  Production sampling flag for privacy-safe server timing spans.
+- Added `CADENCE_PERF_LOG=1` to the Vercel Production environment for the
+  `cadence` project and redeployed production so the runtime received it.
+- Production deployment `dpl_GyGQSJX5dCQzyRxA4zXyiEH8K7SN` is `READY`,
+  aliased to `https://cadence-blush-three.vercel.app`, and built in `iad1`.
+
+Authenticated Chrome route loads after enabling production timing:
+
+| Route | Run 1 | Run 2 | Run 3 | Median |
+|---|---:|---:|---:|---:|
+| `/timeline` | 3614ms | 1605ms | 414ms | 1605ms |
+| `/behaviors` | 914ms | 275ms | 204ms | 275ms |
+| `/analytics` | 369ms | 748ms | 800ms | 748ms |
+| `/export` | 531ms | 351ms | 417ms | 417ms |
+| `/settings` | 434ms | 246ms | 344ms | 344ms |
+
+A second cache-busted route pass rendered authenticated app content with no
+login redirects:
+
+| Route | Elapsed |
+|---|---:|
+| `/timeline?perf_sample=...` | 977ms |
+| `/behaviors?perf_sample=...` | 550ms |
+| `/analytics?perf_sample=...` | 811ms |
+| `/export?perf_sample=...` | 543ms |
+| `/settings?perf_sample=...` | 364ms |
+
+Representative production server spans from `vercel logs --query
+performance_timing`:
+
+| Route | Span | Observed duration | Counts |
+|---|---|---:|---|
+| `/timeline` | `page.bundle_load` | 127.5-1470.3ms | 8 timeline sections |
+| `/timeline` | `service.ensure_user_occurrences_fresh` | 0-576.1ms | covered reads reported `covered=1`, repair reported `synced=1`, 19 behaviors, 10 created |
+| `/timeline` | `db.list_occurrences_between_local_dates` | 44.1-533.2ms | 307 occurrences |
+| `/behaviors` | `page.data_load` | 5.9-337.6ms | 8 categories, 12 active, 7 archived |
+| `/analytics` | `page.data_load` | 83.4-478.1ms | 30-day range, 16 behavior summaries |
+| `/export` | `page.data_load` | 187.4-296.8ms | 12 behaviors, 136 occurrences, 1 import run |
+| `/export` | `db.get_export_page_read_bundle` | 60.1-94.9ms | profile, sync state, categories, behaviors, slots, occurrences, events, reminders |
+| `/settings` | `page.data_load` | 10.0-168.7ms | no user payload counts |
+| `app_layout` | `auth.get_current_user_claims` | 7.2-274.8ms | no user payload counts |
+| primary routes | `proxy.auth.get_claims` | usually 1-6ms, one cold outlier at 374ms | no user payload counts |
+
+Interpretation:
+
+- Production timing logs now provide server span attribution. The prior Ticket
+  042 limitation is closed.
+- The app messages emitted by the timing utility are sanitized JSON containing
+  `source`, `kind`, `route`, `span`, `duration_ms`, `status`, and aggregate
+  counts only. The sampled app messages did not include emails, behavior
+  titles, notes, cookies, provider tokens, request bodies, or response bodies.
+- Warm covered occurrence-freshness checks are effectively free in the sampled
+  logs (`covered=1`, `synced=0`, `0-0.2ms`). When a read route has to repair
+  freshness, Timeline can still spend about `576ms` in
+  `service.ensure_user_occurrences_fresh`, and that single repair explains the
+  slowest sampled Timeline page load.
+- The per-user read-through cache is visible indirectly: repeated Behaviors
+  and Settings page data spans can drop to roughly `5.9-35.9ms` and
+  `10.0-10.6ms` when stable reads are warm. Repository spans reappear on
+  misses, TTL expiry, new Vercel instances, or invalidation.
+- Export's page-level RPC is behaving as intended: the sampled bundle RPC
+  completed in roughly `60.1-94.9ms`, with the overall Export data load around
+  `187.4-296.8ms`.
+
+Remaining risk:
+
+- `CADENCE_PERF_LOG=1` is intentionally enabled in Production after this
+  ticket. The output is sanitized, but it increases runtime log volume while
+  enabled and should be turned off when active production sampling is no longer
+  useful.
+- The read-through cache remains per server instance and short TTL. It reduces
+  repeated stable reads on warm instances, but it is not a shared durable cache.
+
+Verification:
+
+- Pass: `npx vercel env ls production --scope emis-projects-4c886aeb`
+  confirmed `CADENCE_PERF_LOG` is present in Production.
+- Pass: `npx vercel deploy --prod --yes --scope emis-projects-4c886aeb`
+  created deployment `dpl_GyGQSJX5dCQzyRxA4zXyiEH8K7SN`.
+- Pass:
+  `npx vercel inspect cadence-17t607jh1-emis-projects-4c886aeb.vercel.app --scope emis-projects-4c886aeb`
+  confirmed the deployment is `READY`, aliased to production, and built in
+  `iad1`.
+- Pass: authenticated Chrome route matrix rendered `/timeline`, `/behaviors`,
+  `/analytics`, `/export`, and `/settings` without login redirects.
+- Pass:
+  `npx vercel logs cadence-blush-three.vercel.app --scope emis-projects-4c886aeb --since 35m --query performance_timing --json`
+  returned sanitized `performance_timing` events for proxy auth, app layout
+  auth, Timeline bundle load, primary page data loads, Export RPC reads,
+  occurrence freshness, and repository reads.

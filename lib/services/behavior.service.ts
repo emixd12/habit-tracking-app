@@ -2,9 +2,6 @@ import {
   createBehavior,
   createBehaviorScheduleSlots,
   getBehaviorById,
-  getProfileTimezone,
-  listBehaviorCategories,
-  listUserBehaviors,
   replaceBehaviorScheduleSlots,
   updateBehavior,
   type AppSupabaseClient,
@@ -12,6 +9,12 @@ import {
 } from "@/lib/db/behaviors.repo";
 import { createClient } from "@/lib/supabase/server";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
+import {
+  invalidateBehaviorData,
+  readCachedBehaviorCategories,
+  readCachedProfileTimezone,
+  readCachedUserBehaviors,
+} from "@/lib/cache/stable-user-data.cache";
 import type {
   BehaviorPageData,
   BehaviorView,
@@ -44,9 +47,9 @@ export async function getBehaviorPageData(): Promise<BehaviorPageData> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const [categories, behaviors, profileTimezone] = await Promise.all([
-    listBehaviorCategories(supabase, userId),
-    listUserBehaviors(supabase, userId),
-    getProfileTimezone(supabase, userId),
+    readCachedBehaviorCategories(supabase, userId),
+    readCachedUserBehaviors(supabase, userId),
+    readCachedProfileTimezone(supabase, userId),
   ]);
 
   const categoryOptions = categories.map(toCategoryOption);
@@ -62,12 +65,12 @@ export async function getBehaviorPageData(): Promise<BehaviorPageData> {
 
 export async function createBehaviorFromFormData(
   formData: FormData,
-): Promise<void> {
+): Promise<BehaviorView> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const timezone =
     getTimezoneFromFormData(formData) ??
-    (await getProfileTimezone(supabase, userId)) ??
+    (await readCachedProfileTimezone(supabase, userId)) ??
     DEFAULT_TIMEZONE;
   const input = parseBehaviorFormData(formData, {
     mode: "create",
@@ -103,6 +106,19 @@ export async function createBehaviorFromFormData(
       behavior_id: createdBehavior.id,
     })),
   );
+  const confirmedBehavior = await getBehaviorById(
+    supabase,
+    userId,
+    createdBehavior.id,
+  );
+
+  if (!confirmedBehavior) {
+    throw new Error("Behavior not found after create.");
+  }
+
+  invalidateBehaviorData(userId);
+
+  return toBehaviorView(confirmedBehavior);
 }
 
 export async function updateBehaviorFromFormData(
@@ -153,6 +169,7 @@ export async function updateBehaviorFromFormData(
     behaviorId: updatedBehavior.id,
     slots: input.scheduleSlots.map(toBehaviorScheduleSlotMutation),
   });
+  invalidateBehaviorData(userId);
 }
 
 export async function archiveBehaviorFromFormData(
@@ -175,6 +192,8 @@ export async function archiveBehaviorFromFormData(
   if (!updatedBehavior) {
     throw new Error("Behavior not found.");
   }
+
+  invalidateBehaviorData(userId);
 }
 
 export async function restoreBehaviorFromFormData(
@@ -197,6 +216,8 @@ export async function restoreBehaviorFromFormData(
   if (!updatedBehavior) {
     throw new Error("Behavior not found.");
   }
+
+  invalidateBehaviorData(userId);
 }
 
 function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {

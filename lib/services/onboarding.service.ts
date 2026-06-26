@@ -1,10 +1,10 @@
-import { listBehaviorLogImportRuns } from "@/lib/db/behaviorLogImports.repo";
-import {
-  getProfileTimezone,
-  listUserBehaviors,
-  type AppSupabaseClient,
-} from "@/lib/db/behaviors.repo";
+import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
+import {
+  readCachedBehaviorLogImportRuns,
+  readCachedProfileTimezone,
+  readCachedUserBehaviors,
+} from "@/lib/cache/stable-user-data.cache";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type { FirstRunOnboardingState } from "@/lib/types/onboarding";
@@ -13,9 +13,9 @@ export async function getFirstRunOnboardingState(): Promise<FirstRunOnboardingSt
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const [behaviors, importRuns, profileTimezone] = await Promise.all([
-    listUserBehaviors(supabase, userId),
-    listBehaviorLogImportRuns(supabase, userId, 1),
-    getProfileTimezone(supabase, userId),
+    readCachedUserBehaviors(supabase, userId),
+    readCachedBehaviorLogImportRuns(supabase, userId, 1),
+    readCachedProfileTimezone(supabase, userId),
   ]);
 
   return createFirstRunOnboardingState({

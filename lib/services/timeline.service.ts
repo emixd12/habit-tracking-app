@@ -1,9 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 
-import { listBehaviorLogImportRuns } from "@/lib/db/behaviorLogImports.repo";
 import {
-  getProfileTimezone,
-  listUserBehaviors,
   type AppSupabaseClient,
   type BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
@@ -28,6 +25,11 @@ import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
 import { readOccurrenceSyncState } from "@/lib/services/occurrence-sync-state.service";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
+import {
+  readCachedBehaviorLogImportRuns,
+  readCachedProfileTimezone,
+  readCachedUserBehaviors,
+} from "@/lib/cache/stable-user-data.cache";
 import type { Occurrence } from "@/lib/types/database";
 import type { FirstRunOnboardingState } from "@/lib/types/onboarding";
 import type {
@@ -54,9 +56,9 @@ export async function getTimelinePageBundle(
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
   const [profileTimezone, behaviors, importRuns, syncState] = await Promise.all([
-    getProfileTimezone(supabase, userId),
-    listUserBehaviors(supabase, userId),
-    listBehaviorLogImportRuns(supabase, userId, 1),
+    readCachedProfileTimezone(supabase, userId),
+    readCachedUserBehaviors(supabase, userId),
+    readCachedBehaviorLogImportRuns(supabase, userId, 1),
     readOccurrenceSyncState(supabase, userId),
   ]);
   const timeline = await getTimelineViewForUser({
@@ -86,8 +88,8 @@ export async function getTimelinePageData(
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
   const [profileTimezone, behaviors, syncState] = await Promise.all([
-    getProfileTimezone(supabase, userId),
-    listUserBehaviors(supabase, userId),
+    readCachedProfileTimezone(supabase, userId),
+    readCachedUserBehaviors(supabase, userId),
     readOccurrenceSyncState(supabase, userId),
   ]);
 

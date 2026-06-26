@@ -801,6 +801,10 @@ export type Database = {
         Args: { restore_payload: Json }
         Returns: Json
       }
+      get_export_page_read_bundle: {
+        Args: { range_end_local_date: string; range_start_local_date: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

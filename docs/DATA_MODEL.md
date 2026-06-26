@@ -795,3 +795,59 @@ Occurrence generation must be idempotent.
 
 The `(user_id, id, behavior_id)` uniqueness constraint exists so status events
 can enforce same-user ownership for their occurrence and behavior snapshot.
+
+## Database functions
+
+### `public.get_export_page_read_bundle(range_start_local_date date, range_end_local_date date)`
+
+Ticket 043 adds a narrow Export-page read RPC to reduce repeated authenticated
+Data API round trips. It returns one JSON bundle containing:
+
+- profile timezone,
+- occurrence sync state,
+- categories,
+- behaviors with category labels and schedule slots,
+- occurrences in the selected export range,
+- status events attached to those occurrences,
+- reminder deliveries attached to those occurrences.
+
+The function is `SECURITY INVOKER`, sets `search_path = public`, and filters
+all user-owned rows to `(select auth.uid())`. It is executable by
+`authenticated` only; `public` and `anon` execute privileges are revoked.
+
+Export range resolution, occurrence freshness decisions, export formatting,
+BehaviorLog bundle creation, and adherence math remain in TypeScript
+services/resolvers. The RPC is a page-specific read bundle, not a generic data
+access layer.
+
+## Authenticated read cache
+
+Ticket 044 adds a small server-side read-through cache for low-volatility
+authenticated data. Cache keys include the authenticated `userId`, a bucket
+name, and an optional variant such as an import-run limit. Keys must not include
+emails, provider tokens, secrets, request bodies, behavior text, occurrence
+notes, or push subscription material.
+
+Cached buckets:
+
+- `profile_timezone`
+- `profile_settings`
+- `behavior_list`
+- `category_list`
+- `behaviorlog_import_runs`
+
+Cache misses still read through the ordinary authenticated Supabase client and
+RLS. The cache does not use service-role access for normal app reads.
+
+Invalidation is explicit:
+
+- behavior create/update/archive/restore invalidates behavior/category/timezone
+  read buckets,
+- Settings timezone changes invalidate profile and behavior buckets,
+- BehaviorLog import/restore previews and status updates invalidate import-run
+  buckets,
+- BehaviorLog import/restore applies invalidate behavior/category buckets,
+- account deletion clears all cached buckets for the deleted user.
+
+Occurrence rows, occurrence status events, reminder deliveries, push
+subscriptions, and account deletion authorization data remain uncached.

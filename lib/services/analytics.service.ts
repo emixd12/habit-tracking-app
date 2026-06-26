@@ -1,10 +1,8 @@
 import { Temporal } from "@js-temporal/polyfill";
 
-import {
-  getProfileTimezone,
-  listUserBehaviors,
-  type AppSupabaseClient,
-  type BehaviorWithCategory,
+import type {
+  AppSupabaseClient,
+  BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
 import {
   listOccurrencesBetweenLocalDates,
@@ -19,6 +17,10 @@ import { formatOccurrenceScheduleLabel } from "@/lib/services/schedule";
 import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
 import { readOccurrenceSyncState } from "@/lib/services/occurrence-sync-state.service";
 import { createClient } from "@/lib/supabase/server";
+import {
+  readCachedProfileTimezone,
+  readCachedUserBehaviors,
+} from "@/lib/cache/stable-user-data.cache";
 import type { AnalyticsOccurrenceInput, AnalyticsView } from "@/lib/types/analytics";
 import type { Occurrence, OccurrenceStatus } from "@/lib/types/database";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
@@ -37,8 +39,8 @@ export async function getAnalyticsPageData(
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
   const [profileTimezone, behaviors, syncState] = await Promise.all([
-    getProfileTimezone(supabase, userId),
-    listUserBehaviors(supabase, userId),
+    readCachedProfileTimezone(supabase, userId),
+    readCachedUserBehaviors(supabase, userId),
     readOccurrenceSyncState(supabase, userId),
   ]);
   const timezone = profileTimezone ?? DEFAULT_TIMEZONE;

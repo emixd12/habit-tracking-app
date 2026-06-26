@@ -21,7 +21,7 @@ type BehaviorFormProps = Readonly<{
   categories: CategoryOption[];
   behavior?: BehaviorView;
   defaultTimezone?: string;
-  onSuccess?: (message: string) => void;
+  onSuccess?: (state: BehaviorActionState) => void;
 }>;
 
 const EMPTY_ACTION_STATE: BehaviorActionState = {
@@ -66,9 +66,9 @@ export function BehaviorForm({
 
   useEffect(() => {
     if (state.status === "success" && state.message) {
-      onSuccess?.(state.message);
+      onSuccess?.(state);
     }
-  }, [onSuccess, state.message, state.status]);
+  }, [onSuccess, state]);
 
   function addScheduleRow() {
     if (scheduleRows.length >= MAX_SCHEDULE_ROWS) {
