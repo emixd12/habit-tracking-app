@@ -240,7 +240,7 @@ function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {
           .sort(compareScheduleSlots)
       : [
           toScheduleSlotView({
-            id: `${behavior.id}-scheduled-time`,
+            id: "",
             kind: "exact",
             preset: null,
             startTime: scheduledTime,

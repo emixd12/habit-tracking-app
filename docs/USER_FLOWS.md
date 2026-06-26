@@ -266,6 +266,10 @@ Archived behaviors appear in a separate low-priority bottom disclosure and do
 not appear on the timeline. Archived behaviors can be restored from that
 section.
 
+Active behavior rows keep Archive behavior at the end of Details and Settings
+so the collapsed row remains focused on review metrics and the behavior
+calendar.
+
 Categories are edited in Settings.
 
 The Behaviors screen distinguishes two edit modes:
@@ -295,8 +299,10 @@ Behavior review on the Behaviors screen defaults to the last 30 days.
 Show overall adherence at the top.
 
 The overall calendar is part of the Overall adherence area rather than a
-separate boxed section. Its legend is hidden by default behind a See Legend
-disclosure.
+separate boxed section. The date range selector sits directly above the
+overall calendar, the selected date range appears under the adherence
+percentage in compact month-day wording, and the legend is vertically listed
+to the right of the calendar on desktop.
 
 The top summary Unresolved count should match the Timeline Needs decision
 count, so it includes only active unresolved occurrences before the current

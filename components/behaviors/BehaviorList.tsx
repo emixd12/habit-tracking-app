@@ -159,39 +159,36 @@ function OverallAdherence({
 }>) {
   return (
     <section className="grid gap-4" aria-labelledby="overall-adherence-title">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-        <div className="min-w-0">
+      <div className="grid gap-5 md:grid-cols-[minmax(14rem,0.62fr)_minmax(16rem,31rem)] md:items-start">
+        <div className="grid max-w-sm gap-5">
           <h2 id="overall-adherence-title" className="text-2xl leading-tight">
             Overall adherence
           </h2>
-          <p className="mt-2 text-sm text-muted-readable">
-            {analytics.rangeLabel} · {analytics.rangeStartLocalDate} to{" "}
-            {analytics.rangeEndLocalDate}
-          </p>
+
+          <div className="grid gap-4">
+            <div>
+              <p className="text-4xl leading-none sm:text-5xl">
+                {analytics.summary.percentLabel}
+              </p>
+              <p className="mt-2 text-sm text-muted-readable">
+                Range:{" "}
+                {formatLocalDateRange(
+                  analytics.rangeStartLocalDate,
+                  analytics.rangeEndLocalDate,
+                )}
+              </p>
+            </div>
+
+            <StatusCountGrid counts={analytics.summary} />
+          </div>
         </div>
 
-        <RangeSelector analytics={analytics} />
-      </div>
-
-      <div className="grid gap-5 md:grid-cols-[minmax(14rem,0.62fr)_minmax(16rem,19rem)] md:items-start">
-        <div className="grid max-w-sm gap-4">
-          <div>
-            <p className="text-4xl leading-none sm:text-5xl">
-              {analytics.summary.percentLabel}
-            </p>
-            <p className="mt-2 text-sm text-muted-readable">
-              {analytics.summary.detailLabel}
-            </p>
+        <div className="grid w-full max-w-[31rem] gap-3 md:justify-self-end">
+          <RangeSelector analytics={analytics} />
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,16rem)_max-content] sm:items-start">
+            <OverallHeatmap analytics={analytics} />
+            <HeatmapLegend />
           </div>
-
-          <StatusCountGrid counts={analytics.summary} />
-        </div>
-
-        <div className="grid w-full max-w-[19rem] gap-3 md:justify-self-end">
-          <div className="justify-self-end">
-            <LegendDisclosure />
-          </div>
-          <OverallHeatmap analytics={analytics} />
         </div>
       </div>
     </section>
@@ -206,7 +203,7 @@ function RangeSelector({
   return (
     <nav
       aria-label="Adherence date range"
-      className="flex min-h-11 flex-wrap gap-x-5 gap-y-2 md:justify-end"
+      className="flex min-h-11 w-full max-w-[16rem] flex-wrap gap-x-5 gap-y-2"
     >
       {analytics.rangeOptions.map((rangeDays) => {
         const isActive = analytics.rangeDays === rangeDays;
@@ -282,6 +279,7 @@ function BehaviorRecord({
   noteAction?: OccurrenceFormAction;
 }>) {
   const [hasOpenedEdit, setHasOpenedEdit] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const selectedBehaviorDay =
     analytics?.selectedBehaviorDay?.behaviorId === behavior.id
       ? analytics.selectedBehaviorDay
@@ -304,16 +302,8 @@ function BehaviorRecord({
             <BehaviorOutcomeStats behaviorAnalytics={behaviorAnalytics ?? null} />
           ) : null}
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            {behavior.active ? (
-              <BehaviorStateForm
-                behaviorId={behavior.id}
-                action={archiveAction}
-                buttonLabel="Archive"
-                pendingLabel="Archiving..."
-                variant="danger"
-              />
-            ) : (
+          {!behavior.active ? (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <BehaviorStateForm
                 behaviorId={behavior.id}
                 action={restoreAction}
@@ -321,8 +311,8 @@ function BehaviorRecord({
                 pendingLabel="Restoring..."
                 variant="primary"
               />
-            )}
-          </div>
+            </div>
+          ) : null}
         </div>
 
         {behavior.active ? (
@@ -335,26 +325,60 @@ function BehaviorRecord({
       </div>
 
       <details
+        className="group"
         onToggle={(event) => {
+          setIsSettingsOpen(event.currentTarget.open);
+
           if (event.currentTarget.open) {
             setHasOpenedEdit(true);
           }
         }}
       >
-        <summary className="cursor-pointer px-5 py-4 text-sm text-foreground underline decoration-1 underline-offset-4 marker:text-muted-readable focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-          Details and edit settings
+        <summary className="flex min-h-12 cursor-pointer list-none items-center px-5 py-4 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+          <span
+            aria-hidden="true"
+            className="mr-1 h-0 w-0 shrink-0 border-y-[0.25rem] border-l-[0.375rem] border-y-transparent border-l-muted-readable transition-transform duration-200 group-open:rotate-90"
+          />
+          <span
+            className="block min-w-0 whitespace-nowrap"
+            style={{
+              flex: isSettingsOpen ? "1 1 auto" : "0 1 auto",
+              backgroundImage: "linear-gradient(currentColor, currentColor)",
+              backgroundPosition: "0 100%",
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "100% 1px",
+              paddingBottom: "4px",
+            }}
+          >
+            Details and Settings
+          </span>
         </summary>
-        <div className="mx-5 grid gap-5 border-t border-line pb-5 pt-4">
+        <div className="mx-5 grid gap-5 pb-5 pl-2.5 pt-4">
           <BehaviorMetadata behavior={behavior} />
 
           {hasOpenedEdit ? (
-            <BehaviorForm
-              key={`${behavior.id}-${behavior.updatedAt}`}
-              mode="edit"
-              action={updateAction}
-              categories={categories}
-              behavior={behavior}
-            />
+            <>
+              <BehaviorForm
+                key={`${behavior.id}-${behavior.updatedAt}`}
+                mode="edit"
+                action={updateAction}
+                categories={categories}
+                behavior={behavior}
+                showActiveToggle={false}
+              />
+
+              {behavior.active ? (
+                <div className="border-t border-line pt-4">
+                  <BehaviorStateForm
+                    behaviorId={behavior.id}
+                    action={archiveAction}
+                    buttonLabel="Archive behavior"
+                    pendingLabel="Archiving..."
+                    variant="danger"
+                  />
+                </div>
+              ) : null}
+            </>
           ) : null}
         </div>
       </details>
@@ -402,20 +426,21 @@ function BehaviorOutcomeStats({
   }
 
   return (
-    <div className="grid max-w-sm gap-3">
-      <dl className="grid gap-2 text-sm leading-6 text-muted-readable">
-        <SummaryItem label="Adherence" value={behaviorAnalytics.percentLabel} />
-        <SummaryItem label="Resolved" value={behaviorAnalytics.detailLabel} />
-        <SummaryItem
-          label="Tracking since"
-          value={formatCompactLocalDate(behaviorAnalytics.trackingStartLocalDate)}
-        />
-      </dl>
-
-      <div className="w-full max-w-sm">
-        <StatusCountGrid counts={behaviorAnalytics} includeUnresolved={false} />
-      </div>
-    </div>
+    <dl className="grid max-w-sm gap-2 text-sm leading-6 text-muted-readable">
+      <SummaryItem label="Adherence" value={behaviorAnalytics.percentLabel} />
+      <SummaryItem
+        label="Completed"
+        value={String(behaviorAnalytics.completedCount)}
+      />
+      <SummaryItem
+        label="Not Completed"
+        value={String(behaviorAnalytics.notCompletedCount)}
+      />
+      <SummaryItem
+        label="Tracking since"
+        value={formatCompactLocalDate(behaviorAnalytics.trackingStartLocalDate)}
+      />
+    </dl>
   );
 }
 
@@ -800,22 +825,12 @@ function BehaviorStateButton({
   );
 }
 
-function LegendDisclosure() {
-  return (
-    <details className="w-full sm:w-auto">
-      <summary className="product-action product-action-secondary min-h-9 cursor-pointer list-none py-2 text-sm [&::-webkit-details-marker]:hidden">
-        See Legend
-      </summary>
-      <div className="mt-3">
-        <HeatmapLegend />
-      </div>
-    </details>
-  );
-}
-
 function HeatmapLegend() {
   return (
-    <ul className="flex flex-wrap gap-3 text-sm text-muted-readable">
+    <ul
+      aria-label="Calendar legend"
+      className="grid gap-2 text-sm text-muted-readable"
+    >
       <LegendItem
         label="100% Completed"
         className="border-line"
@@ -942,6 +957,63 @@ function formatCompactLocalDate(localDate: string): string {
 
   return `${month}-${day}-${year.slice(-2)}`;
 }
+
+function formatLocalDateRange(startLocalDate: string, endLocalDate: string): string {
+  const start = parseLocalDateParts(startLocalDate);
+  const end = parseLocalDateParts(endLocalDate);
+
+  if (!start || !end) {
+    return `${startLocalDate} to ${endLocalDate}`;
+  }
+
+  if (start.year === end.year && start.month === end.month) {
+    return `${MONTH_LABELS[start.month - 1]} ${start.day}-${end.day}, ${end.year}`;
+  }
+
+  if (start.year === end.year) {
+    return `${MONTH_LABELS[start.month - 1]} ${start.day}-${MONTH_LABELS[end.month - 1]} ${end.day}, ${end.year}`;
+  }
+
+  return `${MONTH_LABELS[start.month - 1]} ${start.day}, ${start.year}-${MONTH_LABELS[end.month - 1]} ${end.day}, ${end.year}`;
+}
+
+function parseLocalDateParts(
+  localDate: string,
+): { year: number; month: number; day: number } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(localDate);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day] = match;
+  const monthNumber = Number(month);
+
+  if (monthNumber < 1 || monthNumber > 12) {
+    return null;
+  }
+
+  return {
+    year: Number(year),
+    month: monthNumber,
+    day: Number(day),
+  };
+}
+
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 function behaviorReviewHref({
   rangeDays,

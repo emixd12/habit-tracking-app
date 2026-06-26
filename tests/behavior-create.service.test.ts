@@ -4,6 +4,7 @@ import { clearUserReadCache } from "../lib/cache/user-read-cache";
 const USER_ID = "11111111-1111-4111-8111-111111111111";
 const BEHAVIOR_ID = "22222222-2222-4222-8222-222222222222";
 const CATEGORY_ID = "33333333-3333-4333-8333-333333333333";
+const SCHEDULE_SLOT_ID = "44444444-4444-4444-8444-444444444444";
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -71,7 +72,7 @@ describe("createBehaviorFromFormData", () => {
     });
     expect(result.scheduleSlots).toEqual([
       expect.objectContaining({
-        id: "slot-1",
+        id: SCHEDULE_SLOT_ID,
         kind: "exact",
         startTime: "07:30",
         label: "7:30 AM",
@@ -112,6 +113,26 @@ describe("createBehaviorFromFormData", () => {
       BEHAVIOR_ID,
     );
   });
+
+  it("returns a resavable fallback schedule row when the confirmed behavior has no slot rows", async () => {
+    const { createBehaviorFromFormData } = await import(
+      "../lib/services/behavior.service"
+    );
+    mocks.getBehaviorById.mockResolvedValue(
+      storedBehavior({ schedule_slots: [] }),
+    );
+
+    const result = await createBehaviorFromFormData(createFormData());
+
+    expect(result.scheduleSlots).toEqual([
+      expect.objectContaining({
+        id: "",
+        kind: "exact",
+        startTime: "07:30",
+        label: "7:30 AM",
+      }),
+    ]);
+  });
 });
 
 function createFormData(): FormData {
@@ -132,7 +153,16 @@ function createFormData(): FormData {
   return formData;
 }
 
-function storedBehavior() {
+function storedBehavior(
+  overrides: Partial<ReturnType<typeof baseStoredBehavior>> = {},
+) {
+  return {
+    ...baseStoredBehavior(),
+    ...overrides,
+  };
+}
+
+function baseStoredBehavior() {
   return {
     id: BEHAVIOR_ID,
     user_id: USER_ID,
@@ -155,7 +185,7 @@ function storedBehavior() {
     },
     schedule_slots: [
       {
-        id: "slot-1",
+        id: SCHEDULE_SLOT_ID,
         user_id: USER_ID,
         behavior_id: BEHAVIOR_ID,
         kind: "exact",

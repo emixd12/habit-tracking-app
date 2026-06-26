@@ -13,6 +13,10 @@ type ClaimsAuthResult = {
   authenticated: boolean;
 };
 
+const LOGIN_PREVIEW_PARAM = "preview";
+const LOGIN_PREVIEW_VALUE = "1";
+const LOCAL_LOGIN_PREVIEW_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
 function redirectWithSessionCookies(
   request: NextRequest,
   sessionResponse: NextResponse,
@@ -40,6 +44,16 @@ function hasSupabaseAuthCookie(request: NextRequest) {
     .some(
       ({ name }) => name.startsWith("sb-") && name.includes("auth-token"),
     );
+}
+
+function allowsAuthenticatedLoginPreview(request: NextRequest) {
+  return (
+    request.nextUrl.searchParams.get(LOGIN_PREVIEW_PARAM) ===
+      LOGIN_PREVIEW_VALUE &&
+    process.env.NODE_ENV !== "production" &&
+    process.env.VERCEL_ENV !== "production" &&
+    LOCAL_LOGIN_PREVIEW_HOSTS.has(request.nextUrl.hostname)
+  );
 }
 
 async function measureProxyAuth<T>(
@@ -160,7 +174,11 @@ export async function updateSession(request: NextRequest) {
     );
   }
 
-  if (pathname === LOGIN_ROUTE && authResult.authenticated) {
+  if (
+    pathname === LOGIN_ROUTE &&
+    authResult.authenticated &&
+    !allowsAuthenticatedLoginPreview(request)
+  ) {
     const nextPath = normalizeRedirectPath(
       request.nextUrl.searchParams.get("next"),
     );

@@ -128,6 +128,39 @@ describe("parseBehaviorFormData", () => {
     ]);
   });
 
+  it("keeps category-only updates valid when a fallback schedule row has no persisted id", () => {
+    const result = parseBehaviorFormData(
+      formData([
+        ["behavior_id", BEHAVIOR_ID],
+        ["title", "Laundry"],
+        ["category_id", CATEGORY_ID],
+        ["schedule_slot_count", "1"],
+        ["schedule_slot_id_0", ""],
+        ["schedule_kind_0", "exact"],
+        ["schedule_exact_time_0", "12:00"],
+        ["recurrence_kind", "weekly"],
+        ["weekly_interval", "1"],
+        ["weekly_days", "wednesday"],
+        ["reminder_offset", "0"],
+        ["browser_reminder", "on"],
+        ["active", "on"],
+      ]),
+      { mode: "update", categories },
+    );
+
+    expect(result.categoryId).toBe(CATEGORY_ID);
+    expect(result.scheduleSlots).toEqual([
+      {
+        id: null,
+        kind: "exact",
+        preset: null,
+        startTime: "12:00",
+        endTime: null,
+        sortOrder: 0,
+      },
+    ]);
+  });
+
   it("rejects duplicate schedule start times", () => {
     expect(() =>
       parseBehaviorFormData(

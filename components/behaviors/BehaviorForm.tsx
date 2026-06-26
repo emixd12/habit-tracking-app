@@ -21,6 +21,7 @@ type BehaviorFormProps = Readonly<{
   categories: CategoryOption[];
   behavior?: BehaviorView;
   defaultTimezone?: string;
+  showActiveToggle?: boolean;
   onSuccess?: (state: BehaviorActionState) => void;
 }>;
 
@@ -55,6 +56,7 @@ export function BehaviorForm({
   categories,
   behavior,
   defaultTimezone,
+  showActiveToggle = true,
   onSuccess,
 }: BehaviorFormProps) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
@@ -196,7 +198,7 @@ export function BehaviorForm({
         error={fieldErrors.reminders}
       />
 
-      {mode === "edit" ? (
+      {mode === "edit" && showActiveToggle ? (
         <label className="flex min-h-12 items-center gap-3 border border-line bg-background px-3 py-2 text-sm font-bold hover:bg-surface">
           <input
             type="checkbox"
@@ -206,6 +208,9 @@ export function BehaviorForm({
           />
           Active
         </label>
+      ) : null}
+      {mode === "edit" && !showActiveToggle && behavior?.active ? (
+        <input type="hidden" name="active" value="on" />
       ) : null}
 
       <div className="flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center">

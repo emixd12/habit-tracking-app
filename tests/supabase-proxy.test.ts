@@ -116,6 +116,63 @@ describe("Supabase proxy session update", () => {
     );
   });
 
+  it("lets authenticated local development login preview requests continue", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const getClaims = vi.fn().mockResolvedValue({
+      data: {
+        claims: {
+          sub: "user-1",
+        },
+      },
+      error: null,
+    });
+
+    vi.mocked(createServerClient).mockReturnValue({
+      auth: {
+        getClaims,
+      },
+    } as never);
+
+    const response = await updateSession(
+      requestWithAuthCookie(
+        "http://localhost:3000/login?preview=1&next=%2Fsettings",
+      ),
+    );
+
+    expect(getClaims).toHaveBeenCalledOnce();
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("redirects authenticated login preview requests in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+
+    vi.mocked(createServerClient).mockReturnValue({
+      auth: {
+        getClaims: vi.fn().mockResolvedValue({
+          data: {
+            claims: {
+              sub: "user-1",
+            },
+          },
+          error: null,
+        }),
+      },
+    } as never);
+
+    const response = await updateSession(
+      requestWithAuthCookie(
+        "http://localhost:3000/login?preview=1&next=%2Fsettings",
+      ),
+    );
+
+    expect(response.headers.get("location")).toBe(
+      "http://localhost:3000/settings",
+    );
+  });
+
   it("redirects authenticated root requests to the default app route", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");

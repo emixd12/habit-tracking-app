@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Download,
   ListChecks,
+  LogIn,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -28,6 +29,7 @@ const SIDEBAR_STORAGE_KEY = "sidebar-open";
 const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)";
 const EDGE_SWIPE_WIDTH = 20;
 const SWIPE_THRESHOLD = 48;
+const SHOW_LOGIN_PREVIEW_LINK = process.env.NODE_ENV !== "production";
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -200,6 +202,50 @@ function AccountTrigger({
   );
 }
 
+function LoginPreviewLink({
+  href,
+  isCollapsed,
+  onNavigate,
+}: Readonly<{
+  href: string;
+  isCollapsed: boolean;
+  onNavigate?: () => void;
+}>) {
+  return (
+    <Link
+      href={href}
+      title={isCollapsed ? "Preview login" : undefined}
+      aria-label="Preview login screen"
+      onClick={onNavigate}
+      className={[
+        "group flex h-10 w-full items-center overflow-hidden text-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        isCollapsed
+          ? "text-muted-foreground"
+          : "text-muted-foreground hover:bg-surface hover:text-foreground",
+      ].join(" ")}
+    >
+      <span
+        className={[
+          "flex h-10 w-16 shrink-0 items-center justify-center transition-colors",
+          isCollapsed ? "group-hover:bg-surface group-hover:text-foreground" : "",
+        ].join(" ")}
+      >
+        <LogIn aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+      </span>
+      <span
+        className={[
+          "min-w-0 overflow-hidden whitespace-nowrap transition-opacity duration-200",
+          isCollapsed
+            ? "w-0 opacity-0 pointer-events-none"
+            : "w-[calc(100%-4rem)] opacity-100",
+        ].join(" ")}
+      >
+        <span className="block truncate">Preview login</span>
+      </span>
+    </Link>
+  );
+}
+
 export function AppShell({
   children,
   user,
@@ -216,6 +262,7 @@ export function AppShell({
   const touchGestureRef = useRef<TouchGesture | null>(null);
 
   const displayName = user?.name?.trim() || user?.email?.trim() || "Account";
+  const loginPreviewHref = `/login?preview=1&next=${encodeURIComponent(pathname)}`;
 
   const closeMobileNav = useCallback(() => {
     setIsMobileOpen(false);
@@ -507,6 +554,13 @@ export function AppShell({
           />
 
           <div className="border-t border-line">
+            {SHOW_LOGIN_PREVIEW_LINK ? (
+              <LoginPreviewLink
+                href={loginPreviewHref}
+                isCollapsed={false}
+                onNavigate={closeMobileNav}
+              />
+            ) : null}
             <AccountTrigger
               displayName={displayName}
               isCollapsed={false}
@@ -578,6 +632,12 @@ export function AppShell({
           />
 
           <div className="border-t border-line">
+            {SHOW_LOGIN_PREVIEW_LINK ? (
+              <LoginPreviewLink
+                href={loginPreviewHref}
+                isCollapsed={!isDesktopSidebarOpen}
+              />
+            ) : null}
             <AccountTrigger
               displayName={displayName}
               isCollapsed={!isDesktopSidebarOpen}

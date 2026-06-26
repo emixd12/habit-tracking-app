@@ -122,6 +122,10 @@ label reads should use verified Supabase Auth claims through the shared current
 user helper; RLS-backed database access still runs through the ordinary
 authenticated Supabase client.
 
+During local development, authenticated sessions can preview the login screen at
+`/login?preview=1`. This bypass is limited to local non-production hosts and is
+also linked from the development app shell.
+
 ## Source-of-truth order
 
 1. `AGENTS.md`: operating rules and architecture constraints.

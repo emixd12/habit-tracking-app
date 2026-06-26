@@ -226,7 +226,7 @@ existing analytics resolver/service contract, not a separate data model.
 
 Behavior review should be basic:
 - Overall adherence at the top of the Behaviors screen
-- Resolved counts by active behavior
+- Completed and Not Completed counts by active behavior
 - Optional compact resolved counts by category
 - 7/30/90-day windows, defaulting to 30 days
 - `completed` and `not_completed` detail counts, with `unresolved` kept as a neutral heatmap and review state
@@ -238,6 +238,11 @@ Behavior review should be basic:
 - A way to review one behavior's occurrences on a selected day from the
   behavior-level calendar
 - Default adherence rate excludes unresolved
+
+The Overall adherence range selector sits directly above the overall calendar.
+The selected date range appears under the adherence percentage in compact
+month-day wording, and the calendar legend is vertically listed to the right of
+the calendar on desktop.
 
 When nonzero, the top-level adherence summary Unresolved count should match the
 Timeline Needs decision count: active unresolved occurrences before the current

@@ -388,9 +388,9 @@ schema, stored statuses, duplicate resolver logic, or date/time mutation for
 occurrences.
 
 Overall adherence appears near the top of the Behaviors screen with compact
-7 / 30 / 90 day underlined text-action range controls and the overall calendar
-inside that same area. The overall calendar remains passive; selecting days for
-correction starts from an individual behavior row.
+7 / 30 / 90 day underlined text-action range controls directly above the
+overall calendar inside that same area. The overall calendar remains passive;
+selecting days for correction starts from an individual behavior row.
 
 Show active behaviors first as compact unboxed rows.
 
@@ -401,13 +401,13 @@ behaviors exist, the creation disclosure may open by default.
 
 Each behavior card/list item should keep the repeatedly used review information visible:
 - Title
-- Range-based adherence label and resolved outcome counts when occurrences exist in the selected range
+- Range-based adherence label plus Completed and Not Completed counts when occurrences exist in the selected range
 - A per-behavior calendar/heatmap sized to the row
-- Archive
+- Archive behavior at the end of Details and Settings
 - Restore for archived behaviors
-- Details and edit settings
+- Details and Settings
 
-The Details and edit settings disclosure should reveal lower-use behavior
+The Details and Settings disclosure should reveal lower-use behavior
 configuration fields such as category, scheduled times or ranges, recurrence
 summary, reminder indicators, and description when present, then expose the
 existing edit form. These characteristics should not take over the collapsed
@@ -415,11 +415,13 @@ behavior row.
 
 Behavior records should not draw a perimeter border. Separate adjacent
 behaviors with a single quiet divider line, and keep borders only on real
-fields, controls, and status labels. Archive and Restore use underlined
-text-action styling rather than bordered button chrome.
+fields, controls, and status labels. Archive behavior belongs at the end of
+Details and Settings for active records, while Restore remains available from
+archived records. Archive and Restore use underlined text-action styling
+rather than bordered button chrome.
 Separate behavior settings edits from behavior date review:
 
-- Details and edit settings opens the existing behavior metadata and edit form
+- Details and Settings opens the existing behavior metadata and edit form
   for recurring behavior configuration: title, description, category,
   recurrence, schedule, reminders, and active/archive state.
 - Behavior date review opens from a selected non-empty per-behavior calendar
@@ -447,7 +449,7 @@ Show:
 - Completion-intensity calendar heatmap for overall adherence
 - Date range selector: 7 / 30 / 90 days as underlined text actions. The current
   range uses primary black text, and inactive ranges use readable muted text.
-- Resolved completion counts by behavior
+- Completed and Not Completed counts by behavior
 - Per-behavior chart or calendar heatmap
 - Tracking-since date for each behavior count row in MM-DD-YY format, plus a
   start marker in that behavior's calendar when the start day is inside the
@@ -461,8 +463,10 @@ Show:
 The Behaviors screen's review area should read as one sparse report surface. Avoid boxed
 section panels around Overall adherence, the calendar, Behavior counts, and
 Category counts. Use single horizontal dividers where separation is needed.
-The overall calendar belongs inside the Overall adherence area, and its legend
-should stay hidden behind a simple See Legend disclosure by default.
+The overall calendar belongs inside the Overall adherence area. The date range
+selector sits directly above that calendar, the selected date range appears
+under the adherence percentage in compact month-day wording, and the legend is
+vertically listed to the right of the calendar on desktop.
 
 The overall calendar is a passive adherence summary, not the correction entry
 point. Later corrections start from a behavior row: selecting a non-empty

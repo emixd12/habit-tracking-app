@@ -11,7 +11,7 @@ marketing routes are implemented separately in the sibling Astro app under
 | Route | Status | Purpose | Notes |
 |---|---|---|---|
 | `/` | implemented | Auth-aware entry route | Redirects authenticated users to `/timeline` and unauthenticated users to `/login`. |
-| `/login` | implemented | Google sign-in screen | Uses Supabase OAuth and returns through `/auth/callback`; links to Terms, Privacy, and Trust. |
+| `/login` | implemented | Google sign-in screen | Uses Supabase OAuth and returns through `/auth/callback`; links to Terms, Privacy, and Trust. During local non-production development, authenticated users can view it with `/login?preview=1`. |
 | `/auth/google` | implemented | Supabase Google OAuth start route | Starts Google OAuth from the server and redirects back through `/auth/callback`; redirects to `/login` with an error when provider setup cannot start. |
 | `/auth/callback` | implemented | Supabase OAuth code exchange route | Exchanges the OAuth code for a cookie-backed Supabase session and redirects to a sanitized local `next` path. |
 | `/auth/test-login` | implemented, dev/test-only | Local QA login route for clean-session onboarding tests | Hidden unless `CADENCE_ENABLE_TEST_LOGIN=1`, blocked in production, restricted to localhost requests, and blocked for hosted Supabase unless `CADENCE_ALLOW_HOSTED_TEST_LOGIN=1` is set. It creates a temporary confirmed Supabase Auth user server-side and signs in with the normal Supabase password flow so protected routes still use ordinary auth cookies and RLS. |

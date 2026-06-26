@@ -9,13 +9,13 @@ export function GoogleLoginButton({
 }>) {
   const href = `/auth/google?next=${encodeURIComponent(nextPath)}`;
   const className =
-    "product-action product-action-primary min-h-12 w-full gap-3 py-3 text-sm font-bold";
+    "product-action product-action-primary min-h-12 gap-6 py-2 text-xl leading-7 sm:text-2xl min-[900px]:gap-7";
 
   if (disabled) {
     return (
-      <div className="grid gap-3">
+      <div className="grid justify-items-start gap-3">
         <button type="button" disabled className={className}>
-          <LogIn aria-hidden="true" size={18} strokeWidth={2} />
+          <LogIn aria-hidden="true" size={30} strokeWidth={1.75} />
           Continue with Google
         </button>
       </div>
@@ -23,9 +23,9 @@ export function GoogleLoginButton({
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid justify-items-start gap-3">
       <a href={href} className={className}>
-        <LogIn aria-hidden="true" size={18} strokeWidth={2} />
+        <LogIn aria-hidden="true" size={30} strokeWidth={1.75} />
         Continue with Google
       </a>
     </div>
