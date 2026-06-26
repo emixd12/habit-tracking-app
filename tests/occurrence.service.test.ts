@@ -463,6 +463,7 @@ function buildBehavior(input: {
         id: `${input.id}-slot-1`,
         user_id: "user-1",
         behavior_id: input.id,
+        behavior_schedule_id: null,
         kind: "exact",
         preset: null,
         start_time: input.scheduledTime,

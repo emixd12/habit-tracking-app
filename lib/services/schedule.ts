@@ -29,10 +29,18 @@ export function formatClockTimeLabel(value: string): string {
 export function formatScheduleSlotLabel(
   slot: Pick<ScheduleSlotInput, "kind" | "preset" | "startTime" | "endTime">,
 ): string {
-  if (slot.kind === "range" && slot.preset) {
-    const preset = TIME_RANGE_PRESETS[slot.preset];
+  if (slot.kind === "range") {
+    if (slot.preset) {
+      const preset = TIME_RANGE_PRESETS[slot.preset];
 
-    return `${preset.label} (${preset.rangeLabel})`;
+      return `${preset.label} (${preset.rangeLabel})`;
+    }
+
+    if (slot.endTime) {
+      return `${formatClockTimeLabel(slot.startTime)} - ${formatClockTimeLabel(
+        slot.endTime,
+      )}`;
+    }
   }
 
   return formatClockTimeLabel(slot.startTime);
@@ -66,6 +74,7 @@ export function timeRangePresetToSlot(input: {
 
 export function toScheduleSlotView(input: {
   id: string;
+  scheduleId?: string | null;
   kind: ScheduleSlotInput["kind"];
   preset: TimeRangePreset | null;
   startTime: string;
@@ -74,6 +83,7 @@ export function toScheduleSlotView(input: {
 }): ScheduleSlotView {
   const slot = {
     id: input.id,
+    scheduleId: input.scheduleId ?? null,
     kind: input.kind,
     preset: input.preset,
     startTime: normalizeTime(input.startTime),
@@ -107,8 +117,16 @@ export function formatCompactOccurrenceScheduleLabel(
     "scheduleKind" | "schedulePreset" | "scheduleStartTime" | "scheduleEndTime"
   >,
 ): string {
-  if (snapshot.scheduleKind === "range" && snapshot.schedulePreset) {
-    return TIME_RANGE_PRESETS[snapshot.schedulePreset].label;
+  if (snapshot.scheduleKind === "range") {
+    if (snapshot.schedulePreset) {
+      return TIME_RANGE_PRESETS[snapshot.schedulePreset].label;
+    }
+
+    if (snapshot.scheduleEndTime) {
+      return `${formatClockTimeLabel(
+        snapshot.scheduleStartTime,
+      )} - ${formatClockTimeLabel(snapshot.scheduleEndTime)}`;
+    }
   }
 
   return formatClockTimeLabel(snapshot.scheduleStartTime);

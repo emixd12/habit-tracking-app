@@ -86,14 +86,38 @@ create table behaviors (
 );
 ```
 
-`scheduled_time` stores the first schedule slot start time for compatibility,
-sorting, and simple summaries. The schedule source of truth is
+`recurrence_rule` and `scheduled_time` store the first schedule's recurrence
+and first time-entry start for compatibility, sorting, and simple summaries.
+The schedule source of truth is `behavior_schedules` plus
 `behavior_schedule_slots`.
 
 `timezone` is copied from `profiles.timezone` when a behavior is created. When
 the user saves a new timezone in Settings, active behaviors are updated to the
 new timezone and future unresolved occurrences are resynced. Archived behavior
 rows and past or resolved occurrence history remain historical records.
+
+### `behavior_schedules`
+
+```sql
+create table behavior_schedules (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  behavior_id uuid not null references behaviors(id) on delete cascade,
+
+  recurrence_rule jsonb not null,
+  sort_order int not null default 0,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  unique (user_id, id)
+);
+```
+
+Each behavior has one or more schedules. A schedule owns one recurrence pattern
+and one or more time entries. Legacy behavior rows without child schedules are
+normalized at runtime to one schedule using `behaviors.recurrence_rule`,
+`behaviors.scheduled_time`, and any legacy flat schedule slots.
 
 ### `behavior_schedule_slots`
 
@@ -102,9 +126,10 @@ create table behavior_schedule_slots (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   behavior_id uuid not null references behaviors(id) on delete cascade,
+  behavior_schedule_id uuid,
 
   kind text not null check (kind in ('exact', 'range')),
-  preset text check (preset in ('morning', 'afternoon', 'evening', 'night')),
+  preset text check (preset is null or preset in ('morning', 'afternoon', 'evening', 'night')),
   start_time time not null,
   end_time time,
   sort_order int not null default 0,
@@ -112,7 +137,11 @@ create table behavior_schedule_slots (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
-  unique (behavior_id, start_time)
+  unique (user_id, id),
+  constraint behavior_schedule_slots_schedule_owner_fkey
+    foreign key (user_id, behavior_schedule_id)
+    references behavior_schedules(user_id, id)
+    on delete cascade
 );
 ```
 
@@ -123,9 +152,18 @@ Supported range presets:
 - Evening: 6:00 PM-Midnight
 - Night: Midnight-6:00 AM
 
-Each behavior must have at least one schedule slot. A behavior can have multiple
-slots in a day. Occurrence generation creates one occurrence per matching
-schedule slot for each recurrence day.
+Each schedule must have at least one time entry. A behavior can have multiple
+schedules and multiple time entries per schedule. A nullable
+`behavior_schedule_id` preserves legacy/import paths that only know flat
+behavior-level slots; new writes should set it. Occurrence generation creates
+one occurrence per matching schedule time entry, then merges duplicate
+generated occurrences with the same behavior, local date, start time, and
+end-time/range identity.
+
+Current uniqueness is enforced with partial indexes:
+
+- `(behavior_schedule_id, start_time)` where `behavior_schedule_id is not null`
+- `(behavior_id, start_time)` where `behavior_schedule_id is null`
 
 ### `occurrences`
 

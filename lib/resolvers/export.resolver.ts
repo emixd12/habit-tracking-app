@@ -283,6 +283,7 @@ function toJsonBehavior(behavior: ExportBehaviorInput): ExportJsonBehavior {
     description: behavior.description,
     recurrence_rule: behavior.recurrenceRule,
     scheduled_time: behavior.scheduledTime,
+    schedules: normalizeExportInputSchedules(behavior),
     schedule_slots: behavior.scheduleSlots,
     timezone: behavior.timezone,
     browser_reminder_enabled: behavior.browserReminderEnabled,
@@ -372,6 +373,7 @@ function toJsonl(input: {
         description: behavior.description,
         recurrence_rule: behavior.recurrence_rule,
         scheduled_time: behavior.scheduled_time,
+        schedules: behavior.schedules,
         schedule_slots: behavior.schedule_slots,
         timezone: behavior.timezone,
         browser_reminder_enabled: behavior.browser_reminder_enabled,
@@ -1002,23 +1004,26 @@ function toBehaviorLogSchedules(
   const scheduleIdByOccurrenceId = new Map<string, string>();
 
   for (const behavior of behaviors) {
-    for (const slot of behavior.schedule_slots) {
-      const scheduleId = scheduleIdForSlot(behavior.id, slot.id);
-      recordsById.set(
-        scheduleId,
-        createBehaviorLogSchedule({
+    for (const schedule of normalizeExportSchedules(behavior)) {
+      for (const slot of schedule.timeEntries) {
+        const scheduleId = scheduleIdForSlot(behavior.id, slot.id);
+        recordsById.set(
           scheduleId,
-          behavior,
-          localTime: slot.startTime,
-          windowStartLocal: slot.kind === "range" ? slot.startTime : null,
-          windowEndLocal: slot.kind === "range" ? slot.endTime : null,
-          slotId: slot.id,
-          scheduleKind: slot.kind,
-          schedulePreset: slot.preset,
-          scheduleLabel: slot.label,
-          sourceConfidence: "high",
-        }),
-      );
+          createBehaviorLogSchedule({
+            scheduleId,
+            behavior,
+            recurrenceRule: schedule.recurrenceRule,
+            localTime: slot.startTime,
+            windowStartLocal: slot.kind === "range" ? slot.startTime : null,
+            windowEndLocal: slot.kind === "range" ? slot.endTime : null,
+            slotId: slot.id,
+            scheduleKind: slot.kind,
+            schedulePreset: slot.preset,
+            scheduleLabel: slot.label,
+            sourceConfidence: "high",
+          }),
+        );
+      }
     }
   }
 
@@ -1040,6 +1045,7 @@ function toBehaviorLogSchedules(
         createBehaviorLogSchedule({
           scheduleId,
           behavior,
+          recurrenceRule: recurrenceRuleForOccurrence(behavior, occurrence),
           localTime: occurrence.schedule_start_time,
           windowStartLocal:
             occurrence.schedule_kind === "range"
@@ -1069,9 +1075,79 @@ function toBehaviorLogSchedules(
   };
 }
 
+function normalizeExportSchedules(
+  behavior: ExportJsonBehavior,
+): ExportJsonBehavior["schedules"] {
+  if (behavior.schedules.length > 0) {
+    return behavior.schedules;
+  }
+
+  return [
+    {
+      id: "",
+      recurrenceRule: behavior.recurrence_rule,
+      recurrenceSummary: "",
+      recurrenceDefaults: {
+        kind: "daily" as const,
+        dailyInterval: 1,
+        everyDays: 2,
+        weeklyInterval: 1,
+        weeklyDays: ["monday" as const],
+        monthlyInterval: 1,
+        monthlyDay: 1,
+      },
+      timeEntries: behavior.schedule_slots,
+      timeSummary: "",
+      sortOrder: 0,
+    },
+  ];
+}
+
+function normalizeExportInputSchedules(
+  behavior: ExportBehaviorInput,
+): ExportJsonBehavior["schedules"] {
+  if (behavior.schedules && behavior.schedules.length > 0) {
+    return behavior.schedules;
+  }
+
+  return [
+    {
+      id: "",
+      recurrenceRule: behavior.recurrenceRule,
+      recurrenceSummary: "",
+      recurrenceDefaults: {
+        kind: "daily" as const,
+        dailyInterval: 1,
+        everyDays: 2,
+        weeklyInterval: 1,
+        weeklyDays: ["monday" as const],
+        monthlyInterval: 1,
+        monthlyDay: 1,
+      },
+      timeEntries: behavior.scheduleSlots,
+      timeSummary: "",
+      sortOrder: 0,
+    },
+  ];
+}
+
+function recurrenceRuleForOccurrence(
+  behavior: ExportJsonBehavior,
+  occurrence: ExportJsonOccurrence,
+): ExportJsonBehavior["recurrence_rule"] {
+  const schedule = behavior.schedules.find((candidate) =>
+    candidate.timeEntries.some(
+      (entry) => entry.id === occurrence.behavior_schedule_slot_id,
+    ),
+  );
+
+  return schedule?.recurrenceRule ?? behavior.recurrence_rule;
+}
+
 function createBehaviorLogSchedule(input: {
   scheduleId: string;
   behavior: ExportJsonBehavior;
+  recurrenceRule: ExportJsonBehavior["recurrence_rule"];
   localTime: string;
   windowStartLocal: string | null;
   windowEndLocal: string | null;
@@ -1086,7 +1162,7 @@ function createBehaviorLogSchedule(input: {
     schedule_id: input.scheduleId,
     behavior_id: input.behavior.id,
     recurrence_profile: "behaviorlog.calendar_simple.v1",
-    recurrence: toBehaviorLogRecurrence(input.behavior.recurrence_rule),
+    recurrence: toBehaviorLogRecurrence(input.recurrenceRule),
     timezone: input.behavior.timezone,
     local_time: input.localTime,
     window_start_local: input.windowStartLocal,

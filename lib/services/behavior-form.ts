@@ -16,6 +16,7 @@ import {
 } from "@/lib/services/schedule";
 import {
   TIME_RANGE_PRESETS,
+  type BehaviorScheduleInput,
   type ScheduleSlotInput,
   type TimeRangePreset,
 } from "@/lib/types/schedule";
@@ -27,6 +28,7 @@ export type ParsedBehaviorFormData = {
   categoryId: string | null;
   recurrenceRule: RecurrenceRule;
   scheduledTime: string;
+  schedules: BehaviorScheduleInput[];
   scheduleSlots: ScheduleSlotInput[];
   browserReminderEnabled: boolean;
   emailReminderEnabled: boolean;
@@ -55,7 +57,8 @@ export class BehaviorValidationError extends Error {
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SCHEDULED_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
-const MAX_SCHEDULE_SLOTS = 8;
+const MAX_BEHAVIOR_SCHEDULES = 6;
+const MAX_TIME_ENTRIES_PER_SCHEDULE = 8;
 const ALLOWED_REMINDER_OFFSETS = new Set([0, 15, 60, 1440, 4320]);
 const WEEKDAY_LABELS: Record<Weekday, string> = {
   monday: "Monday",
@@ -102,8 +105,8 @@ export function parseBehaviorFormData(
     fieldErrors.category_id = "Choose one of your categories.";
   }
 
-  const recurrenceRule = parseRecurrenceRuleFromForm(formData, fieldErrors);
-  const scheduleSlots = parseScheduleSlotsFromForm(formData, fieldErrors);
+  const { recurrenceRule, schedules, scheduleSlots } =
+    parseSchedulesAndLegacyFieldsFromForm(formData, fieldErrors);
   const reminderOffsetMinutes = parseReminderOffset(formData, fieldErrors);
 
   if (Object.keys(fieldErrors).length > 0) {
@@ -117,6 +120,7 @@ export function parseBehaviorFormData(
     categoryId: categoryId || null,
     recurrenceRule,
     scheduledTime: scheduleSlots[0]?.startTime ?? "09:00",
+    schedules,
     scheduleSlots,
     browserReminderEnabled: getCheckboxValue(formData, "browser_reminder"),
     emailReminderEnabled: getCheckboxValue(formData, "email_reminder"),
@@ -313,11 +317,281 @@ export function behaviorErrorToActionState(error: unknown): BehaviorActionState 
   };
 }
 
+function parseSchedulesAndLegacyFieldsFromForm(
+  formData: FormData,
+  fieldErrors: Partial<Record<BehaviorFormField, string>>,
+): {
+  recurrenceRule: RecurrenceRule;
+  schedules: BehaviorScheduleInput[];
+  scheduleSlots: ScheduleSlotInput[];
+} {
+  if (getOptionalString(formData, "behavior_schedule_count")) {
+    const schedules = parseBehaviorSchedulesFromForm(formData, fieldErrors);
+    const recurrenceRule = schedules[0]?.recurrenceRule ?? {
+      frequency: "daily",
+      interval: 1,
+    };
+    const scheduleSlots = schedules.flatMap((schedule) => schedule.timeEntries);
+
+    return {
+      recurrenceRule,
+      schedules,
+      scheduleSlots,
+    };
+  }
+
+  const recurrenceRule = parseRecurrenceRuleFromForm(formData, fieldErrors);
+  const scheduleSlots = parseScheduleSlotsFromForm(formData, fieldErrors);
+
+  return {
+    recurrenceRule,
+    schedules: [
+      {
+        id: null,
+        recurrenceRule,
+        timeEntries: scheduleSlots,
+        sortOrder: 0,
+      },
+    ],
+    scheduleSlots,
+  };
+}
+
+function parseBehaviorSchedulesFromForm(
+  formData: FormData,
+  fieldErrors: Partial<Record<BehaviorFormField, string>>,
+): BehaviorScheduleInput[] {
+  const rawCount = getOptionalString(formData, "behavior_schedule_count");
+  const count = Number(rawCount);
+
+  if (!Number.isInteger(count) || count < 1) {
+    fieldErrors.schedule = "Add at least one schedule.";
+    return [
+      {
+        id: null,
+        recurrenceRule: { frequency: "daily", interval: 1 },
+        timeEntries: [
+          {
+            id: null,
+            kind: "exact",
+            preset: null,
+            startTime: "09:00",
+            endTime: null,
+            sortOrder: 0,
+          },
+        ],
+        sortOrder: 0,
+      },
+    ];
+  }
+
+  if (count > MAX_BEHAVIOR_SCHEDULES) {
+    fieldErrors.schedule = `Use ${MAX_BEHAVIOR_SCHEDULES} or fewer schedules.`;
+  }
+
+  const upperBound = Math.min(count, MAX_BEHAVIOR_SCHEDULES);
+  const schedules: BehaviorScheduleInput[] = [];
+
+  for (let index = 0; index < upperBound; index += 1) {
+    schedules.push(parseBehaviorScheduleAtIndex(formData, index, fieldErrors));
+  }
+
+  if (schedules.every((schedule) => schedule.timeEntries.length === 0)) {
+    fieldErrors.schedule = "Add at least one time entry.";
+  }
+
+  return schedules;
+}
+
+function parseBehaviorScheduleAtIndex(
+  formData: FormData,
+  index: number,
+  fieldErrors: Partial<Record<BehaviorFormField, string>>,
+): BehaviorScheduleInput {
+  const id = getOptionalString(formData, `behavior_schedule_id_${index}`).trim();
+
+  if (id && !UUID_PATTERN.test(id)) {
+    fieldErrors.schedule = "Choose one of this behavior's schedules.";
+  }
+
+  return {
+    id: id || null,
+    recurrenceRule: parseRecurrenceRuleFromForm(
+      formData,
+      fieldErrors,
+      `schedule_${index}`,
+    ),
+    timeEntries: parseTimeEntriesForSchedule(formData, index, fieldErrors),
+    sortOrder: index,
+  };
+}
+
+function parseTimeEntriesForSchedule(
+  formData: FormData,
+  scheduleIndex: number,
+  fieldErrors: Partial<Record<BehaviorFormField, string>>,
+): ScheduleSlotInput[] {
+  const rawCount = getOptionalString(
+    formData,
+    `schedule_${scheduleIndex}_time_entry_count`,
+  );
+  const count = Number(rawCount);
+
+  if (!Number.isInteger(count) || count < 1) {
+    fieldErrors.schedule = "Each schedule needs at least one time.";
+    return [
+      {
+        id: null,
+        kind: "exact",
+        preset: null,
+        startTime: "09:00",
+        endTime: null,
+        sortOrder: 0,
+      },
+    ];
+  }
+
+  if (count > MAX_TIME_ENTRIES_PER_SCHEDULE) {
+    fieldErrors.schedule = `Use ${MAX_TIME_ENTRIES_PER_SCHEDULE} or fewer times per schedule.`;
+  }
+
+  const upperBound = Math.min(count, MAX_TIME_ENTRIES_PER_SCHEDULE);
+  const seenStartTimes = new Set<string>();
+  const entries: ScheduleSlotInput[] = [];
+
+  for (let index = 0; index < upperBound; index += 1) {
+    const entry = parseTimeEntryAtIndex(
+      formData,
+      scheduleIndex,
+      index,
+      fieldErrors,
+    );
+    const entryKey = entry.startTime;
+
+    if (seenStartTimes.has(entryKey)) {
+      fieldErrors.schedule = "Use each start time only once within a schedule.";
+    }
+
+    seenStartTimes.add(entryKey);
+    entries.push({
+      ...entry,
+      sortOrder: index,
+    });
+  }
+
+  return entries;
+}
+
+function parseTimeEntryAtIndex(
+  formData: FormData,
+  scheduleIndex: number,
+  index: number,
+  fieldErrors: Partial<Record<BehaviorFormField, string>>,
+): ScheduleSlotInput {
+  const id = getOptionalString(
+    formData,
+    `schedule_${scheduleIndex}_time_entry_id_${index}`,
+  ).trim();
+  const kind = getOptionalString(
+    formData,
+    `schedule_${scheduleIndex}_time_entry_kind_${index}`,
+  );
+
+  if (id && !UUID_PATTERN.test(id)) {
+    fieldErrors.schedule = "Choose one of this schedule's time entries.";
+  }
+
+  if (kind === "range") {
+    const preset = getOptionalString(
+      formData,
+      `schedule_${scheduleIndex}_time_entry_range_preset_${index}`,
+    );
+
+    if (isTimeRangePreset(preset)) {
+      return timeRangePresetToSlot({
+        id: id || null,
+        preset,
+        sortOrder: index,
+      });
+    }
+
+    const startTime = getOptionalString(
+      formData,
+      `schedule_${scheduleIndex}_time_entry_range_start_${index}`,
+    ).trim();
+    const endTime = getOptionalString(
+      formData,
+      `schedule_${scheduleIndex}_time_entry_range_end_${index}`,
+    ).trim();
+
+    if (
+      !SCHEDULED_TIME_PATTERN.test(startTime) ||
+      !isValidTime(startTime) ||
+      !SCHEDULED_TIME_PATTERN.test(endTime) ||
+      !isValidTime(endTime)
+    ) {
+      fieldErrors.schedule = "Choose a valid time range.";
+      return {
+        id: id || null,
+        kind: "range",
+        preset: null,
+        startTime: "09:00",
+        endTime: "09:30",
+        sortOrder: index,
+      };
+    }
+
+    if (normalizeTime(startTime) === normalizeTime(endTime)) {
+      fieldErrors.schedule = "Use a range with different start and end times.";
+    }
+
+    return {
+      id: id || null,
+      kind: "range",
+      preset: null,
+      startTime: normalizeTime(startTime),
+      endTime: normalizeTime(endTime),
+      sortOrder: index,
+    };
+  }
+
+  if (kind !== "exact") {
+    fieldErrors.schedule = "Choose exact time or time range.";
+  }
+
+  const startTime = getOptionalString(
+    formData,
+    `schedule_${scheduleIndex}_time_entry_exact_time_${index}`,
+  ).trim();
+
+  if (!SCHEDULED_TIME_PATTERN.test(startTime) || !isValidTime(startTime)) {
+    fieldErrors.schedule = "Choose a scheduled time.";
+    return {
+      id: id || null,
+      kind: "exact",
+      preset: null,
+      startTime: "09:00",
+      endTime: null,
+      sortOrder: index,
+    };
+  }
+
+  return {
+    id: id || null,
+    kind: "exact",
+    preset: null,
+    startTime: normalizeTime(startTime),
+    endTime: null,
+    sortOrder: index,
+  };
+}
+
 function parseRecurrenceRuleFromForm(
   formData: FormData,
   fieldErrors: Partial<Record<BehaviorFormField, string>>,
+  prefix = "",
 ): RecurrenceRule {
-  const kind = getOptionalString(formData, "recurrence_kind");
+  const kind = getOptionalString(formData, recurrenceFieldName(prefix, "recurrence_kind"));
 
   switch (kind) {
     case "daily":
@@ -325,7 +599,7 @@ function parseRecurrenceRuleFromForm(
         frequency: "daily",
         interval: parsePositiveIntegerField(
           formData,
-          "daily_interval",
+          recurrenceFieldName(prefix, "daily_interval"),
           "recurrence",
           fieldErrors,
         ),
@@ -336,7 +610,7 @@ function parseRecurrenceRuleFromForm(
         frequency: "interval_days",
         intervalDays: parsePositiveIntegerField(
           formData,
-          "every_days",
+          recurrenceFieldName(prefix, "every_days"),
           "recurrence",
           fieldErrors,
         ),
@@ -347,11 +621,11 @@ function parseRecurrenceRuleFromForm(
         frequency: "weekly",
         interval: parsePositiveIntegerField(
           formData,
-          "weekly_interval",
+          recurrenceFieldName(prefix, "weekly_interval"),
           "recurrence",
           fieldErrors,
         ),
-        daysOfWeek: parseWeekdays(formData, fieldErrors),
+        daysOfWeek: parseWeekdays(formData, fieldErrors, prefix),
       };
 
     case "monthly":
@@ -359,13 +633,13 @@ function parseRecurrenceRuleFromForm(
         frequency: "monthly",
         interval: parsePositiveIntegerField(
           formData,
-          "monthly_interval",
+          recurrenceFieldName(prefix, "monthly_interval"),
           "recurrence",
           fieldErrors,
         ),
         dayOfMonth: parseIntegerFieldInRange(
           formData,
-          "monthly_day",
+          recurrenceFieldName(prefix, "monthly_day"),
           1,
           31,
           "recurrence",
@@ -379,12 +653,17 @@ function parseRecurrenceRuleFromForm(
   }
 }
 
+function recurrenceFieldName(prefix: string, fieldName: string): string {
+  return prefix ? `${prefix}_${fieldName}` : fieldName;
+}
+
 function parseWeekdays(
   formData: FormData,
   fieldErrors: Partial<Record<BehaviorFormField, string>>,
+  prefix = "",
 ): Weekday[] {
   const weekdays = formData
-    .getAll("weekly_days")
+    .getAll(recurrenceFieldName(prefix, "weekly_days"))
     .filter((value): value is string => typeof value === "string")
     .filter(isWeekday);
 
@@ -441,13 +720,13 @@ function parseScheduleSlotsFromForm(
     ];
   }
 
-  if (count > MAX_SCHEDULE_SLOTS) {
-    fieldErrors.schedule = `Use ${MAX_SCHEDULE_SLOTS} or fewer scheduled times or ranges.`;
+  if (count > MAX_TIME_ENTRIES_PER_SCHEDULE) {
+    fieldErrors.schedule = `Use ${MAX_TIME_ENTRIES_PER_SCHEDULE} or fewer scheduled times or ranges.`;
   }
 
   const slots: ScheduleSlotInput[] = [];
   const seenStartTimes = new Set<string>();
-  const upperBound = Math.min(count, MAX_SCHEDULE_SLOTS);
+  const upperBound = Math.min(count, MAX_TIME_ENTRIES_PER_SCHEDULE);
 
   for (let index = 0; index < upperBound; index += 1) {
     const slot = parseScheduleSlotAtIndex(formData, index, fieldErrors);

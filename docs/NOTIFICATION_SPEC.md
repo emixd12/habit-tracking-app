@@ -144,6 +144,10 @@ Reminder deliveries should be generated from:
 - Occurrence scheduled start
 - Reminder offset
 
+Behavior-level reminder settings apply to every occurrence generated from every
+schedule in v1. Per-schedule reminder overrides are future scope unless a later
+ticket explicitly adds them.
+
 Operational delivery planning belongs on occurrence-generation write paths,
 not ordinary page reads. Behavior create/edit/archive/restore, timezone changes,
 approved import/restore apply work, and protected/background occurrence horizon

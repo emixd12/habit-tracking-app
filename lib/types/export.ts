@@ -1,5 +1,6 @@
 import type { RecurrenceRule } from "@/lib/types/recurrence";
 import type {
+  BehaviorScheduleView,
   ScheduleKind,
   ScheduleSlotView,
   TimeRangePreset,
@@ -44,6 +45,7 @@ export type ExportBehaviorInput = {
   description: string | null;
   recurrenceRule: RecurrenceRule;
   scheduledTime: string;
+  schedules?: BehaviorScheduleView[];
   scheduleSlots: ScheduleSlotView[];
   timezone: string;
   browserReminderEnabled: boolean;
@@ -161,6 +163,7 @@ export type ExportJsonBehavior = {
   description: string | null;
   recurrence_rule: RecurrenceRule;
   scheduled_time: string;
+  schedules: BehaviorScheduleView[];
   schedule_slots: ScheduleSlotView[];
   timezone: string;
   browser_reminder_enabled: boolean;

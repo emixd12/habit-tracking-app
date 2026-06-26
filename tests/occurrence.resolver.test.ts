@@ -164,6 +164,170 @@ describe("planOccurrenceGeneration", () => {
     ]);
   });
 
+  it("plans nested schedules with independent recurrence rules", () => {
+    const plan = planOccurrenceGeneration({
+      behavior: {
+        ...BASE_BEHAVIOR,
+        schedules: [
+          {
+            id: "schedule-daily",
+            recurrenceRule: { frequency: "daily", interval: 1 },
+            sortOrder: 0,
+            timeEntries: [
+              {
+                id: "slot-morning",
+                scheduleId: "schedule-daily",
+                kind: "exact",
+                preset: null,
+                startTime: "09:00",
+                endTime: null,
+                sortOrder: 0,
+              },
+            ],
+          },
+          {
+            id: "schedule-friday",
+            recurrenceRule: {
+              frequency: "weekly",
+              interval: 1,
+              daysOfWeek: ["friday"],
+            },
+            sortOrder: 1,
+            timeEntries: [
+              {
+                id: "slot-friday",
+                scheduleId: "schedule-friday",
+                kind: "range",
+                preset: null,
+                startTime: "17:00",
+                endTime: "17:30",
+                sortOrder: 0,
+              },
+            ],
+          },
+        ],
+        scheduleSlots: [],
+      },
+      existingOccurrences: [],
+      now: NOW,
+      horizonDays: 2,
+    });
+
+    expect(
+      plan.create.map((occurrence) => ({
+        scheduledFor: occurrence.scheduledFor,
+        localDate: occurrence.localDate,
+        scheduleSlotId: occurrence.scheduleSlotId,
+        scheduleKind: occurrence.scheduleKind,
+        scheduleStartTime: occurrence.scheduleStartTime,
+        scheduleEndTime: occurrence.scheduleEndTime,
+      })),
+    ).toEqual([
+      {
+        scheduledFor: "2026-01-02T14:00:00Z",
+        localDate: "2026-01-02",
+        scheduleSlotId: "slot-morning",
+        scheduleKind: "exact",
+        scheduleStartTime: "09:00",
+        scheduleEndTime: null,
+      },
+      {
+        scheduledFor: "2026-01-02T22:00:00Z",
+        localDate: "2026-01-02",
+        scheduleSlotId: "slot-friday",
+        scheduleKind: "range",
+        scheduleStartTime: "17:00",
+        scheduleEndTime: "17:30",
+      },
+      {
+        scheduledFor: "2026-01-03T14:00:00Z",
+        localDate: "2026-01-03",
+        scheduleSlotId: "slot-morning",
+        scheduleKind: "exact",
+        scheduleStartTime: "09:00",
+        scheduleEndTime: null,
+      },
+      {
+        scheduledFor: "2026-01-04T14:00:00Z",
+        localDate: "2026-01-04",
+        scheduleSlotId: "slot-morning",
+        scheduleKind: "exact",
+        scheduleStartTime: "09:00",
+        scheduleEndTime: null,
+      },
+    ]);
+  });
+
+  it("merges duplicate generated occurrences from overlapping schedules", () => {
+    const plan = planOccurrenceGeneration({
+      behavior: {
+        ...BASE_BEHAVIOR,
+        schedules: [
+          {
+            id: "schedule-daily",
+            recurrenceRule: { frequency: "daily", interval: 1 },
+            sortOrder: 0,
+            timeEntries: [
+              {
+                id: "slot-daily",
+                scheduleId: "schedule-daily",
+                kind: "exact",
+                preset: null,
+                startTime: "23:00",
+                endTime: null,
+                sortOrder: 0,
+              },
+            ],
+          },
+          {
+            id: "schedule-every-two-days",
+            recurrenceRule: { frequency: "interval_days", intervalDays: 2 },
+            sortOrder: 1,
+            timeEntries: [
+              {
+                id: "slot-every-two-days",
+                scheduleId: "schedule-every-two-days",
+                kind: "exact",
+                preset: null,
+                startTime: "23:00",
+                endTime: null,
+                sortOrder: 0,
+              },
+            ],
+          },
+        ],
+        scheduleSlots: [],
+      },
+      existingOccurrences: [],
+      now: NOW,
+      horizonDays: 2,
+    });
+
+    expect(
+      plan.create.map((occurrence) => ({
+        scheduledFor: occurrence.scheduledFor,
+        localDate: occurrence.localDate,
+        scheduleSlotId: occurrence.scheduleSlotId,
+      })),
+    ).toEqual([
+      {
+        scheduledFor: "2026-01-03T04:00:00Z",
+        localDate: "2026-01-02",
+        scheduleSlotId: "slot-daily",
+      },
+      {
+        scheduledFor: "2026-01-04T04:00:00Z",
+        localDate: "2026-01-03",
+        scheduleSlotId: "slot-daily",
+      },
+      {
+        scheduledFor: "2026-01-05T04:00:00Z",
+        localDate: "2026-01-04",
+        scheduleSlotId: "slot-daily",
+      },
+    ]);
+  });
+
   it("uses the behavior creation date as the interval anchor", () => {
     const plan = planOccurrenceGeneration({
       behavior: {

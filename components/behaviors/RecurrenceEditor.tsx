@@ -11,6 +11,9 @@ import type { Weekday } from "@/lib/types/recurrence";
 type RecurrenceEditorProps = Readonly<{
   defaults: BehaviorRecurrenceFormDefaults;
   error?: string;
+  namePrefix?: string;
+  legend?: string;
+  compact?: boolean;
 }>;
 
 const PRESETS: Array<{ value: BehaviorRecurrenceKind; label: string }> = [
@@ -30,12 +33,20 @@ const WEEKDAY_OPTIONS: Array<{ value: Weekday; label: string }> = [
   { value: "sunday", label: "Sun" },
 ];
 
-export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
+export function RecurrenceEditor({
+  defaults,
+  error,
+  namePrefix = "",
+  legend = "Recurrence",
+  compact = false,
+}: RecurrenceEditorProps) {
   const [kind, setKind] = useState(defaults.kind);
 
   return (
     <fieldset className="grid gap-4 border-0 p-0">
-      <legend className="mb-1 text-base font-bold">Recurrence</legend>
+      <legend className={compact ? "sr-only" : "mb-1 text-base font-bold"}>
+        {legend}
+      </legend>
 
       <div className="grid gap-2 sm:grid-cols-4" role="radiogroup">
         {PRESETS.map((preset) => {
@@ -54,7 +65,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
             >
               <input
                 type="radio"
-                name="recurrence_kind"
+                name={fieldName(namePrefix, "recurrence_kind")}
                 value={preset.value}
                 checked={isSelected}
                 onChange={() => setKind(preset.value)}
@@ -69,7 +80,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
       {kind === "daily" ? (
         <NumberField
           label="Every"
-          name="daily_interval"
+          name={fieldName(namePrefix, "daily_interval")}
           defaultValue={defaults.dailyInterval}
           suffix={(value) => pluralize(value, "day", "days")}
         />
@@ -78,7 +89,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
       {kind === "every_days" ? (
         <NumberField
           label="Every"
-          name="every_days"
+          name={fieldName(namePrefix, "every_days")}
           defaultValue={defaults.everyDays}
           suffix={(value) => pluralize(value, "day", "days")}
         />
@@ -88,7 +99,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
         <div className="grid gap-4">
           <NumberField
             label="Every"
-            name="weekly_interval"
+            name={fieldName(namePrefix, "weekly_interval")}
             defaultValue={defaults.weeklyInterval}
             suffix={(value) => pluralize(value, "week", "weeks")}
           />
@@ -102,7 +113,7 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
                 >
                   <input
                     type="checkbox"
-                    name="weekly_days"
+                    name={fieldName(namePrefix, "weekly_days")}
                     value={weekday.value}
                     defaultChecked={defaults.weeklyDays.includes(weekday.value)}
                     className="h-4 w-4 accent-[var(--primary)]"
@@ -119,13 +130,13 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
         <div className="grid gap-4 sm:grid-cols-2">
           <NumberField
             label="Every"
-            name="monthly_interval"
+            name={fieldName(namePrefix, "monthly_interval")}
             defaultValue={defaults.monthlyInterval}
             suffix={(value) => pluralize(value, "month", "months")}
           />
           <NumberField
             label="Day"
-            name="monthly_day"
+            name={fieldName(namePrefix, "monthly_day")}
             defaultValue={defaults.monthlyDay}
             max={31}
           />
@@ -139,6 +150,10 @@ export function RecurrenceEditor({ defaults, error }: RecurrenceEditorProps) {
       ) : null}
     </fieldset>
   );
+}
+
+function fieldName(prefix: string, name: string): string {
+  return prefix ? `${prefix}_${name}` : name;
 }
 
 function NumberField({

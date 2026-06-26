@@ -251,14 +251,18 @@ Behavior form fields:
 - Title
 - Description
 - Category
-- Recurrence
-- Schedule with one or more exact times or preset time ranges
+- Schedules
+  - Recurrence pattern per schedule
+  - One or more exact times or time ranges per schedule
 - Browser reminder enabled
 - Email reminder enabled
 - Reminder offset
 - Active/archive
 
-At least one schedule slot is required.
+At least one schedule and one time entry are required. Add time keeps the user
+inside the same recurrence pattern. Add schedule creates a new recurrence
+pattern. Behavior-level reminder settings apply to all generated occurrences in
+v1.
 
 The recurrence editor should use segmented presets first, with advanced options below.
 

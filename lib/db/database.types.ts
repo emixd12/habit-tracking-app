@@ -37,6 +37,7 @@ export type Database = {
       behavior_schedule_slots: {
         Row: {
           behavior_id: string
+          behavior_schedule_id: string | null
           created_at: string
           end_time: string | null
           id: string
@@ -49,6 +50,7 @@ export type Database = {
         }
         Insert: {
           behavior_id: string
+          behavior_schedule_id?: string | null
           created_at?: string
           end_time?: string | null
           id?: string
@@ -61,6 +63,7 @@ export type Database = {
         }
         Update: {
           behavior_id?: string
+          behavior_schedule_id?: string | null
           created_at?: string
           end_time?: string | null
           id?: string
@@ -81,6 +84,58 @@ export type Database = {
           },
           {
             foreignKeyName: "behavior_schedule_slots_behavior_owner_fkey"
+            columns: ["user_id", "behavior_id"]
+            isOneToOne: false
+            referencedRelation: "behaviors"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "behavior_schedule_slots_schedule_owner_fkey"
+            columns: ["user_id", "behavior_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "behavior_schedules"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
+      behavior_schedules: {
+        Row: {
+          behavior_id: string
+          created_at: string
+          id: string
+          recurrence_rule: Json
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          behavior_id: string
+          created_at?: string
+          id?: string
+          recurrence_rule: Json
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          behavior_id?: string
+          created_at?: string
+          id?: string
+          recurrence_rule?: Json
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "behavior_schedules_behavior_id_fkey"
+            columns: ["behavior_id"]
+            isOneToOne: false
+            referencedRelation: "behaviors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "behavior_schedules_behavior_owner_fkey"
             columns: ["user_id", "behavior_id"]
             isOneToOne: false
             referencedRelation: "behaviors"

@@ -63,9 +63,11 @@ Use scheduled date/time.
 
 Recurring behaviors should recur according to their schedule, not from the last completion date.
 
-## Behavior schedule slots
+## Behavior schedules and time entries
 
-Behaviors can have one or more exact times or preset time ranges.
+Behaviors can have one or more schedules. Each schedule owns one recurrence
+pattern and one or more exact times or time ranges. Add time means another time
+entry under the same recurrence. Add schedule means another recurrence pattern.
 
 Supported preset ranges:
 - Morning: 6:00 AM-Noon
@@ -74,8 +76,10 @@ Supported preset ranges:
 - Night: Midnight-6:00 AM
 
 Range occurrences use the beginning of the range as their scheduled reminder
-anchor. Multi-time behavior completion is derived from individual occurrence
-statuses only; do not add a stored partial-completion status or progress label.
+anchor. Matching generated occurrences with the same behavior, local date,
+start time, and end-time/range identity are counted once. Multi-time behavior
+completion is derived from individual occurrence statuses only; do not add a
+stored partial-completion status or progress label.
 
 ## Reminders
 

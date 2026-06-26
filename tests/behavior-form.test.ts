@@ -45,6 +45,23 @@ describe("parseBehaviorFormData", () => {
       categoryId: CATEGORY_ID,
       recurrenceRule: { frequency: "daily", interval: 1 },
       scheduledTime: "22:00",
+      schedules: [
+        {
+          id: null,
+          recurrenceRule: { frequency: "daily", interval: 1 },
+          timeEntries: [
+            {
+              id: null,
+              kind: "exact",
+              preset: null,
+              startTime: "22:00",
+              endTime: null,
+              sortOrder: 0,
+            },
+          ],
+          sortOrder: 0,
+        },
+      ],
       scheduleSlots: [
         {
           id: null,
@@ -126,6 +143,125 @@ describe("parseBehaviorFormData", () => {
         sortOrder: 1,
       },
     ]);
+  });
+
+  it("maps nested schedules with independent recurrence and time entries", () => {
+    const result = parseBehaviorFormData(
+      formData([
+        ["title", "Clean Invisalign"],
+        ["category_id", CATEGORY_ID],
+        ["description", "Cleaning the aligners"],
+        ["behavior_schedule_count", "2"],
+        ["schedule_0_recurrence_kind", "daily"],
+        ["schedule_0_daily_interval", "1"],
+        ["schedule_0_time_entry_count", "2"],
+        ["schedule_0_time_entry_kind_0", "exact"],
+        ["schedule_0_time_entry_exact_time_0", "08:00"],
+        ["schedule_0_time_entry_kind_1", "exact"],
+        ["schedule_0_time_entry_exact_time_1", "23:00"],
+        ["schedule_1_recurrence_kind", "every_days"],
+        ["schedule_1_every_days", "2"],
+        ["schedule_1_time_entry_count", "1"],
+        ["schedule_1_time_entry_kind_0", "range"],
+        ["schedule_1_time_entry_range_start_0", "23:00"],
+        ["schedule_1_time_entry_range_end_0", "23:30"],
+        ["reminder_offset", "0"],
+        ["browser_reminder", "on"],
+      ]),
+      { mode: "create", categories },
+    );
+
+    expect(result.scheduledTime).toBe("08:00");
+    expect(result.recurrenceRule).toEqual({ frequency: "daily", interval: 1 });
+    expect(result.schedules).toEqual([
+      {
+        id: null,
+        recurrenceRule: { frequency: "daily", interval: 1 },
+        timeEntries: [
+          {
+            id: null,
+            kind: "exact",
+            preset: null,
+            startTime: "08:00",
+            endTime: null,
+            sortOrder: 0,
+          },
+          {
+            id: null,
+            kind: "exact",
+            preset: null,
+            startTime: "23:00",
+            endTime: null,
+            sortOrder: 1,
+          },
+        ],
+        sortOrder: 0,
+      },
+      {
+        id: null,
+        recurrenceRule: { frequency: "interval_days", intervalDays: 2 },
+        timeEntries: [
+          {
+            id: null,
+            kind: "range",
+            preset: null,
+            startTime: "23:00",
+            endTime: "23:30",
+            sortOrder: 0,
+          },
+        ],
+        sortOrder: 1,
+      },
+    ]);
+    expect(result.scheduleSlots).toHaveLength(3);
+  });
+
+  it("allows the same time on separate schedules for occurrence dedupe", () => {
+    const result = parseBehaviorFormData(
+      formData([
+        ["title", "Overlap"],
+        ["behavior_schedule_count", "2"],
+        ["schedule_0_recurrence_kind", "daily"],
+        ["schedule_0_daily_interval", "1"],
+        ["schedule_0_time_entry_count", "1"],
+        ["schedule_0_time_entry_kind_0", "exact"],
+        ["schedule_0_time_entry_exact_time_0", "23:00"],
+        ["schedule_1_recurrence_kind", "every_days"],
+        ["schedule_1_every_days", "2"],
+        ["schedule_1_time_entry_count", "1"],
+        ["schedule_1_time_entry_kind_0", "exact"],
+        ["schedule_1_time_entry_exact_time_0", "23:00"],
+        ["reminder_offset", "0"],
+      ]),
+      { mode: "create", categories },
+    );
+
+    expect(result.schedules).toHaveLength(2);
+    expect(result.scheduleSlots.map((slot) => slot.startTime)).toEqual([
+      "23:00",
+      "23:00",
+    ]);
+  });
+
+  it("rejects duplicate start times inside one schedule", () => {
+    expect(() =>
+      parseBehaviorFormData(
+        formData([
+          ["title", "Duplicate nested time"],
+          ["behavior_schedule_count", "1"],
+          ["schedule_0_recurrence_kind", "daily"],
+          ["schedule_0_daily_interval", "1"],
+          ["schedule_0_time_entry_count", "2"],
+          ["schedule_0_time_entry_kind_0", "exact"],
+          ["schedule_0_time_entry_exact_time_0", "23:00"],
+          ["schedule_0_time_entry_kind_1", "range"],
+          ["schedule_0_time_entry_range_start_1", "23:00"],
+          ["schedule_0_time_entry_range_end_1", "23:30"],
+          ["reminder_offset", "0"],
+        ]),
+        { mode: "create", categories },
+      ),
+    ).toThrow(BehaviorValidationError);
   });
 
   it("keeps category-only updates valid when a fallback schedule row has no persisted id", () => {

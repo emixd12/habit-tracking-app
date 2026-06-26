@@ -40,7 +40,7 @@ Occurrence event:
 Behavior event:
 
 ```json
-{"type":"behavior","behavior_title":"Brush teeth","category":"Grooming","description":"Night brushing","recurrence_rule":{"frequency":"daily","interval":1},"scheduled_time":"22:00","schedule_slots":[{"id":"slot-1","kind":"exact","preset":null,"startTime":"22:00","endTime":null,"sortOrder":0,"label":"10:00 PM"}],"browser_reminder_enabled":true,"email_reminder_enabled":false}
+{"type":"behavior","behavior_title":"Brush teeth","category":"Grooming","description":"Night brushing","recurrence_rule":{"frequency":"daily","interval":1},"scheduled_time":"22:00","schedules":[{"id":"schedule-1","recurrenceRule":{"frequency":"daily","interval":1},"timeEntries":[{"id":"slot-1","kind":"exact","preset":null,"startTime":"22:00","endTime":null,"sortOrder":0,"label":"10:00 PM"}],"sortOrder":0}],"schedule_slots":[{"id":"slot-1","kind":"exact","preset":null,"startTime":"22:00","endTime":null,"sortOrder":0,"label":"10:00 PM"}],"browser_reminder_enabled":true,"email_reminder_enabled":false}
 ```
 
 Category event:
@@ -80,6 +80,10 @@ Shape:
 ```
 
 This is intended as a backup and possible future restore format.
+
+Behavior records include `schedules[]` as the current app-native schedule
+structure. `recurrence_rule`, `scheduled_time`, and `schedule_slots` remain in
+app-native exports for backward compatibility with old records and older tools.
 
 ## BehaviorLog bundle
 
@@ -225,8 +229,9 @@ Create-only apply rules:
 - Supported recurrence profile is `behaviorlog.calendar_simple.v1` with daily,
   every N days, weekly weekdays, every N weeks on weekdays, and monthly day-N
   rules.
-- Exact schedules use `local_time`. Range schedules must match Cadence preset
-  windows: morning, afternoon, evening, or night.
+- Exact schedules use `local_time`. Range schedules use
+  `window_start_local`/`window_end_local`; preset labels such as morning,
+  afternoon, evening, and night are optional Cadence metadata.
 - Create missing occurrences from `data/occurrences.jsonl` as `unresolved`
   first.
 - Append imported `data/status_events.jsonl` rows into

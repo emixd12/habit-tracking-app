@@ -1,3 +1,5 @@
+import type { RecurrenceRule, Weekday } from "@/lib/types/recurrence";
+
 export type ScheduleKind = "exact" | "range";
 
 export type TimeRangePreset = "morning" | "afternoon" | "evening" | "night";
@@ -21,9 +23,35 @@ export type ScheduleSlotInput = {
 
 export type ScheduleSlotView = Required<Pick<ScheduleSlotInput, "kind" | "startTime" | "sortOrder">> & {
   id: string;
+  scheduleId?: string | null;
   preset: TimeRangePreset | null;
   endTime: string | null;
   label: string;
+};
+
+export type BehaviorScheduleInput = {
+  id?: string | null;
+  recurrenceRule: RecurrenceRule;
+  timeEntries: ScheduleSlotInput[];
+  sortOrder: number;
+};
+
+export type BehaviorScheduleView = {
+  id: string;
+  recurrenceRule: RecurrenceRule;
+  recurrenceSummary: string;
+  recurrenceDefaults: {
+    kind: "daily" | "every_days" | "weekly" | "monthly";
+    dailyInterval: number;
+    everyDays: number;
+    weeklyInterval: number;
+    weeklyDays: Weekday[];
+    monthlyInterval: number;
+    monthlyDay: number;
+  };
+  timeEntries: ScheduleSlotView[];
+  timeSummary: string;
+  sortOrder: number;
 };
 
 export type OccurrenceScheduleSnapshot = {

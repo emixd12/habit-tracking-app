@@ -1,5 +1,8 @@
 import type { Weekday } from "@/lib/types/recurrence";
-import type { ScheduleSlotView } from "@/lib/types/schedule";
+import type {
+  BehaviorScheduleView,
+  ScheduleSlotView,
+} from "@/lib/types/schedule";
 
 export type CategoryOption = {
   id: string;
@@ -32,6 +35,7 @@ export type BehaviorView = {
   recurrenceDefaults: BehaviorRecurrenceFormDefaults;
   scheduledTime: string;
   scheduledTimeLabel: string;
+  schedules?: BehaviorScheduleView[];
   scheduleSlots: ScheduleSlotView[];
   scheduleSummary: string;
   timezone: string;

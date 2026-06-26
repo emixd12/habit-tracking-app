@@ -1,10 +1,10 @@
 import {
   createBehavior,
-  createBehaviorScheduleSlots,
   getBehaviorById,
-  replaceBehaviorScheduleSlots,
+  replaceBehaviorSchedules,
   updateBehavior,
   type AppSupabaseClient,
+  type BehaviorScheduleWithSlots,
   type BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
 import { createClient } from "@/lib/supabase/server";
@@ -39,7 +39,12 @@ import {
   toScheduleSlotView,
 } from "@/lib/services/schedule";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
-import type { ScheduleKind, TimeRangePreset } from "@/lib/types/schedule";
+import type {
+  BehaviorScheduleInput,
+  BehaviorScheduleView,
+  ScheduleKind,
+  TimeRangePreset,
+} from "@/lib/types/schedule";
 
 export { behaviorErrorToActionState };
 
@@ -98,14 +103,11 @@ export async function createBehaviorFromFormData(
       timezone: behavior.timezone,
     }),
   ]);
-  await createBehaviorScheduleSlots(
-    supabase,
-    input.scheduleSlots.map((slot) => ({
-      ...toBehaviorScheduleSlotMutation(slot),
-      user_id: userId,
-      behavior_id: createdBehavior.id,
-    })),
-  );
+  await replaceBehaviorSchedules(supabase, {
+    userId,
+    behaviorId: createdBehavior.id,
+    schedules: input.schedules.map(toBehaviorScheduleMutation),
+  });
   const confirmedBehavior = await getBehaviorById(
     supabase,
     userId,
@@ -164,10 +166,10 @@ export async function updateBehaviorFromFormData(
     throw new Error("Behavior not found.");
   }
 
-  await replaceBehaviorScheduleSlots(supabase, {
+  await replaceBehaviorSchedules(supabase, {
     userId,
     behaviorId: updatedBehavior.id,
-    slots: input.scheduleSlots.map(toBehaviorScheduleSlotMutation),
+    schedules: input.schedules.map(toBehaviorScheduleMutation),
   });
   invalidateBehaviorData(userId);
 }
@@ -224,30 +226,8 @@ function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {
   const recurrenceRule = normalizeRecurrenceRule(behavior.recurrence_rule);
   const scheduledTime = normalizeScheduledTime(behavior.scheduled_time);
   const scheduledTimeLabel = formatScheduledTimeLabel(scheduledTime);
-  const scheduleSlots =
-    behavior.schedule_slots.length > 0
-      ? behavior.schedule_slots
-          .map((slot) =>
-            toScheduleSlotView({
-              id: slot.id,
-              kind: normalizeScheduleKind(slot.kind),
-              preset: normalizeSchedulePreset(slot.preset),
-              startTime: slot.start_time,
-              endTime: slot.end_time,
-              sortOrder: slot.sort_order,
-            }),
-          )
-          .sort(compareScheduleSlots)
-      : [
-          toScheduleSlotView({
-            id: "",
-            kind: "exact",
-            preset: null,
-            startTime: scheduledTime,
-            endTime: null,
-            sortOrder: 0,
-          }),
-        ];
+  const schedules = toBehaviorScheduleViews(behavior, recurrenceRule, scheduledTime);
+  const scheduleSlots = schedules.flatMap((schedule) => schedule.timeEntries);
 
   return {
     id: behavior.id,
@@ -255,12 +235,19 @@ function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {
     description: behavior.description ?? "",
     categoryId: behavior.category_id ?? "",
     categoryName: behavior.category?.name ?? "No category",
-    recurrenceSummary: summarizeRecurrenceRule(recurrenceRule),
+    recurrenceSummary:
+      schedules.length === 1
+        ? schedules[0]?.recurrenceSummary ?? summarizeRecurrenceRule(recurrenceRule)
+        : `${schedules.length} schedules`,
     recurrenceDefaults: recurrenceDefaultsFromRule(recurrenceRule),
     scheduledTime,
     scheduledTimeLabel,
+    schedules,
     scheduleSlots,
-    scheduleSummary: formatScheduleSlotsSummary(scheduleSlots) || scheduledTimeLabel,
+    scheduleSummary:
+      formatBehaviorScheduleSummary(schedules) ||
+      formatScheduleSlotsSummary(scheduleSlots) ||
+      scheduledTimeLabel,
     timezone: behavior.timezone,
     browserReminderEnabled: behavior.browser_reminder_enabled,
     emailReminderEnabled: behavior.email_reminder_enabled,
@@ -277,9 +264,129 @@ function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {
   };
 }
 
-function toBehaviorScheduleSlotMutation(
-  slot: ReturnType<typeof parseBehaviorFormData>["scheduleSlots"][number],
-) {
+function toBehaviorScheduleViews(
+  behavior: BehaviorWithCategory,
+  fallbackRecurrenceRule: ReturnType<typeof normalizeRecurrenceRule>,
+  fallbackScheduledTime: string,
+): BehaviorScheduleView[] {
+  const schedules = behavior.schedules ?? [];
+
+  if (schedules.length > 0) {
+    return schedules
+      .map((schedule) => toBehaviorScheduleView(schedule, fallbackScheduledTime))
+      .sort((left, right) => left.sortOrder - right.sortOrder);
+  }
+
+  const legacySlots =
+    behavior.schedule_slots.length > 0
+      ? behavior.schedule_slots
+          .map((slot) =>
+            toScheduleSlotView({
+              id: slot.id,
+              scheduleId: slot.behavior_schedule_id,
+              kind: normalizeScheduleKind(slot.kind),
+              preset: normalizeSchedulePreset(slot.preset),
+              startTime: slot.start_time,
+              endTime: slot.end_time,
+              sortOrder: slot.sort_order,
+            }),
+          )
+          .sort(compareScheduleSlots)
+      : [
+          toScheduleSlotView({
+            id: "",
+            scheduleId: null,
+            kind: "exact",
+            preset: null,
+            startTime: fallbackScheduledTime,
+            endTime: null,
+            sortOrder: 0,
+          }),
+        ];
+
+  return [
+    {
+      id: "",
+      recurrenceRule: fallbackRecurrenceRule,
+      recurrenceSummary: summarizeRecurrenceRule(fallbackRecurrenceRule),
+      recurrenceDefaults: recurrenceDefaultsFromRule(fallbackRecurrenceRule),
+      timeEntries: legacySlots,
+      timeSummary: formatScheduleSlotsSummary(legacySlots),
+      sortOrder: 0,
+    },
+  ];
+}
+
+function toBehaviorScheduleView(
+  schedule: BehaviorScheduleWithSlots,
+  fallbackScheduledTime: string,
+): BehaviorScheduleView {
+  const recurrenceRule = normalizeRecurrenceRule(schedule.recurrence_rule);
+  const timeEntries =
+    schedule.schedule_slots.length > 0
+      ? schedule.schedule_slots
+          .map((slot) =>
+            toScheduleSlotView({
+              id: slot.id,
+              scheduleId: slot.behavior_schedule_id ?? schedule.id,
+              kind: normalizeScheduleKind(slot.kind),
+              preset: normalizeSchedulePreset(slot.preset),
+              startTime: slot.start_time,
+              endTime: slot.end_time,
+              sortOrder: slot.sort_order,
+            }),
+          )
+          .sort(compareScheduleSlots)
+      : [
+          toScheduleSlotView({
+            id: "",
+            scheduleId: schedule.id,
+            kind: "exact",
+            preset: null,
+            startTime: fallbackScheduledTime,
+            endTime: null,
+            sortOrder: 0,
+          }),
+        ];
+
+  return {
+    id: schedule.id,
+    recurrenceRule,
+    recurrenceSummary: summarizeRecurrenceRule(recurrenceRule),
+    recurrenceDefaults: recurrenceDefaultsFromRule(recurrenceRule),
+    timeEntries,
+    timeSummary: formatScheduleSlotsSummary(timeEntries),
+    sortOrder: schedule.sort_order,
+  };
+}
+
+function formatBehaviorScheduleSummary(schedules: BehaviorScheduleView[]): string {
+  if (schedules.length === 0) {
+    return "";
+  }
+
+  if (schedules.length === 1) {
+    return schedules[0]?.timeSummary ?? "";
+  }
+
+  return schedules
+    .map(
+      (schedule, index) =>
+        `Schedule ${index + 1}: ${schedule.recurrenceSummary}, ${schedule.timeSummary}`,
+    )
+    .join("; ");
+}
+
+function toBehaviorScheduleMutation(schedule: BehaviorScheduleInput) {
+  return {
+    id: schedule.id ?? undefined,
+    recurrence_rule: recurrenceRuleToJson(schedule.recurrenceRule),
+    sort_order: schedule.sortOrder,
+    slots: schedule.timeEntries.map(toBehaviorScheduleSlotMutation),
+  };
+}
+
+function toBehaviorScheduleSlotMutation(slot: BehaviorScheduleInput["timeEntries"][number]) {
   return {
     id: slot.id ?? undefined,
     kind: slot.kind,

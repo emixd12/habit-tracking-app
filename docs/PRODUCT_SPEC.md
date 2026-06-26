@@ -107,6 +107,21 @@ Examples:
 - Do laundry
 - Take body measurements
 
+Behaviors own one or more schedules. Each schedule has one recurrence pattern
+and one or more time entries. Adding a time adds another time entry under the
+same recurrence. Adding a schedule creates another recurrence pattern.
+
+Examples:
+- Daily at 11:00 PM
+- Every 2 days at 11:00 PM
+
+Those examples are two schedules, even though they share a time.
+
+### Schedule
+
+A recurrence pattern plus one or more exact-time or time-range entries for a
+behavior.
+
 ### Occurrence
 
 One scheduled instance of a behavior.
@@ -150,8 +165,7 @@ Default timezone:
 
 Required fields:
 - Title
-- Recurrence
-- Schedule with at least one exact time or preset time range
+- Schedule with at least one recurrence pattern and one exact time or time range
 
 Optional fields:
 - Description
@@ -184,10 +198,12 @@ Preset time ranges:
 - Evening: 6:00 PM-Midnight
 - Night: Midnight-6:00 AM
 
-A single behavior can have multiple schedule slots in one day. The system
-generates one occurrence per matching schedule slot. Partial completion for
-multi-time behaviors is derived only from mixed occurrence statuses; it is not a
-stored status.
+A single behavior can have multiple schedules and multiple time entries in one
+day. The system generates one occurrence per matching schedule time entry, then
+merges overlapping generated occurrences that share the same behavior, local
+date, start time, and end-time/range identity. Partial completion for multi-time
+behaviors is derived only from mixed occurrence statuses; it is not a stored
+status.
 
 ## Notes
 

@@ -316,14 +316,20 @@ Fields:
 - Title
 - Description
 - Category
-- Recurrence
-- Schedule with one or more exact times or preset time ranges
+- Schedule with one or more rows; each row has recurrence, every/details,
+  times, and time mode
 - Browser reminder enabled, default on
 - Email reminder toggle, default off
 - Reminder offset
 - Active/archive
 
-At least one schedule slot is required.
+At least one schedule and one time entry are required. Add time is plain black
+text under the schedule row and adds another exact time or range to the same
+recurrence. Add schedule is underlined black text and creates another
+recurrence row. Keep the section unboxed with thin dividers and inline fields.
+Do not show decorative clock, bell, or info icons in the form body. Separate
+Reminders from Schedule with a thin divider. The primary submit action is Save
+behavior; Cancel is a secondary text action.
 
 Preset time ranges:
 - Morning: 6:00 AM-Noon

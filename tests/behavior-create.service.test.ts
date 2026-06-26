@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   requireCurrentUserId: vi.fn(),
   createBehavior: vi.fn(),
-  createBehaviorScheduleSlots: vi.fn(),
+  replaceBehaviorSchedules: vi.fn(),
   getBehaviorById: vi.fn(),
   getProfileTimezone: vi.fn(),
   markOccurrenceSyncStale: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock("@/lib/db/behaviors.repo", async (importOriginal) => {
   return {
     ...original,
     createBehavior: mocks.createBehavior,
-    createBehaviorScheduleSlots: mocks.createBehaviorScheduleSlots,
+    replaceBehaviorSchedules: mocks.replaceBehaviorSchedules,
     getBehaviorById: mocks.getBehaviorById,
     getProfileTimezone: mocks.getProfileTimezone,
   };
@@ -51,7 +51,7 @@ describe("createBehaviorFromFormData", () => {
       id: BEHAVIOR_ID,
       timezone: "America/New_York",
     });
-    mocks.createBehaviorScheduleSlots.mockResolvedValue(undefined);
+    mocks.replaceBehaviorSchedules.mockResolvedValue(undefined);
     mocks.markOccurrenceSyncStale.mockResolvedValue(undefined);
     mocks.getBehaviorById.mockResolvedValue(storedBehavior());
   });
@@ -88,16 +88,27 @@ describe("createBehaviorFromFormData", () => {
         timezone: "America/New_York",
       }),
     );
-    expect(mocks.createBehaviorScheduleSlots).toHaveBeenCalledWith(
+    expect(mocks.replaceBehaviorSchedules).toHaveBeenCalledWith(
       expect.anything(),
-      [
-        expect.objectContaining({
-          user_id: USER_ID,
-          behavior_id: BEHAVIOR_ID,
-          start_time: "07:30",
-          sort_order: 0,
-        }),
-      ],
+      expect.objectContaining({
+        userId: USER_ID,
+        behaviorId: BEHAVIOR_ID,
+        schedules: [
+          expect.objectContaining({
+            recurrence_rule: {
+              frequency: "daily",
+              interval: 1,
+            },
+            sort_order: 0,
+            slots: [
+              expect.objectContaining({
+                start_time: "07:30",
+                sort_order: 0,
+              }),
+            ],
+          }),
+        ],
+      }),
     );
     expect(mocks.markOccurrenceSyncStale).toHaveBeenCalledWith(
       expect.anything(),

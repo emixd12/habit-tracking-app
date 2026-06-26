@@ -3324,6 +3324,53 @@ Remaining risk:
   findings in `docs/UX_RESEARCH_LOG.md` are explicitly marked Needs
   reproduction before implementation.
 
+### Behavior schedules hierarchy and form update
+
+Status: complete.
+
+Implementation summary:
+- Added `behavior_schedules` as the recurrence-owning parent of schedule time
+  entries, linked `behavior_schedule_slots` to schedules, backfilled existing
+  behavior rows into one schedule, and preserved legacy behavior-level
+  `recurrence_rule`/`scheduled_time` compatibility.
+- Reworked Behavior create/edit parsing, service writes, repository reads, and
+  cached behavior/export mapping so old records normalize to `schedules[]` and
+  new saves persist multiple schedules with multiple exact-time or range
+  entries.
+- Updated occurrence generation to iterate schedules, expand each schedule's
+  recurrence and time entries, preserve timezone/history behavior, and merge
+  duplicate generated occurrences with the same behavior, local date, start
+  time, and end-time/range identity before reminders or analytics see them.
+- Rebuilt the Behavior form schedule section into the compact table-like
+  hierarchy: Add time stays inside a schedule, Add schedule creates a new
+  recurrence row, custom time ranges are supported, reminders are separated by
+  a divider, decorative form icons were avoided, and Save behavior remains the
+  primary blue action.
+- Updated JSON/JSONL/full JSON/BehaviorLog export paths to include app-native
+  `schedules[]` while keeping backward-compatible schedule fields.
+- Updated product, data model, recurrence, UI, user-flow, notification, export,
+  date/time, decisions, and resolver-registry docs for the new hierarchy.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (55 files, 331 tests).
+- Pass: `npm run build`.
+- Pass: `npm run supabase -- db reset`.
+- Pass: Supabase local type generation with
+  `npm run --silent supabase -- gen types typescript --local`, redirected to
+  `lib/db/database.types.ts`, after removing the earlier npm banner pollution
+  from the documented non-silent command.
+- Pass: `git diff --check`.
+
+Remaining risk:
+- Live browser visual QA was not run in this thread because no browser-control
+  tool was exposed and Playwright is not installed in the project. The
+  fixture-backed design-system check and production build passed.
+
 ## Handoff notes
 
 - For the next coding agent: production browser push subscription is now

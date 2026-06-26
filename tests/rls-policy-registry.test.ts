@@ -12,6 +12,7 @@ const MIGRATION_SQL = [
   "20260618120000_add_imported_notes.sql",
   "20260618220226_add_imported_intervention_history.sql",
   "20260625204148_add_occurrence_sync_state.sql",
+  "20260626140000_add_behavior_schedules.sql",
 ]
   .map((fileName) => readFileSync(join(MIGRATION_DIR, fileName), "utf8"))
   .join("\n");
@@ -20,6 +21,7 @@ const USER_OWNED_TABLES = [
   "profiles",
   "categories",
   "behaviors",
+  "behavior_schedules",
   "behavior_schedule_slots",
   "occurrences",
   "reminder_deliveries",
@@ -38,6 +40,7 @@ const AUTHENTICATED_TABLE_GRANTS = new Map<(typeof USER_OWNED_TABLES)[number], s
   ["profiles", "select, insert, update, delete"],
   ["categories", "select, insert, update, delete"],
   ["behaviors", "select, insert, update, delete"],
+  ["behavior_schedules", "select, insert, update, delete"],
   ["behavior_schedule_slots", "select, insert, update, delete"],
   ["occurrences", "select, insert, update, delete"],
   ["reminder_deliveries", "select, insert, update, delete"],

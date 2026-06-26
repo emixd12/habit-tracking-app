@@ -8,7 +8,6 @@ import type {
 } from "@/lib/db/behaviors.repo";
 import {
   readExportPageBundle,
-  type ExportPageBehaviorRow,
   type ExportPageCategoryRow,
   type ExportPageOccurrenceRow,
   type ExportPageReminderDeliveryRow,
@@ -22,17 +21,23 @@ import {
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import {
   normalizeRecurrenceRule,
+  recurrenceDefaultsFromRule,
   normalizeScheduledTime,
+  summarizeRecurrenceRule,
 } from "@/lib/services/behavior-form";
 import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
 import {
   compareScheduleSlots,
+  formatScheduleSlotsSummary,
   formatOccurrenceScheduleLabel,
   toScheduleSlotView,
 } from "@/lib/services/schedule";
 import { createStoredZip } from "@/lib/services/zip";
 import { createClient } from "@/lib/supabase/server";
-import { readCachedProfileTimezone } from "@/lib/cache/stable-user-data.cache";
+import {
+  readCachedProfileTimezone,
+  readCachedUserBehaviors,
+} from "@/lib/cache/stable-user-data.cache";
 import type {
   ExportBehaviorInput,
   ExportBundle,
@@ -47,6 +52,7 @@ import type {
 import type { OccurrenceSyncState } from "@/lib/types/database";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type {
+  BehaviorScheduleView,
   ScheduleKind,
   TimeRangePreset,
 } from "@/lib/types/schedule";
@@ -121,7 +127,10 @@ async function getUserExportBundle(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
-  const profileTimezone = await readCachedProfileTimezone(supabase, userId);
+  const [profileTimezone, cachedBehaviors] = await Promise.all([
+    readCachedProfileTimezone(supabase, userId),
+    readCachedUserBehaviors(supabase, userId),
+  ]);
   const timezone = profileTimezone ?? DEFAULT_TIMEZONE;
   const range = resolveExportDateRange({
     now,
@@ -135,7 +144,7 @@ async function getUserExportBundle(
 
   const syncResult = await ensureUserOccurrencesFresh(supabase, userId, {
     now,
-    behaviors: toSyncBehaviors(initialRead.behaviors, userId),
+    behaviors: cachedBehaviors,
     timezone,
     horizonDays: 0,
     syncState: toSyncState(initialRead.syncState, userId),
@@ -156,7 +165,7 @@ async function getUserExportBundle(
       producerVersion: "0.1.0",
     },
     categories: exportRead.categories.map(toExportCategoryInput),
-    behaviors: exportRead.behaviors.map(toExportBehaviorInput),
+    behaviors: cachedBehaviors.map(toExportBehaviorInput),
     occurrences: exportRead.occurrences.map(toExportOccurrenceInput),
     statusEvents: exportRead.statusEvents.map(toExportStatusEventInput),
     reminderDeliveries: exportRead.reminderDeliveries.map(
@@ -206,29 +215,25 @@ function toExportCategoryInput(category: ExportPageCategoryRow): ExportCategoryI
   };
 }
 
-function toExportBehaviorInput(
-  behavior: ExportPageBehaviorRow,
-): ExportBehaviorInput {
+function toExportBehaviorInput(behavior: BehaviorWithCategory): ExportBehaviorInput {
+  const recurrenceRule = normalizeRecurrenceRule(behavior.recurrence_rule);
+  const scheduledTime = normalizeScheduledTime(behavior.scheduled_time);
+  const schedules = toExportBehaviorSchedules(
+    behavior,
+    recurrenceRule,
+    scheduledTime,
+  );
+
   return {
     id: behavior.id,
     categoryId: behavior.category_id,
     categoryName: behavior.category?.name ?? null,
     title: behavior.title,
     description: behavior.description,
-    recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
-    scheduledTime: normalizeScheduledTime(behavior.scheduled_time),
-    scheduleSlots: behavior.schedule_slots
-      .map((slot) =>
-        toScheduleSlotView({
-          id: slot.id,
-          kind: normalizeScheduleKind(slot.kind),
-          preset: normalizeSchedulePreset(slot.preset),
-          startTime: slot.start_time,
-          endTime: slot.end_time,
-          sortOrder: slot.sort_order,
-        }),
-      )
-      .sort(compareScheduleSlots),
+    recurrenceRule,
+    scheduledTime,
+    schedules,
+    scheduleSlots: schedules.flatMap((schedule) => schedule.timeEntries),
     timezone: behavior.timezone || DEFAULT_TIMEZONE,
     browserReminderEnabled: behavior.browser_reminder_enabled,
     emailReminderEnabled: behavior.email_reminder_enabled,
@@ -238,6 +243,84 @@ function toExportBehaviorInput(
     createdAt: behavior.created_at,
     updatedAt: behavior.updated_at,
   };
+}
+
+function toExportBehaviorSchedules(
+  behavior: BehaviorWithCategory,
+  fallbackRecurrenceRule: ExportBehaviorInput["recurrenceRule"],
+  fallbackScheduledTime: string,
+): BehaviorScheduleView[] {
+  const schedules = behavior.schedules ?? [];
+
+  if (schedules.length > 0) {
+    return schedules
+      .map((schedule) => {
+        const recurrenceRule = normalizeRecurrenceRule(schedule.recurrence_rule);
+        const timeEntries = schedule.schedule_slots
+          .map((slot) =>
+            toScheduleSlotView({
+              id: slot.id,
+              scheduleId: slot.behavior_schedule_id ?? schedule.id,
+              kind: normalizeScheduleKind(slot.kind),
+              preset: normalizeSchedulePreset(slot.preset),
+              startTime: slot.start_time,
+              endTime: slot.end_time,
+              sortOrder: slot.sort_order,
+            }),
+          )
+          .sort(compareScheduleSlots);
+
+        return {
+          id: schedule.id,
+          recurrenceRule,
+          recurrenceSummary: summarizeRecurrenceRule(recurrenceRule),
+          recurrenceDefaults: recurrenceDefaultsFromRule(recurrenceRule),
+          timeEntries,
+          timeSummary: formatScheduleSlotsSummary(timeEntries),
+          sortOrder: schedule.sort_order,
+        };
+      })
+      .sort((left, right) => left.sortOrder - right.sortOrder);
+  }
+
+  const timeEntries =
+    behavior.schedule_slots.length > 0
+      ? behavior.schedule_slots
+          .map((slot) =>
+            toScheduleSlotView({
+              id: slot.id,
+              scheduleId: slot.behavior_schedule_id,
+              kind: normalizeScheduleKind(slot.kind),
+              preset: normalizeSchedulePreset(slot.preset),
+              startTime: slot.start_time,
+              endTime: slot.end_time,
+              sortOrder: slot.sort_order,
+            }),
+          )
+          .sort(compareScheduleSlots)
+      : [
+          toScheduleSlotView({
+            id: "",
+            scheduleId: null,
+            kind: "exact",
+            preset: null,
+            startTime: fallbackScheduledTime,
+            endTime: null,
+            sortOrder: 0,
+          }),
+        ];
+
+  return [
+    {
+      id: "",
+      recurrenceRule: fallbackRecurrenceRule,
+      recurrenceSummary: summarizeRecurrenceRule(fallbackRecurrenceRule),
+      recurrenceDefaults: recurrenceDefaultsFromRule(fallbackRecurrenceRule),
+      timeEntries,
+      timeSummary: formatScheduleSlotsSummary(timeEntries),
+      sortOrder: 0,
+    },
+  ];
 }
 
 function toExportOccurrenceInput(
@@ -409,20 +492,6 @@ function normalizeReminderDeliveryStatus(
 
 function pseudonymousSubjectId(userId: string): string {
   return `subject_${createHash("sha256").update(userId).digest("hex").slice(0, 16)}`;
-}
-
-function toSyncBehaviors(
-  behaviors: ExportPageBehaviorRow[],
-  userId: string,
-): BehaviorWithCategory[] {
-  return behaviors.map((behavior) => ({
-    ...behavior,
-    user_id: userId,
-    schedule_slots: behavior.schedule_slots.map((slot) => ({
-      ...slot,
-      user_id: userId,
-    })),
-  }));
 }
 
 function toSyncState(

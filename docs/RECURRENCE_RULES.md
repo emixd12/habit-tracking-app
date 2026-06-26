@@ -47,9 +47,10 @@ export type RecurrenceRule =
     };
 ```
 
-## Schedule slots
+## Schedules and time entries
 
-Each behavior must have at least one schedule slot.
+Each behavior must have at least one schedule, and each schedule must have at
+least one time entry. A schedule owns exactly one recurrence rule.
 
 Use local times in the user's timezone.
 
@@ -63,11 +64,17 @@ Preset time ranges:
 - Evening: `18:00` to `00:00`
 - Night: `00:00` to `06:00`
 
-For recurrence expansion, each schedule slot has an anchor time. Exact-time
-slots use their exact time. Range slots use the start of the range.
+For recurrence expansion, each time entry has an anchor time. Exact-time
+entries use their exact time. Range entries use the start of the range.
 
-If a behavior has multiple schedule slots, occurrence generation creates one
-occurrence per matching slot on each recurrence day.
+If a behavior has multiple schedules, occurrence generation iterates each
+schedule's recurrence, expands all of that schedule's time entries, and creates
+one occurrence per matching time entry. Generated occurrences are deduplicated
+when they share the same behavior, local date, start time, and end-time/range
+identity.
+
+Legacy behavior-level recurrence and flat schedule-slot records are normalized
+to a single schedule before occurrence generation.
 
 ## Timezone
 
@@ -107,8 +114,9 @@ Occurrence generation must be idempotent.
 
 Running generation twice must not create duplicates.
 
-The unique key is:
-`behavior_id + scheduled_for`
+The persistence idempotence key is `behavior_id + scheduled_for`. The resolver
+also deduplicates generated candidates by behavior, local date, start time, and
+end-time/range identity before persistence.
 
 ## Interval anchor
 
@@ -157,5 +165,7 @@ The resolver must be pure:
 - Monthly day 31 falls back to last day of short months.
 - Timezone remains America/New_York.
 - Local midnight boundary behaves correctly.
-- Multiple schedule slots can generate multiple same-day occurrences through
-  the occurrence generation resolver.
+- Multiple schedules with different recurrences can generate occurrences.
+- Exact-time and time-range entries generate occurrence snapshots.
+- Duplicate generated occurrences merge before analytics/reminders see them.
+- Legacy behavior-level recurrence/time records still resolve as one schedule.

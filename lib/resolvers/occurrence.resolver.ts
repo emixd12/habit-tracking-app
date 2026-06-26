@@ -14,6 +14,7 @@ export type OccurrenceGenerationBehavior = {
   id: string;
   userId: string;
   recurrenceRule: RecurrenceRule;
+  schedules?: OccurrenceGenerationSchedule[];
   scheduleSlots: OccurrenceGenerationScheduleSlot[];
   timezone?: string;
   active: boolean;
@@ -21,8 +22,17 @@ export type OccurrenceGenerationBehavior = {
   anchorDate?: string;
 };
 
+export type OccurrenceGenerationSchedule = {
+  id: string | null;
+  recurrenceRule: RecurrenceRule;
+  timeEntries: OccurrenceGenerationScheduleSlot[];
+  sortOrder: number;
+  anchorDate?: string;
+};
+
 export type OccurrenceGenerationScheduleSlot = {
   id: string | null;
+  scheduleId?: string | null;
   kind: ScheduleKind;
   preset: TimeRangePreset | null;
   startTime: string;
@@ -195,27 +205,80 @@ function resolveDesiredOccurrences(input: {
   scheduleStartTime: string;
   scheduleEndTime: string | null;
 }> {
-  return input.behavior.scheduleSlots
-    .flatMap((slot) =>
-      resolveOccurrenceSchedule({
-        recurrenceRule: input.behavior.recurrenceRule,
-        scheduledTime: slot.startTime,
-        timezone: input.timezone,
-        anchorDate: resolveAnchorDate(input.behavior, input.timezone),
-        rangeStart: input.generationWindow.rangeStart,
-        rangeEnd: input.generationWindow.rangeEnd,
-      }).map((occurrence) => ({
-        ...occurrence,
-        scheduleSlotId: slot.id,
-        scheduleKind: slot.kind,
-        schedulePreset: slot.preset,
-        scheduleStartTime: slot.startTime,
-        scheduleEndTime: slot.endTime,
-      })),
-    )
-    .sort((left, right) =>
-      Temporal.Instant.compare(left.scheduledFor, right.scheduledFor),
-    );
+  return dedupeDesiredOccurrences(
+    resolveGenerationSchedules(input.behavior).flatMap((schedule) =>
+      schedule.timeEntries.flatMap((slot) =>
+        resolveOccurrenceSchedule({
+          recurrenceRule: schedule.recurrenceRule,
+          scheduledTime: slot.startTime,
+          timezone: input.timezone,
+          anchorDate:
+            schedule.anchorDate ?? resolveAnchorDate(input.behavior, input.timezone),
+          rangeStart: input.generationWindow.rangeStart,
+          rangeEnd: input.generationWindow.rangeEnd,
+        }).map((occurrence) => ({
+          ...occurrence,
+          scheduleSlotId: slot.id,
+          scheduleKind: slot.kind,
+          schedulePreset: slot.preset,
+          scheduleStartTime: slot.startTime,
+          scheduleEndTime: slot.endTime,
+        })),
+      ),
+    ),
+  ).sort((left, right) =>
+    Temporal.Instant.compare(left.scheduledFor, right.scheduledFor),
+  );
+}
+
+function resolveGenerationSchedules(
+  behavior: OccurrenceGenerationBehavior,
+): OccurrenceGenerationSchedule[] {
+  if (behavior.schedules && behavior.schedules.length > 0) {
+    return [...behavior.schedules].sort((left, right) => {
+      const sortComparison = left.sortOrder - right.sortOrder;
+
+      if (sortComparison !== 0) {
+        return sortComparison;
+      }
+
+      return (left.id ?? "").localeCompare(right.id ?? "");
+    });
+  }
+
+  return [
+    {
+      id: null,
+      recurrenceRule: behavior.recurrenceRule,
+      timeEntries: behavior.scheduleSlots,
+      sortOrder: 0,
+      anchorDate: behavior.anchorDate,
+    },
+  ];
+}
+
+function dedupeDesiredOccurrences<T extends {
+  localDate: string;
+  scheduleKind: ScheduleKind;
+  scheduleStartTime: string;
+  scheduleEndTime: string | null;
+}>(occurrences: T[]): T[] {
+  const occurrencesByKey = new Map<string, T>();
+
+  for (const occurrence of occurrences) {
+    const key = [
+      occurrence.localDate,
+      occurrence.scheduleKind,
+      occurrence.scheduleStartTime,
+      occurrence.scheduleEndTime ?? "",
+    ].join("|");
+
+    if (!occurrencesByKey.has(key)) {
+      occurrencesByKey.set(key, occurrence);
+    }
+  }
+
+  return Array.from(occurrencesByKey.values());
 }
 
 export function resolveGenerationWindow(input: {

@@ -24,6 +24,8 @@ import {
   planOccurrenceGeneration,
   resolveGenerationWindow,
   type ExistingOccurrenceForGeneration,
+  type OccurrenceGenerationSchedule,
+  type OccurrenceGenerationScheduleSlot,
   type OccurrenceGenerationPlan,
 } from "@/lib/resolvers/occurrence.resolver";
 import { listProfileOccurrenceSyncTargets } from "@/lib/db/profiles.repo";
@@ -170,12 +172,24 @@ export async function syncUserOccurrences(
             behaviorWindows,
           ),
       );
-      const scheduleSlotsByBehaviorId = await measurePerformanceSpan(
+      const schedulesByBehaviorId = await measurePerformanceSpan(
         {
           span: "occurrence_sync.schedule_slot_resolution",
-          counts: (slotsByBehaviorId) => ({
-            behaviors: slotsByBehaviorId.size,
-            schedule_slots: countMapValues(slotsByBehaviorId),
+          counts: (resolvedSchedulesByBehaviorId) => ({
+            behaviors: resolvedSchedulesByBehaviorId.size,
+            schedules: countMapValues(resolvedSchedulesByBehaviorId),
+            schedule_slots: Array.from(
+              resolvedSchedulesByBehaviorId.values(),
+            ).reduce(
+              (sum, schedules) =>
+                sum +
+                schedules.reduce(
+                  (scheduleSum, schedule) =>
+                    scheduleSum + schedule.timeEntries.length,
+                  0,
+                ),
+              0,
+            ),
           }),
         },
         async () =>
@@ -183,7 +197,11 @@ export async function syncUserOccurrences(
             await Promise.all(
               behaviorWindows.map(async ({ behavior }) => [
                 behavior.id,
-                await resolveBehaviorScheduleSlots(supabase, userId, behavior),
+                await resolveBehaviorSchedulesForGeneration(
+                  supabase,
+                  userId,
+                  behavior,
+                ),
               ] as const),
             ),
           ),
@@ -196,8 +214,7 @@ export async function syncUserOccurrences(
         async () =>
           Promise.all(
             behaviorWindows.map(async ({ behavior, generationWindow }) => {
-              const scheduleSlots =
-                scheduleSlotsByBehaviorId.get(behavior.id) ?? [];
+              const schedules = schedulesByBehaviorId.get(behavior.id) ?? [];
               const behaviorOccurrences = occurrencesFromWindowStart(
                 existingOccurrencesByBehaviorId.get(behavior.id) ?? [],
                 generationWindow.rangeStart,
@@ -208,7 +225,10 @@ export async function syncUserOccurrences(
                   id: behavior.id,
                   userId,
                   recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
-                  scheduleSlots,
+                  schedules,
+                  scheduleSlots: schedules.flatMap(
+                    (schedule) => schedule.timeEntries,
+                  ),
                   timezone: behavior.timezone,
                   active: behavior.active,
                   createdAt: behavior.created_at,
@@ -496,21 +516,22 @@ export async function syncBehaviorOccurrences(
     timezone: behavior.timezone,
     horizonDays: options.horizonDays,
   });
-  const [existingOccurrences, scheduleSlots] = await Promise.all([
+  const [existingOccurrences, schedules] = await Promise.all([
     listBehaviorOccurrencesFrom(
       supabase,
       userId,
       behavior.id,
       generationWindow.rangeStart.toString(),
     ),
-    resolveBehaviorScheduleSlots(supabase, userId, behavior),
+    resolveBehaviorSchedulesForGeneration(supabase, userId, behavior),
   ]);
   const plan = planOccurrenceGeneration({
     behavior: {
       id: behavior.id,
       userId,
       recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
-      scheduleSlots,
+      schedules,
+      scheduleSlots: schedules.flatMap((schedule) => schedule.timeEntries),
       timezone: behavior.timezone,
       active: behavior.active,
       createdAt: behavior.created_at,
@@ -821,16 +842,7 @@ async function resolveBehaviorScheduleSlots(
   supabase: AppSupabaseClient,
   userId: string,
   behavior: Behavior | BehaviorWithCategory,
-): Promise<
-  Array<{
-    id: string | null;
-    kind: "exact" | "range";
-    preset: "morning" | "afternoon" | "evening" | "night" | null;
-    startTime: string;
-    endTime: string | null;
-    sortOrder: number;
-  }>
-> {
+): Promise<OccurrenceGenerationScheduleSlot[]> {
   const scheduleSlots =
     "schedule_slots" in behavior && Array.isArray(behavior.schedule_slots)
       ? behavior.schedule_slots
@@ -840,6 +852,7 @@ async function resolveBehaviorScheduleSlots(
     return [
       {
         id: null,
+        scheduleId: null,
         kind: "exact",
         preset: null,
         startTime: normalizeScheduledTime(behavior.scheduled_time),
@@ -852,9 +865,10 @@ async function resolveBehaviorScheduleSlots(
   return scheduleSlots
     .map((slot) =>
       toScheduleSlotView({
-        id: slot.id,
-        kind: normalizeScheduleKind(slot.kind),
-        preset: normalizeSchedulePreset(slot.preset),
+              id: slot.id,
+              scheduleId: slot.behavior_schedule_id,
+              kind: normalizeScheduleKind(slot.kind),
+              preset: normalizeSchedulePreset(slot.preset),
         startTime: slot.start_time,
         endTime: slot.end_time,
         sortOrder: slot.sort_order,
@@ -863,12 +877,68 @@ async function resolveBehaviorScheduleSlots(
     .sort(compareScheduleSlots)
     .map((slot) => ({
       id: slot.id,
+      scheduleId: slot.scheduleId,
       kind: slot.kind,
       preset: slot.preset,
       startTime: slot.startTime,
       endTime: slot.endTime,
       sortOrder: slot.sortOrder,
     }));
+}
+
+async function resolveBehaviorSchedulesForGeneration(
+  supabase: AppSupabaseClient,
+  userId: string,
+  behavior: Behavior | BehaviorWithCategory,
+): Promise<OccurrenceGenerationSchedule[]> {
+  if (
+    "schedules" in behavior &&
+    Array.isArray(behavior.schedules) &&
+    behavior.schedules.length > 0
+  ) {
+    return behavior.schedules
+      .map((schedule) => {
+        const timeEntries = schedule.schedule_slots
+          .map((slot) =>
+            toScheduleSlotView({
+              id: slot.id,
+              scheduleId: slot.behavior_schedule_id ?? schedule.id,
+              kind: normalizeScheduleKind(slot.kind),
+              preset: normalizeSchedulePreset(slot.preset),
+              startTime: slot.start_time,
+              endTime: slot.end_time,
+              sortOrder: slot.sort_order,
+            }),
+          )
+          .sort(compareScheduleSlots)
+          .map((slot) => ({
+            id: slot.id,
+            scheduleId: slot.scheduleId,
+            kind: slot.kind,
+            preset: slot.preset,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            sortOrder: slot.sortOrder,
+          }));
+
+        return {
+          id: schedule.id,
+          recurrenceRule: normalizeRecurrenceRule(schedule.recurrence_rule),
+          timeEntries,
+          sortOrder: schedule.sort_order,
+        };
+      })
+      .filter((schedule) => schedule.timeEntries.length > 0);
+  }
+
+  return [
+    {
+      id: null,
+      recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
+      timeEntries: await resolveBehaviorScheduleSlots(supabase, userId, behavior),
+      sortOrder: 0,
+    },
+  ];
 }
 
 function normalizeScheduleKind(value: string): ScheduleKind {

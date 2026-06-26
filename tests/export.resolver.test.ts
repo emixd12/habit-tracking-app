@@ -196,6 +196,21 @@ describe("resolveExportBundle", () => {
           label: "10:00 PM",
         }),
       ],
+      schedules: [
+        expect.objectContaining({
+          recurrenceRule: {
+            frequency: "daily",
+            interval: 1,
+          },
+          timeEntries: [
+            expect.objectContaining({
+              kind: "exact",
+              startTime: "22:00",
+              label: "10:00 PM",
+            }),
+          ],
+        }),
+      ],
     });
     expect(records[3]).toMatchObject({
       type: "occurrence",
@@ -278,6 +293,165 @@ describe("resolveExportBundle", () => {
     });
     expect(bundle.csv).toContain(
       "Morning (6:00 AM-Noon),Stretch,Grooming,completed",
+    );
+  });
+
+  it("exports multiple schedules with their own recurrence rules", () => {
+    const bundle = resolve({
+      behaviors: [
+        behavior({
+          id: "behavior-clean-aligners",
+          title: "Clean Invisalign",
+          scheduledTime: "08:00",
+          recurrenceRule: { frequency: "daily", interval: 1 },
+          schedules: [
+            {
+              id: "schedule-daily",
+              recurrenceRule: { frequency: "daily", interval: 1 },
+              recurrenceSummary: "Daily",
+              recurrenceDefaults: {
+                kind: "daily",
+                dailyInterval: 1,
+                everyDays: 2,
+                weeklyInterval: 1,
+                weeklyDays: ["monday"],
+                monthlyInterval: 1,
+                monthlyDay: 1,
+              },
+              timeEntries: [
+                {
+                  id: "slot-morning",
+                  scheduleId: "schedule-daily",
+                  kind: "exact",
+                  preset: null,
+                  startTime: "08:00",
+                  endTime: null,
+                  sortOrder: 0,
+                  label: "8:00 AM",
+                },
+                {
+                  id: "slot-night",
+                  scheduleId: "schedule-daily",
+                  kind: "exact",
+                  preset: null,
+                  startTime: "23:00",
+                  endTime: null,
+                  sortOrder: 1,
+                  label: "11:00 PM",
+                },
+              ],
+              timeSummary: "8:00 AM, 11:00 PM",
+              sortOrder: 0,
+            },
+            {
+              id: "schedule-every-two-days",
+              recurrenceRule: { frequency: "interval_days", intervalDays: 2 },
+              recurrenceSummary: "Every 2 days",
+              recurrenceDefaults: {
+                kind: "every_days",
+                dailyInterval: 1,
+                everyDays: 2,
+                weeklyInterval: 1,
+                weeklyDays: ["monday"],
+                monthlyInterval: 1,
+                monthlyDay: 1,
+              },
+              timeEntries: [
+                {
+                  id: "slot-overlap",
+                  scheduleId: "schedule-every-two-days",
+                  kind: "range",
+                  preset: null,
+                  startTime: "23:00",
+                  endTime: "23:30",
+                  sortOrder: 0,
+                  label: "11:00 PM - 11:30 PM",
+                },
+              ],
+              timeSummary: "11:00 PM - 11:30 PM",
+              sortOrder: 1,
+            },
+          ],
+          scheduleSlots: [
+            {
+              id: "slot-morning",
+              scheduleId: "schedule-daily",
+              kind: "exact",
+              preset: null,
+              startTime: "08:00",
+              endTime: null,
+              sortOrder: 0,
+              label: "8:00 AM",
+            },
+            {
+              id: "slot-night",
+              scheduleId: "schedule-daily",
+              kind: "exact",
+              preset: null,
+              startTime: "23:00",
+              endTime: null,
+              sortOrder: 1,
+              label: "11:00 PM",
+            },
+            {
+              id: "slot-overlap",
+              scheduleId: "schedule-every-two-days",
+              kind: "range",
+              preset: null,
+              startTime: "23:00",
+              endTime: "23:30",
+              sortOrder: 2,
+              label: "11:00 PM - 11:30 PM",
+            },
+          ],
+        }),
+      ],
+      occurrences: [
+        occurrence({
+          id: "aligners-night",
+          behaviorId: "behavior-clean-aligners",
+          behaviorScheduleSlotId: "slot-overlap",
+          scheduledFor: "2026-06-09T03:00:00Z",
+          scheduledTimeLabel: "11:00 PM - 11:30 PM",
+          scheduleKind: "range",
+          schedulePreset: null,
+          scheduleStartTime: "23:00",
+          scheduleEndTime: "23:30",
+        }),
+      ],
+    });
+    const jsonlRecords = bundle.jsonl.split("\n").map((line) => JSON.parse(line));
+    const behaviorRecord = jsonlRecords.find(
+      (record) => record.type === "behavior",
+    );
+    const fileByPath = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file]),
+    );
+    const schedules = parseJsonl(
+      fileByPath.get("data/schedules.jsonl")?.content ?? "",
+    );
+
+    expect(bundle.jsonBackup.behaviors[0]?.schedules).toHaveLength(2);
+    expect(behaviorRecord.schedules).toHaveLength(2);
+    expect(behaviorRecord.schedules[1].recurrenceRule).toEqual({
+      frequency: "interval_days",
+      intervalDays: 2,
+    });
+    expect(schedules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          schedule_id: "sch_slot-morning",
+          recurrence: { type: "daily", interval: 1 },
+          local_time: "08:00",
+        }),
+        expect.objectContaining({
+          schedule_id: "sch_slot-overlap",
+          recurrence: { type: "every_n_days", interval: 2 },
+          local_time: "23:00",
+          window_start_local: "23:00",
+          window_end_local: "23:30",
+        }),
+      ]),
     );
   });
 

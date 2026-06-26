@@ -7,6 +7,7 @@ import {
   resolveAnalytics,
   resolveAnalyticsDateRange,
 } from "../lib/resolvers/analytics.resolver";
+import { planOccurrenceGeneration } from "../lib/resolvers/occurrence.resolver";
 import type { AnalyticsOccurrenceInput } from "../lib/types/analytics";
 import { DEFAULT_TIMEZONE } from "../lib/types/recurrence";
 
@@ -171,6 +172,81 @@ describe("resolveAnalytics", () => {
         notCompletedCount: 1,
       },
     ]);
+  });
+
+  it("counts deduped overlapping generated occurrences once", () => {
+    const overlapNow = Temporal.Instant.from("2026-06-09T16:00:00Z");
+    const plan = planOccurrenceGeneration({
+      behavior: {
+        id: "behavior-overlap",
+        userId: "user-1",
+        recurrenceRule: { frequency: "daily", interval: 1 },
+        scheduleSlots: [],
+        schedules: [
+          {
+            id: "schedule-daily",
+            recurrenceRule: { frequency: "daily", interval: 1 },
+            sortOrder: 0,
+            timeEntries: [
+              {
+                id: "slot-daily",
+                scheduleId: "schedule-daily",
+                kind: "exact",
+                preset: null,
+                startTime: "23:00",
+                endTime: null,
+                sortOrder: 0,
+              },
+            ],
+          },
+          {
+            id: "schedule-every-two-days",
+            recurrenceRule: { frequency: "interval_days", intervalDays: 2 },
+            sortOrder: 1,
+            timeEntries: [
+              {
+                id: "slot-every-two-days",
+                scheduleId: "schedule-every-two-days",
+                kind: "exact",
+                preset: null,
+                startTime: "23:00",
+                endTime: null,
+                sortOrder: 0,
+              },
+            ],
+          },
+        ],
+        timezone: DEFAULT_TIMEZONE,
+        active: true,
+        createdAt: "2026-06-07T13:00:00Z",
+      },
+      existingOccurrences: [],
+      now: overlapNow,
+      horizonDays: 0,
+    });
+    const analytics = resolveAnalytics({
+      now: overlapNow,
+      timezone: DEFAULT_TIMEZONE,
+      rangeDays: 7,
+      occurrences: plan.create.map((generated, index) =>
+        occurrence({
+          id: `generated-${index}`,
+          behaviorId: "behavior-overlap",
+          behaviorTitle: "Overlap",
+          scheduledFor: generated.scheduledFor,
+          scheduledTimeLabel: "11:00 PM",
+          localDate: generated.localDate,
+          status: "completed",
+        }),
+      ),
+    });
+
+    expect(plan.create).toHaveLength(1);
+    expect(analytics.summary).toMatchObject({
+      completedCount: 1,
+      resolvedCount: 1,
+      totalCount: 1,
+    });
   });
 
   it("adds behavior tracking start metadata and marks the start day in the behavior calendar", () => {
