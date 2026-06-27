@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useFormStatus } from "react-dom";
 
 import type {
@@ -13,6 +19,7 @@ import type {
 } from "@/lib/types/behavior";
 import {
   TIME_RANGE_PRESETS,
+  TIME_RANGE_PRESET_LIST,
   type TimeRangePreset,
 } from "@/lib/types/schedule";
 import type { Weekday } from "@/lib/types/recurrence";
@@ -89,13 +96,6 @@ export function BehaviorForm({
   const fieldErrors = state.fieldErrors ?? {};
   const [scheduleRows, setScheduleRows] = useState<ScheduleFormRow[]>(() =>
     initialScheduleRows(behavior),
-  );
-  const scheduleCountLabel = useMemo(
-    () =>
-      `${scheduleRows.length} ${
-        scheduleRows.length === 1 ? "schedule" : "schedules"
-      }`,
-    [scheduleRows.length],
   );
 
   useEffect(() => {
@@ -207,49 +207,41 @@ export function BehaviorForm({
         <input type="hidden" name="timezone" value={defaultTimezone} />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          label="Title"
-          name="title"
-          defaultValue={behavior?.title ?? ""}
-          required
-          error={fieldErrors.title}
-        />
+      <fieldset className="grid gap-4 border-0 p-0">
+        <legend className="text-lg leading-tight">Details</legend>
 
-        <SelectField
-          label="Category"
-          name="category_id"
-          defaultValue={behavior?.categoryId ?? ""}
-          error={fieldErrors.category_id}
-        >
-          <option value="">No category</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </SelectField>
-      </div>
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,20rem)] lg:grid-cols-[minmax(0,1fr)_minmax(14rem,24rem)]">
+          <TextField
+            label="Title"
+            name="title"
+            defaultValue={behavior?.title ?? ""}
+            required
+            error={fieldErrors.title}
+          />
 
-      <label className="grid gap-2 text-sm">
-        <span>Description</span>
-        <textarea
-          name="description"
-          defaultValue={behavior?.description ?? ""}
-          rows={3}
-          aria-invalid={fieldErrors.description ? "true" : undefined}
-          className="min-h-24 resize-y border-0 border-b border-line bg-background px-0 py-2 text-base leading-7 text-foreground"
-        />
-        <FieldError message={fieldErrors.description} />
-      </label>
-
-      <fieldset className="grid gap-3 border-t border-line pt-5">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <legend className="text-lg leading-tight">Schedule</legend>
-          <span className="text-sm text-muted-readable">
-            {scheduleCountLabel}
-          </span>
+          <SelectField
+            label="Category"
+            name="category_id"
+            defaultValue={behavior?.categoryId ?? ""}
+            error={fieldErrors.category_id}
+          >
+            <option value="">No category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </SelectField>
         </div>
+
+        <DescriptionField
+          defaultValue={behavior?.description ?? ""}
+          error={fieldErrors.description}
+        />
+      </fieldset>
+
+      <fieldset className="grid gap-3 border-0 p-0">
+        <legend className="text-lg leading-tight">Schedule</legend>
 
         <input
           type="hidden"
@@ -288,7 +280,7 @@ export function BehaviorForm({
         </div>
 
         <p className="text-sm leading-6 text-muted-readable">
-          Overlapping occurrences at the same time are counted once.
+          *Overlapping occurrences at the same time are counted once.
         </p>
 
         <div className="grid gap-2">
@@ -388,6 +380,7 @@ function ScheduleRowEditor({
         labelClassName="lg:sr-only"
         name={`schedule_${index}_recurrence_kind`}
         value={schedule.recurrenceKind}
+        controlClassName="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
         onChange={(value) =>
           onScheduleChange({
             recurrenceKind: value as BehaviorRecurrenceKind,
@@ -539,6 +532,7 @@ function TimeEntryEditor({
   onRemove: () => void;
 }>) {
   const prefix = `schedule_${scheduleIndex}_time_entry`;
+  const rangePresetValue = entry.rangePreset ?? "custom";
 
   return (
     <div className="grid gap-2 border border-line px-2 py-2">
@@ -547,13 +541,6 @@ function TimeEntryEditor({
         name={`${prefix}_id_${entryIndex}`}
         value={entry.id}
       />
-      {entry.kind === "range" && entry.rangePreset ? (
-        <input
-          type="hidden"
-          name={`${prefix}_range_preset_${entryIndex}`}
-          value={entry.rangePreset}
-        />
-      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="min-w-0 text-sm text-foreground">
@@ -575,12 +562,23 @@ function TimeEntryEditor({
         <select
           name={`${prefix}_kind_${entryIndex}`}
           value={entry.kind}
-          onChange={(event) =>
-            onChange({
-              kind: event.currentTarget.value as TimeEntryRow["kind"],
-              rangePreset: null,
-            })
-          }
+          onChange={(event) => {
+            const nextKind = event.currentTarget.value as TimeEntryRow["kind"];
+
+            if (nextKind === "range") {
+              const defaultPreset = TIME_RANGE_PRESETS.morning;
+
+              onChange({
+                kind: "range",
+                rangePreset: defaultPreset.preset,
+                rangeStart: defaultPreset.startTime,
+                rangeEnd: defaultPreset.endTime,
+              });
+              return;
+            }
+
+            onChange({ kind: "exact", rangePreset: null });
+          }}
           className="min-h-10 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
         >
           <option value="exact">Exact time</option>
@@ -589,7 +587,10 @@ function TimeEntryEditor({
 
         {entry.kind === "exact" ? (
           <input
-            type="time"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-2][0-9]:[0-5][0-9]"
+            placeholder="HH:MM"
             name={`${prefix}_exact_time_${entryIndex}`}
             value={entry.exactTime}
             required
@@ -600,35 +601,75 @@ function TimeEntryEditor({
             className="min-h-10 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
           />
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
-            <input
-              type="time"
-              name={`${prefix}_range_start_${entryIndex}`}
-              value={entry.rangeStart}
-              required
-              onChange={(event) =>
+          <div className="grid gap-2">
+            <select
+              name={`${prefix}_range_preset_${entryIndex}`}
+              value={rangePresetValue}
+              onChange={(event) => {
+                const preset = event.currentTarget.value;
+
+                if (!isTimeRangePresetValue(preset)) {
+                  onChange({ rangePreset: null });
+                  return;
+                }
+
+                const definition = TIME_RANGE_PRESETS[preset];
+
                 onChange({
-                  rangeStart: event.currentTarget.value,
-                  rangePreset: null,
-                })
-              }
-              aria-label="Range start"
+                  rangePreset: preset,
+                  rangeStart: definition.startTime,
+                  rangeEnd: definition.endTime,
+                });
+              }}
+              aria-label="Time range"
               className="min-h-10 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
-            />
-            <input
-              type="time"
-              name={`${prefix}_range_end_${entryIndex}`}
-              value={entry.rangeEnd}
-              required
-              onChange={(event) =>
-                onChange({
-                  rangeEnd: event.currentTarget.value,
-                  rangePreset: null,
-                })
-              }
-              aria-label="Range end"
-              className="min-h-10 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
-            />
+            >
+              <option value="custom">Custom range</option>
+              {TIME_RANGE_PRESET_LIST.map((preset) => (
+                <option key={preset.preset} value={preset.preset}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+
+            {entry.rangePreset ? null : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-2][0-9]:[0-5][0-9]"
+                  placeholder="Start HH:MM"
+                  name={`${prefix}_range_start_${entryIndex}`}
+                  value={entry.rangeStart}
+                  required
+                  onChange={(event) =>
+                    onChange({
+                      rangeStart: event.currentTarget.value,
+                      rangePreset: null,
+                    })
+                  }
+                  aria-label="Range start"
+                  className="min-h-10 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-2][0-9]:[0-5][0-9]"
+                  placeholder="End HH:MM"
+                  name={`${prefix}_range_end_${entryIndex}`}
+                  value={entry.rangeEnd}
+                  required
+                  onChange={(event) =>
+                    onChange({
+                      rangeEnd: event.currentTarget.value,
+                      rangePreset: null,
+                    })
+                  }
+                  aria-label="Range end"
+                  className="min-h-10 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -719,9 +760,40 @@ function TextField({
   );
 }
 
+function DescriptionField({
+  defaultValue,
+  error,
+}: Readonly<{
+  defaultValue: string;
+  error?: string;
+}>) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    resizeTextarea(textareaRef.current);
+  }, [defaultValue]);
+
+  return (
+    <label className="grid gap-2 text-sm">
+      <span>Description</span>
+      <textarea
+        ref={textareaRef}
+        name="description"
+        defaultValue={defaultValue}
+        rows={1}
+        aria-invalid={error ? "true" : undefined}
+        onInput={(event) => resizeTextarea(event.currentTarget)}
+        className="min-h-11 resize-none overflow-hidden border-0 border-b border-line bg-background px-0 py-2 text-base text-foreground"
+      />
+      <FieldError message={error} />
+    </label>
+  );
+}
+
 function SelectField({
   label,
   labelClassName,
+  controlClassName = "min-h-11 border-0 border-b border-line bg-background px-0 py-2 text-base text-foreground",
   name,
   defaultValue,
   value,
@@ -731,6 +803,7 @@ function SelectField({
 }: Readonly<{
   label: string;
   labelClassName?: string;
+  controlClassName?: string;
   name: string;
   defaultValue?: string;
   value?: string;
@@ -747,7 +820,7 @@ function SelectField({
         value={value}
         onChange={(event) => onChange?.(event.currentTarget.value)}
         aria-invalid={error ? "true" : undefined}
-        className="min-h-11 border-0 border-b border-line bg-background px-0 py-2 text-base text-foreground"
+        className={controlClassName}
       >
         {children}
       </select>
@@ -807,11 +880,20 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex min-h-11 items-center justify-center border border-primary bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-60"
+      className="product-action product-action-primary min-h-11 py-2 text-sm font-bold"
     >
       {pending ? "Saving..." : "Save behavior"}
     </button>
   );
+}
+
+function resizeTextarea(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) {
+    return;
+  }
+
+  textarea.style.height = "0px";
+  textarea.style.height = `${textarea.scrollHeight}px`;
 }
 
 function ActionMessage({ state }: Readonly<{ state: BehaviorActionState }>) {
@@ -913,6 +995,10 @@ function nextHalfHour(time: string): string {
   const minute = normalized % 60;
 
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function isTimeRangePresetValue(value: string): value is TimeRangePreset {
+  return TIME_RANGE_PRESET_LIST.some((preset) => preset.preset === value);
 }
 
 function timeEntryLabel(entry: TimeEntryRow): string {

@@ -3344,8 +3344,8 @@ Implementation summary:
 - Rebuilt the Behavior form schedule section into the compact table-like
   hierarchy: Add time stays inside a schedule, Add schedule creates a new
   recurrence row, custom time ranges are supported, reminders are separated by
-  a divider, decorative form icons were avoided, and Save behavior remains the
-  primary blue action.
+  a divider, decorative form icons were avoided, and Save behavior uses the
+  product-action primary primitive.
 - Updated JSON/JSONL/full JSON/BehaviorLog export paths to include app-native
   `schedules[]` while keeping backward-compatible schedule fields.
 - Updated product, data model, recurrence, UI, user-flow, notification, export,
@@ -3364,12 +3364,54 @@ Verification:
   `npm run --silent supabase -- gen types typescript --local`, redirected to
   `lib/db/database.types.ts`, after removing the earlier npm banner pollution
   from the documented non-silent command.
+- Pass: hosted migration deployment with `npm run supabase -- db push`;
+  `npm run supabase -- migration list` confirmed local and remote histories
+  match through `20260626140000`.
+- Pass: hosted `npm run smoke:rls` after the schema/RLS change.
 - Pass: `git diff --check`.
 
 Remaining risk:
-- Live browser visual QA was not run in this thread because no browser-control
-  tool was exposed and Playwright is not installed in the project. The
-  fixture-backed design-system check and production build passed.
+- Chrome-extension QA against local `/behaviors` created a temporary two-schedule
+  behavior, verified the persisted summary
+  `Schedule 1: Daily, 8:00 AM, 11:00 PM; Schedule 2: Every 2 days, 11:00 PM -
+  11:30 PM`, opened the edit form, and archived the temporary behavior.
+- Hosted application code was not deployed in this pass; only the hosted
+  Supabase migration was pushed.
+
+### Behavior form browser-comment polish
+
+Status: complete.
+
+Implementation summary:
+- Applied the annotated `/behaviors` form polish: Details now titles the
+  title/category/description group, Category uses a narrower responsive column
+  than Title, Schedule no longer has a top divider or schedule-count label, and
+  the overlap helper copy now includes the requested leading asterisk.
+- Reworked the description field into an auto-growing single-underline
+  textarea so the underline stays directly under the entered text as line
+  breaks are added.
+- Restored named time-range presets for schedule entries and removed native
+  time inputs from the form, avoiding the clock icons while preserving exact
+  `HH:MM` entry and custom ranges.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test -- tests/behavior-form.test.ts` (12 tests).
+- Pass: `npm run test` (55 files, 331 tests).
+- Pass: `npm run build`.
+- Pass: Chrome-extension QA against local `/behaviors`: verified Details,
+  Schedule, and Reminders legends; no native `input[type="time"]` controls in
+  the open form; preset range options for Custom range, Morning, Afternoon,
+  Evening, and Night; product-action primary Save behavior styling; helper copy
+  with the leading asterisk; and auto-growing description behavior.
+
+Remaining risk:
+- Production app deployment is expected through the documented Vercel Git
+  integration after this `main` commit is pushed.
 
 ## Handoff notes
 
