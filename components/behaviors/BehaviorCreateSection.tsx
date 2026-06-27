@@ -72,7 +72,7 @@ export function BehaviorCreateSection({
             Create behavior
           </span>
         </summary>
-        <div className="py-5">
+        <div className="py-5 pl-[1.1875rem]">
           <BehaviorForm
             key={formKey}
             mode="create"

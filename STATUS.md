@@ -3393,6 +3393,13 @@ Implementation summary:
 - Restored named time-range presets for schedule entries and removed native
   time inputs from the form, avoiding the clock icons while preserving exact
   `HH:MM` entry and custom ranges.
+- Applied the second annotated form-density pass: create-form contents align
+  under the Create behavior summary text, field controls use shorter underline
+  heights, Details has more breathing room before Title, recurrence interval
+  controls stay on one line, time entries no longer draw a perimeter box or
+  duplicate the selected range label, the Time mode column was removed, nested
+  Add time/Add schedule actions are lower-emphasis, and Reminders no longer has
+  its own top divider.
 
 Verification:
 - Pass: `npm run agents:check`.
@@ -3401,17 +3408,23 @@ Verification:
 - Pass: `npm run lint`.
 - Pass: `npm run typecheck`.
 - Pass: `npm run test -- tests/behavior-form.test.ts` (12 tests).
-- Pass: `npm run test` (55 files, 331 tests).
+- Pass: `npm run test` (55 files, 334 tests).
 - Pass: `npm run build`.
 - Pass: Chrome-extension QA against local `/behaviors`: verified Details,
   Schedule, and Reminders legends; no native `input[type="time"]` controls in
   the open form; preset range options for Custom range, Morning, Afternoon,
   Evening, and Night; product-action primary Save behavior styling; helper copy
   with the leading asterisk; and auto-growing description behavior.
+- Pass: Chrome-extension QA after the second pass against local `/behaviors`:
+  verified compact 32px title/category controls, 32px Details-to-Title visual
+  gap, create-form x-position aligned with the Create behavior summary text, no
+  Time mode text, no preset range summary label, unboxed time-entry wrapper,
+  smaller nested add-action classes, no horizontal overflow at 390px mobile,
+  and desktop/mobile screenshots.
 
 Remaining risk:
-- Production app deployment is expected through the documented Vercel Git
-  integration after this `main` commit is pushed.
+- The second browser-comment pass is verified locally but has not been pushed to
+  hosted production yet.
 
 ## Handoff notes
 

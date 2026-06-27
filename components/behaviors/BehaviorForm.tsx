@@ -23,10 +23,6 @@ import {
   type TimeRangePreset,
 } from "@/lib/types/schedule";
 import type { Weekday } from "@/lib/types/recurrence";
-import {
-  formatClockTimeLabel,
-  formatScheduleSlotLabel,
-} from "@/lib/services/schedule";
 
 type BehaviorFormProps = Readonly<{
   mode: "create" | "edit";
@@ -208,7 +204,7 @@ export function BehaviorForm({
       ) : null}
 
       <fieldset className="grid gap-4 border-0 p-0">
-        <legend className="text-lg leading-tight">Details</legend>
+        <legend className="mb-2 text-lg leading-tight">Details</legend>
 
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,20rem)] lg:grid-cols-[minmax(0,1fr)_minmax(14rem,24rem)]">
           <TextField
@@ -249,12 +245,11 @@ export function BehaviorForm({
           value={scheduleRows.length}
         />
 
-        <div className="hidden border-b border-line pb-2 text-sm text-muted-readable lg:grid lg:grid-cols-[6.5rem_minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(16rem,1.4fr)_minmax(8rem,10rem)] lg:gap-4">
+        <div className="hidden border-b border-line pb-2 text-sm text-muted-readable lg:grid lg:grid-cols-[6.5rem_minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:gap-4">
           <span>Schedule</span>
           <span>Recurrence</span>
           <span>Every</span>
           <span>Times</span>
-          <span>Time mode</span>
         </div>
 
         <div className="divide-y divide-line border-b border-line">
@@ -288,7 +283,7 @@ export function BehaviorForm({
             type="button"
             onClick={addScheduleRow}
             disabled={scheduleRows.length >= MAX_SCHEDULE_ROWS}
-            className="product-action product-action-primary justify-self-start text-sm"
+            className="product-action product-action-primary justify-self-start text-[11px] leading-4"
           >
             Add schedule
           </button>
@@ -296,7 +291,7 @@ export function BehaviorForm({
         </div>
       </fieldset>
 
-      <div className="border-t border-line pt-5">
+      <div>
         <ReminderEditor
           browserReminderEnabled={behavior?.browserReminderEnabled ?? true}
           emailReminderEnabled={behavior?.emailReminderEnabled ?? false}
@@ -359,7 +354,7 @@ function ScheduleRowEditor({
   onRemoveTime: (entryKey: string) => void;
 }>) {
   return (
-    <div className="grid gap-4 py-4 lg:grid-cols-[6.5rem_minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(16rem,1.4fr)_minmax(8rem,10rem)] lg:items-start lg:gap-4">
+    <div className="grid gap-4 py-4 lg:grid-cols-[6.5rem_minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:items-start lg:gap-4">
       <input type="hidden" name={`behavior_schedule_id_${index}`} value={schedule.id} />
 
       <div className="grid gap-2 text-sm">
@@ -419,15 +414,10 @@ function ScheduleRowEditor({
           type="button"
           onClick={onAddTime}
           disabled={schedule.timeEntries.length >= MAX_TIME_ENTRIES_PER_SCHEDULE}
-          className="product-action product-action-primary justify-self-start text-sm"
+          className="product-action product-action-primary justify-self-start text-[11px] leading-4"
         >
           Add time
         </button>
-      </div>
-
-      <div className="grid gap-1 text-sm">
-        <span className="text-foreground lg:sr-only">Time mode</span>
-        <span className="text-muted-readable">{timeModeSummary(schedule)}</span>
       </div>
     </div>
   );
@@ -535,28 +525,12 @@ function TimeEntryEditor({
   const rangePresetValue = entry.rangePreset ?? "custom";
 
   return (
-    <div className="grid gap-2 border border-line px-2 py-2">
+    <div className="grid gap-2">
       <input
         type="hidden"
         name={`${prefix}_id_${entryIndex}`}
         value={entry.id}
       />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-0 text-sm text-foreground">
-          {timeEntryLabel(entry)}
-        </span>
-        {canRemove ? (
-          <button
-            type="button"
-            onClick={onRemove}
-            aria-label={`Remove ${timeEntryLabel(entry)}`}
-            className="text-sm text-muted-readable hover:text-foreground"
-          >
-            ×
-          </button>
-        ) : null}
-      </div>
 
       <div className="grid gap-2 sm:grid-cols-[minmax(8rem,10rem)_minmax(0,1fr)]">
         <select
@@ -579,7 +553,7 @@ function TimeEntryEditor({
 
             onChange({ kind: "exact", rangePreset: null });
           }}
-          className="min-h-10 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
+          className="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
         >
           <option value="exact">Exact time</option>
           <option value="range">Time range</option>
@@ -598,7 +572,7 @@ function TimeEntryEditor({
               onChange({ exactTime: event.currentTarget.value })
             }
             aria-label="Exact time"
-            className="min-h-10 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
+            className="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
           />
         ) : (
           <div className="grid gap-2">
@@ -622,7 +596,7 @@ function TimeEntryEditor({
                 });
               }}
               aria-label="Time range"
-              className="min-h-10 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
+              className="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
             >
               <option value="custom">Custom range</option>
               {TIME_RANGE_PRESET_LIST.map((preset) => (
@@ -649,7 +623,7 @@ function TimeEntryEditor({
                     })
                   }
                   aria-label="Range start"
-                  className="min-h-10 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
+                  className="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
                 />
                 <input
                   type="text"
@@ -666,13 +640,23 @@ function TimeEntryEditor({
                     })
                   }
                   aria-label="Range end"
-                  className="min-h-10 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
+                  className="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
                 />
               </div>
             )}
           </div>
         )}
       </div>
+
+      {canRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="product-action product-action-secondary justify-self-start text-[11px] leading-4"
+        >
+          Remove time
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -757,7 +741,7 @@ function TextField({
         defaultValue={defaultValue}
         required={required}
         aria-invalid={error ? "true" : undefined}
-        className="min-h-11 border-0 border-b border-line bg-background px-0 py-2 text-base text-foreground"
+        className="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-base text-foreground"
       />
       <FieldError message={error} />
     </label>
@@ -787,7 +771,7 @@ function DescriptionField({
         rows={1}
         aria-invalid={error ? "true" : undefined}
         onInput={(event) => resizeTextarea(event.currentTarget)}
-        className="min-h-11 resize-none overflow-hidden border-0 border-b border-line bg-background px-0 py-2 text-base text-foreground"
+        className="min-h-8 resize-none overflow-hidden border-0 border-b border-line bg-background px-0 py-1 text-base text-foreground"
       />
       <FieldError message={error} />
     </label>
@@ -797,7 +781,7 @@ function DescriptionField({
 function SelectField({
   label,
   labelClassName,
-  controlClassName = "min-h-11 border-0 border-b border-line bg-background px-0 py-2 text-base text-foreground",
+  controlClassName = "min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-base text-foreground",
   name,
   defaultValue,
   value,
@@ -847,9 +831,9 @@ function NumberField({
   max?: number;
 }>) {
   return (
-    <label className="grid gap-2 text-sm">
-      <span>{label}</span>
-      <span className="flex items-center gap-2">
+    <label className="flex min-h-8 items-center gap-2 text-sm">
+      <span className="shrink-0">{label}</span>
+      <span className="flex min-w-0 items-center gap-2">
         <input
           type="number"
           name={name}
@@ -857,7 +841,7 @@ function NumberField({
           min={1}
           max={max}
           step={1}
-          className="min-h-10 w-20 border-0 border-b border-line bg-background px-0 py-2 text-sm text-foreground"
+          className="min-h-8 w-16 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
         />
         {suffix ? <span className="text-sm text-muted-readable">{suffix}</span> : null}
       </span>
@@ -1003,33 +987,4 @@ function nextHalfHour(time: string): string {
 
 function isTimeRangePresetValue(value: string): value is TimeRangePreset {
   return TIME_RANGE_PRESET_LIST.some((preset) => preset.preset === value);
-}
-
-function timeEntryLabel(entry: TimeEntryRow): string {
-  if (entry.kind === "range") {
-    if (entry.rangePreset) {
-      return formatScheduleSlotLabel({
-        kind: "range",
-        preset: entry.rangePreset,
-        startTime: TIME_RANGE_PRESETS[entry.rangePreset].startTime,
-        endTime: TIME_RANGE_PRESETS[entry.rangePreset].endTime,
-      });
-    }
-
-    return `${formatClockTimeLabel(entry.rangeStart)} - ${formatClockTimeLabel(
-      entry.rangeEnd,
-    )}`;
-  }
-
-  return formatClockTimeLabel(entry.exactTime);
-}
-
-function timeModeSummary(schedule: ScheduleFormRow): string {
-  const modes = new Set(schedule.timeEntries.map((entry) => entry.kind));
-
-  if (modes.size > 1) {
-    return "Mixed";
-  }
-
-  return modes.has("range") ? "Time range" : "Exact time";
 }
