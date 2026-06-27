@@ -318,7 +318,7 @@ Fields:
 - Category
 - Schedule with one or more rows; each row has recurrence, every/details,
   times, and time mode
-- Browser reminder enabled, default on
+- Browser notifications enabled, default on
 - Email reminder toggle, default off
 - Reminder offset
 - Active/archive
@@ -365,7 +365,7 @@ Do not use natural language parsing in v1.
 ## Reminder editor
 
 Behavior-specific fields:
-- Browser reminder enabled, default on
+- Browser notifications enabled, default on
 - Email reminder toggle, default off
 - Reminder offset:
   - At scheduled start

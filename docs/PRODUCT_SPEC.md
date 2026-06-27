@@ -170,11 +170,11 @@ Required fields:
 Optional fields:
 - Description
 - Category
-- Browser reminder toggle
+- Browser notifications toggle
 - Email reminder toggle
 - Reminder offset
 
-Browser reminders default to on.
+Browser notifications default to on for each behavior.
 
 Email reminders default to off.
 
@@ -331,7 +331,7 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - Recurrence rules
 - Timeline-first interface
 - Notes
-- Browser reminders by default
+- Browser notifications by default
 - Optional email reminders
 - Basic analytics
 - JSONL/CSV/full JSON/BehaviorLog export

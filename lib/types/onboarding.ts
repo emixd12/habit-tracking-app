@@ -1,4 +1,7 @@
-import type { BrowserNotificationPermission } from "@/lib/push/browser";
+import type {
+  BrowserNotificationPermission,
+  BrowserPushSubscriptionStatus,
+} from "@/lib/push/browser";
 
 export type FirstRunOnboardingState = {
   hasAnyBehavior: boolean;
@@ -11,6 +14,7 @@ export type FirstRunOnboardingClientSnapshot = {
   dismissed: boolean;
   notificationPermission: BrowserNotificationPermission;
   notificationSupported: boolean | null;
+  notificationSubscriptionStatus: BrowserPushSubscriptionStatus;
   browserTimezone: string | null;
 };
 

@@ -13,6 +13,11 @@ export type BrowserNotificationPermission =
   | NotificationPermission
   | "unavailable";
 
+export type BrowserPushSubscriptionStatus =
+  | "saved"
+  | "missing"
+  | "unavailable";
+
 export function getBrowserPushSupport(
   vapidPublicKey: string,
 ): BrowserPushSupport {
@@ -59,13 +64,32 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   return Notification.requestPermission();
 }
 
+export async function readBrowserPushSubscriptionStatus(
+  vapidPublicKey: string,
+): Promise<BrowserPushSubscriptionStatus> {
+  const support = getBrowserPushSupport(vapidPublicKey);
+
+  if (!support.supported) {
+    return "unavailable";
+  }
+
+  if (Notification.permission !== "granted") {
+    return "missing";
+  }
+
+  const registration = await navigator.serviceWorker.getRegistration();
+  const subscription = await registration?.pushManager.getSubscription();
+
+  return subscription ? "saved" : "missing";
+}
+
 export async function registerBrowserPushSubscription(
   vapidPublicKey: string,
 ): Promise<void> {
   const support = getBrowserPushSupport(vapidPublicKey);
 
   if (!support.supported) {
-    throw new Error("Browser push is unavailable.");
+    throw new Error("Browser notifications are unavailable.");
   }
 
   if (Notification.permission !== "granted") {
@@ -92,7 +116,7 @@ export async function registerBrowserPushSubscription(
   });
 
   if (!response.ok) {
-    throw new Error("Browser reminder subscription could not be saved.");
+    throw new Error("Browser notification setup could not be saved.");
   }
 }
 

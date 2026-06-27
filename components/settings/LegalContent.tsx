@@ -122,7 +122,7 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
       {
         title: "Reminder boundaries",
         paragraphs: [
-          "Browser reminders depend on browser permission and push subscription support. Email reminders are optional per behavior.",
+          "Browser notifications depend on browser permission and push subscription support. Email reminders are optional per behavior.",
           "If reminders are unavailable, denied, or delayed, the tracker still works as a manual record.",
         ],
       },

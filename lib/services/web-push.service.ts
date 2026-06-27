@@ -6,6 +6,8 @@ export type BrowserPushReminderPayload = {
   body: string;
   tag: string;
   url: string;
+  icon?: string;
+  badge?: string;
 };
 
 export type BrowserPushReminderSendInput = {

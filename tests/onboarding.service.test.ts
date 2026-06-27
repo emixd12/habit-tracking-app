@@ -17,6 +17,7 @@ const BASE_CLIENT = {
   dismissed: false,
   notificationPermission: "default",
   notificationSupported: true,
+  notificationSubscriptionStatus: "missing",
   browserTimezone: "America/New_York",
 } satisfies FirstRunOnboardingClientSnapshot;
 
@@ -66,11 +67,36 @@ describe("resolveFirstRunOnboardingModel", () => {
       {
         ...BASE_CLIENT,
         notificationPermission: "granted",
+        notificationSubscriptionStatus: "saved",
       },
     );
 
     expect(model.requiredComplete).toBe(true);
     expect(model.shouldRender).toBe(false);
+  });
+
+  it("keeps setup visible on a new device without a saved subscription", () => {
+    const model = resolveFirstRunOnboardingModel(
+      {
+        ...BASE_STATE,
+        hasAnyBehavior: true,
+      },
+      {
+        ...BASE_CLIENT,
+        notificationPermission: "granted",
+        notificationSubscriptionStatus: "missing",
+      },
+    );
+    const notifications = model.items.find(
+      (item) => item.key === "notifications",
+    );
+
+    expect(notifications).toMatchObject({
+      complete: false,
+      statusLabel: "Not enabled",
+    });
+    expect(model.requiredComplete).toBe(false);
+    expect(model.shouldRender).toBe(true);
   });
 
   it("treats unavailable browser push as non-blocking", () => {

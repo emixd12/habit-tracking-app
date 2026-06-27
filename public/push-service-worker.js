@@ -3,6 +3,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Behavior reminder";
   const options = {
     body: payload.body || "A scheduled behavior is ready to review.",
+    icon: payload.icon || "/icons/cadence-notification-icon.png",
+    badge: payload.badge || "/icons/cadence-notification-badge.png",
     tag: payload.tag || "cadence-browser-reminder",
     data: {
       url: payload.url || "/timeline",
@@ -36,6 +38,15 @@ self.addEventListener("notificationclick", (event) => {
         });
 
         if (existingClient) {
+          if (
+            typeof existingClient.navigate === "function" &&
+            existingClient.url !== targetUrl.href
+          ) {
+            return existingClient.navigate(targetUrl.href).then((client) => {
+              return (client || existingClient).focus();
+            });
+          }
+
           return existingClient.focus();
         }
 

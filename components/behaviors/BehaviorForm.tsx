@@ -700,7 +700,7 @@ function ReminderEditor({
             defaultChecked={browserReminderEnabled}
             className="h-4 w-4 accent-[var(--primary)]"
           />
-          Browser reminder
+          Browser notifications
         </label>
 
         <label className="flex min-h-11 items-center gap-3 border-b border-line py-2 text-sm">
@@ -713,6 +713,10 @@ function ReminderEditor({
           Email reminder
         </label>
       </div>
+      <p className="text-sm leading-6 text-muted-readable">
+        Browser notifications send reminders on devices where notifications are
+        enabled.
+      </p>
 
       <SelectField
         label="Reminder offset"

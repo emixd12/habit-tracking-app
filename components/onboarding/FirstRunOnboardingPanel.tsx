@@ -15,6 +15,7 @@ import {
 
 import {
   getBrowserPushSupport,
+  readBrowserPushSubscriptionStatus,
   readNotificationPermission,
 } from "@/lib/push/browser";
 import { resolveFirstRunOnboardingModel } from "@/lib/services/onboarding-model";
@@ -50,6 +51,10 @@ export function FirstRunOnboardingPanel({
         return;
       }
 
+      void loadClientSnapshot();
+    }, 0);
+
+    async function loadClientSnapshot() {
       let dismissed = false;
 
       try {
@@ -61,14 +66,22 @@ export function FirstRunOnboardingPanel({
       const support = getBrowserPushSupport(onboarding.vapidPublicKey);
       const browserTimezone =
         Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+      const notificationSubscriptionStatus = support.supported
+        ? await readBrowserPushSubscriptionStatus(onboarding.vapidPublicKey)
+        : "unavailable";
+
+      if (!isActive) {
+        return;
+      }
 
       setClientSnapshot({
         dismissed,
         notificationPermission: readNotificationPermission(),
         notificationSupported: support.supported,
+        notificationSubscriptionStatus,
         browserTimezone,
       });
-    }, 0);
+    }
 
     return () => {
       isActive = false;

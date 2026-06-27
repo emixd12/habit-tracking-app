@@ -254,7 +254,7 @@ Behavior form fields:
 - Schedules
   - Recurrence pattern per schedule
   - One or more exact times or time ranges per schedule
-- Browser reminder enabled
+- Browser notifications enabled
 - Email reminder enabled
 - Reminder offset
 - Active/archive
@@ -286,7 +286,7 @@ The Behaviors screen distinguishes two edit modes:
 
 ## Reminder flow
 
-Browser reminders are enabled by default for every behavior.
+Browser notifications are enabled by default for every behavior.
 
 Browser notification permission is requested from Settings through a control that triggers the browser permission prompt.
 
@@ -438,9 +438,8 @@ Export screen unless a scoped UI ticket calls for it.
 Settings includes:
 - Profile/email from Google sign-in when available
 - Timezone
-- Notification permission status
-- Browser notification permission control
-- Global browser notification setting
+- Current-device browser notification status
+- Current-device browser notification enable control
 - Global email notification setting if needed
 - Lightweight category editing
 - Trust, Privacy, and Terms links
@@ -450,11 +449,11 @@ Timezone detection uses the browser/OS timezone reported by `Intl.DateTimeFormat
 
 The user can apply the detected timezone or manually enter an IANA timezone. Saving updates the profile timezone, updates active behavior schedules to that timezone, and resyncs future unresolved occurrences. Past and resolved occurrence history stays unchanged.
 
-When the user clicks Save subscription for browser reminders, Settings requests
+When the user clicks Enable notifications on this device, Settings requests
 browser notification permission if the browser still allows prompting, then
-saves the push subscription after permission is allowed. If the browser reports
-notifications are blocked, Settings shows the blocked state and asks the user to
-allow the origin in browser site settings before saving again.
+saves the current browser's push subscription after permission is allowed. If
+the browser reports notifications are blocked, Settings shows the blocked state
+and asks the user to allow the origin in browser settings before returning.
 
 Account deletion requires the signed-in user to acknowledge the export reminder
 and type the account email, or `DELETE` if no email is available. The server

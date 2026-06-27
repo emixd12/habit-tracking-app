@@ -267,7 +267,7 @@ export function summarizeReminders(input: {
   reminderOffsetMinutes: number;
 }): string {
   const channels = [
-    input.browserReminderEnabled ? "Browser" : null,
+    input.browserReminderEnabled ? "Browser notifications" : null,
     input.emailReminderEnabled ? "Email" : null,
   ].filter(Boolean);
 
@@ -275,7 +275,7 @@ export function summarizeReminders(input: {
     return "No reminders";
   }
 
-  return `${channels.join(" + ")} ${formatReminderOffset(input.reminderOffsetMinutes)}`;
+  return `${channels.join(" + ")}, ${formatReminderOffset(input.reminderOffsetMinutes)}`;
 }
 
 export function formatReminderOffset(minutes: number): string {

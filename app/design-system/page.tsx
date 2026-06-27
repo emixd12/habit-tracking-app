@@ -1367,7 +1367,7 @@ const activeBehavior: BehaviorView = {
   browserReminderEnabled: true,
   emailReminderEnabled: false,
   reminderOffsetMinutes: 60,
-  reminderSummary: "Browser reminder, 1 hour before",
+  reminderSummary: "Browser notifications, 1 hour before",
   active: true,
   archivedAt: null,
   createdAt: "2026-05-01T12:00:00Z",

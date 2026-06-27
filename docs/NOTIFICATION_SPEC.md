@@ -7,20 +7,28 @@ The app supports two reminder channels:
 1. Browser push
 2. Email through Sequenzy
 
-Browser reminders default to on for every behavior.
+Browser notifications default to on for every behavior.
 
 Email reminders default to off and are enabled per behavior.
 
 Public launch does not include marketing or product lifecycle emails. Reminder
 emails remain transactional behavior reminders.
 
-## Browser reminders
+## Browser notifications
 
 Requirements:
 - User must grant notification permission.
 - User must have an active push subscription.
 - If browser push is denied or unavailable, the app still works.
-- Settings should provide the control that triggers the browser notification permission prompt.
+- Settings should provide the control that triggers the browser notification
+  permission prompt.
+- Settings should show one user-facing current-device state for browser
+  notifications: enabled on this device, not enabled on this device, blocked in
+  this browser, or not supported on this device. Do not expose permission and
+  push-subscription internals as separate user-facing statuses.
+- Behavior create/edit should expose whether that behavior uses browser
+  notifications. The behavior-level setting is not a second authorization
+  flow; it uses devices that have notifications enabled in Settings.
 - Clicking the Settings save control should retry the browser permission request
   while the browser still reports an undecided permission state. Browsers do
   not show the native prompt again after the origin is explicitly allowed or
@@ -30,6 +38,10 @@ Requirements:
   user creates the first behavior, but only through a user-clicked control that
   routes to the existing Settings subscription action. The onboarding prompt
   must not call browser permission APIs on page load.
+- When an authenticated user opens Cadence on a supported browser/device that
+  does not have a current push subscription, first-run setup should continue to
+  offer the Settings notification action even if another device was already
+  enabled.
 - V1 does not need a test notification button.
 
 Behavior fields:
@@ -159,7 +171,7 @@ cancel reminder deliveries while rendering a page.
 For exact-time occurrences, the scheduled start is the exact time. For range
 occurrences, the scheduled start is the beginning of the preset range.
 
-Browser reminders:
+Browser notifications:
 - Generate if `browser_reminder_enabled = true`
 - Processing sends the due delivery to active `push_subscriptions` for the
   owning user through the server-only VAPID configuration.

@@ -89,7 +89,7 @@ function behaviorView(): BehaviorView {
     browserReminderEnabled: true,
     emailReminderEnabled: false,
     reminderOffsetMinutes: 0,
-    reminderSummary: "Browser reminders on",
+    reminderSummary: "Browser notifications on",
     active: true,
     archivedAt: null,
     createdAt: "2026-06-26T12:00:00Z",

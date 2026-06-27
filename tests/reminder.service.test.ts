@@ -546,10 +546,12 @@ describe("processDueBrowserPushReminders", () => {
       p256dh: "p256dh-key",
       auth: "auth-key",
       payload: {
-        title: "Behavior reminder",
-        body: "Drink water is scheduled for 10:00 AM.",
+        title: "Drink water",
+        body: "Scheduled for 10:00 AM.",
         tag: "cadence-reminder-occurrence-1",
         url: "/timeline",
+        icon: "/icons/cadence-notification-icon.png",
+        badge: "/icons/cadence-notification-badge.png",
       },
     });
     expect(markReminderDeliverySent).toHaveBeenCalledWith(SUPABASE, {

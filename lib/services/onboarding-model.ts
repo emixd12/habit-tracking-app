@@ -21,7 +21,7 @@ export function resolveFirstRunOnboardingModel(
     },
     {
       key: "notifications",
-      label: "Browser reminders",
+      label: "Browser notifications",
       statusLabel: notificationStatusLabel(client),
       href: "/settings#notifications",
       actionLabel: "Open settings",
@@ -65,10 +65,15 @@ function notificationComplete(
     return true;
   }
 
-  return (
-    client.notificationPermission === "granted" ||
-    client.notificationPermission === "denied"
-  );
+  if (client.notificationPermission === "denied") {
+    return true;
+  }
+
+  if (client.notificationPermission !== "granted") {
+    return false;
+  }
+
+  return client.notificationSubscriptionStatus === "saved";
 }
 
 function notificationStatusLabel(
@@ -84,7 +89,9 @@ function notificationStatusLabel(
 
   switch (client.notificationPermission) {
     case "granted":
-      return "Allowed";
+      return client.notificationSubscriptionStatus === "saved"
+        ? "Enabled"
+        : "Not enabled";
     case "denied":
       return "Blocked";
     case "default":

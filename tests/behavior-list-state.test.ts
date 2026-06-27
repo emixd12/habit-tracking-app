@@ -103,7 +103,7 @@ function behaviorView(
     browserReminderEnabled: overrides.browserReminderEnabled ?? true,
     emailReminderEnabled: overrides.emailReminderEnabled ?? false,
     reminderOffsetMinutes: overrides.reminderOffsetMinutes ?? 0,
-    reminderSummary: overrides.reminderSummary ?? "Browser reminders on",
+    reminderSummary: overrides.reminderSummary ?? "Browser notifications on",
     active: overrides.active ?? true,
     archivedAt: overrides.archivedAt ?? null,
     createdAt: overrides.createdAt ?? "2026-06-26T12:00:00Z",

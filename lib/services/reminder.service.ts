@@ -652,11 +652,19 @@ function toBrowserPushReminderPayload(input: {
   });
 
   return {
-    title: "Behavior reminder",
-    body: `${input.behavior.title} is scheduled for ${scheduleLabel}.`,
+    title: formatBrowserPushReminderTitle(input.behavior.title),
+    body: `Scheduled for ${scheduleLabel}.`,
     tag: `cadence-reminder-${input.occurrence.id}`,
     url: buildTimelineUrl(),
+    icon: "/icons/cadence-notification-icon.png",
+    badge: "/icons/cadence-notification-badge.png",
   };
+}
+
+function formatBrowserPushReminderTitle(title: string): string {
+  const normalizedTitle = title.trim();
+
+  return normalizedTitle.length > 0 ? normalizedTitle : "Behavior reminder";
 }
 
 function toReminderResolverBehavior(

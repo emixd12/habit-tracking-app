@@ -31,7 +31,7 @@ export function ReminderEditor({
             defaultChecked={browserReminderEnabled}
             className="h-4 w-4 accent-[var(--primary)]"
           />
-          Browser reminder
+          Browser notifications
         </label>
 
         <label className="flex min-h-12 items-center gap-3 border border-line bg-background px-3 py-2 text-sm font-bold hover:bg-surface">
@@ -44,6 +44,10 @@ export function ReminderEditor({
           Email reminder
         </label>
       </div>
+      <p className="text-sm leading-6 text-muted-readable">
+        Browser notifications send reminders on devices where notifications are
+        enabled.
+      </p>
 
       <label className="grid gap-2">
         <span className="text-xs font-bold text-muted-readable">
