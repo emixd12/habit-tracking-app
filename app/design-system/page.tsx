@@ -16,6 +16,7 @@ import { ExportPanel } from "@/components/export/ExportPanel";
 import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActions";
 import { AppShell } from "@/components/layout/AppShell";
 import {
+  CadencePageBanner,
   ScreenContentLoading,
   ScreenFrame,
 } from "@/components/layout/ScreenFrame";
@@ -1085,6 +1086,11 @@ const previewFactories: Record<string, () => ReactNode> = {
             </section>
           </div>
         </AppShell>
+      </ProductPreview>
+    ),
+  "layout.cadence-page-banner": () => (
+      <ProductPreview>
+        <CadencePageBanner />
       </ProductPreview>
     ),
   "layout.screen-frame": () => (

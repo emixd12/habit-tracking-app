@@ -62,6 +62,12 @@ Route:
 
 Categories should not appear in navigation or timeline filtering.
 
+Behaviors, Export, and Settings may start with the shared decorative page
+banner image as a full app-content-width banner. It may have a tiny top inset,
+but should not add bottom margin. Timeline keeps its own decorative image
+treatment and hides its visible page title so the current day remains first in
+the feed.
+
 ## Public marketing site
 
 The marketing site uses Cadence's existing product voice and design tokens, but
@@ -113,9 +119,10 @@ This is the main screen.
 The current day should be prominent and should begin the forward timeline.
 
 Do not show a visible Timeline page title or explanatory helper text above the
-feed. A decorative transparent Cadence horse-line-and-dot image may sit directly
-above the feed with no extra top or bottom margin and span the full app content
-width; the first Timeline day section should still be the current-day section.
+feed. A decorative transparent Cadence horse-line-and-dot image may sit
+directly above the feed with no extra top or bottom margin and span the full app
+content width; the first Timeline day section should still be the current-day
+section.
 Optional first-run setup appears as a dismissible pop-up so it does not push the
 feed down while required launch setup items remain incomplete.
 

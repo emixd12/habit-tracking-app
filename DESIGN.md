@@ -109,6 +109,8 @@ This is product UI, not a poster. The look can be distinctive, but every screen 
 - Rust red used for explicit Not Completed decisions and rare caution states.
 - Square corners, no shadows, no blur, no rounded cards.
 - Spacious desktop rhythm with compact, stackable mobile layouts.
+- Behaviors, Export, and Settings may use the shared decorative page banner
+  full width above route content.
 - Public marketing pages keep the same square ledger vocabulary while making
   Cadence the first narrative position and treating BehaviorLog as the open
   portability layer behind Cadence exports.
@@ -255,6 +257,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Sidebar motion:** Width, brand label opacity, and nav label opacity transition over 200ms. Labels remain in the DOM, collapse visually to `w-0`, and stay `whitespace-nowrap` so text never wraps during rail transitions.
 - **Mobile:** Do not use the collapsed rail under 1024px. Use a sticky 64px top header that opens a 60vw left drawer. The drawer keeps the same square navigation vocabulary and its header has no bottom divider. The drawer traps focus while open, locks body scroll, closes from backdrop or Escape, supports edge swipe open from the first 20px of the viewport, and supports left swipe close. The drawer may use a narrow `shadow-lg` only to separate it from the faded backdrop.
 - **Routes:** Use the documented primary app screens: Timeline, Behaviors, Export, Settings. `/analytics` is only a compatibility redirect to Behaviors. Do not copy placeholder labels from the reference screens.
+- **Page banner:** Behaviors, Export, and Settings may start with the shared decorative page banner image as a full app-content-width banner with a tiny top inset and no bottom margin. Timeline keeps its own decorative image treatment and hides the visible page title below it.
 
 ### First-Run Setup
 

@@ -78,6 +78,8 @@ const WEEKDAY_OPTIONS: Array<{ value: Weekday; label: string }> = [
 ];
 const MAX_SCHEDULE_ROWS = 6;
 const MAX_TIME_ENTRIES_PER_SCHEDULE = 8;
+const COMPACT_UNDERLINED_FIELD_CONTROL_CLASS =
+  "min-h-6 border-0 border-b border-line bg-background px-0 py-0.5 text-base text-foreground";
 
 export function BehaviorForm({
   mode,
@@ -203,10 +205,10 @@ export function BehaviorForm({
         <input type="hidden" name="timezone" value={defaultTimezone} />
       ) : null}
 
-      <fieldset className="grid gap-4 border-0 p-0">
+      <fieldset className="grid gap-3 border-0 p-0">
         <legend className="mb-2 text-lg leading-tight">Details</legend>
 
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,20rem)] lg:grid-cols-[minmax(0,1fr)_minmax(14rem,24rem)]">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,20rem)] lg:grid-cols-[minmax(0,1fr)_minmax(14rem,24rem)]">
           <TextField
             label="Title"
             name="title"
@@ -236,8 +238,8 @@ export function BehaviorForm({
         />
       </fieldset>
 
-      <fieldset className="grid gap-3 border-0 p-0">
-        <legend className="text-lg leading-tight">Schedule</legend>
+      <fieldset className="grid gap-4 border-0 p-0">
+        <legend className="mb-2 text-lg leading-tight">Schedule</legend>
 
         <input
           type="hidden"
@@ -245,14 +247,13 @@ export function BehaviorForm({
           value={scheduleRows.length}
         />
 
-        <div className="hidden border-b border-line pb-2 text-sm text-muted-readable lg:grid lg:grid-cols-[6.5rem_minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:gap-4">
-          <span>Schedule</span>
+        <div className="hidden border-b border-line pb-2 text-sm text-muted-readable lg:grid lg:grid-cols-[minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:gap-4">
           <span>Recurrence</span>
           <span>Every</span>
           <span>Times</span>
         </div>
 
-        <div className="divide-y divide-line border-b border-line">
+        <div className="divide-y divide-line">
           {scheduleRows.map((schedule, index) => (
             <ScheduleRowEditor
               key={schedule.key}
@@ -278,12 +279,12 @@ export function BehaviorForm({
           *Overlapping occurrences at the same time are counted once.
         </p>
 
-        <div className="grid gap-2">
+        <div className="grid gap-2 text-xs">
           <button
             type="button"
             onClick={addScheduleRow}
             disabled={scheduleRows.length >= MAX_SCHEDULE_ROWS}
-            className="product-action product-action-primary justify-self-start text-[11px] leading-4"
+            className="product-action product-action-primary justify-self-start"
           >
             Add schedule
           </button>
@@ -315,7 +316,7 @@ export function BehaviorForm({
         <input type="hidden" name="active" value="on" />
       ) : null}
 
-      <div className="flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 pt-5 sm:flex-row sm:items-center">
         <SubmitButton />
         <button
           type="reset"
@@ -354,21 +355,8 @@ function ScheduleRowEditor({
   onRemoveTime: (entryKey: string) => void;
 }>) {
   return (
-    <div className="grid gap-4 py-4 lg:grid-cols-[6.5rem_minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:items-start lg:gap-4">
+    <div className="grid gap-4 py-4 lg:grid-cols-[minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:items-start lg:gap-4">
       <input type="hidden" name={`behavior_schedule_id_${index}`} value={schedule.id} />
-
-      <div className="grid gap-2 text-sm">
-        <span className="text-foreground">Schedule {index + 1}</span>
-        {canRemoveSchedule ? (
-          <button
-            type="button"
-            onClick={onRemoveSchedule}
-            className="product-action product-action-danger justify-self-start text-sm"
-          >
-            Remove
-          </button>
-        ) : null}
-      </div>
 
       <SelectField
         label="Recurrence"
@@ -410,14 +398,27 @@ function ScheduleRowEditor({
             />
           ))}
         </div>
-        <button
-          type="button"
-          onClick={onAddTime}
-          disabled={schedule.timeEntries.length >= MAX_TIME_ENTRIES_PER_SCHEDULE}
-          className="product-action product-action-primary justify-self-start text-[11px] leading-4"
-        >
-          Add time
-        </button>
+        <div className="justify-self-start text-xs">
+          <button
+            type="button"
+            onClick={onAddTime}
+            disabled={schedule.timeEntries.length >= MAX_TIME_ENTRIES_PER_SCHEDULE}
+            className="product-action product-action-primary"
+          >
+            Add time
+          </button>
+        </div>
+        {canRemoveSchedule ? (
+          <div className="justify-self-start text-xs">
+            <button
+              type="button"
+              onClick={onRemoveSchedule}
+              className="product-action product-action-danger"
+            >
+              Remove schedule
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -525,7 +526,7 @@ function TimeEntryEditor({
   const rangePresetValue = entry.rangePreset ?? "custom";
 
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2 text-sm">
       <input
         type="hidden"
         name={`${prefix}_id_${entryIndex}`}
@@ -733,7 +734,7 @@ function TextField({
   error?: string;
 }>) {
   return (
-    <label className="grid gap-2 text-sm">
+    <label className="grid gap-1 text-sm">
       <span>{label}</span>
       <input
         type="text"
@@ -741,7 +742,7 @@ function TextField({
         defaultValue={defaultValue}
         required={required}
         aria-invalid={error ? "true" : undefined}
-        className="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-base text-foreground"
+        className={COMPACT_UNDERLINED_FIELD_CONTROL_CLASS}
       />
       <FieldError message={error} />
     </label>
@@ -762,7 +763,7 @@ function DescriptionField({
   }, [defaultValue]);
 
   return (
-    <label className="grid gap-2 text-sm">
+    <label className="grid gap-1 text-sm">
       <span>Description</span>
       <textarea
         ref={textareaRef}
@@ -771,7 +772,7 @@ function DescriptionField({
         rows={1}
         aria-invalid={error ? "true" : undefined}
         onInput={(event) => resizeTextarea(event.currentTarget)}
-        className="min-h-8 resize-none overflow-hidden border-0 border-b border-line bg-background px-0 py-1 text-base text-foreground"
+        className={`${COMPACT_UNDERLINED_FIELD_CONTROL_CLASS} resize-none overflow-hidden`}
       />
       <FieldError message={error} />
     </label>
@@ -781,7 +782,7 @@ function DescriptionField({
 function SelectField({
   label,
   labelClassName,
-  controlClassName = "min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-base text-foreground",
+  controlClassName = COMPACT_UNDERLINED_FIELD_CONTROL_CLASS,
   name,
   defaultValue,
   value,
@@ -800,7 +801,7 @@ function SelectField({
   children: ReactNode;
 }>) {
   return (
-    <label className="grid gap-2 text-sm">
+    <label className="grid gap-1 text-sm">
       <span className={labelClassName}>{label}</span>
       <select
         name={name}

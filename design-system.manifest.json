@@ -88,6 +88,20 @@
       "notes": ""
     },
     {
+      "id": "layout.cadence-page-banner",
+      "name": "CadencePageBanner",
+      "kind": "layout",
+      "source": "components/layout/ScreenFrame.tsx",
+      "exportName": "CadencePageBanner",
+      "usageNames": [
+        "CadencePageBanner"
+      ],
+      "benchAnchor": "design-system#ds-layout-cadence-page-banner",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Shared decorative page banner image used by ScreenFrame-backed authenticated screens."
+    },
+    {
       "id": "layout.screen-frame",
       "name": "ScreenFrame",
       "kind": "layout",

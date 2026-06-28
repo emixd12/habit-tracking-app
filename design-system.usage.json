@@ -68,6 +68,14 @@
       "confidence": "exact"
     },
     {
+      "componentId": "layout.cadence-page-banner",
+      "file": "components/layout/ScreenFrame.tsx",
+      "line": 37,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
       "componentId": "layout.screen-frame",
       "file": "app/(app)/behaviors/page.tsx",
       "line": 45,
@@ -229,7 +237,7 @@
     }
   ],
   "summary": {
-    "productUsages": 28,
+    "productUsages": 29,
     "benchPreviews": 0
   }
 }

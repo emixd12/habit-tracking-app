@@ -250,9 +250,9 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/layout/AppShell.tsx", "components/layout/ScreenFrame.tsx", "app/(app)/layout.tsx"],
-          "implementationIds": ["layout.app-shell", "layout.screen-frame"],
-          "notes": "Authenticated shell owns app navigation and route framing."
+          "sources": ["components/layout/AppShell.tsx", "components/layout/ScreenFrame.tsx", "app/(app)/layout.tsx", "public/brand/cadence-page-banner-lines-dots.png"],
+          "implementationIds": ["layout.app-shell", "layout.cadence-page-banner", "layout.screen-frame"],
+          "notes": "Authenticated shell owns app navigation, route framing, the Timeline banner, and the shared full-width decorative page banner for ScreenFrame-backed pages."
         },
         {
           "surfaceId": "marketing",

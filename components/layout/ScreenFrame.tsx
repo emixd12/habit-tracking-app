@@ -1,3 +1,28 @@
+import Image from "next/image";
+
+const CADENCE_PAGE_BANNER_IMAGE = {
+  src: "/brand/cadence-page-banner-lines-dots.png",
+  width: 1965,
+  height: 64,
+} as const;
+
+export function CadencePageBanner() {
+  return (
+    <div className="w-full overflow-hidden bg-background pt-1">
+      <Image
+        src={CADENCE_PAGE_BANNER_IMAGE.src}
+        alt=""
+        aria-hidden="true"
+        width={CADENCE_PAGE_BANNER_IMAGE.width}
+        height={CADENCE_PAGE_BANNER_IMAGE.height}
+        priority
+        sizes="100vw"
+        className="block h-auto w-full"
+      />
+    </div>
+  );
+}
+
 export function ScreenFrame({
   title,
   description,
@@ -8,18 +33,22 @@ export function ScreenFrame({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
-      <header className="border-b border-line pb-6">
-        <h1 className="text-3xl font-bold leading-tight sm:text-4xl">
-          {title}
-        </h1>
-        {description ? (
-          <p className="mt-3 max-w-3xl text-base leading-7 text-muted-readable">
-            {description}
-          </p>
-        ) : null}
-      </header>
-      {children}
+    <div className="flex w-full flex-col">
+      <CadencePageBanner />
+
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+        <header className="border-b border-line pb-6">
+          <h1 className="text-3xl font-bold leading-tight sm:text-4xl">
+            {title}
+          </h1>
+          {description ? (
+            <p className="mt-3 max-w-3xl text-base leading-7 text-muted-readable">
+              {description}
+            </p>
+          ) : null}
+        </header>
+        {children}
+      </div>
     </div>
   );
 }
