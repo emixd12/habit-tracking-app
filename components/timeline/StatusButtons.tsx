@@ -25,6 +25,7 @@ type StatusButtonsProps = Readonly<{
   currentStatus: TimelineStatus;
   action: OccurrenceFormAction;
   compact?: boolean;
+  singleLine?: boolean;
   disabled?: boolean;
   pendingStatus?: TimelineStatusActionStatus | null;
   onStatusSubmit?: (status: TimelineStatusActionStatus) => void;
@@ -45,6 +46,7 @@ export function StatusButtons({
   currentStatus,
   action,
   compact = false,
+  singleLine = false,
   disabled = false,
   pendingStatus = null,
   onStatusSubmit,
@@ -122,12 +124,22 @@ export function StatusButtons({
   }
 
   return (
-    <div className={compact ? "grid gap-2" : "grid gap-2 sm:w-auto"}>
+    <div
+      className={
+        compact
+          ? "grid gap-2"
+          : singleLine
+            ? "grid min-w-max gap-2"
+            : "grid gap-2 sm:w-auto"
+      }
+    >
       <div
         className={
           compact
             ? "flex flex-wrap items-center gap-x-4 gap-y-2"
-            : "flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 sm:w-auto sm:justify-end"
+            : singleLine
+              ? "flex items-center justify-end gap-x-2"
+              : "flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 sm:w-auto sm:justify-end"
         }
       >
         <StatusSubmitForm
@@ -139,6 +151,7 @@ export function StatusButtons({
           onStatusSubmit={onStatusSubmit}
           disabled={disabled}
           pendingStatus={pendingStatus}
+          singleLine={singleLine}
         />
         <StatusSubmitForm
           occurrenceId={occurrenceId}
@@ -149,6 +162,7 @@ export function StatusButtons({
           onStatusSubmit={onStatusSubmit}
           disabled={disabled}
           pendingStatus={pendingStatus}
+          singleLine={singleLine}
         />
       </div>
       <ActionMessage state={state} />
@@ -165,6 +179,7 @@ function StatusSubmitForm({
   onStatusSubmit,
   disabled,
   pendingStatus,
+  singleLine,
 }: Readonly<{
   occurrenceId: string;
   status: StatusButtonValue;
@@ -174,6 +189,7 @@ function StatusSubmitForm({
   onStatusSubmit?: (status: StatusButtonValue) => void;
   disabled: boolean;
   pendingStatus: StatusButtonValue | null;
+  singleLine: boolean;
 }>) {
   return (
     <form
@@ -192,6 +208,7 @@ function StatusSubmitForm({
         onStatusIntent={onStatusIntent}
         disabled={disabled}
         pendingStatus={pendingStatus}
+        singleLine={singleLine}
       />
     </form>
   );
@@ -203,12 +220,14 @@ function StatusSubmitButton({
   onStatusIntent,
   disabled,
   pendingStatus,
+  singleLine,
 }: Readonly<{
   status: StatusButtonValue;
   label: string;
   onStatusIntent: (status: StatusButtonValue) => void;
   disabled: boolean;
   pendingStatus: StatusButtonValue | null;
+  singleLine: boolean;
 }>) {
   const { pending } = useFormStatus();
   const Icon = status === "completed" ? Check : X;
@@ -219,6 +238,7 @@ function StatusSubmitButton({
       type="submit"
       disabled={pending || disabled}
       aria-disabled={pending || disabled ? "true" : undefined}
+      data-single-line={singleLine ? "true" : undefined}
       onClick={() => {
         onStatusIntent(status);
       }}
@@ -226,10 +246,17 @@ function StatusSubmitButton({
         onStatusIntent(status);
       }}
       className={[
-        "timeline-status-action product-action product-action-primary min-h-11 gap-1.5 whitespace-nowrap py-1 text-sm font-bold sm:min-h-8",
+        "timeline-status-action product-action product-action-primary min-h-11 gap-1.5 whitespace-nowrap py-1 font-bold",
+        singleLine
+          ? "min-w-11 px-1 text-base sm:min-h-8 sm:px-0 sm:text-sm"
+          : "text-sm sm:min-h-8",
       ].join(" ")}
     >
-      <Icon aria-hidden="true" size={14} strokeWidth={2.5} />
+      <Icon
+        aria-hidden="true"
+        size={singleLine ? 16 : 14}
+        strokeWidth={2.5}
+      />
       <span>{isSavingThisStatus ? `Saving ${label}...` : label}</span>
     </button>
   );

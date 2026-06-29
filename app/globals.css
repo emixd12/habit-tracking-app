@@ -193,6 +193,44 @@ button:disabled {
   text-shadow: 0.02em 0 currentColor;
 }
 
+.timeline-occurrence-summary {
+  container-type: inline-size;
+}
+
+.timeline-status-action[data-single-line="true"] {
+  font-size: clamp(var(--text-sm), 3.6vw, var(--text-base));
+  line-height: var(--text-base--line-height);
+}
+
+@media (width >= 40rem) {
+  .timeline-status-action[data-single-line="true"] {
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+}
+
+@media (width < 40rem) {
+  .timeline-occurrence-summary .timeline-occurrence-time {
+    font-size: clamp(var(--text-xs), 12cqw, var(--text-sm));
+  }
+
+  .timeline-occurrence-summary .timeline-occurrence-title {
+    font-size: clamp(var(--text-sm), 18cqw, var(--text-base));
+  }
+
+  .timeline-occurrence-summary[data-label-density="compact"]
+    .timeline-occurrence-time {
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+  }
+
+  .timeline-occurrence-summary[data-label-density="compact"]
+    .timeline-occurrence-title {
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+}
+
 .analytics-heatmap-cell::after {
   content: attr(data-hover-label);
   position: absolute;

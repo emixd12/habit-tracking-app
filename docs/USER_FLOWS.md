@@ -179,7 +179,7 @@ Evening, rather than the full clock range.
 Status text-link actions are underlined by default. All status action underlines use the same thin weight.
 
 Collapsed occurrence rows are compact and unboxed. They should not draw a perimeter border around each behavior row.
-On mobile, scheduled time and behavior title appear first, then status actions sit on a full-width touch row before any expanded details. Do not add a chevron or separate disclosure icon.
+On mobile, scheduled time, behavior title, and unresolved status actions share one horizontal row when the status actions are visible. Completed and Not Completed keep at least a 44px tap target and same-line labels; the scheduled time and behavior title may compact and truncate before those action targets shrink. Do not add a chevron or separate disclosure icon.
 
 Collapsed Completed cards show:
 - Scheduled time

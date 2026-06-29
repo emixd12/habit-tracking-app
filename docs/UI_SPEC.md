@@ -268,7 +268,7 @@ Status text-link actions should be underlined by default with the same thin unde
 Occurrence rows should read as compact unboxed list rows. Do not draw a perimeter border around each Timeline behavior row.
 
 In collapsed rows, the scheduled time, behavior title, and collapsed status/action text should be vertically centered within the row. Expanded rows may pin the status controls to the top-right so the details panel can span the row below.
-On mobile, keep scheduled time and behavior title first, then place Completed and Not Completed on their own full-width touch row for unresolved rows before expanded details. Mobile status and note actions should have at least a 44px tap target while still looking like underlined text actions. Do not add a chevron or separate disclosure icon.
+On mobile, scheduled time, behavior title, Completed, and Not Completed should share one horizontal row when unresolved status actions are visible. Completed and Not Completed keep at least a 44px tap target and same-line labels while still looking like underlined text actions; the scheduled time and behavior title may compact and truncate before the status targets shrink. Do not add a chevron or separate disclosure icon.
 
 Expanded card details should show:
 - Description if present
