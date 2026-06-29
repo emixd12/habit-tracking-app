@@ -11,6 +11,7 @@ import {
   LogIn,
   Menu,
   PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   X,
   type LucideIcon,
@@ -667,10 +668,25 @@ export function AppShell({
               title={!isDesktopSidebarOpen ? "Open Timeline" : undefined}
               aria-label="Open Timeline"
               onClick={handleDesktopBrandNavigate}
-              className="grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center text-left transition-opacity duration-150 ease-out hover:opacity-70 active:opacity-70 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="group grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center text-left transition-opacity duration-150 ease-out hover:opacity-70 active:opacity-70 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
-              <span className="flex h-16 w-16 items-center justify-center">
-                <BrandMark />
+              <span className="relative flex h-16 w-16 items-center justify-center">
+                <BrandMark
+                  className={[
+                    "absolute h-6 w-6 transition-opacity duration-200 motion-reduce:transition-none",
+                    isDesktopSidebarOpen
+                      ? "opacity-100"
+                      : "opacity-100 group-hover:opacity-0",
+                  ].join(" ")}
+                />
+                <PanelLeftOpen
+                  aria-hidden="true"
+                  className={[
+                    "absolute h-4 w-4 transition-opacity duration-200 motion-reduce:transition-none",
+                    isDesktopSidebarOpen ? "opacity-0" : "opacity-0 group-hover:opacity-100",
+                  ].join(" ")}
+                  strokeWidth={2}
+                />
               </span>
               <span
                 className={[

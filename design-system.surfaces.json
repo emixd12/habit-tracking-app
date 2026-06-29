@@ -207,7 +207,7 @@
           "parity": "canonical",
           "sources": ["lib/navigation.ts", "components/layout/AppShell.tsx"],
           "implementationIds": ["navigation.primary-app-nav", "layout.app-shell"],
-          "notes": "Fixed desktop rail and mobile drawer render from APP_NAV_ITEMS. The Cadence brand mark/name links to Timeline with 70% opacity feedback, and the sticky mobile header fades in its bottom divider as the page scrolls."
+          "notes": "Fixed desktop rail and mobile drawer render from APP_NAV_ITEMS. The Cadence brand mark/name links to Timeline with 70% opacity feedback, the collapsed desktop brand cell reveals the open-sidebar icon on hover, and the sticky mobile header fades in its bottom divider as the page scrolls."
         },
         {
           "surfaceId": "marketing",

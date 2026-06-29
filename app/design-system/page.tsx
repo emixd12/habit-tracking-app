@@ -1081,9 +1081,9 @@ const previewFactories: Record<string, () => ReactNode> = {
             <section className="border-y border-line bg-background py-5">
               <h2 className="text-2xl font-bold">App shell preview</h2>
               <p className="mt-2 text-sm leading-6 text-muted-readable">
-                Sidebar, brand Timeline links with opacity feedback, mobile
-                navigation, and the scroll-faded mobile header divider render
-                from the live shell.
+                Sidebar, brand Timeline links with opacity feedback, the
+                collapsed desktop opener affordance, mobile navigation, and the
+                scroll-faded mobile header divider render from the live shell.
               </p>
             </section>
           </div>

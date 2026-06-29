@@ -90,6 +90,9 @@ export function OccurrenceRow({
     : visibleOccurrence.showCollapsedStatusLabel
       ? "pr-36 sm:pr-40"
       : "pr-0";
+  const titleActionBufferClass = optimisticView.showPrimaryStatusActions
+    ? "pr-4 sm:pr-5"
+    : "";
 
   const handleOptimisticStatus = useCallback(
     (nextStatus: TimelineStatusActionStatus) => {
@@ -154,7 +157,12 @@ export function OccurrenceRow({
                 {visibleOccurrence.scheduledTimeLabel}
               </time>
 
-              <h3 className="timeline-occurrence-title min-w-0 truncate text-base font-bold leading-tight sm:text-lg">
+              <h3
+                className={[
+                  "timeline-occurrence-title min-w-0 truncate text-base font-bold leading-tight sm:text-lg",
+                  titleActionBufferClass,
+                ].join(" ")}
+              >
                 {visibleOccurrence.title}
               </h3>
             </div>
