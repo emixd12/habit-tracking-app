@@ -265,7 +265,7 @@ Timeline rows, such as Morning or Evening, without the full clock range.
 
 Status text-link actions should be underlined by default with the same thin underline. On hover-capable devices or keyboard focus, the action text may gain non-reflowing emphasis without changing color or moving adjacent actions. Do not use underline thickness to indicate a saved status.
 
-Occurrence rows should read as compact unboxed list rows. Do not draw a perimeter border around each Timeline behavior row.
+Occurrence rows should read as compact unboxed list rows. Do not draw a perimeter border around each Timeline behavior row. On mobile, row content should align to the day-section gutter without extra horizontal row padding.
 
 In collapsed rows, the scheduled time, behavior title, and collapsed status/action text should be vertically centered within the row. Expanded rows may pin the status controls to the top-right so the details panel can span the row below.
 On mobile, scheduled time, behavior title, Completed, and Not Completed should share one horizontal row when unresolved status actions are visible. Completed and Not Completed keep at least a 44px tap target and same-line labels while still looking like underlined text actions; the scheduled time and behavior title may compact and truncate before the status targets shrink. Do not add a chevron or separate disclosure icon.

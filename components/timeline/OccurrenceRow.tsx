@@ -126,7 +126,7 @@ export function OccurrenceRow({
           Saving {pendingStatusLabel} status.
         </p>
       ) : null}
-      <div className="timeline-occurrence-row-grid grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 p-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="timeline-occurrence-row-grid grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <details
           className="group col-start-1 row-start-1 min-w-0 sm:col-end-3"
           aria-controls={detailsId}
