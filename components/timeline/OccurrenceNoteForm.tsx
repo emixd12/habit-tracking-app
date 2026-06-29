@@ -13,6 +13,7 @@ type OccurrenceNoteFormProps = Readonly<{
   occurrenceId: string;
   note: string;
   action: OccurrenceFormAction;
+  compact?: boolean;
 }>;
 
 const EMPTY_ACTION_STATE: OccurrenceActionState = {
@@ -24,6 +25,7 @@ export function OccurrenceNoteForm({
   occurrenceId,
   note,
   action,
+  compact = false,
 }: OccurrenceNoteFormProps) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
   const router = useRouter();
@@ -37,7 +39,12 @@ export function OccurrenceNoteForm({
   return (
     <form action={formAction} className="grid gap-3">
       <input type="hidden" name="occurrence_id" value={occurrenceId} />
-      <label className="grid gap-2 font-bold text-foreground">
+      <label
+        className={[
+          "grid font-bold text-foreground",
+          compact ? "gap-1" : "gap-2",
+        ].join(" ")}
+      >
         <span>Note</span>
         <textarea
           name="note"
@@ -48,7 +55,14 @@ export function OccurrenceNoteForm({
         />
       </label>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+      <div
+        className={[
+          "flex flex-col gap-2 sm:flex-row sm:items-start",
+          compact ? "items-start" : null,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <SaveNoteButton />
         <ActionMessage state={state} />
       </div>

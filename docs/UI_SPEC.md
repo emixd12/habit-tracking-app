@@ -42,7 +42,10 @@ row hover fill with foreground text. Inactive hover uses the Surface fill.
 Primary navigation rows should be flush with no gap between row containers.
 
 On mobile, do not use the collapsed rail. Use a sticky 64px top header that
-opens a left drawer. The drawer is 60vw wide, max 60vw, and closes from its
+opens a left drawer. At the top of a page, the header does not draw a bottom
+divider; as the page scrolls, a 1px Ash Line divider fades in over the first
+short scroll distance so sticky-header separation appears only when content is
+moving underneath it. The drawer is 60vw wide, max 60vw, and closes from its
 backdrop, Escape, the close button, navigation, or a left swipe. Opening from
 the first 20px viewport edge is supported. While open, the drawer traps focus
 and locks body scrolling. A narrow drawer shadow is allowed for separation from
@@ -265,7 +268,7 @@ Timeline rows, such as Morning or Evening, without the full clock range.
 
 Status text-link actions should be underlined by default with the same thin underline. On hover-capable devices or keyboard focus, the action text may gain non-reflowing emphasis without changing color or moving adjacent actions. Do not use underline thickness to indicate a saved status.
 
-Occurrence rows should read as compact unboxed list rows. Do not draw a perimeter border around each Timeline behavior row. On mobile, row content should align to the day-section gutter without extra horizontal row padding.
+Occurrence rows should read as compact unboxed list rows. Do not draw a perimeter border around each Timeline behavior row. Row content should keep a compact horizontal inset on both desktop and mobile so filled row states do not press text or status labels against the row edges.
 
 In collapsed rows, the scheduled time, behavior title, and collapsed status/action text should be vertically centered within the row. Expanded rows may pin the status controls to the top-right so the details panel can span the row below.
 On mobile, scheduled time, behavior title, Completed, and Not Completed should share one horizontal row when unresolved status actions are visible. Completed and Not Completed keep at least a 44px tap target and same-line labels while still looking like underlined text actions; the scheduled time and behavior title may compact and truncate before the status targets shrink. Do not add a chevron or separate disclosure icon.
@@ -295,9 +298,12 @@ the logged action. Do not require a confirmation step before changing a status.
 
 Notes, category, description, and schedule details are hidden by default and revealed when the user clicks the card outside the status actions.
 Expanded details should sit directly on the background surface without a grey
-panel, enclosing border, or boxed card treatment. The Note textarea keeps its
-field border, but Save note uses the same underlined text-action vocabulary as
-Completed and Not Completed.
+panel, enclosing border, top divider, or boxed card treatment. Use a small left
+inset for the detail block. Measure spacing optically between rendered text and
+field edges: detail label/value spacing should visually match Note
+label/textarea spacing, while spacing between detail pairs remains larger. The
+Note textarea keeps its field border, but Save note uses the same underlined
+text-action vocabulary as Completed and Not Completed.
 When an occurrence is open, the whole occurrence row should hold the same blue
 background used by that row's hover state so the expanded content remains
 visually attached to the behavior.

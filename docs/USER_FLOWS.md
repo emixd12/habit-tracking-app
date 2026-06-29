@@ -178,7 +178,7 @@ Evening, rather than the full clock range.
 
 Status text-link actions are underlined by default. All status action underlines use the same thin weight.
 
-Collapsed occurrence rows are compact and unboxed. They should not draw a perimeter border around each behavior row.
+Collapsed occurrence rows are compact and unboxed. They should not draw a perimeter border around each behavior row. Rows keep a compact horizontal inset on both desktop and mobile.
 On mobile, scheduled time, behavior title, and unresolved status actions share one horizontal row when the status actions are visible. Completed and Not Completed keep at least a 44px tap target and same-line labels; the scheduled time and behavior title may compact and truncate before those action targets shrink. Do not add a chevron or separate disclosure icon.
 
 Collapsed Completed cards show:
@@ -207,8 +207,12 @@ Expanded cards show:
 - Note field
 - Option to change a Completed or Not Completed status
 
-Expanded details sit on the normal page background. The note save action is an
-underlined text action, matching the Completed and Not Completed controls.
+Expanded details sit on the normal page background without a top divider. The
+detail block has a small left inset. Spacing should be measured optically
+between rendered text and field edges: detail label/value spacing visually
+matches Note label/textarea spacing, while spacing between detail pairs remains
+larger. The note save action is an underlined text action, matching the
+Completed and Not Completed controls.
 An expanded occurrence holds the same blue background used on row hover, rather
 than adding a separate details box.
 

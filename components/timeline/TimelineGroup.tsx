@@ -43,7 +43,7 @@ export function TimelineGroup({
               id={`${section.key}-title`}
               className="font-bold leading-tight text-2xl"
             >
-              {section.label}
+              <time dateTime={section.localDate}>{section.label}</time>
             </h2>
             <p className="mt-1 text-sm font-bold text-muted-readable">
               {decisionCountLabel(section.unresolvedOccurrenceCount)}
@@ -61,17 +61,10 @@ export function TimelineGroup({
                 section.kind === "today" ? "text-3xl" : "text-2xl",
               ].join(" ")}
             >
-              {section.label}
+              <time dateTime={section.localDate}>{section.label}</time>
             </h2>
           </div>
         )}
-
-        <time
-          dateTime={section.localDate}
-          className="text-sm font-bold text-muted-readable"
-        >
-          {section.localDate}
-        </time>
       </div>
 
       {isEmpty ? (

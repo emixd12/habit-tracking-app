@@ -156,6 +156,8 @@ function PrimaryNav({
   );
 }
 
+const MOBILE_HEADER_BORDER_FADE_DISTANCE = 48;
+
 function AccountTrigger({
   displayName,
   isCollapsed,
@@ -256,6 +258,7 @@ export function AppShell({
   const pathname = usePathname();
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [mobileHeaderBorderOpacity, setMobileHeaderBorderOpacity] = useState(0);
   const [pendingHref, setPendingHref] = useState<AppNavHref | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const hasStoredSidebarPreferenceRef = useRef(false);
@@ -413,6 +416,48 @@ export function AppShell({
   }, [closeMobileNav, isMobileOpen]);
 
   useEffect(() => {
+    let frameId: number | null = null;
+
+    const updateBorderOpacity = () => {
+      frameId = null;
+
+      const scrollPosition =
+        window.scrollY || document.documentElement.scrollTop || 0;
+      const nextOpacity = Math.min(
+        scrollPosition / MOBILE_HEADER_BORDER_FADE_DISTANCE,
+        1,
+      );
+
+      setMobileHeaderBorderOpacity((currentOpacity) =>
+        Math.abs(currentOpacity - nextOpacity) < 0.01
+          ? currentOpacity
+          : nextOpacity,
+      );
+    };
+
+    const scheduleUpdate = () => {
+      if (frameId !== null) {
+        return;
+      }
+
+      frameId = window.requestAnimationFrame(updateBorderOpacity);
+    };
+
+    updateBorderOpacity();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleTouchStart = (event: TouchEvent) => {
       if (window.innerWidth >= 1024 || event.touches.length !== 1) {
         touchGestureRef.current = null;
@@ -484,7 +529,7 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <header className="sticky top-0 z-40 grid h-16 grid-cols-[minmax(0,1fr)_4rem] border-b border-line bg-card lg:hidden">
+      <header className="sticky top-0 z-40 grid h-16 grid-cols-[minmax(0,1fr)_4rem] bg-card lg:hidden">
         <button
           type="button"
           aria-label="Open navigation"
@@ -508,6 +553,11 @@ export function AppShell({
         >
           <Menu aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
         </button>
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-line transition-opacity duration-150 ease-out motion-reduce:transition-none"
+          style={{ opacity: mobileHeaderBorderOpacity }}
+        />
       </header>
 
       <div>

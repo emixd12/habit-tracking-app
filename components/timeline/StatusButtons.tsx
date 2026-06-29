@@ -246,7 +246,7 @@ function StatusSubmitButton({
         onStatusIntent(status);
       }}
       className={[
-        "timeline-status-action product-action product-action-primary min-h-11 gap-1.5 whitespace-nowrap py-1 font-bold",
+        "timeline-status-action product-action product-action-primary pointer-events-auto min-h-11 gap-1.5 whitespace-nowrap py-1 font-bold",
         singleLine
           ? "min-w-11 px-1 text-base sm:min-h-8 sm:px-0 sm:text-sm"
           : "text-sm sm:min-h-8",

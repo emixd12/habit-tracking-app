@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import { getImageProps } from "next/image";
 import { Suspense } from "react";
 
 import { ScreenContentLoading } from "@/components/layout/ScreenFrame";
@@ -18,6 +18,19 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+const TIMELINE_BANNER_IMAGES = {
+  desktop: {
+    src: "/brand/cadence-timeline-horse-lines-dots-clear-background.png",
+    width: 2041,
+    height: 239,
+  },
+  mobile: {
+    src: "/brand/cadence-timeline-horse-lines-dots-mobile.jpg",
+    width: 2134,
+    height: 367,
+  },
+} as const;
+
 type TimelinePageProps = Readonly<{
   searchParams?: Promise<{
     days?: string | string[];
@@ -34,18 +47,7 @@ export default async function TimelinePage({ searchParams }: TimelinePageProps) 
         <h1 className="sr-only">Timeline</h1>
       </div>
 
-      <div className="w-full overflow-hidden bg-background">
-        <Image
-          src="/brand/cadence-timeline-horse-lines-dots-clear-background.png"
-          alt=""
-          aria-hidden="true"
-          width={2041}
-          height={239}
-          priority
-          sizes="100vw"
-          className="block h-auto w-full"
-        />
-      </div>
+      <TimelineBanner />
 
       <div className="mx-auto flex w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-10">
         <Suspense fallback={<ScreenContentLoading label="Loading timeline" />}>
@@ -86,6 +88,51 @@ async function TimelineContent({
         noteAction={updateOccurrenceNoteAction}
       />
     </>
+  );
+}
+
+function TimelineBanner() {
+  const sharedImageProps = {
+    alt: "",
+    "aria-hidden": true,
+    className: "block h-full w-full object-fill",
+    fetchPriority: "high",
+    loading: "eager",
+    sizes: "100vw",
+  } as const;
+
+  const {
+    props: { sizes: mobileSizes, srcSet: mobileSrcSet },
+  } = getImageProps({
+    ...sharedImageProps,
+    ...TIMELINE_BANNER_IMAGES.mobile,
+  });
+
+  const {
+    props: { sizes: desktopSizes, srcSet: desktopSrcSet, ...desktopImageProps },
+  } = getImageProps({
+    ...sharedImageProps,
+    ...TIMELINE_BANNER_IMAGES.desktop,
+  });
+
+  return (
+    <div className="w-full overflow-hidden bg-background">
+      <div className="relative aspect-[2134/367] w-full sm:aspect-[2041/239]">
+        <picture className="block h-full w-full">
+          <source
+            media="(max-width: 639px)"
+            sizes={mobileSizes}
+            srcSet={mobileSrcSet}
+          />
+          <source
+            media="(min-width: 640px)"
+            sizes={desktopSizes}
+            srcSet={desktopSrcSet}
+          />
+          <img {...desktopImageProps} alt="" aria-hidden="true" />
+        </picture>
+      </div>
+    </div>
   );
 }
 

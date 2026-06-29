@@ -1081,7 +1081,8 @@ const previewFactories: Record<string, () => ReactNode> = {
             <section className="border-y border-line bg-background py-5">
               <h2 className="text-2xl font-bold">App shell preview</h2>
               <p className="mt-2 text-sm leading-6 text-muted-readable">
-                Sidebar and mobile navigation render from the live shell.
+                Sidebar, mobile navigation, and the scroll-faded mobile header
+                divider render from the live shell.
               </p>
             </section>
           </div>

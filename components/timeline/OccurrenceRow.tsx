@@ -85,6 +85,11 @@ export function OccurrenceRow({
     title: visibleOccurrence.title,
     shouldProtectActionSpace: optimisticView.showPrimaryStatusActions,
   });
+  const summaryActionSpaceClass = optimisticView.showPrimaryStatusActions
+    ? "pr-56"
+    : visibleOccurrence.showCollapsedStatusLabel
+      ? "pr-36 sm:pr-40"
+      : "pr-0";
 
   const handleOptimisticStatus = useCallback(
     (nextStatus: TimelineStatusActionStatus) => {
@@ -126,33 +131,41 @@ export function OccurrenceRow({
           Saving {pendingStatusLabel} status.
         </p>
       ) : null}
-      <div className="timeline-occurrence-row-grid grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="timeline-occurrence-row-grid grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2">
         <details
-          className="group col-start-1 row-start-1 min-w-0 sm:col-end-3"
+          className="group col-start-1 col-end-3 row-start-1 min-w-0"
           aria-controls={detailsId}
         >
           <summary
             data-label-density={labelDensity}
-            className="timeline-occurrence-summary grid min-h-12 cursor-pointer list-none grid-cols-[max-content_minmax(0,1fr)] items-center gap-2 py-1 pr-1 sm:min-h-0 sm:grid-cols-[5.75rem_minmax(0,1fr)] sm:gap-1 sm:py-0 sm:pr-72 [&::-webkit-details-marker]:hidden"
+            className={[
+              "timeline-occurrence-summary grid min-h-14 cursor-pointer list-none items-center py-1.5 pl-3 sm:min-h-12 sm:py-2 sm:pl-4 [&::-webkit-details-marker]:hidden",
+              summaryActionSpaceClass,
+            ].join(" ")}
           >
-            <time
-              dateTime={visibleOccurrence.scheduledFor}
-              className={[
-                "timeline-occurrence-time min-w-0 whitespace-nowrap text-sm font-bold leading-5",
-                TIME_TONE_CLASSES[visibleOccurrence.visualTone],
-              ].join(" ")}
-            >
-              {visibleOccurrence.scheduledTimeLabel}
-            </time>
+            <div className="timeline-occurrence-main col-start-1 grid min-w-0 grid-cols-[max-content_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[5.75rem_minmax(0,1fr)] sm:gap-1">
+              <time
+                dateTime={visibleOccurrence.scheduledFor}
+                className={[
+                  "timeline-occurrence-time min-w-0 whitespace-nowrap text-sm font-bold leading-5",
+                  TIME_TONE_CLASSES[visibleOccurrence.visualTone],
+                ].join(" ")}
+              >
+                {visibleOccurrence.scheduledTimeLabel}
+              </time>
 
-            <h3 className="timeline-occurrence-title min-w-0 truncate text-base font-bold leading-tight sm:text-lg">
-              {visibleOccurrence.title}
-            </h3>
+              <h3 className="timeline-occurrence-title min-w-0 truncate text-base font-bold leading-tight sm:text-lg">
+                {visibleOccurrence.title}
+              </h3>
+            </div>
           </summary>
         </details>
 
         {optimisticView.showPrimaryStatusActions ? (
-          <div className="timeline-occurrence-status col-start-2 row-start-1 self-center justify-self-end sm:z-10">
+          <div
+            className="timeline-occurrence-status pointer-events-none col-start-2 row-start-1 z-10 mr-3 self-center justify-self-end sm:mr-4"
+            data-status-region="actions"
+          >
             <StatusButtons
               occurrenceId={visibleOccurrence.id}
               currentStatus={visibleOccurrence.status}
@@ -168,9 +181,10 @@ export function OccurrenceRow({
         ) : visibleOccurrence.showCollapsedStatusLabel ? (
           <p
             className={[
-              "timeline-occurrence-status col-start-2 row-start-1 self-center justify-self-end whitespace-nowrap text-xs font-bold leading-5 sm:z-10 sm:text-sm",
+              "timeline-occurrence-status pointer-events-none col-start-2 row-start-1 z-10 mr-3 self-center justify-self-end whitespace-nowrap text-xs font-bold leading-5 sm:mr-4 sm:text-sm",
               RESOLVED_LABEL_CLASSES[visibleOccurrence.visualTone],
             ].join(" ")}
+            data-status-region="label"
           >
             {pendingStatusLabel
               ? `Saving ${pendingStatusLabel}...`
@@ -180,7 +194,7 @@ export function OccurrenceRow({
 
         <div
           id={detailsId}
-          className="timeline-occurrence-details col-start-1 col-end-3 mt-2 gap-4 border-t border-line pt-4 text-sm leading-6 text-muted-readable sm:mt-3 sm:py-2"
+          className="timeline-occurrence-details col-start-1 col-end-3 mt-0 gap-2 px-3 text-sm leading-6 text-muted-readable sm:px-4 sm:py-2"
         >
           <DetailItem
             label="Description"
@@ -213,6 +227,7 @@ export function OccurrenceRow({
             occurrenceId={visibleOccurrence.id}
             note={visibleOccurrence.note}
             action={noteAction}
+            compact
           />
         </div>
       </div>
@@ -248,8 +263,8 @@ function DetailItem({
 }>) {
   return (
     <div className="grid gap-1">
-      <h4 className="font-bold text-foreground">{label}</h4>
-      <p className="break-words">{value}</p>
+      <h4 className="font-bold leading-5 text-foreground">{label}</h4>
+      <p className="break-words leading-5">{value}</p>
     </div>
   );
 }

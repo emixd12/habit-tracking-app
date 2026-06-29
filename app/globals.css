@@ -193,7 +193,7 @@ button:disabled {
   text-shadow: 0.02em 0 currentColor;
 }
 
-.timeline-occurrence-summary {
+.timeline-occurrence-main {
   container-type: inline-size;
 }
 
@@ -210,21 +210,23 @@ button:disabled {
 }
 
 @media (width < 40rem) {
-  .timeline-occurrence-summary .timeline-occurrence-time {
+  .timeline-occurrence-main .timeline-occurrence-time {
     font-size: clamp(var(--text-xs), 12cqw, var(--text-sm));
   }
 
-  .timeline-occurrence-summary .timeline-occurrence-title {
+  .timeline-occurrence-main .timeline-occurrence-title {
     font-size: clamp(var(--text-sm), 18cqw, var(--text-base));
   }
 
   .timeline-occurrence-summary[data-label-density="compact"]
+    .timeline-occurrence-main
     .timeline-occurrence-time {
     font-size: var(--text-xs);
     line-height: var(--text-xs--line-height);
   }
 
   .timeline-occurrence-summary[data-label-density="compact"]
+    .timeline-occurrence-main
     .timeline-occurrence-title {
     font-size: var(--text-sm);
     line-height: var(--text-sm--line-height);
@@ -343,7 +345,8 @@ button:disabled {
     align-items: start;
   }
 
-  .timeline-occurrence-row-grid:has(details[open]) .timeline-occurrence-status {
+  .timeline-occurrence-row-grid:has(details[open])
+    .timeline-occurrence-status[data-status-region="actions"] {
     align-self: start;
   }
 }
