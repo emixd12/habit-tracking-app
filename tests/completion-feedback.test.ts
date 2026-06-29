@@ -48,6 +48,12 @@ describe("completion feedback", () => {
         nextStatus: null,
       }),
     ).toBe(false);
+    expect(
+      shouldPlayCompletionChime({
+        currentStatus: "completed",
+        nextStatus: "unresolved",
+      }),
+    ).toBe(false);
   });
 
   it("allows an unresolved to completed intent after the server confirms completed", () => {
@@ -111,6 +117,18 @@ describe("completion feedback", () => {
       shouldPlayCompletionChimeForStatusSuccess({
         intent: null,
         serverNextStatus: "completed",
+      }),
+    ).toBe(false);
+  });
+
+  it("stays quiet when a resolved occurrence is submitted as unresolved", () => {
+    expect(
+      shouldPlayCompletionChimeForStatusSuccess({
+        intent: {
+          currentStatus: "completed",
+          submittedStatus: "unresolved",
+        },
+        serverNextStatus: "unresolved",
       }),
     ).toBe(false);
   });

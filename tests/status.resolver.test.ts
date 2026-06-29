@@ -179,6 +179,34 @@ describe("resolveStatusEvent", () => {
     });
   });
 
+  it("plans an explicit correction event when a resolved status is returned to unresolved", () => {
+    const occurrenceBefore = occurrence({
+      status: "completed",
+      completedAt: "2026-06-07T12:00:00Z",
+      statusMarkedAt: "2026-06-07T12:00:00Z",
+    });
+    const update = resolveStatusTransition({
+      occurrence: occurrenceBefore,
+      nextStatus: "unresolved",
+      now: NOW,
+    });
+
+    expect(
+      resolveStatusEvent({
+        occurrence: occurrenceBefore,
+        nextStatus: "unresolved",
+        now: NOW,
+        update,
+      }),
+    ).toMatchObject({
+      previousStatus: "completed",
+      status: "unresolved",
+      statusSemantics: "explicit_user_correction",
+      recordedAt: "2026-06-08T14:35:00Z",
+      effectiveAt: null,
+    });
+  });
+
   it("does not create an event when the resolved status is unchanged", () => {
     const occurrenceBefore = occurrence({
       status: "completed",

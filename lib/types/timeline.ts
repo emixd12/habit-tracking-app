@@ -35,6 +35,7 @@ export type TimelineOccurrenceView = {
   expandedStatusActionLabel: string;
   visualTone: TimelineVisualTone;
   isVisibleInNeedsDecision: boolean;
+  canShowDecisionActionsWhenUnresolved: boolean;
   showDecisionActions: boolean;
   showCollapsedStatusLabel: boolean;
   description: string;
@@ -87,7 +88,7 @@ export type OccurrenceActionField = "occurrence_id" | "status" | "note";
 export type OccurrenceActionState = {
   status: "idle" | "success" | "error";
   message: string;
-  nextStatus?: Extract<TimelineStatus, "completed" | "not_completed">;
+  nextStatus?: TimelineStatus;
   fieldErrors?: Partial<Record<OccurrenceActionField, string>>;
 };
 

@@ -189,10 +189,10 @@ function toOccurrenceView(
     occurrence.status !== "unresolved" &&
     compareLocalDate(occurrence.localDate, todayLocalDate) < 0 &&
     wasStatusMarkedOnLocalDate(occurrence.statusMarkedAt, todayLocalDate, timezone);
-  const isTodayUnresolved =
-    occurrence.status === "unresolved" &&
-    occurrence.localDate === todayLocalDate;
-  const showDecisionActions = isPriorUnresolved || isTodayUnresolved;
+  const canShowDecisionActionsWhenUnresolved =
+    compareLocalDate(occurrence.localDate, todayLocalDate) <= 0;
+  const showDecisionActions =
+    occurrence.status === "unresolved" && canShowDecisionActionsWhenUnresolved;
 
   return {
     ...occurrence,
@@ -201,6 +201,7 @@ function toOccurrenceView(
     expandedStatusActionLabel: expandedStatusActionLabel(occurrence.status),
     visualTone: visualTone(occurrence.status, isPriorUnresolved),
     isVisibleInNeedsDecision: isPriorUnresolved || isRetainedNeedsDecision,
+    canShowDecisionActionsWhenUnresolved,
     showDecisionActions,
     showCollapsedStatusLabel:
       occurrence.status !== "unresolved" && !showDecisionActions,

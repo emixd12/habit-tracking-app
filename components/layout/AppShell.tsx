@@ -11,12 +11,15 @@ import {
   LogIn,
   Menu,
   PanelLeftClose,
-  PanelLeftOpen,
   Settings,
   X,
   type LucideIcon,
 } from "lucide-react";
-import { APP_NAV_ITEMS, type AppNavHref } from "@/lib/navigation";
+import {
+  APP_NAV_ITEMS,
+  DEFAULT_APP_ROUTE,
+  type AppNavHref,
+} from "@/lib/navigation";
 
 const navIcons: Record<AppNavHref, LucideIcon> = {
   "/timeline": CalendarDays,
@@ -282,6 +285,34 @@ export function AppShell({
     [closeMobileNav, pathname],
   );
 
+  const handleMobileBrandNavigate = useCallback(() => {
+    if (DEFAULT_APP_ROUTE !== pathname) {
+      setPendingHref(DEFAULT_APP_ROUTE);
+    }
+
+    closeMobileNav();
+  }, [closeMobileNav, pathname]);
+
+  const handleDesktopBrandNavigate = useCallback(() => {
+    if (DEFAULT_APP_ROUTE !== pathname) {
+      setPendingHref(DEFAULT_APP_ROUTE);
+    }
+
+    if (isDesktopSidebarOpen) {
+      return;
+    }
+
+    hasStoredSidebarPreferenceRef.current = true;
+
+    try {
+      window.localStorage.setItem(SIDEBAR_STORAGE_KEY, "true");
+    } catch {
+      // Persistence is a convenience; the sidebar still works without it.
+    }
+
+    setIsDesktopSidebarOpen(true);
+  }, [isDesktopSidebarOpen, pathname]);
+
   const toggleDesktopSidebar = useCallback(() => {
     setIsDesktopSidebarOpen((current) => {
       const nextValue = !current;
@@ -530,19 +561,17 @@ export function AppShell({
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-40 grid h-16 grid-cols-[minmax(0,1fr)_4rem] bg-card lg:hidden">
-        <button
-          type="button"
-          aria-label="Open navigation"
-          aria-expanded={isMobileOpen}
-          aria-controls="mobile-navigation"
-          onClick={() => setIsMobileOpen(true)}
-          className="grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center text-left transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        <Link
+          href={DEFAULT_APP_ROUTE}
+          aria-label="Open Timeline"
+          onClick={handleMobileBrandNavigate}
+          className="grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center text-left transition-opacity duration-150 ease-out hover:opacity-70 active:opacity-70 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           <span className="flex h-16 w-16 items-center justify-center">
             <BrandMark />
           </span>
           <span className="truncate text-lg">Cadence</span>
-        </button>
+        </Link>
         <button
           type="button"
           aria-label="Open navigation"
@@ -581,16 +610,23 @@ export function AppShell({
             isMobileOpen ? "translate-x-0" : "-translate-x-full",
           ].join(" ")}
         >
-          <div className="relative grid h-16 grid-cols-[4rem_1fr] items-center">
-            <span className="flex h-16 w-16 items-center justify-center">
-              <BrandMark />
-            </span>
-            <span className="min-w-0 truncate pr-12 text-lg">Cadence</span>
+          <div className="relative grid h-16 grid-cols-[minmax(0,1fr)_3.5rem] items-center">
+            <Link
+              href={DEFAULT_APP_ROUTE}
+              aria-label="Open Timeline"
+              onClick={handleMobileBrandNavigate}
+              className="grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center text-left transition-opacity duration-150 ease-out hover:opacity-70 active:opacity-70 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              <span className="flex h-16 w-16 items-center justify-center">
+                <BrandMark />
+              </span>
+              <span className="min-w-0 truncate pr-3 text-lg">Cadence</span>
+            </Link>
             <button
               type="button"
               aria-label="Close navigation"
               onClick={closeMobileNav}
-              className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="flex h-10 w-10 items-center justify-center justify-self-center transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
             </button>
@@ -626,38 +662,25 @@ export function AppShell({
           ].join(" ")}
         >
           <div className="relative grid h-16 grid-cols-[4rem_1fr] items-center">
-            <button
-              type="button"
-              aria-label={isDesktopSidebarOpen ? "Collapse navigation" : "Expand navigation"}
-              aria-pressed={isDesktopSidebarOpen}
-              onClick={toggleDesktopSidebar}
-              className="group relative flex h-16 w-16 items-center justify-center bg-transparent transition-colors hover:bg-transparent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            <Link
+              href={DEFAULT_APP_ROUTE}
+              title={!isDesktopSidebarOpen ? "Open Timeline" : undefined}
+              aria-label="Open Timeline"
+              onClick={handleDesktopBrandNavigate}
+              className="grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center text-left transition-opacity duration-150 ease-out hover:opacity-70 active:opacity-70 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
-              <BrandMark
+              <span className="flex h-16 w-16 items-center justify-center">
+                <BrandMark />
+              </span>
+              <span
                 className={[
-                  "absolute h-6 w-6 transition-opacity duration-200",
-                  isDesktopSidebarOpen
-                    ? "opacity-100 group-hover:opacity-70"
-                    : "opacity-100 group-hover:opacity-0",
+                  "min-w-0 pr-12 transition-opacity duration-200",
+                  isDesktopSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0",
                 ].join(" ")}
-              />
-              <PanelLeftOpen
-                aria-hidden="true"
-                className={[
-                  "absolute h-4 w-4 transition-opacity duration-200",
-                  isDesktopSidebarOpen ? "opacity-0" : "opacity-0 group-hover:opacity-100",
-                ].join(" ")}
-                strokeWidth={2}
-              />
-            </button>
-            <div
-              className={[
-                "min-w-0 pr-12 transition-opacity duration-200",
-                isDesktopSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0",
-              ].join(" ")}
-            >
-              <span className="block truncate text-lg">Cadence</span>
-            </div>
+              >
+                <span className="block truncate text-lg">Cadence</span>
+              </span>
+            </Link>
             {isDesktopSidebarOpen ? (
               <button
                 type="button"

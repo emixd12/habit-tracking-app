@@ -1081,8 +1081,9 @@ const previewFactories: Record<string, () => ReactNode> = {
             <section className="border-y border-line bg-background py-5">
               <h2 className="text-2xl font-bold">App shell preview</h2>
               <p className="mt-2 text-sm leading-6 text-muted-readable">
-                Sidebar, mobile navigation, and the scroll-faded mobile header
-                divider render from the live shell.
+                Sidebar, brand Timeline links with opacity feedback, mobile
+                navigation, and the scroll-faded mobile header divider render
+                from the live shell.
               </p>
             </section>
           </div>
@@ -1405,6 +1406,7 @@ const needsDecisionOccurrence: TimelineOccurrenceView = {
   expandedStatusActionLabel: "Mark this occurrence",
   visualTone: "needs_decision",
   isVisibleInNeedsDecision: true,
+  canShowDecisionActionsWhenUnresolved: true,
   showDecisionActions: true,
   showCollapsedStatusLabel: false,
   description: activeBehavior.description,
@@ -1423,6 +1425,7 @@ const currentOccurrence: TimelineOccurrenceView = {
   title: "Drink water",
   visualTone: "default",
   isVisibleInNeedsDecision: false,
+  canShowDecisionActionsWhenUnresolved: true,
   showDecisionActions: true,
   description: "Start the morning with one full glass.",
   categoryName: "Health",
@@ -1488,6 +1491,7 @@ const futureOccurrence: TimelineOccurrenceView = {
   scheduledFor: "2026-06-09T01:00:00Z",
   scheduledTimeLabel: "9:00 PM",
   localDate: "2026-06-08",
+  canShowDecisionActionsWhenUnresolved: false,
   showDecisionActions: false,
   isVisibleInNeedsDecision: false,
 };

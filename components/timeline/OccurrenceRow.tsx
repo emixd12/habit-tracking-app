@@ -12,7 +12,7 @@ import {
   resolveOptimisticOccurrenceView,
   rollbackOptimisticStatus,
   type TimelineStatusActionStatus,
-} from "@/components/timeline/optimistic-status";
+} from "@/lib/resolvers/timeline-optimistic-status.resolver";
 import type {
   OccurrenceFormAction,
   TimelineOccurrenceView,
@@ -131,7 +131,7 @@ export function OccurrenceRow({
           Saving {pendingStatusLabel} status.
         </p>
       ) : null}
-      <div className="timeline-occurrence-row-grid grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2">
+      <div className="timeline-occurrence-row-grid grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0">
         <details
           className="group col-start-1 col-end-3 row-start-1 min-w-0"
           aria-controls={detailsId}
@@ -194,7 +194,7 @@ export function OccurrenceRow({
 
         <div
           id={detailsId}
-          className="timeline-occurrence-details col-start-1 col-end-3 mt-0 gap-2 px-3 text-sm leading-6 text-muted-readable sm:px-4 sm:py-2"
+          className="timeline-occurrence-details col-start-1 col-end-3 mt-0 gap-2 px-3 pt-0 text-sm leading-6 text-muted-readable sm:px-4 sm:py-2"
         >
           <DetailItem
             label="Description"
@@ -217,6 +217,7 @@ export function OccurrenceRow({
                 onStatusSubmit={handleOptimisticStatus}
                 onStatusSuccess={handleStatusConfirmed}
                 onStatusError={handleStatusRejected}
+                includeUnresolved
                 compact
               />
             </div>
@@ -251,6 +252,8 @@ function statusLabel(status: TimelineStatusActionStatus): string {
       return "Completed";
     case "not_completed":
       return "Not Completed";
+    case "unresolved":
+      return "Unresolved";
   }
 }
 
@@ -264,7 +267,9 @@ function DetailItem({
   return (
     <div className="grid gap-1">
       <h4 className="font-bold leading-5 text-foreground">{label}</h4>
-      <p className="break-words leading-5">{value}</p>
+      <p className="timeline-occurrence-detail-value break-words leading-5">
+        {value}
+      </p>
     </div>
   );
 }

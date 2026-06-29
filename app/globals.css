@@ -295,7 +295,7 @@ button:disabled {
 }
 
 .timeline-occurrence-row[data-visual-tone="not_completed"]:has(details[open]) {
-  background: var(--accent);
+  background: color-mix(in srgb, var(--accent) 85%, var(--foreground));
 }
 
 .timeline-occurrence-row[data-visual-tone="completed"]:has(details[open])
@@ -312,6 +312,15 @@ button:disabled {
 .timeline-occurrence-row[data-visual-tone="completed"]:has(details[open])
   .timeline-occurrence-details textarea {
   color: var(--foreground);
+}
+
+.timeline-occurrence-row[data-visual-tone="completed"]:has(details[open])
+  .timeline-occurrence-detail-value {
+  color: color-mix(
+    in srgb,
+    var(--primary-foreground) 82%,
+    var(--timeline-completed-hover)
+  );
 }
 
 .timeline-occurrence-row[data-visual-tone="not_completed"]
@@ -338,6 +347,11 @@ button:disabled {
 .timeline-occurrence-row[data-visual-tone="not_completed"]:has(details[open])
   .timeline-occurrence-details textarea {
   color: var(--foreground);
+}
+
+.timeline-occurrence-row[data-visual-tone="not_completed"]:has(details[open])
+  .timeline-occurrence-detail-value {
+  color: color-mix(in srgb, var(--primary-foreground) 85%, var(--accent));
 }
 
 @media (width >= 40rem) {

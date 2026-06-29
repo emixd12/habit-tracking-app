@@ -1025,11 +1025,15 @@ function getOccurrenceIdFromFormData(formData: FormData): string {
 function getStatusFromFormData(formData: FormData): OccurrenceStatus {
   const value = formData.get("status");
 
-  if (value === "completed" || value === "not_completed") {
+  if (
+    value === "unresolved" ||
+    value === "completed" ||
+    value === "not_completed"
+  ) {
     return value;
   }
 
-  throw new Error("Choose Completed or Not Completed.");
+  throw new Error("Choose a valid occurrence status.");
 }
 
 function getNoteFromFormData(formData: FormData): string {

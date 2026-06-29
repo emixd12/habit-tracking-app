@@ -6,7 +6,7 @@ import {
   EMPTY_OPTIMISTIC_STATUS_STATE,
   resolveOptimisticOccurrenceView,
   rollbackOptimisticStatus,
-} from "../components/timeline/optimistic-status";
+} from "../lib/resolvers/timeline-optimistic-status.resolver";
 import type { TimelineOccurrenceView } from "../lib/types/timeline";
 
 describe("Timeline optimistic status state", () => {
@@ -36,6 +36,46 @@ describe("Timeline optimistic status state", () => {
     expect(result.occurrence.status).toBe("not_completed");
     expect(result.occurrence.statusLabel).toBe("Not Completed");
     expect(result.occurrence.visualTone).toBe("not_completed");
+  });
+
+  it("projects a resolved row back to unresolved after a confirmed optimistic unmark", () => {
+    const result = resolveOptimisticOccurrenceView(
+      completedOccurrence(),
+      confirmOptimisticStatus("unresolved"),
+    );
+
+    expect(result.isPending).toBe(false);
+    expect(result.showPrimaryStatusActions).toBe(true);
+    expect(result.occurrence.status).toBe("unresolved");
+    expect(result.occurrence.statusLabel).toBe("Unresolved");
+    expect(result.occurrence.visualTone).toBe("default");
+    expect(result.occurrence.showDecisionActions).toBe(true);
+    expect(result.occurrence.showCollapsedStatusLabel).toBe(false);
+  });
+
+  it("returns a retained Needs decision row to the Needs decision tone when unmarked", () => {
+    const result = resolveOptimisticOccurrenceView(
+      retainedNeedsDecisionOccurrence(),
+      confirmOptimisticStatus("unresolved"),
+    );
+
+    expect(result.isPending).toBe(false);
+    expect(result.showPrimaryStatusActions).toBe(true);
+    expect(result.occurrence.status).toBe("unresolved");
+    expect(result.occurrence.visualTone).toBe("needs_decision");
+  });
+
+  it("does not expose primary actions when a future resolved row is unmarked", () => {
+    const result = resolveOptimisticOccurrenceView(
+      futureCompletedOccurrence(),
+      confirmOptimisticStatus("unresolved"),
+    );
+
+    expect(result.isPending).toBe(false);
+    expect(result.showPrimaryStatusActions).toBe(false);
+    expect(result.occurrence.status).toBe("unresolved");
+    expect(result.occurrence.showDecisionActions).toBe(false);
+    expect(result.occurrence.showCollapsedStatusLabel).toBe(false);
   });
 
   it("rolls back to the server occurrence view after an action error", () => {
@@ -80,6 +120,7 @@ function unresolvedOccurrence(): TimelineOccurrenceView {
     expandedStatusActionLabel: "Set status",
     visualTone: "default",
     isVisibleInNeedsDecision: false,
+    canShowDecisionActionsWhenUnresolved: true,
     showDecisionActions: true,
     showCollapsedStatusLabel: false,
     description: "",
@@ -100,5 +141,22 @@ function completedOccurrence(): TimelineOccurrenceView {
     visualTone: "completed",
     showDecisionActions: false,
     showCollapsedStatusLabel: true,
+  };
+}
+
+function retainedNeedsDecisionOccurrence(): TimelineOccurrenceView {
+  return {
+    ...completedOccurrence(),
+    localDate: "2026-06-25",
+    isVisibleInNeedsDecision: true,
+    canShowDecisionActionsWhenUnresolved: true,
+  };
+}
+
+function futureCompletedOccurrence(): TimelineOccurrenceView {
+  return {
+    ...completedOccurrence(),
+    localDate: "2026-06-30",
+    canShowDecisionActionsWhenUnresolved: false,
   };
 }

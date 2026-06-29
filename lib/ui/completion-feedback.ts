@@ -13,10 +13,7 @@ const SYNTH_CHIME_START_FREQUENCY = 660;
 const SYNTH_CHIME_END_FREQUENCY = 880;
 
 type AudioContextConstructor = typeof AudioContext;
-type CompletionChimeSubmittedStatus = Extract<
-  TimelineStatus,
-  "completed" | "not_completed"
->;
+type CompletionChimeSubmittedStatus = TimelineStatus;
 
 export type CompletionChimeIntent = Readonly<{
   currentStatus: TimelineStatus;

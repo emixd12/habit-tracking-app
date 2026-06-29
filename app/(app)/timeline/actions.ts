@@ -10,7 +10,7 @@ import type {
   TimelineStatus,
 } from "@/lib/types/timeline";
 
-type SubmittedStatus = Extract<TimelineStatus, "completed" | "not_completed">;
+type SubmittedStatus = TimelineStatus;
 
 export async function markOccurrenceStatusAction(
   _previousState: OccurrenceActionState,
@@ -52,5 +52,9 @@ export async function updateOccurrenceNoteAction(
 function getSubmittedStatus(formData: FormData): SubmittedStatus | null {
   const value = formData.get("status");
 
-  return value === "completed" || value === "not_completed" ? value : null;
+  return value === "unresolved" ||
+    value === "completed" ||
+    value === "not_completed"
+    ? value
+    : null;
 }

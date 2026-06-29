@@ -209,10 +209,12 @@ Expanded cards show:
 
 Expanded details sit on the normal page background without a top divider. The
 detail block has a small left inset. Spacing should be measured optically
-between rendered text and field edges: detail label/value spacing visually
-matches Note label/textarea spacing, while spacing between detail pairs remains
-larger. The note save action is an underlined text action, matching the
-Completed and Not Completed controls.
+between rendered text and field edges: the largest gap is between the collapsed
+row content and the first detail label and should measure 20px optically. The
+next-largest gap is between detail pairs, and the smallest gap is shared by
+detail label/value, Note
+label/textarea, and textarea/Save note relationships. The note save action is
+an underlined text action, matching the Completed and Not Completed controls.
 An expanded occurrence holds the same blue background used on row hover, rather
 than adding a separate details box.
 

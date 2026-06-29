@@ -33,7 +33,9 @@ navigation, and footer account rows keep icons or avatar centered in that
 column. Labels remain in the DOM and collapse visually with `opacity-0`,
 `pointer-events-none`, `w-0`, and `overflow-hidden`; expanded labels use
 `opacity-100` and `whitespace-nowrap`.
-The desktop sidebar header does not draw a bottom divider.
+The desktop sidebar header does not draw a bottom divider. The Cadence mark and
+name link to `/timeline`; the expanded-state collapse control stays separate
+from the brand link. Brand links use a 70% opacity state on hover and press.
 
 Expanded navigation applies hover and active treatment to the whole row.
 Collapsed navigation applies hover and active treatment only to the 64px icon
@@ -45,11 +47,14 @@ On mobile, do not use the collapsed rail. Use a sticky 64px top header that
 opens a left drawer. At the top of a page, the header does not draw a bottom
 divider; as the page scrolls, a 1px Ash Line divider fades in over the first
 short scroll distance so sticky-header separation appears only when content is
-moving underneath it. The drawer is 60vw wide, max 60vw, and closes from its
-backdrop, Escape, the close button, navigation, or a left swipe. Opening from
-the first 20px viewport edge is supported. While open, the drawer traps focus
-and locks body scrolling. A narrow drawer shadow is allowed for separation from
-the backdrop. The mobile drawer header does not draw a bottom divider.
+moving underneath it. The Cadence mark and name in the sticky header and drawer
+header link to `/timeline`; the hamburger button remains the drawer opener. The
+brand link uses a 70% opacity state on hover and press. The drawer is 60vw wide,
+max 60vw, and closes from its backdrop, Escape, the close button, navigation, or
+a left swipe. Opening from the first 20px viewport edge is supported. While
+open, the drawer traps focus and locks body scrolling. A narrow drawer shadow
+is allowed for separation from the backdrop. The mobile drawer header does not
+draw a bottom divider.
 
 Use four primary screens:
 
@@ -300,10 +305,12 @@ Notes, category, description, and schedule details are hidden by default and rev
 Expanded details should sit directly on the background surface without a grey
 panel, enclosing border, top divider, or boxed card treatment. Use a small left
 inset for the detail block. Measure spacing optically between rendered text and
-field edges: detail label/value spacing should visually match Note
-label/textarea spacing, while spacing between detail pairs remains larger. The
-Note textarea keeps its field border, but Save note uses the same underlined
-text-action vocabulary as Completed and Not Completed.
+field edges: the largest gap is between the collapsed row content and the first
+detail label and should measure 20px optically. The next-largest gap is between
+detail pairs, and the smallest gap is shared by detail label/value, Note
+label/textarea, and textarea/Save note
+relationships. The Note textarea keeps its field border, but Save note uses the
+same underlined text-action vocabulary as Completed and Not Completed.
 When an occurrence is open, the whole occurrence row should hold the same blue
 background used by that row's hover state so the expanded content remains
 visually attached to the behavior.

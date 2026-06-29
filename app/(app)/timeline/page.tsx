@@ -25,7 +25,7 @@ const TIMELINE_BANNER_IMAGES = {
     height: 239,
   },
   mobile: {
-    src: "/brand/cadence-timeline-horse-lines-dots-mobile.jpg",
+    src: "/brand/cadence-timeline-horse-lines-dots-mobile.png",
     width: 2134,
     height: 367,
   },

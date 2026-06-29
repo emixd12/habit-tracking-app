@@ -37,7 +37,10 @@ export function OccurrenceNoteForm({
   }, [router, state.status]);
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form
+      action={formAction}
+      className={["grid", compact ? "gap-1" : "gap-3"].join(" ")}
+    >
       <input type="hidden" name="occurrence_id" value={occurrenceId} />
       <label
         className={[
@@ -63,21 +66,26 @@ export function OccurrenceNoteForm({
           .filter(Boolean)
           .join(" ")}
       >
-        <SaveNoteButton />
+        <SaveNoteButton compact={compact} />
         <ActionMessage state={state} />
       </div>
     </form>
   );
 }
 
-function SaveNoteButton() {
+function SaveNoteButton({ compact }: Readonly<{ compact: boolean }>) {
   const { pending } = useFormStatus();
 
   return (
     <button
       type="submit"
       disabled={pending}
-      className="timeline-status-action product-action product-action-primary min-h-11 py-1 text-sm font-bold sm:min-h-8"
+      className={[
+        "timeline-status-action product-action product-action-primary min-h-11 py-1 text-sm font-bold sm:min-h-8",
+        compact ? "!items-start !pb-0 !pt-0" : null,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       {pending ? "Saving..." : "Save note"}
     </button>

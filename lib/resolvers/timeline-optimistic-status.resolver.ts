@@ -4,10 +4,7 @@ import type {
   TimelineVisualTone,
 } from "@/lib/types/timeline";
 
-export type TimelineStatusActionStatus = Extract<
-  TimelineStatus,
-  "completed" | "not_completed"
->;
+export type TimelineStatusActionStatus = TimelineStatus;
 
 export type OptimisticTimelineStatusState = Readonly<{
   pendingStatus: TimelineStatusActionStatus | null;
@@ -80,15 +77,18 @@ function projectOccurrenceStatus(
   occurrence: TimelineOccurrenceView,
   status: TimelineStatusActionStatus,
 ): TimelineOccurrenceView {
+  const isUnresolved = status === "unresolved";
+
   return {
     ...occurrence,
     status,
     statusLabel: statusLabel(status),
     statusDetail: statusDetail(status),
-    expandedStatusActionLabel: "Change status",
-    visualTone: visualTone(status),
-    showDecisionActions: false,
-    showCollapsedStatusLabel: true,
+    expandedStatusActionLabel: isUnresolved ? "Set status" : "Change status",
+    visualTone: visualTone(status, occurrence),
+    showDecisionActions:
+      isUnresolved && occurrence.canShowDecisionActionsWhenUnresolved,
+    showCollapsedStatusLabel: !isUnresolved,
   };
 }
 
@@ -98,6 +98,8 @@ function statusLabel(status: TimelineStatusActionStatus): string {
       return "Completed";
     case "not_completed":
       return "Not Completed";
+    case "unresolved":
+      return "Unresolved";
   }
 }
 
@@ -107,14 +109,21 @@ function statusDetail(status: TimelineStatusActionStatus): string {
       return "Resolved as Completed";
     case "not_completed":
       return "Resolved as Not Completed";
+    case "unresolved":
+      return "Awaiting decision";
   }
 }
 
-function visualTone(status: TimelineStatusActionStatus): TimelineVisualTone {
+function visualTone(
+  status: TimelineStatusActionStatus,
+  occurrence: TimelineOccurrenceView,
+): TimelineVisualTone {
   switch (status) {
     case "completed":
       return "completed";
     case "not_completed":
       return "not_completed";
+    case "unresolved":
+      return occurrence.isVisibleInNeedsDecision ? "needs_decision" : "default";
   }
 }

@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Check, X } from "lucide-react";
+import { Check, CircleDashed, X } from "lucide-react";
 
 import {
   type CompletionChimeIntent,
@@ -18,7 +18,7 @@ import type {
   OccurrenceFormAction,
   TimelineStatus,
 } from "@/lib/types/timeline";
-import type { TimelineStatusActionStatus } from "@/components/timeline/optimistic-status";
+import type { TimelineStatusActionStatus } from "@/lib/resolvers/timeline-optimistic-status.resolver";
 
 type StatusButtonsProps = Readonly<{
   occurrenceId: string;
@@ -26,6 +26,7 @@ type StatusButtonsProps = Readonly<{
   action: OccurrenceFormAction;
   compact?: boolean;
   singleLine?: boolean;
+  includeUnresolved?: boolean;
   disabled?: boolean;
   pendingStatus?: TimelineStatusActionStatus | null;
   onStatusSubmit?: (status: TimelineStatusActionStatus) => void;
@@ -47,6 +48,7 @@ export function StatusButtons({
   action,
   compact = false,
   singleLine = false,
+  includeUnresolved = false,
   disabled = false,
   pendingStatus = null,
   onStatusSubmit,
@@ -164,6 +166,19 @@ export function StatusButtons({
           pendingStatus={pendingStatus}
           singleLine={singleLine}
         />
+        {includeUnresolved ? (
+          <StatusSubmitForm
+            occurrenceId={occurrenceId}
+            status="unresolved"
+            label="Unmark"
+            action={formAction}
+            onStatusIntent={prepareForSubmittedStatus}
+            onStatusSubmit={onStatusSubmit}
+            disabled={disabled}
+            pendingStatus={pendingStatus}
+            singleLine={singleLine}
+          />
+        ) : null}
       </div>
       <ActionMessage state={state} />
     </div>
@@ -230,7 +245,12 @@ function StatusSubmitButton({
   singleLine: boolean;
 }>) {
   const { pending } = useFormStatus();
-  const Icon = status === "completed" ? Check : X;
+  const Icon =
+    status === "completed"
+      ? Check
+      : status === "not_completed"
+        ? X
+        : CircleDashed;
   const isSavingThisStatus = pending || pendingStatus === status;
 
   return (
