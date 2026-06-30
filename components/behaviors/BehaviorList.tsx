@@ -334,7 +334,7 @@ function BehaviorRecord({
           }
         }}
       >
-        <summary className="product-disclosure-trigger -ml-4 flex min-h-12 items-center py-4 text-sm text-foreground">
+        <summary className="product-disclosure-trigger flex min-h-12 items-center py-4 text-sm text-foreground">
           <span
             aria-hidden="true"
             className="product-disclosure-indicator"
@@ -363,7 +363,7 @@ function BehaviorRecord({
               />
 
               {behavior.active ? (
-                <div className="border-t border-line pt-4">
+                <div>
                   <BehaviorStateForm
                     behaviorId={behavior.id}
                     action={archiveAction}
@@ -748,7 +748,7 @@ function SummaryItem({
   value: string;
 }>) {
   return (
-    <div className="grid min-w-0 gap-x-4 gap-y-1 sm:grid-cols-[8.5rem_minmax(0,1fr)]">
+    <div className="grid min-w-0 gap-x-4 gap-y-1 sm:grid-cols-[7.5rem_minmax(0,1fr)]">
       <dt className="text-foreground">{label}</dt>
       <dd className="min-w-0 max-w-[75ch] break-words text-muted-readable">
         {value}

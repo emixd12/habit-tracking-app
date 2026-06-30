@@ -219,6 +219,7 @@ export function BehaviorForm({
 
           <SelectField
             label="Category"
+            labelClassName="pl-1"
             name="category_id"
             defaultValue={behavior?.categoryId ?? ""}
             error={fieldErrors.category_id}
@@ -348,8 +349,12 @@ function ScheduleRowEditor({
   onRemoveTime: (entryKey: string) => void;
 }>) {
   return (
-    <div className="grid gap-4 py-4 lg:grid-cols-[minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:items-start lg:gap-4">
-      <input type="hidden" name={`behavior_schedule_id_${index}`} value={schedule.id} />
+    <div className="grid gap-4 lg:grid-cols-[minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:items-start lg:gap-4">
+      <input
+        type="hidden"
+        name={`behavior_schedule_id_${index}`}
+        value={schedule.id}
+      />
 
       <label className="grid gap-1 text-sm lg:flex lg:min-h-8 lg:items-center lg:gap-3">
         <span className="shrink-0">Recurrence</span>
@@ -370,14 +375,7 @@ function ScheduleRowEditor({
         </select>
       </label>
 
-      <div className="grid gap-3">
-        <RecurrenceDetailFields schedule={schedule} index={index} />
-        {showOverlapNote ? (
-          <p className="text-sm leading-6 text-muted-readable">
-            *Overlapping occurrences at the same time are counted once.
-          </p>
-        ) : null}
-      </div>
+      <RecurrenceDetailFields schedule={schedule} index={index} />
 
       <div className="grid gap-3">
         <span className="sr-only">Times</span>
@@ -421,6 +419,12 @@ function ScheduleRowEditor({
           </div>
         ) : null}
       </div>
+
+      {showOverlapNote ? (
+        <p className="text-sm leading-6 text-muted-readable lg:col-span-3">
+          *Overlapping occurrences at the same time are counted once.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -675,46 +679,52 @@ function ReminderEditor({
   error?: string;
 }>) {
   return (
-    <fieldset className="grid gap-4 border-0 p-0">
+    <fieldset className="grid gap-3 border-0 p-0">
       <legend className="mb-1 text-lg leading-tight">Reminders</legend>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex min-h-11 items-center gap-3 py-2 text-sm">
-          <input
-            type="checkbox"
-            name="browser_reminder"
-            defaultChecked={browserReminderEnabled}
-            className="h-4 w-4 accent-[var(--primary)]"
-          />
-          Browser notifications
-        </label>
+      <div className="grid gap-2">
+        <div className="grid gap-2 lg:grid-cols-[max-content_max-content_minmax(16rem,1fr)] lg:items-center lg:gap-x-5">
+          <label className="flex min-h-11 items-center gap-2 py-1 text-sm">
+            <input
+              type="checkbox"
+              name="browser_reminder"
+              defaultChecked={browserReminderEnabled}
+              className="h-4 w-4 accent-[var(--primary)]"
+            />
+            Browser notifications
+          </label>
 
-        <label className="flex min-h-11 items-center gap-3 py-2 text-sm">
-          <input
-            type="checkbox"
-            name="email_reminder"
-            defaultChecked={emailReminderEnabled}
-            className="h-4 w-4 accent-[var(--primary)]"
-          />
-          Email reminder
-        </label>
+          <label className="flex min-h-11 items-center gap-2 py-1 text-sm">
+            <input
+              type="checkbox"
+              name="email_reminder"
+              defaultChecked={emailReminderEnabled}
+              className="h-4 w-4 accent-[var(--primary)]"
+            />
+            Email reminder
+          </label>
+
+          <label className="grid gap-1 text-sm lg:ml-auto lg:flex lg:min-h-11 lg:w-full lg:items-center lg:gap-3">
+            <span className="shrink-0">Reminder offset</span>
+            <select
+              name="reminder_offset"
+              defaultValue={String(reminderOffsetMinutes)}
+              className={`${COMPACT_UNDERLINED_FIELD_CONTROL_CLASS} lg:min-w-0 lg:flex-1`}
+            >
+              <option value="0">At scheduled start</option>
+              <option value="15">15 minutes before</option>
+              <option value="60">1 hour before</option>
+              <option value="1440">1 day before</option>
+              <option value="4320">3 days before</option>
+            </select>
+          </label>
+        </div>
+
+        <p className="text-sm leading-6 text-muted-readable">
+          Browser notifications send reminders on devices where notifications
+          are enabled.
+        </p>
       </div>
-      <p className="text-sm leading-6 text-muted-readable">
-        Browser notifications send reminders on devices where notifications are
-        enabled.
-      </p>
-
-      <SelectField
-        label="Reminder offset"
-        name="reminder_offset"
-        defaultValue={String(reminderOffsetMinutes)}
-      >
-        <option value="0">At scheduled start</option>
-        <option value="15">15 minutes before</option>
-        <option value="60">1 hour before</option>
-        <option value="1440">1 day before</option>
-        <option value="4320">3 days before</option>
-      </SelectField>
 
       <FieldError message={error} />
     </fieldset>
