@@ -92,7 +92,7 @@ export function BehaviorLogImportPanel({
             type="file"
             name="behaviorlog_file"
             accept=".behaviorlog.zip,application/zip"
-            className="min-h-11 w-full border border-line bg-background px-3 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-transparent file:px-0 file:py-1 file:text-sm file:font-bold file:text-foreground file:underline file:decoration-1 file:underline-offset-4"
+            className="min-h-11 w-full bg-background px-0 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-transparent file:px-0 file:py-1 file:text-sm file:font-bold file:text-foreground file:underline file:decoration-1 file:underline-offset-4"
           />
         </label>
         <div>
@@ -551,9 +551,9 @@ function ImportRunHistory({
         </h3>
       </div>
       {runs.length > 0 ? (
-        <ul className="mt-4 divide-y divide-line border border-line">
+        <ul className="mt-4 grid gap-3">
           {runs.map((run) => (
-            <li key={run.id} className="grid gap-2 p-4 sm:grid-cols-[1fr_auto]">
+            <li key={run.id} className="grid gap-2 py-1 sm:grid-cols-[1fr_auto]">
               <div className="min-w-0">
                 <p className="break-all text-sm font-bold text-foreground">
                   {formatImportMode(run.import_mode)} · {run.status}
@@ -565,9 +565,12 @@ function ImportRunHistory({
                   <p className="mt-2 text-sm text-accent">{run.failure_message}</p>
                 ) : null}
               </div>
-              <p className="break-all text-sm font-bold text-muted-readable">
-                {run.completed_at ? formatDateTime(run.completed_at) : "Open"}
-              </p>
+              <dl className="grid gap-x-3 gap-y-1 sm:grid-cols-[auto_minmax(0,1fr)] sm:text-right">
+                <dt className="text-sm font-bold text-foreground">Finished</dt>
+                <dd className="break-all text-sm font-bold text-muted-readable">
+                  {run.completed_at ? formatDateTime(run.completed_at) : "Open"}
+                </dd>
+              </dl>
             </li>
           ))}
         </ul>

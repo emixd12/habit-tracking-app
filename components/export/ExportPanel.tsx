@@ -86,8 +86,8 @@ export function ExportPanel({
       </section>
 
       <section aria-labelledby="export-current-title">
-        <div className="border-y border-line bg-background">
-          <div className="border-b border-line py-5 sm:py-6">
+        <div className="bg-background">
+          <div className="py-5 sm:py-6">
             <h2
               id="export-current-title"
               className="text-2xl font-bold leading-tight"
@@ -98,7 +98,7 @@ export function ExportPanel({
               {exportData.range.summaryLabel} · {exportData.timezone}
             </p>
           </div>
-          <dl className="grid sm:grid-cols-3">
+          <dl className="grid gap-2">
             <ExportStat label="Behaviors" value={exportData.behaviorCount} />
             <ExportStat label="Occurrences" value={exportData.occurrenceCount} />
             <ExportStat
@@ -146,7 +146,7 @@ export function ExportPanel({
       </section>
 
       <section
-        className="border-t border-line bg-background py-5 sm:py-6"
+        className="bg-background py-5 sm:py-6"
         aria-labelledby="export-summary-title"
       >
         <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">
@@ -183,9 +183,9 @@ function ExportStat({
   value: string | number;
 }>) {
   return (
-    <div className="border-b border-line p-4 sm:border-b-0 sm:border-r sm:last:border-r-0">
-      <dt className="text-sm font-bold text-muted-readable">{label}</dt>
-      <dd className="mt-2 break-words text-2xl font-bold leading-tight">
+    <div className="grid min-w-0 items-baseline gap-x-4 gap-y-1 sm:grid-cols-[10rem_minmax(0,1fr)]">
+      <dt className="text-sm font-bold text-foreground">{label}</dt>
+      <dd className="break-words text-sm font-bold tabular-nums text-muted-readable">
         {value}
       </dd>
     </div>
