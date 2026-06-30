@@ -2,6 +2,7 @@ import { Download } from "lucide-react";
 
 import { BehaviorLogImportPanel } from "@/components/export/BehaviorLogImportPanel";
 import { BehaviorLogRestorePanel } from "@/components/export/BehaviorLogRestorePanel";
+import { ExportRangeSelector } from "@/components/export/ExportRangeSelector";
 import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActions";
 import type { BehaviorLogImportPageData } from "@/lib/types/behaviorlog-import-ui";
 import type { BehaviorLogRestorePageData } from "@/lib/types/behaviorlog-restore-ui";
@@ -44,7 +45,7 @@ export function ExportPanel({
   return (
     <div className="grid gap-8">
       <section
-        className="border-y border-line bg-background py-5 sm:py-6"
+        className="bg-background py-5 sm:py-6"
         aria-labelledby="export-options-title"
       >
         <div className="border-b border-line pb-4">
@@ -57,27 +58,10 @@ export function ExportPanel({
         </div>
 
         <form method="get" className="mt-5 grid gap-5">
-          <fieldset className="grid gap-3">
-            <legend className="text-sm font-bold text-muted-readable">
-              Range
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {exportData.rangeOptions.map((option) => (
-                <label key={option.key} className="cursor-pointer">
-                  <input
-                    type="radio"
-                    name="range"
-                    value={option.key}
-                    defaultChecked={exportData.range.key === option.key}
-                    className="peer sr-only"
-                  />
-                  <span className="inline-flex min-h-11 items-center justify-center border border-line bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors peer-checked:bg-primary peer-checked:text-primary-foreground hover:bg-surface">
-                    {option.label}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <ExportRangeSelector
+            rangeOptions={exportData.rangeOptions}
+            selectedRangeKey={exportData.range.key}
+          />
 
           <label className="flex w-fit items-start gap-3 text-sm font-bold">
             <input
@@ -103,7 +87,7 @@ export function ExportPanel({
 
       <section aria-labelledby="export-current-title">
         <div className="border-y border-line bg-background">
-          <div className="border-b border-line p-5 sm:p-6">
+          <div className="border-b border-line py-5 sm:py-6">
             <h2
               id="export-current-title"
               className="text-2xl font-bold leading-tight"
@@ -140,7 +124,7 @@ export function ExportPanel({
             <a
               key={action.format}
               href={downloadHref(action.format, exportData)}
-              className="group flex min-h-20 items-center justify-between gap-4 border-t border-line py-4 text-foreground transition-colors hover:text-foreground"
+              className="group flex min-h-20 items-center justify-between gap-4 py-4 text-foreground transition-colors hover:text-foreground"
             >
               <span className="min-w-0">
                 <span className="block break-words text-lg font-bold leading-tight underline decoration-1 underline-offset-4">
@@ -162,7 +146,7 @@ export function ExportPanel({
       </section>
 
       <section
-        className="border-y border-line bg-background py-5 sm:py-6"
+        className="border-t border-line bg-background py-5 sm:py-6"
         aria-labelledby="export-summary-title"
       >
         <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">
@@ -173,9 +157,6 @@ export function ExportPanel({
             >
               AI summary
             </h2>
-            <p className="mt-2 text-sm font-bold text-muted-readable">
-              {exportData.markdownFileName}
-            </p>
           </div>
           <MarkdownSummaryActions
             summary={exportData.markdownSummary}

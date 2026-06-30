@@ -59,7 +59,7 @@ export function BehaviorLogRestorePanel({
   return (
     <section
       id="behaviorlog-restore"
-      className="scroll-mt-20 border-y border-line bg-background py-5 sm:py-6"
+      className="scroll-mt-20 border-b border-line bg-background py-5 sm:py-6"
       aria-labelledby="behaviorlog-restore-title"
     >
       <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">
@@ -91,7 +91,7 @@ export function BehaviorLogRestorePanel({
             type="file"
             name="restore_behaviorlog_file"
             accept=".behaviorlog.zip,application/zip"
-            className="min-h-11 w-full border border-line bg-background px-3 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-transparent file:px-0 file:py-1 file:text-sm file:font-bold file:text-foreground file:underline file:decoration-1 file:underline-offset-4"
+            className="min-h-11 w-full bg-background px-0 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-transparent file:px-0 file:py-1 file:text-sm file:font-bold file:text-foreground file:underline file:decoration-1 file:underline-offset-4"
           />
         </label>
         <div>
@@ -397,7 +397,7 @@ function RestoreRunHistory({
   runs: BehaviorLogRestoreRunView[];
 }>) {
   return (
-    <section className="mt-6 border-t border-line pt-5" aria-labelledby="restore-runs-title">
+    <section className="mt-6" aria-labelledby="restore-runs-title">
       <div className="flex items-center gap-2">
         <History aria-hidden="true" size={18} strokeWidth={2} />
         <h3 id="restore-runs-title" className="text-xl font-bold leading-tight">
@@ -426,7 +426,7 @@ function RestoreRunHistory({
           ))}
         </ul>
       ) : (
-        <p className="mt-4 border-t border-line pt-4 text-sm font-bold text-muted-readable">
+        <p className="mt-4 text-sm font-bold text-muted-readable">
           No restore runs yet.
         </p>
       )}

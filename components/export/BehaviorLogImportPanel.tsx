@@ -60,7 +60,7 @@ export function BehaviorLogImportPanel({
   return (
     <section
       id="behaviorlog-import"
-      className="scroll-mt-20 border-y border-line bg-background py-5 sm:py-6"
+      className="scroll-mt-20 border-b border-line bg-background py-5 sm:py-6"
       aria-labelledby="behaviorlog-import-title"
     >
       <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">
