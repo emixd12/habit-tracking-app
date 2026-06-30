@@ -1,13 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  GitMerge,
-  History,
-  Upload,
-} from "lucide-react";
 
 import { submitBehaviorLogImportAction } from "@/app/(app)/export/actions";
 import type {
@@ -63,16 +56,17 @@ export function BehaviorLogImportPanel({
       className="scroll-mt-20 border-b border-line bg-background py-5 sm:py-6"
       aria-labelledby="behaviorlog-import-title"
     >
-      <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2
+          <h3
             id="behaviorlog-import-title"
-            className="text-2xl font-bold leading-tight"
+            className="text-xl font-bold leading-tight"
           >
-            Import
-          </h2>
+            BehaviorLog import
+          </h3>
           <p className="mt-2 text-sm font-bold text-muted-readable">
-            BehaviorLog bundle
+            Preview a bundle, review safety details, and apply supported
+            create or merge actions.
           </p>
         </div>
         {state.upload ? (
@@ -99,9 +93,8 @@ export function BehaviorLogImportPanel({
           <button
             type="submit"
             disabled={isPending}
-            className="product-action product-action-primary min-h-11 gap-2 py-2 text-sm font-bold"
+            className="product-action product-action-primary min-h-11 py-2 text-sm font-bold"
           >
-            <Upload aria-hidden="true" size={18} strokeWidth={2} />
             Preview import
           </button>
         </div>
@@ -476,9 +469,8 @@ function ApplyForm({
       <button
         type="submit"
         disabled={disabled}
-        className="product-action product-action-primary min-h-11 w-fit gap-2 py-2 text-sm font-bold"
+        className="product-action product-action-primary min-h-11 w-fit py-2 text-sm font-bold"
       >
-        <GitMerge aria-hidden="true" size={18} strokeWidth={2} />
         {buttonLabel}
       </button>
     </form>
@@ -491,16 +483,14 @@ function ImportMessage({
   state: BehaviorLogImportActionState;
 }>) {
   const isError = state.status === "error";
-  const Icon = isError ? AlertTriangle : CheckCircle2;
 
   return (
     <div
-      className={`mt-5 flex items-start gap-3 border-t border-line pt-4 text-sm font-bold ${
+      className={`mt-5 border-t border-line pt-4 text-sm font-bold ${
         isError ? "text-accent" : "text-foreground"
       }`}
       role={isError ? "alert" : "status"}
     >
-      <Icon aria-hidden="true" size={18} strokeWidth={2} className="mt-0.5" />
       <p>{state.message}</p>
     </div>
   );
@@ -513,10 +503,7 @@ function ApplyResult({
 }>) {
   return (
     <section className="mt-5 border-t border-line pt-4">
-      <div className="flex items-center gap-2">
-        <CheckCircle2 aria-hidden="true" size={18} strokeWidth={2} />
-        <h3 className="text-lg font-bold leading-tight">Applied</h3>
-      </div>
+      <h3 className="text-lg font-bold leading-tight">Applied</h3>
       <dl className="mt-4 grid gap-0 border border-line bg-background sm:grid-cols-2 lg:grid-cols-4">
         <SummaryStat label="Behaviors" value={result.created.behaviors} />
         <SummaryStat label="Schedules" value={result.created.schedules} />
@@ -543,13 +530,10 @@ function ImportRunHistory({
   runs: BehaviorLogImportRunView[];
 }>) {
   return (
-    <section className="mt-6 border-t border-line pt-5" aria-labelledby="import-runs-title">
-      <div className="flex items-center gap-2">
-        <History aria-hidden="true" size={18} strokeWidth={2} />
-        <h3 id="import-runs-title" className="text-xl font-bold leading-tight">
-          Recent imports
-        </h3>
-      </div>
+    <section className="mt-6" aria-labelledby="import-runs-title">
+      <h3 id="import-runs-title" className="text-xl font-bold leading-tight">
+        Recent imports
+      </h3>
       {runs.length > 0 ? (
         <ul className="mt-4 grid gap-3">
           {runs.map((run) => (

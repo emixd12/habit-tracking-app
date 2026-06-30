@@ -10,7 +10,7 @@ describe("app navigation", () => {
     expect(APP_NAV_ITEMS.map((item) => item.label)).toEqual([
       "Timeline",
       "Behaviors",
-      "Export",
+      "Export & Import",
       "Settings",
     ]);
   });

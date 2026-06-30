@@ -96,7 +96,7 @@ Mobile behavior:
 Primary navigation:
 1. Timeline
 2. Behaviors
-3. Export
+3. Export & Import
 4. Settings
 
 The default authenticated route is:
@@ -360,9 +360,9 @@ Behavior date review should:
 
 Category-level counts can appear as a compact secondary section.
 
-## Export flow
+## Export & Import flow
 
-The Export screen supports:
+The `/export` screen is labeled Export & Import. It supports:
 - JSONL
 - CSV
 - Full JSON backup
@@ -380,9 +380,10 @@ Export options:
 - Last 90 days
 - All time
 - Include archived behaviors
+- Include occurrence notes, off by default
 
 BehaviorLog import flow:
-1. Upload a `.behaviorlog.zip` bundle from the Export screen.
+1. Upload a `.behaviorlog.zip` bundle from the Export & Import screen.
 2. Review validation errors, warnings, conflicts, privacy notes, note
    sensitivity warnings, intervention preview counts, passive imported
    intervention storage counts, dropped/redacted intervention field summaries,
@@ -418,7 +419,7 @@ sensitivity acknowledgement when relevant, and stale-preview refusal before any
 destructive write.
 
 BehaviorLog restore apply flow:
-1. Start from a valid restore preview on the Export screen.
+1. Start from a valid restore preview on the Export & Import screen.
 2. Confirm that a fresh backup was created or downloaded.
 3. Type `RESTORE`.
 4. Acknowledge high or restricted note sensitivity when the preview contains
@@ -437,7 +438,7 @@ Imported intervention promotion is separate from the Export import apply flow.
 When exposed, it must require explicit selection of stored
 `imported_interventions` rows and a separate confirmation before any operational
 `reminder_deliveries` rows are created or linked. It should not be added to the
-Export screen unless a scoped UI ticket calls for it.
+Export & Import screen unless a scoped UI ticket calls for it.
 
 ## Settings flow
 

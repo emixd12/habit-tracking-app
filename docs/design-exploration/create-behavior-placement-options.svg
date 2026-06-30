@@ -1,0 +1,251 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="2200" viewBox="0 0 1700 2200" role="img" aria-labelledby="title desc">
+  <title id="title">Cadence create behavior placement options</title>
+  <desc id="desc">Five interface mockups exploring placement and layout options for the Create behavior action on the Behaviors screen.</desc>
+  <defs>
+    <style>
+      .page { fill: #FDFCFB; }
+      .surface { fill: #F4F5F6; }
+      .ink { fill: #0A0B0C; }
+      .muted { fill: #626C75; }
+      .line { stroke: #D3D7DB; stroke-width: 1; }
+      .blue { fill: #3572B3; }
+      .blueText { fill: #3572B3; }
+      .whiteText { fill: #FDFCFB; }
+      .rust { fill: #C84A31; }
+      .panelTitle { font: 400 22px/1.25 Arial, Helvetica, sans-serif; fill: #0A0B0C; }
+      .h1 { font: 400 28px/1.25 Arial, Helvetica, sans-serif; fill: #0A0B0C; }
+      .h2 { font: 400 20px/1.25 Arial, Helvetica, sans-serif; fill: #0A0B0C; }
+      .body { font: 400 14px/1.45 Arial, Helvetica, sans-serif; fill: #0A0B0C; }
+      .small { font: 400 12px/1.35 Arial, Helvetica, sans-serif; fill: #626C75; }
+      .label { font: 400 11px/1.2 Arial, Helvetica, sans-serif; fill: #626C75; letter-spacing: 0.8px; }
+      .action { font: 400 13px/1.25 Arial, Helvetica, sans-serif; fill: #0A0B0C; text-decoration: underline; }
+      .actionWhite { font: 400 13px/1.25 Arial, Helvetica, sans-serif; fill: #FDFCFB; }
+      .metric { font: 400 34px/1 Arial, Helvetica, sans-serif; fill: #0A0B0C; }
+      .caption { font: 400 13px/1.4 Arial, Helvetica, sans-serif; fill: #626C75; }
+      .tiny { font: 400 10px/1.25 Arial, Helvetica, sans-serif; fill: #626C75; }
+      .mono { font: 400 11px/1.25 Arial, Helvetica, sans-serif; fill: #626C75; }
+      .shadowless { filter: none; }
+    </style>
+    <pattern id="heat" width="24" height="24" patternUnits="userSpaceOnUse">
+      <rect width="20" height="20" fill="#3572B3" opacity="0.92"/>
+    </pattern>
+    <symbol id="rail" viewBox="0 0 48 560">
+      <rect width="48" height="560" fill="#FDFCFB"/>
+      <line x1="47.5" y1="0" x2="47.5" y2="560" class="line"/>
+      <circle cx="24" cy="28" r="10" fill="#3572B3" opacity="0.9"/>
+      <rect x="17" y="84" width="14" height="14" fill="none" stroke="#0A0B0C" stroke-width="1.5"/>
+      <path d="M17 132h14M17 137h14M17 142h9" stroke="#0A0B0C" stroke-width="1.5" fill="none"/>
+      <path d="M17 184h14M20 181v6M28 181v6" stroke="#0A0B0C" stroke-width="1.5" fill="none"/>
+      <circle cx="24" cy="232" r="7" fill="none" stroke="#0A0B0C" stroke-width="1.5"/>
+    </symbol>
+    <symbol id="banner" viewBox="0 0 650 28">
+      <path d="M0 13C48 2 92 2 138 13S234 24 286 12 378 0 432 12 538 24 650 9" fill="none" stroke="#3572B3" stroke-opacity="0.22" stroke-width="1.5"/>
+      <path d="M0 20C54 9 102 8 156 18S256 25 304 13 394 6 452 17 556 24 650 15" fill="none" stroke="#3572B3" stroke-opacity="0.18" stroke-width="1.5"/>
+      <circle cx="136" cy="18" r="4" fill="#C84A31"/>
+      <circle cx="322" cy="12" r="4" fill="#3572B3"/>
+      <circle cx="518" cy="13" r="4" fill="#C84A31"/>
+    </symbol>
+    <symbol id="overall" viewBox="0 0 540 180">
+      <text x="0" y="24" class="h2">Overall adherence</text>
+      <text x="0" y="76" class="metric">64.7%</text>
+      <text x="0" y="100" class="small">Range: Jun 1-30, 2026</text>
+      <text x="0" y="135" class="small">Completed</text>
+      <text x="150" y="135" class="small">112</text>
+      <text x="0" y="160" class="small">Not Completed</text>
+      <text x="150" y="160" class="small">61</text>
+      <text x="315" y="26" class="small">7 days</text>
+      <text x="370" y="26" class="ink small">30 days</text>
+      <text x="440" y="26" class="small">90 days</text>
+      <g transform="translate(315 50)">
+        <rect x="0" y="0" width="20" height="20" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="26" y="0" width="20" height="20" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="52" y="0" width="20" height="20" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="78" y="0" width="20" height="20" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="104" y="0" width="20" height="20" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="130" y="0" width="20" height="20" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="156" y="0" width="20" height="20" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="0" y="26" width="20" height="20" fill="#7DA6CF" stroke="#D3D7DB"/>
+        <rect x="26" y="26" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="52" y="26" width="20" height="20" fill="#7DA6CF" stroke="#D3D7DB"/>
+        <rect x="78" y="26" width="20" height="20" fill="#7DA6CF" stroke="#D3D7DB"/>
+        <rect x="104" y="26" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="130" y="26" width="20" height="20" fill="#AFC8E0" stroke="#D3D7DB"/>
+        <rect x="156" y="26" width="20" height="20" fill="#F4F5F6" stroke="#D3D7DB"/>
+        <rect x="0" y="52" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="26" y="52" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="52" y="52" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="78" y="52" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="104" y="52" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="130" y="52" width="20" height="20" fill="#AFC8E0" stroke="#D3D7DB"/>
+        <rect x="156" y="52" width="20" height="20" fill="#C84A31" stroke="#D3D7DB"/>
+        <rect x="0" y="78" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="26" y="78" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="52" y="78" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="78" y="78" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="104" y="78" width="20" height="20" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="130" y="78" width="20" height="20" fill="#AFC8E0" stroke="#D3D7DB"/>
+        <rect x="156" y="78" width="20" height="20" fill="#F4F5F6" stroke="#D3D7DB"/>
+      </g>
+    </symbol>
+    <symbol id="behaviorRows" viewBox="0 0 540 215">
+      <text x="0" y="25" class="h2">Active behaviors</text>
+      <line x1="0" y1="44" x2="540" y2="44" class="line"/>
+      <text x="0" y="82" class="body">Clean Invisalign</text>
+      <text x="0" y="113" class="small">Adherence</text>
+      <text x="120" y="113" class="small">85.7%</text>
+      <text x="0" y="138" class="small">Completed</text>
+      <text x="120" y="138" class="small">18</text>
+      <text x="0" y="163" class="small">Not Completed</text>
+      <text x="120" y="163" class="small">3</text>
+      <g transform="translate(350 70)">
+        <rect x="0" y="0" width="22" height="22" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="26" y="0" width="22" height="22" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="52" y="0" width="22" height="22" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="78" y="0" width="22" height="22" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="104" y="0" width="22" height="22" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="130" y="0" width="22" height="22" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="156" y="0" width="22" height="22" fill="#FDFCFB" stroke="#D3D7DB"/>
+        <rect x="0" y="26" width="22" height="22" fill="#F4F5F6" stroke="#D3D7DB"/>
+        <rect x="26" y="26" width="22" height="22" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="52" y="26" width="22" height="22" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="78" y="26" width="22" height="22" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="104" y="26" width="22" height="22" fill="#3572B3" stroke="#D3D7DB"/>
+        <rect x="130" y="26" width="22" height="22" fill="#C84A31" stroke="#D3D7DB"/>
+        <rect x="156" y="26" width="22" height="22" fill="#3572B3" stroke="#D3D7DB"/>
+      </g>
+      <line x1="0" y1="190" x2="540" y2="190" class="line"/>
+      <text x="0" y="212" class="body">Weigh and Take Body Measurements</text>
+    </symbol>
+    <symbol id="formMini" viewBox="0 0 360 210">
+      <text x="0" y="22" class="h2">Create behavior</text>
+      <text x="0" y="54" class="label">TITLE</text>
+      <rect x="0" y="66" width="340" height="34" fill="#FDFCFB" stroke="#D3D7DB"/>
+      <text x="12" y="88" class="small">Stretch</text>
+      <text x="0" y="126" class="label">SCHEDULE</text>
+      <rect x="0" y="138" width="104" height="34" fill="#3572B3"/>
+      <text x="18" y="160" class="actionWhite">Daily</text>
+      <rect x="112" y="138" width="104" height="34" fill="#FDFCFB" stroke="#D3D7DB"/>
+      <text x="130" y="160" class="small">Weekly</text>
+      <rect x="224" y="138" width="116" height="34" fill="#FDFCFB" stroke="#D3D7DB"/>
+      <text x="242" y="160" class="small">Monthly</text>
+      <text x="0" y="202" class="action">Save behavior</text>
+    </symbol>
+  </defs>
+
+  <rect width="1700" height="2200" fill="#F4F5F6"/>
+  <!-- Option 1 -->
+  <g transform="translate(70 70)">
+    <rect width="730" height="620" class="page" stroke="#D3D7DB"/>
+    <text x="0" y="-18" class="panelTitle">1. Header action, inline form</text>
+    <use href="#rail" x="0" y="0" width="48" height="620"/>
+    <use href="#banner" x="80" y="8" width="610" height="28"/>
+    <text x="112" y="86" class="h1">Behaviors</text>
+    <text x="575" y="86" class="action">+ Create behavior</text>
+    <line x1="112" y1="112" x2="680" y2="112" class="line"/>
+    <use href="#overall" x="112" y="150" width="540" height="180"/>
+    <use href="#behaviorRows" x="112" y="380" width="540" height="215"/>
+  </g>
+
+  <!-- Option 2 -->
+  <g transform="translate(870 70)">
+    <rect width="730" height="620" class="page" stroke="#D3D7DB"/>
+    <text x="0" y="-18" class="panelTitle">2. Floating action, modal form</text>
+    <use href="#rail" x="0" y="0" width="48" height="620"/>
+    <use href="#banner" x="80" y="8" width="610" height="28"/>
+    <text x="112" y="86" class="h1">Behaviors</text>
+    <line x1="112" y1="112" x2="680" y2="112" class="line"/>
+    <use href="#overall" x="112" y="150" width="540" height="180" opacity="0.55"/>
+    <use href="#behaviorRows" x="112" y="380" width="540" height="215" opacity="0.55"/>
+    <rect x="0" y="0" width="730" height="620" fill="#0A0B0C" opacity="0.36"/>
+    <rect x="207" y="86" width="372" height="440" class="page" stroke="#D3D7DB"/>
+    <text x="235" y="130" class="h2">Create behavior</text>
+    <text x="548" y="130" class="body">x</text>
+    <use href="#formMini" x="235" y="168" width="320" height="190"/>
+    <rect x="465" y="548" width="198" height="54" class="blue"/>
+    <text x="487" y="580" class="actionWhite">+ Create behavior</text>
+  </g>
+
+  <!-- Option 3 -->
+  <g transform="translate(70 760)">
+    <rect width="730" height="620" class="page" stroke="#D3D7DB"/>
+    <text x="0" y="-18" class="panelTitle">3. Right side sheet, page remains visible</text>
+    <use href="#rail" x="0" y="0" width="48" height="620"/>
+    <use href="#banner" x="80" y="8" width="610" height="28"/>
+    <text x="112" y="86" class="h1">Behaviors</text>
+    <text x="553" y="86" class="action">Create behavior</text>
+    <line x1="112" y1="112" x2="680" y2="112" class="line"/>
+    <use href="#overall" x="112" y="150" width="420" height="140" opacity="0.72"/>
+    <use href="#behaviorRows" x="112" y="350" width="420" height="170" opacity="0.72"/>
+    <rect x="455" y="0" width="275" height="620" fill="#FDFCFB" stroke="#D3D7DB"/>
+    <text x="482" y="64" class="h2">Create behavior</text>
+    <text x="690" y="64" class="body">x</text>
+    <text x="482" y="102" class="small">Keeps review context visible.</text>
+    <text x="482" y="150" class="label">TITLE</text>
+    <rect x="482" y="164" width="205" height="34" fill="#FDFCFB" stroke="#D3D7DB"/>
+    <text x="494" y="186" class="small">Laundry</text>
+    <text x="482" y="232" class="label">RECURRENCE</text>
+    <rect x="482" y="246" width="92" height="34" class="blue"/>
+    <text x="504" y="268" class="actionWhite">Daily</text>
+    <rect x="582" y="246" width="105" height="34" fill="#FDFCFB" stroke="#D3D7DB"/>
+    <text x="608" y="268" class="small">Weekly</text>
+    <text x="482" y="326" class="label">TIME</text>
+    <rect x="482" y="340" width="205" height="34" fill="#FDFCFB" stroke="#D3D7DB"/>
+    <text x="494" y="362" class="small">Morning</text>
+    <text x="482" y="424" class="action">Save behavior</text>
+  </g>
+
+  <!-- Option 4 -->
+  <g transform="translate(870 760)">
+    <rect width="730" height="620" class="page" stroke="#D3D7DB"/>
+    <text x="0" y="-18" class="panelTitle">4. Active-list header action</text>
+    <use href="#rail" x="0" y="0" width="48" height="620"/>
+    <use href="#banner" x="80" y="8" width="610" height="28"/>
+    <text x="112" y="86" class="h1">Behaviors</text>
+    <line x1="112" y1="112" x2="680" y2="112" class="line"/>
+    <use href="#overall" x="112" y="150" width="540" height="180"/>
+    <text x="112" y="390" class="h2">Active behaviors</text>
+    <text x="558" y="390" class="action">+ Create behavior</text>
+    <line x1="112" y1="410" x2="680" y2="410" class="line"/>
+    <text x="112" y="455" class="body">Clean Invisalign</text>
+    <text x="112" y="486" class="small">Adherence</text>
+    <text x="232" y="486" class="small">85.7%</text>
+    <g transform="translate(462 442)">
+      <rect x="0" y="0" width="22" height="22" fill="#FDFCFB" stroke="#D3D7DB"/>
+      <rect x="26" y="0" width="22" height="22" fill="#3572B3" stroke="#D3D7DB"/>
+      <rect x="52" y="0" width="22" height="22" fill="#3572B3" stroke="#D3D7DB"/>
+      <rect x="78" y="0" width="22" height="22" fill="#3572B3" stroke="#D3D7DB"/>
+      <rect x="104" y="0" width="22" height="22" fill="#C84A31" stroke="#D3D7DB"/>
+    </g>
+    <line x1="112" y1="535" x2="680" y2="535" class="line"/>
+    <text x="112" y="570" class="body">Weigh and Take Body Measurements</text>
+  </g>
+
+  <!-- Option 5 -->
+  <g transform="translate(70 1450)">
+    <rect width="1530" height="620" class="page" stroke="#D3D7DB"/>
+    <text x="0" y="-18" class="panelTitle">5. Compact create band, expands inline</text>
+    <use href="#rail" x="0" y="0" width="48" height="620"/>
+    <use href="#banner" x="90" y="8" width="1360" height="28"/>
+    <text x="112" y="86" class="h1">Behaviors</text>
+    <line x1="112" y1="112" x2="1450" y2="112" class="line"/>
+    <rect x="112" y="142" width="1338" height="62" fill="#F4F5F6" stroke="#D3D7DB"/>
+    <text x="138" y="178" class="h2">Create behavior</text>
+    <text x="300" y="178" class="small">Add a recurring behavior with a schedule and reminders.</text>
+    <text x="1310" y="178" class="action">Open form</text>
+    <g transform="translate(112 238)">
+      <use href="#overall" x="0" y="0" width="540" height="180"/>
+      <g transform="translate(720 0)">
+        <text x="0" y="24" class="h2">Open state preview</text>
+        <line x1="0" y1="44" x2="520" y2="44" class="line"/>
+        <use href="#formMini" x="0" y="72" width="360" height="210"/>
+        <text x="390" y="96" class="small">Opens below the band.</text>
+        <text x="390" y="132" class="small">Collapses after save.</text>
+        <text x="390" y="168" class="small">Mobile stacks fields.</text>
+      </g>
+      <line x1="0" y1="430" x2="1338" y2="430" class="line"/>
+      <text x="0" y="475" class="h2">Active behaviors</text>
+      <text x="0" y="520" class="body">Clean Invisalign</text>
+      <text x="0" y="552" class="small">Details and Settings</text>
+    </g>
+  </g>
+</svg>

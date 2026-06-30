@@ -64,6 +64,13 @@ components:
     rounded: "{rounded.none}"
     padding: "0"
     textDecoration: "underline"
+  button-danger:
+    backgroundColor: "transparent"
+    textColor: "{colors.accent}"
+    typography: "{typography.label}"
+    rounded: "{rounded.none}"
+    padding: "0"
+    textDecoration: "underline"
   input-field:
     backgroundColor: "{colors.background}"
     textColor: "{colors.text}"
@@ -216,6 +223,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Primitive:** Text on a transparent background with a thin underline. This is the default action/link vocabulary in the design-system harness and for lightweight product actions.
 - **Primary:** Ink Black text, underline, Label typography, and no perimeter box.
 - **Secondary:** Readable Ash text, underline, Label typography, and no perimeter box.
+- **Danger:** Rust Signal text, underline, Label typography, and no perimeter box. Use for factual destructive or caution actions such as Archive behavior.
 - **Reserved fills:** Use filled button surfaces only for selected controls, destructive confirmations, fixed high-priority actions such as Needs decision, and cases where the target needs a larger touch surface.
 - **Hover / Focus:** Hover may add non-reflowing text emphasis or shift secondary actions to Ink Black. Focus must use a visible 2px outline with offset.
 
@@ -246,7 +254,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Recurrence presets:** Segmented radio labels use Monolith Blue fill only for the selected preset. Weekday choices use square bordered checkbox chips.
 - **Reminder section:** Render as an unframed form section matching Recurrence, with a plain section heading, bordered checkbox controls, and smaller muted subsection labels such as Reminder offset.
 - **Create behavior:** Keep the creation form available from the Behaviors page without making existing behavior records secondary. When records already exist, use a simple native disclosure; when no records exist, the disclosure may open by default.
-- **Behavior records:** Active records are unboxed list rows separated by a single 1px Ash Line divider between adjacent records. They keep 20px padding, visible range-based adherence, Completed and Not Completed counts, and a per-behavior calendar sized to the row. Lower-use behavior characteristics such as category, schedule, recurrence, reminders, and description live inside the row's Details and Settings disclosure with the edit form. Archive behavior appears at the end of that settings area. Create and edit forms use real field/control borders only; schedule slots use quiet row dividers instead of perimeter boxes.
+- **Behavior records:** Active records are unboxed list rows separated by a single 1px Ash Line divider between adjacent records. They keep 20px padding, visible range-based adherence, Completed and Not Completed counts, and a per-behavior calendar sized to the row. Lower-use behavior characteristics such as category, schedule, recurrence, reminders, and description live inside the row's Details and Settings disclosure with the edit form. Archive behavior appears at the end of that settings area and aligns to the opposite side of the Save/Cancel footer row on desktop. Create and edit forms use real field/control borders only; schedule slots use quiet row dividers instead of perimeter boxes.
 - **Behavior date review:** Selecting a non-empty behavior calendar cell opens a quiet row-level review area for dated occurrence records. Date of behavior, Time of behavior, Status, and Note render as plain detail rows. Date and time are display-only. Status and Note correction controls stay hidden behind a per-occurrence Review disclosure.
 - **Archived behaviors:** Archived records stay out of the active behavior feed and live behind a low-priority bottom disclosure with a count. Restore uses the primary text-action treatment.
 - **Archive and restore actions:** Archive behavior uses a factual Rust Signal underlined action at the end of Details and Settings for active records. Archived records stay visible with a neutral square label and a factual Restore action using the primary text-action treatment.
@@ -280,7 +288,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 ### Behavior Review Heatmaps
 
-- **Behavior review structure:** Overall adherence sits near the top of Behaviors with the active range selector directly above the overall calendar inside that same area. The selected date range sits under the adherence percentage in compact month-day wording. Review sections are unboxed report bands separated by single horizontal dividers where needed, not perimeter panel borders.
+- **Behavior review structure:** Overall adherence sits near the top of Behaviors with the active range selector directly above the overall calendar inside that same area. The overall adherence label and percentage share one header line, with the percentage on the opposite side; the selected date range sits directly underneath in compact muted month-day wording. Review sections are unboxed report bands separated by single horizontal dividers where needed, not perimeter panel borders.
 - **Calendar legend:** The overall calendar legend stays visible and vertically listed to the right of the calendar on desktop.
 - **Top summary unresolved count:** When nonzero, match the Timeline Needs decision count by counting only active unresolved occurrences before the current local day, regardless of the selected Behaviors range. Hide the top summary Unresolved row when the count is zero. Current-day unresolved occurrences may still show in heatmap cells and behavior date review rows, but per-behavior and category count grids do not render an Unresolved row.
 - **Completion-intensity cells:** Overall calendar cells mix Monolith Blue with Bleached Newsprint by completed share: 100% uses full Monolith Blue, 50% uses a half-strength blue, and lower shares keep fading toward the background.
@@ -292,9 +300,9 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 ### Export Panels
 
-- **Export structure:** Options, current export counts, downloads, and AI summary stack as separate sections. Keep range and archived-behavior controls at the top so every download reflects the same selected state.
+- **Export structure:** Options, downloads, and AI summary stack as separate sections. Keep range, selected-range scope counts, archived-behavior controls, and note controls at the top so every download reflects the same selected state.
 - **Range controls:** Use underlined text-action choices for 7 days, 30 days, 90 days, and All time. Selected range uses Ink Black text. Inactive range choices use Readable Ash. The archived-behavior option uses a plain checkbox.
-- **Download actions:** JSONL, CSV, and full JSON backup use divider-separated underlined text links with a download icon and file extension. Avoid explanatory card grids or restore/import promises in the UI.
+- **Download actions:** JSONL, CSV, full JSON backup, and BehaviorLog bundle use compact two-column label/action rows with the file extension next to the format name. Avoid explanatory card grids, icons, or restore/import promises in the UI.
 - **AI summary:** Show a Markdown preview in a Cold Surface preformatted panel, with Copy summary and Download .md controls above it. The preview uses resolver-produced content; the UI does not calculate adherence or format export rows.
 - **BehaviorLog import:** Keep import preview sparse and ledger-like. Show privacy warnings, imported-note record counts, inline occurrence-note fill counts, and intervention preview counts before apply. High or restricted note sensitivity requires a separate checkbox acknowledgement. Do not add a generalized note browser here.
 

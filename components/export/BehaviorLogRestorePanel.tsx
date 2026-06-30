@@ -1,14 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  FileWarning,
-  History,
-  RotateCcw,
-  Upload,
-} from "lucide-react";
 
 import { submitBehaviorLogRestoreAction } from "@/app/(app)/export/actions";
 import type {
@@ -59,19 +51,19 @@ export function BehaviorLogRestorePanel({
   return (
     <section
       id="behaviorlog-restore"
-      className="scroll-mt-20 border-b border-line bg-background py-5 sm:py-6"
+      className="scroll-mt-20 bg-background py-5 sm:py-6"
       aria-labelledby="behaviorlog-restore-title"
     >
       <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2
+          <h3
             id="behaviorlog-restore-title"
-            className="text-2xl font-bold leading-tight"
+            className="text-xl font-bold leading-tight"
           >
-            Restore
-          </h2>
+            BehaviorLog restore
+          </h3>
           <p className="mt-2 text-sm font-bold text-muted-readable">
-            BehaviorLog preview and apply
+            Preview a trusted bundle before any restore apply confirmation.
           </p>
         </div>
         {state.upload ? (
@@ -98,9 +90,8 @@ export function BehaviorLogRestorePanel({
           <button
             type="submit"
             disabled={isPending}
-            className="product-action product-action-primary min-h-11 gap-2 py-2 text-sm font-bold"
+            className="product-action product-action-primary min-h-11 py-2 text-sm font-bold"
           >
-            <Upload aria-hidden="true" size={18} strokeWidth={2} />
             Preview restore
           </button>
         </div>
@@ -146,9 +137,8 @@ export function BehaviorLogRestorePreviewDetails({
         </dl>
         <div
           data-testid="restore-destructive-count"
-          className="mt-4 flex items-start gap-3 border-t border-line pt-4 text-sm font-bold"
+          className="mt-4 border-t border-line pt-4 text-sm font-bold"
         >
-          <FileWarning aria-hidden="true" size={18} strokeWidth={2} />
           <p>{preview.summary.destructiveActionCount} destructive action(s).</p>
         </div>
       </section>
@@ -334,9 +324,8 @@ function RestoreApplyControls({
           data-testid="restore-apply-button"
           type="submit"
           disabled={disabled}
-          className="product-action product-action-primary min-h-11 w-fit gap-2 py-2 text-sm font-bold"
+          className="product-action product-action-primary min-h-11 w-fit py-2 text-sm font-bold"
         >
-          <RotateCcw aria-hidden="true" size={18} strokeWidth={2} />
           Apply restore
         </button>
       </form>
@@ -350,16 +339,14 @@ function RestoreMessage({
   state: BehaviorLogRestoreActionState;
 }>) {
   const isError = state.status === "error";
-  const Icon = isError ? AlertTriangle : CheckCircle2;
 
   return (
     <div
-      className={`mt-5 flex items-start gap-3 border-t border-line pt-4 text-sm font-bold ${
+      className={`mt-5 border-t border-line pt-4 text-sm font-bold ${
         isError ? "text-accent" : "text-foreground"
       }`}
       role={isError ? "alert" : "status"}
     >
-      <Icon aria-hidden="true" size={18} strokeWidth={2} className="mt-0.5" />
       <p>{state.message}</p>
     </div>
   );
@@ -378,10 +365,7 @@ function RestoreApplyResult({
 
   return (
     <section className="mt-5 border-t border-line pt-4">
-      <div className="flex items-center gap-2">
-        <CheckCircle2 aria-hidden="true" size={18} strokeWidth={2} />
-        <h3 className="text-lg font-bold leading-tight">Restore applied</h3>
-      </div>
+      <h3 className="text-lg font-bold leading-tight">Restore applied</h3>
       <dl className="mt-4 grid gap-0 border border-line bg-background sm:grid-cols-2 lg:grid-cols-4">
         {Object.entries(result.appliedCounts).map(([label, value]) => (
           <SummaryStat key={label} label={label} value={value} />
@@ -398,12 +382,9 @@ function RestoreRunHistory({
 }>) {
   return (
     <section className="mt-6" aria-labelledby="restore-runs-title">
-      <div className="flex items-center gap-2">
-        <History aria-hidden="true" size={18} strokeWidth={2} />
-        <h3 id="restore-runs-title" className="text-xl font-bold leading-tight">
-          Recent restores
-        </h3>
-      </div>
+      <h3 id="restore-runs-title" className="text-xl font-bold leading-tight">
+        Recent restores
+      </h3>
       {runs.length > 0 ? (
         <ul className="mt-4 divide-y divide-line border border-line">
           {runs.map((run) => (

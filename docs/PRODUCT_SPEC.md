@@ -44,7 +44,7 @@ restructuring is not implied by this document alone. See
 
 1. Timeline
 2. Behaviors
-3. Export
+3. Export & Import
 4. Settings
 
 ## Public website scope

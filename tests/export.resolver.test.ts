@@ -121,6 +121,7 @@ function resolve(overrides: {
   reminderDeliveries?: ExportReminderDeliveryInput[];
   range?: string | number | null;
   includeArchived?: boolean;
+  includeNotes?: boolean;
 } = {}) {
   return resolveExportBundle({
     profile: {
@@ -136,6 +137,7 @@ function resolve(overrides: {
     timezone: DEFAULT_TIMEZONE,
     range: overrides.range,
     includeArchived: overrides.includeArchived,
+    includeNotes: overrides.includeNotes,
   });
 }
 
@@ -226,6 +228,7 @@ describe("resolveExportBundle", () => {
 
   it("escapes commas, quotes, and newlines in CSV cells", () => {
     const bundle = resolve({
+      includeNotes: true,
       behaviors: [
         behavior({
           id: "behavior-brush",
@@ -246,6 +249,81 @@ describe("resolveExportBundle", () => {
         "local_date,scheduled_for,schedule,behavior_title,category,status,status_marked_at,note",
         '2026-06-08,2026-06-08T09:00:00-04:00,9:00 AM,"Brush, ""teeth""","Grooming\nCare",completed,2026-06-08T09:05:00-04:00,"Line one\nLine ""two"", more"',
       ].join("\n"),
+    );
+  });
+
+  it("omits occurrence notes from every export output by default", () => {
+    const bundle = resolve({
+      occurrences: [
+        occurrence({
+          id: "occurrence-1",
+          note: "Private note about this occurrence.",
+        }),
+      ],
+    });
+    const jsonlOccurrence = bundle.jsonl
+      .split("\n")
+      .map((line) => JSON.parse(line))
+      .find((record) => record.type === "occurrence");
+    const csvRows = parseCsv(bundle.csv);
+    const fileByPath = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file]),
+    );
+    const manifest = JSON.parse(fileByPath.get("manifest.json")?.content ?? "");
+
+    expect(bundle.includeNotes).toBe(false);
+    expect(jsonlOccurrence.note).toBeNull();
+    expect(csvRows[0]?.note).toBe("");
+    expect(bundle.jsonBackup.occurrences[0]?.note).toBeNull();
+    expect(fileByPath.has("data/notes.jsonl")).toBe(false);
+    expect(manifest.privacy.contains_notes).toBe(false);
+    expect(manifest.profiles).toEqual(["core"]);
+    expect(bundle.markdownSummary).toContain("Occurrence notes: excluded");
+    expect(bundle.markdownSummary).not.toContain("## Notes");
+    expect(bundle.markdownSummary).not.toContain("Private note");
+  });
+
+  it("preserves occurrence notes when includeNotes is selected", () => {
+    const bundle = resolve({
+      includeNotes: true,
+      occurrences: [
+        occurrence({
+          id: "occurrence-1",
+          note: 'Line one\nLine "two", more',
+        }),
+      ],
+    });
+    const jsonlOccurrence = bundle.jsonl
+      .split("\n")
+      .map((line) => JSON.parse(line))
+      .find((record) => record.type === "occurrence");
+    const csvRows = parseCsv(bundle.csv);
+    const fileByPath = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file]),
+    );
+    const manifest = JSON.parse(fileByPath.get("manifest.json")?.content ?? "");
+    const notes = parseJsonl(fileByPath.get("data/notes.jsonl")?.content ?? "");
+
+    expect(bundle.includeNotes).toBe(true);
+    expect(jsonlOccurrence.note).toBe('Line one\nLine "two", more');
+    expect(csvRows[0]?.note).toBe('Line one\nLine "two", more');
+    expect(bundle.jsonBackup.occurrences[0]?.note).toBe(
+      'Line one\nLine "two", more',
+    );
+    expect(manifest.privacy.contains_notes).toBe(true);
+    expect(manifest.profiles).toEqual(["core", "notes"]);
+    expect(notes).toEqual([
+      expect.objectContaining({
+        record_type: "note",
+        attached_to_type: "occurrence",
+        attached_to_id: "occurrence-1",
+        body_markdown: 'Line one\nLine "two", more',
+      }),
+    ]);
+    expect(bundle.markdownSummary).toContain("## Notes");
+    expect(bundle.markdownSummary).toContain("Occurrence notes: included");
+    expect(bundle.markdownSummary).toContain(
+      '- 2026-06-08 - Brush teeth - 9:00 AM - completed: Line one Line "two", more',
     );
   });
 
@@ -493,6 +571,7 @@ describe("resolveExportBundle", () => {
 
   it("emits a BehaviorLog bundle with required files, hashes, status events, and notes", () => {
     const bundle = resolve({
+      includeNotes: true,
       occurrences: [
         occurrence({
           id: "occurrence-1",

@@ -1,6 +1,17 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import {
+  CalendarDays,
+  Download,
+  ListChecks,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 
 import manifestJson from "@/design-system.manifest.json";
 import surfacesJson from "@/design-system.surfaces.json";
@@ -8,11 +19,11 @@ import usageJson from "@/design-system.usage.json";
 import { BehaviorCreateSection } from "@/components/behaviors/BehaviorCreateSection";
 import { BehaviorForm } from "@/components/behaviors/BehaviorForm";
 import { BehaviorList } from "@/components/behaviors/BehaviorList";
-import { RecurrenceEditor } from "@/components/behaviors/RecurrenceEditor";
 import { ReminderEditor } from "@/components/behaviors/ReminderEditor";
 import { BehaviorLogImportPanel } from "@/components/export/BehaviorLogImportPanel";
 import { BehaviorLogRestorePanel } from "@/components/export/BehaviorLogRestorePanel";
 import { ExportPanel } from "@/components/export/ExportPanel";
+import { ExportRangeSelector } from "@/components/export/ExportRangeSelector";
 import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActions";
 import { AppShell } from "@/components/layout/AppShell";
 import {
@@ -20,7 +31,17 @@ import {
   ScreenContentLoading,
   ScreenFrame,
 } from "@/components/layout/ScreenFrame";
+import { FirstRunOnboardingPanel } from "@/components/onboarding/FirstRunOnboardingPanel";
+import {
+  AccountDeletionPanel,
+  type DeleteAccountAction,
+} from "@/components/settings/AccountDeletionPanel";
 import { NotificationPermissionPanel } from "@/components/settings/NotificationPermissionPanel";
+import {
+  TimezonePanel,
+  type TimezoneUpdateAction,
+} from "@/components/settings/TimezonePanel";
+import { TrustAndLegalPanel } from "@/components/settings/SettingsPanels";
 import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
 import { OccurrenceRow } from "@/components/timeline/OccurrenceRow";
@@ -28,7 +49,7 @@ import { StatusButtons } from "@/components/timeline/StatusButtons";
 import { Timeline } from "@/components/timeline/Timeline";
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
 import { GoogleLoginButton } from "@/app/(auth)/login/GoogleLoginButton";
-import { APP_NAV_ITEMS } from "@/lib/navigation";
+import { APP_NAV_ITEMS, type AppNavHref } from "@/lib/navigation";
 import type { AnalyticsView } from "@/lib/types/analytics";
 import type {
   BehaviorActionState,
@@ -40,6 +61,7 @@ import type {
 import type { BehaviorLogImportPageData } from "@/lib/types/behaviorlog-import-ui";
 import type { BehaviorLogRestorePageData } from "@/lib/types/behaviorlog-restore-ui";
 import type { ExportBundle } from "@/lib/types/export";
+import type { FirstRunOnboardingState } from "@/lib/types/onboarding";
 import type {
   OccurrenceActionState,
   OccurrenceFormAction,
@@ -145,8 +167,16 @@ const familyTierOrder = [
   "navigation",
   "layout",
   "pattern",
+  "flow",
   "module",
 ];
+
+const navIcons: Record<AppNavHref, LucideIcon> = {
+  "/timeline": CalendarDays,
+  "/behaviors": ListChecks,
+  "/export": Download,
+  "/settings": Settings,
+};
 
 async function benchBehaviorAction(
   previousState: BehaviorActionState,
@@ -179,6 +209,39 @@ async function benchOccurrenceAction(
     status: "success",
     message: "Bench action only. No occurrence was changed.",
     ...(nextStatus ? { nextStatus } : {}),
+  };
+}
+
+async function benchTimezoneAction(
+  previousState: Awaited<ReturnType<TimezoneUpdateAction>>,
+  formData: FormData,
+): ReturnType<TimezoneUpdateAction> {
+  "use server";
+
+  void previousState;
+
+  const timezone = String(formData.get("timezone") ?? "America/New_York");
+
+  return {
+    status: "success",
+    message: "Bench action only. No timezone was changed.",
+    timezone,
+    activeBehaviorCount: 0,
+  };
+}
+
+async function benchDeleteAccountAction(
+  previousState: Awaited<ReturnType<DeleteAccountAction>>,
+  formData: FormData,
+): ReturnType<DeleteAccountAction> {
+  "use server";
+
+  void previousState;
+  void formData;
+
+  return {
+    status: "error",
+    message: "Bench action only. No account was deleted.",
   };
 }
 
@@ -420,11 +483,14 @@ function Foundations() {
                 >
                   0px text button
                 </button>
-                <input
-                  aria-label="Square input sample"
-                  defaultValue="0px input"
-                  className="border border-line bg-background px-3 py-2 text-sm text-foreground"
-                />
+                <label className="grid gap-1 text-sm">
+                  <span>0px line field</span>
+                  <input
+                    aria-label="Square line input sample"
+                    defaultValue="0px input"
+                    className="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
+                  />
+                </label>
               </div>
             </ProductPreview>
           }
@@ -480,7 +546,7 @@ function Foundations() {
         <SectionHeading
           eyebrow="Required coverage"
           title="Primitive patterns"
-          description="The app does not have primitive component files yet, so this section shows the actual product classes used for common controls."
+          description="The app does not have primitive component files yet, so this section shows the current product classes used for common controls. Status labels live inside product modules rather than a standalone primitive."
         />
         <ProductPreview>
           <div className="grid gap-5 bg-background text-foreground">
@@ -496,6 +562,12 @@ function Foundations() {
                 className="product-action product-action-secondary min-h-11 py-2 text-sm font-bold"
               >
                 Secondary
+              </button>
+              <button
+                type="button"
+                className="product-action product-action-danger min-h-11 py-2 text-sm font-bold"
+              >
+                Danger
               </button>
               <button
                 type="button"
@@ -522,23 +594,37 @@ function Foundations() {
               </div>
             </details>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <input
-                aria-label="Primitive input sample"
-                defaultValue="Text input"
-                className="min-h-11 border border-line bg-background px-3 py-2 text-base text-foreground"
-              />
-              <select
-                aria-label="Primitive select sample"
-                defaultValue="daily"
-                className="min-h-11 border border-line bg-background px-3 py-2 text-base text-foreground"
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-              </select>
-              <span className="inline-flex min-h-11 items-center border border-line bg-surface px-3 py-2 text-sm font-bold">
-                Badge
-              </span>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-1 text-sm">
+                <span>Line input</span>
+                <input
+                  aria-label="Primitive line input sample"
+                  defaultValue="Evening reset"
+                  className="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
+                />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span>Line select</span>
+                <select
+                  aria-label="Primitive line select sample"
+                  defaultValue="daily"
+                  className="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="grid gap-2 border-t border-line pt-4">
+              <label className="grid gap-1 text-sm">
+                <span>Enclosed note field</span>
+                <textarea
+                  aria-label="Primitive enclosed note field sample"
+                  defaultValue="Enclosure is reserved for longer text, confirmation fields, and controls that need a clear boundary."
+                  className="min-h-24 border border-line bg-background px-3 py-2 text-base text-foreground"
+                />
+              </label>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -1052,42 +1138,243 @@ function buildPreviews(
 
 const behaviorAction: BehaviorFormAction = benchBehaviorAction;
 const occurrenceAction: OccurrenceFormAction = benchOccurrenceAction;
+const timezoneAction: TimezoneUpdateAction = benchTimezoneAction;
+const deleteAccountAction: DeleteAccountAction = benchDeleteAccountAction;
 
 const previewFactories: Record<string, () => ReactNode> = {
   "navigation.primary-app-nav": () => (
-    <ProductPreview>
-      <nav
-        aria-label="Primary route registry"
-        className="grid w-64 border border-line bg-card py-3"
-      >
-        {APP_NAV_ITEMS.map((item, index) => (
-          <a
-            key={item.href}
-            href={item.href}
-            className={[
-              "flex h-10 w-full items-center overflow-hidden text-sm",
-              index === 0
-                ? "bg-timeline-row-hover text-foreground"
-                : "text-muted-foreground hover:bg-surface hover:text-foreground",
-            ].join(" ")}
+    <ProductPreview maxHeight="38rem">
+      <div className="grid gap-5 bg-background text-foreground xl:grid-cols-[16rem_4rem_minmax(18rem,1fr)]">
+        <section aria-label="Expanded desktop navigation" className="grid gap-2">
+          <p className="text-sm text-muted-readable">Expanded desktop</p>
+          <nav
+            aria-label="Primary route registry expanded"
+            className="flex h-[22rem] w-64 flex-col overflow-hidden border-r border-line bg-card"
           >
-            <span className="flex h-10 w-16 shrink-0 items-center justify-center">
-              <span className="h-4 w-4 border border-current" />
-            </span>
-            <span className="min-w-0 truncate whitespace-nowrap">
-              {item.label}
-            </span>
-            <span
-              className={[
-                "ml-auto truncate px-3 text-xs",
-                index === 0 ? "text-foreground" : "text-muted-readable",
-              ].join(" ")}
+            <div className="relative grid h-16 grid-cols-[4rem_1fr] items-center">
+              <a
+                href="/timeline"
+                className="grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center text-left transition-opacity duration-150 ease-out hover:opacity-70"
+              >
+                <span className="flex h-16 w-16 items-center justify-center">
+                  <Image
+                    src="/brand/cadence-logo.png"
+                    alt=""
+                    aria-hidden="true"
+                    width={24}
+                    height={24}
+                    sizes="24px"
+                    className="h-6 w-6 object-contain"
+                  />
+                </span>
+                <span className="min-w-0 pr-12">
+                  <span className="block truncate text-lg">Cadence</span>
+                </span>
+              </a>
+              <button
+                type="button"
+                aria-label="Collapse navigation"
+                className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center hover:bg-surface"
+              >
+                <PanelLeftClose
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  strokeWidth={2}
+                />
+              </button>
+            </div>
+
+            <div className="flex flex-1 flex-col py-3">
+              {APP_NAV_ITEMS.map((item, index) => {
+                const Icon = navIcons[item.href];
+                const isActive = index === 0;
+
+                return (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={[
+                      "group flex h-10 w-full items-center overflow-hidden text-sm transition-colors",
+                      isActive
+                        ? "bg-timeline-row-hover text-foreground"
+                        : "text-muted-foreground hover:bg-surface hover:text-foreground",
+                    ].join(" ")}
+                  >
+                    <span className="flex h-10 w-16 shrink-0 items-center justify-center">
+                      <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+                    </span>
+                    <span className="min-w-0 overflow-hidden whitespace-nowrap">
+                      {item.label}
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+
+            <a
+              href="/settings"
+              className="group flex h-[60px] w-full items-center overflow-hidden border-t border-line text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
             >
-              {item.href}
-            </span>
-          </a>
-        ))}
-      </nav>
+              <span className="flex h-[60px] w-16 shrink-0 items-center justify-center">
+                <span className="flex h-8 w-8 items-center justify-center border border-line bg-background text-xs text-foreground">
+                  A
+                </span>
+              </span>
+              <span className="min-w-0 truncate">Account</span>
+            </a>
+          </nav>
+        </section>
+
+        <section aria-label="Collapsed desktop navigation" className="grid gap-2">
+          <p className="text-sm text-muted-readable">Collapsed</p>
+          <nav
+            aria-label="Primary route registry collapsed"
+            className="flex h-[22rem] w-16 flex-col overflow-hidden border-r border-line bg-card"
+          >
+            <a
+              href="/timeline"
+              aria-label="Open Timeline"
+              className="group relative flex h-16 w-16 items-center justify-center transition-opacity duration-150 ease-out hover:opacity-70"
+            >
+              <Image
+                src="/brand/cadence-logo.png"
+                alt=""
+                aria-hidden="true"
+                width={24}
+                height={24}
+                sizes="24px"
+                className="h-6 w-6 object-contain"
+              />
+              <PanelLeftOpen
+                aria-hidden="true"
+                className="absolute h-4 w-4 opacity-0"
+                strokeWidth={2}
+              />
+            </a>
+            <div className="flex flex-1 flex-col py-3">
+              {APP_NAV_ITEMS.map((item, index) => {
+                const Icon = navIcons[item.href];
+                const isActive = index === 0;
+
+                return (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    title={item.label}
+                    aria-current={isActive ? "page" : undefined}
+                    className="group flex h-10 w-full items-center overflow-hidden text-sm text-muted-foreground transition-colors"
+                  >
+                    <span
+                      className={[
+                        "flex h-10 w-16 shrink-0 items-center justify-center transition-colors group-hover:bg-surface group-hover:text-foreground",
+                        isActive ? "bg-timeline-row-hover text-foreground" : "",
+                      ].join(" ")}
+                    >
+                      <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          </nav>
+        </section>
+
+        <section aria-label="Mobile navigation" className="grid gap-2">
+          <p className="text-sm text-muted-readable">Mobile header and drawer</p>
+          <div className="grid overflow-hidden border border-line bg-background">
+            <header className="relative grid h-16 grid-cols-[minmax(0,1fr)_4rem] bg-card">
+              <a
+                href="/timeline"
+                className="grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center transition-opacity duration-150 ease-out hover:opacity-70"
+              >
+                <span className="flex h-16 w-16 items-center justify-center">
+                  <Image
+                    src="/brand/cadence-logo.png"
+                    alt=""
+                    aria-hidden="true"
+                    width={24}
+                    height={24}
+                    sizes="24px"
+                    className="h-6 w-6 object-contain"
+                  />
+                </span>
+                <span className="truncate text-lg">Cadence</span>
+              </a>
+              <button
+                type="button"
+                aria-label="Open navigation"
+                className="flex h-16 w-16 items-center justify-center hover:bg-surface"
+              >
+                <Menu aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+              </button>
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-line"
+              />
+            </header>
+
+            <div className="grid min-h-56 grid-cols-[60%_1fr] bg-foreground/10">
+              <nav
+                aria-label="Mobile drawer route registry"
+                className="flex flex-col overflow-hidden border-r border-line bg-card shadow-lg"
+              >
+                <div className="grid h-16 grid-cols-[minmax(0,1fr)_3.5rem] items-center">
+                  <a
+                    href="/timeline"
+                    className="grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center transition-opacity duration-150 ease-out hover:opacity-70"
+                  >
+                    <span className="flex h-16 w-16 items-center justify-center">
+                      <Image
+                        src="/brand/cadence-logo.png"
+                        alt=""
+                        aria-hidden="true"
+                        width={24}
+                        height={24}
+                        sizes="24px"
+                        className="h-6 w-6 object-contain"
+                      />
+                    </span>
+                    <span className="truncate pr-3 text-lg">Cadence</span>
+                  </a>
+                </div>
+                <div className="flex flex-1 flex-col py-3">
+                  {APP_NAV_ITEMS.map((item, index) => {
+                    const Icon = navIcons[item.href];
+                    const isActive = index === 0;
+
+                    return (
+                      <a
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={[
+                          "flex h-10 w-full items-center overflow-hidden text-sm transition-colors",
+                          isActive
+                            ? "bg-timeline-row-hover text-foreground"
+                            : "text-muted-foreground hover:bg-surface hover:text-foreground",
+                        ].join(" ")}
+                      >
+                        <span className="flex h-10 w-16 shrink-0 items-center justify-center">
+                          <Icon
+                            aria-hidden="true"
+                            className="h-4 w-4"
+                            strokeWidth={2}
+                          />
+                        </span>
+                        <span className="min-w-0 truncate whitespace-nowrap">
+                          {item.label}
+                        </span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </nav>
+              <div aria-hidden="true" />
+            </div>
+          </div>
+        </section>
+      </div>
     </ProductPreview>
   ),
   "layout.app-shell": () => (
@@ -1129,6 +1416,24 @@ const previewFactories: Record<string, () => ReactNode> = {
   "flow.google-login-button": () => (
       <ProductPreview>
         <GoogleLoginButton disabled nextPath="/timeline" />
+      </ProductPreview>
+    ),
+  "flow.first-run-onboarding-panel": () => (
+      <ProductPreview maxHeight="28rem">
+        <div className="relative min-h-[24rem] bg-background">
+          <FirstRunOnboardingPanel
+            onboarding={onboardingFixture}
+            storageKey="cadence-first-run-bench-dismissed"
+          />
+        </div>
+      </ProductPreview>
+    ),
+  "flow.account-deletion-panel": () => (
+      <ProductPreview>
+        <AccountDeletionPanel
+          confirmationLabel="DELETE"
+          deleteAccountAction={deleteAccountAction}
+        />
       </ProductPreview>
     ),
   "module.timeline": () => (
@@ -1229,17 +1534,20 @@ const previewFactories: Record<string, () => ReactNode> = {
         />
       </ProductPreview>
     ),
-  "module.recurrence-editor": () => (
-      <ProductPreview>
-        <RecurrenceEditor defaults={weeklyRecurrenceDefaults} />
-      </ProductPreview>
-    ),
   "module.reminder-editor": () => (
       <ProductPreview>
         <ReminderEditor
           browserReminderEnabled
           emailReminderEnabled={false}
           reminderOffsetMinutes={60}
+        />
+      </ProductPreview>
+    ),
+  "module.export-range-selector": () => (
+      <ProductPreview>
+        <ExportRangeSelector
+          rangeOptions={exportFixture.rangeOptions}
+          selectedRangeKey={exportFixture.range.key}
         />
       </ProductPreview>
     ),
@@ -1270,11 +1578,24 @@ const previewFactories: Record<string, () => ReactNode> = {
         />
       </ProductPreview>
     ),
+  "module.timezone-panel": () => (
+      <ProductPreview>
+        <TimezonePanel
+          currentTimezone="America/New_York"
+          updateTimezoneAction={timezoneAction}
+        />
+      </ProductPreview>
+    ),
   "module.notification-permission-panel": () => (
       <ProductPreview>
         <div className="grid gap-5 md:grid-cols-2">
           <NotificationPermissionPanel vapidPublicKey="" />
         </div>
+      </ProductPreview>
+  ),
+  "module.trust-and-legal-panel": () => (
+      <ProductPreview>
+        <TrustAndLegalPanel />
       </ProductPreview>
   ),
 };
@@ -1363,6 +1684,13 @@ const weeklyRecurrenceDefaults: BehaviorRecurrenceFormDefaults = {
   weeklyDays: ["monday", "wednesday", "friday"],
   monthlyInterval: 1,
   monthlyDay: 31,
+};
+
+const onboardingFixture: FirstRunOnboardingState = {
+  hasAnyBehavior: false,
+  hasImportRuns: false,
+  timezone: "America/New_York",
+  vapidPublicKey: "",
 };
 
 const activeBehavior: BehaviorView = {
@@ -1721,6 +2049,7 @@ const exportFixture: ExportBundle = {
   timezone: "America/New_York",
   exportedAt: "2026-06-08T21:00:00Z",
   includeArchived: false,
+  includeNotes: false,
   range: {
     key: "30",
     label: "Last 30 days",

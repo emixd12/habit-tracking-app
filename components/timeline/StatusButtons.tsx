@@ -8,7 +8,6 @@ import { Check, CircleDashed, X } from "lucide-react";
 import {
   type CompletionChimeIntent,
   playCompletionChime,
-  preloadCompletionChime,
   prepareCompletionChimeForUserGesture,
   shouldPlayCompletionChime,
   shouldPlayCompletionChimeForStatusSuccess,
@@ -59,10 +58,6 @@ export function StatusButtons({
   const router = useRouter();
   const completionChimeIntentRef = useRef<CompletionChimeIntent | null>(null);
   const preparedChimeForSubmitRef = useRef(false);
-
-  useEffect(() => {
-    preloadCompletionChime();
-  }, []);
 
   useEffect(() => {
     if (state.status === "success") {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-19T05:57:02.713479+00:00",
+  "generatedAt": "2026-06-30T06:34:00.000000+00:00",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "components": [
     {
@@ -58,6 +58,34 @@
       "trackUsages": "required",
       "status": "active",
       "notes": ""
+    },
+    {
+      "id": "flow.first-run-onboarding-panel",
+      "name": "FirstRunOnboardingPanel",
+      "kind": "flow",
+      "source": "components/onboarding/FirstRunOnboardingPanel.tsx",
+      "exportName": "FirstRunOnboardingPanel",
+      "usageNames": [
+        "FirstRunOnboardingPanel"
+      ],
+      "benchAnchor": "design-system#ds-flow-first-run-onboarding-panel",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Timeline-only setup pop-up that routes into existing Behaviors, Settings, and Export controls."
+    },
+    {
+      "id": "flow.account-deletion-panel",
+      "name": "AccountDeletionPanel",
+      "kind": "flow",
+      "source": "components/settings/AccountDeletionPanel.tsx",
+      "exportName": "AccountDeletionPanel",
+      "usageNames": [
+        "AccountDeletionPanel"
+      ],
+      "benchAnchor": "design-system#ds-flow-account-deletion-panel",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Settings account-deletion flow with export acknowledgement and typed confirmation."
     },
     {
       "id": "navigation.primary-app-nav",
@@ -186,6 +214,20 @@
       "notes": ""
     },
     {
+      "id": "module.export-range-selector",
+      "name": "ExportRangeSelector",
+      "kind": "module",
+      "source": "components/export/ExportRangeSelector.tsx",
+      "exportName": "ExportRangeSelector",
+      "usageNames": [
+        "ExportRangeSelector"
+      ],
+      "benchAnchor": "design-system#ds-module-export-range-selector",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Underlined export range selector used by the Export options form."
+    },
+    {
       "id": "module.markdown-summary-actions",
       "name": "MarkdownSummaryActions",
       "kind": "module",
@@ -228,18 +270,18 @@
       "notes": ""
     },
     {
-      "id": "module.recurrence-editor",
-      "name": "RecurrenceEditor",
+      "id": "module.timezone-panel",
+      "name": "TimezonePanel",
       "kind": "module",
-      "source": "components/behaviors/RecurrenceEditor.tsx",
-      "exportName": "RecurrenceEditor",
+      "source": "components/settings/TimezonePanel.tsx",
+      "exportName": "TimezonePanel",
       "usageNames": [
-        "RecurrenceEditor"
+        "TimezonePanel"
       ],
-      "benchAnchor": "design-system#ds-module-recurrence-editor",
+      "benchAnchor": "design-system#ds-module-timezone-panel",
       "trackUsages": "required",
       "status": "active",
-      "notes": ""
+      "notes": "Settings timezone detection and manual override panel."
     },
     {
       "id": "module.reminder-editor",
@@ -254,6 +296,20 @@
       "trackUsages": "required",
       "status": "active",
       "notes": ""
+    },
+    {
+      "id": "module.trust-and-legal-panel",
+      "name": "TrustAndLegalPanel",
+      "kind": "module",
+      "source": "components/settings/SettingsPanels.tsx",
+      "exportName": "TrustAndLegalPanel",
+      "usageNames": [
+        "TrustAndLegalPanel"
+      ],
+      "benchAnchor": "design-system#ds-module-trust-and-legal-panel",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Settings link panel for public Terms, Privacy, and Trust routes."
     },
     {
       "id": "module.status-buttons",

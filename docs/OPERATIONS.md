@@ -37,9 +37,11 @@ Project-local CLI tools:
 ```bash
 npm run supabase -- --version
 npm run sequenzy -- --version
+npm run agentmail:version
 ```
 
 The Supabase and Sequenzy CLIs are dev dependencies so agents do not need global installs.
+AgentMail is also installed as a dev dependency for agent-owned test inbox QA.
 
 ## Standard verification
 
@@ -142,6 +144,47 @@ If docs conflict, report and fix the conflict before implementing product code.
 - Supabase: `docs/SUPABASE_WORKFLOW.md`
 - Sequenzy: `docs/SEQUENZY_WORKFLOW.md`
 - Vercel: `docs/VERCEL_WORKFLOW.md`
+
+## AgentMail Test Inboxes
+
+AgentMail is the repo-standard test inbox layer for agent-led email QA. Use it
+to create disposable or task-scoped inboxes for login, auth email,
+transactional reminder, SMTP/provider, and app-runtime email testing. It is not
+the production sender for auth email or app-runtime communication.
+
+The CLI is repo-scoped and loads `AGENTMAIL_API_KEY` from `.env.local` when the
+process environment does not already provide it. Use the project wrapper rather
+than a global AgentMail install:
+
+```bash
+npm run agentmail:version
+npm run agentmail -- --help
+npm run agentmail -- inboxes list --limit 20 --format json
+npm run agentmail -- inboxes create --display-name "Cadence QA Login" --username cadence-qa-login --domain agentmail.to --format json
+npm run agentmail -- inboxes:messages list --inbox-id inb_xxx --limit 10 --format json
+npm run agentmail -- inboxes:messages get --inbox-id inb_xxx --message-id msg_xxx --format json
+npm run agentmail -- inboxes:threads list --inbox-id inb_xxx --limit 10 --format json
+```
+
+General QA loop:
+
+1. Create or reuse an AgentMail inbox and keep the inbox ID plus generated email
+   address in private task notes.
+2. Use the AgentMail email address as the test recipient in the app flow.
+3. Trigger the app flow through the owning auth, notification, or communication
+   path.
+4. Poll messages or threads, then retrieve the relevant message by ID.
+5. Extract only the needed delivery evidence, such as subject, headers, or a
+   reduced verification result.
+6. Redact email addresses, raw tokens, links, message bodies, names, and
+   provider identifiers before adding findings to reports.
+7. For production-readiness claims, verify the actual owning email provider and
+   app outbox too. AgentMail proves inbox receipt for a test recipient; it does
+   not prove real customer delivery configuration.
+
+AgentMail test inbox access belongs to service-access and operations work. It
+must not become product, account, notification, export, or provider truth.
+Auth and notification behavior still route through their owning contracts.
 
 ## Public-product operations
 

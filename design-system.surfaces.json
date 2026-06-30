@@ -106,6 +106,7 @@
       "sharedContract": [
         "Transparent background by default",
         "Thin underline with non-reflowing hover emphasis",
+        "Primary, secondary, and Rust Signal danger variants share the same geometry",
         "Visible focus outline",
         "At least 44px tap target where the action is row-level or mobile-critical"
       ],
@@ -116,7 +117,7 @@
           "parity": "canonical",
           "sources": ["app/globals.css"],
           "implementationIds": ["module.status-buttons", "composite.occurrence-note-form"],
-          "notes": "Implemented through product-action and timeline-status-action classes plus component-level status actions."
+          "notes": "Implemented through product-action, product-action-primary, product-action-secondary, product-action-danger, and timeline-status-action classes plus component-level status actions."
         },
         {
           "surfaceId": "marketing",
@@ -148,9 +149,10 @@
       "id": "primitive.form-control",
       "name": "Form controls",
       "tier": "primitive",
-      "definition": "Square inputs, selects, checkboxes, radio segments, and textareas used for behavior editing, settings, import/restore, and account deletion.",
+      "definition": "Square line-led inputs, selects, checkboxes, radio segments, and textareas used for behavior editing, settings, import/restore, and account deletion.",
       "sharedContract": [
-        "1px Ash Line boundary for true fields",
+        "Use a single bottom Ash Line for default text inputs and selects",
+        "Use perimeter enclosure only when the control needs a clear functional boundary",
         "Bleached background and Ink text",
         "Readable disabled and error states",
         "Native controls unless a custom control has a strong accessibility reason"
@@ -161,8 +163,8 @@
           "status": "implemented",
           "parity": "canonical",
           "sources": ["app/globals.css", "components/behaviors/BehaviorForm.tsx", "components/settings/SettingsPanels.tsx"],
-          "implementationIds": ["composite.behavior-form", "module.recurrence-editor", "module.reminder-editor"],
-          "notes": "Current field patterns are visible through behavior, settings, import, restore, and note fixtures."
+          "implementationIds": ["composite.behavior-form", "module.reminder-editor", "module.export-range-selector", "module.timezone-panel", "flow.account-deletion-panel"],
+          "notes": "Current field patterns are visible through behavior, settings, export, import, restore, and note fixtures. Behavior schedule controls use line-led fields; longer notes and confirmation fields keep functional enclosure."
         },
         {
           "surfaceId": "marketing",
@@ -329,6 +331,52 @@
       ]
     },
     {
+      "id": "flow.first-run-setup",
+      "name": "First-run setup",
+      "tier": "flow",
+      "definition": "Optional first-run setup that appears as a non-modal Timeline pop-up and routes into existing behavior, notification, timezone, and import controls.",
+      "sharedContract": [
+        "Never requests notification permission on page load",
+        "Uses factual status labels without progress or reward language",
+        "Links into existing app controls rather than creating a separate wizard",
+        "Import stays optional and does not block setup completion"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["components/onboarding/FirstRunOnboardingPanel.tsx", "app/(app)/timeline/page.tsx"],
+          "implementationIds": ["flow.first-run-onboarding-panel"],
+          "notes": "The Timeline route renders the setup pop-up only when the onboarding model says required setup remains."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "not-applicable",
+          "parity": "not-applicable",
+          "sources": [],
+          "implementationIds": [],
+          "notes": "Marketing explains the product but does not run authenticated setup."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Desktop setup should reuse the same completion semantics once that surface is scheduled."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Mobile setup may use native placement but must avoid a blocking wizard."
+        }
+      ]
+    },
+    {
       "id": "module.timeline-feed",
       "name": "Timeline feed",
       "tier": "module",
@@ -467,6 +515,52 @@
       ]
     },
     {
+      "id": "module.settings-controls",
+      "name": "Settings controls",
+      "tier": "module",
+      "definition": "Settings panels for profile-adjacent account operations: timezone, browser notifications, trust/legal links, and account deletion.",
+      "sharedContract": [
+        "Settings stays sparse and divider-led",
+        "Permission prompts happen only from explicit user action",
+        "Timezone uses browser/OS data without geolocation",
+        "Account deletion requires export acknowledgement and typed confirmation"
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": ["app/(app)/settings/page.tsx", "components/settings/TimezonePanel.tsx", "components/settings/NotificationPermissionPanel.tsx", "components/settings/SettingsPanels.tsx", "components/settings/AccountDeletionPanel.tsx"],
+          "implementationIds": ["module.timezone-panel", "module.notification-permission-panel", "module.trust-and-legal-panel", "flow.account-deletion-panel"],
+          "notes": "Settings modules are fixture-backed in the bench with bench-only actions for mutable controls."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "not-applicable",
+          "parity": "not-applicable",
+          "sources": [],
+          "implementationIds": [],
+          "notes": "Marketing links to the app and public account-information routes but does not render account settings."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Desktop settings should separate local storage concerns from hosted account controls."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "planned",
+          "parity": "planned",
+          "sources": ["docs/DESKTOP_BUILD.md"],
+          "implementationIds": [],
+          "notes": "Mobile settings should keep destructive account operations explicit and hard to trigger accidentally."
+        }
+      ]
+    },
+    {
       "id": "module.behavior-editor",
       "name": "Behavior editor",
       "tier": "module",
@@ -483,7 +577,7 @@
           "status": "implemented",
           "parity": "canonical",
           "sources": ["components/behaviors/BehaviorCreateSection.tsx", "components/behaviors/BehaviorForm.tsx", "components/behaviors/BehaviorList.tsx"],
-          "implementationIds": ["module.behavior-create-section", "composite.behavior-form", "module.behavior-list", "module.recurrence-editor", "module.reminder-editor"],
+          "implementationIds": ["module.behavior-create-section", "composite.behavior-form", "module.behavior-list", "module.reminder-editor"],
           "notes": "Current live behavior management modules are fixture-backed in the bench."
         },
         {
@@ -529,7 +623,7 @@
           "status": "implemented",
           "parity": "canonical",
           "sources": ["components/export/ExportPanel.tsx", "components/export/BehaviorLogImportPanel.tsx", "components/export/BehaviorLogRestorePanel.tsx"],
-          "implementationIds": ["module.export-panel", "module.behavior-log-import-panel", "module.behavior-log-restore-panel", "module.markdown-summary-actions"],
+          "implementationIds": ["module.export-panel", "module.export-range-selector", "module.behavior-log-import-panel", "module.behavior-log-restore-panel", "module.markdown-summary-actions"],
           "notes": "Current export/import/restore modules are in the web app manifest and bench."
         },
         {

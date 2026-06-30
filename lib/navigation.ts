@@ -27,8 +27,8 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
   },
   {
     href: "/export",
-    label: "Export",
-    description: "JSONL, CSV, backup, and summary outputs",
+    label: "Export & Import",
+    description: "Downloads, BehaviorLog import, and restore previews",
   },
   {
     href: "/settings",

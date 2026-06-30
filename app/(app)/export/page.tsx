@@ -15,7 +15,7 @@ import { getExportPageData } from "@/lib/services/export.service";
 import { withPerformanceRoute } from "@/lib/services/performance-timing";
 
 export const metadata: Metadata = {
-  title: "Export",
+  title: "Export & Import",
 };
 
 export const dynamic = "force-dynamic";
@@ -24,6 +24,7 @@ type ExportPageProps = Readonly<{
   searchParams?: Promise<{
     range?: string | string[];
     include_archived?: string | string[];
+    include_notes?: string | string[];
   }>;
 }>;
 
@@ -31,11 +32,16 @@ export default async function ExportPage({ searchParams }: ExportPageProps) {
   const params = await searchParams;
   const range = parseStringParam(params?.range);
   const includeArchived = parseBooleanParam(params?.include_archived);
+  const includeNotes = parseBooleanParam(params?.include_notes);
 
   return (
-    <ScreenFrame title="Export">
+    <ScreenFrame title="Export & Import">
       <Suspense fallback={<ScreenContentLoading label="Loading export data" />}>
-        <ExportContent range={range} includeArchived={includeArchived} />
+        <ExportContent
+          range={range}
+          includeArchived={includeArchived}
+          includeNotes={includeNotes}
+        />
       </Suspense>
     </ScreenFrame>
   );
@@ -44,9 +50,11 @@ export default async function ExportPage({ searchParams }: ExportPageProps) {
 async function ExportContent({
   range,
   includeArchived,
+  includeNotes,
 }: Readonly<{
   range?: string;
   includeArchived: boolean;
+  includeNotes: boolean;
 }>) {
   const [exportData, recentBehaviorLogRuns] = await withPerformanceRoute(
     "/export",
@@ -56,6 +64,7 @@ async function ExportContent({
         getExportPageData({
           range,
           includeArchived,
+          includeNotes,
         }),
         listCurrentUserBehaviorLogImportRuns(12),
       ]),

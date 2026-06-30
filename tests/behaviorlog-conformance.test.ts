@@ -264,6 +264,7 @@ function resolveConformanceBundle() {
     now: NOW,
     timezone: DEFAULT_TIMEZONE,
     range: "all",
+    includeNotes: true,
   }).behaviorLog;
 }
 

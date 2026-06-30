@@ -238,6 +238,10 @@ Current state:
   Production, deployment `dpl_GyGQSJX5dCQzyRxA4zXyiEH8K7SN` is `READY`, and
   production Vercel logs now include sanitized `performance_timing` server
   spans for authenticated route loads.
+- A 2026-06-30 first-screen transfer pass is complete. Timeline no longer
+  preloads `completion-chime.mp3` on initial render; browser measurements show
+  52KB less compressed transfer on both desktop and mobile with pixel-identical
+  screenshots. Details are recorded in `docs/PERFORMANCE_SPEED_LOG.md`.
 - Initial measurement plan, feature test matrix, and intervention backlog have
   been added in `docs/PERFORMANCE_SPEED_LOG.md`.
 - Production baseline measurements have been recorded for unauthenticated HTTP,
@@ -3425,6 +3429,44 @@ Verification:
 Remaining risk:
 - The second browser-comment pass is verified locally but has not been pushed to
   hosted production yet.
+
+### Behaviors review browser-comment polish
+
+Status: complete.
+
+Implementation summary:
+- Applied the annotated `/behaviors` review polish: Overall adherence now uses
+  a single label/percentage header row with a colon, the selected range sits
+  directly underneath in muted text, and the percentage uses the section-scale
+  20px type instead of the prior large metric treatment.
+- Aligned the expanded Details and Settings content with the disclosure trigger
+  label start, moved Archive behavior to the far side of the Save/Cancel footer
+  line on desktop while keeping it as a separate form, and normalized the
+  annotated action text to 12px.
+- Aligned the overlapping-occurrences helper copy with the Add time control and
+  raised Add schedule to the 12px text-action size.
+- Updated `docs/UI_SPEC.md` and `DESIGN.md` so the Behaviors review source of
+  truth matches the new adherence header/range and Archive footer placement.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (55 files, 341 tests).
+- Pass: `npm run build`.
+- Pass: `npm run design-system:check`.
+- Browser QA: authenticated in-app browser against local `/behaviors` at
+  1545x1425 verified 0px Details alignment delta, Overall adherence percentage
+  at 20px, range 4px under the heading row, Add schedule/Save/Cancel/Archive
+  at 12px, Save/Cancel/Archive sharing the same footer y-position, overlap
+  helper aligned with Add time, and no horizontal overflow.
+- Browser QA: authenticated in-app browser at 390x844 verified 0px Details
+  alignment delta, 12px stacked footer actions, 20px overall percentage, and no
+  horizontal overflow.
+
+Remaining risk:
+- This local polish pass has not been pushed to hosted production yet.
 
 ## Handoff notes
 

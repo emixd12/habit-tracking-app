@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useFormStatus } from "react-dom";
 
+import { ReminderEditor } from "@/components/behaviors/ReminderEditor";
 import type {
   BehaviorActionState,
   BehaviorFormAction,
@@ -271,7 +272,7 @@ export function BehaviorForm({
           ))}
         </div>
 
-        <div className="grid gap-2 text-xs">
+        <div className="grid gap-2 text-sm">
           <button
             type="button"
             onClick={addScheduleRow}
@@ -308,11 +309,11 @@ export function BehaviorForm({
         <input type="hidden" name="active" value="on" />
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:gap-5">
         <SubmitButton />
         <button
           type="reset"
-          className="product-action product-action-secondary min-h-11 justify-self-start py-2 text-sm sm:min-h-0"
+          className="product-action product-action-secondary min-h-11 justify-self-start py-2 text-sm"
         >
           Cancel
         </button>
@@ -421,7 +422,7 @@ function ScheduleRowEditor({
       </div>
 
       {showOverlapNote ? (
-        <p className="text-sm leading-6 text-muted-readable lg:col-span-3">
+        <p className="text-sm leading-6 text-muted-readable lg:col-start-3">
           *Overlapping occurrences at the same time are counted once.
         </p>
       ) : null}
@@ -664,70 +665,6 @@ function TimeEntryEditor({
         </button>
       ) : null}
     </div>
-  );
-}
-
-function ReminderEditor({
-  browserReminderEnabled,
-  emailReminderEnabled,
-  reminderOffsetMinutes,
-  error,
-}: Readonly<{
-  browserReminderEnabled: boolean;
-  emailReminderEnabled: boolean;
-  reminderOffsetMinutes: number;
-  error?: string;
-}>) {
-  return (
-    <fieldset className="grid gap-3 border-0 p-0">
-      <legend className="mb-1 text-lg leading-tight">Reminders</legend>
-
-      <div className="grid gap-2">
-        <div className="grid gap-2 lg:grid-cols-[max-content_max-content_minmax(16rem,1fr)] lg:items-center lg:gap-x-5">
-          <label className="flex min-h-11 items-center gap-2 py-1 text-sm">
-            <input
-              type="checkbox"
-              name="browser_reminder"
-              defaultChecked={browserReminderEnabled}
-              className="h-4 w-4 accent-[var(--primary)]"
-            />
-            Browser notifications
-          </label>
-
-          <label className="flex min-h-11 items-center gap-2 py-1 text-sm">
-            <input
-              type="checkbox"
-              name="email_reminder"
-              defaultChecked={emailReminderEnabled}
-              className="h-4 w-4 accent-[var(--primary)]"
-            />
-            Email reminder
-          </label>
-
-          <label className="grid gap-1 text-sm lg:ml-auto lg:flex lg:min-h-11 lg:w-full lg:items-center lg:gap-3">
-            <span className="shrink-0">Reminder offset</span>
-            <select
-              name="reminder_offset"
-              defaultValue={String(reminderOffsetMinutes)}
-              className={`${COMPACT_UNDERLINED_FIELD_CONTROL_CLASS} lg:min-w-0 lg:flex-1`}
-            >
-              <option value="0">At scheduled start</option>
-              <option value="15">15 minutes before</option>
-              <option value="60">1 hour before</option>
-              <option value="1440">1 day before</option>
-              <option value="4320">3 days before</option>
-            </select>
-          </label>
-        </div>
-
-        <p className="text-sm leading-6 text-muted-readable">
-          Browser notifications send reminders on devices where notifications
-          are enabled.
-        </p>
-      </div>
-
-      <FieldError message={error} />
-    </fieldset>
   );
 }
 

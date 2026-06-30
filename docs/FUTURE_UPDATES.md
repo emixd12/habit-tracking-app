@@ -4,6 +4,10 @@ This document tracks ideas that are intentionally deferred until after the first
 
 Items in this document are not v1 requirements unless a future task explicitly moves them into the active product docs and tickets.
 
+Rough feature ideas that are not ready for tickets live in
+`docs/FEATURE_IDEAS.md`. That file is an idea inbox, not an implementation
+contract.
+
 ## Public product surfaces
 
 Cadence's public-product direction is documented in

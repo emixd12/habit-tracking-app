@@ -62,7 +62,7 @@ Use four primary screens:
 
 1. Timeline
 2. Behaviors
-3. Export
+3. Export & Import
 4. Settings
 
 The Timeline screen is the default screen after login.
@@ -460,9 +460,11 @@ behavior row.
 Behavior records should not draw a perimeter border. Separate adjacent
 behaviors with a single quiet divider line, and keep borders only on real
 fields, controls, and status labels. Archive behavior belongs at the end of
-Details and Settings for active records, while Restore remains available from
-archived records. Archive and Restore use underlined text-action styling
-rather than bordered button chrome.
+Details and Settings for active records; on desktop, align it with the
+Save/Cancel footer row on the opposite side of the settings area. Restore
+remains available from archived records. Archive uses the Rust Signal danger
+text-action, while Restore uses the primary underlined text-action rather than
+bordered button chrome.
 Separate behavior settings edits from behavior date review:
 
 - Details and Settings opens the existing behavior metadata and edit form
@@ -508,9 +510,11 @@ The Behaviors screen's review area should read as one sparse report surface. Avo
 section panels around Overall adherence, the calendar, Behavior counts, and
 Category counts. Use single horizontal dividers where separation is needed.
 The overall calendar belongs inside the Overall adherence area. The date range
-selector sits directly above that calendar, the selected date range appears
-under the adherence percentage in compact month-day wording, and the legend is
-vertically listed to the right of the calendar on desktop.
+selector sits directly above that calendar. The overall adherence label uses a
+colon, the percentage sits on the other side of that same header line, and the
+selected date range appears directly underneath in compact muted month-day
+wording. The legend is vertically listed to the right of the calendar on
+desktop.
 
 The overall calendar is a passive adherence summary, not the correction entry
 point. Later corrections start from a behavior row: selecting a non-empty
@@ -554,27 +558,53 @@ Overall and behavior calendar cells show a compact date label on hover or
 keyboard focus while preserving the longer accessible label for screen readers
 and native titles.
 
-## Export screen
+## Export & Import screen
 
-Show:
+Route:
+`/export`
+
+The screen label is Export & Import. Keep `/export` as the stable route.
+
+Top-level sections:
+- Export
+- Import
+
+Export options should appear before download links and the AI summary so every
+output reflects the same selected state. The selected range scope counts belong
+inside Options rather than a separate Current export section.
+
+Export options:
+- Last 7 days
+- Last 30 days
+- Last 90 days
+- All time
+- Include archived behaviors
+- Include occurrence notes, off by default
+- Selected range scope: behavior count, occurrence count, and default adherence
+
+Export outputs:
 - Export JSONL
 - Export CSV
 - Export full JSON backup
 - Export BehaviorLog bundle
 - Copy AI summary
 - Download AI summary as `.md`
-- Import BehaviorLog bundle
 
-Options:
-- Last 7 days
-- Last 30 days
-- Last 90 days
-- All time
-- Include archived behaviors
+Downloads should render as compact label/action rows. Put the extension next to
+the format name, keep the Download action on the same row when space allows,
+and omit per-format descriptions, icons, and row borders. Do not render
+download actions as explanatory card grids.
 
 Exports should support both download and copy where practical.
 
-BehaviorLog import should live on the Export screen as a sparse ledger section.
+The AI summary is an export artifact, not an in-app coaching feature. It should
+state whether notes are included and should show notes only when the user opts
+into occurrence notes.
+
+Do not use icons in Export & Import page controls unless a later design-system
+ticket reintroduces a specific icon affordance.
+
+BehaviorLog import should live in the Import section as a sparse ledger panel.
 The section accepts `.behaviorlog.zip` uploads, shows validation errors and
 warnings before any product write, shows dry-run counts, privacy notes, note
 sensitivity warnings, intervention preview counts, passive imported
@@ -583,11 +613,10 @@ imported-note record counts, inline occurrence-note fill counts, and merge
 actions, and requires explicit confirmation before applying create-only or
 supported user-approved merge plans.
 If high or restricted sensitivity notes would be imported, apply controls must
-also require a dedicated privacy acknowledgement. Do not add destructive
-restore/overwrite controls, generalized notes browsing, or
-intervention-to-reminder writes in this screen.
+also require a dedicated privacy acknowledgement. Do not add generalized notes
+browsing or intervention-to-reminder writes in this screen.
 
-BehaviorLog restore preview may also appear on the Export screen when a restore
+BehaviorLog restore preview may also appear in the Import section when a restore
 ticket is active. It should stay separate from create-only and merge import,
 show create/replace/archive/delete/keep/skip counts, highlight destructive
 replace/archive/delete actions, show non-restorable account/provider/browser

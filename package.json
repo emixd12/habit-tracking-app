@@ -22,6 +22,8 @@
     "perf:routes": "node scripts/performance-route-harness.mjs",
     "smoke:rls": "node scripts/supabase-rls-smoke.mjs",
     "test-login:cleanup": "node scripts/supabase-test-login-cleanup.mjs",
+    "agentmail": "node scripts/agentmail-cli.mjs",
+    "agentmail:version": "node scripts/agentmail-cli.mjs --version",
     "supabase": "supabase",
     "sequenzy": "sequenzy"
   },
@@ -42,6 +44,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
+    "agentmail-cli": "^0.7.12",
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
     "supabase": "^2.105.0",

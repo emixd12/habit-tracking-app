@@ -61,6 +61,7 @@ export type ExportOptions = {
   now?: Temporal.Instant;
   range?: string | number | null;
   includeArchived?: boolean;
+  includeNotes?: boolean;
 };
 
 export type ExportDownloadFormat = "jsonl" | "csv" | "json" | "behaviorlog";
@@ -175,6 +176,7 @@ async function getUserExportBundle(
     timezone,
     range: range.key,
     includeArchived: options.includeArchived,
+    includeNotes: options.includeNotes,
   });
 }
 

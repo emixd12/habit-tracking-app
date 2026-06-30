@@ -1228,3 +1228,57 @@ Verification:
   returned sanitized `performance_timing` events for proxy auth, app layout
   auth, Timeline bundle load, primary page data loads, Export RPC reads,
   occurrence freshness, and repository reads.
+
+## First-screen transfer reduction: completion chime defer
+
+Date: 2026-06-30.
+
+Scope:
+- Reduce compressed transfer before the authenticated first screen appears.
+- Use the production build report only for candidate orientation, then validate
+  actual transferred bytes through browser network events.
+- Keep a candidate only if checks pass, desktop and mobile screenshots are
+  pixel-identical, and transferred bytes decrease.
+
+Measurement method:
+- Local production build served with `next start` at `http://localhost:3210`.
+- Existing authenticated browser session navigated from
+  `/login?next=%2Ftimeline` to the product first screen, `/timeline`.
+- Browser cache disabled through CDP.
+- Transfer bytes are summed from CDP `Network.loadingFinished.encodedDataLength`
+  for same-origin requests through `load + 1500ms`.
+- Screenshots were captured at `1280x720` desktop and `390x844` mobile.
+
+Baseline:
+
+| Viewport | Transferred bytes | Largest avoidable transfer |
+|---|---:|---|
+| Desktop | 413,674 | `completion-chime.mp3` loaded twice, 52,179 bytes total |
+| Mobile | 380,083 | `completion-chime.mp3` loaded twice, 52,179 bytes total |
+
+Kept change:
+- `components/timeline/StatusButtons.tsx` no longer calls
+  `preloadCompletionChime()` on mount. The completion chime remains prepared
+  from the status button user gesture and can still fall back to synthesized
+  audio.
+
+After:
+
+| Viewport | Transferred bytes | Delta | Screenshot comparison |
+|---|---:|---:|---|
+| Desktop | 361,465 | -52,209 | Pixel-identical |
+| Mobile | 327,872 | -52,211 | Pixel-identical |
+
+Stop reason:
+- The remaining large transferred items are first-screen document, JavaScript,
+  font, CSS, and Timeline banner image resources. Further reductions would need
+  a broader UI or loading-priority tradeoff rather than a low-risk defer.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (55 files, 339 tests).
+- Pass: `npm run build`.
+- Pass: pixel-level desktop and mobile screenshot comparison with `sharp`.

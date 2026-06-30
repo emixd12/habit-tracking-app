@@ -448,6 +448,7 @@ function bundleFiles(
     now: NOW,
     timezone: DEFAULT_TIMEZONE,
     range: "30",
+    includeNotes: true,
   }).behaviorLog.files;
 }
 

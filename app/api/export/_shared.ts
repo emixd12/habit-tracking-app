@@ -15,6 +15,7 @@ export async function exportDownloadResponse(
       range: request.nextUrl.searchParams.get("range"),
       includeArchived:
         request.nextUrl.searchParams.get("include_archived") === "1",
+      includeNotes: request.nextUrl.searchParams.get("include_notes") === "1",
     });
 
     return new Response(download.content, {

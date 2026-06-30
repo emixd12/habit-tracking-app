@@ -39,7 +39,7 @@ export function BehaviorCreateSection({
   }, []);
 
   return (
-    <section id="create-behavior" className="scroll-mt-20 border-b border-line">
+    <section id="create-behavior" className="mb-9 scroll-mt-20">
       <details
         className="group"
         open={isOpen}
@@ -53,7 +53,7 @@ export function BehaviorCreateSection({
           }
         }}
       >
-        <summary className="product-disclosure-trigger flex min-h-12 items-center py-4 text-xl leading-tight text-foreground">
+        <summary className="product-disclosure-trigger flex min-h-12 items-center py-4 text-2xl leading-tight text-foreground">
           <span
             aria-hidden="true"
             className="product-disclosure-indicator"

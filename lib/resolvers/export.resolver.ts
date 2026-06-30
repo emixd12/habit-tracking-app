@@ -126,11 +126,13 @@ export type ResolveExportInput = {
   timezone?: string;
   range?: string | number | null;
   includeArchived?: boolean;
+  includeNotes?: boolean;
 };
 
 export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
   const timezone = input.timezone || input.profile.timezone || DEFAULT_TIMEZONE;
   const includeArchived = input.includeArchived ?? false;
+  const includeNotes = input.includeNotes ?? false;
   const range = resolveExportDateRange({
     now: input.now,
     timezone,
@@ -149,7 +151,13 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     .filter((occurrence) => behaviorById.has(occurrence.behaviorId))
     .filter((occurrence) => isOccurrenceWithinRange(occurrence, range))
     .sort((left, right) => compareOccurrences(left, right, behaviorById))
-    .map((occurrence) => toJsonOccurrence(occurrence, behaviorById));
+    .map((occurrence) =>
+      toJsonOccurrence({
+        occurrence,
+        behaviorById,
+        includeNotes,
+      }),
+    );
   const overallCounts = countOccurrences(occurrences);
   const fileBaseName = [
     "cadence-export",
@@ -180,6 +188,7 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     timezone,
     exportedAt,
     includeArchived,
+    includeNotes,
     range,
     rangeOptions: [...EXPORT_RANGE_OPTIONS],
     categoryCount: categories.length,
@@ -197,6 +206,7 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
       behaviors,
       occurrences,
       includeArchived,
+      includeNotes,
     }),
     fileBaseName,
     markdownFileName: `${fileBaseName}-summary.md`,
@@ -296,10 +306,12 @@ function toJsonBehavior(behavior: ExportBehaviorInput): ExportJsonBehavior {
   };
 }
 
-function toJsonOccurrence(
-  occurrence: ExportOccurrenceInput,
-  behaviorById: Map<string, ExportBehaviorInput>,
-): ExportJsonOccurrence {
+function toJsonOccurrence(input: {
+  occurrence: ExportOccurrenceInput;
+  behaviorById: Map<string, ExportBehaviorInput>;
+  includeNotes: boolean;
+}): ExportJsonOccurrence {
+  const { occurrence, behaviorById, includeNotes } = input;
   const behavior = behaviorById.get(occurrence.behaviorId);
   const timezone = behavior?.timezone || DEFAULT_TIMEZONE;
 
@@ -326,7 +338,7 @@ function toJsonOccurrence(
       occurrence.statusMarkedAt,
       timezone,
     ),
-    note: occurrence.note,
+    note: includeNotes ? occurrence.note : null,
     created_at: occurrence.createdAt,
     updated_at: occurrence.updatedAt,
   };
@@ -1797,14 +1809,17 @@ function toMarkdownSummary(input: {
   behaviors: ExportJsonBehavior[];
   occurrences: ExportJsonOccurrence[];
   includeArchived: boolean;
+  includeNotes: boolean;
 }): string {
   const behaviorLines = summarizeByBehavior(input.occurrences);
   const categoryLines = summarizeByCategory(input.occurrences);
+  const noteLines = summarizeOccurrenceNotes(input.occurrences);
 
   return [
     `# Behavior adherence summary, ${input.range.summaryLabel}`,
     "",
     `Archived behaviors: ${input.includeArchived ? "included" : "excluded"}`,
+    `Occurrence notes: ${input.includeNotes ? "included" : "excluded"}`,
     "",
     "## Overall",
     `- Completed: ${input.counts.completedCount}`,
@@ -1821,6 +1836,7 @@ function toMarkdownSummary(input: {
     ...(categoryLines.length > 0
       ? categoryLines
       : ["- No category counts in this range."]),
+    ...(noteLines.length > 0 ? ["", "## Notes", ...noteLines] : []),
   ].join("\n");
 }
 
@@ -1865,6 +1881,26 @@ function summarizeByCategory(
       return `- ${categoryName}: ${counts.completedCount} completed, ${counts.notCompletedCount} not completed, ${counts.unresolvedCount} unresolved`;
     })
     .sort((left, right) => left.localeCompare(right));
+}
+
+function summarizeOccurrenceNotes(
+  occurrences: ExportJsonOccurrence[],
+): string[] {
+  return occurrences
+    .filter((occurrence) => occurrence.note)
+    .map((occurrence) => {
+      const note = normalizeMarkdownNote(occurrence.note ?? "");
+      const statusLabel =
+        occurrence.status === "not_completed" ? "not completed" : occurrence.status;
+
+      return `- ${occurrence.local_date} - ${occurrence.behavior_title} - ${occurrence.schedule} - ${statusLabel}: ${note}`;
+    })
+    .filter((line) => !line.endsWith(": "))
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function normalizeMarkdownNote(note: string): string {
+  return note.replace(/\s+/g, " ").trim();
 }
 
 function countOccurrences(

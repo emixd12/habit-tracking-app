@@ -36,10 +36,12 @@ const itemIcons: Record<FirstRunOnboardingItemKey, LucideIcon> = {
 
 type FirstRunOnboardingPanelProps = Readonly<{
   onboarding: FirstRunOnboardingState;
+  storageKey?: string;
 }>;
 
 export function FirstRunOnboardingPanel({
   onboarding,
+  storageKey = STORAGE_KEY,
 }: FirstRunOnboardingPanelProps) {
   const [clientSnapshot, setClientSnapshot] =
     useState<FirstRunOnboardingClientSnapshot | null>(null);
@@ -58,7 +60,7 @@ export function FirstRunOnboardingPanel({
       let dismissed = false;
 
       try {
-        dismissed = window.localStorage.getItem(STORAGE_KEY) === "true";
+        dismissed = window.localStorage.getItem(storageKey) === "true";
       } catch {
         dismissed = false;
       }
@@ -87,7 +89,7 @@ export function FirstRunOnboardingPanel({
       isActive = false;
       window.clearTimeout(timeoutId);
     };
-  }, [onboarding.vapidPublicKey]);
+  }, [onboarding.vapidPublicKey, storageKey]);
 
   if (!clientSnapshot) {
     return null;
@@ -101,7 +103,7 @@ export function FirstRunOnboardingPanel({
 
   function dismissSetup() {
     try {
-      window.localStorage.setItem(STORAGE_KEY, "true");
+      window.localStorage.setItem(storageKey, "true");
     } catch {
       // Local dismissal is a convenience; the app still works without it.
     }

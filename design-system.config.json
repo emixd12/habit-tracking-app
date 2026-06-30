@@ -16,8 +16,16 @@
     {
       "componentId": "navigation.primary-app-nav",
       "file": "components/layout/AppShell.tsx",
-      "line": 94,
+      "line": 99,
       "route": "app shell",
+      "usageKind": "render",
+      "confidence": "manual"
+    },
+    {
+      "componentId": "layout.cadence-page-banner",
+      "file": "components/layout/ScreenFrame.tsx",
+      "line": 37,
+      "route": "screen frame",
       "usageKind": "render",
       "confidence": "manual"
     }

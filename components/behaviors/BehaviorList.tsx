@@ -160,27 +160,26 @@ function OverallAdherence({
   return (
     <section className="grid gap-4" aria-labelledby="overall-adherence-title">
       <div className="grid gap-5 md:grid-cols-[minmax(14rem,0.62fr)_minmax(16rem,31rem)] md:items-start">
-        <div className="grid max-w-sm gap-5">
-          <h2 id="overall-adherence-title" className="text-2xl leading-tight">
-            Overall adherence
-          </h2>
-
-          <div className="grid gap-4">
-            <div>
-              <p className="text-4xl leading-none sm:text-5xl">
+        <div className="grid max-w-sm gap-4">
+          <div className="grid gap-1">
+            <div className="flex items-baseline justify-between gap-6">
+              <h2 id="overall-adherence-title" className="text-2xl leading-tight">
+                Overall adherence:
+              </h2>
+              <p className="shrink-0 text-2xl leading-tight tabular-nums">
                 {analytics.summary.percentLabel}
               </p>
-              <p className="mt-2 text-sm text-muted-readable">
-                Range:{" "}
-                {formatLocalDateRange(
-                  analytics.rangeStartLocalDate,
-                  analytics.rangeEndLocalDate,
-                )}
-              </p>
             </div>
-
-            <StatusCountGrid counts={analytics.summary} />
+            <p className="text-sm text-muted-readable">
+              Range:{" "}
+              {formatLocalDateRange(
+                analytics.rangeStartLocalDate,
+                analytics.rangeEndLocalDate,
+              )}
+            </p>
           </div>
+
+          <StatusCountGrid counts={analytics.summary} />
         </div>
 
         <div className="grid w-full max-w-[31rem] gap-3 md:justify-self-end">
@@ -348,31 +347,41 @@ function BehaviorRecord({
             Details and Settings
           </span>
         </summary>
-        <div className="grid gap-5 pb-5 pt-4">
+        <div className="grid gap-5 pb-5 pl-3 pt-4">
           <BehaviorMetadata behavior={behavior} />
 
           {hasOpenedEdit ? (
             <>
-              <BehaviorForm
-                key={`${behavior.id}-${behavior.updatedAt}`}
-                mode="edit"
-                action={updateAction}
-                categories={categories}
-                behavior={behavior}
-                showActiveToggle={false}
-              />
-
               {behavior.active ? (
-                <div>
-                  <BehaviorStateForm
-                    behaviorId={behavior.id}
-                    action={archiveAction}
-                    buttonLabel="Archive behavior"
-                    pendingLabel="Archiving..."
-                    variant="danger"
+                <div className="relative grid gap-4">
+                  <BehaviorForm
+                    key={`${behavior.id}-${behavior.updatedAt}`}
+                    mode="edit"
+                    action={updateAction}
+                    categories={categories}
+                    behavior={behavior}
+                    showActiveToggle={false}
                   />
+                  <div className="sm:absolute sm:bottom-0 sm:right-0">
+                    <BehaviorStateForm
+                      behaviorId={behavior.id}
+                      action={archiveAction}
+                      buttonLabel="Archive behavior"
+                      pendingLabel="Archiving..."
+                      variant="danger"
+                    />
+                  </div>
                 </div>
-              ) : null}
+              ) : (
+                <BehaviorForm
+                  key={`${behavior.id}-${behavior.updatedAt}`}
+                  mode="edit"
+                  action={updateAction}
+                  categories={categories}
+                  behavior={behavior}
+                  showActiveToggle={false}
+                />
+              )}
             </>
           ) : null}
         </div>
@@ -780,7 +789,7 @@ function BehaviorStateForm({
   }, [router, state.status]);
 
   return (
-    <form action={formAction} className="grid justify-start gap-2">
+    <form action={formAction} className="grid justify-start gap-2 text-sm">
       <input type="hidden" name="behavior_id" value={behaviorId} />
       <BehaviorStateButton
         label={buttonLabel}

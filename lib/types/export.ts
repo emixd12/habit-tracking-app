@@ -212,6 +212,7 @@ export type ExportBundle = {
   timezone: string;
   exportedAt: string;
   includeArchived: boolean;
+  includeNotes?: boolean;
   range: ExportDateRange;
   rangeOptions: ExportRangeOption[];
   categoryCount: number;

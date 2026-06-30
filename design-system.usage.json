@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-26T04:59:33.162547+00:00",
+  "generatedAt": "2026-06-30T06:43:44.657006+00:00",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
       "componentId": "composite.behavior-form",
       "file": "components/behaviors/BehaviorCreateSection.tsx",
-      "line": 59,
+      "line": 71,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -14,7 +14,7 @@
     {
       "componentId": "composite.behavior-form",
       "file": "components/behaviors/BehaviorList.tsx",
-      "line": 348,
+      "line": 356,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -22,7 +22,7 @@
     {
       "componentId": "composite.occurrence-note-form",
       "file": "components/behaviors/BehaviorList.tsx",
-      "line": 553,
+      "line": 580,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -30,7 +30,7 @@
     {
       "componentId": "composite.occurrence-note-form",
       "file": "components/timeline/OccurrenceRow.tsx",
-      "line": 201,
+      "line": 234,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -38,7 +38,7 @@
     {
       "componentId": "composite.occurrence-row",
       "file": "components/timeline/TimelineGroup.tsx",
-      "line": 122,
+      "line": 115,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -46,15 +46,31 @@
     {
       "componentId": "composite.occurrence-row",
       "file": "components/timeline/TimelineGroup.tsx",
-      "line": 139,
+      "line": 132,
       "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "flow.account-deletion-panel",
+      "file": "app/(app)/settings/page.tsx",
+      "line": 62,
+      "route": "(app)/settings/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "flow.first-run-onboarding-panel",
+      "file": "app/(app)/timeline/page.tsx",
+      "line": 84,
+      "route": "(app)/timeline/page",
       "usageKind": "render",
       "confidence": "exact"
     },
     {
       "componentId": "flow.google-login-button",
       "file": "app/(auth)/login/page.tsx",
-      "line": 65,
+      "line": 80,
       "route": "(auth)/login/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -71,9 +87,9 @@
       "componentId": "layout.cadence-page-banner",
       "file": "components/layout/ScreenFrame.tsx",
       "line": 37,
-      "route": null,
+      "route": "screen frame",
       "usageKind": "render",
-      "confidence": "exact"
+      "confidence": "manual"
     },
     {
       "componentId": "layout.screen-frame",
@@ -118,7 +134,7 @@
     {
       "componentId": "module.behavior-log-import-panel",
       "file": "components/export/ExportPanel.tsx",
-      "line": 191,
+      "line": 172,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -126,7 +142,7 @@
     {
       "componentId": "module.behavior-log-restore-panel",
       "file": "components/export/ExportPanel.tsx",
-      "line": 192,
+      "line": 173,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -140,9 +156,17 @@
       "confidence": "exact"
     },
     {
+      "componentId": "module.export-range-selector",
+      "file": "components/export/ExportPanel.tsx",
+      "line": 61,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
       "componentId": "module.markdown-summary-actions",
       "file": "components/export/ExportPanel.tsx",
-      "line": 180,
+      "line": 161,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -164,17 +188,9 @@
       "confidence": "exact"
     },
     {
-      "componentId": "module.recurrence-editor",
-      "file": "components/behaviors/BehaviorForm.tsx",
-      "line": 187,
-      "route": null,
-      "usageKind": "render",
-      "confidence": "exact"
-    },
-    {
       "componentId": "module.reminder-editor",
       "file": "components/behaviors/BehaviorForm.tsx",
-      "line": 192,
+      "line": 289,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -182,7 +198,7 @@
     {
       "componentId": "module.status-buttons",
       "file": "components/behaviors/BehaviorList.tsx",
-      "line": 545,
+      "line": 572,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -190,7 +206,7 @@
     {
       "componentId": "module.status-buttons",
       "file": "components/timeline/OccurrenceRow.tsx",
-      "line": 147,
+      "line": 177,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -198,7 +214,7 @@
     {
       "componentId": "module.status-buttons",
       "file": "components/timeline/OccurrenceRow.tsx",
-      "line": 187,
+      "line": 219,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -206,7 +222,7 @@
     {
       "componentId": "module.timeline",
       "file": "app/(app)/timeline/page.tsx",
-      "line": 83,
+      "line": 85,
       "route": "(app)/timeline/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -228,16 +244,32 @@
       "confidence": "exact"
     },
     {
+      "componentId": "module.timezone-panel",
+      "file": "app/(app)/settings/page.tsx",
+      "line": 51,
+      "route": "(app)/settings/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.trust-and-legal-panel",
+      "file": "app/(app)/settings/page.tsx",
+      "line": 60,
+      "route": "(app)/settings/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
       "componentId": "navigation.primary-app-nav",
       "file": "components/layout/AppShell.tsx",
-      "line": 94,
+      "line": 99,
       "route": "app shell",
       "usageKind": "render",
       "confidence": "manual"
     }
   ],
   "summary": {
-    "productUsages": 29,
+    "productUsages": 33,
     "benchPreviews": 0
   }
 }
