@@ -206,7 +206,7 @@ export function BehaviorForm({
       ) : null}
 
       <fieldset className="grid gap-3 border-0 p-0">
-        <legend className="mb-2 text-lg leading-tight">Details</legend>
+        <legend className="sr-only">Behavior details</legend>
 
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,20rem)] lg:grid-cols-[minmax(0,1fr)_minmax(14rem,24rem)]">
           <TextField
@@ -247,18 +247,13 @@ export function BehaviorForm({
           value={scheduleRows.length}
         />
 
-        <div className="hidden border-b border-line pb-2 text-sm text-muted-readable lg:grid lg:grid-cols-[minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:gap-4">
-          <span>Recurrence</span>
-          <span>Every</span>
-          <span>Times</span>
-        </div>
-
         <div className="divide-y divide-line">
           {scheduleRows.map((schedule, index) => (
             <ScheduleRowEditor
               key={schedule.key}
               schedule={schedule}
               index={index}
+              showOverlapNote={index === 0}
               canRemoveSchedule={scheduleRows.length > 1}
               onScheduleChange={(update) =>
                 updateScheduleRow(schedule.key, update)
@@ -274,10 +269,6 @@ export function BehaviorForm({
             />
           ))}
         </div>
-
-        <p className="text-sm leading-6 text-muted-readable">
-          *Overlapping occurrences at the same time are counted once.
-        </p>
 
         <div className="grid gap-2 text-xs">
           <button
@@ -316,7 +307,7 @@ export function BehaviorForm({
         <input type="hidden" name="active" value="on" />
       ) : null}
 
-      <div className="flex flex-col gap-3 pt-5 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <SubmitButton />
         <button
           type="reset"
@@ -333,6 +324,7 @@ export function BehaviorForm({
 function ScheduleRowEditor({
   schedule,
   index,
+  showOverlapNote,
   canRemoveSchedule,
   onScheduleChange,
   onRemoveSchedule,
@@ -342,6 +334,7 @@ function ScheduleRowEditor({
 }: Readonly<{
   schedule: ScheduleFormRow;
   index: number;
+  showOverlapNote: boolean;
   canRemoveSchedule: boolean;
   onScheduleChange: (
     update: Partial<Pick<ScheduleFormRow, "recurrenceKind">>,
@@ -358,28 +351,36 @@ function ScheduleRowEditor({
     <div className="grid gap-4 py-4 lg:grid-cols-[minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:items-start lg:gap-4">
       <input type="hidden" name={`behavior_schedule_id_${index}`} value={schedule.id} />
 
-      <SelectField
-        label="Recurrence"
-        labelClassName="lg:sr-only"
-        name={`schedule_${index}_recurrence_kind`}
-        value={schedule.recurrenceKind}
-        controlClassName="min-h-8 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
-        onChange={(value) =>
-          onScheduleChange({
-            recurrenceKind: value as BehaviorRecurrenceKind,
-          })
-        }
-      >
-        <option value="daily">Daily</option>
-        <option value="every_days">Every few days</option>
-        <option value="weekly">Weekly</option>
-        <option value="monthly">Monthly</option>
-      </SelectField>
-
-      <RecurrenceDetailFields schedule={schedule} index={index} />
+      <label className="grid gap-1 text-sm lg:flex lg:min-h-8 lg:items-center lg:gap-3">
+        <span className="shrink-0">Recurrence</span>
+        <select
+          name={`schedule_${index}_recurrence_kind`}
+          value={schedule.recurrenceKind}
+          onChange={(event) =>
+            onScheduleChange({
+              recurrenceKind: event.currentTarget.value as BehaviorRecurrenceKind,
+            })
+          }
+          className="min-h-8 min-w-0 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground lg:flex-1"
+        >
+          <option value="daily">Daily</option>
+          <option value="every_days">Every few days</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </label>
 
       <div className="grid gap-3">
-        <span className="text-sm text-foreground lg:sr-only">Times</span>
+        <RecurrenceDetailFields schedule={schedule} index={index} />
+        {showOverlapNote ? (
+          <p className="text-sm leading-6 text-muted-readable">
+            *Overlapping occurrences at the same time are counted once.
+          </p>
+        ) : null}
+      </div>
+
+      <div className="grid gap-3">
+        <span className="sr-only">Times</span>
         <input
           type="hidden"
           name={`schedule_${index}_time_entry_count`}
@@ -678,7 +679,7 @@ function ReminderEditor({
       <legend className="mb-1 text-lg leading-tight">Reminders</legend>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex min-h-11 items-center gap-3 border-b border-line py-2 text-sm">
+        <label className="flex min-h-11 items-center gap-3 py-2 text-sm">
           <input
             type="checkbox"
             name="browser_reminder"
@@ -688,7 +689,7 @@ function ReminderEditor({
           Browser notifications
         </label>
 
-        <label className="flex min-h-11 items-center gap-3 border-b border-line py-2 text-sm">
+        <label className="flex min-h-11 items-center gap-3 py-2 text-sm">
           <input
             type="checkbox"
             name="email_reminder"

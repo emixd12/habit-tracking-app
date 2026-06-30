@@ -189,6 +189,47 @@ button:disabled {
     color 200ms ease;
 }
 
+.product-disclosure-trigger {
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.product-disclosure-trigger::marker {
+  content: "";
+}
+
+.product-disclosure-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.product-disclosure-trigger-label {
+  display: block;
+  min-width: 0;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  padding-bottom: 4px;
+  white-space: nowrap;
+}
+
+.product-disclosure-indicator {
+  width: 0;
+  height: 0;
+  flex-shrink: 0;
+  margin-right: 0.375rem;
+  border-top: 0.25rem solid transparent;
+  border-bottom: 0.25rem solid transparent;
+  border-left: 0.375rem solid var(--muted-readable);
+  transform: translateY(-0.125rem);
+  transition: transform 200ms ease;
+}
+
+details[open] > .product-disclosure-trigger .product-disclosure-indicator {
+  transform: translateY(-0.125rem) rotate(90deg);
+}
+
 .timeline-status-action:focus-visible {
   text-shadow: 0.02em 0 currentColor;
 }
@@ -355,6 +396,10 @@ button:disabled {
 }
 
 @media (width >= 40rem) {
+  .timeline-occurrence-details {
+    padding-block-start: 0.25rem;
+  }
+
   .timeline-occurrence-row-grid:has(details[open]) {
     align-items: start;
   }

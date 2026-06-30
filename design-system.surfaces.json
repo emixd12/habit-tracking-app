@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-24T19:30:00.000Z",
+  "generatedAt": "2026-06-30T02:34:00.000Z",
   "name": "Cadence canonical design system surface catalog",
   "summary": "A global inventory of design-system families across Cadence surfaces. This catalog defines the shared design contract; each surface can satisfy the contract with native implementation files for its runtime.",
   "rules": [
@@ -284,9 +284,12 @@
       "id": "pattern.disclosure-section",
       "name": "Disclosure sections",
       "tier": "pattern",
-      "definition": "Open/close sections for progressive detail such as create behavior, edit behavior, review status, note correction, and agent-readable docs groups.",
+      "definition": "Open/close sections and row detail drawers. The native summary element acts as the hide/show trigger button for progressive detail such as create behavior, edit behavior, occurrence details, status review, note correction, and agent-readable docs groups.",
       "sharedContract": [
         "Use native disclosure semantics where possible",
+        "Use the product disclosure trigger class for summary controls so cursor, marker hiding, focus, and tap affordance stay consistent",
+        "Use the shared disclosure indicator where the section needs a visible opener; omit a separate icon when the row itself is the trigger",
+        "Keep the trigger-to-content spacing standardized through the disclosure pattern rather than one-off row padding",
         "Do not hide primary occurrence decisions behind disclosure",
         "Collapsed state should remain scannable and factual"
       ],
@@ -295,9 +298,9 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/behaviors/BehaviorCreateSection.tsx", "components/behaviors/BehaviorList.tsx"],
-          "implementationIds": ["module.behavior-create-section", "module.behavior-list"],
-          "notes": "Behavior creation, settings editing, archived behavior access, and behavior date review use progressive disclosure."
+          "sources": ["app/globals.css", "components/behaviors/BehaviorCreateSection.tsx", "components/behaviors/BehaviorList.tsx", "components/timeline/OccurrenceRow.tsx"],
+          "implementationIds": ["module.behavior-create-section", "module.behavior-list", "composite.occurrence-row"],
+          "notes": "Behavior creation, settings editing, archived behavior access, behavior date review, and Timeline row details use native details/summary. Timeline rows omit a separate disclosure icon by contract; the row summary itself is the trigger."
         },
         {
           "surfaceId": "marketing",

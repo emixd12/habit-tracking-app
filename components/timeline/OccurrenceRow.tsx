@@ -142,7 +142,7 @@ export function OccurrenceRow({
           <summary
             data-label-density={labelDensity}
             className={[
-              "timeline-occurrence-summary grid min-h-14 cursor-pointer list-none items-center py-1.5 pl-3 sm:min-h-12 sm:py-2 sm:pl-4 [&::-webkit-details-marker]:hidden",
+              "product-disclosure-trigger timeline-occurrence-summary grid min-h-12 items-center py-1.5 pl-3 sm:py-2 sm:pl-4",
               summaryActionSpaceClass,
             ].join(" ")}
           >
@@ -202,7 +202,7 @@ export function OccurrenceRow({
 
         <div
           id={detailsId}
-          className="timeline-occurrence-details col-start-1 col-end-3 mt-0 gap-2 px-3 pt-0 text-sm leading-6 text-muted-readable sm:px-4 sm:py-2"
+          className="timeline-occurrence-details col-start-1 col-end-3 mt-0 gap-2 px-3 pt-0 text-sm leading-6 text-muted-readable sm:px-4 sm:pb-2"
         >
           <DetailItem
             label="Description"

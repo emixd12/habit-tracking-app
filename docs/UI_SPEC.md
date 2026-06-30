@@ -262,6 +262,21 @@ Provide a control to show more future days.
 
 Do not show previous days except for unresolved prior-day items inside the Needs decision modal.
 
+## Disclosure controls
+
+Use native `details` and `summary` for hide/show sections and drawer-like
+detail areas when the browser primitive fits the interaction. The `summary`
+element is the product disclosure trigger button and should use the shared
+disclosure-trigger styling rather than a one-off cursor, marker, or underline
+treatment. Sections that need an explicit opener use the shared disclosure
+indicator; Timeline occurrence rows omit a separate indicator because the whole
+row summary is the trigger.
+
+Disclosure content spacing should be owned by the disclosure pattern or the
+surface-specific row pattern, not by ad hoc per-instance padding. Timeline row
+details keep the standardized 16px optical gap from the collapsed row text to
+the first detail label.
+
 ## Occurrence card
 
 Collapsed card should show:
@@ -308,7 +323,8 @@ Expanded details should sit directly on the background surface without a grey
 panel, enclosing border, top divider, or boxed card treatment. Use a small left
 inset for the detail block. Measure spacing optically between rendered text and
 field edges: the largest gap is between the collapsed row content and the first
-detail label and should measure 20px optically. The next-largest gap is between
+detail label and should measure 16px optically. This gap is part of the
+standard disclosure pattern for row details. The next-largest gap is between
 detail pairs, and the smallest gap is shared by detail label/value, Note
 label/textarea, and textarea/Save note
 relationships. The Note textarea keeps its field border, but Save note uses the

@@ -287,7 +287,7 @@ function BehaviorRecord({
 
   return (
     <article className="bg-background">
-      <div className="grid gap-6 p-5 md:grid-cols-[minmax(0,1fr)_minmax(16rem,19rem)] md:items-start">
+      <div className="grid gap-6 py-5 md:grid-cols-[minmax(0,1fr)_minmax(16rem,19rem)] md:items-start">
         <div className="grid min-w-0 gap-5">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="break-words text-xl leading-tight">{behavior.title}</h3>
@@ -334,26 +334,21 @@ function BehaviorRecord({
           }
         }}
       >
-        <summary className="flex min-h-12 cursor-pointer list-none items-center px-5 py-4 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+        <summary className="product-disclosure-trigger -ml-4 flex min-h-12 items-center py-4 text-sm text-foreground">
           <span
             aria-hidden="true"
-            className="mr-1 h-0 w-0 shrink-0 -translate-y-0.5 border-y-[0.25rem] border-l-[0.375rem] border-y-transparent border-l-muted-readable transition-transform duration-200 group-open:rotate-90"
+            className="product-disclosure-indicator"
           />
           <span
-            className="block min-w-0 whitespace-nowrap"
+            className="product-disclosure-trigger-label"
             style={{
               flex: isSettingsOpen ? "1 1 auto" : "0 1 auto",
-              backgroundImage: "linear-gradient(currentColor, currentColor)",
-              backgroundPosition: "0 100%",
-              backgroundRepeat: "no-repeat",
-              backgroundSize: "100% 1px",
-              paddingBottom: "4px",
             }}
           >
             Details and Settings
           </span>
         </summary>
-        <div className="mx-5 grid gap-5 pb-5 pl-2.5 pt-4">
+        <div className="grid gap-5 pb-5 pt-4">
           <BehaviorMetadata behavior={behavior} />
 
           {hasOpenedEdit ? (
@@ -568,7 +563,7 @@ function BehaviorDateReview({
             />
 
             <details className="min-w-0 [&[open]]:w-full lg:justify-self-end lg:[&[open]]:w-[32rem] lg:[&[open]]:max-w-full">
-              <summary className="timeline-status-action product-action product-action-primary min-h-11 cursor-pointer list-none py-1 text-sm sm:min-h-8 [&::-webkit-details-marker]:hidden">
+              <summary className="product-disclosure-trigger timeline-status-action product-action product-action-primary min-h-11 w-fit py-1 text-sm sm:min-h-8">
                 Review
               </summary>
               <div className="mt-3 grid gap-4 text-sm leading-6 text-muted-readable">
@@ -714,9 +709,12 @@ function ArchivedBehaviorDisclosure({
       <details>
         <summary
           id="archived-behaviors-title"
-          className="cursor-pointer py-3 text-xl leading-tight text-foreground underline decoration-1 underline-offset-4 marker:text-muted-readable focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="product-disclosure-trigger flex min-h-11 items-center py-3 text-xl leading-tight text-foreground"
         >
-          Archived behaviors ({archivedBehaviors.length})
+          <span aria-hidden="true" className="product-disclosure-indicator" />
+          <span className="product-disclosure-trigger-label">
+            Archived behaviors ({archivedBehaviors.length})
+          </span>
         </summary>
 
         {archivedBehaviors.length === 0 ? (

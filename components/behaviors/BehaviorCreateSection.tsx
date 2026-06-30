@@ -53,20 +53,15 @@ export function BehaviorCreateSection({
           }
         }}
       >
-        <summary className="flex min-h-12 cursor-pointer list-none items-center py-4 text-xl leading-tight text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+        <summary className="product-disclosure-trigger flex min-h-12 items-center py-4 text-xl leading-tight text-foreground">
           <span
             aria-hidden="true"
-            className="mr-[0.8125rem] h-0 w-0 shrink-0 -translate-y-0.5 border-y-[0.25rem] border-l-[0.375rem] border-y-transparent border-l-muted-readable transition-transform duration-200 group-open:rotate-90"
+            className="product-disclosure-indicator"
           />
           <span
-            className="block min-w-0 whitespace-nowrap"
+            className="product-disclosure-trigger-label"
             style={{
               flex: isOpen ? "1 1 auto" : "0 1 auto",
-              backgroundImage: "linear-gradient(currentColor, currentColor)",
-              backgroundPosition: "0 100%",
-              backgroundRepeat: "no-repeat",
-              backgroundSize: "100% 1px",
-              paddingBottom: "4px",
             }}
           >
             Create behavior

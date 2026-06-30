@@ -506,6 +506,22 @@ function Foundations() {
               </button>
             </div>
 
+            <details className="border-t border-line pt-3">
+              <summary className="product-disclosure-trigger flex min-h-11 items-center text-base text-foreground">
+                <span
+                  aria-hidden="true"
+                  className="product-disclosure-indicator"
+                />
+                <span className="product-disclosure-trigger-label">
+                  Disclosure trigger
+                </span>
+              </summary>
+              <div className="grid gap-1 pt-4 text-sm leading-6 text-muted-readable">
+                <p>Content starts on the same flat surface.</p>
+                <p>Use this for hide/show sections and drawer-like detail areas.</p>
+              </div>
+            </details>
+
             <div className="grid gap-3 sm:grid-cols-3">
               <input
                 aria-label="Primitive input sample"
