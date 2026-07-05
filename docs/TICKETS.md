@@ -3028,6 +3028,202 @@ Verification:
 
 ---
 
+## Ticket 057: Behavior title and description history export context
+
+Capture append-only history for behavior title and description changes so
+exports can preserve how the user's definition of a behavior changed over time.
+
+Context:
+- Promoted from `docs/FEATURE_IDEAS.md` "Behavior Title And Description
+  History".
+- `behaviors.title` and `behaviors.description` currently store only the latest
+  behavior definition.
+- `behaviors.updated_at` proves the row changed, but does not record which
+  fields changed or what the prior values were.
+- App-native and BehaviorLog exports currently include behavior title and
+  description snapshots, not a first-class behavior-definition revision trail.
+- The goal is export and agent context first, not an in-app revision browser.
+
+Acceptance criteria:
+- Add a Supabase migration for an append-only user-owned behavior definition
+  history table, such as `behavior_definition_events`.
+- The table must include `user_id`, `behavior_id`, prior and next title and
+  description values, changed field names, `recorded_at`, source metadata, and
+  timestamps.
+- The table must have RLS policies and explicit authenticated Data API grants
+  matching the repository's current Supabase posture.
+- Backfill one baseline event for existing behaviors so exports have a starting
+  definition. Use `behaviors.created_at` as the baseline `recorded_at` unless a
+  better existing timestamp is available.
+- On behavior create, write an initial definition event.
+- On behavior edit, append an event only when the normalized title or
+  description changes. Schedule, reminder, category, archive, or timezone-only
+  edits must not create definition events.
+- Preserve current behavior CRUD behavior and occurrence sync semantics.
+- Keep event planning resolver-first: add a small pure resolver or equivalent
+  pure planning function for behavior definition event creation, and update
+  `docs/AGENT_RESOLVERS.md` if a new resolver is introduced.
+- Add repository and service paths for reading/writing definition events without
+  querying Supabase from UI components.
+- Include behavior definition history in export context:
+  - Full JSON backup should include the history records.
+  - BehaviorLog bundle should include the history as a Cadence extension or
+    optional app-specific file without violating the BehaviorLog core schema.
+  - Markdown AI summary should mention that definition history exists when
+    included, and should give agents guidance to account for behavior renames
+    or description changes.
+- Add import/restore planning notes or implementation for the new export shape.
+  If full import/restore support is too large for this ticket, document the
+  limitation clearly in `docs/EXPORT_FORMATS.md` and the export UI copy.
+- Historical title and description text can be sensitive. Add an explicit
+  privacy decision in docs about whether definition history is included by
+  default or behind a separate export option.
+- Update `docs/DATA_MODEL.md`, `docs/EXPORT_FORMATS.md`, `docs/PRODUCT_SPEC.md`,
+  `docs/USER_FLOWS.md`, and `docs/FEATURE_IDEAS.md` as needed.
+- Add focused tests for create, edit, no-op edit, schedule-only edit, export
+  formatting, RLS/static policy coverage, and resolver/event planning.
+- Do not add multi-user audit logs, approval workflows, AI-generated behavior
+  rewrites, automatic behavior splitting/merging, or broad account activity
+  logs.
+
+Owner questions before implementation:
+- Should behavior definition history be included in exports by default, or
+  behind an "include behavior history" option?
+- Should exports include full previous/next text, a computed diff, or both?
+- Should the user be able to enter a reason for a title or description change
+  in this ticket, or should reason support be schema-only for now?
+- Should imported behavior definition history be applied on restore in the
+  first implementation, or only preserved in export until a later import ticket?
+
+Suggested files:
+- `supabase/migrations/*`
+- `docs/DATA_MODEL.md`
+- `docs/EXPORT_FORMATS.md`
+- `docs/PRODUCT_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `docs/AGENT_RESOLVERS.md`
+- `lib/db/database.types.ts`
+- `lib/db/*behavior*`
+- `lib/services/behavior.service.ts`
+- `lib/resolvers/*behavior*`
+- `lib/services/export.service.ts`
+- `lib/resolvers/export.resolver.ts`
+- `components/export/*`
+- `tests/*behavior*`
+- `tests/export.resolver.test.ts`
+- RLS/static policy tests
+- `STATUS.md`
+
+Verification:
+- Run `npm run supabase -- db reset` after the migration.
+- Regenerate database types.
+- Run focused behavior/history/export tests.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+
+---
+
+## Ticket 058: Status timestamp and status history export hardening
+
+Harden status timestamp and status-history capture, then make sure the history
+is available as useful export context for agents.
+
+Context:
+- Promoted from `docs/FEATURE_IDEAS.md` "Status Action Capture And Correction
+  History".
+- Current occurrence snapshots already store `status_marked_at` and
+  `completed_at`.
+- Current `occurrence_status_events` rows store append-only status history for
+  first marks, corrections, unmarking back to Unresolved, source metadata,
+  confidence, and `revises_event_id`.
+- BehaviorLog exports already treat `status_events.jsonl` as the status-history
+  authority.
+- This ticket should audit, close gaps, and make the status-history context
+  consistently available. It should not create a new status vocabulary or a
+  user-facing audit log unless explicitly scoped later.
+
+Acceptance criteria:
+- Audit the current manual status flow from Timeline, Behaviors review, import,
+  restore, export, and tests.
+- Confirm or fix that every explicit status change appends one
+  `occurrence_status_events` row:
+  - Unresolved to Completed,
+  - Unresolved to Not Completed,
+  - Completed to Not Completed,
+  - Not Completed to Completed,
+  - resolved status back to Unresolved.
+- Confirm repeated taps of the already-current resolved status do not create
+  duplicate status events.
+- Confirm note-only edits do not mutate status timestamps or create status
+  events.
+- Confirm `completed_at` means completion timestamp for current Completed
+  snapshots, while `status_marked_at` means latest current-status mark time for
+  the current snapshot.
+- Confirm unmarking to Unresolved clears current snapshot timestamps but leaves
+  the append-only event with its own `recorded_at`.
+- Confirm corrections link to the latest prior event through `revises_event_id`
+  when available.
+- Confirm RLS and Data API grants keep `occurrence_status_events` append-only
+  for normal authenticated app access.
+- Close export gaps:
+  - BehaviorLog bundle must include authoritative `data/status_events.jsonl`.
+  - Full JSON backup should include status event history or clearly defer to
+    BehaviorLog with precise UI/docs copy.
+  - Markdown AI summary should tell agents to prefer status events over current
+    occurrence snapshots when analyzing corrections, late logging, or behavior
+    adherence timing.
+  - App-native JSONL/CSV should keep existing `status_marked_at` fields and
+    should not silently imply that snapshots are full history.
+- Add or update tests for timestamp preservation, correction history, unmarking,
+  legacy resolved rows without status events, export context, and BehaviorLog
+  conformance.
+- Update `docs/DATA_MODEL.md`, `docs/EXPORT_FORMATS.md`, `docs/PRODUCT_SPEC.md`,
+  `docs/USER_FLOWS.md`, `docs/DECISIONS.md`, and `docs/FEATURE_IDEAS.md` where
+  the hardened contract needs to be explicit.
+- Do not add a `missed` status, automatic missed marking, AI coaching, broad
+  audit-log UI, or status-history editing.
+
+Owner questions before implementation:
+- Should Full JSON backup become a complete backup that includes
+  `occurrence_status_events`, or should BehaviorLog remain the only complete
+  status-history export?
+- Should Markdown AI summary include a brief "logging behavior" section when
+  status events show frequent corrections or end-of-day batch logging?
+- Should users ever see per-occurrence status history in the UI, or should this
+  ticket remain export/context only?
+- Should future non-manual sources such as voice logging use new
+  `source_capture_method` values now, or wait until the voice feature is
+  scoped?
+
+Suggested files:
+- `docs/DATA_MODEL.md`
+- `docs/EXPORT_FORMATS.md`
+- `docs/PRODUCT_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `docs/DECISIONS.md`
+- `lib/resolvers/status.resolver.ts`
+- `lib/services/occurrence.service.ts`
+- `lib/db/occurrenceStatusEvents.repo.ts`
+- `lib/services/export.service.ts`
+- `lib/resolvers/export.resolver.ts`
+- `components/export/*`
+- `tests/status.resolver.test.ts`
+- `tests/occurrence.service.test.ts`
+- `tests/export.resolver.test.ts`
+- `tests/behaviorlog-conformance.test.ts`
+- RLS/static policy tests
+- `STATUS.md`
+
+Verification:
+- Run focused status, occurrence service, export, and BehaviorLog conformance
+  tests first.
+- If schema or RLS changes are needed, run `npm run supabase -- db reset` and
+  regenerate database types.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+
+---
+
 ## Future ticket: Workspace restructuring
 
 Move toward the target composable architecture only when needed by marketing,

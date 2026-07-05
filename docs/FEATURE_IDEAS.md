@@ -35,6 +35,9 @@ For new rough ideas, add:
 
 Status: candidate.
 
+Promoted ticket:
+`docs/TICKETS.md` Ticket 058.
+
 Why:
 Cadence should be able to tell when a user marked a specific occurrence as
 Completed or Not Completed, and when they later changed or cleared that status.
@@ -73,6 +76,59 @@ Open questions:
 Scope guardrails:
 Do not add a new stored status. Needs decision remains derived, and Unresolved
 must not be treated as failure.
+
+## Behavior Title And Description History
+
+Status: candidate.
+
+Promoted ticket:
+`docs/TICKETS.md` Ticket 057.
+
+Why:
+A user's edits to a behavior title or description may show that their
+understanding of the behavior changed over time. For example, a vague behavior
+may become more specific, a protocol may gain or lose steps, or a title may be
+renamed to better match what the user is actually tracking. Agents analyzing
+exports could use that history to avoid treating all past occurrences as if the
+behavior definition had always been the same.
+
+Current implementation notes:
+
+- `behaviors.title` and `behaviors.description` store the current behavior
+  definition.
+- `behaviors.updated_at` shows that the behavior row changed, but not what
+  changed.
+- Current app-native and BehaviorLog exports include behavior title and
+  description snapshots, not a first-class revision history.
+
+Possible shape:
+
+- Add append-only behavior definition events when the title or description
+  changes.
+- Capture previous and next values, the changed fields, `recorded_at`, actor or
+  source, and optional user-provided reason.
+- Let exports include the revision trail so agents can interpret historical
+  occurrences against the definition that was active at the time.
+- Keep the initial UI minimal. The first useful version may only capture and
+  export history, without showing a full revision browser in the app.
+
+Open questions:
+
+- Should every saved edit be captured, or only meaningful changes after
+  normalization?
+- Should typo fixes be marked differently from semantic behavior changes?
+- Should users be able to add a short reason when changing a behavior
+  definition?
+- Should exports include full previous text, diffs, or both?
+- How should import, restore, and BehaviorLog interoperability represent
+  behavior definition history?
+- How should users delete or redact old title and description text if it
+  becomes sensitive?
+
+Scope guardrails:
+Do not add multi-user audit logs, approval workflows, AI-generated behavior
+rewrites, or automatic splitting/merging of behaviors. This should remain a
+single-account personal history feature.
 
 ## Conversational Voice And Speech-To-Action Logging
 

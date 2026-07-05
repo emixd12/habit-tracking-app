@@ -49,6 +49,8 @@ spacing:
   md: "24px"
   lg: "64px"
   xl: "120px"
+  page-gutter: "clamp(20px, 4.5vw, 72px)"
+  wide-page-gutter: "clamp(24px, 5vw, 80px)"
 components:
   button-primary:
     backgroundColor: "transparent"
@@ -116,6 +118,9 @@ This is product UI, not a poster. The look can be distinctive, but every screen 
 - Rust red used for explicit Not Completed decisions and rare caution states.
 - Square corners, no shadows, no blur, no rounded cards.
 - Spacious desktop rhythm with compact, stackable mobile layouts.
+- Shared page gutters should keep public pages from touching the viewport
+  edge; wide marketing sections use the wider gutter token before max-width
+  clamping.
 - Behaviors, Export, and Settings may use the shared decorative page banner
   full width above route content.
 - Public marketing pages keep the same square ledger vocabulary while making
@@ -326,8 +331,11 @@ This system is flat by default. Depth is created with borders, spacing, surface 
   `/`, `/standard`, `/cadence`, `/examples`, `/docs`, and `/about`.
 - **Layout:** Use full-width page sections separated by 1px Ash Line rules.
   Keep hero text unboxed and leave the next section visible in the first
-  viewport. The homepage hero may use a two-column copy/media composition when
-  the media is a direct product capture, not a decorative card.
+  viewport. Apply the shared marketing page-gutter tokens to section, header,
+  and footer bodies before max-width clamping so desktop pages keep breathing
+  room at viewport edges. The homepage hero may use a two-column copy/media
+  composition when the media is a direct product capture, not a decorative
+  card.
 - **Heading scale:** Marketing H2 headings sit one step below the prior display
   scale so secondary sections do not compete with the homepage H1.
 - **Brand relationship:** The homepage leads with Cadence as the product and
