@@ -82,14 +82,14 @@ export function TimezonePanel({
 
         <form key={savedTimezone} action={formAction} className="grid gap-3">
           <label
-            htmlFor="timezone"
+            htmlFor="timezone-input"
             className="text-sm leading-6 text-foreground"
           >
             Timezone
           </label>
           <input
             ref={timezoneInputRef}
-            id="timezone"
+            id="timezone-input"
             name="timezone"
             type="text"
             required
@@ -98,6 +98,10 @@ export function TimezonePanel({
             defaultValue={savedTimezone}
             className="min-h-11 border border-line bg-background px-3 py-2 text-base"
           />
+          <p className="text-sm leading-6 text-muted-readable">
+            Saving updates active behavior schedules and future unresolved
+            occurrences. Past and resolved history stays unchanged.
+          </p>
           {timezoneOptions.length > 0 ? (
             <datalist id="timezone-options">
               {timezoneOptions.map((option) => (

@@ -127,20 +127,25 @@ Timeline order:
 
 Needs decision contains prior-day unresolved occurrences. It is not a general
 past timeline. As a correction affordance, occurrences decided from Needs
-decision may remain visible in their original prior-day group through the
-current local day.
+decision, or otherwise resolved today while still belonging to a prior local
+day, may remain visible in their original prior-day group through the current
+local day. This retention is derived from status timing and does not store a
+separate modal-origin flag.
 
 The Needs decision button is fixed to the lower right of the Timeline screen, shows the current number of prior unresolved occurrences, and opens a modal with the grouped prior-day occurrences. On mobile, it spans the lower safe-area width as one bottom action.
 The count and label sit on one continuous button surface without an internal divider.
 The count includes unresolved prior-day occurrences only. It does not include
 same-day retained rows that were already marked Completed or Not Completed from
-the modal.
+the modal or another correction surface.
 The open modal should not show a visible global Needs decision title or total
 count. Its date groups are the visible structure and should start at the top of
 the scroll area, with the close control pinned over the top-right corner. Each
 group stretches to the same modal gutter on the left and right, shows the date,
 then shows a count of unresolved items left to decide for that date. The date
 header text may leave room for the overlaid close control.
+When the unresolved count is zero but retained rows remain, the launcher should
+clarify that the modal reviews decisions from today, and the date group should
+state that all items are decided today.
 
 Users should not browse previous days as ordinary timeline sections in v1.
 
@@ -200,7 +205,8 @@ must not call it missed or failed.
 
 Clicking a card outside the status actions expands it.
 
-Expanded cards show:
+Expanded cards keep their detail content inside the native disclosure element
+and show:
 - Description
 - Category
 - Schedule details
@@ -230,15 +236,14 @@ Categories are visible only in expanded card details.
 
 If an occurrence is unresolved after the end of its local day, it appears in the Needs decision modal and is visually highlighted. This is a derived UI state based on date and `unresolved`; it must not write a different stored status.
 
-When a user marks a Needs decision row Completed or Not Completed, the row
-should remain available in the modal until the next local midnight in the
-user's timezone. It should stay in its original local-day group rather than
-moving into a separate recent-decisions section. Completed rows keep the same
-blue resolved treatment as Timeline rows. Not Completed rows use the same
-resolved-row structure with the red accent treatment and Not Completed label.
-Expanding either resolved row exposes status correction and Note editing. After
-the next local midnight, these retained resolved rows no longer appear in Needs
-decision.
+When a prior-day occurrence is marked Completed or Not Completed today, the row
+should remain available in the modal until the next local midnight in the user's
+timezone. It should stay in its original local-day group rather than moving into
+a separate recent-decisions section. Completed rows keep the same blue resolved
+treatment as Timeline rows. Not Completed rows use the same resolved-row
+structure with the red accent treatment and Not Completed label. Expanding
+either resolved row exposes status correction and Note editing. After the next
+local midnight, these retained resolved rows no longer appear in Needs decision.
 
 ## Behavior flow
 
@@ -455,6 +460,8 @@ Settings includes:
 Timezone detection uses the browser/OS timezone reported by `Intl.DateTimeFormat().resolvedOptions().timeZone`; it does not request location permission.
 
 The user can apply the detected timezone or manually enter an IANA timezone. Saving updates the profile timezone, updates active behavior schedules to that timezone, and resyncs future unresolved occurrences. Past and resolved occurrence history stays unchanged.
+The Settings UI should state this impact before submit so the user understands
+that future unresolved rows change while past and resolved history does not.
 
 When the user clicks Enable notifications on this device, Settings requests
 browser notification permission if the browser still allows prompting, then
@@ -467,6 +474,9 @@ and type the account email, or `DELETE` if no email is available. The server
 signs out the account globally and deletes the Supabase auth user through a
 server-only service-role client, relying on the database ownership cascades to
 remove hosted Cadence records.
+The client should mirror those gates by disabling the destructive submit until
+the acknowledgement and exact typed confirmation are present; the server still
+enforces the same requirements.
 
 Do not include destructive data actions in v1 except explicit account deletion
 and dedicated BehaviorLog restore work. Restore preview is read-only; restore

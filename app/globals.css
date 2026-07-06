@@ -319,7 +319,7 @@ details[open] > .product-disclosure-trigger .product-disclosure-indicator {
   display: none;
 }
 
-.timeline-occurrence-row-grid:has(details[open]) .timeline-occurrence-details {
+details[open] > .timeline-occurrence-details {
   display: grid;
 }
 

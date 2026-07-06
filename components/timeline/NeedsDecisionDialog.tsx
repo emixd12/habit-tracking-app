@@ -10,18 +10,25 @@ import {
 } from "react";
 import { X } from "lucide-react";
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 type NeedsDecisionDialogProps = Readonly<{
   title: string;
   occurrenceCount: number;
+  hasRetainedRows?: boolean;
   children: ReactNode;
 }>;
 
 export function NeedsDecisionDialog({
   title,
   occurrenceCount,
+  hasRetainedRows = false,
   children,
 }: NeedsDecisionDialogProps) {
+  const openButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
   const dialogId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const hasDecisions = occurrenceCount > 0;
@@ -31,21 +38,71 @@ export function NeedsDecisionDialog({
       return;
     }
 
-    closeButtonRef.current?.focus();
+    const previousElement =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const launcherElement = openButtonRef.current;
+
+    closeButtonRef.current?.focus({ preventScroll: true });
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsOpen(false);
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const dialog = dialogRef.current;
+
+      if (!dialog) {
+        return;
+      }
+
+      const focusableElements = getFocusableElements(dialog);
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        dialog.focus({ preventScroll: true });
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (!dialog.contains(activeElement)) {
+        event.preventDefault();
+        firstElement.focus({ preventScroll: true });
+        return;
+      }
+
+      if (event.shiftKey && activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus({ preventScroll: true });
+        return;
+      }
+
+      if (!event.shiftKey && activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus({ preventScroll: true });
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       document.body.style.overflow = originalOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
+
+      if (previousElement?.isConnected) {
+        previousElement.focus({ preventScroll: true });
+      } else {
+        launcherElement?.focus({ preventScroll: true });
+      }
     };
   }, [isOpen]);
 
@@ -62,11 +119,12 @@ export function NeedsDecisionDialog({
   return (
     <>
       <button
+        ref={openButtonRef}
         type="button"
         aria-controls={dialogId}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        aria-label={decisionButtonLabel(occurrenceCount)}
+        aria-label={decisionButtonLabel(occurrenceCount, hasRetainedRows)}
         onClick={openDialog}
         className={[
           "fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-40 flex items-stretch justify-between border text-left transition-colors sm:bottom-6 sm:left-auto sm:right-6 sm:max-w-[calc(100vw-2rem)]",
@@ -84,7 +142,7 @@ export function NeedsDecisionDialog({
         <span className="grid min-h-14 flex-1 content-center px-3 py-2 sm:flex-none">
           <span className="text-sm font-bold leading-5">{title}</span>
           <span className="text-xs font-bold leading-5">
-            {occurrenceCount} to decide
+            {decisionButtonDetail(occurrenceCount, hasRetainedRows)}
           </span>
         </span>
       </button>
@@ -96,9 +154,11 @@ export function NeedsDecisionDialog({
         >
           <section
             id={dialogId}
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-label={title}
+            tabIndex={-1}
             className="relative flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[min(920px,100%)] sm:border sm:border-line"
           >
             <button
@@ -122,7 +182,27 @@ export function NeedsDecisionDialog({
   );
 }
 
-function decisionButtonLabel(count: number): string {
+function getFocusableElements(container: HTMLElement) {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) =>
+      !element.hasAttribute("disabled") &&
+      element.getAttribute("aria-hidden") !== "true",
+  );
+}
+
+function decisionButtonDetail(count: number, hasRetainedRows: boolean): string {
+  if (count === 0 && hasRetainedRows) {
+    return "Review decisions from today";
+  }
+
+  return `${count} to decide`;
+}
+
+function decisionButtonLabel(count: number, hasRetainedRows: boolean): string {
+  if (count === 0 && hasRetainedRows) {
+    return "Open Needs decision, no prior unresolved occurrences, review decisions from today";
+  }
+
   if (count === 1) {
     return "Open Needs decision, 1 prior unresolved occurrence";
   }

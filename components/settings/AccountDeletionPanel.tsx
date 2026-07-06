@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
 
 import {
   ACCOUNT_DELETION_INITIAL_STATE,
@@ -22,6 +22,17 @@ export function AccountDeletionPanel({
   const [state, formAction, isPending] = useActionState(
     deleteAccountAction,
     ACCOUNT_DELETION_INITIAL_STATE,
+  );
+  const [exportAcknowledged, setExportAcknowledged] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
+  const canSubmit = useMemo(
+    () =>
+      isAccountDeletionReady({
+        exportAcknowledged,
+        confirmation,
+        confirmationLabel,
+      }),
+    [confirmation, confirmationLabel, exportAcknowledged],
   );
 
   return (
@@ -53,6 +64,10 @@ export function AccountDeletionPanel({
               type="checkbox"
               name="confirm_export"
               value="yes"
+              checked={exportAcknowledged}
+              onChange={(event) =>
+                setExportAcknowledged(event.currentTarget.checked)
+              }
               className="mt-0.5 h-5 w-5 accent-foreground"
             />
             <span>I downloaded an export or do not need one.</span>
@@ -69,12 +84,18 @@ export function AccountDeletionPanel({
             name="confirmation"
             type="text"
             autoComplete="off"
+            value={confirmation}
+            onChange={(event) => setConfirmation(event.currentTarget.value)}
             className="min-h-11 border border-line bg-background px-3 py-2 text-base"
           />
+          <p className="text-sm leading-6 text-muted-readable">
+            Deletion unlocks after the export acknowledgement and typed
+            confirmation match.
+          </p>
 
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || !canSubmit}
             className="product-action product-action-danger min-h-11 w-fit py-2 text-sm"
           >
             {isPending ? "Deleting..." : "Delete account"}
@@ -89,4 +110,16 @@ export function AccountDeletionPanel({
       </div>
     </section>
   );
+}
+
+export function isAccountDeletionReady({
+  exportAcknowledged,
+  confirmation,
+  confirmationLabel,
+}: Readonly<{
+  exportAcknowledged: boolean;
+  confirmation: string;
+  confirmationLabel: string;
+}>): boolean {
+  return exportAcknowledged && confirmation.trim() === confirmationLabel;
 }

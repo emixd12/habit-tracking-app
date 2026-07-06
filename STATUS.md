@@ -45,6 +45,13 @@ When updating a ticket row:
 
 This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, Ticket 013 Vercel production deployment, BehaviorLog interoperability and import work through Ticket 024, Ticket 025A restore preview, Ticket 025B restore apply/UI, Ticket 026 imported notes, Ticket 027 imported intervention history, Ticket 028 imported intervention promotion services, Ticket 029 public web hardening, Ticket 030 public web hardening follow-up, Ticket 031 Astro marketing site, Ticket 032 Needs Decision same-day correction retention, Ticket 033 Analytics selected-day occurrence correction, Ticket 034 multi-account Supabase launch readiness sign-off planning, and the project-definition and agent-bootstrap layer.
 
+The current UX backlog pass has completed implementation for Tickets 048-052:
+UX research reproduction/triage, Settings baseline correctness, first-run
+mobile layout robustness, Timeline daily workflow usability, and Needs Decision
+interaction correctness. The pass stayed within the existing Timeline and
+Settings surfaces and did not add new routes, dashboards, stored statuses,
+provider operations, or out-of-scope product behavior.
+
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
 surfaces are the authenticated Next.js web app and a sibling Astro marketing
@@ -3467,6 +3474,64 @@ Verification:
 
 Remaining risk:
 - This local polish pass has not been pushed to hosted production yet.
+
+### UX tickets 048-052 baseline correctness pass
+
+Status: complete.
+
+Implementation summary:
+- Completed Ticket 048 by running a browser-based reproduction and triage pass
+  over the highest-risk Settings, Timeline, Needs Decision, first-run,
+  reminder-readiness, import/restore, deletion, and mobile journeys using the
+  local dev server plus design-system previews. `docs/UX_RESEARCH_LOG.md` now
+  records observed results, ticket ownership, fixed/deferred states, and
+  input-dependent blockers.
+- Completed Ticket 049 by preserving `/settings#timezone` while giving the
+  timezone input a unique `timezone-input` id, adding concise timezone impact
+  copy, and mirroring account-deletion acknowledgement plus typed-confirmation
+  gates in the client disabled state while keeping server validation.
+- Completed Ticket 050 by moving the first-run setup panel below the mobile
+  header safe area, constraining its viewport height, and leaving dismissal
+  browser-local and non-blocking for v1.
+- Completed Ticket 051 by preserving scroll context for Show more days,
+  keeping expanded row details inside the native disclosure, and reducing
+  repeated title noise in multi-slot Timeline groups with a neutral "Multiple
+  scheduled times" header.
+- Completed Ticket 052 by adding Needs Decision focus trapping, Escape close,
+  launcher focus restoration, factual zero-count retained-row copy, and docs
+  that same-day retention covers any prior-day occurrence resolved today rather
+  than only rows resolved from inside the modal.
+- Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `docs/PRODUCT_SPEC.md`
+  so the implemented Timeline, first-run, Settings, and Needs Decision
+  contracts match the code.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (56 files, 345 tests).
+- Pass: `npm run build`.
+- Pass: `npm run design-system:check`.
+- Pass: `git diff --check`.
+- Earlier focused passes during the implementation: `npx vitest run
+  tests/ux-ticket-049-052-ui.test.tsx`; `npx vitest run
+  tests/ux-ticket-049-052-ui.test.tsx tests/timeline.resolver.test.ts
+  tests/settings.service.test.ts tests/account-deletion.service.test.ts
+  tests/timeline-optimistic-status.test.ts`.
+- Browser QA: local design-system previews at desktop, 390px, and 320px showed
+  no horizontal overflow for first-run, Timeline, Settings, and Needs Decision
+  states. Needs Decision keyboard smoke verified launcher focus, open focus,
+  Shift+Tab/Tab containment, Escape close, and focus return.
+
+Remaining risk:
+- Authenticated clean-account QA on real `/timeline` and `/settings` was not
+  run because the local app is pointed at hosted Supabase and using the test
+  login route would create hosted temporary users without explicit approval.
+- Real browser notification permission/subscription state changes, import or
+  restore fixture uploads, destructive restore/apply, and account-deletion
+  end-to-end tests remain input-dependent and require an approved disposable
+  account or explicit destructive-operation approval.
 
 ## Handoff notes
 

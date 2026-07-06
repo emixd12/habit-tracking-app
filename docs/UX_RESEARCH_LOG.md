@@ -80,6 +80,32 @@ Current posture:
 - No product-scope conflict was identified while creating the research
   backbone.
 
+## Browser Reproduction Pass
+
+Date: 2026-07-06
+
+Reviewer: Codex parent agent with read-only sub-agent audits
+
+Method:
+
+- Reproduced source-confirmed Settings, Timeline, first-run setup, and Needs
+  Decision findings against fixture-backed `/design-system` previews at desktop,
+  390px, and 320px.
+- Verified no document-level horizontal overflow or browser console warnings in
+  the changed previews.
+- Verified Needs Decision keyboard open, Tab/Shift+Tab containment, Escape
+  close, and focus return to the launcher in the design-system preview.
+- Did not use `/auth/test-login` because the local app is pointed at hosted
+  Supabase, and creating disposable hosted users requires owner approval for
+  this pass.
+
+Input-dependent checks still pending:
+
+- Authenticated clean-account first-run QA on `/timeline`.
+- Real browser notification permission and push-subscription recovery states.
+- Import/restore fixture uploads and destructive restore apply checks on a
+  disposable account only.
+
 ## Findings
 
 ### UX-001: BehaviorLog Value May Not Be Clear To First-Time Users
@@ -153,7 +179,14 @@ Source-of-truth reference: `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`
 Recommended follow-up: Run TS05 and TS13 at 390px and 320px widths, with
 keyboard-only navigation and browser zoom at 200 percent.
 
-Status: Open
+Reproduction update (2026-07-06): Source review found the primary mobile
+status and note actions already use 44px-class tap targets. Design-system
+Timeline preview at 390px and 320px had no horizontal overflow or console
+warnings after the row-disclosure and grouped-stack fixes. Authenticated
+clean-account hurry-state testing remains a future human-research activity, not
+a blocking implementation bug.
+
+Status: Fixed
 
 ### UX-003: Needs Decision Zero-Count Retained Rows May Be Confusing
 
@@ -189,7 +222,12 @@ Source-of-truth reference: `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`
 Recommended follow-up: Include a same-day retained-row state in TS06 and ask
 participants what they expect the zero-count button to do before opening it.
 
-Status: Open
+Reproduction update (2026-07-06): Confirmed as a copy risk and fixed. When the
+unresolved count is zero but retained rows remain, the launcher now says
+`Review decisions from today`, and all-decided date groups say `All decided
+today`.
+
+Status: Fixed
 
 ### UX-004: Behavior Heatmap Interactivity May Be Undiscoverable
 
@@ -545,7 +583,13 @@ Recommended follow-up: Run TS03 at 390px and 320px with a clean account. If
 the setup panel is hidden or overlaps navigation, treat as an implementation
 bug before public onboarding tests.
 
-Status: Needs reproduction
+Reproduction update (2026-07-06): Source review confirmed the mobile header
+and setup pop-up layer conflict. The panel now sits below the sticky mobile
+header, has a viewport-based max height, and scrolls when needed. Design-system
+browser preview at 390px and 320px had no horizontal overflow or console
+warnings.
+
+Status: Fixed
 
 ### UX-014: Browser Reminder Onboarding Conflates Permission With Subscription
 
@@ -614,7 +658,11 @@ Source-of-truth reference: `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`
 Recommended follow-up: Fix the duplicate id in a focused accessibility patch,
 then add a regression check for Settings anchor and label behavior.
 
-Status: Open
+Reproduction update (2026-07-06): Confirmed in source and fixed. The section
+keeps `id="timezone"` for `/settings#timezone`, while the input now uses
+`id="timezone-input"` and the label points to that control.
+
+Status: Fixed
 
 ### UX-016: First-Run Setup Dismissal Is Browser-Global
 
@@ -649,7 +697,12 @@ Recommended follow-up: In TS03, test a second account in the same browser after
 dismissal. Decide whether account-scoped dismissal belongs in v1 or should stay
 local-only by design.
 
-Status: Open
+Reproduction update (2026-07-06): Current-browser dismissal remains the v1
+decision because the setup prompt is optional and non-blocking, and
+account-scoped dismissal would add persistence scope not required by the
+current product docs.
+
+Status: Fixed
 
 ### UX-017: First-Run Setup Announcement And Focus Strategy Need Testing
 
@@ -683,7 +736,12 @@ Recommended follow-up: Run TS03 and TS13 with keyboard-only navigation and a
 screen-reader-informed review. Confirm whether users encounter the setup rows
 without focus being stolen from the Timeline.
 
-Status: Open
+Reproduction update (2026-07-06): The setup pop-up remains non-modal and does
+not steal focus from the Timeline, matching the current product decision.
+Screen-reader-specific announcement tuning is deferred unless future testing
+shows a broader usability issue.
+
+Status: Deferred
 
 ### UX-018: Needs Decision Modal Needs Focus Trap And Focus Restoration
 
@@ -716,7 +774,13 @@ Source-of-truth reference: `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`
 Recommended follow-up: Run TS06 and TS13 keyboard-only. If confirmed, add focus
 trap, opener focus restoration, and focused component tests.
 
-Status: Needs reproduction
+Reproduction update (2026-07-06): Confirmed in source and fixed. Needs Decision
+now captures the launcher, traps Tab/Shift+Tab inside the dialog, closes on
+Escape, restores body scroll, and returns focus to the launcher. Design-system
+browser preview passed keyboard open, Tab loop, Escape close, and focus return
+at desktop, 390px, and 320px.
+
+Status: Fixed
 
 ### UX-019: Show More Future Days May Lose Scroll Context
 
@@ -750,7 +814,11 @@ Source-of-truth reference: `docs/USER_FLOWS.md`
 Recommended follow-up: Run TS05 and TS13 on a long Timeline. Consider scroll
 preservation or an anchor to the newly revealed section if context is lost.
 
-Status: Needs reproduction
+Reproduction update (2026-07-06): Confirmed as a source risk and fixed with
+`scroll={false}` on the Show more days route link so revealing more future days
+preserves the user's current scroll context.
+
+Status: Fixed
 
 ### UX-020: Timeline Row Expansion Semantics May Be Too Implicit
 
@@ -786,7 +854,11 @@ Recommended follow-up: Run TS05 with pointer, keyboard, and screen-reader-like
 inspection. If confirmed, rework row expansion while preserving the no-chevron
 visual rule.
 
-Status: Needs reproduction
+Reproduction update (2026-07-06): Confirmed in source and fixed. Timeline row
+details now live inside the native `details` element after `summary`, while the
+no-chevron visual treatment is preserved.
+
+Status: Fixed
 
 ### UX-021: Same-Day Needs Decision Retention Scope Is Ambiguous
 
@@ -824,7 +896,12 @@ Recommended follow-up: Decide whether retention should be strictly
 Needs-decision-origin or any prior-day row resolved today. Update docs and
 tests before changing behavior.
 
-Status: Open
+Reproduction update (2026-07-06): Resolved by documenting the existing
+implementation contract. Retention applies to any prior-day occurrence resolved
+today, derived from `status_marked_at` and local midnight, without adding a
+stored modal-origin flag.
+
+Status: Fixed
 
 ### UX-022: No UI Path Clears A Decision Back To Unresolved
 
@@ -1032,7 +1109,12 @@ Recommended follow-up: Run TS09 with a non-default timezone. If users cannot
 predict the effect, add concise impact copy without turning Settings into a
 documentation page.
 
-Status: Open
+Reproduction update (2026-07-06): Source review confirmed the impact was not
+stated before submit. The timezone panel now states that saving updates active
+behavior schedules and future unresolved occurrences while past and resolved
+history stays unchanged.
+
+Status: Fixed
 
 ### UX-028: Account Deletion Client Gates Are Not Mirrored Before Submit
 
@@ -1067,7 +1149,11 @@ Recommended follow-up: In TS12, attempt deletion before completing each gate.
 If users treat the enabled button as permission to proceed, mirror the gates in
 client button state while retaining server validation.
 
-Status: Needs reproduction
+Reproduction update (2026-07-06): Confirmed in source and fixed. The
+destructive submit is disabled until the export acknowledgement is checked and
+the typed confirmation matches. Server validation remains unchanged.
+
+Status: Fixed
 
 ### UX-029: Restore Preview History May Show Completed Previews As Open
 
@@ -1303,7 +1389,12 @@ Source-of-truth reference: `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`
 Recommended follow-up: Include a multi-slot behavior in TS05 and TS13. Time how
 quickly users identify which scheduled slot they are marking.
 
-Status: Needs reproduction
+Reproduction update (2026-07-06): Source review confirmed duplicated visible
+title text in grouped stacks. The group header now uses the generic label
+`Multiple scheduled times` while each occurrence row keeps its behavior title
+and accessible row semantics.
+
+Status: Fixed
 
 ## Sub-Agent Review Notes
 

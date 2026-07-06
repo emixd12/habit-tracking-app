@@ -118,7 +118,7 @@ export function FirstRunOnboardingPanel({
       role="dialog"
       aria-labelledby="first-run-onboarding-title"
       aria-modal="false"
-      className="fixed left-4 right-4 top-[max(1rem,env(safe-area-inset-top))] z-30 border border-line bg-background text-foreground sm:left-auto sm:right-6 sm:top-6 sm:w-[min(26rem,calc(100vw-2rem))]"
+      className="fixed left-4 right-4 top-[calc(4rem+max(0.75rem,env(safe-area-inset-top)))] z-30 max-h-[calc(100dvh-5.5rem)] overflow-y-auto border border-line bg-background text-foreground sm:left-auto sm:right-6 sm:w-[min(26rem,calc(100vw-2rem))] lg:top-6 lg:max-h-[calc(100dvh-3rem)]"
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-line p-4">
         <div className="min-w-0">

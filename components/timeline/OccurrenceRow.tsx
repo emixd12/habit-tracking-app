@@ -137,9 +137,9 @@ export function OccurrenceRow({
       <div className="timeline-occurrence-row-grid grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0">
         <details
           className="group col-start-1 col-end-3 row-start-1 min-w-0"
-          aria-controls={detailsId}
         >
           <summary
+            aria-controls={detailsId}
             data-label-density={labelDensity}
             className={[
               "product-disclosure-trigger timeline-occurrence-summary grid min-h-12 items-center py-1.5 pl-3 sm:py-2 sm:pl-4",
@@ -167,6 +167,49 @@ export function OccurrenceRow({
               </h3>
             </div>
           </summary>
+
+          <div
+            id={detailsId}
+            className="timeline-occurrence-details mt-0 gap-2 px-3 pt-0 text-sm leading-6 text-muted-readable sm:px-4 sm:pb-2"
+          >
+            <DetailItem
+              label="Description"
+              value={visibleOccurrence.description || "No description."}
+            />
+            <DetailItem label="Category" value={visibleOccurrence.categoryName} />
+            <DetailItem
+              label="Schedule"
+              value={visibleOccurrence.scheduleSummary}
+            />
+
+            {!optimisticView.showPrimaryStatusActions ? (
+              <div className="grid gap-2">
+                <h4 className="font-bold text-foreground">
+                  {visibleOccurrence.expandedStatusActionLabel}
+                </h4>
+                <StatusButtons
+                  occurrenceId={visibleOccurrence.id}
+                  currentStatus={visibleOccurrence.status}
+                  action={statusAction}
+                  disabled={optimisticView.isPending}
+                  pendingStatus={optimisticStatus.pendingStatus}
+                  onStatusSubmit={handleOptimisticStatus}
+                  onStatusSuccess={handleStatusConfirmed}
+                  onStatusError={handleStatusRejected}
+                  includeUnresolved
+                  compact
+                />
+              </div>
+            ) : null}
+
+            <OccurrenceNoteForm
+              key={`${visibleOccurrence.id}-${visibleOccurrence.note}`}
+              occurrenceId={visibleOccurrence.id}
+              note={visibleOccurrence.note}
+              action={noteAction}
+              compact
+            />
+          </div>
         </details>
 
         {optimisticView.showPrimaryStatusActions ? (
@@ -200,45 +243,6 @@ export function OccurrenceRow({
           </p>
         ) : null}
 
-        <div
-          id={detailsId}
-          className="timeline-occurrence-details col-start-1 col-end-3 mt-0 gap-2 px-3 pt-0 text-sm leading-6 text-muted-readable sm:px-4 sm:pb-2"
-        >
-          <DetailItem
-            label="Description"
-            value={visibleOccurrence.description || "No description."}
-          />
-          <DetailItem label="Category" value={visibleOccurrence.categoryName} />
-          <DetailItem label="Schedule" value={visibleOccurrence.scheduleSummary} />
-
-          {!optimisticView.showPrimaryStatusActions ? (
-            <div className="grid gap-2">
-              <h4 className="font-bold text-foreground">
-                {visibleOccurrence.expandedStatusActionLabel}
-              </h4>
-              <StatusButtons
-                occurrenceId={visibleOccurrence.id}
-                currentStatus={visibleOccurrence.status}
-                action={statusAction}
-                disabled={optimisticView.isPending}
-                pendingStatus={optimisticStatus.pendingStatus}
-                onStatusSubmit={handleOptimisticStatus}
-                onStatusSuccess={handleStatusConfirmed}
-                onStatusError={handleStatusRejected}
-                includeUnresolved
-                compact
-              />
-            </div>
-          ) : null}
-
-          <OccurrenceNoteForm
-            key={`${visibleOccurrence.id}-${visibleOccurrence.note}`}
-            occurrenceId={visibleOccurrence.id}
-            note={visibleOccurrence.note}
-            action={noteAction}
-            compact
-          />
-        </div>
       </div>
     </article>
   );

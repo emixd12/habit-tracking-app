@@ -142,6 +142,8 @@ The first-run prompt is a fixed, non-modal pop-up shown on Timeline only while
 required setup items remain incomplete and the user has not dismissed it in the
 current browser. It should:
 
+- Sit below the sticky mobile header on narrow screens and remain scrollable
+  when the setup rows exceed the available height.
 - Link to the existing create-behavior, notification, timezone, and import
   controls.
 - Treat import as optional.
@@ -157,9 +159,8 @@ current browser. It should:
 
 Users should not browse previous days as normal timeline sections. Prior
 unresolved occurrences appear only in the Needs decision modal, with one narrow
-exception: occurrences just decided from Needs decision may remain visible in
-that modal through the current local day so the user can correct an accidental
-tap.
+exception: prior-day occurrences resolved today may remain visible in that
+modal through the current local day so the user can correct an accidental tap.
 
 Timeline access:
 
@@ -188,19 +189,23 @@ overlaid close control. Each date group should show the local date first, then a
 line with how many unresolved occurrences are left to decide for that date. Date
 groups use the normal white background rather than a grey container.
 
-After the user marks a prior unresolved occurrence from the Needs decision
-modal, that row should remain in its original local-day group until the next
-local midnight in the user's timezone. Do not move it into a separate "Decided
-just now" or similar section. Completed rows keep the same full blue Completed
-state used on Timeline rows; expanding the row exposes Change status and Note
-editing. Not Completed rows keep the same resolved-row behavior as Completed
-rows: full red accent treatment, a collapsed Not Completed label, and status
-correction from the expanded row. The Needs decision count
+After the user resolves a prior-day occurrence, that row should remain in its
+original local-day group until the next local midnight in the user's timezone
+when its `status_marked_at` falls on the current local date. This retention is
+derived from existing status timing and applies to any prior-day occurrence
+resolved today; do not add a stored modal-origin flag. Do not move retained
+rows into a separate "Decided just now" or similar section. Completed rows keep
+the same full blue Completed state used on Timeline rows; expanding the row
+exposes Change status and Note editing. Not Completed rows keep the same
+resolved-row behavior as Completed rows: full red accent treatment, a collapsed
+Not Completed label, and status correction from the expanded row. The Needs decision count
 continues to count unresolved prior-day occurrences only, not retained decided
 rows. When there are no unresolved rows but retained decided rows still exist,
-the button may still open the modal with a zero count. Retention must be
-derived from existing occurrence status timing and the local day boundary; do
-not add a stored status or flag for it.
+the button may still open the modal with a zero count and should clarify that
+the modal is reviewing decisions from today. Date groups with retained rows and
+zero unresolved items should say that all items are decided today. Retention
+must be derived from existing occurrence status timing and the local day
+boundary; do not add a stored status or flag for it.
 
 Example:
 
@@ -259,6 +264,8 @@ Show the next 7 days by default.
 Each future day is its own section.
 
 Provide a control to show more future days.
+When the user reveals more future days, preserve useful scroll context instead
+of sending the user back to the top of the Timeline.
 
 Do not show previous days except for unresolved prior-day items inside the Needs decision modal.
 
@@ -295,7 +302,7 @@ Occurrence rows should read as compact unboxed list rows. Do not draw a perimete
 In collapsed rows, the scheduled time, behavior title, and collapsed status/action text should be vertically centered within the row. Expanded rows may pin the status controls to the top-right so the details panel can span the row below.
 On mobile, scheduled time, behavior title, Completed, and Not Completed should share one horizontal row when unresolved status actions are visible. Completed and Not Completed keep at least a 44px tap target and same-line labels while still looking like underlined text actions; the scheduled time and behavior title may compact and truncate before the status targets shrink. Do not add a chevron or separate disclosure icon.
 
-Expanded card details should show:
+Expanded card details should stay inside the native disclosure element and show:
 - Description if present
 - Category
 - Behavior schedule
@@ -645,7 +652,7 @@ Show:
 - Trust, Privacy, and Terms links for public-product account context
 - Account deletion with export acknowledgement and typed confirmation
 
-Timezone detection should use the browser/OS timezone exposed by `Intl.DateTimeFormat().resolvedOptions().timeZone`; do not request geolocation or location permission. Settings should show the stored timezone, show the detected browser timezone when available, provide a Use detected timezone action, and allow manual IANA timezone entry. Saving a timezone updates the profile and active behavior schedules, then resyncs future unresolved occurrences while preserving past and resolved history.
+Timezone detection should use the browser/OS timezone exposed by `Intl.DateTimeFormat().resolvedOptions().timeZone`; do not request geolocation or location permission. Settings should show the stored timezone, show the detected browser timezone when available, provide a Use detected timezone action, and allow manual IANA timezone entry. Before submit, Settings should state that saving a timezone updates the profile and active behavior schedules, then resyncs future unresolved occurrences while preserving past and resolved history.
 
 Do not include a test notification button in v1.
 
@@ -653,6 +660,9 @@ Do not include destructive data actions in v1 except the explicit public-launch
 account deletion path and dedicated BehaviorLog restore work. Restore preview is
 read-only; restore apply must require explicit review, backup acknowledgement,
 typed confirmation, and stale-preview refusal before destructive writes.
+The account deletion action should stay disabled in the client until both the
+export acknowledgement and typed confirmation match, while server-side
+validation remains authoritative.
 
 ## Offline UI
 

@@ -21,6 +21,10 @@ export function Timeline({
       <NeedsDecisionDialog
         title={timeline.needsDecision.title}
         occurrenceCount={timeline.needsDecision.occurrenceCount}
+        hasRetainedRows={
+          timeline.needsDecision.occurrenceCount === 0 &&
+          timeline.needsDecision.daySections.length > 0
+        }
       >
         {timeline.needsDecision.daySections.length === 0 ? (
           <p className="border-t border-line pt-4 text-base leading-7 text-muted-readable">
@@ -56,6 +60,7 @@ export function Timeline({
         <div className="border-t border-line pt-5">
           <Link
             href={`/timeline?days=${timeline.nextFutureDays}`}
+            scroll={false}
             className="product-action product-action-primary min-h-11 gap-2 py-2 text-sm font-bold"
           >
             <Plus aria-hidden="true" size={18} strokeWidth={2.5} />

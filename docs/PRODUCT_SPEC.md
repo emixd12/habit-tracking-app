@@ -146,13 +146,14 @@ Needs decision is a derived UI state, not a stored status. It applies when an oc
 The UI labels `completed` as Completed and `not_completed` as Not Completed.
 
 Submitted occurrence decisions can be corrected later. The immediate correction
-path is the Needs decision modal: rows decided from that modal may remain
+path is the Needs decision modal: prior-day rows resolved today may remain
 visible in their original prior-day group through the current local day, with
-the same Timeline row cues. Completed and Not Completed retained rows use
+the same Timeline row cues. This retention is derived from status timing, not a
+stored modal-origin flag. Completed and Not Completed retained rows use
 resolved-row labels, with correction available from the expanded row. After
 that local-day window, later corrections should be deliberate and
-behavior-specific, using the Behaviors screen's behavior date review rather than
-turning Timeline into a past-history browser.
+behavior-specific, using the Behaviors screen's behavior date review rather
+than turning Timeline into a past-history browser.
 
 ## Day boundary
 
