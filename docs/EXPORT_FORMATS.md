@@ -447,6 +447,11 @@ Restore apply rules:
 - Applying the same accepted restore run is designed to be idempotent through
   deterministic core record ids and passive-history uniqueness on
   `import_run_id, external_id`.
+- BehaviorLog external ids do not need to be database UUIDs. When an accepted
+  create action has a non-UUID external id, such as Cadence schedule ids in the
+  `sch_<uuid>` form, restore apply generates a deterministic local UUID for the
+  product row, uses that UUID for child references, and writes a
+  `behaviorlog_import_record_mappings` row preserving the original external id.
 
 ### Imported intervention promotion
 

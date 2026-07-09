@@ -540,7 +540,10 @@ Mapping rows connect external BehaviorLog record ids to local Cadence ids for a
 single import run. The unique constraint makes repeated mapping inserts
 idempotent for the same run, record type, and external id. The table supports
 behavior, schedule, occurrence, status event, note, and intervention mappings so
-later import phases can share one provenance contract.
+later import phases can share one provenance contract. External ids are
+BehaviorLog ids and may be non-UUID values; restore apply may map ids such as
+`sch_<uuid>` to deterministic local UUID schedule-slot ids while preserving the
+original external id here.
 
 ### `imported_notes`
 

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import {
   createBehaviorLogImportRun,
+  createBehaviorLogImportRecordMappings,
   getBehaviorLogImportRunById,
   updateBehaviorLogImportRunStatus,
 } from "@/lib/db/behaviorLogImports.repo";
@@ -25,6 +26,7 @@ import type {
   BehaviorLogImportFile,
   BehaviorLogImportNotePlan,
   BehaviorLogImportPreview,
+  BehaviorLogImportRecordMappingInput,
   BehaviorLogImportRunCreateInput,
   BehaviorLogImportSchedulePlan,
 } from "@/lib/types/behaviorlog-import";
@@ -76,6 +78,11 @@ type RestorePayload = {
   status_events: Array<Record<string, unknown>>;
   imported_notes: Array<Record<string, unknown>>;
   imported_interventions: Array<Record<string, unknown>>;
+};
+
+type RestorePayloadBuildResult = {
+  payload: RestorePayload;
+  mappings: BehaviorLogImportRecordMappingInput[];
 };
 
 export class BehaviorLogRestoreAuthError extends Error {
@@ -306,7 +313,7 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
   const completedAt = new Date().toISOString();
 
   try {
-    const payload = buildRestorePayload({
+    const { payload, mappings } = buildRestorePayload({
       userId,
       importRunId: applyRun.id,
       importPreview,
@@ -323,6 +330,8 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
     if (error) {
       throw error;
     }
+
+    await createBehaviorLogImportRecordMappings(supabase, mappings);
 
     const appliedRun =
       (await updateBehaviorLogImportRunStatus(supabase, {
@@ -403,21 +412,32 @@ function buildRestorePayload(input: {
   importPreview: BehaviorLogImportPreview;
   preview: BehaviorLogRestorePreview;
   existing: BehaviorLogExistingRecords;
-}): RestorePayload {
+}): RestorePayloadBuildResult {
   const actionIndex = indexRestoreActions(input.preview);
   const behaviorIdByExternal = new Map<string, string>();
   const scheduleIdByExternal = new Map<string, string>();
   const occurrenceIdByExternal = new Map<string, string>();
   const statusEventIdByExternal = new Map<string, string>();
   const latestStatusEventByOccurrence = new Map<string, string>();
+  const mappings: BehaviorLogImportRecordMappingInput[] = [];
 
   for (const behavior of input.importPreview.plan.behaviors) {
     const action = actionIndex.behavior.get(behavior.externalId);
 
     if (action && action.action !== "skip") {
+      const behaviorId = localOrSafeUuid(action, {
+        externalId: behavior.externalId,
+        label: "behavior",
+        recordType: "behavior",
+        userId: input.userId,
+        bundleFingerprint: input.preview.bundleFingerprint,
+      });
       behaviorIdByExternal.set(
         behavior.externalId,
-        localOrUuid(action, behavior.externalId, "behavior"),
+        behaviorId,
+      );
+      mappings.push(
+        restoreMapping(input, "behavior", behavior.externalId, behaviorId),
       );
     }
   }
@@ -426,9 +446,19 @@ function buildRestorePayload(input: {
     const action = actionIndex.schedule.get(schedule.externalId);
 
     if (action && action.action !== "skip") {
+      const scheduleId = localOrSafeUuid(action, {
+        externalId: schedule.externalId,
+        label: "schedule",
+        recordType: "schedule",
+        userId: input.userId,
+        bundleFingerprint: input.preview.bundleFingerprint,
+      });
       scheduleIdByExternal.set(
         schedule.externalId,
-        localOrUuid(action, schedule.externalId, "schedule"),
+        scheduleId,
+      );
+      mappings.push(
+        restoreMapping(input, "schedule", schedule.externalId, scheduleId),
       );
     }
   }
@@ -437,9 +467,19 @@ function buildRestorePayload(input: {
     const action = actionIndex.occurrence.get(occurrence.externalId);
 
     if (action && action.action !== "skip") {
+      const occurrenceId = localOrSafeUuid(action, {
+        externalId: occurrence.externalId,
+        label: "occurrence",
+        recordType: "occurrence",
+        userId: input.userId,
+        bundleFingerprint: input.preview.bundleFingerprint,
+      });
       occurrenceIdByExternal.set(
         occurrence.externalId,
-        localOrUuid(action, occurrence.externalId, "occurrence"),
+        occurrenceId,
+      );
+      mappings.push(
+        restoreMapping(input, "occurrence", occurrence.externalId, occurrenceId),
       );
     }
   }
@@ -448,8 +488,17 @@ function buildRestorePayload(input: {
     const action = actionIndex.status_event.get(event.externalId);
 
     if (action && action.action !== "skip") {
-      const eventId = localOrUuid(action, event.externalId, "status event");
+      const eventId = localOrSafeUuid(action, {
+        externalId: event.externalId,
+        label: "status event",
+        recordType: "status_event",
+        userId: input.userId,
+        bundleFingerprint: input.preview.bundleFingerprint,
+      });
       statusEventIdByExternal.set(event.externalId, eventId);
+      mappings.push(
+        restoreMapping(input, "status_event", event.externalId, eventId),
+      );
       latestStatusEventByOccurrence.set(event.occurrenceExternalId, event.externalId);
     }
   }
@@ -466,217 +515,229 @@ function buildRestorePayload(input: {
   );
 
   return {
-    archive_behavior_ids: input.preview.actions.behaviors
-      .filter((action) => action.action === "archive")
-      .map(requiredLocalId),
-    delete_schedule_ids: input.preview.actions.schedules
-      .filter((action) => action.action === "delete")
-      .map(requiredLocalId),
-    delete_occurrence_ids: input.preview.actions.occurrences
-      .filter((action) => action.action === "delete")
-      .map(requiredLocalId),
-    delete_status_event_ids:
-      input.preview.statusHistoryPolicy.selected === "replace_status_history"
-        ? input.preview.actions.statusEvents
-            .filter((action) => action.action === "delete")
-            .map(requiredLocalId)
-        : [],
-    clear_occurrence_note_ids: input.preview.actions.inlineOccurrenceNotes
-      .filter((action) => action.action === "delete")
-      .map(requiredLocalId),
-    delete_imported_note_ids: input.preview.actions.importedNotes
-      .filter((action) => action.action === "delete")
-      .map(requiredLocalId),
-    delete_imported_intervention_ids: input.preview.actions.importedInterventions
-      .filter((action) => action.action === "delete")
-      .map(requiredLocalId),
-    behaviors: input.importPreview.plan.behaviors
-      .filter((behavior) =>
-        shouldUpsert(actionIndex.behavior.get(behavior.externalId)),
-      )
-      .map((behavior) => {
-        const schedules = input.importPreview.plan.schedules.filter(
-          (schedule) => schedule.behaviorExternalId === behavior.externalId,
-        );
-        const primarySchedule = schedules[0];
-
-        if (!primarySchedule) {
-          throw new BehaviorLogRestoreUserError(
-            `Behavior ${behavior.externalId} cannot be restored without a supported schedule.`,
+    payload: {
+      archive_behavior_ids: input.preview.actions.behaviors
+        .filter((action) => action.action === "archive")
+        .map(requiredLocalId),
+      delete_schedule_ids: input.preview.actions.schedules
+        .filter((action) => action.action === "delete")
+        .map(requiredLocalId),
+      delete_occurrence_ids: input.preview.actions.occurrences
+        .filter((action) => action.action === "delete")
+        .map(requiredLocalId),
+      delete_status_event_ids:
+        input.preview.statusHistoryPolicy.selected === "replace_status_history"
+          ? input.preview.actions.statusEvents
+              .filter((action) => action.action === "delete")
+              .map(requiredLocalId)
+          : [],
+      clear_occurrence_note_ids: input.preview.actions.inlineOccurrenceNotes
+        .filter((action) => action.action === "delete")
+        .map(requiredLocalId),
+      delete_imported_note_ids: input.preview.actions.importedNotes
+        .filter((action) => action.action === "delete")
+        .map(requiredLocalId),
+      delete_imported_intervention_ids:
+        input.preview.actions.importedInterventions
+          .filter((action) => action.action === "delete")
+          .map(requiredLocalId),
+      behaviors: input.importPreview.plan.behaviors
+        .filter((behavior) =>
+          shouldUpsert(actionIndex.behavior.get(behavior.externalId)),
+        )
+        .map((behavior) => {
+          const schedules = input.importPreview.plan.schedules.filter(
+            (schedule) => schedule.behaviorExternalId === behavior.externalId,
           );
-        }
+          const primarySchedule = schedules[0];
 
-        return {
-          id: behaviorIdByExternal.get(behavior.externalId),
-          category_id: null,
-          title: behavior.title,
-          description: behavior.description,
-          recurrence_rule: toCadenceRecurrenceRule(primarySchedule),
-          scheduled_time: primarySchedule.localTime ?? primarySchedule.windowStartLocal,
-          timezone: primarySchedule.timezone || DEFAULT_TIMEZONE,
-          browser_reminder_enabled:
-            behavior.cadenceBrowserReminderEnabled ?? true,
-          email_reminder_enabled: behavior.cadenceEmailReminderEnabled ?? false,
-          reminder_offset_minutes: behavior.cadenceReminderOffsetMinutes ?? 0,
-          active: behavior.archivedAtUtc ? false : behavior.cadenceActive ?? true,
-          archived_at: behavior.archivedAtUtc,
-          created_at: behavior.createdAtUtc,
-        };
-      }),
-    schedules: input.importPreview.plan.schedules
-      .filter((schedule) =>
-        shouldUpsert(actionIndex.schedule.get(schedule.externalId)),
-      )
-      .map((schedule, index) => ({
-        id: scheduleIdByExternal.get(schedule.externalId),
-        behavior_id: requiredMapValue(
-          behaviorIdByExternal,
-          schedule.behaviorExternalId,
-          "schedule behavior",
-        ),
-        kind: schedule.cadenceScheduleKind ?? "exact",
-        preset: schedule.cadenceSchedulePreset,
-        start_time: schedule.localTime ?? schedule.windowStartLocal,
-        end_time: schedule.windowEndLocal,
-        sort_order: index,
-      })),
-    occurrences: input.importPreview.plan.occurrences
-      .filter((occurrence) =>
-        shouldUpsert(actionIndex.occurrence.get(occurrence.externalId)),
-      )
-      .map((occurrence) => {
-        const latestEventExternalId = latestStatusEventByOccurrence.get(
-          occurrence.externalId,
-        );
-        const latestEvent = latestEventExternalId
-          ? input.importPreview.plan.statusEvents.find(
-              (event) => event.externalId === latestEventExternalId,
-            )
-          : null;
-        const schedule = input.importPreview.plan.schedules.find(
-          (candidate) => candidate.externalId === occurrence.scheduleExternalId,
-        );
+          if (!primarySchedule) {
+            throw new BehaviorLogRestoreUserError(
+              `Behavior ${behavior.externalId} cannot be restored without a supported schedule.`,
+            );
+          }
 
-        if (!schedule) {
-          throw new BehaviorLogRestoreUserError(
-            `Occurrence ${occurrence.externalId} cannot be restored without its schedule.`,
-          );
-        }
-
-        return {
-          id: occurrenceIdByExternal.get(occurrence.externalId),
+          return {
+            id: behaviorIdByExternal.get(behavior.externalId),
+            category_id: null,
+            title: behavior.title,
+            description: behavior.description,
+            recurrence_rule: toCadenceRecurrenceRule(primarySchedule),
+            scheduled_time:
+              primarySchedule.localTime ?? primarySchedule.windowStartLocal,
+            timezone: primarySchedule.timezone || DEFAULT_TIMEZONE,
+            browser_reminder_enabled:
+              behavior.cadenceBrowserReminderEnabled ?? true,
+            email_reminder_enabled: behavior.cadenceEmailReminderEnabled ?? false,
+            reminder_offset_minutes: behavior.cadenceReminderOffsetMinutes ?? 0,
+            active: behavior.archivedAtUtc
+              ? false
+              : behavior.cadenceActive ?? true,
+            archived_at: behavior.archivedAtUtc,
+            created_at: behavior.createdAtUtc,
+          };
+        }),
+      schedules: input.importPreview.plan.schedules
+        .filter((schedule) =>
+          shouldUpsert(actionIndex.schedule.get(schedule.externalId)),
+        )
+        .map((schedule, index) => ({
+          id: scheduleIdByExternal.get(schedule.externalId),
           behavior_id: requiredMapValue(
             behaviorIdByExternal,
-            occurrence.behaviorExternalId,
-            "occurrence behavior",
+            schedule.behaviorExternalId,
+            "schedule behavior",
           ),
-          behavior_schedule_slot_id: requiredMapValue(
-            scheduleIdByExternal,
-            occurrence.scheduleExternalId,
-            "occurrence schedule",
-          ),
-          scheduled_for: occurrence.scheduledForUtc,
-          local_date: occurrence.localDate,
-          schedule_kind: schedule.cadenceScheduleKind ?? "exact",
-          schedule_preset: schedule.cadenceSchedulePreset,
-          schedule_start_time: schedule.localTime ?? schedule.windowStartLocal,
-          schedule_end_time: schedule.windowEndLocal,
-          status: occurrence.currentStatus,
-          completed_at:
-            occurrence.currentStatus === "completed"
-              ? latestEvent?.effectiveAtUtc ?? latestEvent?.recordedAtUtc ?? null
-              : null,
-          status_marked_at:
-            occurrence.currentStatus === "unresolved"
-              ? null
-              : latestEvent?.recordedAtUtc ?? null,
-          note: inlineNoteByOccurrence.get(occurrence.externalId) ?? null,
-          created_at: occurrence.generatedAtUtc,
-        };
-      }),
-    status_events: input.importPreview.plan.statusEvents
-      .filter((event) =>
-        shouldUpsert(actionIndex.status_event.get(event.externalId)),
-      )
-      .map((event) => ({
-        id: statusEventIdByExternal.get(event.externalId),
-        occurrence_id: requiredMapValue(
-          occurrenceIdByExternal,
-          event.occurrenceExternalId,
-          "status event occurrence",
-        ),
-        behavior_id: requiredMapValue(
-          behaviorIdByExternal,
-          event.behaviorExternalId,
-          "status event behavior",
-        ),
-        previous_status: event.previousStatus,
-        status: event.status,
-        status_semantics: event.statusSemantics,
-        recorded_at: event.recordedAtUtc,
-        effective_at: event.effectiveAtUtc,
-        local_date: event.localDate,
-        timezone: event.timezone,
-        source_capture_method: event.sourceCaptureMethod,
-        source_confidence: event.sourceConfidence,
-        revises_event_id: event.revisesEventId
-          ? statusEventIdByExternal.get(event.revisesEventId) ?? null
-          : null,
-        reason_code: event.reasonCode,
-      })),
-    imported_notes: input.importPreview.plan.notes
-      .filter((note) => shouldUpsert(actionIndex.note.get(note.externalId)))
-      .map((note) => ({
-        id: null,
-        import_run_id: input.importRunId,
-        external_id: note.externalId,
-        target_type: note.attachedToType,
-        target_external_id: note.attachedToId,
-        target_local_id: localTargetIdForNote({
-          note,
-          behaviorIdByExternal,
-          occurrenceIdByExternal,
-          statusEventIdByExternal,
+          kind: schedule.cadenceScheduleKind ?? "exact",
+          preset: schedule.cadenceSchedulePreset,
+          start_time: schedule.localTime ?? schedule.windowStartLocal,
+          end_time: schedule.windowEndLocal,
+          sort_order: index,
+        })),
+      occurrences: input.importPreview.plan.occurrences
+        .filter((occurrence) =>
+          shouldUpsert(actionIndex.occurrence.get(occurrence.externalId)),
+        )
+        .map((occurrence) => {
+          const latestEventExternalId = latestStatusEventByOccurrence.get(
+            occurrence.externalId,
+          );
+          const latestEvent = latestEventExternalId
+            ? input.importPreview.plan.statusEvents.find(
+                (event) => event.externalId === latestEventExternalId,
+              )
+            : null;
+          const schedule = input.importPreview.plan.schedules.find(
+            (candidate) =>
+              candidate.externalId === occurrence.scheduleExternalId,
+          );
+
+          if (!schedule) {
+            throw new BehaviorLogRestoreUserError(
+              `Occurrence ${occurrence.externalId} cannot be restored without its schedule.`,
+            );
+          }
+
+          return {
+            id: occurrenceIdByExternal.get(occurrence.externalId),
+            behavior_id: requiredMapValue(
+              behaviorIdByExternal,
+              occurrence.behaviorExternalId,
+              "occurrence behavior",
+            ),
+            behavior_schedule_slot_id: requiredMapValue(
+              scheduleIdByExternal,
+              occurrence.scheduleExternalId,
+              "occurrence schedule",
+            ),
+            scheduled_for: occurrence.scheduledForUtc,
+            local_date: occurrence.localDate,
+            schedule_kind: schedule.cadenceScheduleKind ?? "exact",
+            schedule_preset: schedule.cadenceSchedulePreset,
+            schedule_start_time: schedule.localTime ?? schedule.windowStartLocal,
+            schedule_end_time: schedule.windowEndLocal,
+            status: occurrence.currentStatus,
+            completed_at:
+              occurrence.currentStatus === "completed"
+                ? latestEvent?.effectiveAtUtc ??
+                  latestEvent?.recordedAtUtc ??
+                  null
+                : null,
+            status_marked_at:
+              occurrence.currentStatus === "unresolved"
+                ? null
+                : latestEvent?.recordedAtUtc ?? null,
+            note: inlineNoteByOccurrence.get(occurrence.externalId) ?? null,
+            created_at: occurrence.generatedAtUtc,
+          };
         }),
-        body_markdown: note.bodyMarkdown,
-        note_role: note.noteRole,
-        sensitivity: note.sensitivity,
-        source_original_id: note.sourceOriginalId,
-        source_capture_method: note.sourceCaptureMethod,
-        source_confidence: note.sourceConfidence,
-        imported_created_at: note.createdAtUtc,
-        imported_updated_at: note.updatedAtUtc,
-        metadata: { restored_from_behaviorlog: true },
-      })),
-    imported_interventions: input.importPreview.plan.interventions
-      .filter((intervention) =>
-        shouldUpsert(actionIndex.intervention.get(intervention.externalId)),
-      )
-      .map((intervention) => ({
-        id: null,
-        import_run_id: input.importRunId,
-        external_id: intervention.externalId,
-        behavior_external_id: intervention.behaviorExternalId,
-        occurrence_external_id: intervention.occurrenceExternalId,
-        behavior_id: behaviorIdByExternal.get(intervention.behaviorExternalId) ?? null,
-        occurrence_id:
-          occurrenceIdByExternal.get(intervention.occurrenceExternalId) ?? null,
-        intervention_type: intervention.interventionType,
-        channel: intervention.channel,
-        delivery_status: intervention.deliveryStatus,
-        scheduled_send_at: intervention.scheduledSendAtUtc,
-        sent_at: intervention.sentAtUtc,
-        failure_reason: intervention.failureReason,
-        source_original_id: intervention.sourceOriginalId,
-        source_capture_method: intervention.sourceCaptureMethod,
-        source_confidence: intervention.sourceConfidence,
-        redacted_sensitivity_indicators: {
-          droppedSensitiveFields:
-            intervention.storageDecision.droppedSensitiveFields,
-          redactedFields: intervention.storageDecision.redactedFields,
-        },
-        metadata: { restored_from_behaviorlog: true },
-      })),
+      status_events: input.importPreview.plan.statusEvents
+        .filter((event) =>
+          shouldUpsert(actionIndex.status_event.get(event.externalId)),
+        )
+        .map((event) => ({
+          id: statusEventIdByExternal.get(event.externalId),
+          occurrence_id: requiredMapValue(
+            occurrenceIdByExternal,
+            event.occurrenceExternalId,
+            "status event occurrence",
+          ),
+          behavior_id: requiredMapValue(
+            behaviorIdByExternal,
+            event.behaviorExternalId,
+            "status event behavior",
+          ),
+          previous_status: event.previousStatus,
+          status: event.status,
+          status_semantics: event.statusSemantics,
+          recorded_at: event.recordedAtUtc,
+          effective_at: event.effectiveAtUtc,
+          local_date: event.localDate,
+          timezone: event.timezone,
+          source_capture_method: event.sourceCaptureMethod,
+          source_confidence: event.sourceConfidence,
+          revises_event_id: event.revisesEventId
+            ? statusEventIdByExternal.get(event.revisesEventId) ?? null
+            : null,
+          reason_code: event.reasonCode,
+        })),
+      imported_notes: input.importPreview.plan.notes
+        .filter((note) => shouldUpsert(actionIndex.note.get(note.externalId)))
+        .map((note) => ({
+          id: null,
+          import_run_id: input.importRunId,
+          external_id: note.externalId,
+          target_type: note.attachedToType,
+          target_external_id: note.attachedToId,
+          target_local_id: localTargetIdForNote({
+            note,
+            behaviorIdByExternal,
+            occurrenceIdByExternal,
+            statusEventIdByExternal,
+          }),
+          body_markdown: note.bodyMarkdown,
+          note_role: note.noteRole,
+          sensitivity: note.sensitivity,
+          source_original_id: note.sourceOriginalId,
+          source_capture_method: note.sourceCaptureMethod,
+          source_confidence: note.sourceConfidence,
+          imported_created_at: note.createdAtUtc,
+          imported_updated_at: note.updatedAtUtc,
+          metadata: { restored_from_behaviorlog: true },
+        })),
+      imported_interventions: input.importPreview.plan.interventions
+        .filter((intervention) =>
+          shouldUpsert(actionIndex.intervention.get(intervention.externalId)),
+        )
+        .map((intervention) => ({
+          id: null,
+          import_run_id: input.importRunId,
+          external_id: intervention.externalId,
+          behavior_external_id: intervention.behaviorExternalId,
+          occurrence_external_id: intervention.occurrenceExternalId,
+          behavior_id:
+            behaviorIdByExternal.get(intervention.behaviorExternalId) ?? null,
+          occurrence_id:
+            occurrenceIdByExternal.get(intervention.occurrenceExternalId) ??
+            null,
+          intervention_type: intervention.interventionType,
+          channel: intervention.channel,
+          delivery_status: intervention.deliveryStatus,
+          scheduled_send_at: intervention.scheduledSendAtUtc,
+          sent_at: intervention.sentAtUtc,
+          failure_reason: intervention.failureReason,
+          source_original_id: intervention.sourceOriginalId,
+          source_capture_method: intervention.sourceCaptureMethod,
+          source_confidence: intervention.sourceConfidence,
+          redacted_sensitivity_indicators: {
+            droppedSensitiveFields:
+              intervention.storageDecision.droppedSensitiveFields,
+            redactedFields: intervention.storageDecision.redactedFields,
+          },
+          metadata: { restored_from_behaviorlog: true },
+        })),
+    },
+    mappings,
   };
 }
 
@@ -713,20 +774,74 @@ function shouldUpsert(action: BehaviorLogRestoreAction | undefined): boolean {
   );
 }
 
-function localOrUuid(
+function localOrSafeUuid(
   action: BehaviorLogRestoreAction,
-  externalId: string,
-  label: string,
+  input: {
+    externalId: string;
+    label: string;
+    recordType: BehaviorLogImportRecordMappingInput["recordType"];
+    userId: string;
+    bundleFingerprint: string;
+  },
 ): string {
-  const id = action.localId ?? externalId;
+  const id = action.localId ?? (isUuid(input.externalId) ? input.externalId : null);
 
-  if (!isUuid(id)) {
+  if (id && isUuid(id)) {
+    return id;
+  }
+
+  if (action.action === "create") {
+    return deterministicRestoreUuid([
+      "behaviorlog_restore",
+      input.userId,
+      input.bundleFingerprint,
+      input.recordType,
+      input.externalId,
+    ]);
+  }
+
+  if (!id || !isUuid(id)) {
     throw new BehaviorLogRestoreUserError(
-      `Restore apply currently requires ${label} ids to be UUIDs. Preview this bundle as import/merge instead, or use a Cadence-generated BehaviorLog backup.`,
+      `Restore action for ${input.label} ${input.externalId} is missing a safe local id.`,
     );
   }
 
   return id;
+}
+
+function restoreMapping(
+  input: {
+    userId: string;
+    importRunId: string;
+  },
+  recordType: BehaviorLogImportRecordMappingInput["recordType"],
+  externalId: string,
+  localId: string,
+): BehaviorLogImportRecordMappingInput {
+  return {
+    userId: input.userId,
+    importRunId: input.importRunId,
+    recordType,
+    externalId,
+    localId,
+  };
+}
+
+function deterministicRestoreUuid(parts: string[]): string {
+  const bytes = Buffer.from(
+    createHash("sha256").update(parts.join("\0")).digest().subarray(0, 16),
+  );
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join("-");
 }
 
 function requiredLocalId(action: BehaviorLogRestoreAction): string {

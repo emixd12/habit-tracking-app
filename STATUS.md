@@ -65,10 +65,10 @@ and marketing `/docs` lists `/docs.md`. The remaining acceptance item requires
 actual first-time marketing users, or an owner-approved proxy, to explain
 Cadence and BehaviorLog before sign-in.
 
-Ticket 059 has been added to `docs/TICKETS.md` and is `not_started`. It tracks
-the confirmed restore-apply compatibility blocker from the 2026-07-09 hosted QA
-pass: Cadence-generated BehaviorLog bundles use schedule IDs like `sch_<uuid>`,
-while restore apply currently expects UUID local identifiers for new schedules.
+Ticket 059 is complete. Restore apply now maps non-UUID BehaviorLog external
+IDs, including Cadence schedule IDs like `sch_<uuid>`, to deterministic local
+UUIDs for product writes while preserving import-record provenance mappings for
+later preview/import reconciliation.
 
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
@@ -3639,6 +3639,41 @@ Blocker:
   marketing users, or an owner-approved proxy test, need to explain Cadence and
   BehaviorLog in their own words before sign-in. `docs/UX_RESEARCH_LOG.md`
   keeps UX-001 open for that remaining item.
+
+### Ticket 059: BehaviorLog restore apply for Cadence schedule IDs
+
+Status: complete.
+
+Implementation summary:
+- Updated restore apply payload construction to resolve accepted create actions
+  with non-UUID BehaviorLog external ids to deterministic local UUIDs scoped by
+  user, bundle fingerprint, record type, and external id.
+- Preserved external-to-local provenance by writing
+  `behaviorlog_import_record_mappings` for restored behaviors, schedules,
+  occurrences, and status events after the destructive restore RPC succeeds.
+- Added a regression test using a Cadence-generated BehaviorLog bundle shape
+  where a schedule external id is `sch_<uuid>`, an occurrence references that
+  schedule, and a status event references the occurrence.
+- Documented the restore mapping rule in `docs/EXPORT_FORMATS.md` and the
+  mapping-table contract in `docs/DATA_MODEL.md`.
+- No schema migration, hosted database edit, provider operation, new route,
+  or widened restore privilege was added.
+
+Verification:
+- Pass: `npm run test -- tests/behaviorlog-restore-apply.service.test.ts tests/behaviorlog-restore.service.test.ts tests/behaviorlog-restore.resolver.test.ts tests/behaviorlog-restore-rpc-migration.test.ts tests/behaviorlog-restore-ui.test.tsx` (5 files, 13 tests).
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (58 files, 349 tests).
+- Pass: `npm run build`.
+- Pass: `git diff --check`.
+
+Remaining risk:
+- Destructive restore apply was not re-run against a hosted disposable account
+  after this fix. That end-to-end browser QA still needs an owner-approved
+  disposable account and fresh backup workflow before claiming hosted restore
+  apply is production-smoked.
 
 ## Handoff notes
 
