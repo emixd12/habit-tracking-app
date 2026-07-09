@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearUserReadCache } from "../lib/cache/user-read-cache";
 
 import {
+  BehaviorLogImportPanel,
   BehaviorLogImportPreviewDetails,
 } from "../components/export/BehaviorLogImportPanel";
 import {
@@ -214,6 +215,8 @@ describe("BehaviorLog import UI workflow", () => {
     expect(html).toContain("Imported note records");
     expect(html).toContain("Imported interventions");
     expect(html).toContain("Inline note fills");
+    expect(html).toContain("Unsupported fields");
+    expect(html).toContain("Sensitive note warnings");
     expect(html).toContain(
       "Stores an imported note record and may fill the occurrence Note field.",
     );
@@ -224,6 +227,26 @@ describe("BehaviorLog import UI workflow", () => {
     expect(html).toContain("Dropped sensitive fields");
     expect(html).toContain("No reminder deliveries, provider calls, or message bodies.");
     expect(html).toContain("email");
+  });
+
+  it("labels recent import runs without completion timestamps as still open", () => {
+    const html = renderToStaticMarkup(
+      <BehaviorLogImportPanel
+        recentRuns={[
+          {
+            id: "import-run-open",
+            import_mode: "merge_preview",
+            status: "previewed",
+            started_at: "2026-06-08T21:10:00Z",
+            completed_at: null,
+            failure_message: null,
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toContain("Recent imports");
+    expect(html).toContain("Still open");
   });
 
   it("gates create-only and merge apply when conflicts require decisions", () => {

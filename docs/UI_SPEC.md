@@ -600,15 +600,18 @@ Export options:
 Export outputs:
 - Export JSONL
 - Export CSV
-- Export full JSON backup
+- Export app JSON snapshot
 - Export BehaviorLog bundle
 - Copy AI summary
 - Download AI summary as `.md`
 
 Downloads should render as compact label/action rows. Put the extension next to
 the format name, keep the Download action on the same row when space allows,
-and omit per-format descriptions, icons, and row borders. Do not render
-download actions as explanatory card grids.
+and include one concise task-based guidance line per format: JSONL for scripts
+and agents, CSV for spreadsheet review, app JSON for app-native snapshots, and
+BehaviorLog for complete portability and restore-oriented status history. Omit
+icons and row borders. Do not render download actions as explanatory card
+grids.
 
 Exports should support both download and copy where practical.
 
@@ -624,9 +627,9 @@ The section accepts `.behaviorlog.zip` uploads, shows validation errors and
 warnings before any product write, shows dry-run counts, privacy notes, note
 sensitivity warnings, intervention preview counts, passive imported
 intervention storage counts, dropped/redacted intervention field summaries,
-imported-note record counts, inline occurrence-note fill counts, and merge
-actions, and requires explicit confirmation before applying create-only or
-supported user-approved merge plans.
+unsupported field counts, imported-note record counts, inline occurrence-note
+fill counts, and merge actions, and requires explicit confirmation before
+applying create-only or supported user-approved merge plans.
 If high or restricted sensitivity notes would be imported, apply controls must
 also require a dedicated privacy acknowledgement. Do not add generalized notes
 browsing or intervention-to-reminder writes in this screen.

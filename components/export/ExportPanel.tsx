@@ -16,18 +16,26 @@ const DOWNLOAD_ACTIONS = [
   {
     format: "jsonl",
     label: "JSONL (.jsonl)",
+    description:
+      "Line-oriented app-native rows for scripts, agents, and quick inspection.",
   },
   {
     format: "csv",
     label: "CSV (.csv)",
+    description:
+      "Spreadsheet review of occurrence snapshots for the selected range.",
   },
   {
     format: "json",
-    label: "Full JSON backup (.json)",
+    label: "App JSON snapshot (.json)",
+    description:
+      "App-native categories, behaviors, and occurrence snapshots. Status-event history lives in BehaviorLog.",
   },
   {
     format: "behaviorlog",
     label: "BehaviorLog bundle (.behaviorlog.zip)",
+    description:
+      "Complete portability and restore-oriented bundle with status history, manifest, and CSV views.",
   },
 ] as const;
 
@@ -146,8 +154,13 @@ export function ExportPanel({
                 key={action.format}
                 className="grid min-w-0 items-baseline gap-x-4 gap-y-1 sm:grid-cols-[16rem_minmax(0,1fr)]"
               >
-                <span className="break-words text-sm font-bold text-foreground">
-                  {action.label}
+                <span className="grid gap-1">
+                  <span className="break-words text-sm font-bold text-foreground">
+                    {action.label}
+                  </span>
+                  <span className="max-w-[42rem] text-sm text-muted-readable">
+                    {action.description}
+                  </span>
                 </span>
                 <a
                   href={downloadHref(action.format, exportData)}

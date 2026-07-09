@@ -2,7 +2,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
 
-import { BehaviorLogRestorePreviewDetails } from "../components/export/BehaviorLogRestorePanel";
+import {
+  BehaviorLogRestorePanel,
+  BehaviorLogRestorePreviewDetails,
+} from "../components/export/BehaviorLogRestorePanel";
 import type { BehaviorLogRestorePreview } from "../lib/types/behaviorlog-restore";
 
 describe("BehaviorLog restore UI", () => {
@@ -19,6 +22,26 @@ describe("BehaviorLog restore UI", () => {
     expect(html).toContain("Replace · Destructive");
     expect(html).toContain("Archive · Destructive");
     expect(html).toContain("high_sensitivity_note_present");
+  });
+
+  it("labels recent restore runs without completion timestamps as still open", () => {
+    const html = renderToStaticMarkup(
+      <BehaviorLogRestorePanel
+        recentRuns={[
+          {
+            id: "restore-run-open",
+            mode: "restore_preview",
+            status: "previewed",
+            startedAt: "2026-06-08T21:10:00Z",
+            completedAt: null,
+            failureMessage: null,
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toContain("Recent restores");
+    expect(html).toContain("Still open");
   });
 });
 

@@ -179,6 +179,14 @@ export function BehaviorLogImportPreviewDetails({
             label="Inline note fills"
             value={noteSummary.inlineOccurrenceFillCount}
           />
+          <SummaryStat
+            label="Unsupported fields"
+            value={preview.summary.unsupportedFieldCount}
+          />
+          <SummaryStat
+            label="Sensitive note warnings"
+            value={noteSensitivityWarnings.length}
+          />
           <SummaryStat label="Create" value={preview.summary.createCount} />
           <SummaryStat label="Skip" value={preview.summary.skipCount} />
           <SummaryStat label="Warnings" value={preview.summary.warningCount} />
@@ -451,7 +459,7 @@ function ApplyForm({
           disabled={disabled}
           className="mt-1 h-5 w-5 accent-foreground"
         />
-        <span>I reviewed this preview.</span>
+        <span>I reviewed this exact preview.</span>
       </label>
       {requiresSensitiveNoteConfirmation ? (
         <label className="flex items-start gap-3 text-sm font-bold">
@@ -552,7 +560,9 @@ function ImportRunHistory({
               <dl className="grid gap-x-3 gap-y-1 sm:grid-cols-[auto_minmax(0,1fr)] sm:text-right">
                 <dt className="text-sm font-bold text-foreground">Finished</dt>
                 <dd className="break-all text-sm font-bold text-muted-readable">
-                  {run.completed_at ? formatDateTime(run.completed_at) : "Open"}
+                  {run.completed_at
+                    ? formatDateTime(run.completed_at)
+                    : "Still open"}
                 </dd>
               </dl>
             </li>

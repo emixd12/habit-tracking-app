@@ -291,7 +291,7 @@ Default adherence:
 The app must provide:
 - JSONL export
 - CSV export
-- Full JSON backup
+- App JSON snapshot
 - BehaviorLog bundle export
 - Markdown AI summary
 
@@ -300,7 +300,7 @@ Exports should include:
 - Categories
 - Occurrences
 - Statuses
-- Status event history
+- Status event history in the BehaviorLog bundle
 - Notes
 
 Account deletion and export should be first-class before broad public launch,

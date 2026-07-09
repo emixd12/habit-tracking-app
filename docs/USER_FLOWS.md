@@ -395,8 +395,8 @@ BehaviorLog import flow:
 2. Review validation errors, warnings, conflicts, privacy notes, note
    sensitivity warnings, intervention preview counts, passive imported
    intervention storage counts, dropped/redacted intervention field summaries,
-   imported-note record counts, inline occurrence-note fill counts, and merge
-   actions.
+   unsupported field counts, imported-note record counts, inline
+   occurrence-note fill counts, and merge actions.
 3. Apply create-only import only when the dry-run is valid and has no unsafe
    merge decisions.
 4. Apply a merge plan only when all actions are supported safe actions and the

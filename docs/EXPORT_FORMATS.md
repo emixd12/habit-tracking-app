@@ -87,7 +87,9 @@ Shape:
 }
 ```
 
-This is intended as a backup and possible future restore format.
+This is an app-native snapshot of categories, behaviors, and occurrences. It
+does not include `occurrence_status_events`; use the BehaviorLog bundle when
+status-event history, interoperability, or restore-oriented context is needed.
 
 Behavior records include `schedules[]` as the current app-native schedule
 structure. `recurrence_rule`, `scheduled_time`, and `schedule_slots` remain in
@@ -348,9 +350,9 @@ User-facing import UI rules:
 - Preview persists an import-run ledger row and must not write product records.
 - The UI must show validation output, dry-run counts, privacy notes,
   sensitivity warnings, intervention preview counts, passive intervention
-  storage counts, dropped/redacted intervention field summaries, conflicts,
-  merge actions, imported-note record counts, and inline occurrence-note fill
-  counts before apply.
+  storage counts, dropped/redacted intervention field summaries, unsupported
+  field counts, conflicts, merge actions, imported-note record counts, and
+  inline occurrence-note fill counts before apply.
 - High or restricted sensitivity notes require a dedicated acknowledgement
   before apply.
 - Create-only apply is available only for valid dry-runs with no unsafe merge

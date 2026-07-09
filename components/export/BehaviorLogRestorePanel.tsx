@@ -401,7 +401,7 @@ function RestoreRunHistory({
                 ) : null}
               </div>
               <p className="break-all text-sm font-bold text-muted-readable">
-                {run.completedAt ? formatDateTime(run.completedAt) : "Open"}
+                {run.completedAt ? formatDateTime(run.completedAt) : "Still open"}
               </p>
             </li>
           ))}

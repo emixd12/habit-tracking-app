@@ -65,6 +65,15 @@ acceptance items require evidence that users discover the heatmap review path
 without prompting and an owner decision on whether v1 should expose Clear
 decision back to Unresolved from Timeline, Needs Decision, or later review.
 
+Ticket 055 has its non-blocked implementation slice verified and is `blocked`
+on import-apply binding scope and browser fixture QA. Export format rows now
+include task-based guidance, the app JSON output is labeled as an app-native
+snapshot rather than the complete history path, BehaviorLog is named as the
+complete portability and restore-oriented status-history bundle, import dry-run
+summary counts surface unsupported fields and sensitive-note warnings, and
+import/restore run histories now show "Still open" when no completion timestamp
+exists.
+
 Ticket 056 has its non-blocked implementation slice verified and is `blocked`
 on comprehension evidence. Marketing footer links now expose Trust, Privacy,
 and Terms before sign-in; legal/trust pages include a Cadence overview return
@@ -3648,6 +3657,50 @@ Blockers:
   decision back to Unresolved in Timeline, Needs Decision, or later review.
 - Desktop and 390px browser checks of the authenticated `/behaviors` review
   path remain outstanding for the final ticket completion pass.
+
+### Ticket 055: Portability flow comprehension hardening
+
+Status: blocked.
+
+Implementation summary:
+- Added concise task-based guidance to export download rows for JSONL, CSV, app
+  JSON, and BehaviorLog.
+- Relabeled the UI's JSON download as "App JSON snapshot" and documented that
+  status-event history lives in BehaviorLog, not the app-native JSON snapshot.
+- Surfaced unsupported-field counts and sensitive-note warning counts in the
+  BehaviorLog import dry-run summary.
+- Changed import and restore recent-run timestamp fallbacks from "Open" to
+  "Still open" so completed rows do not read as an action.
+- Tightened the import apply acknowledgement copy to "I reviewed this exact
+  preview."
+- Updated `docs/EXPORT_FORMATS.md`, `docs/UI_SPEC.md`,
+  `docs/USER_FLOWS.md`, and `docs/PRODUCT_SPEC.md`.
+- Did not add broad restore automation, hidden destructive writes, provider
+  sends, admin repair tools, AI interpretation, or new product data categories.
+
+Verification:
+- Pass: `npm run test -- tests/export-panel-ui.test.tsx tests/behaviorlog-import-ui.test.tsx tests/behaviorlog-restore-ui.test.tsx tests/export.resolver.test.ts tests/behaviorlog-import.resolver.test.ts tests/behaviorlog-restore.resolver.test.ts` (6 files, 40 tests).
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (60 files, 353 tests).
+- Pass: `npm run build`.
+- Pass: `git diff --check`.
+
+Blockers:
+- Ticket 055 still needs an owner/product decision on whether import apply must
+  be bound to the exact reviewed preview run, bundle fingerprint, or accepted
+  preview snapshot. Current apply recomputes the preview from the posted bundle
+  and current local data before writing, but it does not require a stored
+  accepted preview-run fingerprint the way restore apply does.
+- Desktop and 390px browser checks of `/export` with valid, invalid,
+  warning-heavy, and destructive-preview fixtures remain outstanding for the
+  final ticket completion pass.
+- Destructive restore apply must not be QA-applied against the user's real
+  account; any browser fixture pass needs a disposable account and fresh backup
+  approval.
 
 ### Ticket 056: Public trust and marketing comprehension
 
