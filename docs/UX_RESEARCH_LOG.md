@@ -486,7 +486,11 @@ Recommended follow-up: Test whether marketing users look for privacy/trust
 before clicking Log in. If they do, add low-priority footer access from the
 Astro marketing surface without expanding the launch header.
 
-Status: Open
+Resolution update (2026-07-09): Ticket 056 added low-priority Trust, Privacy,
+and Terms links to the Astro marketing footer while keeping the launch header
+narrow.
+
+Status: Fixed
 
 ### UX-010: Public Legal Pages Lack A Clear Marketing Return Path
 
@@ -521,7 +525,11 @@ Recommended follow-up: In TS02 and TS18, ask users where they expect to go
 after reading legal/trust content. Consider a Cadence overview link and a
 signed-in-aware label in a later UI pass.
 
-Status: Open
+Resolution update (2026-07-09): Ticket 056 added a Cadence overview link to
+the public legal/trust page footer so readers can return to the marketing
+overview before signing in.
+
+Status: Fixed
 
 ### UX-011: Trust Copy May Understate Account Isolation
 
@@ -556,7 +564,11 @@ Recommended follow-up: Run TS02 with privacy-conscious users and ask what they
 believe account isolation means. If wording causes doubt, revise trust copy
 without overclaiming operational support boundaries.
 
-Status: Open
+Resolution update (2026-07-09): Ticket 056 revised the Trust account-isolation
+copy to name the implemented Supabase Auth plus Row Level Security model
+without adding support or security guarantees beyond the product scope.
+
+Status: Fixed
 
 ### UX-012: Marketing Docs Machine File Index May Omit `/docs.md`
 
@@ -590,7 +602,11 @@ Recommended follow-up: Verify generated marketing output with
 `npm run marketing:check`; if `/docs.md` exists but is not linked, add it in a
 focused marketing docs fix.
 
-Status: Open
+Resolution update (2026-07-09): Ticket 056 added `/docs.md` to the visible
+marketing `/docs` machine-files table. `npm run marketing:check` remains the
+build-output verification gate.
+
+Status: Fixed
 
 ### UX-013: First-Run Setup Pop-Up May Collide With Mobile Header
 

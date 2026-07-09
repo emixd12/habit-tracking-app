@@ -57,6 +57,14 @@ intent from current-device delivery readiness, and service-worker notification
 clicks are covered by a regression test that navigates an existing same-origin
 Cadence tab to the intended Timeline URL before focusing it.
 
+Ticket 056 has its non-blocked implementation slice verified and is `blocked`
+on comprehension evidence. Marketing footer links now expose Trust, Privacy,
+and Terms before sign-in; legal/trust pages include a Cadence overview return
+path; Trust copy names the implemented Supabase Auth plus RLS isolation model;
+and marketing `/docs` lists `/docs.md`. The remaining acceptance item requires
+actual first-time marketing users, or an owner-approved proxy, to explain
+Cadence and BehaviorLog before sign-in.
+
 Ticket 059 has been added to `docs/TICKETS.md` and is `not_started`. It tracks
 the confirmed restore-apply compatibility blocker from the 2026-07-09 hosted QA
 pass: Cadence-generated BehaviorLog bundles use schedule IDs like `sch_<uuid>`,
@@ -3596,6 +3604,41 @@ Remaining risk:
   The existing hosted QA record already covers successful subscription save and
   production browser-push delivery; this ticket only hardened readiness copy and
   click routing coverage.
+
+### Ticket 056: Public trust and marketing comprehension
+
+Status: blocked.
+
+Implementation summary:
+- Added low-priority Trust, Privacy, and Terms links to the Astro marketing
+  footer, pointing at the authenticated app's public account-information pages.
+- Added `/docs.md` to the marketing `/docs` Machine files table so the visible
+  page matches the generated Markdown mirror and route-manifest outputs.
+- Revised Trust account-isolation copy to state the implemented Supabase Auth
+  and Row Level Security ownership model without adding unsupported guarantees.
+- Added a Cadence overview return link to public legal/trust pages.
+- Updated legal-content regression tests and the UX research log for the fixed
+  trust/legal/machine-file findings.
+
+Verification:
+- Pass: `npm run test -- tests/legal-content.test.tsx` (1 file, 2 tests).
+- Pass: `npm run marketing:build`.
+- Pass: `npm run marketing:check`.
+- Pass: built-output check for `/docs.md`, `/terms`, `/privacy`, and `/trust`
+  links in `apps/marketing/dist/docs/index.html` and
+  `apps/marketing/dist/index.html`.
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run test` (58 files, 348 tests).
+- Pass: `npm run typecheck`.
+- Pass: `npm run build`.
+
+Blocker:
+- Ticket 056 still requires marketing-comprehension evidence: actual first-time
+  marketing users, or an owner-approved proxy test, need to explain Cadence and
+  BehaviorLog in their own words before sign-in. `docs/UX_RESEARCH_LOG.md`
+  keeps UX-001 open for that remaining item.
 
 ## Handoff notes
 

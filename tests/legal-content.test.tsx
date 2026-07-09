@@ -10,9 +10,12 @@ describe("trust and legal UI content", () => {
 
     expect(html).toContain("Manual truth");
     expect(html).toContain("Account isolation");
+    expect(html).toContain("Supabase Auth identifies the signed-in account");
+    expect(html).toContain("Row Level Security policies scope user-owned records");
     expect(html).toContain("BehaviorLog bundle export");
     expect(html).not.toContain("dashboard");
     expect(html).not.toContain("missed status");
+    expect(html).not.toContain("expected to stay scoped");
   });
 
   it("links the legal pages together", () => {
@@ -21,6 +24,8 @@ describe("trust and legal UI content", () => {
     expect(html).toContain("href=\"/terms\"");
     expect(html).toContain("href=\"/privacy\"");
     expect(html).toContain("href=\"/trust\"");
+    expect(html).toContain("href=\"https://cadence-marketing-two.vercel.app/cadence\"");
+    expect(html).toContain("Cadence overview");
     expect(html).toContain("Settings screen provides account deletion");
   });
 });

@@ -108,7 +108,7 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
       {
         title: "Account isolation",
         paragraphs: [
-          "Cadence is built for many independent single-account users. User-owned records are expected to stay scoped to the authenticated user.",
+          "Cadence is built for many independent single-account users. Supabase Auth identifies the signed-in account, and Row Level Security policies scope user-owned records to that authenticated user.",
           "The app does not include shared workspaces, public profiles, social features, or admin-heavy product surfaces.",
         ],
       },
@@ -199,6 +199,12 @@ export function LegalPageContent({
       </div>
 
       <footer className="flex flex-wrap gap-3 text-sm leading-6">
+        <a
+          href="https://cadence-marketing-two.vercel.app/cadence"
+          className="product-action product-action-secondary py-2"
+        >
+          Cadence overview
+        </a>
         <a
           href="/login"
           className="product-action product-action-primary py-2"
