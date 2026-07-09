@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getBrowserPushSupport,
   readBrowserPushSubscriptionStatus,
+  registerBrowserPushSubscription,
   requestNotificationPermission,
   urlBase64ToUint8Array,
 } from "../lib/push/browser";
@@ -10,6 +11,7 @@ import {
 const originalNotification = globalThis.Notification;
 const originalNavigator = globalThis.navigator;
 const originalWindow = globalThis.window;
+const originalFetch = globalThis.fetch;
 
 describe("browser push helpers", () => {
   afterEach(() => {
@@ -37,6 +39,15 @@ describe("browser push helpers", () => {
       Object.defineProperty(globalThis, "window", {
         configurable: true,
         value: originalWindow,
+      });
+    }
+
+    if (originalFetch === undefined) {
+      Reflect.deleteProperty(globalThis, "fetch");
+    } else {
+      Object.defineProperty(globalThis, "fetch", {
+        configurable: true,
+        value: originalFetch,
       });
     }
   });
@@ -113,11 +124,65 @@ describe("browser push helpers", () => {
       readBrowserPushSubscriptionStatus("public-key"),
     ).resolves.toBe("missing");
   });
+
+  it("waits for an active service worker before creating a subscription", async () => {
+    const inactiveGetSubscription = vi.fn();
+    const register = vi.fn().mockResolvedValue({
+      pushManager: {
+        getSubscription: inactiveGetSubscription,
+      },
+    });
+    const getSubscription = vi.fn().mockResolvedValue(null);
+    const subscribe = vi.fn().mockResolvedValue({
+      toJSON: () => ({
+        endpoint: "https://push.example.com/subscription",
+        keys: {
+          p256dh: "public-key",
+          auth: "auth-key",
+        },
+      }),
+    });
+    const fetch = vi.fn().mockResolvedValue({ ok: true });
+
+    mockSupportedBrowser({
+      permission: "granted",
+      getRegistration: vi.fn(),
+      register,
+      ready: Promise.resolve({
+        pushManager: {
+          getSubscription,
+          subscribe,
+        },
+      }),
+    });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetch,
+    });
+
+    await registerBrowserPushSubscription("AQID");
+
+    expect(register).toHaveBeenCalledWith("/push-service-worker.js");
+    expect(inactiveGetSubscription).not.toHaveBeenCalled();
+    expect(getSubscription).toHaveBeenCalledTimes(1);
+    expect(subscribe).toHaveBeenCalledWith({
+      userVisibleOnly: true,
+      applicationServerKey: expect.any(Uint8Array),
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/push/subscribe",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+  });
 });
 
 function mockSupportedBrowser(input: {
   permission: NotificationPermission;
   getRegistration: () => Promise<unknown>;
+  register?: (url: string) => Promise<unknown>;
+  ready?: Promise<unknown>;
 }) {
   Object.defineProperty(globalThis, "Notification", {
     configurable: true,
@@ -137,6 +202,8 @@ function mockSupportedBrowser(input: {
     value: {
       serviceWorker: {
         getRegistration: input.getRegistration,
+        register: input.register,
+        ready: input.ready,
       },
     },
   });

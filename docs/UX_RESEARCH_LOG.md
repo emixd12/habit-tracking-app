@@ -99,12 +99,48 @@ Method:
   Supabase, and creating disposable hosted users requires owner approval for
   this pass.
 
-Input-dependent checks still pending:
+Follow-up approved hosted QA:
 
-- Authenticated clean-account first-run QA on `/timeline`.
-- Real browser notification permission and push-subscription recovery states.
-- Import/restore fixture uploads and destructive restore apply checks on a
-  disposable account only.
+Date: 2026-07-09
+
+Reviewer: Codex parent agent
+
+Method:
+
+- Used `/auth/test-login` with `CADENCE_ALLOW_HOSTED_TEST_LOGIN=1` after owner
+  approval to create disposable hosted Supabase users.
+- Ran hosted many-user RLS smoke QA; the command created two temporary users,
+  verified six ownership checks, and cleaned up those users.
+- Browser-tested real authenticated `/timeline`, `/settings`, and `/export`
+  flows with system Chrome. Screenshots and a sanitized JSON report were kept
+  under `/private/tmp/cadence-remaining-qa`.
+- Deleted every disposable browser-QA account through the Settings account
+  deletion UI; final test-login cleanup reported no stale users deleted.
+
+Observed results:
+
+- Clean-account first-run setup rendered on real `/timeline` at desktop and
+  390px mobile, with no horizontal overflow and the mobile panel top at 76px
+  below the sticky header.
+- Timeline status controls were visible for a created behavior with no
+  horizontal overflow.
+- BehaviorLog export downloaded successfully, and create-only import of that
+  bundle into a second disposable account succeeded.
+- Browser notifications saved successfully in a persistent Chrome profile after
+  the client helper was fixed to wait for an active service worker before
+  calling PushManager subscribe. A denied-notification state showed `Blocked in
+  this browser` and hid the enable action.
+- Settings `/settings#timezone` preserved exactly one `id="timezone"` anchor,
+  the label targeted `timezone-input`, and mobile layout had no horizontal
+  overflow.
+- Account deletion remained disabled until the export acknowledgement and typed
+  confirmation matched, then successfully deleted both disposable browser-QA
+  accounts.
+- Restore preview accepted a real Cadence-exported BehaviorLog bundle, but
+  restore apply stayed disabled because the preview contained skipped actions.
+  The exported bundle uses `sch_<uuid>` schedule ids while the current restore
+  apply path still expects UUID core identifiers. This is a confirmed restore
+  compatibility blocker, not a user-input blocker.
 
 ## Findings
 
@@ -298,7 +334,14 @@ Recommended follow-up: Run TS08 across at least allowed, denied, and blocked
 permission states. Verify copy stays factual and does not imply Cadence can
 reopen a browser prompt after the origin is blocked.
 
-Status: Open
+Reproduction update (2026-07-09): Approved hosted QA verified the allowed
+subscription path in a persistent Chrome profile and a denied-notification
+state via browser permission override. The denied state displayed `Blocked in
+this browser` and did not show the enable action. The allowed path initially
+found a real browser bug where PushManager subscription could run before the
+service worker was active; this was fixed in the browser push helper.
+
+Status: Fixed
 
 ### UX-006: Export Format Choice May Need Task-Based Clarity
 
@@ -625,7 +668,13 @@ Recommended follow-up: Decide whether onboarding should label this as
 Notification permission or track subscription state. Run TS08 with permission
 allowed but subscription failure simulated.
 
-Status: Open
+Reproduction update (2026-07-09): Approved hosted QA reproduced a real
+subscription failure before the service worker became active. The browser push
+helper now waits for `navigator.serviceWorker.ready` before reading or creating
+the PushManager subscription. A persistent Chrome retry saved the subscription
+and showed `Enabled on this device`.
+
+Status: Fixed
 
 ### UX-015: Settings Timezone Uses Duplicate `timezone` IDs
 
@@ -1004,7 +1053,12 @@ Recommended follow-up: In TS08, save a subscription, reload Settings, and ask
 whether the user believes reminders are active. Consider adding subscription
 state if confusion is confirmed.
 
-Status: Open
+Reproduction update (2026-07-09): Approved hosted QA saved a browser push
+subscription in a persistent Chrome profile. Settings updated from `Not enabled
+on this device` to `Enabled on this device` and showed the saved-state message.
+Full human comprehension testing on revisit remains optional research.
+
+Status: Fixed
 
 ### UX-025: Behavior Browser Reminder Toggle Can Overpromise Delivery
 
@@ -1039,7 +1093,12 @@ Recommended follow-up: In TS04 and TS08, create a behavior before notification
 setup and ask what the browser reminder toggle means. Consider copy or state
 that distinguishes behavior intent from delivery readiness.
 
-Status: Open
+Resolution update (2026-07-09): Ticket 053 updated the Behavior form reminder
+copy so the browser reminder checkbox is framed as behavior-level intent that
+uses devices enabled in Settings. The copy now states that the behavior remains
+tracked if this device is not enabled or browser notifications are blocked.
+
+Status: Fixed
 
 ### UX-026: Notification Click May Focus The Wrong App Page
 
@@ -1074,7 +1133,13 @@ Recommended follow-up: Run TS08 with an existing Settings tab and a safe test
 browser notification. If confirmed, update click handling to focus or open the
 intended Timeline URL.
 
-Status: Needs reproduction
+Resolution update (2026-07-09): Ticket 053 added service-worker regression
+coverage for notification clicks. An existing same-origin Cadence tab is
+navigated to the notification target, defaulting to `/timeline`, before focus
+is restored. Cross-origin payload URLs are already constrained back to the
+Timeline origin.
+
+Status: Fixed
 
 ### UX-027: Timezone Save Impact Is Not Clear Before Submit
 

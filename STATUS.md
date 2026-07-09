@@ -52,6 +52,16 @@ interaction correctness. The pass stayed within the existing Timeline and
 Settings surfaces and did not add new routes, dashboards, stored statuses,
 provider operations, or out-of-scope product behavior.
 
+Ticket 053 is complete. Browser reminder copy now separates behavior-level
+intent from current-device delivery readiness, and service-worker notification
+clicks are covered by a regression test that navigates an existing same-origin
+Cadence tab to the intended Timeline URL before focusing it.
+
+Ticket 059 has been added to `docs/TICKETS.md` and is `not_started`. It tracks
+the confirmed restore-apply compatibility blocker from the 2026-07-09 hosted QA
+pass: Cadence-generated BehaviorLog bundles use schedule IDs like `sch_<uuid>`,
+while restore apply currently expects UUID local identifiers for new schedules.
+
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
 surfaces are the authenticated Next.js web app and a sibling Astro marketing
@@ -3501,6 +3511,10 @@ Implementation summary:
   launcher focus restoration, factual zero-count retained-row copy, and docs
   that same-day retention covers any prior-day occurrence resolved today rather
   than only rows resolved from inside the modal.
+- Follow-up approved hosted QA on 2026-07-09 found and fixed a browser push
+  setup race: the client now waits for an active service worker before creating
+  a PushManager subscription. `tests/push-browser.test.ts` covers the active
+  service-worker wait.
 - Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and `docs/PRODUCT_SPEC.md`
   so the implemented Timeline, first-run, Settings, and Needs Decision
   contracts match the code.
@@ -3514,6 +3528,11 @@ Verification:
 - Pass: `npm run build`.
 - Pass: `npm run design-system:check`.
 - Pass: `git diff --check`.
+- Follow-up pass after hosted QA and browser push fix: Pass: `npm run
+  smoke:rls`; Pass: `npx vitest run tests/push-browser.test.ts` (7 tests);
+  Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm
+  run lint`; Pass: `npm run typecheck`; Pass: `npm run test` (56 files, 346
+  tests); Pass: `npm run build`; Pass: `git diff --check`.
 - Earlier focused passes during the implementation: `npx vitest run
   tests/ux-ticket-049-052-ui.test.tsx`; `npx vitest run
   tests/ux-ticket-049-052-ui.test.tsx tests/timeline.resolver.test.ts
@@ -3523,15 +3542,60 @@ Verification:
   no horizontal overflow for first-run, Timeline, Settings, and Needs Decision
   states. Needs Decision keyboard smoke verified launcher focus, open focus,
   Shift+Tab/Tab containment, Escape close, and focus return.
+- Follow-up browser QA after owner approval: system Chrome against local
+  dev/test-login and hosted Supabase created disposable source/target accounts,
+  rendered clean-account first-run `/timeline` at desktop and 390px without
+  overflow, verified Timeline status controls, downloaded a BehaviorLog bundle,
+  applied create-only import into a second account, saved browser notifications
+  in a persistent Chrome profile, verified denied-notification Settings copy,
+  verified `/settings#timezone` anchor/label/mobile layout, and deleted the
+  disposable accounts through Settings account deletion. Final test-login
+  cleanup found no stale users to delete.
 
 Remaining risk:
-- Authenticated clean-account QA on real `/timeline` and `/settings` was not
-  run because the local app is pointed at hosted Supabase and using the test
-  login route would create hosted temporary users without explicit approval.
-- Real browser notification permission/subscription state changes, import or
-  restore fixture uploads, destructive restore/apply, and account-deletion
-  end-to-end tests remain input-dependent and require an approved disposable
-  account or explicit destructive-operation approval.
+- Restore preview accepted a real Cadence-exported BehaviorLog bundle but
+  blocked destructive restore apply because the preview contained skipped
+  actions. The confirmed compatibility issue is that Cadence export emits
+  schedule ids like `sch_<uuid>`, while the current restore apply path expects
+  UUID core identifiers. Import create-only still succeeded with the same
+  bundle. This is now tracked as Ticket 059 before claiming end-to-end restore
+  apply works for Cadence-generated bundles.
+
+### Ticket 053: Browser reminder readiness clarity
+
+Status: complete.
+
+Implementation summary:
+- Updated the Behavior form reminder copy so browser reminders are framed as
+  behavior-level intent that uses devices enabled in Settings, while tracking
+  still works when the current device is not enabled or browser notifications
+  are blocked.
+- Added a service-worker regression test that proves notification clicks
+  navigate an existing same-origin Cadence tab to the notification target,
+  defaulting to the Timeline-origin path, before focusing it.
+- Added a focused Reminder editor markup regression so future copy changes do
+  not blur behavior intent with current-device notification readiness.
+- Updated the UI spec and UX research log for the closed browser reminder
+  findings.
+- No schema, provider, reminder-delivery processing, new Settings surfaces,
+  test-send buttons, dashboards, PWA/offline behavior, or notification
+  permission prompts on page load were added.
+
+Verification:
+- Pass: `npx vitest run tests/reminder-editor-ui.test.tsx tests/push-service-worker.test.ts tests/push-browser.test.ts` (3 files, 9 tests).
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run test` (58 files, 348 tests).
+- Pass: `npm run design-system:check`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run build`.
+
+Remaining risk:
+- Browser notification delivery itself was not re-smoked during this ticket.
+  The existing hosted QA record already covers successful subscription save and
+  production browser-push delivery; this ticket only hardened readiness copy and
+  click routing coverage.
 
 ## Handoff notes
 

@@ -57,8 +57,9 @@ export function ReminderEditor({
         </div>
 
         <p className="text-sm leading-6 text-muted-readable">
-          Browser notifications send reminders on devices where notifications
-          are enabled.
+          Browser reminders use devices that are enabled in Settings. If this
+          device is not enabled or browser notifications are blocked, the
+          behavior is still tracked.
         </p>
       </div>
 

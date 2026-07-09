@@ -3224,6 +3224,100 @@ Verification:
 
 ---
 
+## Ticket 059: BehaviorLog restore apply for Cadence schedule IDs
+
+Make destructive restore apply work for BehaviorLog bundles exported by Cadence
+itself when schedule records use stable BehaviorLog external IDs such as
+`sch_<uuid>` instead of local database UUIDs.
+
+Context:
+- Follow-up hosted browser QA on 2026-07-09 exported a real Cadence
+  `.behaviorlog.zip` bundle, accepted it in restore preview, and successfully
+  applied the same bundle through create-only import into a second disposable
+  account.
+- Destructive restore apply stayed disabled because the restore preview
+  contained skipped actions. The confirmed compatibility issue is that Cadence
+  export emits `data/schedules.jsonl` `schedule_id` values like `sch_<uuid>`,
+  while the restore apply payload builder currently requires schedule IDs to be
+  database UUIDs when an accepted preview action has no existing local ID.
+- `sch_<uuid>` is a valid BehaviorLog external identifier. The restore path
+  should map external schedule IDs to safe local UUID schedule-slot IDs instead
+  of changing the export format to make schedule IDs look like database IDs.
+
+Acceptance criteria:
+- Add a regression fixture or test path using a Cadence-generated BehaviorLog
+  bundle with:
+  - at least one `data/schedules.jsonl` row whose `schedule_id` is
+    `sch_<uuid>`,
+  - at least one occurrence that references that schedule,
+  - at least one status event for the occurrence.
+- Restore preview must not classify schedules, occurrences, status events, or
+  notes as skipped solely because the referenced schedule ID is a non-UUID
+  BehaviorLog external ID.
+- Restore apply must generate or resolve safe local UUIDs for schedule-slot
+  rows when accepted preview actions lack a local ID, then use those mapped
+  UUIDs for occurrence `behavior_schedule_slot_id` values.
+- Preserve the original BehaviorLog external schedule IDs in import/restore
+  provenance so later import, merge, or restore previews can map
+  `sch_<uuid>` back to the restored local schedule slot.
+- Applying the same accepted restore run must remain idempotent.
+- Keep the existing restore gates intact:
+  - accepted `restore_preview` run,
+  - matching preview fingerprint,
+  - matching local-data fingerprint,
+  - typed `RESTORE` confirmation,
+  - fresh-backup acknowledgement,
+  - sensitivity acknowledgement when needed,
+  - no validation errors,
+  - no skipped or unsupported restore actions.
+- Keep restore apply transaction-scoped and user-owned. Do not bypass Supabase
+  RLS expectations, widen RPC execute privileges, or perform direct hosted
+  database edits.
+- Update any misleading user-facing error copy that currently suggests a
+  Cadence-generated BehaviorLog backup should avoid this failure.
+- Update docs if the restore compatibility contract or provenance behavior
+  becomes more explicit.
+- Do not change BehaviorLog export schedule IDs just to satisfy restore apply.
+- Do not add category restore, provider sends, reminder scheduling, PWA/offline
+  behavior, broad restore automation, hidden destructive writes, AI
+  interpretation, or new product data categories.
+
+Suggested files:
+- `lib/services/behaviorlog-restore.service.ts`
+- `lib/resolvers/behaviorlog-restore.resolver.ts` if preview skip behavior
+  changes
+- `lib/services/behaviorlog-import.service.ts` or import mapping helpers if
+  restore provenance should reuse existing mapping utilities
+- `supabase/migrations/*` only if the restore RPC payload or mapping writes
+  need database changes
+- `lib/db/database.types.ts` if schema or RPC types change
+- `docs/EXPORT_FORMATS.md`
+- `docs/USER_FLOWS.md`
+- `docs/DATA_MODEL.md` if provenance persistence changes
+- `tests/behaviorlog-restore.service.test.ts`
+- `tests/behaviorlog-restore-apply.service.test.ts`
+- `tests/behaviorlog-restore.resolver.test.ts` if resolver behavior changes
+- `tests/behaviorlog-conformance.test.ts` if export/restore fixture
+  generation changes
+- RLS/static policy tests if schema or privileges change
+- `STATUS.md`
+
+Verification:
+- Run focused restore preview/apply tests first, including the new
+  Cadence-exported `sch_<uuid>` regression.
+- If schema, RPC, RLS, grants, or migrations change, run
+  `npm run supabase -- db reset` and regenerate database types.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Browser QA `/export` with disposable hosted or local test-login accounts:
+  export a BehaviorLog bundle from one account, restore-preview it in another
+  account, verify the apply controls unlock only after all restore gates are
+  satisfied, and apply only against disposable data.
+- After browser QA, delete disposable accounts or data and run the appropriate
+  test-login cleanup command when test-login users were used.
+
+---
+
 ## Future ticket: Workspace restructuring
 
 Move toward the target composable architecture only when needed by marketing,

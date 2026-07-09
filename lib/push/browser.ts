@@ -99,10 +99,13 @@ export async function registerBrowserPushSubscription(
   const registration = await navigator.serviceWorker.register(
     "/push-service-worker.js",
   );
-  const existingSubscription = await registration.pushManager.getSubscription();
+  const activeRegistration = await navigator.serviceWorker.ready;
+  const pushRegistration = activeRegistration ?? registration;
+  const existingSubscription =
+    await pushRegistration.pushManager.getSubscription();
   const subscription =
     existingSubscription ??
-    (await registration.pushManager.subscribe({
+    (await pushRegistration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
     }));

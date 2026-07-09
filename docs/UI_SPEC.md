@@ -426,6 +426,10 @@ when permission is still undecided, save a subscription after permission is
 allowed, and show factual unblock copy when the browser reports permission is
 blocked.
 
+Behavior-level browser reminders represent intent for that behavior. They rely
+on devices enabled in Settings; if the current device is not enabled or browser
+notifications are blocked, the behavior remains trackable.
+
 The Reminder editor should use the same unframed form-section treatment as the
 Recurrence editor. Use a plain section heading and smaller subsection heading
 text for options such as Reminder offset.
