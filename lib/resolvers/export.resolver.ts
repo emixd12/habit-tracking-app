@@ -13,6 +13,7 @@ import type {
   ExportJsonBehavior,
   ExportJsonCategory,
   ExportJsonOccurrence,
+  ExportJsonStatusEvent,
   ExportOccurrenceInput,
   ExportProfileInput,
   ExportRangeKey,
@@ -159,6 +160,10 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
       }),
     );
   const overallCounts = countOccurrences(occurrences);
+  const statusEvents = toJsonStatusEvents({
+    statusEvents: input.statusEvents ?? [],
+    occurrences,
+  });
   const fileBaseName = [
     "cadence-export",
     range.key === "all" ? "all-time" : `${range.key}-days`,
@@ -173,6 +178,7 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     categories,
     behaviors,
     occurrences,
+    statusEvents,
   });
   const behaviorLog = toBehaviorLogBundle({
     exportedAtInstant: input.now,
@@ -205,6 +211,7 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
       counts: overallCounts,
       behaviors,
       occurrences,
+      statusEvents,
       includeArchived,
       includeNotes,
     }),
@@ -350,6 +357,7 @@ function toJsonBackup(input: {
   categories: ExportJsonCategory[];
   behaviors: ExportJsonBehavior[];
   occurrences: ExportJsonOccurrence[];
+  statusEvents: ExportJsonStatusEvent[];
 }): ExportJsonBackup {
   return {
     exported_at: input.exportedAt,
@@ -359,7 +367,39 @@ function toJsonBackup(input: {
     categories: input.categories,
     behaviors: input.behaviors,
     occurrences: input.occurrences,
+    status_events: input.statusEvents,
   };
+}
+
+function toJsonStatusEvents(input: {
+  statusEvents: ExportStatusEventInput[];
+  occurrences: ExportJsonOccurrence[];
+}): ExportJsonStatusEvent[] {
+  const occurrenceIds = new Set(
+    input.occurrences.map((occurrence) => occurrence.id),
+  );
+
+  return input.statusEvents
+    .filter((event) => occurrenceIds.has(event.occurrenceId))
+    .sort(compareStatusEvents)
+    .map((event) => ({
+      id: event.id,
+      occurrence_id: event.occurrenceId,
+      behavior_id: event.behaviorId,
+      previous_status: event.previousStatus,
+      status: event.status,
+      status_semantics: event.statusSemantics,
+      recorded_at: formatUtc(event.recordedAt),
+      effective_at: formatOptionalUtc(event.effectiveAt),
+      local_date: event.localDate,
+      timezone: event.timezone,
+      source_capture_method: event.sourceCaptureMethod,
+      source_confidence: event.sourceConfidence,
+      revises_event_id: event.revisesEventId,
+      reason_code: event.reasonCode,
+      created_at: event.createdAt,
+      updated_at: event.updatedAt,
+    }));
 }
 
 function toJsonl(input: {
@@ -1810,6 +1850,7 @@ function toMarkdownSummary(input: {
   occurrences: ExportJsonOccurrence[];
   includeArchived: boolean;
   includeNotes: boolean;
+  statusEvents: ExportJsonStatusEvent[];
 }): string {
   const behaviorLines = summarizeByBehavior(input.occurrences);
   const categoryLines = summarizeByCategory(input.occurrences);
@@ -1836,6 +1877,10 @@ function toMarkdownSummary(input: {
     ...(categoryLines.length > 0
       ? categoryLines
       : ["- No category counts in this range."]),
+    "",
+    "## Status history",
+    "- Occurrence rows are current snapshots. Use `status_events` for corrections and decision chronology.",
+    "- `recorded_at` is when Cadence logged the decision; `effective_at` is its stated effective time when present; `revises_event_id` links a correction to the prior event.",
     ...(noteLines.length > 0 ? ["", "## Notes", ...noteLines] : []),
   ].join("\n");
 }

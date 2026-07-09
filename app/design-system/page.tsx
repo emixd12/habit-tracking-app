@@ -2110,6 +2110,7 @@ const exportFixture: ExportBundle = {
         note: "Short walk after lunch.",
       },
     ],
+    status_events: [],
   },
   json: "{\"profile\":{\"timezone\":\"America/New_York\"}}",
   markdownSummary:

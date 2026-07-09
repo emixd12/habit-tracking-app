@@ -145,6 +145,7 @@ export type ExportJsonBackup = {
   categories: ExportJsonCategory[];
   behaviors: ExportJsonBehavior[];
   occurrences: ExportJsonOccurrence[];
+  status_events: ExportJsonStatusEvent[];
 };
 
 export type ExportJsonCategory = {
@@ -193,6 +194,25 @@ export type ExportJsonOccurrence = {
   completed_at: string | null;
   status_marked_at: string | null;
   note: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type ExportJsonStatusEvent = {
+  id: string;
+  occurrence_id: string;
+  behavior_id: string;
+  previous_status: ExportOccurrenceStatus | null;
+  status: ExportOccurrenceStatus;
+  status_semantics: ExportStatusEventInput["statusSemantics"];
+  recorded_at: string;
+  effective_at: string | null;
+  local_date: string;
+  timezone: string;
+  source_capture_method: ExportStatusEventInput["sourceCaptureMethod"];
+  source_confidence: ExportStatusEventInput["sourceConfidence"];
+  revises_event_id: string | null;
+  reason_code: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };

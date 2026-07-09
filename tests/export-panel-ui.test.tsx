@@ -21,8 +21,8 @@ describe("Export panel UI", () => {
     );
     expect(html).toContain("CSV (.csv)");
     expect(html).toContain("Spreadsheet review of occurrence snapshots");
-    expect(html).toContain("App JSON snapshot (.json)");
-    expect(html).toContain("Status-event history lives in BehaviorLog.");
+    expect(html).toContain("App JSON backup (.json)");
+    expect(html).toContain("occurrence snapshots, and status-event history.");
     expect(html).toContain("BehaviorLog bundle (.behaviorlog.zip)");
     expect(html).toContain("Complete portability and restore-oriented bundle");
   });
@@ -68,6 +68,7 @@ function exportBundle(): ExportBundle {
       categories: [],
       behaviors: [],
       occurrences: [],
+      status_events: [],
     },
     json: "{}",
     markdownSummary: "# Cadence export summary",

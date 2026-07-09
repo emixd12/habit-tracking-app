@@ -3741,6 +3741,38 @@ Remaining risk:
   research. Do not claim externally validated marketing comprehension until
   independent first-time human-user testing repeats the same tasks.
 
+### Ticket 058: Status timestamp and status history export hardening
+
+Status: complete.
+
+Implementation summary:
+- Full JSON now includes an additive, sorted `status_events` array for exported
+  occurrences while preserving unchanged current occurrence snapshots.
+- The export remains backward compatible for existing snapshot readers. The
+  event records preserve correction links, status semantics, recorded/effective
+  timestamps, source metadata, and reason code.
+- Markdown now explains that occurrence rows are snapshots and directs agents
+  to status events for corrections and decision chronology. JSONL and CSV keep
+  their snapshot `status_marked_at` fields without implying full history.
+- The Export UI calls the JSON download an app JSON backup and names its status
+  event history. No status-history UI or future source values were added.
+
+Verification:
+- Pass: focused export, panel, status, occurrence-service, and BehaviorLog
+  conformance tests (5 files, 44 tests).
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (60 files, 365 tests).
+- Pass: `npm run build`.
+- Pass: `git diff --check`.
+
+Remaining risk:
+- The local browser bridge detached before the dev-only design-system export
+  fixture could render. The UI copy change is covered by static panel tests;
+  rerun a responsive browser check when the browser bridge is available.
+
 ### Ticket 059: BehaviorLog restore apply for Cadence schedule IDs
 
 Status: complete.

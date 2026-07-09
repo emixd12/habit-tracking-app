@@ -565,8 +565,100 @@ describe("resolveExportBundle", () => {
           note: null,
         },
       ],
+      status_events: [],
     });
     expect(JSON.parse(bundle.json)).toEqual(bundle.jsonBackup);
+  });
+
+  it("includes sorted status history for exported occurrences in full JSON", () => {
+    const bundle = resolve({
+      occurrences: [occurrence({ id: "occurrence-1" })],
+      statusEvents: [
+        {
+          id: "event-late",
+          occurrenceId: "occurrence-1",
+          behaviorId: "behavior-brush",
+          previousStatus: "completed",
+          status: "not_completed",
+          statusSemantics: "explicit_user_correction",
+          recordedAt: "2026-06-08T14:00:00Z",
+          effectiveAt: "2026-06-08T13:45:00Z",
+          localDate: "2026-06-08",
+          timezone: DEFAULT_TIMEZONE,
+          sourceCaptureMethod: "manual_tap",
+          sourceConfidence: "high",
+          revisesEventId: "event-early",
+          reasonCode: "user_correction",
+        },
+        {
+          id: "event-early",
+          occurrenceId: "occurrence-1",
+          behaviorId: "behavior-brush",
+          previousStatus: "unresolved",
+          status: "completed",
+          statusSemantics: "explicit_user_mark",
+          recordedAt: "2026-06-08T13:00:00Z",
+          effectiveAt: "2026-06-08T13:00:00Z",
+          localDate: "2026-06-08",
+          timezone: DEFAULT_TIMEZONE,
+          sourceCaptureMethod: "manual_tap",
+          sourceConfidence: "high",
+          revisesEventId: null,
+          reasonCode: null,
+        },
+        {
+          id: "event-outside-range",
+          occurrenceId: "occurrence-outside-range",
+          behaviorId: "behavior-brush",
+          previousStatus: "unresolved",
+          status: "completed",
+          statusSemantics: "explicit_user_mark",
+          recordedAt: "2026-06-08T13:00:00Z",
+          effectiveAt: null,
+          localDate: "2026-06-08",
+          timezone: DEFAULT_TIMEZONE,
+          sourceCaptureMethod: "manual_tap",
+          sourceConfidence: "high",
+          revisesEventId: null,
+          reasonCode: null,
+        },
+      ],
+    });
+
+    expect(bundle.jsonBackup.status_events).toEqual([
+      expect.objectContaining({
+        id: "event-early",
+        recorded_at: "2026-06-08T13:00:00Z",
+        effective_at: "2026-06-08T13:00:00Z",
+        revises_event_id: null,
+      }),
+      expect.objectContaining({
+        id: "event-late",
+        previous_status: "completed",
+        status: "not_completed",
+        status_semantics: "explicit_user_correction",
+        recorded_at: "2026-06-08T14:00:00Z",
+        effective_at: "2026-06-08T13:45:00Z",
+        revises_event_id: "event-early",
+        reason_code: "user_correction",
+      }),
+    ]);
+    expect(bundle.jsonBackup.status_events).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "event-outside-range" }),
+      ]),
+    );
+  });
+
+  it("guides Markdown readers to use status history for corrections and logging", () => {
+    const bundle = resolve();
+
+    expect(bundle.markdownSummary).toContain("## Status history");
+    expect(bundle.markdownSummary).toContain(
+      "Occurrence rows are current snapshots.",
+    );
+    expect(bundle.markdownSummary).toContain("`recorded_at` is when Cadence logged");
+    expect(bundle.markdownSummary).toContain("`revises_event_id` links a correction");
   });
 
   it("emits a BehaviorLog bundle with required files, hashes, status events, and notes", () => {

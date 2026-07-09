@@ -27,9 +27,9 @@ const DOWNLOAD_ACTIONS = [
   },
   {
     format: "json",
-    label: "App JSON snapshot (.json)",
+    label: "App JSON backup (.json)",
     description:
-      "App-native categories, behaviors, and occurrence snapshots. Status-event history lives in BehaviorLog.",
+      "App-native categories, behaviors, occurrence snapshots, and status-event history.",
   },
   {
     format: "behaviorlog",

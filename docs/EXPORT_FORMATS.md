@@ -42,6 +42,9 @@ Occurrence event:
 Occurrence `note` remains present in the app-native JSONL shape. It is `null`
 unless the include-notes option is selected.
 
+JSONL occurrence rows are current snapshots. `status_marked_at` is the latest
+mark on that snapshot, not the complete decision trail.
+
 Behavior event:
 
 ```json
@@ -71,6 +74,9 @@ CSV should open cleanly in spreadsheet software.
 The `note` column remains present. Note cells are empty unless the
 include-notes option is selected.
 
+CSV rows are current snapshots. `status_marked_at` must not be interpreted as
+complete status history.
+
 ## Full JSON backup
 
 Shape:
@@ -83,13 +89,24 @@ Shape:
   },
   "categories": [],
   "behaviors": [],
-  "occurrences": []
+  "occurrences": [],
+  "status_events": []
 }
 ```
 
-This is an app-native snapshot of categories, behaviors, and occurrences. It
-does not include `occurrence_status_events`; use the BehaviorLog bundle when
-status-event history, interoperability, or restore-oriented context is needed.
+This is an app-native backup of categories, behaviors, occurrence snapshots,
+and the append-only `occurrence_status_events` history for exported
+occurrences. The `occurrences` array remains the current snapshot surface.
+Use `status_events` to analyze corrections or logging chronology:
+
+- `recorded_at` is when Cadence logged the explicit decision.
+- `effective_at` is the decision's stated effective time when present.
+- `revises_event_id` links a correction to the latest prior event when known.
+
+The additive `status_events` root preserves compatibility for existing readers
+of the unchanged category, behavior, and occurrence snapshot arrays. BehaviorLog
+remains the interoperable and restore-oriented export format; its
+`data/status_events.jsonl` remains the authoritative standard record.
 
 Behavior records include `schedules[]` as the current app-native schedule
 structure. `recurrence_rule`, `scheduled_time`, and `schedule_slots` remain in
@@ -485,6 +502,12 @@ The AI summary should be copyable and downloadable as `.md`.
 Occurrence notes are omitted by default. When include-notes is selected, the
 summary includes a compact `Notes` section keyed by local date, behavior,
 schedule, and status.
+
+Every Markdown summary also includes concise status-history guidance. Agents
+must treat occurrence rows as current snapshots and use Full JSON
+`status_events` or BehaviorLog `data/status_events.jsonl` for corrections,
+late logging, and decision chronology. Markdown guidance does not add a
+status-history UI or new source-capture values.
 
 Example:
 

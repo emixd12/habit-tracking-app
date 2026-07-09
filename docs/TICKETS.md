@@ -3173,11 +3173,11 @@ Acceptance criteria:
   for normal authenticated app access.
 - Close export gaps:
   - BehaviorLog bundle must include authoritative `data/status_events.jsonl`.
-  - Full JSON backup should include status event history or clearly defer to
-    BehaviorLog with precise UI/docs copy.
-  - Markdown AI summary should tell agents to prefer status events over current
-    occurrence snapshots when analyzing corrections, late logging, or behavior
-    adherence timing.
+  - Full JSON backup includes occurrence status-event history in addition to
+    unchanged current occurrence snapshots.
+  - Markdown AI summary gives concise correction and logging guidance: use
+    status events over current occurrence snapshots for correction, late-log,
+    and adherence-timing analysis.
   - App-native JSONL/CSV should keep existing `status_marked_at` fields and
     should not silently imply that snapshots are full history.
 - Add or update tests for timestamp preservation, correction history, unmarking,
@@ -3190,16 +3190,13 @@ Acceptance criteria:
   audit-log UI, or status-history editing.
 
 Owner questions before implementation:
-- Should Full JSON backup become a complete backup that includes
-  `occurrence_status_events`, or should BehaviorLog remain the only complete
-  status-history export?
-- Should Markdown AI summary include a brief "logging behavior" section when
-  status events show frequent corrections or end-of-day batch logging?
-- Should users ever see per-occurrence status history in the UI, or should this
-  ticket remain export/context only?
-- Should future non-manual sources such as voice logging use new
-  `source_capture_method` values now, or wait until the voice feature is
-  scoped?
+- Full JSON includes `occurrence_status_events` as an additive
+  `status_events` root array; BehaviorLog remains the interoperable and
+  restore-oriented format.
+- Markdown includes concise static correction and logging guidance.
+- Status history remains export/context only; this ticket adds no UI surface.
+- No future source values are added. Existing source-capture fields retain an
+  extension path for a later scoped feature.
 
 Suggested files:
 - `docs/DATA_MODEL.md`
