@@ -253,7 +253,8 @@ Behavior review should be basic:
   in the per-behavior calendar when it falls inside the selected range
 - Day-level representation of full completion, partial completion, and not completed when a behavior has multiple occurrences in one day
 - A way to review one behavior's occurrences on a selected day from the
-  behavior-level calendar
+  behavior-level calendar, with non-empty cells presented as the review entry
+  point and empty cells remaining passive
 - Default adherence rate excludes unresolved
 
 The Overall adherence range selector sits directly above the overall calendar.

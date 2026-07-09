@@ -483,6 +483,9 @@ Separate behavior settings edits from behavior date review:
   recurrence, schedule, reminders, and active/archive state.
 - Behavior date review opens from a selected non-empty per-behavior calendar
   cell and is for reviewing or correcting dated records only.
+- Non-empty per-behavior calendar cells should expose action scent through
+  accessible labels or titles such as "open day review"; empty cells remain
+  passive.
 - Behavior date review displays Date of behavior, Time of behavior, Status, and
   Note as plain rows.
 - Date of behavior and Time of behavior are display-only in date review.
@@ -530,18 +533,19 @@ desktop.
 The overall calendar is a passive adherence summary, not the correction entry
 point. Later corrections start from a behavior row: selecting a non-empty
 behavior calendar cell opens a compact Behavior date area inside that behavior
-row. The behavior date review should list only that behavior's occurrences for
-the selected local date when rows exist, including Completed, Not Completed,
-and Unresolved rows. It should use plain text labels for Time of behavior,
-Status, and Note rather than chips, and empty notes should read as italic No
-note. Correction controls stay hidden behind a per-occurrence Review disclosure
-until the user chooses to review that occurrence. Inside the disclosure, Change
-status and the Completed / Not Completed actions should sit on one row when
-space allows, followed by the inline Note form. Do not use internal divider
-lines that visually compete with the behavior-row separators. Do not add bulk
-edit, all-time search, automatic suggestions, AI coaching, or gamified
-language. Do not render an empty review panel when the selected behavior day
-has no occurrences.
+row. Its heading should be explicit, such as Review selected day, rather than a
+generic Review label. The behavior date review should list only that behavior's
+occurrences for the selected local date when rows exist, including Completed,
+Not Completed, and Unresolved rows. It should use plain text labels for Time of
+behavior, Status, and Note rather than chips, and empty notes should read as
+italic No note. Correction controls stay hidden behind a per-occurrence Review
+disclosure until the user chooses to review that occurrence. Inside the
+disclosure, Change status and the Completed / Not Completed actions should sit
+on one row when space allows, followed by the inline Note form. Do not use
+internal divider lines that visually compete with the behavior-row separators.
+Do not add bulk edit, all-time search, automatic suggestions, AI coaching, or
+gamified language. Do not render an empty review panel when the selected
+behavior day has no occurrences.
 
 Default adherence excludes unresolved occurrences. When shown, the top summary
 Unresolved count matches the Timeline Needs decision count: active unresolved

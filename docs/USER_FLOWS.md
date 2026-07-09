@@ -343,8 +343,11 @@ review that behavior's occurrences on that day inside the selected behavior
 row. The overall calendar remains a passive adherence summary. Behavior date
 review is the deliberate later correction path for submitted occurrence
 decisions after the Needs decision same-day retention window has passed.
+Actionable behavior calendar cells should make that path clear through labels
+or titles such as "open day review" while empty cells remain passive.
 
 Behavior date review should:
+- Use an explicit heading such as Review selected day.
 - Show that behavior's occurrences for the selected local date when rows exist,
   not only Not Completed occurrences.
 - Show occurrence details as plain Date of behavior, Time of behavior, Status,

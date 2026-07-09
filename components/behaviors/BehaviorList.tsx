@@ -514,8 +514,8 @@ function BehaviorHeatmapCell({
           day: cell.localDate,
         })}
         scroll={false}
-        aria-label={`${cell.ariaLabel}; review this behavior date`}
-        title={`${cell.ariaLabel}; review this behavior date`}
+        aria-label={`${cell.ariaLabel}; open day review`}
+        title={`${cell.ariaLabel}; open day review`}
         data-tracking-start={cell.isTrackingStart ? "true" : undefined}
         data-hover-label={cell.shortLabel}
         className={className}
@@ -556,7 +556,7 @@ function BehaviorDateReview({
         id={`selected-behavior-date-${selectedBehaviorDay.behaviorId}`}
         className="text-lg leading-tight"
       >
-        Review
+        Review selected day
       </h4>
 
       <div className="grid gap-5">
