@@ -59,6 +59,8 @@ describe("BehaviorLog import write service", () => {
       schema_version: "0.1.0-draft",
       manifest_sha256: sha256(files[0].content),
       bundle_fingerprint: bundleFingerprint(files),
+      accepted_preview_run_id: null,
+      accepted_preview_fingerprint: null,
       producer_name: "Cadence Tracker",
       producer_version: "0.1.0",
       subject_id_strategy: "pseudonymous",
@@ -73,6 +75,38 @@ describe("BehaviorLog import write service", () => {
       started_at: STARTED_AT,
       completed_at: COMPLETED_AT,
     });
+  });
+
+  it("persists an accepted preview audit link on an apply run", async () => {
+    const files = behaviorLogImportFiles();
+    const preview = createMergeApplyPreview();
+    const { supabase, insert } = createInsertClient({
+      id: "00000000-0000-0000-0000-000000000019",
+    });
+
+    await createBehaviorLogImportRunFromPreview(supabase, {
+      userId: USER_ID,
+      files,
+      preview,
+      importMode: "create_missing_only",
+      acceptedPreviewRunId: "00000000-0000-4000-8000-000000000020",
+      acceptedPreviewFingerprint: preview.previewFingerprint,
+      startedAt: STARTED_AT,
+      completedAt: COMPLETED_AT,
+    });
+
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        import_mode: "create_missing_only",
+        accepted_preview_run_id: "00000000-0000-4000-8000-000000000020",
+        accepted_preview_fingerprint: preview.previewFingerprint,
+        dry_run_summary: expect.objectContaining({
+          bundleFingerprint: preview.bundleFingerprint,
+          localDataFingerprint: preview.localDataFingerprint,
+          previewFingerprint: preview.previewFingerprint,
+        }),
+      }),
+    );
   });
 
   it("persists a merge preview snapshot without touching product records", async () => {
@@ -1351,6 +1385,9 @@ function createMergeApplyPreview(
 
   return {
     ...basePreview,
+    bundleFingerprint: "a".repeat(64),
+    localDataFingerprint: "b".repeat(64),
+    previewFingerprint: "c".repeat(64),
     mergePreview,
   };
 }

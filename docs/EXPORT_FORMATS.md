@@ -332,6 +332,14 @@ User-approved merge apply rules:
 - Applying a merge plan requires an import run with
   `import_mode = 'merge_by_user_approved_plan'` and an accepted Ticket 020
   `mergePreview` snapshot stored in `dry_run_summary`.
+- Apply is bound to one persisted accepted `merge_preview` run. The request
+  must identify that run and provide its bundle, local-data, and combined
+  preview fingerprints; server-side verification rejects any unaccepted,
+  missing, stale, altered, or mismatched preview data rather than silently
+  recomputing a replacement plan.
+- The resulting apply run retains the accepted preview-run reference and
+  accepted preview fingerprint for audit. Raw bundle contents remain outside
+  the import-run ledger.
 - Apply refuses plans that still contain `conflict_requires_decision`.
 - `create_new` actions use the same compatibility checks as create-only import.
 - `map_to_existing` actions create provenance mappings without overwriting local
@@ -376,6 +384,10 @@ User-facing import UI rules:
   decisions.
 - Merge apply requires supported safe actions, no unresolved conflict actions,
   and explicit user confirmation.
+- Apply controls operate only on the exact accepted preview shown in the
+  current review state. If the bundle or local data changes, the UI must show
+  the server refusal, keep the prior preview available for review, and require
+  a new preview before another apply attempt.
 - Raw uploaded bundle contents are not stored in the import-run ledger.
 - Do not add full restore, destructive overwrite, generalized notes browsing, or
   intervention-to-reminder writes in this UI milestone.

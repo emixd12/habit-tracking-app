@@ -637,6 +637,14 @@ If high or restricted sensitivity notes would be imported, apply controls must
 also require a dedicated privacy acknowledgement. Do not add generalized notes
 browsing or intervention-to-reminder writes in this screen.
 
+Import apply controls must remain bound to the persisted accepted merge-preview
+run currently being reviewed. The server verifies matching bundle, local-data,
+and combined preview fingerprints before any write. When that verification
+refuses an unaccepted, stale, altered, or mismatched preview, show the refusal
+as an alert, retain the reviewed preview, and require the user to generate and
+accept a fresh preview. Do not silently replace the reviewed plan or provide a
+global bypass.
+
 BehaviorLog restore preview may also appear in the Import section when a restore
 ticket is active. It should stay separate from create-only and merge import,
 show create/replace/archive/delete/keep/skip counts, highlight destructive

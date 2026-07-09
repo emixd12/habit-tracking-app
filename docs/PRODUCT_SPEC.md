@@ -230,6 +230,12 @@ High or restricted sensitivity imported notes require an explicit privacy
 acknowledgement before apply. AI-generated notes are previewed with warnings but
 not imported into Cadence notes in v1.
 
+Import apply must use the exact persisted merge preview the user accepted. The
+server verifies that preview run's bundle, local-data, and combined preview
+fingerprints before writing, refuses stale or mismatched input, and retains the
+accepted preview relationship on the applied import run for audit. It must not
+silently recompute and apply a different plan.
+
 V1 does not need structured measurement fields. For measurements, the user can write values in the behavior title, description, or occurrence note.
 
 Example:

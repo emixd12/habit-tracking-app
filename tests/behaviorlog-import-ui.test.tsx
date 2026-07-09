@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearUserReadCache } from "../lib/cache/user-read-cache";
 
 import {
+  BehaviorLogImportApplyForm,
   BehaviorLogImportPanel,
   BehaviorLogImportPreviewDetails,
 } from "../components/export/BehaviorLogImportPanel";
@@ -15,7 +16,10 @@ import {
 } from "../lib/services/behaviorlog-import.service";
 import { createStoredZip } from "../lib/services/zip";
 import { resolveBehaviorLogImportMergePreview } from "../lib/resolvers/behaviorlog-import.resolver";
-import type { BehaviorLogImportFile } from "../lib/types/behaviorlog-import";
+import type {
+  BehaviorLogExistingRecords,
+  BehaviorLogImportFile,
+} from "../lib/types/behaviorlog-import";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
 const TIMEZONE = "America/New_York";
@@ -27,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   listOccurrenceStatusEventsByOccurrenceIds: vi.fn(),
   listBehaviorLogImportRecordMappings: vi.fn(),
   listBehaviorLogImportRuns: vi.fn(),
+  getBehaviorLogImportRunById: vi.fn(),
   listImportedNotes: vi.fn(),
   listImportedInterventions: vi.fn(),
   createBehaviorLogImportRunFromPreview: vi.fn(),
@@ -74,6 +79,7 @@ vi.mock("@/lib/db/behaviorLogImports.repo", async (importOriginal) => {
     listBehaviorLogImportRecordMappings:
       mocks.listBehaviorLogImportRecordMappings,
     listBehaviorLogImportRuns: mocks.listBehaviorLogImportRuns,
+    getBehaviorLogImportRunById: mocks.getBehaviorLogImportRunById,
   };
 });
 
@@ -279,16 +285,63 @@ describe("BehaviorLog import UI workflow", () => {
     expect(html).toContain("Resolve merge conflicts");
   });
 
-  it("requires separate acknowledgement before applying high-sensitivity notes", async () => {
-    const zip = createStoredZip(behaviorLogFiles({ includeNote: true }));
-    const baseFormData = new FormData();
+  it("renders apply controls with the exact accepted preview binding", () => {
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles(),
+      existing: EMPTY_EXISTING_RECORDS,
+    });
+    const html = renderToStaticMarkup(
+      <BehaviorLogImportApplyForm
+        title="Create missing records"
+        mode="create_missing_only"
+        buttonLabel="Apply import"
+        disabled={false}
+        disabledReason={null}
+        requiresSensitiveNoteConfirmation={false}
+        formAction={() => undefined}
+        state={{
+          status: "previewed",
+          message: "BehaviorLog preview ready.",
+          upload: {
+            fileName: "cadence-export.behaviorlog.zip",
+            fileSize: 123,
+          },
+          bundlePayload: "encoded-bundle",
+          preview,
+          previewRun: {
+            id: "import-run-preview",
+            import_mode: "merge_preview",
+            status: "previewed",
+            started_at: "2026-06-08T21:10:00Z",
+            completed_at: "2026-06-08T21:10:02Z",
+            failure_message: null,
+          },
+          capabilities: resolveBehaviorLogImportCapabilities(preview),
+          applyResult: null,
+        }}
+      />,
+    );
 
-    baseFormData.set("intent", "apply");
-    baseFormData.set("import_mode", "create_missing_only");
-    baseFormData.set("confirm_apply", "yes");
-    baseFormData.set("bundle_payload", Buffer.from(zip).toString("base64"));
-    baseFormData.set("upload_file_name", "cadence-export.behaviorlog.zip");
-    baseFormData.set("upload_file_size", String(zip.byteLength));
+    expect(html).toContain('name="import_preview_run_id"');
+    expect(html).toContain('value="import-run-preview"');
+    expect(html).toContain('name="preview_fingerprint"');
+    expect(html).toContain(`value="${preview.previewFingerprint}"`);
+    expect(html).toContain('name="local_data_fingerprint"');
+    expect(html).toContain(`value="${preview.localDataFingerprint}"`);
+    expect(html).toContain('name="bundle_fingerprint"');
+    expect(html).toContain(`value="${preview.bundleFingerprint}"`);
+  });
+
+  it("requires separate acknowledgement before applying high-sensitivity notes", async () => {
+    const files = behaviorLogFiles({ includeNote: true });
+    const preview = resolveBehaviorLogImportMergePreview({
+      files,
+      existing: EMPTY_EXISTING_RECORDS,
+    });
+    const baseFormData = createApplyFormData({ files, preview });
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(
+      createAcceptedPreviewRun(preview),
+    );
 
     await expect(
       applyBehaviorLogImportUploadFromFormData(baseFormData),
@@ -345,12 +398,168 @@ describe("BehaviorLog import UI workflow", () => {
     expect(state.applyResult?.created.notes).toBe(1);
     expect(mocks.applyCreateMissingBehaviorLogImportPlan).toHaveBeenCalledTimes(1);
   });
+
+  it("rejects applies without a persisted accepted preview binding", async () => {
+    const formData = createApplyFormData({
+      files: behaviorLogFiles(),
+      preview: resolveBehaviorLogImportMergePreview({
+        files: behaviorLogFiles(),
+        existing: EMPTY_EXISTING_RECORDS,
+      }),
+      includePreviewBinding: false,
+    });
+
+    await expect(
+      applyBehaviorLogImportUploadFromFormData(formData),
+    ).rejects.toThrow("Preview the .behaviorlog.zip bundle again before applying.");
+    expect(mocks.getBehaviorLogImportRunById).not.toHaveBeenCalled();
+    expect(mocks.createBehaviorLogImportRunFromPreview).not.toHaveBeenCalled();
+    expect(mocks.applyCreateMissingBehaviorLogImportPlan).not.toHaveBeenCalled();
+  });
+
+  it("rejects a mismatched accepted preview run before importing", async () => {
+    const files = behaviorLogFiles();
+    const preview = resolveBehaviorLogImportMergePreview({
+      files,
+      existing: EMPTY_EXISTING_RECORDS,
+    });
+    const formData = createApplyFormData({ files, preview });
+    mocks.getBehaviorLogImportRunById.mockResolvedValue({
+      ...createAcceptedPreviewRun(preview),
+      dry_run_summary: {
+        ...createAcceptedPreviewRun(preview).dry_run_summary,
+        previewFingerprint: "d".repeat(64),
+      },
+    });
+
+    await expect(
+      applyBehaviorLogImportUploadFromFormData(formData),
+    ).rejects.toThrow("Import preview no longer matches the accepted preview run.");
+    expect(mocks.createBehaviorLogImportRunFromPreview).not.toHaveBeenCalled();
+    expect(mocks.applyCreateMissingBehaviorLogImportPlan).not.toHaveBeenCalled();
+  });
+
+  it("rejects altered uploaded data after a preview was accepted", async () => {
+    const acceptedFiles = behaviorLogFiles();
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: acceptedFiles,
+      existing: EMPTY_EXISTING_RECORDS,
+    });
+    const formData = createApplyFormData({
+      files: behaviorLogFiles({ behaviorDescription: "Changed after review." }),
+      preview,
+    });
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(
+      createAcceptedPreviewRun(preview),
+    );
+
+    await expect(
+      applyBehaviorLogImportUploadFromFormData(formData),
+    ).rejects.toThrow("Uploaded bundle changed since this import preview.");
+    expect(mocks.createBehaviorLogImportRunFromPreview).not.toHaveBeenCalled();
+    expect(mocks.applyCreateMissingBehaviorLogImportPlan).not.toHaveBeenCalled();
+  });
+
+  it("rejects an accepted preview when local data changes before apply", async () => {
+    const files = behaviorLogFiles();
+    const preview = resolveBehaviorLogImportMergePreview({
+      files,
+      existing: EMPTY_EXISTING_RECORDS,
+    });
+    const formData = createApplyFormData({ files, preview });
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(
+      createAcceptedPreviewRun(preview),
+    );
+    mocks.listBehaviorLogImportRecordMappings.mockResolvedValueOnce([
+      {
+        record_type: "behavior",
+        external_id: "new-local-mapping",
+        local_id: "00000000-0000-4000-8000-000000000055",
+      },
+    ]);
+
+    await expect(
+      applyBehaviorLogImportUploadFromFormData(formData),
+    ).rejects.toThrow("Local data changed since this import preview.");
+    expect(mocks.createBehaviorLogImportRunFromPreview).not.toHaveBeenCalled();
+    expect(mocks.applyCreateMissingBehaviorLogImportPlan).not.toHaveBeenCalled();
+  });
+
+  it("applies only the exact accepted preview and preserves its audit link", async () => {
+    const files = behaviorLogFiles();
+    const preview = resolveBehaviorLogImportMergePreview({
+      files,
+      existing: EMPTY_EXISTING_RECORDS,
+    });
+    const formData = createApplyFormData({ files, preview });
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(
+      createAcceptedPreviewRun(preview),
+    );
+    mocks.createBehaviorLogImportRunFromPreview.mockResolvedValueOnce({
+      id: "import-run-apply",
+      import_mode: "create_missing_only",
+      status: "previewed",
+      started_at: "2026-06-08T21:11:00Z",
+      completed_at: "2026-06-08T21:11:02Z",
+      failure_message: null,
+    });
+    mocks.applyCreateMissingBehaviorLogImportPlan.mockResolvedValueOnce({
+      importRun: {
+        id: "import-run-apply",
+        import_mode: "create_missing_only",
+        status: "applied",
+        started_at: "2026-06-08T21:11:00Z",
+        completed_at: "2026-06-08T21:11:02Z",
+        failure_message: null,
+      },
+      created: {
+        behaviors: 1,
+        schedules: 1,
+        occurrences: 1,
+        statusEvents: 1,
+        notes: 0,
+        mappings: 4,
+      },
+      skipped: {
+        behaviors: 0,
+        schedules: 0,
+        occurrences: 0,
+        statusEvents: 0,
+        notes: 0,
+      },
+      warnings: [],
+    });
+
+    const state = await applyBehaviorLogImportUploadFromFormData(formData);
+
+    expect(state.status).toBe("applied");
+    expect(mocks.createBehaviorLogImportRunFromPreview).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        importMode: "create_missing_only",
+        acceptedPreviewRunId: "import-run-preview",
+        acceptedPreviewFingerprint: preview.previewFingerprint,
+      }),
+    );
+    expect(mocks.applyCreateMissingBehaviorLogImportPlan).toHaveBeenCalledTimes(1);
+  });
 });
+
+const EMPTY_EXISTING_RECORDS: BehaviorLogExistingRecords = {
+  behaviors: [],
+  schedules: [],
+  occurrences: [],
+  statusEvents: [],
+  importedNotes: [],
+  importedInterventions: [],
+  mappings: [],
+};
 
 function behaviorLogFiles(
   input: {
     includeNote?: boolean;
     includeIntervention?: boolean;
+    behaviorDescription?: string;
   } = {},
 ): BehaviorLogImportFile[] {
   const records = {
@@ -358,7 +567,7 @@ function behaviorLogFiles(
       record_type: "behavior",
       behavior_id: "behavior-brush",
       title: "Brush teeth",
-      description: "Night brushing",
+      description: input.behaviorDescription ?? "Night brushing",
       category: "Grooming",
       success_definition: "Complete Brush teeth for each scheduled occurrence.",
       created_at_utc: "2026-05-01T12:00:00Z",
@@ -547,6 +756,51 @@ function behaviorLogFiles(
       content,
     })),
   ];
+}
+
+function createApplyFormData(input: {
+  files: BehaviorLogImportFile[];
+  preview: ReturnType<typeof resolveBehaviorLogImportMergePreview>;
+  includePreviewBinding?: boolean;
+}): FormData {
+  const zip = createStoredZip(input.files);
+  const formData = new FormData();
+
+  formData.set("intent", "apply");
+  formData.set("import_mode", "create_missing_only");
+  formData.set("confirm_apply", "yes");
+  formData.set("bundle_payload", Buffer.from(zip).toString("base64"));
+  formData.set("upload_file_name", "cadence-export.behaviorlog.zip");
+  formData.set("upload_file_size", String(zip.byteLength));
+
+  if (input.includePreviewBinding !== false) {
+    formData.set("import_preview_run_id", "import-run-preview");
+    formData.set("preview_fingerprint", input.preview.previewFingerprint);
+    formData.set(
+      "local_data_fingerprint",
+      input.preview.localDataFingerprint,
+    );
+    formData.set("bundle_fingerprint", input.preview.bundleFingerprint);
+  }
+
+  return formData;
+}
+
+function createAcceptedPreviewRun(
+  preview: ReturnType<typeof resolveBehaviorLogImportMergePreview>,
+) {
+  return {
+    id: "import-run-preview",
+    import_mode: "merge_preview",
+    status: "previewed",
+    bundle_fingerprint: preview.bundleFingerprint,
+    dry_run_summary: {
+      valid: preview.valid,
+      bundleFingerprint: preview.bundleFingerprint,
+      localDataFingerprint: preview.localDataFingerprint,
+      previewFingerprint: preview.previewFingerprint,
+    },
+  };
 }
 
 function sha256(content: string): string {

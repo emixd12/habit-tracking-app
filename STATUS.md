@@ -61,14 +61,10 @@ Ticket 054 is complete. Clear decision is scoped to selected behavior-date
 review, and an owner-approved proxy browser walkthrough verified the heatmap
 review path at desktop and 390px.
 
-Ticket 055 has its non-blocked implementation slice verified and is `blocked`
-on import-apply binding scope and browser fixture QA. Export format rows now
-include task-based guidance, the app JSON output is labeled as an app-native
-snapshot rather than the complete history path, BehaviorLog is named as the
-complete portability and restore-oriented status-history bundle, import dry-run
-summary counts surface unsupported fields and sensitive-note warnings, and
-import/restore run histories now show "Still open" when no completion timestamp
-exists.
+Ticket 055 is in progress. Import apply is being bound to the exact accepted
+merge-preview run and its bundle, local-data, and combined preview fingerprints;
+the remaining completion work includes focused verification and browser fixture
+QA for stale-preview refusal and an accepted-preview success case.
 
 Ticket 056 is complete. Owner-approved agent-proxy browser walkthroughs found
 that the homepage blurred Cadence with BehaviorLog and used ambiguous "open
@@ -3658,7 +3654,7 @@ Remaining risk:
 
 ### Ticket 055: Portability flow comprehension hardening
 
-Status: blocked.
+Status: in progress.
 
 Implementation summary:
 - Added concise task-based guidance to export download rows for JSONL, CSV, app
@@ -3671,8 +3667,13 @@ Implementation summary:
   "Still open" so completed rows do not read as an action.
 - Tightened the import apply acknowledgement copy to "I reviewed this exact
   preview."
+- Defined the accepted-preview binding contract: import apply must use one
+  persisted accepted `merge_preview` run, verify matching bundle, local-data,
+  and combined preview fingerprints before writing, reject stale or altered
+  input, and retain the accepted preview relationship on the applied run.
 - Updated `docs/EXPORT_FORMATS.md`, `docs/UI_SPEC.md`,
-  `docs/USER_FLOWS.md`, and `docs/PRODUCT_SPEC.md`.
+  `docs/USER_FLOWS.md`, `docs/PRODUCT_SPEC.md`, `docs/DATA_MODEL.md`, and
+  `docs/TICKETS.md`.
 - Did not add broad restore automation, hidden destructive writes, provider
   sends, admin repair tools, AI interpretation, or new product data categories.
 
@@ -3687,18 +3688,11 @@ Verification:
 - Pass: `npm run build`.
 - Pass: `git diff --check`.
 
-Blockers:
-- Ticket 055 still needs an owner/product decision on whether import apply must
-  be bound to the exact reviewed preview run, bundle fingerprint, or accepted
-  preview snapshot. Current apply recomputes the preview from the posted bundle
-  and current local data before writing, but it does not require a stored
-  accepted preview-run fingerprint the way restore apply does.
-- Desktop and 390px browser checks of `/export` with valid, invalid,
-  warning-heavy, and destructive-preview fixtures remain outstanding for the
-  final ticket completion pass.
-- Destructive restore apply must not be QA-applied against the user's real
-  account; any browser fixture pass needs a disposable account and fresh backup
-  approval.
+Remaining completion work:
+- Complete focused tests, repository gates, and browser fixture QA for import
+  preview/apply, including stale-preview rejection and a valid accepted-preview
+  success case. Destructive restore apply remains outside this ticket's browser
+  QA scope and must not run against the user's real account.
 
 ### Ticket 056: Public trust and marketing comprehension
 

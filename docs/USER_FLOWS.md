@@ -403,11 +403,16 @@ BehaviorLog import flow:
 3. Apply create-only import only when the dry-run is valid and has no unsafe
    merge decisions.
 4. Apply a merge plan only when all actions are supported safe actions and the
-   user explicitly confirms the write.
+   user explicitly confirms the write from the exact accepted persisted
+   `merge_preview` run.
 5. Confirm high or restricted note sensitivity separately when those notes would
    be imported.
-6. Review recent import runs for status, mode, timestamps, and failure message
-   when present.
+6. On apply, the server verifies the accepted preview-run identity plus matching
+   bundle, local-data, and combined preview fingerprints. It rejects stale,
+   altered, mismatched, or unaccepted preview data and requires a fresh preview
+   instead of recomputing a replacement plan silently.
+7. Review recent import runs for status, mode, timestamps, failure message, and
+   the accepted preview relationship when present.
 
 The import flow must not add full restore, destructive overwrite, generalized
 notes browsing, or intervention-to-reminder writes during preview/apply.

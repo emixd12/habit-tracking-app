@@ -7,6 +7,7 @@ import {
   type ResolveBehaviorLogImportPreviewInput,
 } from "@/lib/resolvers/behaviorlog-import.resolver";
 import {
+  getBehaviorLogImportRunById,
   listBehaviorLogImportRecordMappings,
 } from "@/lib/db/behaviorLogImports.repo";
 import { listImportedNotes } from "@/lib/db/notes.repo";
@@ -219,12 +220,54 @@ export async function applyBehaviorLogImportUploadFromFormData(
   }
 
   const bundle = readBundlePayload(formData);
+  const previewRunId = readRequiredString(
+    formData,
+    "import_preview_run_id",
+    "Preview the .behaviorlog.zip bundle again before applying.",
+  );
+  const acceptedPreviewFingerprint = readRequiredString(
+    formData,
+    "preview_fingerprint",
+    "Preview the .behaviorlog.zip bundle again before applying.",
+  );
+  const acceptedLocalDataFingerprint = readRequiredString(
+    formData,
+    "local_data_fingerprint",
+    "Preview the .behaviorlog.zip bundle again before applying.",
+  );
+  const acceptedBundleFingerprint = readRequiredString(
+    formData,
+    "bundle_fingerprint",
+    "Preview the .behaviorlog.zip bundle again before applying.",
+  );
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
+  const previewRun = await getBehaviorLogImportRunById(
+    supabase,
+    userId,
+    previewRunId,
+  );
+
+  const acceptedPreview = {
+    run: previewRun,
+    bundleFingerprint: acceptedBundleFingerprint,
+    localDataFingerprint: acceptedLocalDataFingerprint,
+    previewFingerprint: acceptedPreviewFingerprint,
+  };
+
+  assertAcceptedImportPreviewRun(acceptedPreview);
+
   const existing = await listBehaviorLogExistingRecords(supabase, userId);
   const preview = previewBehaviorLogMergeImportFromFiles({
     files: bundle.files,
     existing,
+  });
+
+  assertFreshAcceptedImportPreview({
+    preview,
+    bundleFingerprint: acceptedBundleFingerprint,
+    localDataFingerprint: acceptedLocalDataFingerprint,
+    previewFingerprint: acceptedPreviewFingerprint,
   });
   const capabilities = resolveBehaviorLogImportCapabilities(preview);
 
@@ -236,6 +279,8 @@ export async function applyBehaviorLogImportUploadFromFormData(
     files: bundle.files,
     preview,
     importMode: modeValue,
+    acceptedPreviewRunId: acceptedPreview.run.id,
+    acceptedPreviewFingerprint,
   });
   if (modeValue === "create_missing_only") {
     const result = await applyCreateMissingBehaviorLogImportPlan(supabase, {
@@ -450,6 +495,88 @@ function readBundlePayload(formData: FormData): BehaviorLogUploadBundle {
         : zip.byteLength,
     zip,
   });
+}
+
+function assertAcceptedImportPreviewRun(input: {
+  run: BehaviorLogImportRun | null;
+  bundleFingerprint: string;
+  localDataFingerprint: string;
+  previewFingerprint: string;
+}): asserts input is { run: BehaviorLogImportRun } & typeof input {
+  if (
+    !input.run ||
+    input.run.import_mode !== "merge_preview" ||
+    input.run.status !== "previewed"
+  ) {
+    throw new BehaviorLogImportUserError(
+      "Preview the .behaviorlog.zip bundle again before applying.",
+    );
+  }
+
+  const summary = readObject(input.run.dry_run_summary);
+
+  if (
+    summary?.valid !== true ||
+    input.run.bundle_fingerprint !== input.bundleFingerprint ||
+    readString(summary?.bundleFingerprint) !== input.bundleFingerprint ||
+    readString(summary?.localDataFingerprint) !== input.localDataFingerprint ||
+    readString(summary?.previewFingerprint) !== input.previewFingerprint
+  ) {
+    throw new BehaviorLogImportUserError(
+      "Import preview no longer matches the accepted preview run.",
+    );
+  }
+}
+
+function assertFreshAcceptedImportPreview(input: {
+  preview: BehaviorLogImportMergePreviewResult;
+  bundleFingerprint: string;
+  localDataFingerprint: string;
+  previewFingerprint: string;
+}): void {
+  if (input.preview.bundleFingerprint !== input.bundleFingerprint) {
+    throw new BehaviorLogImportUserError(
+      "Uploaded bundle changed since this import preview. Preview it again before applying.",
+    );
+  }
+
+  if (input.preview.localDataFingerprint !== input.localDataFingerprint) {
+    throw new BehaviorLogImportUserError(
+      "Local data changed since this import preview. Preview it again before applying.",
+    );
+  }
+
+  if (input.preview.previewFingerprint !== input.previewFingerprint) {
+    throw new BehaviorLogImportUserError(
+      "Import preview is stale. Preview it again before applying.",
+    );
+  }
+}
+
+function readRequiredString(
+  formData: FormData,
+  field: string,
+  message: string,
+): string {
+  const value = formData.get(field);
+
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new BehaviorLogImportUserError(message);
+  }
+
+  return value.trim();
+}
+
+function readObject(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
 }
 
 function createUploadBundle(input: {

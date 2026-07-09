@@ -375,10 +375,25 @@ export function resolveBehaviorLogImportMergePreview(
     privacy: readPrivacySummary(input.files),
     interventions: preview.plan.interventions,
   });
+  const bundleFingerprint = createBehaviorLogImportBundleFingerprint(input.files);
+  const localDataFingerprint = createBehaviorLogImportLocalDataFingerprint(
+    input.existing,
+  );
+  const previewFingerprint = sha256(
+    stableStringify({
+      bundleFingerprint,
+      localDataFingerprint,
+      mergePreview,
+      semanticsVersion: 1,
+    }),
+  );
 
   return {
     ...preview,
     mergePreview,
+    bundleFingerprint,
+    localDataFingerprint,
+    previewFingerprint,
   };
 }
 
@@ -3293,6 +3308,29 @@ function stableStringify(value: unknown): string {
   }
 
   return JSON.stringify(value);
+}
+
+export function createBehaviorLogImportBundleFingerprint(
+  files: BehaviorLogImportFile[],
+): string {
+  const hash = createHash("sha256");
+
+  for (const file of [...files].sort((left, right) =>
+    left.path.localeCompare(right.path),
+  )) {
+    hash.update(file.path, "utf8");
+    hash.update("\0");
+    hash.update(sha256(file.content), "utf8");
+    hash.update("\0");
+  }
+
+  return hash.digest("hex");
+}
+
+export function createBehaviorLogImportLocalDataFingerprint(
+  existing: BehaviorLogExistingRecords | undefined,
+): string {
+  return sha256(stableStringify(existing ?? {}));
 }
 
 function dedupeById<T extends { id: string }>(values: T[]): T[] {

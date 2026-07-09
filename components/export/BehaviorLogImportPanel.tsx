@@ -379,7 +379,7 @@ function ApplyControls({
     <section className="mt-6 grid gap-4 border-t border-line pt-5">
       <h3 className="text-xl font-bold leading-tight">Apply</h3>
       <div className="grid gap-4 lg:grid-cols-2">
-        <ApplyForm
+      <BehaviorLogImportApplyForm
           title="Create-only"
           mode="create_missing_only"
           buttonLabel="Apply create-only import"
@@ -391,7 +391,7 @@ function ApplyControls({
           formAction={formAction}
           state={state}
         />
-        <ApplyForm
+      <BehaviorLogImportApplyForm
           title="Approved merge"
           mode="merge_by_user_approved_plan"
           buttonLabel="Apply approved merge"
@@ -408,7 +408,7 @@ function ApplyControls({
   );
 }
 
-function ApplyForm({
+export function BehaviorLogImportApplyForm({
   title,
   mode,
   buttonLabel,
@@ -432,6 +432,26 @@ function ApplyForm({
       <input type="hidden" name="intent" value="apply" />
       <input type="hidden" name="import_mode" value={mode} />
       <input type="hidden" name="bundle_payload" value={state.bundlePayload ?? ""} />
+      <input
+        type="hidden"
+        name="import_preview_run_id"
+        value={state.previewRun?.id ?? ""}
+      />
+      <input
+        type="hidden"
+        name="preview_fingerprint"
+        value={state.preview?.previewFingerprint ?? ""}
+      />
+      <input
+        type="hidden"
+        name="local_data_fingerprint"
+        value={state.preview?.localDataFingerprint ?? ""}
+      />
+      <input
+        type="hidden"
+        name="bundle_fingerprint"
+        value={state.preview?.bundleFingerprint ?? ""}
+      />
       <input
         type="hidden"
         name="upload_file_name"

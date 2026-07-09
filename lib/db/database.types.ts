@@ -183,6 +183,8 @@ export type Database = {
       }
       behaviorlog_import_runs: {
         Row: {
+          accepted_preview_fingerprint: string | null
+          accepted_preview_run_id: string | null
           bundle_fingerprint: string | null
           bundle_format: string
           completed_at: string | null
@@ -203,6 +205,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          accepted_preview_fingerprint?: string | null
+          accepted_preview_run_id?: string | null
           bundle_fingerprint?: string | null
           bundle_format: string
           completed_at?: string | null
@@ -223,6 +227,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          accepted_preview_fingerprint?: string | null
+          accepted_preview_run_id?: string | null
           bundle_fingerprint?: string | null
           bundle_format?: string
           completed_at?: string | null
@@ -242,7 +248,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "behaviorlog_import_runs_accepted_preview_owner_fkey"
+            columns: ["user_id", "accepted_preview_run_id"]
+            isOneToOne: false
+            referencedRelation: "behaviorlog_import_runs"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
       }
       behaviors: {
         Row: {

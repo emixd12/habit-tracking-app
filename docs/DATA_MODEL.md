@@ -429,6 +429,8 @@ create table behaviorlog_import_runs (
   schema_version text,
   manifest_sha256 text,
   bundle_fingerprint text,
+  accepted_preview_run_id uuid,
+  accepted_preview_fingerprint text,
 
   producer_name text,
   producer_version text,
@@ -454,7 +456,12 @@ create table behaviorlog_import_runs (
   started_at timestamptz not null default now(),
   completed_at timestamptz,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+
+  unique (user_id, id),
+  foreign key (user_id, accepted_preview_run_id)
+    references behaviorlog_import_runs(user_id, id)
+    on delete restrict
 );
 ```
 
@@ -464,6 +471,18 @@ profile hints, the requested import mode, a dry-run summary snapshot, status,
 and start/completion timestamps. It does not mean imported product records have
 been written; `status = 'previewed'` only means the bundle was validated and
 previewed.
+
+`merge_preview` rows store the accepted bundle fingerprint, local-data
+fingerprint, and combined preview fingerprint in `dry_run_summary`. A
+create-only or user-approved merge apply must reference one persisted, accepted
+`merge_preview` row through `accepted_preview_run_id` and retain that row's
+combined preview fingerprint in `accepted_preview_fingerprint`. Before writing,
+the service rechecks the submitted bundle and current local graph against all
+three accepted fingerprints. It rejects unaccepted preview data, a missing or
+mismatched preview run, an altered bundle, changed local data, or a recomputed
+preview that no longer matches. The applied ledger row therefore preserves the
+auditable relationship to the exact reviewed preview without storing raw bundle
+contents.
 
 `restore_preview` rows are read-only restore previews. Their `dry_run_summary`
 stores the restore preview fingerprint, local-data fingerprint, bundle

@@ -451,9 +451,16 @@ export type BehaviorLogImportMergePreview = {
   };
 };
 
+export type BehaviorLogImportPreviewBinding = {
+  bundleFingerprint: string;
+  localDataFingerprint: string;
+  previewFingerprint: string;
+};
+
 export type BehaviorLogImportMergePreviewResult = BehaviorLogImportPreview & {
   mergePreview: BehaviorLogImportMergePreview;
-};
+} &
+  BehaviorLogImportPreviewBinding;
 
 export type BehaviorLogImportRunCreateInput = {
   userId: string;
@@ -466,6 +473,8 @@ export type BehaviorLogImportRunCreateInput = {
   subjectIdStrategy: string | null;
   privacyRedactionLevel: string | null;
   importMode: BehaviorLogImportMode;
+  acceptedPreviewRunId?: string | null;
+  acceptedPreviewFingerprint?: string | null;
   dryRunSummary: Record<string, unknown>;
   status?: BehaviorLogImportRunStatus;
   failureMessage?: string | null;

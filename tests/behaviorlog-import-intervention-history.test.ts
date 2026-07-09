@@ -356,6 +356,9 @@ function createMergePreview(input: {
 
   return {
     ...preview,
+    bundleFingerprint: "a".repeat(64),
+    localDataFingerprint: "b".repeat(64),
+    previewFingerprint: "c".repeat(64),
     mergePreview: {
       mode: "merge_preview",
       privacy: {

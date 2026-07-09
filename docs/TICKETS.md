@@ -2945,9 +2945,11 @@ Acceptance criteria:
   and restore-oriented path.
 - Reproduce whether restore previews can appear as `Open` after completion and
   fix status/timestamp handling if confirmed.
-- Decide whether import apply must be bound to the exact reviewed preview run,
-  bundle fingerprint, or accepted preview snapshot. If yes, implement the gate
-  before relying on import apply for account-safety workflows.
+- Bind import apply to the exact persisted accepted `merge_preview` run and its
+  bundle, local-data, and combined preview fingerprints. Apply must reject
+  stale, altered, mismatched, or unaccepted preview data rather than silently
+  recomputing a replacement plan, and the applied run must retain an auditable
+  accepted-preview link and fingerprint.
 - Surface unsupported fields, intervention counts, sensitivity counts, and
   redaction summaries enough for a user to make an informed import/restore
   decision.
@@ -2977,6 +2979,8 @@ Verification:
   `npm run typecheck`, `npm run test`, and `npm run build`.
 - Browser-check `/export` at desktop and around 390px with valid, invalid,
   warning-heavy, and destructive-preview fixtures.
+- Browser-check import preview/apply with fixture data, including stale-preview
+  rejection and a valid accepted-preview success case.
 - Do not apply a destructive restore against the user's real account during QA.
 
 ---

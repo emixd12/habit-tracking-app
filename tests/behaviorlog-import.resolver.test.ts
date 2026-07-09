@@ -3,7 +3,10 @@ import { createHash } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, expect, it } from "vitest";
 
-import { resolveBehaviorLogImportPreview } from "../lib/resolvers/behaviorlog-import.resolver";
+import {
+  resolveBehaviorLogImportMergePreview,
+  resolveBehaviorLogImportPreview,
+} from "../lib/resolvers/behaviorlog-import.resolver";
 import { resolveExportBundle } from "../lib/resolvers/export.resolver";
 import { previewBehaviorLogImportFromZip } from "../lib/services/behaviorlog-import.service";
 import { createStoredZip } from "../lib/services/zip";
@@ -410,6 +413,59 @@ describe("resolveBehaviorLogImportPreview", () => {
         fields: ["unknown_top_level_field"],
       }),
     ]);
+  });
+
+  it("creates stable preview bindings and changes them when bundle or local data changes", () => {
+    const files = bundleFiles();
+    const base = resolveBehaviorLogImportMergePreview({
+      files,
+      existing: { mappings: [] },
+    });
+    const reordered = resolveBehaviorLogImportMergePreview({
+      files: [...files].reverse(),
+      existing: { mappings: [] },
+    });
+    const alteredBundle = resolveBehaviorLogImportMergePreview({
+      files: replaceFileContent(
+        files,
+        "data/behaviors.jsonl",
+        JSON.stringify({
+          ...parseJsonl(
+            files.find((file) => file.path === "data/behaviors.jsonl")
+              ?.content ?? "",
+          )[0],
+          description: "Changed after preview.",
+        }),
+      ),
+      existing: { mappings: [] },
+    });
+    const changedLocalData = resolveBehaviorLogImportMergePreview({
+      files,
+      existing: {
+        mappings: [
+          {
+            recordType: "behavior",
+            externalId: "behavior-brush",
+            localId: "local-behavior",
+          },
+        ],
+      },
+    });
+
+    expect(reordered).toMatchObject({
+      bundleFingerprint: base.bundleFingerprint,
+      localDataFingerprint: base.localDataFingerprint,
+      previewFingerprint: base.previewFingerprint,
+    });
+    expect(alteredBundle.bundleFingerprint).not.toBe(base.bundleFingerprint);
+    expect(alteredBundle.previewFingerprint).not.toBe(base.previewFingerprint);
+    expect(changedLocalData.bundleFingerprint).toBe(base.bundleFingerprint);
+    expect(changedLocalData.localDataFingerprint).not.toBe(
+      base.localDataFingerprint,
+    );
+    expect(changedLocalData.previewFingerprint).not.toBe(
+      base.previewFingerprint,
+    );
   });
 });
 

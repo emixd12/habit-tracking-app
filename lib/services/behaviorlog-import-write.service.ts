@@ -38,7 +38,10 @@ import {
   getOccurrenceStatusEventByImportFingerprint,
   listOccurrenceStatusEventsByOccurrenceIds,
 } from "@/lib/db/occurrenceStatusEvents.repo";
-import { resolveBehaviorLogImportMergePreview } from "@/lib/resolvers/behaviorlog-import.resolver";
+import {
+  createBehaviorLogImportBundleFingerprint,
+  resolveBehaviorLogImportMergePreview,
+} from "@/lib/resolvers/behaviorlog-import.resolver";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import {
   invalidateBehaviorData,
@@ -110,6 +113,8 @@ export type CreateBehaviorLogImportRunFromPreviewInput = {
   files: BehaviorLogImportFile[];
   preview: BehaviorLogImportPreview;
   importMode?: BehaviorLogImportMode;
+  acceptedPreviewRunId?: string | null;
+  acceptedPreviewFingerprint?: string | null;
   status?: BehaviorLogImportRunStatus;
   startedAt?: string | null;
   completedAt?: string | null;
@@ -136,12 +141,14 @@ export async function createBehaviorLogImportRunFromPreview(
     bundleFormat: manifest.bundleFormat ?? BEHAVIORLOG_FORMAT,
     schemaVersion: input.preview.summary.schemaVersion ?? manifest.schemaVersion,
     manifestSha256: manifest.manifestSha256,
-    bundleFingerprint: createBundleFingerprint(input.files),
+    bundleFingerprint: createBehaviorLogImportBundleFingerprint(input.files),
     producerName: manifest.producerName,
     producerVersion: manifest.producerVersion,
     subjectIdStrategy: manifest.subjectIdStrategy,
     privacyRedactionLevel: manifest.privacyRedactionLevel,
     importMode: input.importMode ?? "preview_only",
+    acceptedPreviewRunId: input.acceptedPreviewRunId,
+    acceptedPreviewFingerprint: input.acceptedPreviewFingerprint,
     dryRunSummary: toDryRunSummarySnapshot(input.preview),
     status: input.status ?? "previewed",
     startedAt: input.startedAt ?? now,
@@ -2848,6 +2855,12 @@ function normalizeImportRunInput(
     bundleFormat: requireNonempty(input.bundleFormat, "bundleFormat"),
     manifestSha256: normalizeSha256(input.manifestSha256),
     bundleFingerprint: normalizeSha256(input.bundleFingerprint),
+    acceptedPreviewRunId: normalizeNullableString(
+      input.acceptedPreviewRunId ?? null,
+    ),
+    acceptedPreviewFingerprint: normalizeSha256(
+      input.acceptedPreviewFingerprint ?? null,
+    ),
     producerName: normalizeNullableString(input.producerName),
     producerVersion: normalizeNullableString(input.producerVersion),
     subjectIdStrategy: normalizeNullableString(input.subjectIdStrategy),
@@ -2894,21 +2907,6 @@ function readManifestMetadata(files: BehaviorLogImportFile[]): {
   };
 }
 
-function createBundleFingerprint(files: BehaviorLogImportFile[]): string {
-  const hash = createHash("sha256");
-
-  for (const file of [...files].sort((left, right) =>
-    left.path.localeCompare(right.path),
-  )) {
-    hash.update(file.path, "utf8");
-    hash.update("\0");
-    hash.update(sha256(file.content), "utf8");
-    hash.update("\0");
-  }
-
-  return hash.digest("hex");
-}
-
 function toDryRunSummarySnapshot(
   preview: BehaviorLogImportPreview,
 ): Record<string, unknown> {
@@ -2930,7 +2928,26 @@ function toDryRunSummarySnapshot(
     };
   }
 
+  if (hasPreviewBinding(preview)) {
+    snapshot.previewFingerprint = preview.previewFingerprint;
+    snapshot.localDataFingerprint = preview.localDataFingerprint;
+    snapshot.bundleFingerprint = preview.bundleFingerprint;
+  }
+
   return snapshot;
+}
+
+function hasPreviewBinding(
+  preview: BehaviorLogImportPreview,
+): preview is BehaviorLogImportMergePreviewResult {
+  const candidate = preview as Partial<BehaviorLogImportMergePreviewResult>;
+
+  return (
+    Boolean(preview.mergePreview) &&
+    typeof candidate.previewFingerprint === "string" &&
+    typeof candidate.localDataFingerprint === "string" &&
+    typeof candidate.bundleFingerprint === "string"
+  );
 }
 
 function parseJsonObject(content: string | null): Record<string, unknown> | null {

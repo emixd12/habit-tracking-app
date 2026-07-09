@@ -167,6 +167,8 @@ function toImportRunInsert(
     schema_version: input.schemaVersion,
     manifest_sha256: input.manifestSha256,
     bundle_fingerprint: input.bundleFingerprint,
+    accepted_preview_run_id: input.acceptedPreviewRunId ?? null,
+    accepted_preview_fingerprint: input.acceptedPreviewFingerprint ?? null,
     producer_name: input.producerName,
     producer_version: input.producerVersion,
     subject_id_strategy: input.subjectIdStrategy,
