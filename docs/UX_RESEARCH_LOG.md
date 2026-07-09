@@ -295,11 +295,27 @@ renders heatmap cells as dense square UI.
 
 Source-of-truth reference: `docs/USER_FLOWS.md`, `docs/UI_SPEC.md`
 
-Recommended follow-up: Run TS07 and record whether users discover behavior date
-review without prompting. If they do not, log a follow-up UI ticket rather than
-adding global past Timeline browsing.
+Owner-approved agent proxy walkthrough (2026-07-09): This is proxy evidence,
+not real-user evidence. In a local authenticated browser session, a reflective
+reviewer persona started on Behaviors, looked for a way to correct a dated
+decision without a prompt, selected a non-empty behavior heatmap cell carrying
+the accessible/title hint `open day review`, and reached the explicit Review
+selected day area. Opening the occurrence Review disclosure exposed Completed,
+Not Completed, and Clear decision, with Clear decision limited to that
+behavior-date context. The same path was checked at desktop and 390px mobile
+viewports without overlap or horizontal scrolling. No occurrence status or note
+was submitted, and no real-account screenshots were committed.
 
-Status: Open
+Outcome: The approved proxy route found the behavior-date review path from the
+behavior heatmap without relying on the intentionally passive overall calendar.
+No material copy or interaction confusion remained after the action hint,
+explicit review heading, and scoped Clear decision affordance were present.
+
+Future follow-up: Run TS07 with human participants before treating this as
+externally validated discoverability evidence. If they do not find the path,
+log a scoped UI follow-up rather than adding global past Timeline browsing.
+
+Status: Fixed (owner-approved agent proxy evidence)
 
 ### UX-005: Browser Permission Recovery Needs Explicit Testing
 

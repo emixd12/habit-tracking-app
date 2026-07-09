@@ -541,7 +541,10 @@ behavior, Status, and Note rather than chips, and empty notes should read as
 italic No note. Correction controls stay hidden behind a per-occurrence Review
 disclosure until the user chooses to review that occurrence. Inside the
 disclosure, Change status and the Completed / Not Completed actions should sit
-on one row when space allows, followed by the inline Note form. Do not use
+on one row when space allows. A resolved occurrence also exposes Clear decision
+in this behavior-date context only, returning it to Unresolved; do not expose
+that control globally in Timeline or Needs decision. The inline Note form
+follows the status controls. Do not use
 internal divider lines that visually compete with the behavior-row separators.
 Do not add bulk edit, all-time search, automatic suggestions, AI coaching, or
 gamified language. Do not render an empty review panel when the selected

@@ -2882,8 +2882,11 @@ Context:
   model gaps.
 
 Acceptance criteria:
-- Verify whether users discover behavior/date review from behavior heatmap
-  cells without prompting.
+- Verify discovery of behavior/date review from behavior heatmap cells through
+  realistic owner-approved agent proxy browser walkthrough(s) without
+  prompting, with structured, documented evidence clearly labeled as not
+  real-user evidence. Human TS07 testing remains the future requirement before
+  claiming externally validated discoverability.
 - Improve information scent for actionable behavior heatmap cells if needed,
   without making the overall passive calendar look actionable.
 - Rename vague selected-day review copy if needed, for example toward `Review

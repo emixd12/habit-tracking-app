@@ -352,6 +352,9 @@ Behavior date review should:
   not only Not Completed occurrences.
 - Show occurrence details as plain Date of behavior, Time of behavior, Status,
   and Note text.
+- Keep status corrections behind the per-occurrence Review disclosure. A
+  resolved occurrence can use Clear decision there to return to Unresolved;
+  Timeline and Needs decision do not expose Clear decision as a global action.
 - Display empty notes as italic No note.
 - Hide correction controls behind a per-occurrence Review disclosure until the
   user chooses to review that occurrence.

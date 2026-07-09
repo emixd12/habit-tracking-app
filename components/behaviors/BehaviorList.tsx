@@ -582,6 +582,8 @@ function BehaviorDateReview({
                     occurrenceId={occurrence.id}
                     currentStatus={occurrence.status}
                     action={statusAction}
+                    includeUnresolved={occurrence.status !== "unresolved"}
+                    unresolvedLabel="Clear decision"
                     compact
                   />
                 </div>

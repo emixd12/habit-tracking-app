@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { BehaviorList } from "../components/behaviors/BehaviorList";
+import { StatusButtons } from "../components/timeline/StatusButtons";
 import type { AnalyticsView } from "../lib/types/analytics";
 import type {
   BehaviorActionState,
@@ -51,6 +52,44 @@ describe("behavior date review UI", () => {
     expect(html).toContain("Review selected day");
     expect(html).toContain("Date of behavior");
     expect(html).toContain("Change status");
+    expect(html).toContain("Clear decision");
+    expect(html).toContain('name="status" value="unresolved"');
+  });
+
+  it("does not render Clear decision for an unresolved selected-day occurrence", () => {
+    const behavior = behaviorView();
+    const analytics = analyticsView(behavior, "unresolved");
+    const html = renderToStaticMarkup(
+      <BehaviorList
+        activeBehaviors={[behavior]}
+        archivedBehaviors={[]}
+        categories={[{ id: "category-1", name: "Health" }]}
+        analytics={analytics}
+        updateAction={behaviorAction}
+        archiveAction={behaviorAction}
+        restoreAction={behaviorAction}
+        statusAction={occurrenceAction}
+        noteAction={occurrenceAction}
+      />,
+    );
+
+    expect(html).not.toContain("Clear decision");
+  });
+
+  it("uses Unmark for Timeline status controls that include unresolved", () => {
+    const html = renderToStaticMarkup(
+      <StatusButtons
+        occurrenceId="occurrence-1"
+        currentStatus="completed"
+        action={occurrenceAction}
+        includeUnresolved
+        compact
+      />,
+    );
+
+    expect(html).toContain("Unmark");
+    expect(html).not.toContain("Clear decision");
+    expect(html).toContain('name="status" value="unresolved"');
   });
 });
 
@@ -98,7 +137,10 @@ function behaviorView(): BehaviorView {
   };
 }
 
-function analyticsView(behavior: BehaviorView): AnalyticsView {
+function analyticsView(
+  behavior: BehaviorView,
+  selectedOccurrenceStatus: "completed" | "unresolved" = "completed",
+): AnalyticsView {
   const counts = {
     completedCount: 1,
     notCompletedCount: 0,
@@ -194,8 +236,9 @@ function analyticsView(behavior: BehaviorView): AnalyticsView {
           categoryName: behavior.categoryName,
           scheduledFor: "2026-06-05T22:00:00Z",
           scheduledTimeLabel: "6:00 PM",
-          status: "completed",
-          statusLabel: "Completed",
+          status: selectedOccurrenceStatus,
+          statusLabel:
+            selectedOccurrenceStatus === "completed" ? "Completed" : "Unresolved",
           note: "",
         },
       ],

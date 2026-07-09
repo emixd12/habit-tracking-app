@@ -57,13 +57,9 @@ intent from current-device delivery readiness, and service-worker notification
 clicks are covered by a regression test that navigates an existing same-origin
 Cadence tab to the intended Timeline URL before focusing it.
 
-Ticket 054 has its non-blocked implementation slice verified and is `blocked`
-on product/user evidence. Behavior heatmap days with occurrences now expose an
-explicit "open day review" action hint, and the selected behavior-day review
-area is headed "Review selected day" instead of generic "Review". Remaining
-acceptance items require evidence that users discover the heatmap review path
-without prompting and an owner decision on whether v1 should expose Clear
-decision back to Unresolved from Timeline, Needs Decision, or later review.
+Ticket 054 is complete. Clear decision is scoped to selected behavior-date
+review, and an owner-approved proxy browser walkthrough verified the heatmap
+review path at desktop and 390px.
 
 Ticket 055 has its non-blocked implementation slice verified and is `blocked`
 on import-apply binding scope and browser fixture QA. Export format rows now
@@ -3624,7 +3620,7 @@ Remaining risk:
 
 ### Ticket 054: Later correction and review discoverability
 
-Status: blocked.
+Status: complete.
 
 Implementation summary:
 - Updated actionable per-behavior heatmap cells to advertise the correction
@@ -3632,31 +3628,33 @@ Implementation summary:
   cells passive.
 - Renamed the selected behavior-day review heading from generic "Review" to
   "Review selected day".
+- Added Clear decision only inside behavior-date review. It returns the
+  selected occurrence to Unresolved; Timeline and Needs decision do not expose
+  a global Clear decision action.
 - Added a static UI regression covering the heatmap review scent, selected-day
-  heading, occurrence detail rows, and hidden correction disclosure path.
+  heading, occurrence detail rows, and the scoped Clear decision path.
 - Updated `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and
   `docs/PRODUCT_SPEC.md` to match the implemented behavior.
-- Did not add Clear decision, a history route, bulk edit, automatic
+- Did not add a global Clear decision, a history route, bulk edit, automatic
   suggestions, AI coaching, or a dense analytics dashboard.
 
 Verification:
-- Pass: `npm run test -- tests/behavior-review-ui.test.tsx tests/analytics.resolver.test.ts tests/status.resolver.test.ts` (3 files, 23 tests).
+- Pass: focused Ticket 054 tests (4 files).
 - Pass: `npm run agents:check`.
 - Pass: `npm run resolvers:check`.
 - Pass: `npm run design-system:check`.
 - Pass: `npm run lint`.
 - Pass: `npm run typecheck`.
-- Pass: `npm run test` (59 files, 350 tests).
+- Pass: `npm run test` (60 files, 353 tests).
 - Pass: `npm run build`.
 - Pass: `git diff --check`.
+- Pass: an owner-approved agent proxy browser walkthrough of the local,
+  authenticated `/behaviors` review path at desktop and 390px. It did not
+  mutate records or capture real-data screenshots; it is not human evidence.
 
-Blockers:
-- Ticket 054 still requires user-discovery evidence: users need to discover
-  behavior/date review from heatmap cells without prompting.
-- Ticket 054 still needs an owner decision on whether v1 should expose Clear
-  decision back to Unresolved in Timeline, Needs Decision, or later review.
-- Desktop and 390px browser checks of the authenticated `/behaviors` review
-  path remain outstanding for the final ticket completion pass.
+Remaining risk:
+- Future human TS07 evidence can further validate discovery of the behavior
+  heatmap review path. It is not a blocker for Ticket 054 completion.
 
 ### Ticket 055: Portability flow comprehension hardening
 

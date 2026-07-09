@@ -26,6 +26,7 @@ type StatusButtonsProps = Readonly<{
   compact?: boolean;
   singleLine?: boolean;
   includeUnresolved?: boolean;
+  unresolvedLabel?: string;
   disabled?: boolean;
   pendingStatus?: TimelineStatusActionStatus | null;
   onStatusSubmit?: (status: TimelineStatusActionStatus) => void;
@@ -48,6 +49,7 @@ export function StatusButtons({
   compact = false,
   singleLine = false,
   includeUnresolved = false,
+  unresolvedLabel = "Unmark",
   disabled = false,
   pendingStatus = null,
   onStatusSubmit,
@@ -165,7 +167,7 @@ export function StatusButtons({
           <StatusSubmitForm
             occurrenceId={occurrenceId}
             status="unresolved"
-            label="Unmark"
+            label={unresolvedLabel}
             action={formAction}
             onStatusIntent={prepareForSubmittedStatus}
             onStatusSubmit={onStatusSubmit}

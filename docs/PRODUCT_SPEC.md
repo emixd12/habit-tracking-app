@@ -153,7 +153,9 @@ stored modal-origin flag. Completed and Not Completed retained rows use
 resolved-row labels, with correction available from the expanded row. After
 that local-day window, later corrections should be deliberate and
 behavior-specific, using the Behaviors screen's behavior date review rather
-than turning Timeline into a past-history browser.
+than turning Timeline into a past-history browser. Inside that review only, a
+resolved occurrence can use Clear decision to return to Unresolved. Clear
+decision does not appear as a global Timeline or Needs decision control.
 
 ## Day boundary
 
