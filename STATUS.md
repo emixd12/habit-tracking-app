@@ -70,13 +70,13 @@ summary counts surface unsupported fields and sensitive-note warnings, and
 import/restore run histories now show "Still open" when no completion timestamp
 exists.
 
-Ticket 056 has its non-blocked implementation slice verified and is `blocked`
-on comprehension evidence. Marketing footer links now expose Trust, Privacy,
-and Terms before sign-in; legal/trust pages include a Cadence overview return
-path; Trust copy names the implemented Supabase Auth plus RLS isolation model;
-and marketing `/docs` lists `/docs.md`. The remaining acceptance item requires
-actual first-time marketing users, or an owner-approved proxy, to explain
-Cadence and BehaviorLog before sign-in.
+Ticket 056 is complete. Owner-approved agent-proxy browser walkthroughs found
+that the homepage blurred Cadence with BehaviorLog and used ambiguous "open
+tracker" language. The revised first viewport now names Cadence as the
+open-source personal tracker and BehaviorLog as its portable export file
+format. Reruns passed discovery, portability, and pre-login trust tasks. This
+is proxy evidence only; real-user testing remains necessary before claiming
+externally validated comprehension.
 
 Ticket 059 is complete. Restore apply now maps non-UUID BehaviorLog external
 IDs, including Cadence schedule IDs like `sch_<uuid>`, to deterministic local
@@ -3702,7 +3702,7 @@ Blockers:
 
 ### Ticket 056: Public trust and marketing comprehension
 
-Status: blocked.
+Status: complete.
 
 Implementation summary:
 - Added low-priority Trust, Privacy, and Terms links to the Astro marketing
@@ -3714,26 +3714,32 @@ Implementation summary:
 - Added a Cadence overview return link to public legal/trust pages.
 - Updated legal-content regression tests and the UX research log for the fixed
   trust/legal/machine-file findings.
+- Ran three independent owner-approved agent-proxy browser walkthroughs before
+  and after the homepage copy correction. Initial findings consistently showed
+  that Cadence and BehaviorLog could be conflated and that "open tracker" was
+  ambiguous. The revised first viewport names Cadence as an open-source,
+  personal tracker and BehaviorLog as the portable export file format Cadence
+  reads and writes. Reruns completed discovery, portability, and pre-login
+  trust tasks without material product-versus-format confusion.
 
 Verification:
 - Pass: `npm run test -- tests/legal-content.test.tsx` (1 file, 2 tests).
 - Pass: `npm run marketing:build`.
 - Pass: `npm run marketing:check`.
-- Pass: built-output check for `/docs.md`, `/terms`, `/privacy`, and `/trust`
-  links in `apps/marketing/dist/docs/index.html` and
-  `apps/marketing/dist/index.html`.
+- Pass: independent browser walkthroughs before and after the homepage copy
+  change, plus visual checks at desktop and 390px.
 - Pass: `npm run agents:check`.
 - Pass: `npm run resolvers:check`.
 - Pass: `npm run lint`.
-- Pass: `npm run test` (58 files, 348 tests).
+- Pass: `npm run test` (60 files, 363 tests).
 - Pass: `npm run typecheck`.
 - Pass: `npm run build`.
+- Pass: `git diff --check`.
 
-Blocker:
-- Ticket 056 still requires marketing-comprehension evidence: actual first-time
-  marketing users, or an owner-approved proxy test, need to explain Cadence and
-  BehaviorLog in their own words before sign-in. `docs/UX_RESEARCH_LOG.md`
-  keeps UX-001 open for that remaining item.
+Remaining risk:
+- The walkthroughs are owner-approved agent proxy testing, not real-user
+  research. Do not claim externally validated marketing comprehension until
+  independent first-time human-user testing repeats the same tasks.
 
 ### Ticket 059: BehaviorLog restore apply for Cadence schedule IDs
 

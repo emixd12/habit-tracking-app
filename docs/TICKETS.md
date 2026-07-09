@@ -2998,7 +2998,10 @@ Context:
 
 Acceptance criteria:
 - Test whether marketing users can explain Cadence and BehaviorLog in their
-  own words before sign-in.
+  own words before sign-in. Owner-approved agent-driven browser persona
+  walkthroughs are accepted proxy evidence for this ticket, but must be
+  labeled as proxy testing rather than real-user evidence and retain a future
+  human-validation follow-up before any externally validated claim.
 - Add low-priority footer access to Terms, Privacy, and Trust from marketing if
   users look for trust material before clicking Log in.
 - Add a clear Cadence overview return path from public legal/trust pages if

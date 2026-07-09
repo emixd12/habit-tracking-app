@@ -179,7 +179,15 @@ Recommended follow-up: In a browser-based marketing walkthrough, ask first-time
 participants to explain Cadence and BehaviorLog in their own words before using
 the login CTA.
 
-Status: Open
+Resolution update (2026-07-09): Ticket 056 ran owner-approved agent-proxy
+browser walkthroughs before and after a homepage copy correction. The initial
+walkthroughs consistently found that "open tracker" was ambiguous and that
+BehaviorLog could briefly be mistaken for the product. The revised homepage
+names Cadence as the open-source personal tracker and BehaviorLog as the
+portable export file format Cadence reads and writes. Reruns found no material
+product-versus-format confusion.
+
+Status: Fixed (owner-approved agent proxy evidence, not real-user evidence).
 
 ### UX-002: Quiet Text Actions Need Mobile And Hurry-State Testing
 
@@ -1492,6 +1500,61 @@ title text in grouped stacks. The group header now uses the generic label
 and accessible row semantics.
 
 Status: Fixed
+
+### UX-036: Marketing Comprehension Proxy Walkthroughs
+
+ID: UX-036
+
+Date: 2026-07-09
+
+Reviewer: Owner-approved agent proxy testing
+
+Persona: First-time simple-tracker shopper; portability-focused technical
+visitor; privacy-conscious account evaluator
+
+Journey: J01 Public discovery
+
+Route or surface: Local Astro marketing site at `/`, `/cadence`, `/standard`,
+`/docs`, `/examples`, `/about`, and linked public Trust, Privacy, and Terms
+pages
+
+Viewport or environment: Independent browser DOM walkthroughs; full-page
+screenshots where available
+
+Evidence record: `docs/qa/TICKET_056_MARKETING_PROXY.md`
+
+Finding type: UX copy issue
+
+Severity: P2 before correction; resolved in proxy retest
+
+Initial proxy evidence: All three personas could find a practical next step and
+eventually explain Cadence as a private, single-player recurring behavior
+tracker and BehaviorLog as its portability format. They also found pre-login
+Trust, Privacy, and Terms. Each reported the same initial hesitation: "open
+tracker" could mean open source or an unresolved-tracking state, and the
+BehaviorLog-first language could briefly blur the product versus format
+distinction.
+
+Correction: The homepage now leads with Cadence as the personal tracker, calls
+it open source, and defines BehaviorLog as the portable export file format
+Cadence reads and writes.
+
+Rerun evidence: The same three persona tasks completed without material
+Cadence-versus-BehaviorLog confusion. The shopper identified the one-person
+scope, manual status model, exclusions, and login path. The portability visitor
+identified BehaviorLog, event-history authority, docs, and the example bundle.
+The privacy visitor found Trust, Privacy, and Terms before login and understood
+the account boundary and export posture. A minor non-blocking observation
+remains: marketing copy names reminders but does not teach channel or
+permission setup, which is outside this ticket's scope.
+
+Evidence limitation: This is owner-approved agent proxy testing, not real-user
+evidence. It must not be presented as externally validated comprehension.
+Before making that claim, run independent first-time human-user testing of the
+same discovery, portability, and pre-login trust tasks.
+
+Status: Fixed for Ticket 056 proxy acceptance; real-user validation remains a
+future research follow-up.
 
 ## Sub-Agent Review Notes
 
