@@ -8,9 +8,15 @@ import {
 import {
   createMissingOccurrences,
   deleteUnresolvedOccurrencesById,
+  getOccurrenceWithBehaviorTimezoneById,
   listBehaviorOccurrencesFrom,
+  updateOccurrenceById,
   updateUnresolvedOccurrenceScheduleById,
 } from "@/lib/db/occurrences.repo";
+import {
+  applyOccurrenceStatusTransitionRpc,
+  getLatestOccurrenceStatusEventForOccurrence,
+} from "@/lib/db/occurrenceStatusEvents.repo";
 import { listProfileOccurrenceSyncTargets } from "@/lib/db/profiles.repo";
 import {
   markOccurrenceSyncFreshForPlans,
@@ -18,9 +24,11 @@ import {
   readOccurrenceSyncState,
 } from "@/lib/services/occurrence-sync-state.service";
 import {
+  applyOccurrenceStatusTransition,
   ensureUserOccurrencesFresh,
   processOccurrenceSyncHorizons,
   syncUserOccurrences,
+  updateOccurrenceNote,
 } from "@/lib/services/occurrence.service";
 import { syncReminderDeliveriesForBehaviors } from "@/lib/services/reminder.service";
 import type {
@@ -29,10 +37,12 @@ import type {
   Category,
   Occurrence,
   OccurrenceSyncState,
+  OccurrenceStatusEvent,
 } from "@/lib/types/database";
 
 vi.mock("@/lib/db/behaviors.repo", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/db/behaviors.repo")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/db/behaviors.repo")>();
 
   return {
     ...actual,
@@ -49,33 +59,38 @@ vi.mock("@/lib/db/occurrences.repo", () => ({
   createMissingOccurrences: vi.fn(),
   deleteUnresolvedOccurrencesById: vi.fn(),
   getOccurrenceById: vi.fn(),
+  getOccurrenceWithBehaviorTimezoneById: vi.fn(),
   listBehaviorOccurrencesFrom: vi.fn(),
   updateOccurrenceById: vi.fn(),
   updateUnresolvedOccurrenceScheduleById: vi.fn(),
 }));
 
 vi.mock("@/lib/db/occurrenceStatusEvents.repo", () => ({
-  createOccurrenceStatusEvent: vi.fn(),
+  applyOccurrenceStatusTransitionRpc: vi.fn(),
   getLatestOccurrenceStatusEventForOccurrence: vi.fn(),
 }));
 
 vi.mock("@/lib/services/reminder.service", () => ({
-  cancelReminderDeliveriesForResolvedOccurrence: vi.fn(),
   syncReminderDeliveriesForBehavior: vi.fn(),
   syncReminderDeliveriesForBehaviors: vi.fn(),
 }));
 
-vi.mock("@/lib/services/occurrence-sync-state.service", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/services/occurrence-sync-state.service")>();
+vi.mock(
+  "@/lib/services/occurrence-sync-state.service",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/lib/services/occurrence-sync-state.service")
+      >();
 
-  return {
-    ...actual,
-    markOccurrenceSyncFreshForPlans: vi.fn(),
-    markOccurrenceSyncStale: vi.fn(),
-    readOccurrenceSyncState: vi.fn(),
-  };
-});
+    return {
+      ...actual,
+      markOccurrenceSyncFreshForPlans: vi.fn(),
+      markOccurrenceSyncStale: vi.fn(),
+      readOccurrenceSyncState: vi.fn(),
+    };
+  },
+);
 
 const NOW = Temporal.Instant.from("2026-06-08T14:30:00Z");
 const SUPABASE = { kind: "supabase" } as never;
@@ -433,6 +448,459 @@ describe("processOccurrenceSyncHorizons", () => {
   });
 });
 
+describe("applyOccurrenceStatusTransition", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getLatestOccurrenceStatusEventForOccurrence).mockResolvedValue(
+      null,
+    );
+  });
+
+  it("atomically applies a first Completed mark and its explicit-mark event", async () => {
+    const occurrence = buildOccurrence({
+      id: "occurrence-1",
+      behaviorId: "behavior-1",
+      scheduledFor: "2026-06-08T14:00:00Z",
+      startTime: "10:00:00",
+    });
+    const updatedOccurrence = {
+      ...occurrence,
+      status: "completed" as const,
+      completed_at: NOW.toString(),
+      status_marked_at: NOW.toString(),
+    };
+    const statusEvent = buildStatusEvent({
+      previousStatus: "unresolved",
+      status: "completed",
+      semantics: "explicit_user_mark",
+      effectiveAt: NOW.toString(),
+    });
+
+    vi.mocked(getOccurrenceWithBehaviorTimezoneById).mockResolvedValue({
+      ...occurrence,
+      behavior: { timezone: "America/New_York" },
+    });
+    vi.mocked(applyOccurrenceStatusTransitionRpc).mockResolvedValue({
+      statusChanged: true,
+      concurrentDuplicate: false,
+      occurrence: updatedOccurrence,
+      statusEvent,
+    });
+
+    await expect(
+      applyOccurrenceStatusTransition(SUPABASE, "user-1", {
+        occurrenceId: occurrence.id,
+        nextStatus: "completed",
+        now: NOW,
+      }),
+    ).resolves.toEqual({
+      statusChanged: true,
+      concurrentDuplicate: false,
+      occurrence: updatedOccurrence,
+      statusEvent,
+    });
+
+    expect(applyOccurrenceStatusTransitionRpc).toHaveBeenCalledWith(SUPABASE, {
+      occurrenceId: occurrence.id,
+      expectedStatus: "unresolved",
+      expectedLatestEventId: null,
+      status: "completed",
+      completedAt: NOW.toString(),
+      statusMarkedAt: NOW.toString(),
+      cancelPendingReminders: true,
+      event: {
+        previousStatus: "unresolved",
+        status: "completed",
+        statusSemantics: "explicit_user_mark",
+        recordedAt: NOW.toString(),
+        effectiveAt: NOW.toString(),
+        sourceCaptureMethod: "manual_tap",
+        sourceConfidence: "high",
+      },
+    });
+    expect(updateOccurrenceById).not.toHaveBeenCalled();
+    expect(getLatestOccurrenceStatusEventForOccurrence).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      occurrence.id,
+    );
+  });
+
+  it("plans a correction from Completed to Not Completed for the transactional RPC", async () => {
+    const occurrence = {
+      ...buildOccurrence({
+        id: "occurrence-1",
+        behaviorId: "behavior-1",
+        scheduledFor: "2026-06-08T14:00:00Z",
+        startTime: "10:00:00",
+      }),
+      status: "completed" as const,
+      completed_at: "2026-06-07T12:00:00Z",
+      status_marked_at: "2026-06-07T12:00:00Z",
+    };
+    const updatedOccurrence = {
+      ...occurrence,
+      status: "not_completed" as const,
+      completed_at: null,
+      status_marked_at: NOW.toString(),
+    };
+
+    vi.mocked(getOccurrenceWithBehaviorTimezoneById).mockResolvedValue({
+      ...occurrence,
+      behavior: { timezone: "America/New_York" },
+    });
+    vi.mocked(getLatestOccurrenceStatusEventForOccurrence).mockResolvedValue(
+      buildStatusEvent({
+        previousStatus: "unresolved",
+        status: "completed",
+        semantics: "explicit_user_mark",
+        effectiveAt: "2026-06-07T12:00:00Z",
+      }),
+    );
+    vi.mocked(applyOccurrenceStatusTransitionRpc).mockResolvedValue({
+      statusChanged: true,
+      concurrentDuplicate: false,
+      occurrence: updatedOccurrence,
+      statusEvent: buildStatusEvent({
+        previousStatus: "completed",
+        status: "not_completed",
+        semantics: "explicit_user_correction",
+        effectiveAt: NOW.toString(),
+      }),
+    });
+
+    await applyOccurrenceStatusTransition(SUPABASE, "user-1", {
+      occurrenceId: occurrence.id,
+      nextStatus: "not_completed",
+      now: NOW,
+    });
+
+    expect(applyOccurrenceStatusTransitionRpc).toHaveBeenCalledWith(SUPABASE, {
+      occurrenceId: occurrence.id,
+      expectedStatus: "completed",
+      expectedLatestEventId: "status-event-1",
+      status: "not_completed",
+      completedAt: null,
+      statusMarkedAt: NOW.toString(),
+      cancelPendingReminders: true,
+      event: expect.objectContaining({
+        previousStatus: "completed",
+        status: "not_completed",
+        statusSemantics: "explicit_user_correction",
+        recordedAt: NOW.toString(),
+        effectiveAt: NOW.toString(),
+      }),
+    });
+  });
+
+  it("allows a legacy resolved snapshot without an event to start real correction history", async () => {
+    const occurrence = {
+      ...buildOccurrence({
+        id: "occurrence-1",
+        behaviorId: "behavior-1",
+        scheduledFor: "2026-06-08T14:00:00Z",
+        startTime: "10:00:00",
+      }),
+      status: "completed" as const,
+      completed_at: "2026-06-07T12:00:00Z",
+      status_marked_at: "2026-06-07T12:00:00Z",
+    };
+    const updatedOccurrence = {
+      ...occurrence,
+      status: "not_completed" as const,
+      completed_at: null,
+      status_marked_at: NOW.toString(),
+    };
+    const correctionEvent = {
+      ...buildStatusEvent({
+        previousStatus: "completed",
+        status: "not_completed",
+        semantics: "explicit_user_correction",
+        effectiveAt: NOW.toString(),
+      }),
+      revises_event_id: null,
+    };
+
+    vi.mocked(getOccurrenceWithBehaviorTimezoneById).mockResolvedValue({
+      ...occurrence,
+      behavior: { timezone: "America/New_York" },
+    });
+    vi.mocked(applyOccurrenceStatusTransitionRpc).mockResolvedValue({
+      statusChanged: true,
+      concurrentDuplicate: false,
+      occurrence: updatedOccurrence,
+      statusEvent: correctionEvent,
+    });
+
+    await expect(
+      applyOccurrenceStatusTransition(SUPABASE, "user-1", {
+        occurrenceId: occurrence.id,
+        nextStatus: "not_completed",
+        now: NOW,
+      }),
+    ).resolves.toMatchObject({ statusEvent: { revises_event_id: null } });
+
+    expect(applyOccurrenceStatusTransitionRpc).toHaveBeenCalledWith(
+      SUPABASE,
+      expect.objectContaining({
+        expectedStatus: "completed",
+        expectedLatestEventId: null,
+        cancelPendingReminders: true,
+        event: expect.objectContaining({
+          statusSemantics: "explicit_user_correction",
+        }),
+      }),
+    );
+  });
+
+  it("plans a correction back to Unresolved without status timestamps", async () => {
+    const occurrence = {
+      ...buildOccurrence({
+        id: "occurrence-1",
+        behaviorId: "behavior-1",
+        scheduledFor: "2026-06-08T14:00:00Z",
+        startTime: "10:00:00",
+      }),
+      status: "not_completed" as const,
+      status_marked_at: "2026-06-07T12:00:00Z",
+    };
+    const updatedOccurrence = {
+      ...occurrence,
+      status: "unresolved" as const,
+      completed_at: null,
+      status_marked_at: null,
+    };
+
+    vi.mocked(getOccurrenceWithBehaviorTimezoneById).mockResolvedValue({
+      ...occurrence,
+      behavior: { timezone: "America/New_York" },
+    });
+    vi.mocked(getLatestOccurrenceStatusEventForOccurrence).mockResolvedValue(
+      buildStatusEvent({
+        previousStatus: "unresolved",
+        status: "not_completed",
+        semantics: "explicit_user_mark",
+        effectiveAt: "2026-06-07T12:00:00Z",
+      }),
+    );
+    vi.mocked(applyOccurrenceStatusTransitionRpc).mockResolvedValue({
+      statusChanged: true,
+      concurrentDuplicate: false,
+      occurrence: updatedOccurrence,
+      statusEvent: buildStatusEvent({
+        previousStatus: "not_completed",
+        status: "unresolved",
+        semantics: "explicit_user_correction",
+        effectiveAt: null,
+      }),
+    });
+
+    await applyOccurrenceStatusTransition(SUPABASE, "user-1", {
+      occurrenceId: occurrence.id,
+      nextStatus: "unresolved",
+      now: NOW,
+    });
+
+    expect(applyOccurrenceStatusTransitionRpc).toHaveBeenCalledWith(SUPABASE, {
+      occurrenceId: occurrence.id,
+      expectedStatus: "not_completed",
+      expectedLatestEventId: "status-event-1",
+      status: "unresolved",
+      completedAt: null,
+      statusMarkedAt: null,
+      cancelPendingReminders: false,
+      event: expect.objectContaining({
+        statusSemantics: "explicit_user_correction",
+        recordedAt: NOW.toString(),
+        effectiveAt: null,
+      }),
+    });
+  });
+
+  it("treats resolution after a cleared decision as a correction", async () => {
+    const occurrence = buildOccurrence({
+      id: "occurrence-1",
+      behaviorId: "behavior-1",
+      scheduledFor: "2026-06-08T14:00:00Z",
+      startTime: "10:00:00",
+    });
+
+    vi.mocked(getOccurrenceWithBehaviorTimezoneById).mockResolvedValue({
+      ...occurrence,
+      behavior: { timezone: "America/New_York" },
+    });
+    vi.mocked(getLatestOccurrenceStatusEventForOccurrence).mockResolvedValue(
+      buildStatusEvent({
+        previousStatus: "completed",
+        status: "unresolved",
+        semantics: "explicit_user_correction",
+        effectiveAt: null,
+      }),
+    );
+    vi.mocked(applyOccurrenceStatusTransitionRpc).mockResolvedValue({
+      statusChanged: true,
+      concurrentDuplicate: false,
+      occurrence: {
+        ...occurrence,
+        status: "completed",
+        completed_at: NOW.toString(),
+        status_marked_at: NOW.toString(),
+      },
+      statusEvent: buildStatusEvent({
+        previousStatus: "unresolved",
+        status: "completed",
+        semantics: "explicit_user_correction",
+        effectiveAt: NOW.toString(),
+      }),
+    });
+
+    await applyOccurrenceStatusTransition(SUPABASE, "user-1", {
+      occurrenceId: occurrence.id,
+      nextStatus: "completed",
+      now: NOW,
+    });
+
+    expect(applyOccurrenceStatusTransitionRpc).toHaveBeenCalledWith(
+      SUPABASE,
+      expect.objectContaining({
+        expectedStatus: "unresolved",
+        expectedLatestEventId: "status-event-1",
+        event: expect.objectContaining({
+          statusSemantics: "explicit_user_correction",
+        }),
+      }),
+    );
+  });
+
+  it("keeps a repeated status mark event-free and idempotent", async () => {
+    const occurrence = {
+      ...buildOccurrence({
+        id: "occurrence-1",
+        behaviorId: "behavior-1",
+        scheduledFor: "2026-06-08T14:00:00Z",
+        startTime: "10:00:00",
+      }),
+      status: "completed" as const,
+      completed_at: "2026-06-07T12:00:00Z",
+      status_marked_at: "2026-06-07T12:00:00Z",
+    };
+
+    vi.mocked(getOccurrenceWithBehaviorTimezoneById).mockResolvedValue({
+      ...occurrence,
+      behavior: { timezone: "America/New_York" },
+    });
+    vi.mocked(getLatestOccurrenceStatusEventForOccurrence).mockResolvedValue(
+      buildStatusEvent({
+        previousStatus: "unresolved",
+        status: "completed",
+        semantics: "explicit_user_mark",
+        effectiveAt: "2026-06-07T12:00:00Z",
+      }),
+    );
+    vi.mocked(applyOccurrenceStatusTransitionRpc).mockResolvedValue({
+      statusChanged: false,
+      concurrentDuplicate: false,
+      occurrence,
+      statusEvent: null,
+    });
+
+    await expect(
+      applyOccurrenceStatusTransition(SUPABASE, "user-1", {
+        occurrenceId: occurrence.id,
+        nextStatus: "completed",
+        now: NOW,
+      }),
+    ).resolves.toMatchObject({
+      statusChanged: false,
+      concurrentDuplicate: false,
+      statusEvent: null,
+    });
+
+    expect(applyOccurrenceStatusTransitionRpc).toHaveBeenCalledWith(SUPABASE, {
+      occurrenceId: occurrence.id,
+      expectedStatus: "completed",
+      expectedLatestEventId: "status-event-1",
+      status: "completed",
+      completedAt: "2026-06-07T12:00:00Z",
+      statusMarkedAt: "2026-06-07T12:00:00Z",
+      cancelPendingReminders: true,
+      event: null,
+    });
+  });
+
+  it("keeps resolver-planned reminder cancellation inside a failing status RPC", async () => {
+    const occurrence = buildOccurrence({
+      id: "occurrence-1",
+      behaviorId: "behavior-1",
+      scheduledFor: "2026-06-08T14:00:00Z",
+      startTime: "10:00:00",
+    });
+    const failure = new Error("status event insert failed");
+
+    vi.mocked(getOccurrenceWithBehaviorTimezoneById).mockResolvedValue({
+      ...occurrence,
+      behavior: { timezone: "America/New_York" },
+    });
+    vi.mocked(applyOccurrenceStatusTransitionRpc).mockRejectedValue(failure);
+
+    await expect(
+      applyOccurrenceStatusTransition(SUPABASE, "user-1", {
+        occurrenceId: occurrence.id,
+        nextStatus: "completed",
+        now: NOW,
+      }),
+    ).rejects.toThrow(failure);
+
+    expect(applyOccurrenceStatusTransitionRpc).toHaveBeenCalledWith(
+      SUPABASE,
+      expect.objectContaining({
+        expectedLatestEventId: null,
+        cancelPendingReminders: true,
+      }),
+    );
+    expect(updateOccurrenceById).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateOccurrenceNote", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("updates only the normalized note without appending a status event", async () => {
+    const occurrence = {
+      ...buildOccurrence({
+        id: "occurrence-1",
+        behaviorId: "behavior-1",
+        scheduledFor: "2026-06-08T14:00:00Z",
+        startTime: "10:00:00",
+      }),
+      status: "completed" as const,
+      completed_at: "2026-06-07T12:00:00Z",
+      status_marked_at: "2026-06-07T12:00:00Z",
+      note: "First line\nSecond line",
+    };
+
+    vi.mocked(updateOccurrenceById).mockResolvedValue(occurrence);
+
+    await expect(
+      updateOccurrenceNote(SUPABASE, "user-1", {
+        occurrenceId: occurrence.id,
+        note: "  First line\r\nSecond line  ",
+      }),
+    ).resolves.toEqual(occurrence);
+
+    expect(updateOccurrenceById).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      occurrence.id,
+      { note: "First line\nSecond line" },
+    );
+    expect(applyOccurrenceStatusTransitionRpc).not.toHaveBeenCalled();
+    expect(getLatestOccurrenceStatusEventForOccurrence).not.toHaveBeenCalled();
+  });
+});
+
 function buildBehavior(input: {
   id: string;
   title: string;
@@ -499,6 +967,34 @@ function buildOccurrence(input: {
     note: null,
     created_at: "2026-06-01T00:00:00Z",
     updated_at: "2026-06-01T00:00:00Z",
+  };
+}
+
+function buildStatusEvent(input: {
+  previousStatus: "unresolved" | "completed" | "not_completed";
+  status: "unresolved" | "completed" | "not_completed";
+  semantics: "explicit_user_mark" | "explicit_user_correction";
+  effectiveAt: string | null;
+}): OccurrenceStatusEvent {
+  return {
+    id: "status-event-1",
+    user_id: "user-1",
+    occurrence_id: "occurrence-1",
+    behavior_id: "behavior-1",
+    previous_status: input.previousStatus,
+    status: input.status,
+    status_semantics: input.semantics,
+    recorded_at: NOW.toString(),
+    effective_at: input.effectiveAt,
+    local_date: "2026-06-08",
+    timezone: "America/New_York",
+    source_capture_method: "manual_tap",
+    source_confidence: "high",
+    revises_event_id:
+      input.semantics === "explicit_user_correction" ? "status-event-0" : null,
+    reason_code: null,
+    created_at: NOW.toString(),
+    updated_at: NOW.toString(),
   };
 }
 

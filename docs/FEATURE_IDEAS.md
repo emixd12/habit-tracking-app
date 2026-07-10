@@ -33,7 +33,7 @@ For new rough ideas, add:
 
 ## Status Action Capture And Correction History
 
-Status: candidate.
+Status: implemented by Ticket 058.
 
 Promoted ticket:
 `docs/TICKETS.md` Ticket 058.
@@ -56,20 +56,30 @@ Current implementation notes:
   and explicit correction events when a resolved status changes or returns to
   Unresolved.
 
-Possible shape:
-Audit the existing status-event flow as a near-term hardening ticket rather
-than a new schema feature. Confirm manual taps, unmarking, corrections,
-BehaviorLog export, full JSON backup, restore/import, and analytics all use the
-same status-history authority. Keep the UI optional until there is a clear
-reason to expose status history to users.
+Implemented shape:
 
-Open questions:
+- Manual marks, corrections, and clears persist the current occurrence snapshot
+  and its append-only status event in one owner-scoped database transaction;
+  resolver-planned pending-reminder cancellation commits in that transaction.
+- Repeated taps of the current resolved status are idempotent, while true
+  corrections link to the locked latest prior event with `revises_event_id`,
+  and a stale latest-event token rejects ABA concurrency.
+- Existing resolved snapshots without an event remain unchanged internally.
+  BehaviorLog export represents them with a derived, medium-confidence fallback
+  rather than inventing manual, high-confidence provenance during migration.
+- Full JSON and BehaviorLog expose status history; Markdown directs agents to
+  use event timing and correction links for late-log and adherence-timing
+  analysis. JSONL and CSV remain current-snapshot formats.
+- Status history remains export context. Ticket 058 adds no audit-log UI and
+  note-only edits remain outside status history.
+
+Deferred questions:
 
 - Should users ever see a per-occurrence status history in the UI?
 - Should users be able to enter an actual completion time that differs from the
   logging time?
-- Should note-only edits create separate note events, or remain outside status
-  history?
+- Whether note edits need their own event model remains a separate future
+  decision; they do not create status events.
 - Should voice or text command logging add new `source_capture_method` values
   such as `voice`, or map to the existing source vocabulary?
 

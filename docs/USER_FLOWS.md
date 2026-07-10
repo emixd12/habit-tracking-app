@@ -224,6 +224,12 @@ an underlined text action, matching the Completed and Not Completed controls.
 An expanded occurrence holds the same blue background used on row hover, rather
 than adding a separate details box.
 
+Every explicit status mark, correction, or Clear decision updates the current
+occurrence snapshot and appends one status-history event atomically. Repeating
+the already-current resolved choice does not create a duplicate event. Saving a
+Note without a status change preserves both status timestamps and status
+history.
+
 BehaviorLog imports may fill this occurrence Note field only when an accepted
 import plan identifies the target occurrence safely, the imported note is not
 AI-generated, and the local note is empty. Imported behavior notes,

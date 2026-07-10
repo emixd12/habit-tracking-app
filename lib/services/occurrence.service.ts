@@ -16,8 +16,9 @@ import {
   type OccurrenceWithBehaviorTimezone,
 } from "@/lib/db/occurrences.repo";
 import {
-  createOccurrenceStatusEvent,
+  applyOccurrenceStatusTransitionRpc,
   getLatestOccurrenceStatusEventForOccurrence,
+  type ApplyOccurrenceStatusTransitionRpcResult,
 } from "@/lib/db/occurrenceStatusEvents.repo";
 import {
   DEFAULT_OCCURRENCE_HORIZON_DAYS,
@@ -28,6 +29,7 @@ import {
   type OccurrenceGenerationScheduleSlot,
   type OccurrenceGenerationPlan,
 } from "@/lib/resolvers/occurrence.resolver";
+import { resolveReminderDeliveryCancellation } from "@/lib/resolvers/reminder.resolver";
 import { listProfileOccurrenceSyncTargets } from "@/lib/db/profiles.repo";
 import {
   resolveNoteUpdate,
@@ -35,11 +37,16 @@ import {
   resolveStatusTransition,
   type StatusResolverOccurrence,
 } from "@/lib/resolvers/status.resolver";
-import { normalizeRecurrenceRule, normalizeScheduledTime } from "@/lib/services/behavior-form";
-import { compareScheduleSlots, toScheduleSlotView } from "@/lib/services/schedule";
+import {
+  normalizeRecurrenceRule,
+  normalizeScheduledTime,
+} from "@/lib/services/behavior-form";
+import {
+  compareScheduleSlots,
+  toScheduleSlotView,
+} from "@/lib/services/schedule";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import {
-  cancelReminderDeliveriesForResolvedOccurrence,
   syncReminderDeliveriesForBehaviors,
   syncReminderDeliveriesForBehavior,
 } from "@/lib/services/reminder.service";
@@ -59,7 +66,6 @@ import type {
   Occurrence,
   OccurrenceSyncState,
   OccurrenceStatus,
-  OccurrenceUpdate,
 } from "@/lib/types/database";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type { ScheduleKind, TimeRangePreset } from "@/lib/types/schedule";
@@ -195,14 +201,17 @@ export async function syncUserOccurrences(
         async () =>
           new Map(
             await Promise.all(
-              behaviorWindows.map(async ({ behavior }) => [
-                behavior.id,
-                await resolveBehaviorSchedulesForGeneration(
-                  supabase,
-                  userId,
-                  behavior,
-                ),
-              ] as const),
+              behaviorWindows.map(
+                async ({ behavior }) =>
+                  [
+                    behavior.id,
+                    await resolveBehaviorSchedulesForGeneration(
+                      supabase,
+                      userId,
+                      behavior,
+                    ),
+                  ] as const,
+              ),
             ),
           ),
       );
@@ -224,7 +233,9 @@ export async function syncUserOccurrences(
                 behavior: {
                   id: behavior.id,
                   userId,
-                  recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
+                  recurrenceRule: normalizeRecurrenceRule(
+                    behavior.recurrence_rule,
+                  ),
                   schedules,
                   scheduleSlots: schedules.flatMap(
                     (schedule) => schedule.timeEntries,
@@ -301,8 +312,7 @@ export async function syncUserOccurrences(
                 ),
             )
           : existingOccurrencesByBehaviorId;
-        const reminderOccurrencesByBehaviorId =
-          reminderOccurrences;
+        const reminderOccurrencesByBehaviorId = reminderOccurrences;
 
         const reminderInputs = behaviorWindows.map(
           ({ behavior, generationWindow }) => ({
@@ -357,8 +367,7 @@ export async function ensureUserOccurrencesFresh(
     options.timezone ??
     resolveUserSyncTimezone(options.behaviors ?? [], null) ??
     DEFAULT_TIMEZONE;
-  const horizonDays =
-    options.horizonDays ?? DEFAULT_OCCURRENCE_HORIZON_DAYS;
+  const horizonDays = options.horizonDays ?? DEFAULT_OCCURRENCE_HORIZON_DAYS;
   const requiredWindow = resolveGenerationWindow({
     now,
     timezone,
@@ -389,7 +398,7 @@ export async function ensureUserOccurrencesFresh(
     },
     async () => {
       const state = hasPreloadedSyncState(options)
-        ? options.syncState ?? null
+        ? (options.syncState ?? null)
         : await readOccurrenceSyncState(supabase, userId);
       const coverage = decideOccurrenceSyncCoverage(state, {
         timezone,
@@ -450,8 +459,7 @@ export async function processOccurrenceSyncHorizons(
 ): Promise<ProcessOccurrenceSyncHorizonsResult> {
   const supabase = options.supabase ?? createServiceRoleClient();
   const now = options.now ?? Temporal.Now.instant();
-  const horizonDays =
-    options.horizonDays ?? DEFAULT_OCCURRENCE_HORIZON_DAYS;
+  const horizonDays = options.horizonDays ?? DEFAULT_OCCURRENCE_HORIZON_DAYS;
   const targets = await listProfileOccurrenceSyncTargets(supabase, {
     limit: normalizeOccurrenceSyncProcessLimit(options.limit),
   });
@@ -536,7 +544,9 @@ export async function syncBehaviorOccurrences(
       active: behavior.active,
       createdAt: behavior.created_at,
     },
-    existingOccurrences: existingOccurrences.map(toExistingOccurrenceForGeneration),
+    existingOccurrences: existingOccurrences.map(
+      toExistingOccurrenceForGeneration,
+    ),
     now,
     horizonDays: options.horizonDays,
   });
@@ -581,69 +591,62 @@ export async function markOccurrenceStatusFromFormData(
 ): Promise<void> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
-  const occurrenceId = getOccurrenceIdFromFormData(formData);
-  const nextStatus = getStatusFromFormData(formData);
-  const occurrence = await getRequiredOccurrenceWithBehaviorTimezone(
-    supabase,
-    userId,
-    occurrenceId,
-  );
+  await applyOccurrenceStatusTransition(supabase, userId, {
+    occurrenceId: getOccurrenceIdFromFormData(formData),
+    nextStatus: getStatusFromFormData(formData),
+    now: Temporal.Now.instant(),
+  });
+}
+
+export async function applyOccurrenceStatusTransition(
+  supabase: AppSupabaseClient,
+  userId: string,
+  input: {
+    occurrenceId: string;
+    nextStatus: OccurrenceStatus;
+    now: Temporal.Instant;
+  },
+): Promise<ApplyOccurrenceStatusTransitionRpcResult> {
+  const [occurrence, latestStatusEvent] = await Promise.all([
+    getRequiredOccurrenceWithBehaviorTimezone(
+      supabase,
+      userId,
+      input.occurrenceId,
+    ),
+    getLatestOccurrenceStatusEventForOccurrence(
+      supabase,
+      userId,
+      input.occurrenceId,
+    ),
+  ]);
   const statusOccurrence = toStatusResolverOccurrence(occurrence);
-  const now = Temporal.Now.instant();
   const update = resolveStatusTransition({
     occurrence: statusOccurrence,
-    nextStatus,
-    now,
+    nextStatus: input.nextStatus,
+    now: input.now,
   });
   const eventPlan = resolveStatusEvent({
     occurrence: statusOccurrence,
-    nextStatus,
-    now,
+    nextStatus: input.nextStatus,
+    now: input.now,
+    hasPriorStatusEvent: latestStatusEvent !== null,
     update,
   });
-  const latestStatusEvent =
-    eventPlan?.statusSemantics === "explicit_user_correction"
-      ? await getLatestOccurrenceStatusEventForOccurrence(
-          supabase,
-          userId,
-          occurrence.id,
-        )
-      : null;
-  const updatedOccurrence = await updateOccurrenceById(
-    supabase,
-    userId,
-    occurrenceId,
-    toOccurrenceStatusUpdate(update),
-  );
+  const reminderCancellation = resolveReminderDeliveryCancellation({
+    occurrence: { status: update.status },
+  });
+  const result = await applyOccurrenceStatusTransitionRpc(supabase, {
+    occurrenceId: occurrence.id,
+    expectedStatus: statusOccurrence.status,
+    expectedLatestEventId: latestStatusEvent?.id ?? null,
+    status: update.status,
+    completedAt: update.completedAt,
+    statusMarkedAt: update.statusMarkedAt,
+    cancelPendingReminders: reminderCancellation.cancelPending,
+    event: eventPlan,
+  });
 
-  if (!updatedOccurrence) {
-    throw new Error("Occurrence not found.");
-  }
-
-  if (eventPlan) {
-    await createOccurrenceStatusEvent(supabase, {
-      user_id: userId,
-      occurrence_id: updatedOccurrence.id,
-      behavior_id: updatedOccurrence.behavior_id,
-      previous_status: eventPlan.previousStatus,
-      status: eventPlan.status,
-      status_semantics: eventPlan.statusSemantics,
-      recorded_at: eventPlan.recordedAt,
-      effective_at: eventPlan.effectiveAt,
-      local_date: updatedOccurrence.local_date,
-      timezone: occurrence.behavior?.timezone || DEFAULT_TIMEZONE,
-      source_capture_method: eventPlan.sourceCaptureMethod,
-      source_confidence: eventPlan.sourceConfidence,
-      revises_event_id: latestStatusEvent?.id ?? null,
-      reason_code: null,
-    });
-  }
-
-  await cancelReminderDeliveriesForResolvedOccurrence(
-    supabase,
-    userId,
-    updatedOccurrence,
-  );
+  return result;
 }
 
 export async function updateOccurrenceNoteFromFormData(
@@ -651,20 +654,35 @@ export async function updateOccurrenceNoteFromFormData(
 ): Promise<void> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
-  const occurrenceId = getOccurrenceIdFromFormData(formData);
-  const update = resolveNoteUpdate({
+  await updateOccurrenceNote(supabase, userId, {
+    occurrenceId: getOccurrenceIdFromFormData(formData),
     note: getNoteFromFormData(formData),
+  });
+}
+
+export async function updateOccurrenceNote(
+  supabase: AppSupabaseClient,
+  userId: string,
+  input: {
+    occurrenceId: string;
+    note: string;
+  },
+): Promise<Occurrence> {
+  const update = resolveNoteUpdate({
+    note: input.note,
   });
   const updatedOccurrence = await updateOccurrenceById(
     supabase,
     userId,
-    occurrenceId,
+    input.occurrenceId,
     update,
   );
 
   if (!updatedOccurrence) {
     throw new Error("Occurrence not found.");
   }
+
+  return updatedOccurrence;
 }
 
 export function occurrenceErrorToActionState(
@@ -707,15 +725,18 @@ async function listExistingOccurrencesForBehaviorWindows(
 ): Promise<Map<string, Occurrence[]>> {
   return new Map(
     await Promise.all(
-      behaviorWindows.map(async ({ behavior, generationWindow }) => [
-        behavior.id,
-        await listBehaviorOccurrencesFrom(
-          supabase,
-          userId,
-          behavior.id,
-          generationWindow.rangeStart.toString(),
-        ),
-      ] as const),
+      behaviorWindows.map(
+        async ({ behavior, generationWindow }) =>
+          [
+            behavior.id,
+            await listBehaviorOccurrencesFrom(
+              supabase,
+              userId,
+              behavior.id,
+              generationWindow.rangeStart.toString(),
+            ),
+          ] as const,
+      ),
     ),
   );
 }
@@ -747,10 +768,7 @@ function countGenerationPlans(plans: OccurrenceGenerationPlan[]) {
   return {
     behaviors: plans.length,
     created: plans.reduce((sum, plan) => sum + plan.create.length, 0),
-    updated: plans.reduce(
-      (sum, plan) => sum + plan.updateUnresolved.length,
-      0,
-    ),
+    updated: plans.reduce((sum, plan) => sum + plan.updateUnresolved.length, 0),
     deleted: plans.reduce(
       (sum, plan) => sum + plan.deleteUnresolvedIds.length,
       0,
@@ -769,7 +787,9 @@ function resolveUserSyncTimezone(
   const timezoneSource = behaviors.some((behavior) => behavior.active)
     ? behaviors.filter((behavior) => behavior.active)
     : behaviors;
-  const timezones = new Set(timezoneSource.map((behavior) => behavior.timezone));
+  const timezones = new Set(
+    timezoneSource.map((behavior) => behavior.timezone),
+  );
 
   if (timezones.size === 1) {
     return [...timezones][0] ?? DEFAULT_TIMEZONE;
@@ -800,7 +820,9 @@ async function markSyncFailedWithoutMaskingError(
   }
 }
 
-function normalizeOccurrenceSyncProcessLimit(value: number | undefined): number {
+function normalizeOccurrenceSyncProcessLimit(
+  value: number | undefined,
+): number {
   if (value === undefined) {
     return DEFAULT_OCCURRENCE_SYNC_PROCESS_LIMIT;
   }
@@ -865,10 +887,10 @@ async function resolveBehaviorScheduleSlots(
   return scheduleSlots
     .map((slot) =>
       toScheduleSlotView({
-              id: slot.id,
-              scheduleId: slot.behavior_schedule_id,
-              kind: normalizeScheduleKind(slot.kind),
-              preset: normalizeSchedulePreset(slot.preset),
+        id: slot.id,
+        scheduleId: slot.behavior_schedule_id,
+        kind: normalizeScheduleKind(slot.kind),
+        preset: normalizeSchedulePreset(slot.preset),
         startTime: slot.start_time,
         endTime: slot.end_time,
         sortOrder: slot.sort_order,
@@ -935,7 +957,11 @@ async function resolveBehaviorSchedulesForGeneration(
     {
       id: null,
       recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
-      timeEntries: await resolveBehaviorScheduleSlots(supabase, userId, behavior),
+      timeEntries: await resolveBehaviorScheduleSlots(
+        supabase,
+        userId,
+        behavior,
+      ),
       sortOrder: 0,
     },
   ];
@@ -998,16 +1024,6 @@ function toStatusResolverOccurrence(
   };
 }
 
-function toOccurrenceStatusUpdate(
-  update: ReturnType<typeof resolveStatusTransition>,
-): OccurrenceUpdate {
-  return {
-    status: update.status,
-    completed_at: update.completedAt,
-    status_marked_at: update.statusMarkedAt,
-  };
-}
-
 function getOccurrenceIdFromFormData(formData: FormData): string {
   const value = formData.get("occurrence_id");
 
@@ -1047,7 +1063,11 @@ function getNoteFromFormData(formData: FormData): string {
 }
 
 function normalizeOccurrenceStatus(value: string): OccurrenceStatus {
-  if (value === "unresolved" || value === "completed" || value === "not_completed") {
+  if (
+    value === "unresolved" ||
+    value === "completed" ||
+    value === "not_completed"
+  ) {
     return value;
   }
 

@@ -926,6 +926,23 @@ export type Database = {
         Args: { restore_payload: Json }
         Returns: Json
       }
+      apply_occurrence_status_transition: {
+        Args: {
+          expected_latest_event_id: string
+          expected_status: string
+          planned_cancel_pending_reminders: boolean
+          planned_completed_at: string
+          planned_event_effective_at: string
+          planned_event_recorded_at: string
+          planned_event_semantics: string
+          planned_event_source_capture_method: string
+          planned_event_source_confidence: string
+          planned_status: string
+          planned_status_marked_at: string
+          target_occurrence_id: string
+        }
+        Returns: Json
+      }
       create_behavior_with_definition_event: {
         Args: { behavior_payload: Json; definition_event_plan: Json }
         Returns: Json

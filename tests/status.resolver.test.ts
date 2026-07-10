@@ -207,6 +207,31 @@ describe("resolveStatusEvent", () => {
     });
   });
 
+  it("plans a correction when resolving again after a prior status event", () => {
+    const occurrenceBefore = occurrence();
+    const update = resolveStatusTransition({
+      occurrence: occurrenceBefore,
+      nextStatus: "completed",
+      now: NOW,
+    });
+
+    expect(
+      resolveStatusEvent({
+        occurrence: occurrenceBefore,
+        nextStatus: "completed",
+        now: NOW,
+        hasPriorStatusEvent: true,
+        update,
+      }),
+    ).toMatchObject({
+      previousStatus: "unresolved",
+      status: "completed",
+      statusSemantics: "explicit_user_correction",
+      recordedAt: "2026-06-08T14:35:00Z",
+      effectiveAt: "2026-06-08T14:35:00Z",
+    });
+  });
+
   it("does not create an event when the resolved status is unchanged", () => {
     const occurrenceBefore = occurrence({
       status: "completed",

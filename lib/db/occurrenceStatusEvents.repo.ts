@@ -2,8 +2,86 @@ import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   NewOccurrenceStatusEvent,
+  Occurrence,
+  OccurrenceStatus,
   OccurrenceStatusEvent,
 } from "@/lib/types/database";
+
+export type ApplyOccurrenceStatusTransitionRpcInput = {
+  occurrenceId: string;
+  expectedStatus: OccurrenceStatus;
+  expectedLatestEventId: string | null;
+  status: OccurrenceStatus;
+  completedAt: string | null;
+  statusMarkedAt: string | null;
+  cancelPendingReminders: boolean;
+  event: {
+    statusSemantics: "explicit_user_mark" | "explicit_user_correction";
+    recordedAt: string;
+    effectiveAt: string | null;
+    sourceCaptureMethod: "manual_tap";
+    sourceConfidence: "high";
+  } | null;
+};
+
+export type ApplyOccurrenceStatusTransitionRpcResult = {
+  statusChanged: boolean;
+  concurrentDuplicate: boolean;
+  occurrence: Occurrence;
+  statusEvent: OccurrenceStatusEvent | null;
+};
+
+type OccurrenceStatusTransitionRpcClient = {
+  rpc: (
+    fn: "apply_occurrence_status_transition",
+    args: {
+      target_occurrence_id: string;
+      expected_status: OccurrenceStatus;
+      expected_latest_event_id: string | null;
+      planned_status: OccurrenceStatus;
+      planned_completed_at: string | null;
+      planned_status_marked_at: string | null;
+      planned_event_semantics:
+        | "explicit_user_mark"
+        | "explicit_user_correction"
+        | null;
+      planned_event_recorded_at: string | null;
+      planned_event_effective_at: string | null;
+      planned_event_source_capture_method: "manual_tap" | null;
+      planned_event_source_confidence: "high" | null;
+      planned_cancel_pending_reminders: boolean;
+    },
+  ) => Promise<{ data: unknown; error: Error | null }>;
+};
+
+export async function applyOccurrenceStatusTransitionRpc(
+  supabase: AppSupabaseClient,
+  input: ApplyOccurrenceStatusTransitionRpcInput,
+): Promise<ApplyOccurrenceStatusTransitionRpcResult> {
+  const { data, error } = await (
+    supabase as unknown as OccurrenceStatusTransitionRpcClient
+  ).rpc("apply_occurrence_status_transition", {
+    target_occurrence_id: input.occurrenceId,
+    expected_status: input.expectedStatus,
+    expected_latest_event_id: input.expectedLatestEventId,
+    planned_status: input.status,
+    planned_completed_at: input.completedAt,
+    planned_status_marked_at: input.statusMarkedAt,
+    planned_event_semantics: input.event?.statusSemantics ?? null,
+    planned_event_recorded_at: input.event?.recordedAt ?? null,
+    planned_event_effective_at: input.event?.effectiveAt ?? null,
+    planned_event_source_capture_method:
+      input.event?.sourceCaptureMethod ?? null,
+    planned_event_source_confidence: input.event?.sourceConfidence ?? null,
+    planned_cancel_pending_reminders: input.cancelPendingReminders,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return normalizeStatusTransitionRpcResult(data);
+}
 
 export async function createOccurrenceStatusEvent(
   supabase: AppSupabaseClient,
@@ -106,4 +184,44 @@ export async function getLatestOccurrenceStatusEventForOccurrence(
   }
 
   return data ?? null;
+}
+
+function normalizeStatusTransitionRpcResult(
+  value: unknown,
+): ApplyOccurrenceStatusTransitionRpcResult {
+  if (!isRecord(value) || !isRecord(value.occurrence)) {
+    throw new Error(
+      "Occurrence status transition returned an invalid payload.",
+    );
+  }
+
+  if (
+    typeof value.status_changed !== "boolean" ||
+    typeof value.concurrent_duplicate !== "boolean" ||
+    typeof value.occurrence.id !== "string" ||
+    typeof value.occurrence.status !== "string"
+  ) {
+    throw new Error(
+      "Occurrence status transition returned an invalid payload.",
+    );
+  }
+
+  const statusEvent = value.status_event;
+
+  if (statusEvent !== null && !isRecord(statusEvent)) {
+    throw new Error(
+      "Occurrence status transition returned an invalid payload.",
+    );
+  }
+
+  return {
+    statusChanged: value.status_changed,
+    concurrentDuplicate: value.concurrent_duplicate,
+    occurrence: value.occurrence as unknown as Occurrence,
+    statusEvent: statusEvent as OccurrenceStatusEvent | null,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

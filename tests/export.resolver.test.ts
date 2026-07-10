@@ -845,6 +845,10 @@ describe("resolveExportBundle", () => {
     expect(bundle.markdownSummary).toContain(
       "`revises_event_id` links a correction",
     );
+    expect(bundle.markdownSummary).toContain("adherence-timing analysis");
+    expect(bundle.markdownSummary).toContain(
+      "does not change Cadence's stored status or default adherence calculation",
+    );
   });
 
   it("emits a BehaviorLog bundle with required files, hashes, status events, and notes", () => {

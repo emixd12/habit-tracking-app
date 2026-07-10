@@ -1992,6 +1992,7 @@ function toMarkdownSummary(input: {
     "## Status history",
     "- Occurrence rows are current snapshots. Use `status_events` for corrections and decision chronology.",
     "- `recorded_at` is when Cadence logged the decision; `effective_at` is its stated effective time when present; `revises_event_id` links a correction to the prior event.",
+    "- For late-log and adherence-timing analysis, compare `recorded_at` with `effective_at` and the occurrence schedule. This context does not change Cadence's stored status or default adherence calculation.",
     ...(noteLines.length > 0 ? ["", "## Notes", ...noteLines] : []),
   ].join("\n");
 }

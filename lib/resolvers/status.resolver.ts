@@ -13,6 +13,7 @@ export type ResolveStatusTransitionInput = {
   occurrence: StatusResolverOccurrence;
   nextStatus: OccurrenceStatus;
   now: Temporal.Instant;
+  hasPriorStatusEvent?: boolean;
 };
 
 export type OccurrenceStatusUpdatePlan = {
@@ -83,7 +84,7 @@ export function resolveStatusEvent(
 
   const recordedAt = input.update.statusMarkedAt ?? input.now.toString();
   const statusSemantics =
-    input.occurrence.status === "unresolved"
+    input.occurrence.status === "unresolved" && !input.hasPriorStatusEvent
       ? "explicit_user_mark"
       : "explicit_user_correction";
 

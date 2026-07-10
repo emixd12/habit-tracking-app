@@ -579,7 +579,10 @@ schedule, and status.
 Every Markdown summary also includes concise status-history guidance. Agents
 must treat occurrence rows as current snapshots and use Full JSON
 `status_events` or BehaviorLog `data/status_events.jsonl` for corrections,
-late logging, and decision chronology. Markdown guidance does not add a
+late logging, decision chronology, and adherence-timing analysis. Compare
+`recorded_at` with `effective_at` when present, and follow
+`revises_event_id`; this timing context must not change Cadence's stored status
+or default adherence calculation. Markdown guidance does not add a
 status-history UI or new source-capture values.
 
 Every Markdown summary also reports how many behavior definition events are

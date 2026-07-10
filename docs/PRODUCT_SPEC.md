@@ -145,6 +145,11 @@ Needs decision is a derived UI state, not a stored status. It applies when an oc
 
 The UI labels `completed` as Completed and `not_completed` as Not Completed.
 
+Each explicit manual status change updates the occurrence snapshot and appends
+one status-history event atomically. Repeating the already-current resolved
+choice is a no-op; a correction or clear creates a linked event. Note-only
+edits do not change status timestamps or append status events.
+
 Submitted occurrence decisions can be corrected later. The immediate correction
 path is the Needs decision modal: prior-day rows resolved today may remain
 visible in their original prior-day group through the current local day, with

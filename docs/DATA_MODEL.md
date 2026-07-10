@@ -373,9 +373,23 @@ alignment. On first manual resolution, store `explicit_user_mark`. When a user
 changes one resolved status to another, store `explicit_user_correction` and
 link `revises_event_id` to the latest prior status event for that occurrence.
 
-Backfilled rows for pre-event resolved occurrences use
-`previous_status = 'unresolved'`, `status_semantics = 'explicit_user_mark'`,
-`source_capture_method = 'manual_tap'`, and `source_confidence = 'high'`.
+Normal authenticated manual status changes call the owner-scoped
+`public.apply_occurrence_status_transition(...)` database function. The
+function locks the occurrence, compares both the current status and latest
+status-event id with the service's resolver-planned predecessor, updates the
+current snapshot, inserts exactly one event, and cancels pending reminders for
+a newly resolved snapshot in the same statement transaction. Corrections use
+the locked latest event as `revises_event_id` when one exists. A repeated tap
+of an already-current resolved status is an idempotent no-op; an ABA-stale or
+otherwise competing plan is rejected instead of creating a broken correction
+chain. Note-only writes do not use this function and do not alter status
+timestamps or history.
+
+Do not backfill an absent internal event for a legacy resolved snapshot because
+the snapshot cannot prove a manual action or high-confidence provenance. The
+BehaviorLog exporter may instead emit a derived, medium-confidence event at
+export time so the snapshot remains interoperable without changing internal
+history.
 
 BehaviorLog import validation starts as a dry-run preview. The create-only core
 import path may then insert clearly new behaviors, compatible schedule slots,

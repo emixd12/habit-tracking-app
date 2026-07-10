@@ -21,6 +21,11 @@ Occurrence rows keep a current-status snapshot. Internal
 `occurrence_status_events` rows store explicit status history for auditability
 and BehaviorLog interoperability.
 
+Manual status snapshot and event writes are atomic. Corrections link to the
+latest known event, clearing a decision leaves history intact, repeated taps of
+the current resolved status are idempotent, and note-only edits do not create
+status events.
+
 ## Primary route
 
 Use Timeline as the primary screen.

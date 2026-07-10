@@ -79,6 +79,11 @@ have append-only, owner-scoped history with atomic baseline/change writes, and
 the history is included in full JSON and BehaviorLog exports. Hosted deployment
 of its migration remains pending owner authorization.
 
+Ticket 058 is complete locally. Manual status transitions now persist the
+occurrence snapshot, append-only event, and resolver-planned reminder
+cancellation in one owner-scoped transaction with idempotency and ABA guards.
+Hosted deployment of its migration remains pending owner authorization.
+
 Ticket 059 is complete. Restore apply now maps non-UUID BehaviorLog external
 IDs, including Cadence schedule IDs like `sch_<uuid>`, to deterministic local
 UUIDs for product writes while preserving import-record provenance mappings for
@@ -3835,6 +3840,18 @@ Implementation summary:
   their snapshot `status_marked_at` fields without implying full history.
 - The Export UI calls the JSON download an app JSON backup and names its status
   event history. No status-history UI or future source values were added.
+- Manual status marks, corrections, and clears now call one owner-scoped
+  database function that locks the occurrence, verifies both the expected
+  snapshot status and latest-event id, updates the snapshot, appends its event,
+  and performs resolver-planned pending-reminder cancellation atomically.
+- Repeating the already-current resolved status is an idempotent no-op. A true
+  correction links the locked latest event, including corrections after a
+  prior clear; stale and ABA plans are rejected rather than corrupting the
+  correction chain.
+- Note-only edits remain a separate event-free update and preserve status
+  timestamps. The migration does not invent internal high-confidence events
+  for legacy resolved snapshots that lack one; export keeps using its explicit
+  derived, medium-confidence fallback.
 
 Verification:
 - Pass: focused export, panel, status, occurrence-service, and BehaviorLog
@@ -3846,11 +3863,26 @@ Verification:
 - Pass: `npm run test` (60 files, 365 tests).
 - Pass: `npm run build`.
 - Pass: `git diff --check`.
+- Pass: focused status resolver, occurrence service/repository, migration, and
+  reminder tests.
+- Pass: rollback-only live local SQL transaction smoke covering atomic
+  snapshot/event/reminder writes, repeated taps, clear/correction linkage,
+  ABA refusal, cross-owner refusal, and rollback after a forced event failure.
+- Pass: clean local migration reset and regenerated Supabase TypeScript types.
+- Pass after all five-ticket integration work settled: `npm run agents:check`
+  (95 invariants), `npm run resolvers:check` (152 invariants),
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test` (67 files, 428 tests), `npm run build`, and
+  `git diff --check`.
 
 Remaining risk:
-- The local browser bridge detached before the dev-only design-system export
-  fixture could render. The UI copy change is covered by static panel tests;
-  rerun a responsive browser check when the browser bridge is available.
+- Hosted deployment of
+  `20260709203117_add_transactional_occurrence_status_change.sql` requires
+  owner authorization before this schema-dependent slice can be pushed live.
+- Some older migrations synthesized high-confidence status events for records
+  they could classify at the time. This ticket deliberately does not rewrite
+  existing history; new missing-event legacy snapshots are represented only by
+  the export-time derived fallback.
 
 ### Ticket 059: BehaviorLog restore apply for Cadence schedule IDs
 
