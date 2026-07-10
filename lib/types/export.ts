@@ -1,12 +1,19 @@
 import type { RecurrenceRule } from "@/lib/types/recurrence";
 import type {
+  BehaviorDefinitionChangedField,
+  BehaviorDefinitionEventSource,
+} from "@/lib/types/behavior-definition-event";
+import type {
   BehaviorScheduleView,
   ScheduleKind,
   ScheduleSlotView,
   TimeRangePreset,
 } from "@/lib/types/schedule";
 
-export type ExportOccurrenceStatus = "unresolved" | "completed" | "not_completed";
+export type ExportOccurrenceStatus =
+  | "unresolved"
+  | "completed"
+  | "not_completed";
 export type ExportReminderDeliveryChannel = "browser_push" | "email";
 export type ExportReminderDeliveryStatus =
   | "pending"
@@ -53,6 +60,21 @@ export type ExportBehaviorInput = {
   reminderOffsetMinutes: number;
   active: boolean;
   archivedAt: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type ExportBehaviorDefinitionEventInput = {
+  id: string;
+  behaviorId: string;
+  previousTitle: string | null;
+  nextTitle: string;
+  previousDescription: string | null;
+  nextDescription: string | null;
+  changedFields: BehaviorDefinitionChangedField[];
+  recordedAt: string;
+  source: BehaviorDefinitionEventSource;
+  reason: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };
@@ -146,6 +168,7 @@ export type ExportJsonBackup = {
   behaviors: ExportJsonBehavior[];
   occurrences: ExportJsonOccurrence[];
   status_events: ExportJsonStatusEvent[];
+  behavior_definition_events: ExportJsonBehaviorDefinitionEvent[];
 };
 
 export type ExportJsonCategory = {
@@ -213,6 +236,21 @@ export type ExportJsonStatusEvent = {
   source_confidence: ExportStatusEventInput["sourceConfidence"];
   revises_event_id: string | null;
   reason_code: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type ExportJsonBehaviorDefinitionEvent = {
+  id: string;
+  behavior_id: string;
+  previous_title: string | null;
+  next_title: string;
+  previous_description: string | null;
+  next_description: string | null;
+  changed_fields: BehaviorDefinitionChangedField[];
+  recorded_at: string;
+  source: BehaviorDefinitionEventSource;
+  reason: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };

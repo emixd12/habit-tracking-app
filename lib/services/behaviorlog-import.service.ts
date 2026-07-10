@@ -698,6 +698,7 @@ function toExistingBehavior(behavior: BehaviorWithCategory) {
   return {
     id: behavior.id,
     title: behavior.title,
+    description: behavior.description,
     category: toBehaviorLogCategory(behavior.category?.name ?? null),
     active: behavior.active,
     archivedAt: behavior.archived_at,

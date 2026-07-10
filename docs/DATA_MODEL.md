@@ -47,6 +47,7 @@ create table categories (
 ```
 
 Default categories:
+
 - Medical
 - Grooming
 - Fitness
@@ -95,6 +96,80 @@ The schedule source of truth is `behavior_schedules` plus
 the user saves a new timezone in Settings, active behaviors are updated to the
 new timezone and future unresolved occurrences are resynced. Archived behavior
 rows and past or resolved occurrence history remain historical records.
+
+### `behavior_definition_events`
+
+```sql
+create table behavior_definition_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  behavior_id uuid not null,
+
+  previous_title text,
+  next_title text not null,
+  previous_description text,
+  next_description text,
+  changed_fields text[] not null,
+
+  recorded_at timestamptz not null,
+  source text not null default 'manual'
+    check (source in ('manual', 'import', 'system')),
+  reason text,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  unique (user_id, id),
+  foreign key (user_id, behavior_id)
+    references behaviors(user_id, id)
+    on delete cascade
+);
+```
+
+`behavior_definition_events` is append-only history for behavior title and
+description definitions. The first row is a baseline: `previous_title` and
+`previous_description` are null, `next_*` holds the initial definition, and
+`recorded_at` matches the behavior's `created_at`. Existing behaviors are
+backfilled with `source = 'system'`; normal Behavior form creates and edits use
+`source = 'manual'`. Create-only and approved-merge imports write an atomic
+`source = 'import'` baseline for each newly created behavior. Restore writes a
+`source = 'import'` baseline for a created behavior or a transition for a
+replaced normalized definition.
+
+`changed_fields` is ordered as title, then description. A baseline always
+includes `title` and includes `description` only when the initial description
+is non-null. The migration backfill preserves the exact stored baseline text;
+it does not silently trim legacy rows. Later rows include only definition
+fields whose trimmed values changed, while still preserving the complete
+previous and next title and description values. Category, schedule, reminder,
+archive, and timezone-only changes do not create definition events. `reason`
+is schema-only in the Behavior form; import paths use `behaviorlog_import` or
+`behaviorlog_restore` as machine-readable provenance.
+
+Authenticated app clients may select and insert their own rows. They have no
+update or delete policy or grant for this table. Database cascades still remove
+events when the owning behavior or account is deleted.
+
+Manual Behavior form writes use the owner-scoped `SECURITY INVOKER` functions
+`create_behavior_with_definition_event` and
+`update_behavior_with_definition_event` for every Behavior form update. The
+service passes the pure resolver's optional event plan into the function; SQL
+validates the exact stored predecessor, its normalized form, and the next
+definition but does not calculate changed fields. Create or update and any
+event insertion commit or roll back as one statement transaction. Definition
+updates lock the owned current behavior row and reject a stale predecessor,
+including no-op and schedule-only submissions. A null event plan must preserve
+the exact stored title and description bytes, so canonical-equivalent tabs or
+Unicode edge whitespace cannot be rewritten without history. Schedule
+replacement remains a follow-on repository operation after that guard passes.
+
+Create-only and approved-merge BehaviorLog imports use the same atomic create
+function with `source = 'import'`, and preserve the imported behavior
+`created_at` as the baseline `recorded_at`. The destructive restore wrapper
+locks existing restored behaviors, requires a resolver-planned baseline for
+every new behavior and a transition for every title/description overwrite,
+then inserts those events in the same transaction as product rows, provenance
+mappings, and the applied-run ledger.
 
 ### `behavior_schedules`
 
@@ -792,15 +867,17 @@ BehaviorLog bundles, or reminder message bodies.
 ## RLS requirements
 
 For every user-owned table:
+
 - Select only where `user_id = auth.uid()`
 - Insert only where `user_id = auth.uid()`
 - Update only where `user_id = auth.uid()`
 - Delete only where `user_id = auth.uid()`
 
-Exception: `occurrence_status_events` is append-only for normal app code. It
-allows authenticated select and insert for owned rows, but does not expose
-authenticated update or delete policies. Database-level cascades may still
-remove events when their owning occurrence is removed.
+Exceptions: `occurrence_status_events` and `behavior_definition_events` are
+append-only for normal app code. They allow authenticated select and insert for
+owned rows, but do not expose authenticated update or delete policies.
+Database-level cascades may still remove events when their owning occurrence or
+behavior is removed.
 
 For `profiles`, use `id = auth.uid()` because the primary key is the authenticated user's id.
 
@@ -835,6 +912,7 @@ another user's profile/category/behavior rows.
 ## Behavior edits and occurrence preservation
 
 When a behavior changes:
+
 - Future unresolved occurrences may be regenerated.
 - Past occurrences are preserved.
 - Resolved occurrences are preserved.

@@ -308,8 +308,22 @@ Exports should include:
 - Categories
 - Occurrences
 - Statuses
-- Status event history in the BehaviorLog bundle
+- Status event history in Full JSON and the BehaviorLog bundle
+- Append-only behavior title and description definition history in Full JSON
+  and as an optional Cadence file in BehaviorLog
 - Notes
+
+Behavior definition history is export and agent context, not an in-app revision
+browser. Full JSON and BehaviorLog include full previous and next definition
+text by default for included behaviors, including events older than the selected
+occurrence range. The Markdown summary reports that history and tells agents to
+account for renames and description changes without repeating the historical
+text. JSONL and CSV remain current snapshot formats.
+
+Historical titles and descriptions can be sensitive. The Export & Import screen
+must disclose their default inclusion. Current BehaviorLog import and restore
+use the current behavior snapshot and do not apply definition revision events;
+the revision trail remains export-only until a later scoped import ticket.
 
 Account deletion and export should be first-class before broad public launch,
 consistent with the BehaviorLog portability posture.

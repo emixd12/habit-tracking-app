@@ -393,6 +393,18 @@ Export options:
 - Include archived behaviors
 - Include occurrence notes, off by default
 
+Full JSON and BehaviorLog include behavior title and description revision
+history by default for the behaviors in the export. This is not a separate
+option in Ticket 057. Before download, the screen explains that the history
+contains full prior and next text and may contain sensitive context. The
+Markdown summary reports the number of revision events and gives agent guidance
+without repeating the historical text. JSONL and CSV remain current snapshots.
+
+Behavior definition events follow behavior inclusion rather than the selected
+occurrence date range. A 7, 30, or 90 day export therefore includes the complete
+definition trail for each included behavior, ordered by `recorded_at`, then
+`id`. Excluding archived behaviors also excludes their definition events.
+
 BehaviorLog import flow:
 1. Upload a `.behaviorlog.zip` bundle from the Export & Import screen.
 2. Review validation errors, warnings, conflicts, privacy notes, note
@@ -413,6 +425,12 @@ BehaviorLog import flow:
    instead of recomputing a replacement plan silently.
 7. Review recent import runs for status, mode, timestamps, failure message, and
    the accepted preview relationship when present.
+
+The import area states that definition revision events are export-only in this
+release. Import and restore validate the optional Cadence file through the
+manifest but use only the current title and description snapshots from
+`data/behaviors.jsonl`; they do not apply the revision trail. The user should
+retain the source export when that history must remain portable.
 
 The import flow must not add full restore, destructive overwrite, generalized
 notes browsing, or intervention-to-reminder writes during preview/apply.

@@ -4,13 +4,13 @@ import { Temporal } from "@js-temporal/polyfill";
 
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import {
-  createBehavior,
   createBehaviorScheduleSlot,
   getBehaviorById,
   getBehaviorScheduleSlotById,
   getBehaviorScheduleSlotByStartTime,
   listBehaviorCategories,
 } from "@/lib/db/behaviors.repo";
+import { createBehaviorWithDefinitionEvent } from "@/lib/db/behaviorDefinitionEvents.repo";
 import {
   createBehaviorLogImportRecordMappings as insertBehaviorLogImportRecordMappings,
   createBehaviorLogImportRun as insertBehaviorLogImportRun,
@@ -42,6 +42,7 @@ import {
   createBehaviorLogImportBundleFingerprint,
   resolveBehaviorLogImportMergePreview,
 } from "@/lib/resolvers/behaviorlog-import.resolver";
+import { planInitialBehaviorDefinitionEvent } from "@/lib/resolvers/behavior-definition.resolver";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import {
   invalidateBehaviorData,
@@ -401,22 +402,29 @@ export async function applyCreateMissingBehaviorLogImportPlan(
         continue;
       }
 
-      const createdBehavior = await createBehavior(supabase, {
-        user_id: input.userId,
-        category_id: resolveCategoryId(categories, behavior),
-        title: behavior.title,
-        description: behavior.description,
-        recurrence_rule: primarySchedule.recurrenceRule,
-        scheduled_time: primarySchedule.slot.startTime,
-        timezone: primarySchedule.plan.timezone,
-        browser_reminder_enabled:
-          behavior.cadenceBrowserReminderEnabled ?? true,
-        email_reminder_enabled: behavior.cadenceEmailReminderEnabled ?? false,
-        reminder_offset_minutes: behavior.cadenceReminderOffsetMinutes ?? 0,
-        active: behavior.archivedAtUtc ? false : behavior.cadenceActive ?? true,
-        archived_at: behavior.archivedAtUtc,
-        created_at: behavior.createdAtUtc ?? undefined,
-      } satisfies NewBehavior);
+      const createdBehavior = await createImportedBehaviorWithDefinitionEvent(
+        supabase,
+        behavior,
+        {
+          user_id: input.userId,
+          category_id: resolveCategoryId(categories, behavior),
+          title: behavior.title,
+          description: behavior.description,
+          recurrence_rule: primarySchedule.recurrenceRule,
+          scheduled_time: primarySchedule.slot.startTime,
+          timezone: primarySchedule.plan.timezone,
+          browser_reminder_enabled:
+            behavior.cadenceBrowserReminderEnabled ?? true,
+          email_reminder_enabled:
+            behavior.cadenceEmailReminderEnabled ?? false,
+          reminder_offset_minutes: behavior.cadenceReminderOffsetMinutes ?? 0,
+          active: behavior.archivedAtUtc
+            ? false
+            : behavior.cadenceActive ?? true,
+          archived_at: behavior.archivedAtUtc,
+          created_at: behavior.createdAtUtc ?? undefined,
+        } satisfies NewBehavior,
+      );
 
       behaviorIds.set(behavior.externalId, createdBehavior.id);
       result.created.behaviors += 1;
@@ -888,22 +896,29 @@ export async function applyApprovedBehaviorLogMergePlan(
         continue;
       }
 
-      const createdBehavior = await createBehavior(supabase, {
-        user_id: input.userId,
-        category_id: resolveCategoryId(categories, behavior),
-        title: behavior.title,
-        description: behavior.description,
-        recurrence_rule: primarySchedule.recurrenceRule,
-        scheduled_time: primarySchedule.slot.startTime,
-        timezone: primarySchedule.plan.timezone,
-        browser_reminder_enabled:
-          behavior.cadenceBrowserReminderEnabled ?? true,
-        email_reminder_enabled: behavior.cadenceEmailReminderEnabled ?? false,
-        reminder_offset_minutes: behavior.cadenceReminderOffsetMinutes ?? 0,
-        active: behavior.archivedAtUtc ? false : behavior.cadenceActive ?? true,
-        archived_at: behavior.archivedAtUtc,
-        created_at: behavior.createdAtUtc ?? undefined,
-      } satisfies NewBehavior);
+      const createdBehavior = await createImportedBehaviorWithDefinitionEvent(
+        supabase,
+        behavior,
+        {
+          user_id: input.userId,
+          category_id: resolveCategoryId(categories, behavior),
+          title: behavior.title,
+          description: behavior.description,
+          recurrence_rule: primarySchedule.recurrenceRule,
+          scheduled_time: primarySchedule.slot.startTime,
+          timezone: primarySchedule.plan.timezone,
+          browser_reminder_enabled:
+            behavior.cadenceBrowserReminderEnabled ?? true,
+          email_reminder_enabled:
+            behavior.cadenceEmailReminderEnabled ?? false,
+          reminder_offset_minutes: behavior.cadenceReminderOffsetMinutes ?? 0,
+          active: behavior.archivedAtUtc
+            ? false
+            : behavior.cadenceActive ?? true,
+          archived_at: behavior.archivedAtUtc,
+          created_at: behavior.createdAtUtc ?? undefined,
+        } satisfies NewBehavior,
+      );
 
       behaviorIds.set(behavior.externalId, createdBehavior.id);
       result.created.behaviors += 1;
@@ -1771,6 +1786,33 @@ function toScheduleSlot(
     startTime: schedule.localTime,
     endTime: null,
   };
+}
+
+async function createImportedBehaviorWithDefinitionEvent(
+  supabase: AppSupabaseClient,
+  behaviorPlan: BehaviorLogImportBehaviorPlan,
+  behavior: NewBehavior,
+) {
+  const recordedAt = behaviorPlan.createdAtUtc ?? new Date().toISOString();
+  const definitionEventPlan = planInitialBehaviorDefinitionEvent({
+    definition: {
+      title: behavior.title,
+      description: behavior.description ?? null,
+    },
+    recordedAt,
+    source: "import",
+    reason: "behaviorlog_import",
+  });
+
+  return createBehaviorWithDefinitionEvent(supabase, {
+    behavior: {
+      ...behavior,
+      title: definitionEventPlan.nextTitle,
+      description: definitionEventPlan.nextDescription,
+      created_at: recordedAt,
+    },
+    definitionEventPlan,
+  });
 }
 
 function resolveCategoryId(

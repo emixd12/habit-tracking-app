@@ -22,9 +22,25 @@ describe("Export panel UI", () => {
     expect(html).toContain("CSV (.csv)");
     expect(html).toContain("Spreadsheet review of occurrence snapshots");
     expect(html).toContain("App JSON backup (.json)");
-    expect(html).toContain("occurrence snapshots, and status-event history.");
+    expect(html).toContain(
+      "status-event history, and behavior definition history.",
+    );
     expect(html).toContain("BehaviorLog bundle (.behaviorlog.zip)");
-    expect(html).toContain("Complete portability and restore-oriented bundle");
+    expect(html).toContain(
+      "BehaviorLog core records plus Cadence definition history",
+    );
+    expect(html).toContain(
+      "Full JSON and BehaviorLog include complete prior and next behavior titles and descriptions by default.",
+    );
+    expect(html).toContain(
+      "Historical definitions can contain sensitive text.",
+    );
+    expect(html).toContain(
+      "Exported behavior definition revisions are not replayed on import or restore.",
+    );
+    expect(html).toContain(
+      "records a new local import baseline or transition",
+    );
   });
 });
 
@@ -69,6 +85,7 @@ function exportBundle(): ExportBundle {
       behaviors: [],
       occurrences: [],
       status_events: [],
+      behavior_definition_events: [],
     },
     json: "{}",
     markdownSummary: "# Cadence export summary",

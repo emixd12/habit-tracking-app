@@ -5,12 +5,14 @@ import { Temporal } from "@js-temporal/polyfill";
 import type {
   BehaviorLogBundle,
   BehaviorLogFile,
+  ExportBehaviorDefinitionEventInput,
   ExportBehaviorInput,
   ExportBundle,
   ExportCategoryInput,
   ExportDateRange,
   ExportJsonBackup,
   ExportJsonBehavior,
+  ExportJsonBehaviorDefinitionEvent,
   ExportJsonCategory,
   ExportJsonOccurrence,
   ExportJsonStatusEvent,
@@ -27,7 +29,10 @@ import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 const BEHAVIORLOG_SCHEMA_VERSION = "0.1.0-draft";
 const BEHAVIORLOG_FORMAT = "behaviorlog.bundle";
 const BEHAVIORLOG_EXTENSION_NAMESPACE = "app.cadence";
+const BEHAVIORLOG_DEFINITION_HISTORY_PATH =
+  "raw/cadence/behavior_definition_events.jsonl";
 const BEHAVIORLOG_GENERATION_RULE_ID = "rule_recurrence_calendar_simple_v1";
+const BEHAVIOR_DEFINITION_CHANGED_FIELDS = ["title", "description"] as const;
 const BEHAVIORLOG_BEHAVIOR_CSV_COLUMNS = [
   "record_type",
   "behavior_id",
@@ -120,6 +125,7 @@ export type ResolveExportInput = {
   profile: ExportProfileInput;
   categories: ExportCategoryInput[];
   behaviors: ExportBehaviorInput[];
+  behaviorDefinitionEvents?: ExportBehaviorDefinitionEventInput[];
   occurrences: ExportOccurrenceInput[];
   statusEvents?: ExportStatusEventInput[];
   reminderDeliveries?: ExportReminderDeliveryInput[];
@@ -148,6 +154,10 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     includedBehaviors.map((behavior) => [behavior.id, behavior]),
   );
   const behaviors = includedBehaviors.map(toJsonBehavior);
+  const behaviorDefinitionEvents = toJsonBehaviorDefinitionEvents({
+    behaviorDefinitionEvents: input.behaviorDefinitionEvents ?? [],
+    behaviorById,
+  });
   const occurrences = input.occurrences
     .filter((occurrence) => behaviorById.has(occurrence.behaviorId))
     .filter((occurrence) => isOccurrenceWithinRange(occurrence, range))
@@ -179,12 +189,14 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     behaviors,
     occurrences,
     statusEvents,
+    behaviorDefinitionEvents,
   });
   const behaviorLog = toBehaviorLogBundle({
     exportedAtInstant: input.now,
     fileBaseName,
     profile: input.profile,
     behaviors,
+    behaviorDefinitionEvents,
     occurrences,
     statusEvents: input.statusEvents ?? [],
     reminderDeliveries: input.reminderDeliveries ?? [],
@@ -210,6 +222,7 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
       range,
       counts: overallCounts,
       behaviors,
+      behaviorDefinitionEvents,
       occurrences,
       statusEvents,
       includeArchived,
@@ -313,6 +326,31 @@ function toJsonBehavior(behavior: ExportBehaviorInput): ExportJsonBehavior {
   };
 }
 
+function toJsonBehaviorDefinitionEvents(input: {
+  behaviorDefinitionEvents: ExportBehaviorDefinitionEventInput[];
+  behaviorById: Map<string, ExportBehaviorInput>;
+}): ExportJsonBehaviorDefinitionEvent[] {
+  return input.behaviorDefinitionEvents
+    .filter((event) => input.behaviorById.has(event.behaviorId))
+    .sort(compareBehaviorDefinitionEvents)
+    .map((event) => ({
+      id: event.id,
+      behavior_id: event.behaviorId,
+      previous_title: event.previousTitle,
+      next_title: event.nextTitle,
+      previous_description: event.previousDescription,
+      next_description: event.nextDescription,
+      changed_fields: BEHAVIOR_DEFINITION_CHANGED_FIELDS.filter((field) =>
+        event.changedFields.includes(field),
+      ),
+      recorded_at: formatUtc(event.recordedAt),
+      source: event.source,
+      reason: event.reason,
+      created_at: event.createdAt,
+      updated_at: event.updatedAt,
+    }));
+}
+
 function toJsonOccurrence(input: {
   occurrence: ExportOccurrenceInput;
   behaviorById: Map<string, ExportBehaviorInput>;
@@ -358,6 +396,7 @@ function toJsonBackup(input: {
   behaviors: ExportJsonBehavior[];
   occurrences: ExportJsonOccurrence[];
   statusEvents: ExportJsonStatusEvent[];
+  behaviorDefinitionEvents: ExportJsonBehaviorDefinitionEvent[];
 }): ExportJsonBackup {
   return {
     exported_at: input.exportedAt,
@@ -368,6 +407,7 @@ function toJsonBackup(input: {
     behaviors: input.behaviors,
     occurrences: input.occurrences,
     status_events: input.statusEvents,
+    behavior_definition_events: input.behaviorDefinitionEvents,
   };
 }
 
@@ -495,6 +535,7 @@ function toBehaviorLogBundle(input: {
   fileBaseName: string;
   profile: ExportProfileInput;
   behaviors: ExportJsonBehavior[];
+  behaviorDefinitionEvents: ExportJsonBehaviorDefinitionEvent[];
   occurrences: ExportJsonOccurrence[];
   statusEvents: ExportStatusEventInput[];
   reminderDeliveries: ExportReminderDeliveryInput[];
@@ -573,6 +614,12 @@ function toBehaviorLogBundle(input: {
     });
   }
 
+  filesWithoutManifest.push({
+    path: BEHAVIORLOG_DEFINITION_HISTORY_PATH,
+    mediaType: "application/jsonl",
+    content: toJsonlRecords(input.behaviorDefinitionEvents),
+  });
+
   filesWithoutManifest.push(
     ...toBehaviorLogCsvFiles({
       behaviorRecords,
@@ -588,6 +635,7 @@ function toBehaviorLogBundle(input: {
       profile: input.profile,
       containsNotes: noteRecords.length > 0,
       containsInterventions: interventionRecords.length > 0,
+      behaviorDefinitionEventCount: input.behaviorDefinitionEvents.length,
       files: filesWithoutManifest,
     }),
     null,
@@ -612,6 +660,7 @@ function createBehaviorLogManifest(input: {
   profile: ExportProfileInput;
   containsNotes: boolean;
   containsInterventions: boolean;
+  behaviorDefinitionEventCount: number;
   files: BehaviorLogFile[];
 }) {
   return {
@@ -642,6 +691,16 @@ function createBehaviorLogManifest(input: {
       containsNotes: input.containsNotes,
       containsInterventions: input.containsInterventions,
     }),
+    extensions: {
+      [BEHAVIORLOG_EXTENSION_NAMESPACE]: {
+        behavior_definition_history: {
+          path: BEHAVIORLOG_DEFINITION_HISTORY_PATH,
+          record_count: input.behaviorDefinitionEventCount,
+          ordering: ["recorded_at", "id"],
+          import_restore_support: "export_only",
+        },
+      },
+    },
     rules: {
       status_semantics: {
         unresolved:
@@ -657,8 +716,7 @@ function createBehaviorLogManifest(input: {
           excludes: ["unresolved", "cancelled_occurrences"],
         },
         rule_resolution_rate_v1: {
-          formula:
-            "(completed + not_completed) / eligible_occurrences",
+          formula: "(completed + not_completed) / eligible_occurrences",
           excludes: ["cancelled_occurrences"],
         },
         rule_scheduled_completion_rate_v1: {
@@ -696,7 +754,10 @@ function createBehaviorLogManifest(input: {
 function createBehaviorLogSchema() {
   const timestamp = { type: "string", format: "date-time" };
   const localDate = { type: "string", pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" };
-  const localTime = { type: "string", pattern: "^[0-9]{2}:[0-9]{2}(:[0-9]{2})?$" };
+  const localTime = {
+    type: "string",
+    pattern: "^[0-9]{2}:[0-9]{2}(:[0-9]{2})?$",
+  };
   const timezone = { type: "string", minLength: 1 };
   const status = {
     type: "string",
@@ -1051,8 +1112,13 @@ function toBehaviorLogSchedules(
   behaviors: ExportJsonBehavior[],
   occurrences: ExportJsonOccurrence[],
 ) {
-  const behaviorById = new Map(behaviors.map((behavior) => [behavior.id, behavior]));
-  const recordsById = new Map<string, ReturnType<typeof createBehaviorLogSchedule>>();
+  const behaviorById = new Map(
+    behaviors.map((behavior) => [behavior.id, behavior]),
+  );
+  const recordsById = new Map<
+    string,
+    ReturnType<typeof createBehaviorLogSchedule>
+  >();
   const scheduleIdByOccurrenceId = new Map<string, string>();
 
   for (const behavior of behaviors) {
@@ -1294,7 +1360,9 @@ function toBehaviorLogStatusEvents(input: {
   const occurrenceById = new Map(
     input.occurrences.map((occurrence) => [occurrence.id, occurrence]),
   );
-  const behaviorById = new Map(input.behaviors.map((behavior) => [behavior.id, behavior]));
+  const behaviorById = new Map(
+    input.behaviors.map((behavior) => [behavior.id, behavior]),
+  );
   const explicitEvents = input.statusEvents
     .filter((event) => occurrenceById.has(event.occurrenceId))
     .sort(compareStatusEvents)
@@ -1343,7 +1411,8 @@ function toBehaviorLogStatusEvents(input: {
   const syntheticEvents = input.occurrences
     .filter(
       (occurrence) =>
-        occurrence.status !== "unresolved" && !eventOccurrenceIds.has(occurrence.id),
+        occurrence.status !== "unresolved" &&
+        !eventOccurrenceIds.has(occurrence.id),
     )
     .map((occurrence) =>
       toSyntheticBehaviorLogStatusEvent(
@@ -1454,7 +1523,7 @@ function createBehaviorLogSource(input: {
     imported_from: null,
     confidence: input.confidence,
     transformation_notes: input.transformationNotes ?? null,
-    });
+  });
 }
 
 function toBehaviorLogInterventions(input: {
@@ -1509,6 +1578,8 @@ function createBehaviorLogReadme(): string {
     "",
     "Read `manifest.json` first. JSONL files under `data/` are authoritative.",
     "CSV files under `csv/`, when present, are derived compatibility views and should join back to JSONL records by stable ID.",
+    "Cadence behavior title and description revisions are included in the optional app-specific file `raw/cadence/behavior_definition_events.jsonl`.",
+    "Cadence import and restore currently use the current behavior snapshots and do not apply those revision events.",
   ].join("\n");
 }
 
@@ -1525,6 +1596,8 @@ function createBehaviorLogAgentsMd(): string {
     "- Use `local_date` and `timezone` for day, week, and month analysis.",
     "- Use UTC timestamps for ordering events.",
     "- Prefer `status_events.jsonl` over `current_status` snapshots when analyzing history.",
+    "- Use `raw/cadence/behavior_definition_events.jsonl` to account for behavior renames and description changes. Order revisions by `recorded_at`, then `id`.",
+    "- Treat behavior definition revisions as context. They do not change occurrence status history or adherence calculations.",
     "- Treat files under `csv/` as compatibility views only; JSONL files under `data/` remain authoritative.",
     "- Treat notes as attributed context, not objective fact.",
     "- Report unresolved counts when computing adherence.",
@@ -1619,10 +1692,18 @@ function plainDateTimeToInstant(
   return date.toPlainDateTime(time).toZonedDateTime(timezone).toInstant();
 }
 
-function instantToLocalDate(value: string | null | undefined, timezone: string): string {
-  const instant = value ? Temporal.Instant.from(value) : Temporal.Instant.from("1970-01-01T00:00:00Z");
+function instantToLocalDate(
+  value: string | null | undefined,
+  timezone: string,
+): string {
+  const instant = value
+    ? Temporal.Instant.from(value)
+    : Temporal.Instant.from("1970-01-01T00:00:00Z");
 
-  return instant.toZonedDateTimeISO(timezone || DEFAULT_TIMEZONE).toPlainDate().toString();
+  return instant
+    .toZonedDateTimeISO(timezone || DEFAULT_TIMEZONE)
+    .toPlainDate()
+    .toString();
 }
 
 function timezoneForOccurrence(occurrence: ExportJsonOccurrence): string {
@@ -1630,15 +1711,21 @@ function timezoneForOccurrence(occurrence: ExportJsonOccurrence): string {
 }
 
 function utcOffsetAtEvent(value: string, timezone: string): string {
-  return Temporal.Instant.from(value).toZonedDateTimeISO(timezone || DEFAULT_TIMEZONE).offset;
+  return Temporal.Instant.from(value).toZonedDateTimeISO(
+    timezone || DEFAULT_TIMEZONE,
+  ).offset;
 }
 
-function formatUtc(value: string | Temporal.Instant | null | undefined): string {
+function formatUtc(
+  value: string | Temporal.Instant | null | undefined,
+): string {
   if (!value) {
     return Temporal.Instant.from("1970-01-01T00:00:00Z").toString();
   }
 
-  return (typeof value === "string" ? Temporal.Instant.from(value) : value).toString();
+  return (
+    typeof value === "string" ? Temporal.Instant.from(value) : value
+  ).toString();
 }
 
 function formatOptionalUtc(value: string | null | undefined): string | null {
@@ -1762,7 +1849,9 @@ function toBehaviorLogCsv(
   return [
     columns.join(","),
     ...records.map((record) =>
-      columns.map((column) => escapeCsvCell(formatCsvValue(record[column]))).join(","),
+      columns
+        .map((column) => escapeCsvCell(formatCsvValue(record[column])))
+        .join(","),
     ),
   ].join("\n");
 }
@@ -1785,6 +1874,22 @@ function formatCsvValue(value: unknown): string {
 
 function sha256(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+function compareBehaviorDefinitionEvents(
+  left: ExportBehaviorDefinitionEventInput,
+  right: ExportBehaviorDefinitionEventInput,
+): number {
+  const recordedComparison = Temporal.Instant.compare(
+    Temporal.Instant.from(left.recordedAt),
+    Temporal.Instant.from(right.recordedAt),
+  );
+
+  if (recordedComparison !== 0) {
+    return recordedComparison;
+  }
+
+  return left.id.localeCompare(right.id);
 }
 
 function compareStatusEvents(
@@ -1819,16 +1924,15 @@ function compareReminderDeliveries(
   return left.id.localeCompare(right.id);
 }
 
-function sanitizeInterventionFailureReason(value: string | null): string | null {
+function sanitizeInterventionFailureReason(
+  value: string | null,
+): string | null {
   if (!value) {
     return null;
   }
 
   return value
-    .replace(
-      /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
-      "[redacted-email]",
-    )
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted-email]")
     .replace(/https?:\/\/[^\s)]+/gi, "[redacted-url]")
     .replace(/\b(p256dh|auth)\s*[:=]\s*\S+/gi, "$1=[redacted-key]")
     .replace(
@@ -1847,6 +1951,7 @@ function toMarkdownSummary(input: {
   range: ExportDateRange;
   counts: ExportStatusCounts;
   behaviors: ExportJsonBehavior[];
+  behaviorDefinitionEvents: ExportJsonBehaviorDefinitionEvent[];
   occurrences: ExportJsonOccurrence[];
   includeArchived: boolean;
   includeNotes: boolean;
@@ -1861,6 +1966,7 @@ function toMarkdownSummary(input: {
     "",
     `Archived behaviors: ${input.includeArchived ? "included" : "excluded"}`,
     `Occurrence notes: ${input.includeNotes ? "included" : "excluded"}`,
+    `Behavior definition history: included (${input.behaviorDefinitionEvents.length} ${input.behaviorDefinitionEvents.length === 1 ? "event" : "events"})`,
     "",
     "## Overall",
     `- Completed: ${input.counts.completedCount}`,
@@ -1878,6 +1984,11 @@ function toMarkdownSummary(input: {
       ? categoryLines
       : ["- No category counts in this range."]),
     "",
+    "## Behavior definition history",
+    "- Behavior rows and occurrence titles are current snapshots. Use Full JSON `behavior_definition_events` or BehaviorLog `raw/cadence/behavior_definition_events.jsonl` to account for renames and description changes.",
+    "- Order revisions by `recorded_at`, then `id`. `changed_fields` identifies whether the title, description, or both changed; previous and next values preserve the full definition text.",
+    "- Definition revision events are export-only in this release. Cadence import and restore use current behavior snapshots and do not apply the revision trail.",
+    "",
     "## Status history",
     "- Occurrence rows are current snapshots. Use `status_events` for corrections and decision chronology.",
     "- `recorded_at` is when Cadence logged the decision; `effective_at` is its stated effective time when present; `revises_event_id` links a correction to the prior event.",
@@ -1885,9 +1996,7 @@ function toMarkdownSummary(input: {
   ].join("\n");
 }
 
-function summarizeByBehavior(
-  occurrences: ExportJsonOccurrence[],
-): string[] {
+function summarizeByBehavior(occurrences: ExportJsonOccurrence[]): string[] {
   const groups = new Map<string, ExportJsonOccurrence[]>();
 
   for (const occurrence of occurrences) {
@@ -1907,9 +2016,7 @@ function summarizeByBehavior(
     .sort((left, right) => left.localeCompare(right));
 }
 
-function summarizeByCategory(
-  occurrences: ExportJsonOccurrence[],
-): string[] {
+function summarizeByCategory(occurrences: ExportJsonOccurrence[]): string[] {
   const groups = new Map<string, ExportJsonOccurrence[]>();
 
   for (const occurrence of occurrences) {
@@ -1936,7 +2043,9 @@ function summarizeOccurrenceNotes(
     .map((occurrence) => {
       const note = normalizeMarkdownNote(occurrence.note ?? "");
       const statusLabel =
-        occurrence.status === "not_completed" ? "not completed" : occurrence.status;
+        occurrence.status === "not_completed"
+          ? "not completed"
+          : occurrence.status;
 
       return `- ${occurrence.local_date} - ${occurrence.behavior_title} - ${occurrence.schedule} - ${statusLabel}: ${note}`;
     })

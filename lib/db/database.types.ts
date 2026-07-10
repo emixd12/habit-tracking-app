@@ -34,6 +34,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      behavior_definition_events: {
+        Row: {
+          behavior_id: string
+          changed_fields: string[]
+          created_at: string
+          id: string
+          next_description: string | null
+          next_title: string
+          previous_description: string | null
+          previous_title: string | null
+          reason: string | null
+          recorded_at: string
+          source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          behavior_id: string
+          changed_fields: string[]
+          created_at?: string
+          id?: string
+          next_description?: string | null
+          next_title: string
+          previous_description?: string | null
+          previous_title?: string | null
+          reason?: string | null
+          recorded_at: string
+          source?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          behavior_id?: string
+          changed_fields?: string[]
+          created_at?: string
+          id?: string
+          next_description?: string | null
+          next_title?: string
+          previous_description?: string | null
+          previous_title?: string | null
+          reason?: string | null
+          recorded_at?: string
+          source?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "behavior_definition_events_behavior_owner_fkey"
+            columns: ["user_id", "behavior_id"]
+            isOneToOne: false
+            referencedRelation: "behaviors"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
       behavior_schedule_slots: {
         Row: {
           behavior_id: string
@@ -870,8 +926,21 @@ export type Database = {
         Args: { restore_payload: Json }
         Returns: Json
       }
+      create_behavior_with_definition_event: {
+        Args: { behavior_payload: Json; definition_event_plan: Json }
+        Returns: Json
+      }
       get_export_page_read_bundle: {
         Args: { range_end_local_date: string; range_start_local_date: string }
+        Returns: Json
+      }
+      update_behavior_with_definition_event: {
+        Args: {
+          behavior_payload: Json
+          definition_event_plan: Json
+          expected_definition: Json
+          target_behavior_id: string
+        }
         Returns: Json
       }
     }
@@ -1009,4 +1078,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

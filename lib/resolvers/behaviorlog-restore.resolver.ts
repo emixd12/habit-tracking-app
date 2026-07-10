@@ -253,6 +253,7 @@ function actionForBehavior(
       reasons: ["Behavior exists in the bundle but not in the current account graph."],
       metadata: {
         title: behavior.title,
+        description: behavior.description,
         category: behavior.cadenceCategoryName ?? behavior.category,
       },
     });
@@ -264,6 +265,8 @@ function actionForBehavior(
   const importedActive = behavior.archivedAtUtc ? false : true;
   const same =
     normalizeText(existing.title) === normalizeText(behavior.title) &&
+    normalizeNullableText(existing.description) ===
+      normalizeNullableText(behavior.description) &&
     normalizeNullableText(existing.category) ===
       normalizeNullableText(behavior.cadenceCategoryName ?? behavior.category) &&
     Boolean(existing.active ?? true) === importedActive;
@@ -278,6 +281,7 @@ function actionForBehavior(
       : ["Behavior is represented in the bundle and local restore-visible fields differ."],
     metadata: {
       title: behavior.title,
+      description: behavior.description,
       category: behavior.cadenceCategoryName ?? behavior.category,
     },
   });

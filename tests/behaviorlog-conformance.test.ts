@@ -12,6 +12,7 @@ import { resolveExportBundle } from "../lib/resolvers/export.resolver";
 import type {
   BehaviorLogFile,
   ExportBehaviorInput,
+  ExportBehaviorDefinitionEventInput,
   ExportCategoryInput,
   ExportOccurrenceInput,
   ExportReminderDeliveryInput,
@@ -31,6 +32,8 @@ const REQUIRED_CORE_FILES = [
   "data/occurrences.jsonl",
   "data/status_events.jsonl",
 ] as const;
+const CADENCE_DEFINITION_HISTORY_PATH =
+  "raw/cadence/behavior_definition_events.jsonl";
 
 const CORE_STATUSES = new Set(["unresolved", "completed", "not_completed"]);
 const OCCURRENCE_STATES = new Set(["active", "cancelled"]);
@@ -194,6 +197,25 @@ function conformanceOccurrences(): ExportOccurrenceInput[] {
   ];
 }
 
+function conformanceBehaviorDefinitionEvents(): ExportBehaviorDefinitionEventInput[] {
+  return [
+    {
+      id: "definition-brush-initial",
+      behaviorId: "behavior-brush",
+      previousTitle: null,
+      nextTitle: "Brush teeth",
+      previousDescription: null,
+      nextDescription: "Night brushing",
+      changedFields: ["title", "description"],
+      recordedAt: "2026-05-01T12:00:00Z",
+      source: "system",
+      reason: "baseline_backfill",
+      createdAt: "2026-05-01T12:00:00Z",
+      updatedAt: "2026-05-01T12:00:00Z",
+    },
+  ];
+}
+
 function conformanceStatusEvents(): ExportStatusEventInput[] {
   return [
     {
@@ -258,6 +280,7 @@ function resolveConformanceBundle() {
     },
     categories,
     behaviors: [conformanceBehavior()],
+    behaviorDefinitionEvents: conformanceBehaviorDefinitionEvents(),
     occurrences: conformanceOccurrences(),
     statusEvents: conformanceStatusEvents(),
     reminderDeliveries: conformanceReminderDeliveries(),
@@ -302,6 +325,9 @@ describe("BehaviorLog core conformance", () => {
       expect(bundle.files.map((file) => file.path)).toContain(
         "data/interventions.jsonl",
       );
+      expect(bundle.files.map((file) => file.path)).toContain(
+        CADENCE_DEFINITION_HISTORY_PATH,
+      );
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -342,6 +368,26 @@ describe("BehaviorLog core conformance", () => {
       expect(file, `${entry.path} should exist`).toBeDefined();
       expect(entry.sha256).toBe(sha256(file?.content ?? ""));
     }
+
+    expect(
+      manifestFiles.find(
+        (entry) => entry.path === CADENCE_DEFINITION_HISTORY_PATH,
+      ),
+    ).toMatchObject({
+      path: CADENCE_DEFINITION_HISTORY_PATH,
+      required: false,
+    });
+    expect(
+      parseJsonl(
+        fileByPath.get(CADENCE_DEFINITION_HISTORY_PATH)?.content ?? "",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: "definition-brush-initial",
+        behavior_id: "behavior-brush",
+        changed_fields: ["title", "description"],
+      }),
+    ]);
 
     expectUniqueIds(behaviors, "behavior_id");
     expectUniqueIds(schedules, "schedule_id");
@@ -447,6 +493,7 @@ function parseJsonl(content: string): JsonRecord[] {
 function readManifestFiles(manifest: JsonRecord): Array<{
   path: string;
   sha256: string;
+  required: boolean;
 }> {
   if (!Array.isArray(manifest.files)) {
     throw new Error("manifest.files must be an array.");
@@ -460,6 +507,7 @@ function readManifestFiles(manifest: JsonRecord): Array<{
     return {
       path: String(entry.path),
       sha256: String(entry.sha256),
+      required: entry.required === true,
     };
   });
 }

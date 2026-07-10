@@ -14,6 +14,7 @@ import {
   type ExportPageStatusEventRow,
   type ExportPageSyncStateRow,
 } from "@/lib/db/exportPageRead.repo";
+import { listBehaviorDefinitionEvents } from "@/lib/db/behaviorDefinitionEvents.repo";
 import {
   resolveExportBundle,
   resolveExportDateRange,
@@ -39,6 +40,7 @@ import {
   readCachedUserBehaviors,
 } from "@/lib/cache/stable-user-data.cache";
 import type {
+  ExportBehaviorDefinitionEventInput,
   ExportBehaviorInput,
   ExportBundle,
   ExportCategoryInput,
@@ -49,7 +51,14 @@ import type {
   ExportReminderDeliveryStatus,
   ExportStatusEventInput,
 } from "@/lib/types/export";
-import type { OccurrenceSyncState } from "@/lib/types/database";
+import type {
+  BehaviorDefinitionEvent,
+  OccurrenceSyncState,
+} from "@/lib/types/database";
+import type {
+  BehaviorDefinitionChangedField,
+  BehaviorDefinitionEventSource,
+} from "@/lib/types/behavior-definition-event";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type {
   BehaviorScheduleView,
@@ -111,7 +120,9 @@ export async function getExportDownload(
         fileName: `${bundle.fileBaseName}.json`,
       };
     case "behaviorlog": {
-      const zipBytes = Uint8Array.from(createStoredZip(bundle.behaviorLog.files));
+      const zipBytes = Uint8Array.from(
+        createStoredZip(bundle.behaviorLog.files),
+      );
 
       return {
         content: new Blob([zipBytes], { type: "application/zip" }),
@@ -128,10 +139,12 @@ async function getUserExportBundle(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
-  const [profileTimezone, cachedBehaviors] = await Promise.all([
-    readCachedProfileTimezone(supabase, userId),
-    readCachedUserBehaviors(supabase, userId),
-  ]);
+  const [profileTimezone, cachedBehaviors, behaviorDefinitionEvents] =
+    await Promise.all([
+      readCachedProfileTimezone(supabase, userId),
+      readCachedUserBehaviors(supabase, userId),
+      listBehaviorDefinitionEvents(supabase, userId),
+    ]);
   const timezone = profileTimezone ?? DEFAULT_TIMEZONE;
   const range = resolveExportDateRange({
     now,
@@ -167,6 +180,9 @@ async function getUserExportBundle(
     },
     categories: exportRead.categories.map(toExportCategoryInput),
     behaviors: cachedBehaviors.map(toExportBehaviorInput),
+    behaviorDefinitionEvents: behaviorDefinitionEvents.map(
+      toExportBehaviorDefinitionEventInput,
+    ),
     occurrences: exportRead.occurrences.map(toExportOccurrenceInput),
     statusEvents: exportRead.statusEvents.map(toExportStatusEventInput),
     reminderDeliveries: exportRead.reminderDeliveries.map(
@@ -178,6 +194,61 @@ async function getUserExportBundle(
     includeArchived: options.includeArchived,
     includeNotes: options.includeNotes,
   });
+}
+
+function toExportBehaviorDefinitionEventInput(
+  event: BehaviorDefinitionEvent,
+): ExportBehaviorDefinitionEventInput {
+  return {
+    id: event.id,
+    behaviorId: event.behavior_id,
+    previousTitle: event.previous_title,
+    nextTitle: event.next_title,
+    previousDescription: event.previous_description,
+    nextDescription: event.next_description,
+    changedFields: normalizeBehaviorDefinitionChangedFields(
+      event.changed_fields,
+    ),
+    recordedAt: event.recorded_at,
+    source: normalizeBehaviorDefinitionEventSource(event.source),
+    reason: event.reason,
+    createdAt: event.created_at,
+    updatedAt: event.updated_at,
+  };
+}
+
+function normalizeBehaviorDefinitionChangedFields(
+  values: string[],
+): BehaviorDefinitionChangedField[] {
+  const fields: BehaviorDefinitionChangedField[] = [];
+
+  if (values.includes("title")) {
+    fields.push("title");
+  }
+
+  if (values.includes("description")) {
+    fields.push("description");
+  }
+
+  if (
+    fields.length === 0 ||
+    fields.length !== values.length ||
+    new Set(values).size !== values.length
+  ) {
+    throw new Error("Unsupported behavior definition changed fields.");
+  }
+
+  return fields;
+}
+
+function normalizeBehaviorDefinitionEventSource(
+  value: string,
+): BehaviorDefinitionEventSource {
+  if (value === "manual" || value === "import" || value === "system") {
+    return value;
+  }
+
+  throw new Error(`Unsupported behavior definition event source: ${value}.`);
 }
 
 function toExportReminderDeliveryInput(
@@ -207,7 +278,9 @@ async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
   }
 }
 
-function toExportCategoryInput(category: ExportPageCategoryRow): ExportCategoryInput {
+function toExportCategoryInput(
+  category: ExportPageCategoryRow,
+): ExportCategoryInput {
   return {
     id: category.id,
     name: category.name,
@@ -217,7 +290,9 @@ function toExportCategoryInput(category: ExportPageCategoryRow): ExportCategoryI
   };
 }
 
-function toExportBehaviorInput(behavior: BehaviorWithCategory): ExportBehaviorInput {
+function toExportBehaviorInput(
+  behavior: BehaviorWithCategory,
+): ExportBehaviorInput {
   const recurrenceRule = normalizeRecurrenceRule(behavior.recurrence_rule);
   const scheduledTime = normalizeScheduledTime(behavior.scheduled_time);
   const schedules = toExportBehaviorSchedules(
@@ -257,7 +332,9 @@ function toExportBehaviorSchedules(
   if (schedules.length > 0) {
     return schedules
       .map((schedule) => {
-        const recurrenceRule = normalizeRecurrenceRule(schedule.recurrence_rule);
+        const recurrenceRule = normalizeRecurrenceRule(
+          schedule.recurrence_rule,
+        );
         const timeEntries = schedule.schedule_slots
           .map((slot) =>
             toScheduleSlotView({
@@ -405,7 +482,11 @@ function normalizeSchedulePreset(value: string | null): TimeRangePreset | null {
 }
 
 function normalizeOccurrenceStatus(value: string): ExportOccurrenceStatus {
-  if (value === "unresolved" || value === "completed" || value === "not_completed") {
+  if (
+    value === "unresolved" ||
+    value === "completed" ||
+    value === "not_completed"
+  ) {
     return value;
   }
 
@@ -469,7 +550,9 @@ function normalizeSourceConfidence(
   throw new Error(`Unsupported source confidence: ${value}.`);
 }
 
-function normalizeReminderChannel(value: string): ExportReminderDeliveryChannel {
+function normalizeReminderChannel(
+  value: string,
+): ExportReminderDeliveryChannel {
   if (value === "browser_push" || value === "email") {
     return value;
   }

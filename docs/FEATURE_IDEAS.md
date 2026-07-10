@@ -79,7 +79,7 @@ must not be treated as failure.
 
 ## Behavior Title And Description History
 
-Status: candidate.
+Status: implemented by Ticket 057.
 
 Promoted ticket:
 `docs/TICKETS.md` Ticket 057.
@@ -96,32 +96,41 @@ Current implementation notes:
 
 - `behaviors.title` and `behaviors.description` store the current behavior
   definition.
-- `behaviors.updated_at` shows that the behavior row changed, but not what
-  changed.
-- Current app-native and BehaviorLog exports include behavior title and
-  description snapshots, not a first-class revision history.
+- `behavior_definition_events` stores the append-only revision trail with
+  previous and next values.
+- Full JSON and BehaviorLog exports include the first-class revision history;
+  JSONL and CSV remain snapshot formats.
 
-Possible shape:
+Implemented shape:
 
-- Add append-only behavior definition events when the title or description
-  changes.
-- Capture previous and next values, the changed fields, `recorded_at`, actor or
-  source, and optional user-provided reason.
-- Let exports include the revision trail so agents can interpret historical
-  occurrences against the definition that was active at the time.
-- Keep the initial UI minimal. The first useful version may only capture and
-  export history, without showing a full revision browser in the app.
+- Append-only behavior definition events are created for initial definitions
+  and normalized title or description changes.
+- Events capture full previous and next values, canonical changed fields,
+  `recorded_at`, source, and a nullable schema-only reason.
+- Full JSON and BehaviorLog include the revision trail by default, and Markdown
+  tells agents how to interpret renames and description changes without
+  repeating the historical text.
+- The initial UI remains minimal and does not add a revision browser or change
+  reason field.
+- BehaviorLog import and restore continue to use current definition snapshots
+  rather than replaying exported revision rows. New imported behaviors receive
+  an atomic `source = import` baseline, and restore records an atomic import
+  transition when it replaces a normalized definition. Reconstructing the
+  bundle's earlier revision trail remains deferred.
 
-Open questions:
+Ticket 057 decisions:
 
-- Should every saved edit be captured, or only meaningful changes after
-  normalization?
-- Should typo fixes be marked differently from semantic behavior changes?
-- Should users be able to add a short reason when changing a behavior
-  definition?
-- Should exports include full previous text, diffs, or both?
-- How should import, restore, and BehaviorLog interoperability represent
-  behavior definition history?
+- Capture only normalized title or description changes, not every save.
+- Do not classify typo fixes separately in this ticket.
+- Keep reason support schema-only with no user input.
+- Export full previous and next text plus `changed_fields`, with no computed
+  diff.
+- Represent BehaviorLog history in the optional app-specific
+  `raw/cadence/behavior_definition_events.jsonl` file without changing core
+  records.
+
+Deferred privacy question:
+
 - How should users delete or redact old title and description text if it
   becomes sensitive?
 

@@ -59,6 +59,12 @@ const resolverRegistry = [
     source: "docs/DATA_MODEL.md",
   },
   {
+    domain: "behavior definition history",
+    resolver: "lib/resolvers/behavior-definition.resolver.ts",
+    test: "tests/behavior-definition.resolver.test.ts",
+    source: "docs/DATA_MODEL.md",
+  },
+  {
     domain: "timeline",
     resolver: "lib/resolvers/timeline.resolver.ts",
     test: "tests/timeline.resolver.test.ts",

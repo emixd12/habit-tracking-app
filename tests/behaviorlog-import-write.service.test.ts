@@ -270,6 +270,20 @@ describe("BehaviorLog import write service", () => {
       active: true,
       created_at: "2026-05-01T12:00:00Z",
     });
+    expect(tables.behavior_definition_events).toEqual([
+      expect.objectContaining({
+        user_id: USER_ID,
+        behavior_id: tables.behaviors[0].id,
+        previous_title: null,
+        next_title: "Brush teeth",
+        previous_description: null,
+        next_description: "Night brushing",
+        changed_fields: ["title", "description"],
+        recorded_at: "2026-05-01T12:00:00Z",
+        source: "import",
+        reason: "behaviorlog_import",
+      }),
+    ]);
     expect(tables.behavior_schedule_slots).toEqual([
       expect.objectContaining({
         user_id: USER_ID,
@@ -328,6 +342,7 @@ describe("BehaviorLog import write service", () => {
       mappings: 0,
     });
     expect(tables.behaviors).toHaveLength(1);
+    expect(tables.behavior_definition_events).toHaveLength(1);
     expect(tables.behavior_schedule_slots).toHaveLength(1);
     expect(tables.occurrences).toHaveLength(1);
     expect(tables.occurrence_status_events).toHaveLength(1);
@@ -486,6 +501,14 @@ describe("BehaviorLog import write service", () => {
       completed_at: null,
       status_marked_at: "2026-06-08T13:20:00Z",
     });
+    expect(tables.behavior_definition_events).toEqual([
+      expect.objectContaining({
+        behavior_id: tables.behaviors[0].id,
+        recorded_at: "2026-05-01T12:00:00Z",
+        source: "import",
+        reason: "behaviorlog_import",
+      }),
+    ]);
 
     const rerun = await applyApprovedBehaviorLogMergePlan(supabase, {
       userId: USER_ID,
@@ -502,6 +525,7 @@ describe("BehaviorLog import write service", () => {
       mappings: 0,
     });
     expect(tables.behaviors).toHaveLength(1);
+    expect(tables.behavior_definition_events).toHaveLength(1);
     expect(tables.behavior_schedule_slots).toHaveLength(1);
     expect(tables.occurrences).toHaveLength(1);
     expect(tables.occurrence_status_events).toHaveLength(2);
@@ -1724,6 +1748,7 @@ function createApplyClient(input: {
       },
     ],
     behaviors: input.seed?.behaviors ?? [],
+    behavior_definition_events: input.seed?.behavior_definition_events ?? [],
     behavior_schedule_slots: input.seed?.behavior_schedule_slots ?? [],
     occurrences: input.seed?.occurrences ?? [],
     occurrence_status_events: input.seed?.occurrence_status_events ?? [],
@@ -1732,11 +1757,69 @@ function createApplyClient(input: {
   const from = vi.fn(
     (table: string) => new FakeQuery(table, tables, counters),
   );
+  const rpc = vi.fn(
+    async (
+      functionName: string,
+      args: {
+        behavior_payload?: Record<string, unknown>;
+        definition_event_plan?: Record<string, unknown>;
+      },
+    ) => {
+      if (functionName !== "create_behavior_with_definition_event") {
+        return {
+          data: null,
+          error: new Error(`Unsupported fake RPC ${functionName}.`),
+        };
+      }
+
+      const behaviorPayload = args.behavior_payload;
+      const definitionEventPlan = args.definition_event_plan;
+
+      if (!behaviorPayload || !definitionEventPlan) {
+        return {
+          data: null,
+          error: new Error("Missing atomic behavior definition payload."),
+        };
+      }
+
+      const behaviorId = `behaviors-${tables.behaviors.length + 1}`;
+      const createdAt =
+        behaviorPayload.created_at ?? definitionEventPlan.recorded_at;
+      const behavior = {
+        ...behaviorPayload,
+        id: behaviorId,
+        user_id: USER_ID,
+        created_at: createdAt,
+        updated_at: createdAt,
+      };
+      const event = {
+        id: `behavior_definition_events-${tables.behavior_definition_events.length + 1}`,
+        user_id: USER_ID,
+        behavior_id: behaviorId,
+        previous_title: definitionEventPlan.previous_title,
+        next_title: definitionEventPlan.next_title,
+        previous_description: definitionEventPlan.previous_description,
+        next_description: definitionEventPlan.next_description,
+        changed_fields: definitionEventPlan.changed_fields,
+        recorded_at: definitionEventPlan.recorded_at,
+        source: definitionEventPlan.source,
+        reason: definitionEventPlan.reason,
+        created_at: createdAt,
+        updated_at: createdAt,
+      };
+
+      tables.behaviors.push(behavior);
+      tables.behavior_definition_events.push(event);
+
+      return { data: behavior, error: null };
+    },
+  );
 
   return {
-    supabase: { from } as never,
+    supabase: { from, rpc } as never,
     tables,
     from,
+    rpc,
   };
 }
 

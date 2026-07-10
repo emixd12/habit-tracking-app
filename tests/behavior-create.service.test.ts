@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearUserReadCache } from "../lib/cache/user-read-cache";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
@@ -9,7 +9,7 @@ const SCHEDULE_SLOT_ID = "44444444-4444-4444-8444-444444444444";
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   requireCurrentUserId: vi.fn(),
-  createBehavior: vi.fn(),
+  createBehaviorWithDefinitionEvent: vi.fn(),
   replaceBehaviorSchedules: vi.fn(),
   getBehaviorById: vi.fn(),
   getProfileTimezone: vi.fn(),
@@ -29,7 +29,6 @@ vi.mock("@/lib/db/behaviors.repo", async (importOriginal) => {
 
   return {
     ...original,
-    createBehavior: mocks.createBehavior,
     replaceBehaviorSchedules: mocks.replaceBehaviorSchedules,
     getBehaviorById: mocks.getBehaviorById,
     getProfileTimezone: mocks.getProfileTimezone,
@@ -40,6 +39,11 @@ vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
   markOccurrenceSyncStale: mocks.markOccurrenceSyncStale,
 }));
 
+vi.mock("@/lib/db/behaviorDefinitionEvents.repo", () => ({
+  createBehaviorWithDefinitionEvent: mocks.createBehaviorWithDefinitionEvent,
+  updateBehaviorWithDefinitionEvent: vi.fn(),
+}));
+
 describe("createBehaviorFromFormData", () => {
   beforeEach(() => {
     clearUserReadCache();
@@ -47,13 +51,18 @@ describe("createBehaviorFromFormData", () => {
     mocks.createClient.mockResolvedValue({ from: vi.fn() });
     mocks.requireCurrentUserId.mockResolvedValue(USER_ID);
     mocks.getProfileTimezone.mockResolvedValue("America/New_York");
-    mocks.createBehavior.mockResolvedValue({
-      id: BEHAVIOR_ID,
-      timezone: "America/New_York",
+    mocks.createBehaviorWithDefinitionEvent.mockResolvedValue({
+      ...storedBehavior(),
     });
     mocks.replaceBehaviorSchedules.mockResolvedValue(undefined);
     mocks.markOccurrenceSyncStale.mockResolvedValue(undefined);
     mocks.getBehaviorById.mockResolvedValue(storedBehavior());
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-26T12:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns a server-confirmed behavior view after creating the behavior", async () => {
@@ -78,15 +87,27 @@ describe("createBehaviorFromFormData", () => {
         label: "7:30 AM",
       }),
     ]);
-    expect(mocks.createBehavior).toHaveBeenCalledWith(
+    expect(mocks.createBehaviorWithDefinitionEvent).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({
-        user_id: USER_ID,
-        title: "Brush teeth",
-        category_id: CATEGORY_ID,
-        scheduled_time: "07:30",
-        timezone: "America/New_York",
-      }),
+      {
+        behavior: expect.objectContaining({
+          user_id: USER_ID,
+          title: "Brush teeth",
+          category_id: CATEGORY_ID,
+          scheduled_time: "07:30",
+          timezone: "America/New_York",
+        }),
+        definitionEventPlan: {
+          previousTitle: null,
+          nextTitle: "Brush teeth",
+          previousDescription: null,
+          nextDescription: "Evening routine",
+          changedFields: ["title", "description"],
+          recordedAt: "2026-06-26T12:00:00.000Z",
+          source: "manual",
+          reason: null,
+        },
+      },
     );
     expect(mocks.replaceBehaviorSchedules).toHaveBeenCalledWith(
       expect.anything(),
@@ -143,6 +164,23 @@ describe("createBehaviorFromFormData", () => {
         label: "7:30 AM",
       }),
     ]);
+  });
+
+  it("does not run follow-on writes when the atomic behavior/event create fails", async () => {
+    const { createBehaviorFromFormData } = await import(
+      "../lib/services/behavior.service"
+    );
+    mocks.createBehaviorWithDefinitionEvent.mockRejectedValueOnce(
+      new Error("Definition event insert failed."),
+    );
+
+    await expect(createBehaviorFromFormData(createFormData())).rejects.toThrow(
+      "Definition event insert failed.",
+    );
+
+    expect(mocks.replaceBehaviorSchedules).not.toHaveBeenCalled();
+    expect(mocks.markOccurrenceSyncStale).not.toHaveBeenCalled();
+    expect(mocks.getBehaviorById).not.toHaveBeenCalled();
   });
 });
 

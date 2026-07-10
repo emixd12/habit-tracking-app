@@ -29,6 +29,14 @@ Export options should include:
 - Include occurrence notes, off by default. Download API routes use
   `include_notes=1` to opt in.
 
+Behavior definition history has a separate privacy posture from occurrence
+notes. Full JSON and BehaviorLog exports include full prior and next title and
+description values by default for every included behavior. The Markdown
+summary includes the revision count and agent guidance, but does not repeat the
+revision text. Historical definitions can contain sensitive context, so the
+Export & Import screen discloses this default before download. Ticket 057 does
+not add a separate history option.
+
 ## JSONL
 
 One event per line.
@@ -44,6 +52,10 @@ unless the include-notes option is selected.
 
 JSONL occurrence rows are current snapshots. `status_marked_at` is the latest
 mark on that snapshot, not the complete decision trail.
+
+App-native JSONL remains a compact snapshot format and does not include
+behavior definition events. Use Full JSON or BehaviorLog when definition
+history is needed.
 
 Behavior event:
 
@@ -77,6 +89,9 @@ include-notes option is selected.
 CSV rows are current snapshots. `status_marked_at` must not be interpreted as
 complete status history.
 
+CSV does not include behavior definition events. Use Full JSON or BehaviorLog
+when definition history is needed.
+
 ## Full JSON backup
 
 Shape:
@@ -90,7 +105,8 @@ Shape:
   "categories": [],
   "behaviors": [],
   "occurrences": [],
-  "status_events": []
+  "status_events": [],
+  "behavior_definition_events": []
 }
 ```
 
@@ -107,6 +123,23 @@ The additive `status_events` root preserves compatibility for existing readers
 of the unchanged category, behavior, and occurrence snapshot arrays. BehaviorLog
 remains the interoperable and restore-oriented export format; its
 `data/status_events.jsonl` remains the authoritative standard record.
+
+`behavior_definition_events` is the append-only history for behavior title and
+description definitions. Each record includes:
+
+- `id` and `behavior_id`
+- full `previous_title` and `next_title` values
+- full `previous_description` and `next_description` values
+- canonical `changed_fields` in `title`, then `description` order
+- `recorded_at`, `source`, optional schema-only `reason`, `created_at`, and
+  `updated_at`
+
+Events are filtered to behaviors included by the archived-behavior option. The
+complete event trail for those behaviors is included even when the selected
+occurrence range is 7, 30, or 90 days. Events sort by `recorded_at`, then `id`,
+so equal-timestamp exports remain deterministic. Baseline events use the
+behavior creation time and preserve the initial definition with null previous
+values.
 
 Behavior records include `schedules[]` as the current app-native schedule
 structure. `recurrence_rule`, `scheduled_time`, and `schedule_slots` remain in
@@ -129,6 +162,7 @@ The BehaviorLog bundle is the interoperability export. It is downloaded as
 - `data/notes.jsonl` when include-notes is selected and exported occurrences
   contain notes
 - `data/interventions.jsonl` when exported occurrences have reminder deliveries
+- `raw/cadence/behavior_definition_events.jsonl`
 - `csv/behaviors.csv`
 - `csv/schedules.csv`
 - `csv/occurrences.csv`
@@ -143,6 +177,14 @@ Core alignment rules:
 - UTC timestamps are used for ordering events.
 - Required files are listed in `manifest.json` with SHA-256 hashes.
 - App-specific fields live under the `app.cadence` extension namespace.
+- `raw/cadence/behavior_definition_events.jsonl` is an optional app-specific
+  BehaviorLog file. It contains the same sorted records as Full JSON
+  `behavior_definition_events`, is listed and hashed in the manifest with
+  `required: false` and `schema_ref: null`, and does not add a non-standard core
+  record type.
+- `manifest.json.extensions.app.cadence.behavior_definition_history` declares
+  the file path, record count, `recorded_at`/`id` ordering, and current
+  `export_only` import/restore support.
 
 The upstream standard lives at:
 `https://github.com/emixd12/BehaviorLog-Bundle`
@@ -189,10 +231,25 @@ Required bundle files:
 
 `data/notes.jsonl` is optional.
 
+`raw/cadence/behavior_definition_events.jsonl` is an optional Cadence export
+file. Current import, merge preview/apply, and restore preview/apply verify its
+manifest entry and hash through normal bundle validation, but do not parse or
+replay its revision records. These workflows use the current title and
+description snapshots in `data/behaviors.jsonl`: create-only and approved-merge
+creates record a local `source = import` baseline, while restore records a local
+import baseline or definition transition for the snapshot it applies. Those
+locally generated events do not reconstruct the bundle's earlier revision
+trail. Full JSON has no import or restore path. Users should retain the original
+Full JSON or BehaviorLog export when they need to preserve the complete
+revision trail outside Cadence.
+
 Import validation rules:
 
 - Validate `manifest.json` format, schema version, listed files, and SHA-256
   hashes for every listed file.
+- Accept the manifest-listed optional Cadence definition-history file without
+  treating it as a core record file. Its rows remain export-only in this
+  ticket.
 - Validate JSONL parsing with file and row errors that can be shown to the user
   later.
 - Validate supported record types for behavior, schedule, occurrence,
@@ -389,6 +446,10 @@ User-facing import UI rules:
   the server refusal, keep the prior preview available for review, and require
   a new preview before another apply attempt.
 - Raw uploaded bundle contents are not stored in the import-run ledger.
+- The Export & Import screen must disclose that the exported behavior
+  definition revision trail is not replayed in this release. Import and restore
+  use current behavior snapshots and record only the local import baseline or
+  transition needed to keep subsequent Cadence history complete.
 - Do not add full restore, destructive overwrite, generalized notes browsing, or
   intervention-to-reminder writes in this UI milestone.
 
@@ -521,6 +582,15 @@ must treat occurrence rows as current snapshots and use Full JSON
 late logging, and decision chronology. Markdown guidance does not add a
 status-history UI or new source-capture values.
 
+Every Markdown summary also reports how many behavior definition events are
+included for the exported behaviors and directs agents to Full JSON
+`behavior_definition_events` or BehaviorLog
+`raw/cadence/behavior_definition_events.jsonl`. Agents should use the ordered
+previous/next definitions when a rename or description change affects how past
+occurrences should be interpreted. The summary does not repeat the full
+historical text and definition events do not alter occurrence status or
+adherence calculations.
+
 Example:
 
 ```text
@@ -565,6 +635,8 @@ The resolver should not query Supabase directly.
 - JSONL emits one valid JSON object per line.
 - CSV escapes commas, quotes, and newlines.
 - Full JSON includes categories, behaviors, and occurrences.
+- Full JSON includes sorted all-time behavior definition events for included
+  behaviors with full previous/next text and canonical `changed_fields`.
 - AI summary calculates adherence correctly.
 - AI summary omits notes by default and includes a compact notes section when
   include-notes is selected.
@@ -572,6 +644,11 @@ The resolver should not query Supabase directly.
 - BehaviorLog bundle includes required files, manifest hashes, schedules,
   occurrences, status events, and notes only when include-notes is selected and
   notes exist.
+- BehaviorLog includes the optional hashed Cadence definition-history file as
+  `required: false` with no core schema reference, while remaining valid in the
+  upstream conformance harness and Cadence dry-run importer.
+- Markdown reports definition-history presence and gives rename/description
+  guidance without reproducing sensitive revision text.
 - BehaviorLog export synthesizes status events for resolved legacy occurrences
   that do not yet have internal `occurrence_status_events` rows.
 - BehaviorLog import validation accepts a bundle generated by the export

@@ -1,5 +1,4 @@
 import {
-  createBehavior,
   getBehaviorById,
   replaceBehaviorSchedules,
   updateBehavior,
@@ -7,6 +6,10 @@ import {
   type BehaviorScheduleWithSlots,
   type BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
+import {
+  createBehaviorWithDefinitionEvent,
+  updateBehaviorWithDefinitionEvent,
+} from "@/lib/db/behaviorDefinitionEvents.repo";
 import { createClient } from "@/lib/supabase/server";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import {
@@ -21,6 +24,11 @@ import type {
   CategoryOption,
 } from "@/lib/types/behavior";
 import type { BehaviorUpdate, NewBehavior } from "@/lib/types/database";
+import {
+  planBehaviorDefinitionChangeEvent,
+  planInitialBehaviorDefinitionEvent,
+  normalizeBehaviorDefinition,
+} from "@/lib/resolvers/behavior-definition.resolver";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import {
   behaviorErrorToActionState,
@@ -95,19 +103,35 @@ export async function createBehaviorFromFormData(
     archived_at: null,
   };
 
-  const [createdBehavior] = await Promise.all([
-    createBehavior(supabase, behavior),
+  const initialDefinitionEvent = planInitialBehaviorDefinitionEvent({
+    definition: {
+      title: behavior.title,
+      description: behavior.description ?? null,
+    },
+    recordedAt: new Date().toISOString(),
+    source: "manual",
+  });
+  const createdBehavior = await createBehaviorWithDefinitionEvent(supabase, {
+    behavior: {
+      ...behavior,
+      title: initialDefinitionEvent.nextTitle,
+      description: initialDefinitionEvent.nextDescription,
+    },
+    definitionEventPlan: initialDefinitionEvent,
+  });
+
+  await Promise.all([
     markOccurrenceSyncStale(supabase, {
       userId,
       reason: "behavior_changed",
       timezone: behavior.timezone,
     }),
+    replaceBehaviorSchedules(supabase, {
+      userId,
+      behaviorId: createdBehavior.id,
+      schedules: input.schedules.map(toBehaviorScheduleMutation),
+    }),
   ]);
-  await replaceBehaviorSchedules(supabase, {
-    userId,
-    behaviorId: createdBehavior.id,
-    schedules: input.schedules.map(toBehaviorScheduleMutation),
-  });
   const confirmedBehavior = await getBehaviorById(
     supabase,
     userId,
@@ -141,10 +165,25 @@ export async function updateBehaviorFromFormData(
     throw new Error("Behavior not found.");
   }
 
-  const behavior: BehaviorUpdate = {
-    category_id: input.categoryId,
+  const previousDefinition = normalizeBehaviorDefinition({
+    title: existingBehavior.title,
+    description: existingBehavior.description,
+  });
+  const nextDefinition = normalizeBehaviorDefinition({
     title: input.title,
     description: input.description,
+  });
+  const definitionEvent = planBehaviorDefinitionChangeEvent({
+    previousDefinition,
+    nextDefinition,
+    recordedAt: new Date().toISOString(),
+    source: "manual",
+  });
+  const behavior: BehaviorUpdate = {
+    category_id: input.categoryId,
+    title: definitionEvent?.nextTitle ?? existingBehavior.title,
+    description:
+      definitionEvent?.nextDescription ?? existingBehavior.description,
     recurrence_rule: recurrenceRuleToJson(input.recurrenceRule),
     scheduled_time: input.scheduledTime,
     browser_reminder_enabled: input.browserReminderEnabled,
@@ -154,7 +193,16 @@ export async function updateBehaviorFromFormData(
     archived_at: resolveArchiveTimestamp(existingBehavior, input.active),
   };
   const [updatedBehavior] = await Promise.all([
-    updateBehavior(supabase, userId, input.behaviorId, behavior),
+    updateBehaviorWithDefinitionEvent(supabase, {
+      behaviorId: input.behaviorId,
+      behavior,
+      expectedDefinition: {
+        title: existingBehavior.title,
+        description: existingBehavior.description,
+      },
+      expectedNormalizedDefinition: previousDefinition,
+      definitionEventPlan: definitionEvent,
+    }),
     markOccurrenceSyncStale(supabase, {
       userId,
       reason: "behavior_changed",

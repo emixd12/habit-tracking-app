@@ -481,6 +481,7 @@ function createApplyClient(input: {
       },
     ],
     behaviors: [],
+    behavior_definition_events: [],
     behavior_schedule_slots: [],
     occurrences: [],
     occurrence_status_events: [],
@@ -491,11 +492,68 @@ function createApplyClient(input: {
   const from = vi.fn(
     (table: string) => new FakeQuery(table, tables, counters),
   );
+  const rpc = vi.fn(
+    async (
+      functionName: string,
+      args: {
+        behavior_payload?: Record<string, unknown>;
+        definition_event_plan?: Record<string, unknown>;
+      },
+    ) => {
+      if (functionName !== "create_behavior_with_definition_event") {
+        return {
+          data: null,
+          error: new Error(`Unsupported fake RPC ${functionName}.`),
+        };
+      }
+
+      const behaviorPayload = args.behavior_payload;
+      const definitionEventPlan = args.definition_event_plan;
+
+      if (!behaviorPayload || !definitionEventPlan) {
+        return {
+          data: null,
+          error: new Error("Missing atomic behavior definition payload."),
+        };
+      }
+
+      const behaviorId = `behaviors-${tables.behaviors.length + 1}`;
+      const createdAt =
+        behaviorPayload.created_at ?? definitionEventPlan.recorded_at;
+      const behavior = {
+        ...behaviorPayload,
+        id: behaviorId,
+        user_id: USER_ID,
+        created_at: createdAt,
+        updated_at: createdAt,
+      };
+
+      tables.behaviors.push(behavior);
+      tables.behavior_definition_events.push({
+        id: `behavior_definition_events-${tables.behavior_definition_events.length + 1}`,
+        user_id: USER_ID,
+        behavior_id: behaviorId,
+        previous_title: definitionEventPlan.previous_title,
+        next_title: definitionEventPlan.next_title,
+        previous_description: definitionEventPlan.previous_description,
+        next_description: definitionEventPlan.next_description,
+        changed_fields: definitionEventPlan.changed_fields,
+        recorded_at: definitionEventPlan.recorded_at,
+        source: definitionEventPlan.source,
+        reason: definitionEventPlan.reason,
+        created_at: createdAt,
+        updated_at: createdAt,
+      });
+
+      return { data: behavior, error: null };
+    },
+  );
 
   return {
-    supabase: { from } as never,
+    supabase: { from, rpc } as never,
     tables,
     from,
+    rpc,
   };
 }
 

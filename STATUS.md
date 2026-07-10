@@ -74,6 +74,11 @@ format. Reruns passed discovery, portability, and pre-login trust tasks. This
 is proxy evidence only; real-user testing remains necessary before claiming
 externally validated comprehension.
 
+Ticket 057 is complete locally. Behavior title and description revisions now
+have append-only, owner-scoped history with atomic baseline/change writes, and
+the history is included in full JSON and BehaviorLog exports. Hosted deployment
+of its migration remains pending owner authorization.
+
 Ticket 059 is complete. Restore apply now maps non-UUID BehaviorLog external
 IDs, including Cadence schedule IDs like `sch_<uuid>`, to deterministic local
 UUIDs for product writes while preserving import-record provenance mappings for
@@ -3767,6 +3772,53 @@ Remaining risk:
 - The walkthroughs are owner-approved agent proxy testing, not real-user
   research. Do not claim externally validated marketing comprehension until
   independent first-time human-user testing repeats the same tasks.
+
+### Ticket 057: Behavior definition history and portability
+
+Status: complete.
+
+Implementation summary:
+- Added the append-only, RLS-protected `behavior_definition_events` table for
+  title and description baselines and transitions. Existing behaviors receive
+  a faithful baseline of their currently stored definition without inventing
+  prior revisions.
+- Added resolver-owned definition normalization and change planning, plus
+  owner-scoped repository access.
+- Behavior create and update now write the behavior and its definition event in
+  one database transaction. Definition-changing and schedule-only updates both
+  reject a stale stored definition; true definition no-ops do not create an
+  event.
+- Create-only and approved-merge imports create their behavior baseline in the
+  same transaction as the behavior. Restore-specific definition transitions
+  are completed by Ticket 059's atomic restore wrapper.
+- Full JSON includes sorted definition history. BehaviorLog includes the
+  optional `raw/cadence/behavior_definition_events.jsonl` extension with
+  manifest, Markdown guidance, privacy disclosure, and export UI copy.
+- Import and restore use current definitions to create local baselines or
+  transitions; they do not replay earlier Cadence-only revision history from an
+  exported extension.
+
+Verification:
+- Pass: focused behavior-definition, behavior-create, import-write, export,
+  conformance, and RLS tests.
+- Pass: clean local `SUPABASE_NO_TELEMETRY=1 npm run supabase -- db reset`
+  through `20260709203154_make_behaviorlog_restore_atomic_and_idempotent.sql`.
+- Pass: local Supabase TypeScript type regeneration from the reset schema.
+- Pass: local export/import fixture browser checks at 1280px and 390px with no
+  horizontal overflow.
+- Pass after all five-ticket integration work settled: `npm run agents:check`
+  (95 invariants), `npm run resolvers:check` (152 invariants),
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test` (67 files, 428 tests), `npm run build`, and
+  `git diff --check`.
+
+Remaining risk:
+- Hosted deployment of
+  `20260709201516_add_behavior_definition_events.sql` requires owner
+  authorization before this schema-dependent slice can be pushed live.
+- The backfill records each existing behavior's current stored definition at
+  its original creation timestamp; it cannot reconstruct unrecorded historical
+  edits from before this ticket.
 
 ### Ticket 058: Status timestamp and status history export hardening
 

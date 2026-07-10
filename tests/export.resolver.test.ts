@@ -10,6 +10,7 @@ import {
 } from "../lib/resolvers/export.resolver";
 import type {
   ExportBehaviorInput,
+  ExportBehaviorDefinitionEventInput,
   ExportCategoryInput,
   ExportOccurrenceInput,
   ExportReminderDeliveryInput,
@@ -73,8 +74,7 @@ function behavior(
 }
 
 function occurrence(
-  overrides: Partial<ExportOccurrenceInput> &
-    Pick<ExportOccurrenceInput, "id">,
+  overrides: Partial<ExportOccurrenceInput> & Pick<ExportOccurrenceInput, "id">,
 ): ExportOccurrenceInput {
   return {
     behaviorId: "behavior-brush",
@@ -114,15 +114,38 @@ function reminderDelivery(
   };
 }
 
-function resolve(overrides: {
-  behaviors?: ExportBehaviorInput[];
-  occurrences?: ExportOccurrenceInput[];
-  statusEvents?: ExportStatusEventInput[];
-  reminderDeliveries?: ExportReminderDeliveryInput[];
-  range?: string | number | null;
-  includeArchived?: boolean;
-  includeNotes?: boolean;
-} = {}) {
+function behaviorDefinitionEvent(
+  overrides: Partial<ExportBehaviorDefinitionEventInput> &
+    Pick<ExportBehaviorDefinitionEventInput, "id">,
+): ExportBehaviorDefinitionEventInput {
+  return {
+    behaviorId: "behavior-brush",
+    previousTitle: "Brush",
+    nextTitle: "Brush teeth",
+    previousDescription: "Evening routine",
+    nextDescription: "Night brushing",
+    changedFields: ["title", "description"],
+    recordedAt: "2026-05-15T13:00:00Z",
+    source: "manual",
+    reason: null,
+    createdAt: "2026-05-15T13:00:00Z",
+    updatedAt: "2026-05-15T13:00:00Z",
+    ...overrides,
+  };
+}
+
+function resolve(
+  overrides: {
+    behaviors?: ExportBehaviorInput[];
+    behaviorDefinitionEvents?: ExportBehaviorDefinitionEventInput[];
+    occurrences?: ExportOccurrenceInput[];
+    statusEvents?: ExportStatusEventInput[];
+    reminderDeliveries?: ExportReminderDeliveryInput[];
+    range?: string | number | null;
+    includeArchived?: boolean;
+    includeNotes?: boolean;
+  } = {},
+) {
   return resolveExportBundle({
     profile: {
       timezone: DEFAULT_TIMEZONE,
@@ -130,6 +153,7 @@ function resolve(overrides: {
     },
     categories,
     behaviors: overrides.behaviors ?? [behavior({ id: "behavior-brush" })],
+    behaviorDefinitionEvents: overrides.behaviorDefinitionEvents,
     occurrences: overrides.occurrences ?? [occurrence({ id: "occurrence-1" })],
     statusEvents: overrides.statusEvents,
     reminderDeliveries: overrides.reminderDeliveries,
@@ -498,7 +522,9 @@ describe("resolveExportBundle", () => {
         }),
       ],
     });
-    const jsonlRecords = bundle.jsonl.split("\n").map((line) => JSON.parse(line));
+    const jsonlRecords = bundle.jsonl
+      .split("\n")
+      .map((line) => JSON.parse(line));
     const behaviorRecord = jsonlRecords.find(
       (record) => record.type === "behavior",
     );
@@ -650,6 +676,162 @@ describe("resolveExportBundle", () => {
     );
   });
 
+  it("exports all-time behavior definition history for included behaviors in deterministic order", () => {
+    const history = [
+      behaviorDefinitionEvent({
+        id: "definition-z",
+        changedFields: ["description", "title"],
+        recordedAt: "2026-05-15T09:00:00-04:00",
+      }),
+      behaviorDefinitionEvent({
+        id: "definition-a",
+        previousTitle: null,
+        previousDescription: null,
+        nextDescription: "Evening routine",
+        changedFields: ["title", "description"],
+        recordedAt: "2026-05-01T12:00:00Z",
+        source: "system",
+        reason: "baseline_backfill",
+        createdAt: "2026-05-01T12:00:00Z",
+        updatedAt: "2026-05-01T12:00:00Z",
+      }),
+      behaviorDefinitionEvent({
+        id: "definition-b",
+        previousTitle: "Brush teeth",
+        nextTitle: "Brush teeth",
+        previousDescription: "Night brushing",
+        nextDescription: "Night brushing and flossing",
+        changedFields: ["description"],
+        recordedAt: "2026-05-15T13:00:00Z",
+      }),
+      behaviorDefinitionEvent({
+        id: "definition-archived",
+        behaviorId: "behavior-archived",
+      }),
+      behaviorDefinitionEvent({
+        id: "definition-not-exported",
+        behaviorId: "behavior-not-exported",
+      }),
+    ];
+    const bundle = resolve({
+      range: "7",
+      behaviors: [
+        behavior({ id: "behavior-brush" }),
+        behavior({
+          id: "behavior-archived",
+          title: "Archived behavior",
+          active: false,
+          archivedAt: "2026-05-20T12:00:00Z",
+        }),
+      ],
+      behaviorDefinitionEvents: history,
+    });
+    const fileByPath = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file]),
+    );
+    const rawHistory = parseJsonl(
+      fileByPath.get("raw/cadence/behavior_definition_events.jsonl")?.content ??
+        "",
+    );
+    const manifest = JSON.parse(fileByPath.get("manifest.json")?.content ?? "");
+    const manifestEntry = manifest.files.find(
+      (entry: { path: string }) =>
+        entry.path === "raw/cadence/behavior_definition_events.jsonl",
+    );
+
+    expect(bundle.jsonBackup.behavior_definition_events).toEqual([
+      expect.objectContaining({
+        id: "definition-a",
+        previous_title: null,
+        next_title: "Brush teeth",
+        previous_description: null,
+        next_description: "Evening routine",
+        changed_fields: ["title", "description"],
+        recorded_at: "2026-05-01T12:00:00Z",
+        source: "system",
+        reason: "baseline_backfill",
+      }),
+      expect.objectContaining({
+        id: "definition-b",
+        changed_fields: ["description"],
+        recorded_at: "2026-05-15T13:00:00Z",
+      }),
+      expect.objectContaining({
+        id: "definition-z",
+        changed_fields: ["title", "description"],
+        recorded_at: "2026-05-15T13:00:00Z",
+      }),
+    ]);
+    expect(rawHistory).toEqual(bundle.jsonBackup.behavior_definition_events);
+    expect(manifestEntry).toMatchObject({
+      media_type: "application/jsonl",
+      schema_ref: null,
+      required: false,
+      sha256: sha256(
+        fileByPath.get("raw/cadence/behavior_definition_events.jsonl")
+          ?.content ?? "",
+      ),
+    });
+    expect(manifest.extensions).toMatchObject({
+      "app.cadence": {
+        behavior_definition_history: {
+          path: "raw/cadence/behavior_definition_events.jsonl",
+          record_count: 3,
+          ordering: ["recorded_at", "id"],
+          import_restore_support: "export_only",
+        },
+      },
+    });
+    expect(bundle.markdownSummary).toContain(
+      "Behavior definition history: included (3 events)",
+    );
+    expect(bundle.markdownSummary).toContain("## Behavior definition history");
+    expect(bundle.markdownSummary).toContain(
+      "`raw/cadence/behavior_definition_events.jsonl`",
+    );
+
+    const withArchived = resolve({
+      range: "7",
+      includeArchived: true,
+      behaviors: [
+        behavior({ id: "behavior-brush" }),
+        behavior({
+          id: "behavior-archived",
+          title: "Archived behavior",
+          active: false,
+          archivedAt: "2026-05-20T12:00:00Z",
+        }),
+      ],
+      behaviorDefinitionEvents: history,
+    });
+
+    expect(
+      withArchived.jsonBackup.behavior_definition_events.map(
+        (event) => event.id,
+      ),
+    ).toEqual([
+      "definition-a",
+      "definition-archived",
+      "definition-b",
+      "definition-z",
+    ]);
+  });
+
+  it("emits an empty optional definition-history file when no events are available", () => {
+    const bundle = resolve();
+    const fileByPath = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file]),
+    );
+
+    expect(bundle.jsonBackup.behavior_definition_events).toEqual([]);
+    expect(
+      fileByPath.get("raw/cadence/behavior_definition_events.jsonl")?.content,
+    ).toBe("");
+    expect(bundle.markdownSummary).toContain(
+      "Behavior definition history: included (0 events)",
+    );
+  });
+
   it("guides Markdown readers to use status history for corrections and logging", () => {
     const bundle = resolve();
 
@@ -657,8 +839,12 @@ describe("resolveExportBundle", () => {
     expect(bundle.markdownSummary).toContain(
       "Occurrence rows are current snapshots.",
     );
-    expect(bundle.markdownSummary).toContain("`recorded_at` is when Cadence logged");
-    expect(bundle.markdownSummary).toContain("`revises_event_id` links a correction");
+    expect(bundle.markdownSummary).toContain(
+      "`recorded_at` is when Cadence logged",
+    );
+    expect(bundle.markdownSummary).toContain(
+      "`revises_event_id` links a correction",
+    );
   });
 
   it("emits a BehaviorLog bundle with required files, hashes, status events, and notes", () => {
@@ -714,6 +900,7 @@ describe("resolveExportBundle", () => {
       "data/occurrences.jsonl",
       "data/status_events.jsonl",
       "data/notes.jsonl",
+      "raw/cadence/behavior_definition_events.jsonl",
       "csv/behaviors.csv",
       "csv/schedules.csv",
       "csv/occurrences.csv",
@@ -967,18 +1154,17 @@ describe("resolveExportBundle", () => {
         "delivery_status",
       ]),
     });
-    expect(interventions.map((intervention) => intervention.intervention_id)).toEqual([
+    expect(
+      interventions.map((intervention) => intervention.intervention_id),
+    ).toEqual([
       "delivery-pending",
       "delivery-sent",
       "delivery-failed",
       "delivery-cancelled",
     ]);
-    expect(interventions.map((intervention) => intervention.delivery_status)).toEqual([
-      "pending",
-      "sent",
-      "failed",
-      "cancelled",
-    ]);
+    expect(
+      interventions.map((intervention) => intervention.delivery_status),
+    ).toEqual(["pending", "sent", "failed", "cancelled"]);
     expect(interventions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

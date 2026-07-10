@@ -29,13 +29,13 @@ const DOWNLOAD_ACTIONS = [
     format: "json",
     label: "App JSON backup (.json)",
     description:
-      "App-native categories, behaviors, occurrence snapshots, and status-event history.",
+      "App-native categories, behaviors, occurrence snapshots, status-event history, and behavior definition history.",
   },
   {
     format: "behaviorlog",
     label: "BehaviorLog bundle (.behaviorlog.zip)",
     description:
-      "Complete portability and restore-oriented bundle with status history, manifest, and CSV views.",
+      "BehaviorLog core records plus Cadence definition history, status history, manifest, and CSV views.",
   },
 ] as const;
 
@@ -87,7 +87,10 @@ export function ExportPanel({
                 </p>
               </div>
               <dl className="grid gap-2">
-                <ExportStat label="Behaviors" value={exportData.behaviorCount} />
+                <ExportStat
+                  label="Behaviors"
+                  value={exportData.behaviorCount}
+                />
                 <ExportStat
                   label="Occurrences"
                   value={exportData.occurrenceCount}
@@ -140,13 +143,22 @@ export function ExportPanel({
           </form>
         </section>
 
-        <section className="grid gap-4" aria-labelledby="export-downloads-title">
+        <section
+          className="grid gap-4"
+          aria-labelledby="export-downloads-title"
+        >
           <h3
             id="export-downloads-title"
             className="text-xl font-bold leading-tight"
           >
             Downloads
           </h3>
+
+          <p className="max-w-3xl text-sm text-muted-readable">
+            Full JSON and BehaviorLog include complete prior and next behavior
+            titles and descriptions by default. Historical definitions can
+            contain sensitive text.
+          </p>
 
           <ul className="grid gap-2">
             {DOWNLOAD_ACTIONS.map((action) => (
@@ -197,7 +209,9 @@ export function ExportPanel({
             />
           </div>
 
-          <pre className="mt-5 max-h-[36rem] overflow-auto whitespace-pre-wrap border border-line bg-surface p-4 text-sm leading-6 text-foreground">{exportData.markdownSummary}</pre>
+          <pre className="mt-5 max-h-[36rem] overflow-auto whitespace-pre-wrap border border-line bg-surface p-4 text-sm leading-6 text-foreground">
+            {exportData.markdownSummary}
+          </pre>
         </section>
       </section>
 
@@ -213,6 +227,11 @@ export function ExportPanel({
             Bring in a BehaviorLog bundle, review the preview, and apply only
             supported changes. Restore stays gated behind its own preview and
             confirmation.
+          </p>
+          <p className="mt-2 max-w-3xl text-sm text-muted-readable">
+            Exported behavior definition revisions are not replayed on import or
+            restore. Cadence uses the current title and description snapshot and
+            records a new local import baseline or transition.
           </p>
         </div>
         <BehaviorLogImportPanel recentRuns={importData.recentRuns} />

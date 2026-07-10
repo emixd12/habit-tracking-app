@@ -112,6 +112,7 @@ export type BehaviorLogStatusSemantics =
 export type BehaviorLogExistingBehavior = {
   id: string;
   title: string;
+  description?: string | null;
   category?: string | null;
   active?: boolean | null;
   archivedAt?: string | null;
