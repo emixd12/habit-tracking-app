@@ -2,9 +2,11 @@ import { Temporal } from "@js-temporal/polyfill";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveExportBundle } from "../lib/resolvers/export.resolver";
+import { createBehaviorLogImportBundleFingerprint } from "../lib/resolvers/behaviorlog-import.resolver";
 import {
   applyBehaviorLogRestoreUploadFromFormData,
   createBehaviorLogRestorePreviewRun,
+  deriveBehaviorLogRestoreLocalId,
   previewBehaviorLogRestoreFromZip,
 } from "../lib/services/behaviorlog-restore.service";
 import { createStoredZip } from "../lib/services/zip";
@@ -21,16 +23,72 @@ const NOW = Temporal.Instant.from("2026-06-08T16:00:00Z");
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 type RestorePayloadForTest = {
-  schedules: Array<{ id: string }>;
-  occurrences: Array<{ behavior_schedule_slot_id: string }>;
+  behaviors: Array<{
+    id: string;
+    external_id: string;
+    title: string;
+    description: string | null;
+    created_at: string | null;
+  }>;
+  behavior_definition_events: Array<{
+    event_kind: "baseline" | "transition";
+    behavior_id: string;
+    previous_title: string | null;
+    next_title: string;
+    previous_description: string | null;
+    next_description: string | null;
+    changed_fields: Array<"title" | "description">;
+    recorded_at: string;
+    source: "import";
+    reason: "behaviorlog_restore";
+    expected_previous_title: string | null;
+    expected_previous_description: string | null;
+  }>;
+  schedules: Array<{
+    id: string;
+    external_id: string;
+    behavior_id: string;
+  }>;
+  occurrences: Array<{
+    id: string;
+    external_id: string;
+    behavior_id: string;
+    behavior_schedule_slot_id: string;
+    scheduled_for: string;
+    local_date: string;
+    status: "unresolved" | "completed" | "not_completed";
+  }>;
+  status_events: Array<{
+    id: string;
+    external_id: string;
+    occurrence_id: string;
+    behavior_id: string;
+    recorded_at: string;
+    status: "unresolved" | "completed" | "not_completed";
+    status_semantics: "explicit_user_mark";
+    revises_event_id: string | null;
+  }>;
+  mappings: Array<{
+    record_type: string;
+    external_id: string;
+    local_id: string;
+  }>;
+  preconditions: Array<{
+    record_type: string;
+    local_id: string;
+    expectation: "absent" | "unchanged";
+    expected_updated_at: string | null;
+  }>;
+  apply_payload_digest: string;
 };
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   getBehaviorLogImportRunById: vi.fn(),
+  getAppliedBehaviorLogRestoreRunByAcceptedPreview: vi.fn(),
   createBehaviorLogImportRun: vi.fn(),
-  createBehaviorLogImportRecordMappings: vi.fn(),
-  updateBehaviorLogImportRunStatus: vi.fn(),
+  markBehaviorLogRestoreRunFailedIfPending: vi.fn(),
+  bindBehaviorLogRestoreApplyPayload: vi.fn(),
   listBehaviorLogExistingRecords: vi.fn(),
   markOccurrenceSyncStale: vi.fn(),
 }));
@@ -45,10 +103,13 @@ vi.mock("@/lib/db/behaviorLogImports.repo", async (importOriginal) => {
   return {
     ...original,
     getBehaviorLogImportRunById: mocks.getBehaviorLogImportRunById,
+    getAppliedBehaviorLogRestoreRunByAcceptedPreview:
+      mocks.getAppliedBehaviorLogRestoreRunByAcceptedPreview,
     createBehaviorLogImportRun: mocks.createBehaviorLogImportRun,
-    createBehaviorLogImportRecordMappings:
-      mocks.createBehaviorLogImportRecordMappings,
-    updateBehaviorLogImportRunStatus: mocks.updateBehaviorLogImportRunStatus,
+    markBehaviorLogRestoreRunFailedIfPending:
+      mocks.markBehaviorLogRestoreRunFailedIfPending,
+    bindBehaviorLogRestoreApplyPayload:
+      mocks.bindBehaviorLogRestoreApplyPayload,
   };
 });
 
@@ -83,8 +144,52 @@ describe("BehaviorLog restore apply service", () => {
       rpc: vi.fn(),
     });
     mocks.listBehaviorLogExistingRecords.mockResolvedValue(emptyExisting());
-    mocks.createBehaviorLogImportRecordMappings.mockResolvedValue(undefined);
+    mocks.getAppliedBehaviorLogRestoreRunByAcceptedPreview.mockResolvedValue(
+      null,
+    );
+    mocks.markBehaviorLogRestoreRunFailedIfPending.mockResolvedValue({});
     mocks.markOccurrenceSyncStale.mockResolvedValue({});
+    mocks.bindBehaviorLogRestoreApplyPayload.mockResolvedValue(
+      "a".repeat(64),
+    );
+  });
+
+  it("derives account-scoped ids for create actions even when external ids are UUID-shaped", () => {
+    const externalId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const createAction = {
+      recordType: "behavior" as const,
+      action: "create" as const,
+      destructive: false,
+      externalId,
+      localId: null,
+      reasons: [],
+    };
+    const first = deriveBehaviorLogRestoreLocalId(createAction, {
+      externalId,
+      label: "behavior",
+      recordType: "behavior",
+      userId: USER_ID,
+      bundleFingerprint: "bundle-fingerprint",
+    });
+    const repeated = deriveBehaviorLogRestoreLocalId(createAction, {
+      externalId,
+      label: "behavior",
+      recordType: "behavior",
+      userId: USER_ID,
+      bundleFingerprint: "bundle-fingerprint",
+    });
+    const otherAccount = deriveBehaviorLogRestoreLocalId(createAction, {
+      externalId,
+      label: "behavior",
+      recordType: "behavior",
+      userId: "99999999-9999-4999-8999-999999999999",
+      bundleFingerprint: "bundle-fingerprint",
+    });
+
+    expect(first).toMatch(UUID_PATTERN);
+    expect(first).not.toBe(externalId);
+    expect(repeated).toBe(first);
+    expect(otherAccount).not.toBe(first);
   });
 
   it("requires a fresh-backup acknowledgement before auth or writes", async () => {
@@ -142,6 +247,10 @@ describe("BehaviorLog restore apply service", () => {
 
   it("refuses stale previews when local data no longer matches the accepted run", async () => {
     const zip = createStoredZip(bundleFiles());
+    const bundlePreview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: emptyExisting(),
+    });
     const formData = new FormData();
 
     formData.set("confirm_backup", "yes");
@@ -158,9 +267,11 @@ describe("BehaviorLog restore apply service", () => {
       import_mode: "restore_preview",
       status: "previewed",
       dry_run_summary: {
+        ...acceptedPreviewSnapshot(bundlePreview),
         previewFingerprint: "accepted-preview",
         localDataFingerprint: "accepted-local",
       },
+      bundle_fingerprint: bundlePreview.bundleFingerprint,
       started_at: "2026-06-08T21:10:00Z",
       completed_at: null,
       failure_message: null,
@@ -172,7 +283,172 @@ describe("BehaviorLog restore apply service", () => {
     expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
   });
 
-  it("maps Cadence schedule external ids to UUIDs before restore apply", async () => {
+  it("rejects a replacement status-history preview as preview-only", async () => {
+    const zip = createStoredZip(bundleFiles());
+    const preview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: emptyExisting(),
+      statusHistoryPolicy: "replace_status_history",
+    });
+
+    expect(preview.valid).toBe(true);
+    expect(preview.statusHistoryPolicy.applySupportedInThisTicket).toBe(false);
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(
+      restorePreviewRun(preview),
+    );
+
+    await expect(
+      applyBehaviorLogRestoreUploadFromFormData(
+        restoreApplyFormData(zip, preview),
+      ),
+    ).rejects.toThrow("status-history policy is preview-only");
+    expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
+    expect(mocks.bindBehaviorLogRestoreApplyPayload).not.toHaveBeenCalled();
+  });
+
+  it("returns the applied result for an exact accepted preview before recomputing changed local data", async () => {
+    const zip = createStoredZip(bundleFiles());
+    const preview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: emptyExisting(),
+    });
+    const previewRun = restorePreviewRun(preview);
+    const appliedRun = restoreAppliedRun(preview);
+
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(previewRun);
+    mocks.getAppliedBehaviorLogRestoreRunByAcceptedPreview.mockResolvedValue(
+      appliedRun,
+    );
+
+    const result = await applyBehaviorLogRestoreUploadFromFormData(
+      restoreApplyFormData(zip, preview),
+    );
+
+    expect(result.status).toBe("applied");
+    expect(result.message).toContain("already applied");
+    expect(result.preview?.previewFingerprint).toBe(preview.previewFingerprint);
+    expect(result.applyResult?.importRun.id).toBe(appliedRun.id);
+    expect(result.applyResult?.appliedCounts).toEqual({
+      upserted_schedules: 1,
+      provenance_mappings: 4,
+    });
+    expect(mocks.listBehaviorLogExistingRecords).not.toHaveBeenCalled();
+    expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
+  });
+
+  it("does not reuse an applied result for a changed bundle payload", async () => {
+    const files = bundleFiles();
+    const zip = createStoredZip(files);
+    const preview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: emptyExisting(),
+    });
+    const previewRun = restorePreviewRun(preview);
+    const changedFiles = files.map((file, index) =>
+      index === 0 ? { ...file, content: `${file.content}\n` } : file,
+    );
+
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(previewRun);
+    mocks.getAppliedBehaviorLogRestoreRunByAcceptedPreview.mockResolvedValue(
+      restoreAppliedRun(preview),
+    );
+
+    await expect(
+      applyBehaviorLogRestoreUploadFromFormData(
+        restoreApplyFormData(createStoredZip(changedFiles), preview),
+      ),
+    ).rejects.toThrow("uploaded bundle no longer matches");
+    expect(
+      mocks.getAppliedBehaviorLogRestoreRunByAcceptedPreview,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("recognizes a concurrent apply that commits during stale-preview recomputation", async () => {
+    const zip = createStoredZip(bundleFiles());
+    const preview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: emptyExisting(),
+    });
+    const previewRun = restorePreviewRun(preview);
+    const appliedRun = restoreAppliedRun(preview);
+
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(previewRun);
+    mocks.getAppliedBehaviorLogRestoreRunByAcceptedPreview
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(appliedRun);
+    mocks.listBehaviorLogExistingRecords.mockResolvedValue({
+      ...emptyExisting(),
+      behaviors: [
+        {
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          title: "Local data committed by the concurrent request",
+          category: null,
+          active: true,
+          archivedAt: null,
+          schedules: [],
+        },
+      ],
+    });
+
+    const result = await applyBehaviorLogRestoreUploadFromFormData(
+      restoreApplyFormData(zip, preview),
+    );
+
+    expect(result.status).toBe("applied");
+    expect(result.applyResult?.importRun.id).toBe(appliedRun.id);
+    expect(
+      mocks.getAppliedBehaviorLogRestoreRunByAcceptedPreview,
+    ).toHaveBeenCalledTimes(2);
+    expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
+  });
+
+  it("does not overwrite an atomically applied run when the RPC acknowledgement is uncertain", async () => {
+    const zip = createStoredZip(bundleFiles());
+    const preview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: emptyExisting(),
+    });
+    const previewRun = restorePreviewRun(preview);
+    const applyRun = {
+      ...restoreAppliedRun(preview),
+      status: "previewed",
+      completed_at: null,
+    };
+    const committedRun = restoreAppliedRun(preview);
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: new Error("RPC response was interrupted"),
+    }));
+
+    mocks.createClient.mockResolvedValue({
+      auth: {
+        getClaims: vi.fn(async () => ({
+          data: { claims: { sub: USER_ID } },
+          error: null,
+        })),
+      },
+      rpc,
+    });
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(previewRun);
+    mocks.getAppliedBehaviorLogRestoreRunByAcceptedPreview
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(committedRun);
+    mocks.createBehaviorLogImportRun.mockResolvedValue(applyRun);
+    mocks.markBehaviorLogRestoreRunFailedIfPending.mockResolvedValue(null);
+
+    const result = await applyBehaviorLogRestoreUploadFromFormData(
+      restoreApplyFormData(zip, preview),
+    );
+
+    expect(result.status).toBe("applied");
+    expect(result.applyResult?.importRun.id).toBe(committedRun.id);
+    expect(mocks.markBehaviorLogRestoreRunFailedIfPending).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ importRunId: applyRun.id }),
+    );
+  });
+
+  it("builds stable restore ids and resolver-planned definition history", async () => {
     const zip = createStoredZip(bundleFiles());
     const preview = previewBehaviorLogRestoreFromZip({
       zip,
@@ -218,19 +494,9 @@ describe("BehaviorLog restore apply service", () => {
       },
       rpc,
     });
-    mocks.getBehaviorLogImportRunById.mockResolvedValue({
-      id: "22222222-2222-4222-8222-222222222222",
-      user_id: USER_ID,
-      import_mode: "restore_preview",
-      status: "previewed",
-      dry_run_summary: {
-        previewFingerprint: preview.previewFingerprint,
-        localDataFingerprint: preview.localDataFingerprint,
-      },
-      started_at: "2026-06-08T21:10:00Z",
-      completed_at: null,
-      failure_message: null,
-    });
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(
+      restorePreviewRun(preview),
+    );
     const applyRun = {
       id: "33333333-3333-4333-8333-333333333333",
       user_id: USER_ID,
@@ -241,12 +507,23 @@ describe("BehaviorLog restore apply service", () => {
       completed_at: null,
       failure_message: null,
     };
-    mocks.createBehaviorLogImportRun.mockResolvedValue(applyRun);
-    mocks.updateBehaviorLogImportRunStatus.mockResolvedValue({
+    const secondApplyRun = {
       ...applyRun,
-      status: "applied",
-      completed_at: "2026-06-08T21:11:30Z",
-    });
+      id: "44444444-4444-4444-8444-444444444444",
+    };
+    const replaceApplyRun = {
+      ...applyRun,
+      id: "55555555-5555-4555-8555-555555555555",
+    };
+    const normalizedNoOpApplyRun = {
+      ...applyRun,
+      id: "66666666-6666-4666-8666-666666666666",
+    };
+    mocks.createBehaviorLogImportRun
+      .mockResolvedValueOnce(applyRun)
+      .mockResolvedValueOnce(secondApplyRun)
+      .mockResolvedValueOnce(normalizedNoOpApplyRun)
+      .mockResolvedValueOnce(replaceApplyRun);
 
     const result = await applyBehaviorLogRestoreUploadFromFormData(
       restoreApplyFormData(zip, preview),
@@ -261,15 +538,150 @@ describe("BehaviorLog restore apply service", () => {
     expect(restorePayload.occurrences[0]?.behavior_schedule_slot_id).toBe(
       restoredScheduleId,
     );
-    expect(mocks.createBehaviorLogImportRecordMappings).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(restorePayload.behavior_definition_events).toEqual([
+      {
+        event_kind: "baseline",
+        behavior_id: restorePayload.behaviors[0]?.id,
+        previous_title: null,
+        next_title: "Brush teeth",
+        previous_description: null,
+        next_description: "Night brushing",
+        changed_fields: ["title", "description"],
+        recorded_at: "2026-05-01T12:00:00Z",
+        source: "import",
+        reason: "behaviorlog_restore",
+        expected_previous_title: null,
+        expected_previous_description: null,
+      },
+    ]);
+    expect(restorePayload.behaviors[0]?.created_at).toBe(
+      "2026-05-01T12:00:00Z",
+    );
+    expect(restorePayload.mappings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          userId: USER_ID,
-          importRunId: applyRun.id,
-          recordType: "schedule",
-          externalId: scheduleAction?.externalId,
-          localId: restoredScheduleId,
+          record_type: "schedule",
+          external_id: scheduleAction?.externalId,
+          local_id: restoredScheduleId,
+        }),
+      ]),
+    );
+    expect(restorePayload.apply_payload_digest).toBe("a".repeat(64));
+    expect(mocks.bindBehaviorLogRestoreApplyPayload).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        importRunId: applyRun.id,
+        restorePayload: expect.objectContaining({
+          apply_run_id: applyRun.id,
+          preconditions: expect.arrayContaining([
+            expect.objectContaining({
+              record_type: "schedule",
+              local_id: restoredScheduleId,
+              expectation: "absent",
+            }),
+          ]),
+        }),
+      }),
+    );
+    expect(mocks.markBehaviorLogRestoreRunFailedIfPending).not.toHaveBeenCalled();
+
+    await applyBehaviorLogRestoreUploadFromFormData(
+      restoreApplyFormData(zip, preview),
+    );
+    const repeatedPayload = rpc.mock.calls[1]?.[1]?.restore_payload;
+
+    expect(repeatedPayload.schedules[0]?.id).toBe(restoredScheduleId);
+    expect(
+      repeatedPayload.mappings.find(
+        (mapping) => mapping.record_type === "schedule",
+      )?.local_id,
+    ).toBe(restoredScheduleId);
+
+    const existingAfterRestore = existingRecordsFromRestorePayload(restorePayload);
+    const existingBehavior = existingAfterRestore.behaviors[0];
+
+    if (!existingBehavior) {
+      throw new Error("Expected a restored behavior fixture.");
+    }
+
+    existingBehavior.title = "\t\u00a0Brush teeth\u3000";
+    existingBehavior.description = "\u2003Night brushing\u202f";
+    const normalizedNoOpPreview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: existingAfterRestore,
+    });
+
+    expect(normalizedNoOpPreview.actions.behaviors[0]?.action).toBe("keep");
+    mocks.listBehaviorLogExistingRecords.mockResolvedValueOnce(
+      existingAfterRestore,
+    );
+    mocks.getBehaviorLogImportRunById.mockResolvedValueOnce(
+      restorePreviewRun(normalizedNoOpPreview),
+    );
+
+    await applyBehaviorLogRestoreUploadFromFormData(
+      restoreApplyFormData(zip, normalizedNoOpPreview),
+    );
+    const normalizedNoOpPayload = rpc.mock.calls[2]?.[1]?.restore_payload;
+
+    expect(normalizedNoOpPayload.behavior_definition_events).toEqual([]);
+    expect(normalizedNoOpPayload.status_events).toEqual([]);
+    expect(normalizedNoOpPayload.behaviors[0]).toMatchObject({
+      title: "\t\u00a0Brush teeth\u3000",
+      description: "\u2003Night brushing\u202f",
+    });
+
+    existingBehavior.title = "Old brush title";
+    existingBehavior.description = "Old description";
+    const laterPreview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: existingAfterRestore,
+    });
+    const laterScheduleAction = laterPreview.actions.schedules.find(
+      (action) => action.externalId === scheduleAction?.externalId,
+    );
+
+    expect(laterScheduleAction?.localId).toBe(restoredScheduleId);
+    expect(laterScheduleAction?.action).not.toBe("create");
+    expect(laterPreview.actions.occurrences[0]?.action).not.toBe("skip");
+    expect(laterPreview.actions.statusEvents[0]?.action).not.toBe("skip");
+    expect(laterPreview.actions.behaviors[0]?.action).toBe("replace");
+
+    mocks.listBehaviorLogExistingRecords.mockResolvedValueOnce(
+      existingAfterRestore,
+    );
+    mocks.getBehaviorLogImportRunById.mockResolvedValueOnce(
+      restorePreviewRun(laterPreview),
+    );
+
+    await applyBehaviorLogRestoreUploadFromFormData(
+      restoreApplyFormData(zip, laterPreview),
+    );
+    const replacePayload = rpc.mock.calls[3]?.[1]?.restore_payload;
+
+    expect(replacePayload.behavior_definition_events).toEqual([
+      expect.objectContaining({
+        event_kind: "transition",
+        behavior_id: restorePayload.behaviors[0]?.id,
+        previous_title: "Old brush title",
+        next_title: "Brush teeth",
+        previous_description: "Old description",
+        next_description: "Night brushing",
+        changed_fields: ["title", "description"],
+        recorded_at: expect.any(String),
+        source: "import",
+        reason: "behaviorlog_restore",
+        expected_previous_title: "Old brush title",
+        expected_previous_description: "Old description",
+      }),
+    ]);
+    expect(replacePayload.preconditions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          record_type: "behavior",
+          local_id: restorePayload.behaviors[0]?.id,
+          expectation: "unchanged",
+          expected_updated_at: "2026-06-08T21:12:00Z",
         }),
       ]),
     );
@@ -285,6 +697,146 @@ function emptyExisting() {
     importedNotes: [],
     importedInterventions: [],
     mappings: [],
+  };
+}
+
+function restorePreviewRun(
+  preview: ReturnType<typeof previewBehaviorLogRestoreFromZip>,
+) {
+  return {
+    id: "22222222-2222-4222-8222-222222222222",
+    user_id: USER_ID,
+    import_mode: "restore_preview",
+    status: "previewed",
+    bundle_fingerprint: preview.bundleFingerprint,
+    dry_run_summary: acceptedPreviewSnapshot(preview),
+    started_at: "2026-06-08T21:10:00Z",
+    completed_at: "2026-06-08T21:10:01Z",
+    failure_message: null,
+  };
+}
+
+function acceptedPreviewSnapshot(
+  preview: ReturnType<typeof previewBehaviorLogRestoreFromZip>,
+) {
+  return {
+    ...preview,
+    errorCount: preview.errors.length,
+    warningCount: preview.warnings.length,
+    bundlePayloadFingerprint:
+      createBehaviorLogImportBundleFingerprint(bundleFiles()),
+  };
+}
+
+function restoreAppliedRun(
+  preview: ReturnType<typeof previewBehaviorLogRestoreFromZip>,
+) {
+  return {
+    id: "33333333-3333-4333-8333-333333333333",
+    user_id: USER_ID,
+    import_mode: "restore_apply",
+    status: "applied",
+    accepted_preview_run_id: "22222222-2222-4222-8222-222222222222",
+    accepted_preview_fingerprint: preview.previewFingerprint,
+    bundle_fingerprint: preview.bundleFingerprint,
+    dry_run_summary: {
+      ...preview,
+      applyResult: {
+        upserted_schedules: 1,
+        provenance_mappings: 4,
+      },
+    },
+    started_at: "2026-06-08T21:11:00Z",
+    completed_at: "2026-06-08T21:11:30Z",
+    failure_message: null,
+  };
+}
+
+function existingRecordsFromRestorePayload(payload: RestorePayloadForTest) {
+  const behavior = payload.behaviors[0];
+  const schedule = payload.schedules[0];
+  const occurrence = payload.occurrences[0];
+  const statusEvent = payload.status_events[0];
+
+  if (!behavior || !schedule || !occurrence || !statusEvent) {
+    throw new Error("Expected a complete core restore payload.");
+  }
+
+  const existingSchedule = {
+    id: schedule.id,
+    rowUpdatedAtUtc: "2026-06-08T21:12:00Z",
+    behaviorId: behavior.id,
+    recurrenceProfile: "behaviorlog.calendar_simple.v1",
+    recurrence: { type: "daily", interval: 1 },
+    timezone: DEFAULT_TIMEZONE,
+    localTime: "22:00",
+    windowStartLocal: null,
+    windowEndLocal: null,
+    cadenceScheduleKind: "exact" as const,
+    cadenceSchedulePreset: null,
+    activeFromLocalDate: "2026-05-01",
+    activeUntilLocalDate: null,
+    sourceOriginalId: schedule.id,
+  };
+
+  return {
+    behaviors: [
+      {
+        id: behavior.id,
+        rowUpdatedAtUtc: "2026-06-08T21:12:00Z",
+        title: "Brush teeth",
+        description: "Night brushing",
+        category: "Grooming",
+        active: true,
+        archivedAt: null,
+        sourceOriginalId: behavior.id,
+        schedules: [existingSchedule],
+      },
+    ],
+    schedules: [existingSchedule],
+    occurrences: [
+      {
+        id: occurrence.id,
+        rowUpdatedAtUtc: "2026-06-08T21:12:00Z",
+        behaviorId: behavior.id,
+        scheduleId: schedule.id,
+        behaviorTitle: "Brush teeth",
+        scheduledForUtc: occurrence.scheduled_for,
+        localDate: occurrence.local_date,
+        timezone: DEFAULT_TIMEZONE,
+        status: occurrence.status,
+        note: null,
+        sourceOriginalId: occurrence.id,
+      },
+    ],
+    statusEvents: [
+      {
+        id: statusEvent.id,
+        rowUpdatedAtUtc: "2026-06-08T21:12:00Z",
+        occurrenceId: occurrence.id,
+        behaviorId: behavior.id,
+        recordedAtUtc: statusEvent.recorded_at,
+        status: statusEvent.status,
+        statusSemantics: statusEvent.status_semantics,
+        sourceCaptureMethod: "manual_tap" as const,
+        sourceConfidence: "high" as const,
+        revisesEventId: statusEvent.revises_event_id,
+        sourceOriginalId: statusEvent.id,
+      },
+    ],
+    importedNotes: [],
+    importedInterventions: [],
+    mappings: payload.mappings.map((mapping) => ({
+      recordType: mapping.record_type as
+        | "behavior"
+        | "schedule"
+        | "occurrence"
+        | "status_event"
+        | "note"
+        | "intervention",
+      externalId: mapping.external_id,
+      localId: mapping.local_id,
+    })),
   };
 }
 

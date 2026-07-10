@@ -200,7 +200,8 @@ export function resolveBehaviorLogRestorePreview(
       selected: statusHistoryPolicy,
       default: "preserve_append_only_history",
       available: ["preserve_append_only_history", "replace_status_history"],
-      applySupportedInThisTicket: false,
+      applySupportedInThisTicket:
+        statusHistoryPolicy === "preserve_append_only_history",
     },
     semantics: {
       jsonlAuthoritative: true,

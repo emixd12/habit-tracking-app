@@ -1,13 +1,22 @@
 import { createHash } from "node:crypto";
 
 import {
+  bindBehaviorLogRestoreApplyPayload,
   createBehaviorLogImportRun,
-  createBehaviorLogImportRecordMappings,
+  getAppliedBehaviorLogRestoreRunByAcceptedPreview,
   getBehaviorLogImportRunById,
-  updateBehaviorLogImportRunStatus,
+  markBehaviorLogRestoreRunFailedIfPending,
 } from "@/lib/db/behaviorLogImports.repo";
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
-import { resolveBehaviorLogImportPreview } from "@/lib/resolvers/behaviorlog-import.resolver";
+import {
+  createBehaviorLogImportBundleFingerprint,
+  resolveBehaviorLogImportPreview,
+} from "@/lib/resolvers/behaviorlog-import.resolver";
+import {
+  normalizeBehaviorDefinition,
+  planBehaviorDefinitionChangeEvent,
+  planInitialBehaviorDefinitionEvent,
+} from "@/lib/resolvers/behavior-definition.resolver";
 import { resolveBehaviorLogRestorePreview } from "@/lib/resolvers/behaviorlog-restore.resolver";
 import {
   listBehaviorLogExistingRecords,
@@ -22,6 +31,7 @@ import {
 } from "@/lib/cache/stable-user-data.cache";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import type {
+  BehaviorLogImportBehaviorPlan,
   BehaviorLogExistingRecords,
   BehaviorLogImportFile,
   BehaviorLogImportNotePlan,
@@ -31,6 +41,10 @@ import type {
   BehaviorLogImportSchedulePlan,
 } from "@/lib/types/behaviorlog-import";
 import type { BehaviorLogImportRun } from "@/lib/types/database";
+import type {
+  BehaviorDefinition,
+  BehaviorDefinitionEventPlan,
+} from "@/lib/types/behavior-definition-event";
 import { DEFAULT_TIMEZONE, type Weekday } from "@/lib/types/recurrence";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -64,7 +78,39 @@ type RestoreRpcClient = {
   ) => Promise<{ data: unknown; error: Error | null }>;
 };
 
-type RestorePayload = {
+type RestoreBoundPayload = RestoreProductPayload & {
+  apply_run_id: string;
+  accepted_preview_run_id: string;
+  accepted_preview_fingerprint: string;
+  accepted_local_data_fingerprint: string;
+  accepted_bundle_fingerprint: string;
+  accepted_bundle_payload_fingerprint: string;
+  mappings: Array<{
+    record_type: BehaviorLogImportRecordMappingInput["recordType"];
+    external_id: string;
+    local_id: string;
+  }>;
+};
+
+type RestorePayload = RestoreBoundPayload & {
+  apply_payload_digest: string;
+};
+
+type RestoreRowPrecondition = {
+  record_type:
+    | "behavior"
+    | "schedule"
+    | "occurrence"
+    | "status_event"
+    | "note"
+    | "intervention";
+  local_id: string;
+  expectation: "absent" | "unchanged";
+  expected_updated_at: string | null;
+};
+
+type RestoreProductPayload = {
+  preconditions: RestoreRowPrecondition[];
   archive_behavior_ids: string[];
   delete_schedule_ids: string[];
   delete_occurrence_ids: string[];
@@ -73,6 +119,7 @@ type RestorePayload = {
   delete_imported_note_ids: string[];
   delete_imported_intervention_ids: string[];
   behaviors: Array<Record<string, unknown>>;
+  behavior_definition_events: Array<Record<string, unknown>>;
   schedules: Array<Record<string, unknown>>;
   occurrences: Array<Record<string, unknown>>;
   status_events: Array<Record<string, unknown>>;
@@ -80,8 +127,23 @@ type RestorePayload = {
   imported_interventions: Array<Record<string, unknown>>;
 };
 
+type RestoreBehaviorDefinitionEventPayload = {
+  event_kind: "baseline" | "transition";
+  behavior_id: string;
+  previous_title: string | null;
+  next_title: string;
+  previous_description: string | null;
+  next_description: string | null;
+  changed_fields: Array<"title" | "description">;
+  recorded_at: string;
+  source: "import";
+  reason: "behaviorlog_restore";
+  expected_previous_title: string | null;
+  expected_previous_description: string | null;
+};
+
 type RestorePayloadBuildResult = {
-  payload: RestorePayload;
+  payload: RestoreProductPayload;
   mappings: BehaviorLogImportRecordMappingInput[];
 };
 
@@ -118,7 +180,6 @@ export function previewBehaviorLogRestoreFromFiles(input: {
 }): BehaviorLogRestorePreview {
   const importPreview = resolveBehaviorLogImportPreview({
     files: input.files,
-    existing: input.existing,
   });
 
   return resolveBehaviorLogRestorePreview({
@@ -175,7 +236,10 @@ export async function createBehaviorLogRestorePreviewRun(
     subjectIdStrategy: manifest.subjectIdStrategy,
     privacyRedactionLevel: manifest.privacyRedactionLevel,
     importMode: "restore_preview",
-    dryRunSummary: toRestorePreviewSnapshot(preview),
+    dryRunSummary: toRestorePreviewSnapshot(
+      preview,
+      createBehaviorLogImportBundleFingerprint(input.files),
+    ),
     status: "previewed",
     failureMessage: null,
     startedAt,
@@ -273,22 +337,59 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
     acceptedPreviewFingerprint,
     acceptedLocalDataFingerprint,
   );
+  const bundlePayloadFingerprint = assertBundleMatchesAcceptedPreview(
+    bundle.files,
+    previewRun,
+  );
+
+  const alreadyAppliedRun =
+    await getAppliedBehaviorLogRestoreRunByAcceptedPreview(supabase, {
+      userId,
+      acceptedPreviewRunId: previewRun.id,
+      acceptedPreviewFingerprint,
+    });
+
+  if (alreadyAppliedRun) {
+    return createAlreadyAppliedRestoreState({
+      bundle,
+      previewRun,
+      appliedRun: alreadyAppliedRun,
+    });
+  }
 
   const existing = await listBehaviorLogExistingRecords(supabase, userId);
   const importPreview = resolveBehaviorLogImportPreview({
     files: bundle.files,
-    existing,
   });
   const preview = resolveBehaviorLogRestorePreview({
     importPreview,
     existing,
   });
 
-  assertFreshAcceptedPreview({
-    preview,
-    acceptedPreviewFingerprint,
-    acceptedLocalDataFingerprint,
-  });
+  try {
+    assertFreshAcceptedPreview({
+      preview,
+      acceptedPreviewFingerprint,
+      acceptedLocalDataFingerprint,
+    });
+  } catch (stalePreviewError) {
+    const concurrentlyAppliedRun =
+      await getAppliedBehaviorLogRestoreRunByAcceptedPreview(supabase, {
+        userId,
+        acceptedPreviewRunId: previewRun.id,
+        acceptedPreviewFingerprint,
+      });
+
+    if (concurrentlyAppliedRun) {
+      return createAlreadyAppliedRestoreState({
+        bundle,
+        previewRun,
+        appliedRun: concurrentlyAppliedRun,
+      });
+    }
+
+    throw stalePreviewError;
+  }
   assertRestorePreviewCanApply(preview, formData);
   await markOccurrenceSyncStale(supabase, {
     userId,
@@ -296,6 +397,10 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
   });
 
   const manifest = readManifestMetadata(bundle.files);
+  const applyRunSummary = toRestorePreviewSnapshot(
+    preview,
+    bundlePayloadFingerprint,
+  );
   const applyRun = await createBehaviorLogImportRun(supabase, {
     userId,
     bundleFormat: manifest.bundleFormat ?? BEHAVIORLOG_FORMAT,
@@ -307,13 +412,15 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
     subjectIdStrategy: manifest.subjectIdStrategy,
     privacyRedactionLevel: manifest.privacyRedactionLevel,
     importMode: "restore_apply",
-    dryRunSummary: toRestorePreviewSnapshot(preview),
+    acceptedPreviewRunId: previewRun.id,
+    acceptedPreviewFingerprint,
+    dryRunSummary: applyRunSummary,
     status: "previewed",
     failureMessage: null,
     completedAt: null,
   } satisfies BehaviorLogImportRunCreateInput);
   invalidateImportRunData(userId);
-  const completedAt = new Date().toISOString();
+  let rpcData: unknown;
 
   try {
     const { payload, mappings } = buildRestorePayload({
@@ -323,10 +430,35 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
       preview,
       existing,
     });
+    const boundPayload: RestoreBoundPayload = {
+      ...payload,
+      apply_run_id: applyRun.id,
+      accepted_preview_run_id: previewRun.id,
+      accepted_preview_fingerprint: acceptedPreviewFingerprint,
+      accepted_local_data_fingerprint: acceptedLocalDataFingerprint,
+      accepted_bundle_fingerprint: preview.bundleFingerprint,
+      accepted_bundle_payload_fingerprint: bundlePayloadFingerprint,
+      mappings: mappings.map((mapping) => ({
+        record_type: mapping.recordType,
+        external_id: mapping.externalId,
+        local_id: mapping.localId,
+      })),
+    };
+    const applyPayloadDigest = await bindBehaviorLogRestoreApplyPayload(
+      supabase,
+      {
+        userId,
+        importRunId: applyRun.id,
+        restorePayload: boundPayload as unknown as Record<string, unknown>,
+      },
+    );
     const { data, error } = await (supabase as unknown as RestoreRpcClient).rpc(
       "apply_behaviorlog_restore",
       {
-        restore_payload: payload,
+        restore_payload: {
+          ...boundPayload,
+          apply_payload_digest: applyPayloadDigest,
+        },
       },
     );
 
@@ -334,45 +466,57 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
       throw error;
     }
 
-    await createBehaviorLogImportRecordMappings(supabase, mappings);
-
-    const appliedRun =
-      (await updateBehaviorLogImportRunStatus(supabase, {
-        userId,
-        importRunId: applyRun.id,
-        status: "applied",
-        completedAt,
-      })) ?? applyRun;
-    invalidateBehaviorData(userId);
-    invalidateImportRunData(userId);
-
-    return {
-      status: "applied",
-      message: "BehaviorLog restore applied.",
-      upload: {
-        fileName: bundle.fileName,
-        fileSize: bundle.fileSize,
-      },
-      bundlePayload: null,
-      preview,
-      previewRun: toRestoreRunView(previewRun),
-      applyResult: {
-        importRun: toRestoreRunView(appliedRun),
-        appliedCounts: normalizeRpcResult(data),
-      },
-    };
+    rpcData = data;
   } catch (error) {
-    await updateBehaviorLogImportRunStatus(supabase, {
+    const failedRun = await markBehaviorLogRestoreRunFailedIfPending(supabase, {
       userId,
       importRunId: applyRun.id,
-      status: "failed",
       failureMessage: errorMessage(error),
-      completedAt,
+      completedAt: new Date().toISOString(),
     });
     invalidateImportRunData(userId);
 
+    if (!failedRun) {
+      const committedRun =
+        await getAppliedBehaviorLogRestoreRunByAcceptedPreview(supabase, {
+          userId,
+          acceptedPreviewRunId: previewRun.id,
+          acceptedPreviewFingerprint,
+        });
+
+      if (committedRun) {
+        return createAlreadyAppliedRestoreState({
+          bundle,
+          previewRun,
+          appliedRun: committedRun,
+        });
+      }
+    }
+
     throw error;
   }
+
+  const rpcResult = normalizeRestoreRpcResult(rpcData, applyRun);
+  invalidateBehaviorData(userId);
+  invalidateImportRunData(userId);
+
+  return {
+    status: "applied",
+    message: rpcResult.alreadyApplied
+      ? "This accepted BehaviorLog restore was already applied."
+      : "BehaviorLog restore applied.",
+    upload: {
+      fileName: bundle.fileName,
+      fileSize: bundle.fileSize,
+    },
+    bundlePayload: null,
+    preview,
+    previewRun: toRestoreRunView(previewRun),
+    applyResult: {
+      importRun: rpcResult.appliedRun,
+      appliedCounts: rpcResult.appliedCounts,
+    },
+  };
 }
 
 export function behaviorLogRestoreErrorToActionState(
@@ -389,6 +533,7 @@ export function behaviorLogRestoreErrorToActionState(
 
 function toRestorePreviewSnapshot(
   preview: BehaviorLogRestorePreview,
+  bundlePayloadFingerprint: string,
 ): Record<string, unknown> {
   return {
     mode: preview.mode,
@@ -396,6 +541,7 @@ function toRestorePreviewSnapshot(
     previewFingerprint: preview.previewFingerprint,
     localDataFingerprint: preview.localDataFingerprint,
     bundleFingerprint: preview.bundleFingerprint,
+    bundlePayloadFingerprint,
     statusHistoryPolicy: preview.statusHistoryPolicy,
     semantics: preview.semantics,
     summary: preview.summary,
@@ -407,6 +553,46 @@ function toRestorePreviewSnapshot(
     warnings: preview.warnings,
     actions: preview.actions,
   };
+}
+
+function createAlreadyAppliedRestoreState(input: {
+  bundle: BehaviorLogRestoreUploadBundle;
+  previewRun: BehaviorLogImportRun;
+  appliedRun: BehaviorLogImportRun;
+}): BehaviorLogRestoreActionState {
+  const appliedSummary = readObject(input.appliedRun.dry_run_summary);
+
+  return {
+    status: "applied",
+    message: "This accepted BehaviorLog restore was already applied.",
+    upload: {
+      fileName: input.bundle.fileName,
+      fileSize: input.bundle.fileSize,
+    },
+    bundlePayload: null,
+    preview: readRestorePreviewSnapshot(input.previewRun),
+    previewRun: toRestoreRunView(input.previewRun),
+    applyResult: {
+      importRun: toRestoreRunView(input.appliedRun),
+      appliedCounts: normalizeRpcResult(appliedSummary?.applyResult),
+    },
+  };
+}
+
+function readRestorePreviewSnapshot(
+  previewRun: BehaviorLogImportRun,
+): BehaviorLogRestorePreview {
+  const snapshot = readObject(previewRun.dry_run_summary);
+
+  if (snapshot?.mode !== "restore_preview") {
+    throw new BehaviorLogRestoreUserError(
+      "The accepted restore preview snapshot is unavailable. Preview the restore again.",
+    );
+  }
+
+  assertAcceptedRestorePreviewSnapshotCanApply(snapshot);
+
+  return snapshot as BehaviorLogRestorePreview;
 }
 
 function buildRestorePayload(input: {
@@ -421,14 +607,17 @@ function buildRestorePayload(input: {
   const scheduleIdByExternal = new Map<string, string>();
   const occurrenceIdByExternal = new Map<string, string>();
   const statusEventIdByExternal = new Map<string, string>();
+  const noteIdByExternal = new Map<string, string>();
+  const interventionIdByExternal = new Map<string, string>();
   const latestStatusEventByOccurrence = new Map<string, string>();
   const mappings: BehaviorLogImportRecordMappingInput[] = [];
+  const restoreRecordedAt = new Date().toISOString();
 
   for (const behavior of input.importPreview.plan.behaviors) {
     const action = actionIndex.behavior.get(behavior.externalId);
 
     if (action && action.action !== "skip") {
-      const behaviorId = localOrSafeUuid(action, {
+      const behaviorId = deriveBehaviorLogRestoreLocalId(action, {
         externalId: behavior.externalId,
         label: "behavior",
         recordType: "behavior",
@@ -449,7 +638,7 @@ function buildRestorePayload(input: {
     const action = actionIndex.schedule.get(schedule.externalId);
 
     if (action && action.action !== "skip") {
-      const scheduleId = localOrSafeUuid(action, {
+      const scheduleId = deriveBehaviorLogRestoreLocalId(action, {
         externalId: schedule.externalId,
         label: "schedule",
         recordType: "schedule",
@@ -470,7 +659,7 @@ function buildRestorePayload(input: {
     const action = actionIndex.occurrence.get(occurrence.externalId);
 
     if (action && action.action !== "skip") {
-      const occurrenceId = localOrSafeUuid(action, {
+      const occurrenceId = deriveBehaviorLogRestoreLocalId(action, {
         externalId: occurrence.externalId,
         label: "occurrence",
         recordType: "occurrence",
@@ -491,7 +680,7 @@ function buildRestorePayload(input: {
     const action = actionIndex.status_event.get(event.externalId);
 
     if (action && action.action !== "skip") {
-      const eventId = localOrSafeUuid(action, {
+      const eventId = deriveBehaviorLogRestoreLocalId(action, {
         externalId: event.externalId,
         label: "status event",
         recordType: "status_event",
@@ -506,6 +695,45 @@ function buildRestorePayload(input: {
     }
   }
 
+  for (const note of input.importPreview.plan.notes) {
+    const action = actionIndex.note.get(note.externalId);
+
+    if (action && action.action !== "skip") {
+      const noteId = deriveBehaviorLogRestoreLocalId(action, {
+        externalId: note.externalId,
+        label: "note",
+        recordType: "note",
+        userId: input.userId,
+        bundleFingerprint: input.preview.bundleFingerprint,
+      });
+      noteIdByExternal.set(note.externalId, noteId);
+      mappings.push(restoreMapping(input, "note", note.externalId, noteId));
+    }
+  }
+
+  for (const intervention of input.importPreview.plan.interventions) {
+    const action = actionIndex.intervention.get(intervention.externalId);
+
+    if (action && action.action !== "skip") {
+      const interventionId = deriveBehaviorLogRestoreLocalId(action, {
+        externalId: intervention.externalId,
+        label: "intervention",
+        recordType: "intervention",
+        userId: input.userId,
+        bundleFingerprint: input.preview.bundleFingerprint,
+      });
+      interventionIdByExternal.set(intervention.externalId, interventionId);
+      mappings.push(
+        restoreMapping(
+          input,
+          "intervention",
+          intervention.externalId,
+          interventionId,
+        ),
+      );
+    }
+  }
+
   const inlineNoteByOccurrence = new Map(
     input.importPreview.plan.notes
       .filter(
@@ -516,9 +744,33 @@ function buildRestorePayload(input: {
       )
       .map((note) => [note.attachedToId, note.bodyMarkdown]),
   );
+  const behaviorDefinitionEvents = buildRestoreBehaviorDefinitionEvents({
+    behaviorPlans: input.importPreview.plan.behaviors,
+    actionIndex: actionIndex.behavior,
+    behaviorIdByExternal,
+    existingBehaviors: input.existing.behaviors ?? [],
+    restoreRecordedAt,
+  });
+  const behaviorDefinitionEventByBehaviorId = new Map(
+    behaviorDefinitionEvents.map((event) => [event.behavior_id, event]),
+  );
+  const existingBehaviorById = new Map(
+    (input.existing.behaviors ?? []).map((behavior) => [behavior.id, behavior]),
+  );
+  const preconditions = buildRestoreRowPreconditions({
+    preview: input.preview,
+    existing: input.existing,
+    behaviorIdByExternal,
+    scheduleIdByExternal,
+    occurrenceIdByExternal,
+    statusEventIdByExternal,
+    noteIdByExternal,
+    interventionIdByExternal,
+  });
 
   return {
     payload: {
+      preconditions,
       archive_behavior_ids: input.preview.actions.behaviors
         .filter((action) => action.action === "archive")
         .map(requiredLocalId),
@@ -528,12 +780,7 @@ function buildRestorePayload(input: {
       delete_occurrence_ids: input.preview.actions.occurrences
         .filter((action) => action.action === "delete")
         .map(requiredLocalId),
-      delete_status_event_ids:
-        input.preview.statusHistoryPolicy.selected === "replace_status_history"
-          ? input.preview.actions.statusEvents
-              .filter((action) => action.action === "delete")
-              .map(requiredLocalId)
-          : [],
+      delete_status_event_ids: [],
       clear_occurrence_note_ids: input.preview.actions.inlineOccurrenceNotes
         .filter((action) => action.action === "delete")
         .map(requiredLocalId),
@@ -560,11 +807,38 @@ function buildRestorePayload(input: {
             );
           }
 
-          return {
-            id: behaviorIdByExternal.get(behavior.externalId),
-            category_id: null,
+          const definition = normalizeBehaviorDefinition({
             title: behavior.title,
             description: behavior.description,
+          });
+          const action = actionIndex.behavior.get(behavior.externalId);
+          const behaviorId = requiredMapValue(
+            behaviorIdByExternal,
+            behavior.externalId,
+            "restored behavior",
+          );
+          const definitionEvent =
+            behaviorDefinitionEventByBehaviorId.get(behaviorId);
+          const existingBehavior = existingBehaviorById.get(behaviorId);
+
+          if (!definitionEvent && !existingBehavior) {
+            throw new BehaviorLogRestoreUserError(
+              `Behavior ${behavior.externalId} cannot be restored without an initial definition event.`,
+            );
+          }
+
+          return {
+            id: behaviorId,
+            external_id: behavior.externalId,
+            category_id: null,
+            title:
+              definitionEvent?.next_title ??
+              existingBehavior?.title ??
+              definition.title,
+            description:
+              definitionEvent?.next_description ??
+              existingBehavior?.description ??
+              definition.description,
             recurrence_rule: toCadenceRecurrenceRule(primarySchedule),
             scheduled_time:
               primarySchedule.localTime ?? primarySchedule.windowStartLocal,
@@ -577,15 +851,20 @@ function buildRestorePayload(input: {
               ? false
               : behavior.cadenceActive ?? true,
             archived_at: behavior.archivedAtUtc,
-            created_at: behavior.createdAtUtc,
+            created_at:
+              action?.action === "create"
+                ? behavior.createdAtUtc ?? restoreRecordedAt
+                : behavior.createdAtUtc,
           };
         }),
+      behavior_definition_events: behaviorDefinitionEvents,
       schedules: input.importPreview.plan.schedules
         .filter((schedule) =>
           shouldUpsert(actionIndex.schedule.get(schedule.externalId)),
         )
         .map((schedule, index) => ({
           id: scheduleIdByExternal.get(schedule.externalId),
+          external_id: schedule.externalId,
           behavior_id: requiredMapValue(
             behaviorIdByExternal,
             schedule.behaviorExternalId,
@@ -623,6 +902,7 @@ function buildRestorePayload(input: {
 
           return {
             id: occurrenceIdByExternal.get(occurrence.externalId),
+            external_id: occurrence.externalId,
             behavior_id: requiredMapValue(
               behaviorIdByExternal,
               occurrence.behaviorExternalId,
@@ -655,11 +935,13 @@ function buildRestorePayload(input: {
           };
         }),
       status_events: input.importPreview.plan.statusEvents
-        .filter((event) =>
-          shouldUpsert(actionIndex.status_event.get(event.externalId)),
+        .filter(
+          (event) =>
+            actionIndex.status_event.get(event.externalId)?.action === "create",
         )
         .map((event) => ({
           id: statusEventIdByExternal.get(event.externalId),
+          external_id: event.externalId,
           occurrence_id: requiredMapValue(
             occurrenceIdByExternal,
             event.occurrenceExternalId,
@@ -687,7 +969,7 @@ function buildRestorePayload(input: {
       imported_notes: input.importPreview.plan.notes
         .filter((note) => shouldUpsert(actionIndex.note.get(note.externalId)))
         .map((note) => ({
-          id: null,
+          id: requiredMapValue(noteIdByExternal, note.externalId, "note id"),
           import_run_id: input.importRunId,
           external_id: note.externalId,
           target_type: note.attachedToType,
@@ -713,7 +995,11 @@ function buildRestorePayload(input: {
           shouldUpsert(actionIndex.intervention.get(intervention.externalId)),
         )
         .map((intervention) => ({
-          id: null,
+          id: requiredMapValue(
+            interventionIdByExternal,
+            intervention.externalId,
+            "intervention id",
+          ),
           import_run_id: input.importRunId,
           external_id: intervention.externalId,
           behavior_external_id: intervention.behaviorExternalId,
@@ -741,6 +1027,281 @@ function buildRestorePayload(input: {
         })),
     },
     mappings,
+  };
+}
+
+function buildRestoreRowPreconditions(input: {
+  preview: BehaviorLogRestorePreview;
+  existing: BehaviorLogExistingRecords;
+  behaviorIdByExternal: Map<string, string>;
+  scheduleIdByExternal: Map<string, string>;
+  occurrenceIdByExternal: Map<string, string>;
+  statusEventIdByExternal: Map<string, string>;
+  noteIdByExternal: Map<string, string>;
+  interventionIdByExternal: Map<string, string>;
+}): RestoreRowPrecondition[] {
+  const preconditions = new Map<string, RestoreRowPrecondition>();
+
+  const add = (entry: RestoreRowPrecondition): void => {
+    const key = `${entry.record_type}:${entry.local_id}`;
+    const existing = preconditions.get(key);
+
+    if (existing && JSON.stringify(existing) !== JSON.stringify(entry)) {
+      throw new BehaviorLogRestoreUserError(
+        `Restore preview has conflicting preconditions for ${entry.record_type} ${entry.local_id}.`,
+      );
+    }
+
+    preconditions.set(key, entry);
+  };
+  const addAction = (
+    action: BehaviorLogRestoreAction,
+    recordType: RestoreRowPrecondition["record_type"],
+    createdIds: Map<string, string>,
+    existingRows: Array<{ id: string; rowUpdatedAtUtc?: string | null }>,
+  ): void => {
+    if (action.action === "skip") {
+      return;
+    }
+
+    if (action.action === "create") {
+      if (!action.externalId) {
+        throw new BehaviorLogRestoreUserError(
+          `Restore create action for ${recordType} is missing its external id.`,
+        );
+      }
+
+      add({
+        record_type: recordType,
+        local_id: requiredMapValue(
+          createdIds,
+          action.externalId,
+          `${recordType} create precondition`,
+        ),
+        expectation: "absent",
+        expected_updated_at: null,
+      });
+      return;
+    }
+
+    const localId = requiredLocalId(action);
+    const existing = existingRows.find((row) => row.id === localId);
+    const expectedUpdatedAt = existing?.rowUpdatedAtUtc;
+
+    if (!existing || !expectedUpdatedAt) {
+      throw new BehaviorLogRestoreUserError(
+        `Local ${recordType} ${localId} is missing its restore concurrency marker. Preview the restore again.`,
+      );
+    }
+
+    add({
+      record_type: recordType,
+      local_id: localId,
+      expectation: "unchanged",
+      expected_updated_at: expectedUpdatedAt,
+    });
+  };
+
+  for (const action of input.preview.actions.behaviors) {
+    addAction(
+      action,
+      "behavior",
+      input.behaviorIdByExternal,
+      input.existing.behaviors ?? [],
+    );
+  }
+
+  for (const action of input.preview.actions.schedules) {
+    addAction(
+      action,
+      "schedule",
+      input.scheduleIdByExternal,
+      input.existing.schedules ?? [],
+    );
+  }
+
+  for (const action of input.preview.actions.occurrences) {
+    addAction(
+      action,
+      "occurrence",
+      input.occurrenceIdByExternal,
+      input.existing.occurrences ?? [],
+    );
+  }
+
+  for (const action of input.preview.actions.inlineOccurrenceNotes) {
+    if (action.action === "skip" || action.action === "keep") {
+      continue;
+    }
+
+    const localId = requiredLocalId(action);
+    const existing = (input.existing.occurrences ?? []).find(
+      (row) => row.id === localId,
+    );
+
+    if (!existing?.rowUpdatedAtUtc) {
+      throw new BehaviorLogRestoreUserError(
+        `Local occurrence ${localId} is missing its restore concurrency marker. Preview the restore again.`,
+      );
+    }
+
+    add({
+      record_type: "occurrence",
+      local_id: localId,
+      expectation: "unchanged",
+      expected_updated_at: existing.rowUpdatedAtUtc,
+    });
+  }
+
+  for (const action of input.preview.actions.statusEvents) {
+    if (action.action !== "create") {
+      continue;
+    }
+
+    addAction(
+      action,
+      "status_event",
+      input.statusEventIdByExternal,
+      input.existing.statusEvents ?? [],
+    );
+  }
+
+  for (const action of input.preview.actions.importedNotes) {
+    addAction(
+      action,
+      "note",
+      input.noteIdByExternal,
+      input.existing.importedNotes ?? [],
+    );
+  }
+
+  for (const action of input.preview.actions.importedInterventions) {
+    addAction(
+      action,
+      "intervention",
+      input.interventionIdByExternal,
+      input.existing.importedInterventions ?? [],
+    );
+  }
+
+  return [...preconditions.values()].sort((left, right) =>
+    `${left.record_type}:${left.local_id}`.localeCompare(
+      `${right.record_type}:${right.local_id}`,
+    ),
+  );
+}
+
+function buildRestoreBehaviorDefinitionEvents(input: {
+  behaviorPlans: BehaviorLogImportBehaviorPlan[];
+  actionIndex: Map<string, BehaviorLogRestoreAction>;
+  behaviorIdByExternal: Map<string, string>;
+  existingBehaviors: NonNullable<BehaviorLogExistingRecords["behaviors"]>;
+  restoreRecordedAt: string;
+}): RestoreBehaviorDefinitionEventPayload[] {
+  const existingById = new Map(
+    input.existingBehaviors.map((behavior) => [behavior.id, behavior]),
+  );
+  const events: RestoreBehaviorDefinitionEventPayload[] = [];
+
+  for (const behavior of input.behaviorPlans) {
+    const action = input.actionIndex.get(behavior.externalId);
+
+    if (!action || action.action === "skip" || action.action === "archive") {
+      continue;
+    }
+
+    const behaviorId = requiredMapValue(
+      input.behaviorIdByExternal,
+      behavior.externalId,
+      "definition event behavior",
+    );
+    const nextDefinition = normalizeBehaviorDefinition({
+      title: behavior.title,
+      description: behavior.description,
+    });
+
+    if (action.action === "create") {
+      const plan = planInitialBehaviorDefinitionEvent({
+        definition: nextDefinition,
+        recordedAt: behavior.createdAtUtc ?? input.restoreRecordedAt,
+        source: "import",
+        reason: "behaviorlog_restore",
+      });
+
+      events.push(
+        toRestoreBehaviorDefinitionEventPayload({
+          behaviorId,
+          eventKind: "baseline",
+          plan,
+          expectedPreviousDefinition: null,
+        }),
+      );
+      continue;
+    }
+
+    if (action.action !== "replace") {
+      continue;
+    }
+
+    const existing = existingById.get(behaviorId);
+
+    if (!existing) {
+      throw new BehaviorLogRestoreUserError(
+        `Behavior ${behavior.externalId} cannot record restore history because its prior local definition is missing.`,
+      );
+    }
+
+    const plan = planBehaviorDefinitionChangeEvent({
+      previousDefinition: {
+        title: existing.title,
+        description: existing.description ?? null,
+      },
+      nextDefinition,
+      recordedAt: input.restoreRecordedAt,
+      source: "import",
+      reason: "behaviorlog_restore",
+    });
+
+    if (!plan) {
+      continue;
+    }
+
+    events.push(
+      toRestoreBehaviorDefinitionEventPayload({
+        behaviorId,
+        eventKind: "transition",
+        plan,
+        expectedPreviousDefinition: {
+          title: existing.title,
+          description: existing.description ?? null,
+        },
+      }),
+    );
+  }
+
+  return events;
+}
+
+function toRestoreBehaviorDefinitionEventPayload(input: {
+  behaviorId: string;
+  eventKind: "baseline" | "transition";
+  plan: BehaviorDefinitionEventPlan;
+  expectedPreviousDefinition: BehaviorDefinition | null;
+}): RestoreBehaviorDefinitionEventPayload {
+  return {
+    event_kind: input.eventKind,
+    behavior_id: input.behaviorId,
+    previous_title: input.plan.previousTitle,
+    next_title: input.plan.nextTitle,
+    previous_description: input.plan.previousDescription,
+    next_description: input.plan.nextDescription,
+    changed_fields: input.plan.changedFields,
+    recorded_at: input.plan.recordedAt,
+    source: "import",
+    reason: "behaviorlog_restore",
+    expected_previous_title: input.expectedPreviousDefinition?.title ?? null,
+    expected_previous_description:
+      input.expectedPreviousDefinition?.description ?? null,
   };
 }
 
@@ -777,7 +1338,7 @@ function shouldUpsert(action: BehaviorLogRestoreAction | undefined): boolean {
   );
 }
 
-function localOrSafeUuid(
+export function deriveBehaviorLogRestoreLocalId(
   action: BehaviorLogRestoreAction,
   input: {
     externalId: string;
@@ -787,12 +1348,6 @@ function localOrSafeUuid(
     bundleFingerprint: string;
   },
 ): string {
-  const id = action.localId ?? (isUuid(input.externalId) ? input.externalId : null);
-
-  if (id && isUuid(id)) {
-    return id;
-  }
-
   if (action.action === "create") {
     return deterministicRestoreUuid([
       "behaviorlog_restore",
@@ -801,6 +1356,12 @@ function localOrSafeUuid(
       input.recordType,
       input.externalId,
     ]);
+  }
+
+  const id = action.localId;
+
+  if (id && isUuid(id)) {
+    return id;
   }
 
   if (!id || !isUuid(id)) {
@@ -989,9 +1550,22 @@ function assertRestorePreviewCanApply(
     );
   }
 
-  if (preview.summary.unsupportedActionCount > 0) {
+  if (
+    preview.summary.unsupportedActionCount > 0 ||
+    preview.summary.skippedCount > 0
+  ) {
     throw new BehaviorLogRestoreUserError(
       "Restore preview still contains skipped or unsupported actions.",
+    );
+  }
+
+  if (
+    preview.statusHistoryPolicy.selected !==
+      "preserve_append_only_history" ||
+    !preview.statusHistoryPolicy.applySupportedInThisTicket
+  ) {
+    throw new BehaviorLogRestoreUserError(
+      "The selected status-history policy is preview-only and cannot be applied.",
     );
   }
 
@@ -1026,6 +1600,62 @@ function assertAcceptedPreviewRun(
       "Restore preview no longer matches the accepted preview run.",
     );
   }
+
+  assertAcceptedRestorePreviewSnapshotCanApply(summary);
+}
+
+function assertAcceptedRestorePreviewSnapshotCanApply(
+  snapshot: Record<string, unknown> | null,
+): void {
+  const summary = readObject(snapshot?.summary);
+  const policy = readObject(snapshot?.statusHistoryPolicy);
+  const errors = Array.isArray(snapshot?.errors) ? snapshot.errors : null;
+
+  if (
+    snapshot?.mode !== "restore_preview" ||
+    snapshot.valid !== true ||
+    snapshot.errorCount !== 0 ||
+    !errors ||
+    errors.length !== 0 ||
+    summary?.unsupportedActionCount !== 0 ||
+    summary.skippedCount !== 0
+  ) {
+    throw new BehaviorLogRestoreUserError(
+      "The accepted restore preview is not safe to apply. Preview the restore again.",
+    );
+  }
+
+  if (
+    policy?.selected !== "preserve_append_only_history" ||
+    policy.applySupportedInThisTicket !== true
+  ) {
+    throw new BehaviorLogRestoreUserError(
+      "The accepted status-history policy is preview-only and cannot be applied.",
+    );
+  }
+}
+
+function assertBundleMatchesAcceptedPreview(
+  files: BehaviorLogImportFile[],
+  previewRun: BehaviorLogImportRun,
+): string {
+  const summary = readObject(previewRun.dry_run_summary);
+  const acceptedBundlePayloadFingerprint = readString(
+    summary?.bundlePayloadFingerprint,
+  );
+  const bundlePayloadFingerprint =
+    createBehaviorLogImportBundleFingerprint(files);
+
+  if (
+    !acceptedBundlePayloadFingerprint ||
+    bundlePayloadFingerprint !== acceptedBundlePayloadFingerprint
+  ) {
+    throw new BehaviorLogRestoreUserError(
+      "The uploaded bundle no longer matches the accepted restore preview. Preview the restore again.",
+    );
+  }
+
+  return bundlePayloadFingerprint;
 }
 
 function assertFreshAcceptedPreview(input: {
@@ -1187,6 +1817,32 @@ function normalizeRpcResult(data: unknown): Record<string, number> {
       .filter(([, count]) => typeof count === "number" && Number.isFinite(count))
       .map(([key, count]) => [key, count as number]),
   );
+}
+
+function normalizeRestoreRpcResult(
+  data: unknown,
+  fallbackRun: BehaviorLogImportRun,
+): {
+  alreadyApplied: boolean;
+  appliedRun: BehaviorLogRestoreRunView;
+  appliedCounts: Record<string, number>;
+} {
+  const value = readObject(data);
+
+  return {
+    alreadyApplied: value?.already_applied === true,
+    appliedRun: {
+      id: readString(value?.applied_run_id) ?? fallbackRun.id,
+      mode: "restore_apply",
+      status: "applied",
+      startedAt:
+        readString(value?.applied_run_started_at) ?? fallbackRun.started_at,
+      completedAt:
+        readString(value?.applied_run_completed_at) ?? fallbackRun.completed_at,
+      failureMessage: null,
+    },
+    appliedCounts: normalizeRpcResult(data),
+  };
 }
 
 function readManifestMetadata(files: BehaviorLogImportFile[]): {

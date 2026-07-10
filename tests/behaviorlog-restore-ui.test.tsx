@@ -24,6 +24,7 @@ describe("BehaviorLog restore UI", () => {
     expect(html).toContain("high_sensitivity_note_present");
     expect(html).toContain("Sensitive notes");
     expect(html).toContain("Redacted fields");
+    expect(html).toContain("Apply support for this policy: Yes");
   });
 
   it("labels recent restore runs without completion timestamps as still open", () => {
@@ -58,7 +59,7 @@ function restorePreview(): BehaviorLogRestorePreview {
       selected: "preserve_append_only_history",
       default: "preserve_append_only_history",
       available: ["preserve_append_only_history", "replace_status_history"],
-      applySupportedInThisTicket: false,
+      applySupportedInThisTicket: true,
     },
     semantics: {
       jsonlAuthoritative: true,

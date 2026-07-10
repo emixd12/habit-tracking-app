@@ -2440,7 +2440,7 @@ const destructiveRestorePreviewFixture: BehaviorLogRestorePreview = {
     selected: "preserve_append_only_history",
     default: "preserve_append_only_history",
     available: ["preserve_append_only_history", "replace_status_history"],
-    applySupportedInThisTicket: false,
+    applySupportedInThisTicket: true,
   },
   semantics: {
     jsonlAuthoritative: true,

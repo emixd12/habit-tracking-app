@@ -84,10 +84,10 @@ occurrence snapshot, append-only event, and resolver-planned reminder
 cancellation in one owner-scoped transaction with idempotency and ABA guards.
 Hosted deployment of its migration remains pending owner authorization.
 
-Ticket 059 is complete. Restore apply now maps non-UUID BehaviorLog external
-IDs, including Cadence schedule IDs like `sch_<uuid>`, to deterministic local
-UUIDs for product writes while preserving import-record provenance mappings for
-later preview/import reconciliation.
+Ticket 059 is complete locally. Restore apply now binds one exact accepted
+preview and canonical payload, verifies stale-row preconditions, and commits
+product writes, definition history, provenance, and the applied ledger in one
+idempotent transaction. Hosted deployment remains pending owner authorization.
 
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
@@ -3892,16 +3892,32 @@ Implementation summary:
 - Updated restore apply payload construction to resolve accepted create actions
   with non-UUID BehaviorLog external ids to deterministic local UUIDs scoped by
   user, bundle fingerprint, record type, and external id.
-- Preserved external-to-local provenance by writing
-  `behaviorlog_import_record_mappings` for restored behaviors, schedules,
-  occurrences, and status events after the destructive restore RPC succeeds.
+- Deterministic IDs are scoped by user, bundle fingerprint, record type, and
+  external id even when the external id is already UUID-shaped, preventing
+  cross-account global-primary-key collisions.
+- Bound the apply run to one exact accepted preview and a database-canonical
+  SHA-256 of the complete restore payload. The wrapper revalidates preview,
+  bundle, local-data, payload, policy, action, mapping, and destructive-target
+  identities before any product write.
+- Added exact absent/unchanged row preconditions, deterministic lock ordering,
+  and updated-at ownership checks so data changed after preview is refused
+  rather than overwritten.
+- Product rows, behavior definition baselines/transitions, provenance mappings,
+  and the applied-run result now commit or roll back in one database
+  transaction. The previous product-write helper is hidden from app roles.
+- Preserved append-only status history: restore apply supports only accepted
+  status-event creates under `preserve_append_only_history`; replacement remains
+  preview-only and is disabled in both service and UI.
+- Added one-applied-run-per-preview idempotency. Exact retries return the stored
+  result, concurrent duplicates are cancelled or reuse it, and an uncertain
+  client response cannot downgrade an already-applied ledger row to failed.
 - Added a regression test using a Cadence-generated BehaviorLog bundle shape
   where a schedule external id is `sch_<uuid>`, an occurrence references that
   schedule, and a status event references the occurrence.
 - Documented the restore mapping rule in `docs/EXPORT_FORMATS.md` and the
   mapping-table contract in `docs/DATA_MODEL.md`.
-- No schema migration, hosted database edit, provider operation, new route,
-  or widened restore privilege was added.
+- No provider operation, new route, cross-account write privilege, or replay of
+  exported historical definition revisions was added.
 
 Verification:
 - Pass: `npm run test -- tests/behaviorlog-restore-apply.service.test.ts tests/behaviorlog-restore.service.test.ts tests/behaviorlog-restore.resolver.test.ts tests/behaviorlog-restore-rpc-migration.test.ts tests/behaviorlog-restore-ui.test.tsx` (5 files, 13 tests).
@@ -3912,12 +3928,29 @@ Verification:
 - Pass: `npm run test` (58 files, 349 tests).
 - Pass: `npm run build`.
 - Pass: `git diff --check`.
+- Pass: focused restore resolver, apply service, UI, and migration suites.
+- Pass: clean local migration reset and regenerated Supabase TypeScript types.
+- Pass: rollback-only live local SQL smoke covering payload binding, atomic
+  ledger completion, exact idempotent replay, and post-binding tamper refusal
+  with the pending ledger preserved.
+- Pass after all five-ticket integration work settled: `npm run agents:check`
+  (95 invariants), `npm run resolvers:check` (152 invariants),
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test` (67 files, 428 tests), `npm run build`, and
+  `git diff --check`.
 
 Remaining risk:
+- Hosted deployment of
+  `20260709203154_make_behaviorlog_restore_atomic_and_idempotent.sql` requires
+  owner authorization before this schema-dependent slice can be pushed live.
 - Destructive restore apply was not re-run against a hosted disposable account
   after this fix. That end-to-end browser QA still needs an owner-approved
   disposable account and fresh backup workflow before claiming hosted restore
   apply is production-smoked.
+- The wrapper prevents cross-account writes and protects the accepted app
+  workflow from stale or altered payloads. It is not intended as a security
+  boundary against an authenticated owner who already has normal CRUD access to
+  that same owner's product rows.
 
 ## Handoff notes
 

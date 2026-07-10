@@ -209,7 +209,7 @@ describe("resolveBehaviorLogRestorePreview", () => {
     expect(preservePreview.statusHistoryPolicy).toMatchObject({
       selected: "preserve_append_only_history",
       default: "preserve_append_only_history",
-      applySupportedInThisTicket: false,
+      applySupportedInThisTicket: true,
     });
     expect(preservePreview.actions.statusEvents).toEqual(
       expect.arrayContaining([
@@ -222,6 +222,9 @@ describe("resolveBehaviorLogRestorePreview", () => {
     );
     expect(replacePreview.statusHistoryPolicy.selected).toBe(
       "replace_status_history",
+    );
+    expect(replacePreview.statusHistoryPolicy.applySupportedInThisTicket).toBe(
+      false,
     );
     expect(replacePreview.actions.statusEvents).toEqual(
       expect.arrayContaining([

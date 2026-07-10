@@ -202,7 +202,7 @@ export function BehaviorLogRestorePreviewDetails({
           </h3>
         </div>
         <p className="mt-4 border-t border-line pt-4 text-sm font-bold text-muted-readable">
-          {preview.statusHistoryPolicy.selected}. Apply support in this ticket:{" "}
+          {preview.statusHistoryPolicy.selected}. Apply support for this policy:{" "}
           {preview.statusHistoryPolicy.applySupportedInThisTicket ? "Yes" : "No"}
         </p>
       </section>
@@ -275,7 +275,9 @@ function RestoreApplyControls({
   const disabled =
     !preview ||
     !preview.valid ||
+    !preview.statusHistoryPolicy.applySupportedInThisTicket ||
     preview.summary.unsupportedActionCount > 0 ||
+    preview.summary.skippedCount > 0 ||
     isPending;
 
   return (
@@ -288,6 +290,14 @@ function RestoreApplyControls({
           role="alert"
         >
           Resolve skipped or unsupported actions before applying restore.
+        </p>
+      ) : null}
+      {preview && !preview.statusHistoryPolicy.applySupportedInThisTicket ? (
+        <p
+          className="mt-3 border-t border-line pt-4 text-sm font-bold text-accent"
+          role="alert"
+        >
+          The selected status-history policy is preview-only and cannot be applied.
         </p>
       ) : null}
       <form action={formAction} className="mt-4 grid gap-4 border-t border-line pt-4">

@@ -13,6 +13,45 @@ import type {
   NewBehaviorLogImportRun,
 } from "@/lib/types/database";
 
+type RestorePayloadBindingRpcClient = {
+  rpc: (
+    fn: "bind_behaviorlog_restore_apply_payload",
+    args: { restore_payload: Record<string, unknown> },
+  ) => Promise<{ data: unknown; error: Error | null }>;
+};
+
+export async function bindBehaviorLogRestoreApplyPayload(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    importRunId: string;
+    restorePayload: Record<string, unknown>;
+  },
+): Promise<string> {
+  if (
+    input.restorePayload.apply_run_id !== input.importRunId ||
+    typeof input.restorePayload.accepted_preview_run_id !== "string"
+  ) {
+    throw new Error("Restore payload identity does not match its apply ledger.");
+  }
+
+  const { data, error } = await (
+    supabase as unknown as RestorePayloadBindingRpcClient
+  ).rpc("bind_behaviorlog_restore_apply_payload", {
+    restore_payload: input.restorePayload,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (typeof data !== "string" || !/^[0-9a-f]{64}$/u.test(data)) {
+    throw new Error("Restore apply payload digest could not be bound.");
+  }
+
+  return data;
+}
+
 export async function createBehaviorLogImportRun(
   supabase: AppSupabaseClient,
   input: BehaviorLogImportRunCreateInput,
@@ -40,6 +79,34 @@ export async function getBehaviorLogImportRunById(
     .select("*")
     .eq("user_id", userId)
     .eq("id", importRunId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+export async function getAppliedBehaviorLogRestoreRunByAcceptedPreview(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    acceptedPreviewRunId: string;
+    acceptedPreviewFingerprint: string;
+  },
+): Promise<BehaviorLogImportRun | null> {
+  const { data, error } = await supabase
+    .from("behaviorlog_import_runs")
+    .select("*")
+    .eq("user_id", input.userId)
+    .eq("import_mode", "restore_apply")
+    .eq("status", "applied")
+    .eq("accepted_preview_run_id", input.acceptedPreviewRunId)
+    .eq("accepted_preview_fingerprint", input.acceptedPreviewFingerprint)
+    .order("completed_at", { ascending: true, nullsFirst: false })
+    .order("id", { ascending: true })
+    .limit(1)
     .maybeSingle();
 
   if (error) {
@@ -90,6 +157,36 @@ export async function updateBehaviorLogImportRunStatus(
     })
     .eq("user_id", input.userId)
     .eq("id", input.importRunId)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+export async function markBehaviorLogRestoreRunFailedIfPending(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    importRunId: string;
+    failureMessage: string;
+    completedAt: string;
+  },
+): Promise<BehaviorLogImportRun | null> {
+  const { data, error } = await supabase
+    .from("behaviorlog_import_runs")
+    .update({
+      status: "failed",
+      failure_message: input.failureMessage,
+      completed_at: input.completedAt,
+    })
+    .eq("user_id", input.userId)
+    .eq("id", input.importRunId)
+    .eq("import_mode", "restore_apply")
+    .eq("status", "previewed")
     .select("*")
     .maybeSingle();
 

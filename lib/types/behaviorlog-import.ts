@@ -111,6 +111,7 @@ export type BehaviorLogStatusSemantics =
 
 export type BehaviorLogExistingBehavior = {
   id: string;
+  rowUpdatedAtUtc?: string | null;
   title: string;
   description?: string | null;
   category?: string | null;
@@ -122,6 +123,7 @@ export type BehaviorLogExistingBehavior = {
 
 export type BehaviorLogExistingSchedule = {
   id: string;
+  rowUpdatedAtUtc?: string | null;
   behaviorId: string;
   recurrenceProfile: string;
   recurrence: Record<string, unknown>;
@@ -138,6 +140,7 @@ export type BehaviorLogExistingSchedule = {
 
 export type BehaviorLogExistingOccurrence = {
   id: string;
+  rowUpdatedAtUtc?: string | null;
   behaviorId: string;
   scheduleId?: string | null;
   behaviorTitle?: string | null;
@@ -151,6 +154,7 @@ export type BehaviorLogExistingOccurrence = {
 
 export type BehaviorLogExistingStatusEvent = {
   id: string;
+  rowUpdatedAtUtc?: string | null;
   occurrenceId: string;
   behaviorId: string;
   recordedAtUtc: string;
@@ -164,6 +168,7 @@ export type BehaviorLogExistingStatusEvent = {
 
 export type BehaviorLogExistingImportedNote = {
   id: string;
+  rowUpdatedAtUtc?: string | null;
   importRunId: string;
   externalId: string;
   targetType: "behavior" | "occurrence" | "status_event" | "review";
@@ -181,6 +186,7 @@ export type BehaviorLogExistingImportedNote = {
 
 export type BehaviorLogExistingImportedIntervention = {
   id: string;
+  rowUpdatedAtUtc?: string | null;
   importRunId: string;
   externalId: string;
   behaviorExternalId: string;

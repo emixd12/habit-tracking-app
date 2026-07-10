@@ -62,7 +62,7 @@ export type BehaviorLogRestorePreview = {
     selected: BehaviorLogRestoreStatusHistoryPolicy;
     default: "preserve_append_only_history";
     available: BehaviorLogRestoreStatusHistoryPolicy[];
-    applySupportedInThisTicket: false;
+    applySupportedInThisTicket: boolean;
   };
   semantics: {
     jsonlAuthoritative: true;

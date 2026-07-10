@@ -697,6 +697,7 @@ export async function listBehaviorLogExistingRecords(
 function toExistingBehavior(behavior: BehaviorWithCategory) {
   return {
     id: behavior.id,
+    rowUpdatedAtUtc: behavior.updated_at,
     title: behavior.title,
     description: behavior.description,
     category: toBehaviorLogCategory(behavior.category?.name ?? null),
@@ -714,6 +715,7 @@ function toExistingSchedules(
 
   return behavior.schedule_slots.map((slot) => ({
     id: slot.id,
+    rowUpdatedAtUtc: slot.updated_at,
     behaviorId: behavior.id,
     recurrenceProfile: BEHAVIORLOG_RECURRENCE_PROFILE,
     recurrence: toBehaviorLogRecurrence(
@@ -743,6 +745,7 @@ function toExistingOccurrence(
 ) {
   return {
     id: occurrence.id,
+    rowUpdatedAtUtc: occurrence.updated_at,
     behaviorId: occurrence.behavior_id,
     scheduleId: occurrence.behavior_schedule_slot_id,
     behaviorTitle: behavior?.title ?? null,
@@ -758,6 +761,7 @@ function toExistingOccurrence(
 function toExistingStatusEvent(event: OccurrenceStatusEvent) {
   return {
     id: event.id,
+    rowUpdatedAtUtc: event.updated_at,
     occurrenceId: event.occurrence_id,
     behaviorId: event.behavior_id,
     recordedAtUtc: event.recorded_at,
@@ -775,6 +779,7 @@ function toExistingStatusEvent(event: OccurrenceStatusEvent) {
 function toExistingImportedNote(note: ImportedNote) {
   return {
     id: note.id,
+    rowUpdatedAtUtc: note.updated_at,
     importRunId: note.import_run_id,
     externalId: note.external_id,
     targetType: normalizeImportedNoteTargetType(note.target_type),
@@ -796,6 +801,7 @@ function toExistingImportedNote(note: ImportedNote) {
 function toExistingImportedIntervention(intervention: ImportedIntervention) {
   return {
     id: intervention.id,
+    rowUpdatedAtUtc: intervention.updated_at,
     importRunId: intervention.import_run_id,
     externalId: intervention.external_id,
     behaviorExternalId: intervention.behavior_external_id,

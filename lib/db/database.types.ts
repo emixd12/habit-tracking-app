@@ -926,6 +926,10 @@ export type Database = {
         Args: { restore_payload: Json }
         Returns: Json
       }
+      apply_behaviorlog_restore_product_writes: {
+        Args: { restore_payload: Json }
+        Returns: Json
+      }
       apply_occurrence_status_transition: {
         Args: {
           expected_latest_event_id: string
@@ -942,6 +946,10 @@ export type Database = {
           target_occurrence_id: string
         }
         Returns: Json
+      }
+      bind_behaviorlog_restore_apply_payload: {
+        Args: { restore_payload: Json }
+        Returns: string
       }
       create_behavior_with_definition_event: {
         Args: { behavior_payload: Json; definition_event_plan: Json }
