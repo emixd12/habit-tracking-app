@@ -156,11 +156,13 @@ export async function createBehaviorLogRestorePreviewRun(
   preview: BehaviorLogRestorePreview;
   importRun: BehaviorLogImportRun;
 }> {
+  const startedAt = new Date().toISOString();
   const preview = await previewCurrentUserBehaviorLogRestoreFromFiles(supabase, {
     userId: input.userId,
     files: input.files,
     statusHistoryPolicy: input.statusHistoryPolicy,
   });
+  const completedAt = new Date().toISOString();
   const manifest = readManifestMetadata(input.files);
   const importRun = await createBehaviorLogImportRun(supabase, {
     userId: input.userId,
@@ -176,7 +178,8 @@ export async function createBehaviorLogRestorePreviewRun(
     dryRunSummary: toRestorePreviewSnapshot(preview),
     status: "previewed",
     failureMessage: null,
-    completedAt: null,
+    startedAt,
+    completedAt,
   });
   invalidateImportRunData(input.userId);
 

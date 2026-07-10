@@ -51,6 +51,7 @@ import { TimelineGroup } from "@/components/timeline/TimelineGroup";
 import { GoogleLoginButton } from "@/app/(auth)/login/GoogleLoginButton";
 import { APP_NAV_ITEMS, type AppNavHref } from "@/lib/navigation";
 import type { AnalyticsView } from "@/lib/types/analytics";
+import { resolveBehaviorLogImportMergePreview } from "@/lib/resolvers/behaviorlog-import.resolver";
 import type {
   BehaviorActionState,
   BehaviorFormAction,
@@ -58,8 +59,18 @@ import type {
   BehaviorView,
   CategoryOption,
 } from "@/lib/types/behavior";
-import type { BehaviorLogImportPageData } from "@/lib/types/behaviorlog-import-ui";
-import type { BehaviorLogRestorePageData } from "@/lib/types/behaviorlog-restore-ui";
+import type { BehaviorLogImportMergePreviewResult } from "@/lib/types/behaviorlog-import";
+import type {
+  BehaviorLogImportActionState,
+  BehaviorLogImportFormAction,
+  BehaviorLogImportPageData,
+} from "@/lib/types/behaviorlog-import-ui";
+import type { BehaviorLogRestorePreview } from "@/lib/types/behaviorlog-restore";
+import type {
+  BehaviorLogRestoreActionState,
+  BehaviorLogRestoreFormAction,
+  BehaviorLogRestorePageData,
+} from "@/lib/types/behaviorlog-restore-ui";
 import type { ExportBundle } from "@/lib/types/export";
 import type { FirstRunOnboardingState } from "@/lib/types/onboarding";
 import type {
@@ -245,9 +256,74 @@ async function benchDeleteAccountAction(
   };
 }
 
+async function benchBehaviorLogImportAction(
+  previousState: BehaviorLogImportActionState,
+  formData: FormData,
+): Promise<BehaviorLogImportActionState> {
+  "use server";
+
+  if (
+    formData.get("intent") !== "apply" ||
+    previousState.status === "error"
+  ) {
+    return previousState;
+  }
+
+  return {
+    ...previousState,
+    status: "applied",
+    message:
+      "Accepted-preview fixture applied. The bench did not change product data.",
+    applyResult: {
+      mode: "create_missing_only",
+      importRun: {
+        id: "bench-import-apply",
+        import_mode: "create_missing_only",
+        status: "applied",
+        started_at: "2026-06-08T21:11:00Z",
+        completed_at: "2026-06-08T21:11:02Z",
+        failure_message: null,
+      },
+      created: {
+        behaviors: 1,
+        schedules: 0,
+        occurrences: 0,
+        statusEvents: 0,
+        notes: 1,
+        interventions: 0,
+        mappings: 2,
+      },
+      skipped: {
+        behaviors: 0,
+        schedules: 0,
+        occurrences: 0,
+        statusEvents: 0,
+        notes: 0,
+        interventions: 0,
+      },
+    },
+  };
+}
+
+async function benchBehaviorLogRestoreAction(
+  previousState: BehaviorLogRestoreActionState,
+  formData: FormData,
+): Promise<BehaviorLogRestoreActionState> {
+  "use server";
+
+  void formData;
+
+  return {
+    ...previousState,
+    status: "error",
+    message: "Restore apply is disabled in the fixture bench.",
+  };
+}
+
 type DesignSystemPageProps = Readonly<{
   searchParams?: Promise<{
     preview?: string | string[];
+    state?: string | string[];
   }>;
 }>;
 
@@ -260,8 +336,9 @@ export default async function DesignSystemPage({
 
   const params = await searchParams;
   const selectedPreviewId = firstSearchParam(params?.preview);
+  const selectedFixtureState = firstSearchParam(params?.state);
   const usageByComponent = groupUsages(usage.usages);
-  const previews = buildPreviews(selectedPreviewId);
+  const previews = buildPreviews(selectedPreviewId, selectedFixtureState);
 
   return (
     <main
@@ -1120,6 +1197,7 @@ function ProductPreview({
 
 function buildPreviews(
   selectedPreviewId: string | null,
+  selectedFixtureState: string | null,
 ): Record<string, ReactNode> {
   if (!selectedPreviewId) {
     return {};
@@ -1132,7 +1210,7 @@ function buildPreviews(
   }
 
   return {
-    [selectedPreviewId]: factory(),
+    [selectedPreviewId]: factory(selectedFixtureState),
   };
 }
 
@@ -1140,8 +1218,15 @@ const behaviorAction: BehaviorFormAction = benchBehaviorAction;
 const occurrenceAction: OccurrenceFormAction = benchOccurrenceAction;
 const timezoneAction: TimezoneUpdateAction = benchTimezoneAction;
 const deleteAccountAction: DeleteAccountAction = benchDeleteAccountAction;
+const behaviorLogImportAction: BehaviorLogImportFormAction =
+  benchBehaviorLogImportAction;
+const behaviorLogRestoreAction: BehaviorLogRestoreFormAction =
+  benchBehaviorLogRestoreAction;
 
-const previewFactories: Record<string, () => ReactNode> = {
+const previewFactories: Record<
+  string,
+  (fixtureState: string | null) => ReactNode
+> = {
   "navigation.primary-app-nav": () => (
     <ProductPreview maxHeight="38rem">
       <div className="grid gap-5 bg-background text-foreground xl:grid-cols-[16rem_4rem_minmax(18rem,1fr)]">
@@ -1560,14 +1645,22 @@ const previewFactories: Record<string, () => ReactNode> = {
         />
       </ProductPreview>
     ),
-  "module.behavior-log-import-panel": () => (
+  "module.behavior-log-import-panel": (fixtureState) => (
       <ProductPreview maxHeight="38rem">
-        <BehaviorLogImportPanel recentRuns={importPageFixture.recentRuns} />
+        <BehaviorLogImportPanel
+          recentRuns={importPageFixture.recentRuns}
+          action={behaviorLogImportAction}
+          initialState={behaviorLogImportStateFixture(fixtureState)}
+        />
       </ProductPreview>
     ),
   "module.behavior-log-restore-panel": () => (
       <ProductPreview maxHeight="38rem">
-        <BehaviorLogRestorePanel recentRuns={restorePageFixture.recentRuns} />
+        <BehaviorLogRestorePanel
+          recentRuns={restorePageFixture.recentRuns}
+          action={behaviorLogRestoreAction}
+          initialState={behaviorLogRestoreStateFixture}
+        />
       </ProductPreview>
     ),
   "module.markdown-summary-actions": () => (
@@ -2148,6 +2241,181 @@ const importPageFixture: BehaviorLogImportPageData = {
   ],
 };
 
+const emptyImportPreviewFixture = resolveBehaviorLogImportMergePreview({
+  files: [],
+});
+
+const acceptedImportPreviewFixture: BehaviorLogImportMergePreviewResult = {
+  ...emptyImportPreviewFixture,
+  valid: true,
+  summary: {
+    ...emptyImportPreviewFixture.summary,
+    schemaVersion: "0.1.0-draft",
+    fileCount: 8,
+    behaviorCount: 1,
+    noteCount: 1,
+    createCount: 2,
+    errorCount: 0,
+    warningCount: 1,
+  },
+  errors: [],
+  warnings: [
+    {
+      severity: "warning",
+      code: "high_sensitivity_note_present",
+      message:
+        "A high-sensitivity note is included. Review it before applying.",
+      file: "data/notes.jsonl",
+      row: 1,
+    },
+  ],
+  conflicts: [],
+  unsupportedFields: [],
+  plan: {
+    ...emptyImportPreviewFixture.plan,
+    behaviors: [
+      {
+        action: "create",
+        skipReasons: [],
+        externalId: "bench-behavior",
+        title: "Evening reset",
+        category: "Home",
+        cadenceCategoryName: "Home",
+        description: "Reset the kitchen and prepare tomorrow's essentials.",
+        createdAtUtc: "2026-06-01T12:00:00Z",
+        archivedAtUtc: null,
+        cadenceActive: true,
+        cadenceBrowserReminderEnabled: true,
+        cadenceEmailReminderEnabled: false,
+        cadenceReminderOffsetMinutes: 0,
+        sourceOriginalId: "bench-behavior",
+        sourceConfidence: "high",
+      },
+    ],
+    notes: [
+      {
+        action: "create",
+        skipReasons: [],
+        externalId: "bench-note",
+        attachedToType: "behavior",
+        attachedToId: "bench-behavior",
+        bodyMarkdown: "Fixture-only sensitive context.",
+        noteRole: "user",
+        createdAtUtc: "2026-06-08T21:00:00Z",
+        updatedAtUtc: null,
+        sensitivity: "high",
+        sourceOriginalId: "bench-note",
+        sourceCaptureMethod: "manual_text",
+        sourceConfidence: "high",
+      },
+    ],
+  },
+  mergePreview: {
+    ...emptyImportPreviewFixture.mergePreview,
+    privacy: {
+      profiles: ["core", "notes"],
+      redactionLevel: "standard_redaction",
+      subjectIdStrategy: "pseudonymous",
+      containsNotes: true,
+      containsInterventions: false,
+      containsRawLocation: false,
+      containsHealthData: false,
+      containsAiGeneratedContent: false,
+    },
+    actionCounts: {
+      create_new: 2,
+      map_to_existing: 0,
+      skip_existing: 0,
+      conflict_requires_decision: 0,
+    },
+    conflictCodes: [],
+    conflictCount: 0,
+    conflicts: [],
+    actions: {
+      ...emptyImportPreviewFixture.mergePreview.actions,
+      behaviors: [
+        {
+          recordType: "behavior",
+          externalId: "bench-behavior",
+          action: "create_new",
+          localId: null,
+          conflictCodes: [],
+          reasons: ["No matching local behavior exists."],
+        },
+      ],
+      notes: [
+        {
+          recordType: "note",
+          externalId: "bench-note",
+          action: "create_new",
+          localId: null,
+          conflictCodes: [],
+          reasons: ["Stores a passive imported note record."],
+          metadata: {
+            noteStorageDecision: "create_imported_note_record",
+          },
+        },
+      ],
+    },
+  },
+};
+
+function behaviorLogImportStateFixture(
+  fixtureState: string | null,
+): BehaviorLogImportActionState {
+  const previewRun = {
+    id: "bench-import-preview",
+    import_mode: "merge_preview" as const,
+    status: "previewed" as const,
+    started_at: "2026-06-08T21:10:00Z",
+    completed_at: "2026-06-08T21:10:02Z",
+    failure_message: null,
+  };
+
+  if (fixtureState === "invalid") {
+    return {
+      status: "previewed",
+      message: "Preview contains validation errors. Nothing can be applied.",
+      upload: {
+        fileName: "invalid.behaviorlog.zip",
+        fileSize: 481,
+      },
+      bundlePayload: "bench-invalid-bundle",
+      preview: emptyImportPreviewFixture,
+      previewRun,
+      capabilities: {
+        canApplyCreateOnly: false,
+        createOnlyReason: "Fix validation errors before applying.",
+        canApplyMerge: false,
+        mergeReason: "Fix validation errors before applying.",
+      },
+      applyResult: null,
+    };
+  }
+
+  return {
+    status: fixtureState === "stale" ? "error" : "previewed",
+    message:
+      fixtureState === "stale"
+        ? "Local data changed since this import preview. Preview the bundle again before applying."
+        : "Accepted preview fixture ready. Review the warning and exact preview binding.",
+    upload: {
+      fileName: "accepted-preview.behaviorlog.zip",
+      fileSize: 2048,
+    },
+    bundlePayload: "bench-accepted-bundle",
+    preview: acceptedImportPreviewFixture,
+    previewRun,
+    capabilities: {
+      canApplyCreateOnly: true,
+      createOnlyReason: null,
+      canApplyMerge: true,
+      mergeReason: null,
+    },
+    applyResult: null,
+  };
+}
+
 const restorePageFixture: BehaviorLogRestorePageData = {
   recentRuns: [
     {
@@ -2159,6 +2427,129 @@ const restorePageFixture: BehaviorLogRestorePageData = {
       failureMessage: null,
     },
   ],
+};
+
+const destructiveRestorePreviewFixture: BehaviorLogRestorePreview = {
+  mode: "restore_preview",
+  valid: true,
+  previewFingerprint: "bench-restore-preview-fingerprint",
+  localDataFingerprint: "bench-restore-local-fingerprint",
+  bundleFingerprint: "bench-restore-bundle-fingerprint",
+  statusHistoryPolicy: {
+    selected: "preserve_append_only_history",
+    default: "preserve_append_only_history",
+    available: ["preserve_append_only_history", "replace_status_history"],
+    applySupportedInThisTicket: false,
+  },
+  semantics: {
+    jsonlAuthoritative: true,
+    csvIgnoredForRestore: true,
+    statusEventsAuthoritative: true,
+    currentStatusIsSnapshotOnly: true,
+    unresolvedIsFailure: false,
+    behaviorLogIsNotAccountImage: true,
+    providerSideEffects: false,
+    reminderDeliverySideEffects: false,
+  },
+  summary: {
+    actionCounts: {
+      create: 1,
+      replace: 1,
+      archive: 1,
+      delete: 0,
+      keep: 0,
+      skip: 0,
+    },
+    destructiveActionCount: 2,
+    createdCount: 1,
+    replacedCount: 1,
+    archivedCount: 1,
+    deletedCount: 0,
+    keptCount: 0,
+    skippedCount: 0,
+    highOrRestrictedNoteCount: 1,
+    redactedInterventionFieldCount: 1,
+    unsupportedActionCount: 0,
+  },
+  nonRestorableFields: [
+    {
+      field: "auth_identity",
+      reason: "Authentication identity is managed outside BehaviorLog.",
+    },
+    {
+      field: "push_subscriptions",
+      reason: "Push subscriptions belong to the current browser and device.",
+    },
+  ],
+  sensitivity: {
+    highOrRestrictedNotesPresent: true,
+    noteSensitivities: ["high"],
+    redactedInterventionFieldsPresent: true,
+  },
+  errors: [],
+  warnings: [
+    {
+      severity: "warning",
+      code: "high_sensitivity_note_present",
+      message: "A high-sensitivity note requires explicit review.",
+    },
+  ],
+  actions: {
+    behaviors: [
+      {
+        recordType: "behavior",
+        action: "replace",
+        destructive: true,
+        externalId: "bench-behavior",
+        localId: "bench-behavior",
+        reasons: ["The bundle definition differs from the local behavior."],
+      },
+      {
+        recordType: "behavior",
+        action: "archive",
+        destructive: true,
+        externalId: null,
+        localId: "bench-local-only-behavior",
+        reasons: ["The local behavior is absent from the bundle."],
+      },
+    ],
+    schedules: [],
+    occurrences: [],
+    statusEvents: [],
+    inlineOccurrenceNotes: [],
+    importedNotes: [],
+    importedInterventions: [
+      {
+        recordType: "intervention",
+        action: "create",
+        destructive: false,
+        externalId: "bench-intervention",
+        localId: null,
+        reasons: ["Stores passive history only."],
+      },
+    ],
+  },
+};
+
+const behaviorLogRestoreStateFixture: BehaviorLogRestoreActionState = {
+  status: "previewed",
+  message:
+    "Destructive restore fixture ready. The bench will not apply product changes.",
+  upload: {
+    fileName: "destructive-preview.behaviorlog.zip",
+    fileSize: 4096,
+  },
+  bundlePayload: "bench-restore-bundle",
+  preview: destructiveRestorePreviewFixture,
+  previewRun: {
+    id: "bench-restore-preview",
+    mode: "restore_preview",
+    status: "previewed",
+    startedAt: "2026-06-08T21:20:00Z",
+    completedAt: "2026-06-08T21:20:02Z",
+    failureMessage: null,
+  },
+  applyResult: null,
 };
 
 function dayCell(

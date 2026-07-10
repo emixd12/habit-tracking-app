@@ -11,12 +11,15 @@ import type {
 } from "@/lib/types/behaviorlog-restore";
 import type {
   BehaviorLogRestoreActionState,
+  BehaviorLogRestoreFormAction,
   BehaviorLogRestoreRunView,
 } from "@/lib/types/behaviorlog-restore-ui";
 import { BEHAVIORLOG_RESTORE_INITIAL_STATE } from "@/lib/types/behaviorlog-restore-ui";
 
 type BehaviorLogRestorePanelProps = Readonly<{
   recentRuns: BehaviorLogRestoreRunView[];
+  action?: BehaviorLogRestoreFormAction;
+  initialState?: BehaviorLogRestoreActionState;
 }>;
 
 const ACTION_LABELS: Record<BehaviorLogRestoreActionKind, string> = {
@@ -40,10 +43,12 @@ const RECORD_LABELS: Record<BehaviorLogRestoreRecordType, string> = {
 
 export function BehaviorLogRestorePanel({
   recentRuns,
+  action = submitBehaviorLogRestoreAction,
+  initialState = BEHAVIORLOG_RESTORE_INITIAL_STATE,
 }: BehaviorLogRestorePanelProps) {
   const [state, formAction, isPending] = useActionState(
-    submitBehaviorLogRestoreAction,
-    BEHAVIORLOG_RESTORE_INITIAL_STATE,
+    action,
+    initialState,
   );
   const preview = state.preview;
   const runs = mergeRecentRuns(recentRuns, state);
@@ -127,13 +132,21 @@ export function BehaviorLogRestorePreviewDetails({
             Restore preview
           </h3>
         </div>
-        <dl className="mt-4 grid gap-0 border border-line sm:grid-cols-2 lg:grid-cols-6">
+        <dl className="mt-4 grid gap-0 border border-line sm:grid-cols-2 lg:grid-cols-4">
           <SummaryStat label="Create" value={preview.summary.createdCount} />
           <SummaryStat label="Replace" value={preview.summary.replacedCount} />
           <SummaryStat label="Archive" value={preview.summary.archivedCount} />
           <SummaryStat label="Delete" value={preview.summary.deletedCount} />
           <SummaryStat label="Keep" value={preview.summary.keptCount} />
           <SummaryStat label="Skip" value={preview.summary.skippedCount} />
+          <SummaryStat
+            label="Sensitive notes"
+            value={preview.summary.highOrRestrictedNoteCount}
+          />
+          <SummaryStat
+            label="Redacted fields"
+            value={preview.summary.redactedInterventionFieldCount}
+          />
         </dl>
         <div
           data-testid="restore-destructive-count"

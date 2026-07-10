@@ -16,12 +16,15 @@ import type {
   BehaviorLogImportActionState,
   BehaviorLogImportApplyMode,
   BehaviorLogImportCapabilities,
+  BehaviorLogImportFormAction,
   BehaviorLogImportRunView,
 } from "@/lib/types/behaviorlog-import-ui";
 import { BEHAVIORLOG_IMPORT_INITIAL_STATE } from "@/lib/types/behaviorlog-import-ui";
 
 type BehaviorLogImportPanelProps = Readonly<{
   recentRuns: BehaviorLogImportRunView[];
+  action?: BehaviorLogImportFormAction;
+  initialState?: BehaviorLogImportActionState;
 }>;
 
 const ACTION_LABELS: Record<BehaviorLogImportMergeAction, string> = {
@@ -42,10 +45,12 @@ const RECORD_TYPE_LABELS: Record<BehaviorLogImportRecordType, string> = {
 
 export function BehaviorLogImportPanel({
   recentRuns,
+  action = submitBehaviorLogImportAction,
+  initialState = BEHAVIORLOG_IMPORT_INITIAL_STATE,
 }: BehaviorLogImportPanelProps) {
   const [state, formAction, isPending] = useActionState(
-    submitBehaviorLogImportAction,
-    BEHAVIORLOG_IMPORT_INITIAL_STATE,
+    action,
+    initialState,
   );
   const preview = state.preview;
   const runs = mergeRecentRuns(recentRuns, state);

@@ -22,6 +22,8 @@ describe("BehaviorLog restore UI", () => {
     expect(html).toContain("Replace · Destructive");
     expect(html).toContain("Archive · Destructive");
     expect(html).toContain("high_sensitivity_note_present");
+    expect(html).toContain("Sensitive notes");
+    expect(html).toContain("Redacted fields");
   });
 
   it("labels recent restore runs without completion timestamps as still open", () => {

@@ -27,6 +27,11 @@ export type BehaviorLogRestoreActionState = {
   applyResult: BehaviorLogRestoreApplyResult | null;
 };
 
+export type BehaviorLogRestoreFormAction = (
+  previousState: BehaviorLogRestoreActionState,
+  formData: FormData,
+) => Promise<BehaviorLogRestoreActionState>;
+
 export type BehaviorLogRestorePageData = {
   recentRuns: BehaviorLogRestoreRunView[];
 };

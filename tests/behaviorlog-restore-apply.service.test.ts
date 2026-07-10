@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveExportBundle } from "../lib/resolvers/export.resolver";
 import {
   applyBehaviorLogRestoreUploadFromFormData,
+  createBehaviorLogRestorePreviewRun,
   previewBehaviorLogRestoreFromZip,
 } from "../lib/services/behaviorlog-restore.service";
 import { createStoredZip } from "../lib/services/zip";
@@ -92,6 +93,40 @@ describe("BehaviorLog restore apply service", () => {
     ).rejects.toThrow("fresh backup");
     expect(mocks.createClient).not.toHaveBeenCalled();
     expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
+  });
+
+  it("records synchronously completed restore previews with a completion time", async () => {
+    mocks.createBehaviorLogImportRun.mockResolvedValueOnce({
+      id: "preview-run",
+      user_id: USER_ID,
+      import_mode: "restore_preview",
+      status: "previewed",
+      dry_run_summary: {},
+      started_at: "2026-06-08T21:10:00Z",
+      completed_at: "2026-06-08T21:10:01Z",
+      failure_message: null,
+    });
+
+    const result = await createBehaviorLogRestorePreviewRun(
+      {} as never,
+      {
+        userId: USER_ID,
+        files: bundleFiles(),
+      },
+    );
+
+    expect(result.importRun.completed_at).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/u,
+    );
+    expect(mocks.createBehaviorLogImportRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        importMode: "restore_preview",
+        status: "previewed",
+        startedAt: expect.any(String),
+        completedAt: expect.any(String),
+      }),
+    );
   });
 
   it("requires typed restore confirmation before auth or writes", async () => {

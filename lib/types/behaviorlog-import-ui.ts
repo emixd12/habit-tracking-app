@@ -71,6 +71,11 @@ export type BehaviorLogImportActionState = {
   applyResult: BehaviorLogImportApplyResultView | null;
 };
 
+export type BehaviorLogImportFormAction = (
+  previousState: BehaviorLogImportActionState,
+  formData: FormData,
+) => Promise<BehaviorLogImportActionState>;
+
 export type BehaviorLogImportPageData = {
   recentRuns: BehaviorLogImportRunView[];
 };

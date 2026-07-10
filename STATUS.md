@@ -61,10 +61,10 @@ Ticket 054 is complete. Clear decision is scoped to selected behavior-date
 review, and an owner-approved proxy browser walkthrough verified the heatmap
 review path at desktop and 390px.
 
-Ticket 055 is in progress. Import apply is being bound to the exact accepted
+Ticket 055 is complete. Import apply is bound to the exact accepted
 merge-preview run and its bundle, local-data, and combined preview fingerprints;
-the remaining completion work includes focused verification and browser fixture
-QA for stale-preview refusal and an accepted-preview success case.
+the binding, restore-preview timestamp correction, safety-count disclosure,
+fixture-backed browser QA, and final repository-wide verification pass locally.
 
 Ticket 056 is complete. Owner-approved agent-proxy browser walkthroughs found
 that the homepage blurred Cadence with BehaviorLog and used ambiguous "open
@@ -3654,7 +3654,7 @@ Remaining risk:
 
 ### Ticket 055: Portability flow comprehension hardening
 
-Status: in progress.
+Status: complete.
 
 Implementation summary:
 - Added concise task-based guidance to export download rows for JSONL, CSV, app
@@ -3671,6 +3671,14 @@ Implementation summary:
   persisted accepted `merge_preview` run, verify matching bundle, local-data,
   and combined preview fingerprints before writing, reject stale or altered
   input, and retain the accepted preview relationship on the applied run.
+- Restore preview runs now capture an explicit start time before synchronous
+  preview computation and a completion time afterward, so completed previews no
+  longer appear open merely because `completed_at` was omitted.
+- Restore preview UI now shows high/restricted note counts and redacted
+  intervention-field counts alongside the destructive-action summary.
+- The local design-system bench can render accepted, stale, invalid,
+  warning-heavy, and destructive import/restore states with no product writes;
+  its accepted-preview action uses a bench-only server action.
 - Updated `docs/EXPORT_FORMATS.md`, `docs/UI_SPEC.md`,
   `docs/USER_FLOWS.md`, `docs/PRODUCT_SPEC.md`, `docs/DATA_MODEL.md`, and
   `docs/TICKETS.md`.
@@ -3687,12 +3695,37 @@ Verification:
 - Pass: `npm run test` (60 files, 353 tests).
 - Pass: `npm run build`.
 - Pass: `git diff --check`.
+- Pass: focused accepted-preview/restore/export suite (8 files, 68 tests).
+- Pass after the restore timestamp/count/bench follow-up:
+  `npm run test -- tests/behaviorlog-import-ui.test.tsx
+  tests/behaviorlog-restore-ui.test.tsx
+  tests/behaviorlog-restore-apply.service.test.ts` (3 files, 24 tests).
+- Pass: clean local `SUPABASE_NO_TELEMETRY=1 npm run supabase -- db reset`
+  through `20260709191905_bind_import_apply_to_accepted_preview.sql` and the
+  next queued Ticket 057 migration.
+- Pass: local Supabase type regeneration matched the checked-in schema types;
+  only the generator's trailing blank line differed before replacement.
+- Browser QA: local fixture bench at 1280px and 390px verified accepted-preview
+  apply success through a no-write bench action, stale-local-data refusal,
+  invalid-preview disabled actions, high-sensitivity acknowledgement, visible
+  restore safety counts, destructive restore action disclosure without apply,
+  and no page or panel horizontal overflow.
+- Pass after all five-ticket integration work settled: `npm run agents:check`
+  (95 invariants), `npm run resolvers:check` (152 invariants),
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test` (67 files, 428 tests), `npm run build`, and
+  `git diff --check`.
 
-Remaining completion work:
-- Complete focused tests, repository gates, and browser fixture QA for import
-  preview/apply, including stale-preview rejection and a valid accepted-preview
-  success case. Destructive restore apply remains outside this ticket's browser
-  QA scope and must not run against the user's real account.
+Remaining risk:
+- Browser QA used the real import and restore components through the local
+  design-system fixture bench, not the authenticated `/export` route. It made
+  no product writes and is agent-proxy evidence rather than human research.
+- Destructive restore apply remains outside this ticket's browser QA scope and
+  was not run against the user's real account.
+- Hosted deployment of
+  `20260709191905_bind_import_apply_to_accepted_preview.sql` still requires
+  owner authorization before the accepted-preview contract is live in the
+  linked Supabase project.
 
 ### Ticket 056: Public trust and marketing comprehension
 
