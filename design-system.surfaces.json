@@ -675,7 +675,7 @@
           "surfaceId": "marketing",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["apps/marketing/src/components/BrandMarks.astro", "apps/marketing/src/components/HeroVisual.astro", "apps/marketing/public/brand/cadence-logo.png", "apps/marketing/public/brand/cadence-home-hero.png"],
+          "sources": ["apps/marketing/src/components/BrandMarks.astro", "apps/marketing/src/components/HeroVisual.astro", "apps/marketing/public/brand/cadence-logo.png"],
           "implementationIds": [],
           "notes": "Marketing uses the Cadence mark and name in the header plus the supplied trajectory horse and MacBook capture image in the homepage hero; BehaviorLog is represented through page copy, bundle captures, and the BehaviorLog route."
         },

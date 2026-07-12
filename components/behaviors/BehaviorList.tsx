@@ -162,7 +162,7 @@ function OverallAdherence({
       <div className="grid gap-5 md:grid-cols-[minmax(14rem,0.62fr)_minmax(16rem,31rem)] md:items-start">
         <div className="grid max-w-sm gap-4">
           <div className="grid gap-1">
-            <div className="flex items-baseline justify-between gap-6">
+            <div className="flex items-baseline gap-3">
               <h2 id="overall-adherence-title" className="text-2xl leading-tight">
                 Overall adherence:
               </h2>
@@ -182,7 +182,7 @@ function OverallAdherence({
           <StatusCountGrid counts={analytics.summary} />
         </div>
 
-        <div className="grid w-full max-w-[31rem] gap-3 md:justify-self-end">
+        <div className="grid w-full max-w-[28rem] gap-3 md:justify-self-end">
           <RangeSelector analytics={analytics} />
           <div className="grid gap-3 sm:grid-cols-[minmax(0,16rem)_max-content] sm:items-start">
             <OverallHeatmap analytics={analytics} />
@@ -286,7 +286,7 @@ function BehaviorRecord({
 
   return (
     <article className="bg-background">
-      <div className="grid gap-6 py-5 md:grid-cols-[minmax(0,1fr)_minmax(16rem,19rem)] md:items-start">
+      <div className="grid gap-6 pb-0 pt-5 md:grid-cols-[minmax(0,1fr)_minmax(16rem,19rem)] md:items-start">
         <div className="grid min-w-0 gap-5">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="break-words text-xl leading-tight">{behavior.title}</h3>
@@ -333,7 +333,7 @@ function BehaviorRecord({
           }
         }}
       >
-        <summary className="product-disclosure-trigger flex min-h-12 items-center py-4 text-sm text-foreground">
+        <summary className="product-disclosure-trigger flex min-h-10 items-center py-2 text-sm text-foreground">
           <span
             aria-hidden="true"
             className="product-disclosure-indicator"
@@ -347,7 +347,7 @@ function BehaviorRecord({
             Details and Settings
           </span>
         </summary>
-        <div className="grid gap-5 pb-5 pl-3 pt-4">
+        <div className="grid gap-5 pb-5 pl-3 pt-0">
           <BehaviorMetadata behavior={behavior} />
 
           {hasOpenedEdit ? (
@@ -404,7 +404,7 @@ function BehaviorMetadata({
   behavior: BehaviorView;
 }>) {
   return (
-    <dl className="grid gap-2 text-sm leading-6 text-muted-readable">
+    <dl className="grid gap-1 text-sm leading-5 text-muted-readable">
       <SummaryItem label="Category" value={behavior.categoryName} />
       <SummaryItem label="Scheduled" value={behavior.scheduleSummary} />
       <SummaryItem label="Recurrence" value={behavior.recurrenceSummary} />

@@ -256,7 +256,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Form layout:** Full-width page section without an extra outer card border or outer padding. Use stacked field groups, quiet inner dividers, and a two-column desktop rhythm that collapses to one column on mobile.
 - **Scheduled time:** Show only the scheduled-time control in the Behavior form. Timezone is owned by Settings and should not appear as a separate create-form panel.
 - **Recurrence section:** Render as an unframed form section with a plain section heading, segmented radio presets, and smaller muted subsection labels such as Every, On, and Day.
-- **Recurrence presets:** Segmented radio labels use Monolith Blue fill only for the selected preset. Weekday choices use square bordered checkbox chips.
+- **Recurrence presets:** Segmented radio labels use Monolith Blue fill only for the selected preset. Weekday choices use compact borderless labels with a visible native checkbox.
 - **Reminder section:** Render as an unframed form section matching Recurrence, with a plain section heading, bordered checkbox controls, and smaller muted subsection labels such as Reminder offset.
 - **Create behavior:** Keep the creation form available from the Behaviors page without making existing behavior records secondary. When records already exist, use a simple native disclosure; when no records exist, the disclosure may open by default.
 - **Behavior records:** Active records are unboxed list rows separated by a single 1px Ash Line divider between adjacent records. They keep 20px padding, visible range-based adherence, Completed and Not Completed counts, and a per-behavior calendar sized to the row. Lower-use behavior characteristics such as category, schedule, recurrence, reminders, and description live inside the row's Details and Settings disclosure with the edit form. Archive behavior appears at the end of that settings area and aligns to the opposite side of the Save/Cancel footer row on desktop. Create and edit forms use real field/control borders only; schedule slots use quiet row dividers instead of perimeter boxes.
@@ -351,15 +351,8 @@ This system is flat by default. Depth is created with borders, spacing, surface 
   and BehaviorLog bundle file set. They reuse real Cadence row language:
   scheduled time, behavior title, Completed, Not Completed, Needs decision,
   Note, and status-history authority. They do not render real account data.
-  The homepage hero uses the supplied single exported image that combines the
-  trajectory horse, MacBook Pro frame, and sanitized Timeline capture. The
-  composition must stay quiet, keep the capture readable, and fit its available
-  lane without colliding with the headline or clipping offscreen.
-- **CTAs:** Use the same underlined text-action vocabulary for Try Cadence, Read
-  BehaviorLog, Download Example Bundle, and View on GitHub. The persistent
-  header Log in action uses the same text-action primitive with stronger weight
-  because it is an app entry point. Primary content actions use Ink Black.
-  Secondary actions use Readable Ash.
+  The homepage hero layers the trajectory-horse backplate with sanitized Timeline and behavior-row captures positioned in CSS. The composition must stay quiet, keep the captures readable, and fit the available lane without colliding with the headline or clipping offscreen at any viewport width.
+- **CTAs:** The launch marketing site uses filled-button CTAs rather than the app's underlined text actions: a Monolith Blue filled primary (Try Cadence), a 1px-bordered secondary, and underlined ghost links for tertiary actions. The header Log in renders as a compact bordered button. This is a deliberate marketing-register exception; the authenticated app keeps its underlined text-action vocabulary.
 - **Docs route:** `/docs` is agent-first and developer-familiar. It links to
   Markdown mirrors, `llms.txt`, `llms-full.txt`, `/data/route-manifest.json`,
   sitemap, robots, and the example bundle. Use tables for machine file indexes
@@ -373,13 +366,14 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Marketing boundaries:** No marketing cookies, analytics scripts,
   client-side tracking, desktop/mobile teaser, billing teaser, or AI coaching
   copy appears in the launch site.
+- **Marketing register exceptions:** The marketing site shares the Cadence palette and IBM Plex Sans, and may additionally use: border radii (12px cards, 8px controls, pill chips), a sticky header with backdrop blur, font weights 400 to 600, a subtle two-hue page gradient, and IBM Plex Mono strictly for file names, file trees, and code samples. Decorative shadows remain banned on both surfaces. The square, flat, all-400, shadow-free rules elsewhere in this document bind the product app, not the marketing site.
 
 ## 6. Do's and Don'ts
 
 ### Do:
 
 - **Do** use IBM Plex Sans everywhere.
-- **Do** use 0px border radius throughout the app.
+- **Do** use 0px border radius throughout the app (the marketing site follows the Marketing register exceptions).
 - **Do** prefer single quiet 1px Ash Line dividers over full perimeter boxes.
 - **Do** keep the Timeline as the primary screen and `/timeline` as the default authenticated route.
 - **Do** keep categories hidden from primary navigation and Timeline filtering.

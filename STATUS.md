@@ -942,6 +942,67 @@ Later ticket rollup:
 
 ## Post-ticket refinements
 
+### Behaviors browser-comment spacing refinement (2026-07-12)
+
+Status: complete.
+
+Implementation summary:
+- Tightened the Overall adherence label-to-percentage gap and narrowed the
+  visualization column so the range selector, heatmap, and legend sit farther
+  right at desktop widths while preserving the stacked mobile order.
+- Reduced the behavior-row bottom padding and disclosure trigger height so
+  Details and Settings sits closer to the stats/calendar without taking the
+  expanding underline out of document flow.
+- Removed the expanded-details top padding, reduced metadata row spacing and
+  line height, and kept the editor separated from the compact metadata block.
+- Replaced the bordered weekday checkbox chips with compact borderless labels
+  around the existing native checkboxes, and updated `DESIGN.md` to make that
+  intentional product direction explicit.
+- Removed the overlapping-occurrences helper sentence from the form. Resolver
+  deduplication behavior and coverage remain unchanged.
+
+Verification:
+- Pass: `npm run agents:check` (95 invariants).
+- Pass: `npm run resolvers:check` (152 invariants).
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (67 files, 428 tests).
+- Pass: `npm run build`.
+- Browser QA: authenticated local `/behaviors` at 1024x768 confirmed a 12px
+  adherence label/percentage gap, a right-aligned visualization column, no
+  horizontal overflow, and no browser warnings or errors.
+- Browser QA: authenticated local `/behaviors` at 390x844 confirmed all seven
+  weekday labels use 0px borders and 32px compact minimum heights, the helper
+  sentence is absent, the settled document width matches the viewport, and no
+  browser warnings or errors appeared. The fixture-backed BehaviorList preview
+  additionally confirmed 0px expanded-content top padding, a 4px metadata row
+  gap, and 20px metadata line height.
+
+Remaining risk:
+- The refinement is verified locally but has not been deployed to hosted
+  production yet.
+
+### Marketing homepage critique fixes (2026-07-12)
+
+Status: complete.
+
+Implementation summary:
+- Ran the project Impeccable critique on the marketing homepage, which scored
+  28/40 with three P1 findings.
+- Fixed the mobile hero clipping risk and flat H1/H2 scale, completed the
+  banned-pattern copy pass, replaced the icon-card grid with one ledger panel,
+  and removed border-plus-shadow pairs and monospace-as-costume styling.
+- Resized the Cadence logo assets, removed the unused oversized hero export,
+  and codified the marketing register exceptions in `DESIGN.md`.
+
+Verification:
+- Pass: `npm run marketing:build`.
+- Pass: `node scripts/check-agent-readability.mjs` from `apps/marketing`.
+- Pass: Impeccable detector returned `[]` for the homepage and base layout.
+- Pass: generated homepage HTML and Markdown contain no em dash characters.
+- Pass: `npm run design-system:check`.
+
 ### Analytics summary unresolved alignment
 
 Status: complete.

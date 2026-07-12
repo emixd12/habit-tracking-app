@@ -11,7 +11,7 @@ export const siteConfig = {
   standardUrl: "https://github.com/emixd12/BehaviorLog-Bundle",
   githubUrl: "https://github.com/emixd12/habit-tracking-app",
   exampleBundlePath: "/examples/cadence-demo.behaviorlog.zip",
-  lastModified: "2026-06-24",
+  lastModified: "2026-07-12",
 } as const;
 
 export const primaryCtas = {

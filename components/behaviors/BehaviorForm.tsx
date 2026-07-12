@@ -255,7 +255,6 @@ export function BehaviorForm({
               key={schedule.key}
               schedule={schedule}
               index={index}
-              showOverlapNote={index === 0}
               canRemoveSchedule={scheduleRows.length > 1}
               onScheduleChange={(update) =>
                 updateScheduleRow(schedule.key, update)
@@ -326,7 +325,6 @@ export function BehaviorForm({
 function ScheduleRowEditor({
   schedule,
   index,
-  showOverlapNote,
   canRemoveSchedule,
   onScheduleChange,
   onRemoveSchedule,
@@ -336,7 +334,6 @@ function ScheduleRowEditor({
 }: Readonly<{
   schedule: ScheduleFormRow;
   index: number;
-  showOverlapNote: boolean;
   canRemoveSchedule: boolean;
   onScheduleChange: (
     update: Partial<Pick<ScheduleFormRow, "recurrenceKind">>,
@@ -420,12 +417,6 @@ function ScheduleRowEditor({
           </div>
         ) : null}
       </div>
-
-      {showOverlapNote ? (
-        <p className="text-sm leading-6 text-muted-readable lg:col-start-3">
-          *Overlapping occurrences at the same time are counted once.
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -451,11 +442,11 @@ function RecurrenceDetailFields({
         />
         <div className="grid gap-2">
           <span className="text-sm text-foreground">On</span>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
             {WEEKDAY_OPTIONS.map((weekday) => (
               <label
                 key={weekday.value}
-                className="inline-flex min-h-9 items-center gap-2 border border-line px-2 py-1 text-sm"
+                className="inline-flex min-h-8 items-center gap-1.5 py-1 pr-2 text-sm"
               >
                 <input
                   type="checkbox"

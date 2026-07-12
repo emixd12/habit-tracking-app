@@ -34,3 +34,6 @@ pnpm-debug.log*
 
 # Vercel local project link
 .vercel/
+
+# Claude Code local state (codex-bridge runs, launch config)
+.claude/

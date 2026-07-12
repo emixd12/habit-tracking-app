@@ -24,16 +24,21 @@ export const marketingRoutes = [
     title: "Cadence",
     navLabel: "Home",
     description:
-      "Cadence is an open personal behavior tracker with portable BehaviorLog exports.",
+      "Cadence is an open-source behavior tracker where you decide every occurrence and export your full history as a portable BehaviorLog bundle.",
     lastModified: siteConfig.lastModified,
     includeInSitemap: true,
     includeInLlms: true,
     includeInMarkdownMirror: true,
     markdown: `# Cadence
 
-Cadence is an open tracker for recurring life patterns. It is the product people use to create behaviors, review scheduled occurrences, mark Completed or Not Completed, add notes, receive reminders, review basic analytics, and export their record.
+Cadence is an open-source personal behavior tracker. You define behaviors with schedules, Cadence generates scheduled occurrences on a today-first timeline, and you decide each one: Completed or Not Completed. Undecided occurrences stay Unresolved, and prior-day unresolved items surface in Needs decision; nothing is ever auto-marked missed. The full history exports as JSONL, CSV, full JSON, a Markdown summary, or a portable BehaviorLog bundle.
 
-BehaviorLog is the open bundle format behind Cadence exports and imports. It stores behaviors, schedules, occurrences, status changes, notes, and provenance in files that can be inspected outside the app.
+## How Cadence Works
+
+1. Define a behavior with a title and a schedule: daily, every N days, weekly, or monthly, at exact times or time ranges.
+2. Cadence turns each scheduled slot into an occurrence on a today-first timeline, with optional browser or email reminders.
+3. The user marks each occurrence Completed or Not Completed and can attach notes. Undecided occurrences stay Unresolved.
+4. Review adherence across 7, 30, or 90 days, then export the full history anytime.
 
 ## Read First
 
@@ -49,7 +54,7 @@ BehaviorLog is the open bundle format behind Cadence exports and imports. It sto
     markdownPath: "/cadence.md",
     type: "product",
     title: "Cadence Tracker",
-    navLabel: "Cadence",
+    navLabel: "Product",
     description:
       "Track recurring behaviors, decide each occurrence manually, and export portable BehaviorLog records.",
     lastModified: siteConfig.lastModified,

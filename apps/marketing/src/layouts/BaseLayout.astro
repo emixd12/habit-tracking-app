@@ -1,4 +1,7 @@
 ---
+import "@fontsource-variable/ibm-plex-sans";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
 import BrandMarks from "../components/BrandMarks.astro";
 import RouteJsonLd from "../components/RouteJsonLd.astro";
 import { getCanonicalUrl, getRouteById, type MarketingRoute } from "../data/routes";
@@ -12,8 +15,8 @@ type Props = {
 const { route } = Astro.props;
 const canonicalUrl = getCanonicalUrl(route.path);
 const markdownUrl = getCanonicalUrl(route.markdownPath);
-const pageTitle = route.path === "/" ? route.title : `${route.title} | Cadence`;
-const ogImageUrl = getCanonicalUrl("/brand/cadence-logo.png");
+const pageTitle = route.path === "/" ? "Cadence · Decide your days, own every record" : `${route.title} | Cadence`;
+const ogImageUrl = getCanonicalUrl("/brand/cadence-logo-512.png");
 const headerRoutes = [
   getRouteById("cadence"),
   getRouteById("standard"),
@@ -28,7 +31,7 @@ const headerRoutes = [
     <title>{pageTitle}</title>
     <meta name="description" content={route.description} />
     <link rel="canonical" href={canonicalUrl} />
-    <link rel="icon" type="image/png" href="/brand/cadence-logo.png" />
+    <link rel="icon" type="image/png" href="/brand/cadence-favicon-64.png" />
     <link rel="alternate" type="text/markdown" href={markdownUrl} />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={route.description} />
@@ -63,7 +66,7 @@ const headerRoutes = [
                 ))
               }
             </nav>
-            <a class="site-header__login" href={primaryCtas.logIn.href}>
+            <a class="button site-header__login" href={primaryCtas.logIn.href}>
               {primaryCtas.logIn.label}
             </a>
           </div>
@@ -78,7 +81,7 @@ const headerRoutes = [
             Cadence is the tracker. BehaviorLog is the open standard behind portable records.
           </p>
           <div class="cta-row" aria-label="Project links">
-            <a class="inline-link" href="/cadence">Cadence</a>
+            <a class="inline-link" href="/cadence">Product</a>
             <a class="inline-link" href="/standard">BehaviorLog</a>
             <a class="inline-link" href="/about">About</a>
             <a class="inline-link" href={primaryCtas.viewGithub.href}>GitHub</a>
