@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it, vi } from "vitest";
 
+import { BehaviorForm } from "../components/behaviors/BehaviorForm";
 import { BehaviorList } from "../components/behaviors/BehaviorList";
 import { StatusButtons } from "../components/timeline/StatusButtons";
 import type { AnalyticsView } from "../lib/types/analytics";
@@ -30,6 +31,37 @@ const occurrenceAction: OccurrenceFormAction = async (
 ) => state;
 
 describe("behavior date review UI", () => {
+  it("renders weekday checkboxes only for weekly recurrence", () => {
+    const dailyBehavior = behaviorView();
+    const dailyHtml = renderToStaticMarkup(
+      <BehaviorForm
+        mode="edit"
+        action={behaviorAction}
+        categories={[{ id: "category-1", name: "Health" }]}
+        behavior={dailyBehavior}
+      />,
+    );
+    const weeklyBehavior: BehaviorView = {
+      ...dailyBehavior,
+      recurrenceDefaults: {
+        ...dailyBehavior.recurrenceDefaults,
+        kind: "weekly",
+        weeklyDays: ["monday", "wednesday"],
+      },
+    };
+    const weeklyHtml = renderToStaticMarkup(
+      <BehaviorForm
+        mode="edit"
+        action={behaviorAction}
+        categories={[{ id: "category-1", name: "Health" }]}
+        behavior={weeklyBehavior}
+      />,
+    );
+
+    expect(dailyHtml).not.toContain('name="schedule_0_weekly_days"');
+    expect(weeklyHtml.match(/name="schedule_0_weekly_days"/g)).toHaveLength(7);
+  });
+
   it("gives actionable heatmap days review scent and names the selected-day panel", () => {
     const behavior = behaviorView();
     const analytics = analyticsView(behavior);

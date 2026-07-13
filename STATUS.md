@@ -74,20 +74,21 @@ format. Reruns passed discovery, portability, and pre-login trust tasks. This
 is proxy evidence only; real-user testing remains necessary before claiming
 externally validated comprehension.
 
-Ticket 057 is complete locally. Behavior title and description revisions now
+Ticket 057 is complete. Behavior title and description revisions now
 have append-only, owner-scoped history with atomic baseline/change writes, and
-the history is included in full JSON and BehaviorLog exports. Hosted deployment
-of its migration remains pending owner authorization.
+the history is included in full JSON and BehaviorLog exports. Its migration was
+deployed to hosted Supabase on 2026-07-13.
 
-Ticket 058 is complete locally. Manual status transitions now persist the
+Ticket 058 is complete. Manual status transitions now persist the
 occurrence snapshot, append-only event, and resolver-planned reminder
 cancellation in one owner-scoped transaction with idempotency and ABA guards.
-Hosted deployment of its migration remains pending owner authorization.
+Its migration was deployed to hosted Supabase on 2026-07-13.
 
-Ticket 059 is complete locally. Restore apply now binds one exact accepted
+Ticket 059 is complete. Restore apply now binds one exact accepted
 preview and canonical payload, verifies stale-row preconditions, and commits
 product writes, definition history, provenance, and the applied ledger in one
-idempotent transaction. Hosted deployment remains pending owner authorization.
+idempotent transaction. Its migration was deployed to hosted Supabase on
+2026-07-13.
 
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
@@ -941,6 +942,98 @@ Later ticket rollup:
 | 030: Public web hardening follow-up | complete | Added dismissible Timeline first-run setup, privacy-safe structured runtime monitoring, and `npm run smoke:rls` many-user RLS smoke QA. | Pass: `npm run smoke:rls`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test` (35 files, 241 tests); Pass: `npm run build`; Pass: `npm run design-system:check`; Pass: `git diff --check`; Browser QA with a temporary authenticated Chrome user verified Timeline first-run setup at 1280px and 390px with no horizontal overflow, required links present, no console warnings/errors, and temporary user cleanup. | No Ticket 030 blocker remains. Re-run `npm run smoke:rls` before broad launch and after material RLS/schema changes. |
 
 ## Post-ticket refinements
+
+### Hosted July schema deployment and occurrence-status recovery (2026-07-13)
+
+Status: complete.
+
+Implementation summary:
+- Diagnosed production occurrence status failures as application/schema drift:
+  Vercel was running the RPC-based Ticket 058 code while hosted Supabase still
+  lacked `apply_occurrence_status_transition`.
+- Applied the four already-reviewed pending migrations in timestamp order:
+  accepted import-preview binding, behavior definition history, transactional
+  occurrence status changes, and atomic/idempotent BehaviorLog restore apply.
+- Restored hosted schema compatibility for occurrence status changes, behavior
+  create/edit, accepted import apply, and restore apply without changing
+  product scope or manually editing hosted product rows outside migrations.
+
+Verification:
+- Pass: `npm run supabase -- db push --linked --dry-run` listed exactly the four
+  expected July migrations.
+- Pass: authorized `npm run supabase -- db push --linked --yes` applied
+  migrations through
+  `20260709203154_make_behaviorlog_restore_atomic_and_idempotent.sql`.
+- Pass: `npm run supabase -- migration list --linked` confirmed local/hosted
+  parity through `20260709203154`.
+- Pass: `npm run supabase -- db advisors --linked --type all --fail-on error`
+  returned no error-level findings. Warnings remain for the intentional
+  authenticated restore wrappers, leaked-password protection, and pre-existing
+  RLS initialization-plan performance findings.
+- Pass: focused status, behavior-definition, and restore migration/repository
+  tests (7 files, 63 tests).
+- Pass: `npm run agents:check` (95 invariants).
+- Pass: `npm run resolvers:check` (152 invariants).
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (67 files, 429 tests).
+- Pass: `npm run build`.
+- Pass: `git diff --check`.
+- Blocked environment check: `npm run smoke:rls` could not reach Supabase from
+  the sandbox, and the requested escalated retry was rejected before execution;
+  no temporary users were created by that retry.
+
+Remaining risk:
+- A real authenticated production status click was not performed during this
+  deployment task to avoid adding synthetic status history to a personal
+  account. Retry the affected Timeline action as the final user-path smoke.
+- The repository should add a production migration-parity preflight so a
+  schema-dependent application deployment cannot become ready while matching
+  hosted migrations are pending.
+
+### Behaviors browser-comment alignment follow-up (2026-07-12)
+
+Status: complete.
+
+Implementation summary:
+- Widened the desktop Overall adherence summary column so the label and short
+  percentage stay on one adjacent line, while long empty-state text can wrap as
+  a complete metric without colliding with the calendar.
+- Right-aligned the range-selector, overall heatmap, and legend cluster against
+  the content edge.
+- Matched visible per-behavior outcome stats to the Details and Settings
+  metadata rhythm at a 4px row gap and 20px line height.
+- Raised Add schedule so it sits 8px below the schedule rows.
+- Preserved conditional recurrence controls: Daily does not show weekday
+  choices, while Weekly shows all seven borderless native checkboxes. Added a
+  static-render regression test for both states.
+- Updated `docs/UI_SPEC.md` and `DESIGN.md` to replace the stale opposite-side
+  adherence-percentage rule with the adjacent header and right-aligned calendar
+  direction.
+
+Verification:
+- Pass: `npm run agents:check` (95 invariants).
+- Pass: `npm run resolvers:check` (152 invariants).
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test -- tests/behavior-review-ui.test.tsx` (4 tests).
+- Pass: isolated rerun of `tests/behavior-actions.test.ts` after its initial
+  concurrent full-suite run hit the existing 5-second timeout.
+- Pass: standalone `npm run test` (67 files, 429 tests).
+- Pass: `npm run build`.
+- Browser QA: authenticated local `/behaviors` at 1024x768 confirmed one-line
+  adherence label/percentage layout, a 12px label/percentage gap, 0px
+  visualization right inset, seven Weekly checkbox controls, an 8px
+  schedule-row/Add schedule gap, no horizontal overflow, and no browser errors.
+- Browser QA: fixture-backed active behavior data confirmed visible and hidden
+  detail lists both use a 4px row gap and 20px line height. Authenticated local
+  `/behaviors` at 390x844 and `/timeline` at 1280x720 also rendered without
+  horizontal overflow, error overlays, or warning/error logs.
+
+Remaining risk:
+- The refinement is verified locally but has not been deployed to hosted
+  production yet.
 
 ### Behaviors browser-comment spacing refinement (2026-07-12)
 
@@ -3879,9 +3972,6 @@ Verification:
   `git diff --check`.
 
 Remaining risk:
-- Hosted deployment of
-  `20260709201516_add_behavior_definition_events.sql` requires owner
-  authorization before this schema-dependent slice can be pushed live.
 - The backfill records each existing behavior's current stored definition at
   its original creation timestamp; it cannot reconstruct unrecorded historical
   edits from before this ticket.
@@ -3937,9 +4027,6 @@ Verification:
   `git diff --check`.
 
 Remaining risk:
-- Hosted deployment of
-  `20260709203117_add_transactional_occurrence_status_change.sql` requires
-  owner authorization before this schema-dependent slice can be pushed live.
 - Some older migrations synthesized high-confidence status events for records
   they could classify at the time. This ticket deliberately does not rewrite
   existing history; new missing-event legacy snapshots are represented only by
@@ -4001,9 +4088,6 @@ Verification:
   `git diff --check`.
 
 Remaining risk:
-- Hosted deployment of
-  `20260709203154_make_behaviorlog_restore_atomic_and_idempotent.sql` requires
-  owner authorization before this schema-dependent slice can be pushed live.
 - Destructive restore apply was not re-run against a hosted disposable account
   after this fix. That end-to-end browser QA still needs an owner-approved
   disposable account and fresh backup workflow before claiming hosted restore

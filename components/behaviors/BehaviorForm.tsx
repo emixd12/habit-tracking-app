@@ -271,7 +271,7 @@ export function BehaviorForm({
           ))}
         </div>
 
-        <div className="grid gap-2 text-sm">
+        <div className="-mt-2 grid gap-2 text-sm">
           <button
             type="button"
             onClick={addScheduleRow}

@@ -525,10 +525,10 @@ section panels around Overall adherence, the calendar, Behavior counts, and
 Category counts. Use single horizontal dividers where separation is needed.
 The overall calendar belongs inside the Overall adherence area. The date range
 selector sits directly above that calendar. The overall adherence label uses a
-colon, the percentage sits on the other side of that same header line, and the
-selected date range appears directly underneath in compact muted month-day
-wording. The legend is vertically listed to the right of the calendar on
-desktop.
+colon, and the percentage sits immediately after it on the same unbroken header
+line at desktop widths. The selected date range appears directly underneath in
+compact muted month-day wording. The range selector, calendar, and vertically
+listed legend form one cluster aligned to the right edge on desktop.
 
 The overall calendar is a passive adherence summary, not the correction entry
 point. Later corrections start from a behavior row: selecting a non-empty
@@ -567,8 +567,10 @@ neutral unresolved treatment.
 
 Behavior count rows should be divider-separated rather than boxed. Their
 Completed and Not Completed labels align vertically with numeric values in the
-same left-start value column used by other behavior-row metadata. Behavior
-calendar cells with occurrences are selectable; empty cells remain passive.
+same left-start value column used by other behavior-row metadata, and visible
+count rows use the same compact vertical spacing as the metadata inside Details
+and Settings. Behavior calendar cells with occurrences are selectable; empty
+cells remain passive.
 Behavior categories appear as plain metadata text inside Details and edit
 settings.
 

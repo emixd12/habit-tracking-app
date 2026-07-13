@@ -159,11 +159,14 @@ function OverallAdherence({
 }>) {
   return (
     <section className="grid gap-4" aria-labelledby="overall-adherence-title">
-      <div className="grid gap-5 md:grid-cols-[minmax(14rem,0.62fr)_minmax(16rem,31rem)] md:items-start">
+      <div className="grid gap-5 md:grid-cols-[minmax(18rem,1fr)_minmax(16rem,28rem)] md:items-start">
         <div className="grid max-w-sm gap-4">
           <div className="grid gap-1">
-            <div className="flex items-baseline gap-3">
-              <h2 id="overall-adherence-title" className="text-2xl leading-tight">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2
+                id="overall-adherence-title"
+                className="shrink-0 whitespace-nowrap text-2xl leading-tight"
+              >
                 Overall adherence:
               </h2>
               <p className="shrink-0 text-2xl leading-tight tabular-nums">
@@ -182,9 +185,9 @@ function OverallAdherence({
           <StatusCountGrid counts={analytics.summary} />
         </div>
 
-        <div className="grid w-full max-w-[28rem] gap-3 md:justify-self-end">
+        <div className="grid w-full gap-3 md:w-fit md:justify-self-end">
           <RangeSelector analytics={analytics} />
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,16rem)_max-content] sm:items-start">
+          <div className="grid gap-3 sm:grid-cols-[16rem_max-content] sm:items-start">
             <OverallHeatmap analytics={analytics} />
             <HeatmapLegend />
           </div>
@@ -430,7 +433,7 @@ function BehaviorOutcomeStats({
   }
 
   return (
-    <dl className="grid max-w-sm gap-2 text-sm leading-6 text-muted-readable">
+    <dl className="grid max-w-sm gap-1 text-sm leading-5 text-muted-readable">
       <SummaryItem label="Adherence" value={behaviorAnalytics.percentLabel} />
       <SummaryItem
         label="Completed"
