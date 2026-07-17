@@ -42,10 +42,12 @@ describe("UX Tickets 049-052 UI regressions", () => {
       />,
     );
 
-    expect(html).toContain('id="timezone"');
-    expect(html).toContain('for="timezone-input"');
-    expect(html).toContain('id="timezone-input"');
     expect(html.match(/id="timezone"/g)).toHaveLength(1);
+    expect(html).toContain('for="timezone-select"');
+    expect(html).toContain('id="timezone-select"');
+    expect(html).toContain("<select");
+    expect(html).not.toContain("Browser timezone");
+    expect(html).not.toContain("datalist");
     expect(html).toContain("Saving updates active behavior schedules");
     expect(html).toContain("Past and resolved history stays unchanged");
   });

@@ -44,6 +44,7 @@ Two hard typographic ceilings you currently miss:
 #### Layout
 
 - Vary spacing for rhythm.
+- One boundary, one line. Adjacent stacked sections or list rows share a single divider: `divide-y` on the parent, or `border-top` on every sibling after the first. Never give stacked siblings `border-y` — the bottom and top hairlines double up across the gap. A nested container (list, form, status line) never redraws its parent's boundary with its own outer border.
 - Cards are the lazy answer. Use them only when they're truly the best affordance. Nested cards are always wrong.
 - Flexbox for 1D, Grid for 2D. Don't default to Grid when `flex-wrap` would be simpler.
 - For responsive grids without breakpoints: `repeat(auto-fit, minmax(280px, 1fr))`.

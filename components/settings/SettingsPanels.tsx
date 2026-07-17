@@ -17,7 +17,7 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   return (
     <section
-      className={["border-y border-line bg-background py-5 sm:py-6", className]
+      className={["bg-background py-5 sm:py-6", className]
         .filter(Boolean)
         .join(" ")}
     >
@@ -38,7 +38,7 @@ export function TrustAndLegalPanel() {
       title="Trust and legal"
       description="Public account, data, and product-boundary information."
     >
-      <ul className="grid divide-y divide-line border-y border-line text-sm leading-6">
+      <ul className="grid max-w-fit divide-y divide-line text-sm leading-6">
         {LEGAL_PAGE_ORDER.map((key) => {
           const page = LEGAL_PAGES[key];
 
@@ -46,10 +46,10 @@ export function TrustAndLegalPanel() {
             <li key={key}>
               <a
                 href={`/${key}`}
-                className="grid gap-1 px-0 py-3 transition-colors hover:text-foreground sm:grid-cols-[10rem_minmax(0,1fr)]"
+                className="group grid gap-1 px-0 py-3 transition-colors hover:bg-surface sm:grid-cols-[10rem_minmax(0,1fr)]"
               >
                 <span className="text-foreground">{page.title}</span>
-                <span className="text-muted-readable">{page.summary}</span>
+                <span className="text-muted-readable transition-colors group-hover:text-foreground">{page.summary}</span>
               </a>
             </li>
           );

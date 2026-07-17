@@ -677,7 +677,7 @@ Show:
 - Trust, Privacy, and Terms links for public-product account context
 - Account deletion with export acknowledgement and typed confirmation
 
-Timezone detection should use the browser/OS timezone exposed by `Intl.DateTimeFormat().resolvedOptions().timeZone`; do not request geolocation or location permission. Settings should show the stored timezone, show the detected browser timezone when available, provide a Use detected timezone action, and allow manual IANA timezone entry. Before submit, Settings should state that saving a timezone updates the profile and active behavior schedules, then resyncs future unresolved occurrences while preserving past and resolved history.
+Timezone detection should use the browser/OS timezone exposed by `Intl.DateTimeFormat().resolvedOptions().timeZone`; do not request geolocation or location permission. Settings should present one native select of IANA timezones whose selected value is the stored timezone; the select is the only "current timezone" display, with no separate stored or browser-detected value rows. When the detected browser timezone differs from the current selection, show a single quiet Detected line with an inline Use detected timezone action; when they match or detection is unavailable, show nothing. If the browser cannot enumerate timezones, fall back to manual IANA timezone entry. Before submit, Settings should state that saving a timezone updates the profile and active behavior schedules, then resyncs future unresolved occurrences while preserving past and resolved history.
 
 Do not include a test notification button in v1.
 

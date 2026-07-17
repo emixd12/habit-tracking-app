@@ -1687,9 +1687,7 @@ const previewFactories: Record<
     ),
   "module.notification-permission-panel": () => (
       <ProductPreview>
-        <div className="grid gap-5 md:grid-cols-2">
-          <NotificationPermissionPanel vapidPublicKey="" />
-        </div>
+        <NotificationPermissionPanel vapidPublicKey="" />
       </ProductPreview>
   ),
   "module.trust-and-legal-panel": () => (

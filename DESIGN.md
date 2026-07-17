@@ -221,6 +221,8 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 **The Quiet Divider Rule.** Prefer single 1px Ash Line dividers over full perimeter boxes. Inputs, select controls, compact chips, true dialogs, and dense data tables may still use enclosure when the boundary is functional. Hierarchy comes from fill, spacing, and typography rather than heavier border weight.
 
+**The One-Line-Per-Boundary Rule.** Any boundary between two neighbors is drawn exactly once. Stacked page sections take a single divider between them (`divide-y` on the stack, or `border-t` on every section after the first), never per-section `border-y`, which doubles the line across the gap. A nested container never redraws its parent's boundary: a list inside a section uses inner `divide-y` only, with no outer border, and inline status text does not carry its own `border-t`.
+
 ## 5. Components
 
 ### Buttons
@@ -248,6 +250,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 ### Inputs / Fields
 
 - **Style:** Bleached Newsprint background, 1px Ash Line border, square corners, IBM Plex Sans body text, and 8px 12px padding.
+- **Selects:** Native select controls use the shared select primitive: the same square field enclosure with the browser widget chrome removed (`appearance: none`) and a 16px Ink Black stroke chevron. The chevron sits at the field's standard 12px inset from the right border, mirroring the 12px left text inset, with right padding reserving 40px so text never runs under it.
 - **Focus:** Keep the square geometry and add a visible outline.
 - **Error / Disabled:** Errors use Rust Signal text. Disabled states use Cold Surface and Readable Ash.
 
@@ -313,11 +316,14 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 ### Settings Panels
 
-- **Profile and timezone:** Use divider-based sections with label/value rows. The timezone panel shows current and browser-detected values, a plain IANA timezone field, a secondary Use detected timezone action, and a primary Save timezone action. Keep values readable and avoid explanatory prose unless the state needs it.
-- **Notification permission:** Use one divider-based section with Permission and Browser push values plus a single primary text action. Permission prompts must be triggered by the user, not on page load.
+- **Page structure:** Settings is a single-column stack of unboxed sections separated by one 1px Ash Line divider between neighbors, following the One-Line-Per-Boundary Rule. Sections draw no perimeter or `border-y` of their own, and no side-by-side section grid. Section content keeps a readable measure: prose within roughly 65ch and form controls at a compact single-column width instead of multi-column desktop sprawl.
+- **Profile:** Quiet label/value rows only.
+- **Timezone:** One native select of IANA timezones whose selected value is the saved timezone; the select is the single source for "current timezone", with no separate current or browser-detected value rows and no visible label repeating the section heading. When the browser-detected timezone differs from the saved one, show one quiet muted line, "Detected {timezone}", with an inline secondary Use detected timezone text action that updates the select; when they match or detection is unavailable, show nothing. Saving stays an explicit primary Save timezone action, with helper copy explaining the schedule impact. If the browser cannot enumerate timezones, fall back to a plain IANA text field.
+- **Notification permission:** One section with a Browser notifications status value plus a single primary text action. Permission prompts must be triggered by the user, not on page load.
 - **Unavailable states:** Use factual muted text for denied, unsupported, or unconfigured browser push. Rust Signal is only for an actual save error.
-- **Trust and legal:** Link to Terms, Privacy, and Trust from Settings using quiet ledger rows. These pages are public account-information routes, not marketing pages.
-- **Account deletion:** Use a flat Settings section with export reminder copy, a checkbox acknowledgement, typed confirmation, and a Rust Signal destructive text action. This is the only destructive account action in the public-launch web app baseline.
+- **Inline results:** Save confirmations and errors are plain text lines under their form. They do not carry their own divider.
+- **Trust and legal:** Link to Terms, Privacy, and Trust from Settings using quiet ledger rows separated by inner dividers only; the list draws no outer border. The list sizes to its content so row dividers span only the length of the text, not the full section width. Each row is a full-row link and hovers with the standard inactive-row treatment: Cold Surface fill across the row with the muted summary shifting to Ink Black; keyboard focus uses the global focus outline.
+- **Account deletion:** Use a flat single-column Settings section with export reminder copy, a checkbox acknowledgement, typed confirmation, and a Rust Signal destructive text action, with no internal horizontal rules. This is the only destructive account action in the public-launch web app baseline.
 
 ### Public Account Information
 

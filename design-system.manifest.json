@@ -281,7 +281,7 @@
       "benchAnchor": "design-system#ds-module-timezone-panel",
       "trackUsages": "required",
       "status": "active",
-      "notes": "Settings timezone detection and manual override panel."
+      "notes": "Settings timezone select with detected-timezone hint and explicit save."
     },
     {
       "id": "module.reminder-editor",

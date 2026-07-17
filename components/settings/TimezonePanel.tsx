@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import {
   TIMEZONE_ACTION_INITIAL_STATE,
@@ -31,17 +31,22 @@ export function TimezonePanel({
     TIMEZONE_ACTION_INITIAL_STATE,
   );
   const savedTimezone = state.timezone ?? currentTimezone;
-  const timezoneInputRef = useRef<HTMLInputElement>(null);
+  const [selectedTimezone, setSelectedTimezone] = useState(savedTimezone);
   const [browserTimezone, setBrowserTimezone] =
     useState<BrowserTimezoneState>({
       status: "checking",
       value: "",
     });
   const [timezoneOptions, setTimezoneOptions] = useState<string[]>([]);
-  const canUseDetected =
+  const [hasReadTimezoneOptions, setHasReadTimezoneOptions] = useState(false);
+  const selectOptions = buildSelectOptions({
+    browserTimezone,
+    savedTimezone,
+    timezoneOptions,
+  });
+  const showDetectedHint =
     browserTimezone.status === "available" &&
-    browserTimezone.value.length > 0 &&
-    browserTimezone.value !== savedTimezone;
+    browserTimezone.value !== selectedTimezone;
 
   useEffect(() => {
     let isActive = true;
@@ -52,6 +57,7 @@ export function TimezonePanel({
 
       setBrowserTimezone(readBrowserTimezone());
       setTimezoneOptions(readSupportedTimezones());
+      setHasReadTimezoneOptions(true);
     }, 0);
 
     return () => {
@@ -63,90 +69,107 @@ export function TimezonePanel({
   return (
     <section
       id="timezone"
-      className="scroll-mt-20 border-y border-line bg-background py-5 sm:py-6 md:col-span-2"
+      className="scroll-mt-20 bg-background py-5 sm:py-6"
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,28rem)]">
-        <div className="min-w-0">
-          <h2 className="text-xl leading-tight">Timezone</h2>
-          <dl className="mt-4 grid gap-3 text-sm leading-6 text-muted-readable sm:grid-cols-2">
-            <div>
-              <dt className="font-bold text-foreground">Current timezone</dt>
-              <dd>{savedTimezone}</dd>
-            </div>
-            <div>
-              <dt className="font-bold text-foreground">Browser timezone</dt>
-              <dd>{browserTimezoneLabel(browserTimezone)}</dd>
-            </div>
-          </dl>
-        </div>
-
-        <form key={savedTimezone} action={formAction} className="grid gap-3">
-          <label
-            htmlFor="timezone-input"
-            className="text-sm leading-6 text-foreground"
-          >
-            Timezone
-          </label>
+      <h2 className="text-xl leading-tight">Timezone</h2>
+      <form
+        key={savedTimezone}
+        action={formAction}
+        className="mt-4 grid max-w-md gap-3"
+      >
+        <label htmlFor="timezone-select" className="sr-only">
+          Timezone
+        </label>
+        {hasReadTimezoneOptions && timezoneOptions.length === 0 ? (
           <input
-            ref={timezoneInputRef}
-            id="timezone-input"
+            id="timezone-select"
             name="timezone"
             type="text"
             required
             autoComplete="off"
-            list={timezoneOptions.length > 0 ? "timezone-options" : undefined}
-            defaultValue={savedTimezone}
+            value={selectedTimezone}
+            onChange={(event) =>
+              setSelectedTimezone(event.currentTarget.value)
+            }
             className="min-h-11 border border-line bg-background px-3 py-2 text-base"
           />
+        ) : (
+          <select
+            id="timezone-select"
+            name="timezone"
+            required
+            value={selectedTimezone}
+            onChange={(event) =>
+              setSelectedTimezone(event.currentTarget.value)
+            }
+            className="product-select min-h-11 border border-line bg-background pl-3 py-2 text-base"
+          >
+            {selectOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        )}
+        {showDetectedHint ? (
           <p className="text-sm leading-6 text-muted-readable">
-            Saving updates active behavior schedules and future unresolved
-            occurrences. Past and resolved history stays unchanged.
-          </p>
-          {timezoneOptions.length > 0 ? (
-            <datalist id="timezone-options">
-              {timezoneOptions.map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
-          ) : null}
-
-          <div className="grid gap-2 sm:grid-cols-2">
+            Detected {browserTimezone.value}.{" "}
             <button
               type="button"
-              disabled={!canUseDetected || isPending}
-              onClick={() => {
-                if (timezoneInputRef.current) {
-                  timezoneInputRef.current.value = browserTimezone.value;
-                }
-              }}
-              className="product-action product-action-secondary min-h-11 py-2 text-sm"
+              onClick={() => setSelectedTimezone(browserTimezone.value)}
+              className="product-action product-action-secondary"
             >
               Use detected timezone
             </button>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="product-action product-action-primary min-h-11 py-2 text-sm"
-            >
-              {isPending ? "Saving..." : "Save timezone"}
-            </button>
-          </div>
-
-          {state.message ? (
-            <p
-              role={state.status === "error" ? "alert" : "status"}
-              className={[
-                "border-t border-line pt-3 text-sm leading-6",
-                state.status === "error" ? "text-accent" : "text-muted-readable",
-              ].join(" ")}
-            >
-              {state.message}
-            </p>
-          ) : null}
-        </form>
-      </div>
+          </p>
+        ) : null}
+        <p className="text-sm leading-6 text-muted-readable">
+          Saving updates active behavior schedules and future unresolved
+          occurrences. Past and resolved history stays unchanged.
+        </p>
+        <button
+          type="submit"
+          disabled={isPending}
+          className="product-action product-action-primary min-h-11 w-fit py-2 text-sm"
+        >
+          {isPending ? "Saving..." : "Save timezone"}
+        </button>
+        {state.message ? (
+          <p
+            role={state.status === "error" ? "alert" : "status"}
+            className={[
+              "text-sm leading-6",
+              state.status === "error" ? "text-accent" : "text-muted-readable",
+            ].join(" ")}
+          >
+            {state.message}
+          </p>
+        ) : null}
+      </form>
     </section>
   );
+}
+
+function buildSelectOptions({
+  browserTimezone,
+  savedTimezone,
+  timezoneOptions,
+}: Readonly<{
+  browserTimezone: BrowserTimezoneState;
+  savedTimezone: string;
+  timezoneOptions: string[];
+}>): string[] {
+  const missingOptions = [
+    savedTimezone,
+    ...(browserTimezone.status === "available"
+      ? [browserTimezone.value]
+      : []),
+  ].filter(
+    (option, index, options) =>
+      !timezoneOptions.includes(option) && options.indexOf(option) === index,
+  );
+
+  return [...missingOptions, ...timezoneOptions];
 }
 
 function readBrowserTimezone(): BrowserTimezoneState {
@@ -171,15 +194,4 @@ function readSupportedTimezones(): string[] {
   }
 
   return Intl.supportedValuesOf("timeZone");
-}
-
-function browserTimezoneLabel(state: BrowserTimezoneState): string {
-  switch (state.status) {
-    case "checking":
-      return "Checking";
-    case "available":
-      return state.value;
-    case "unavailable":
-      return "Unavailable";
-  }
 }

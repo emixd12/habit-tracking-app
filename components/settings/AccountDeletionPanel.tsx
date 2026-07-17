@@ -36,9 +36,9 @@ export function AccountDeletionPanel({
   );
 
   return (
-    <section className="border-y border-line bg-background py-5 sm:py-6 md:col-span-2">
+    <section className="bg-background py-5 sm:py-6">
       <h2 className="text-xl leading-tight">Delete account</h2>
-      <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
+      <div className="mt-4 grid gap-5">
         <div className="grid max-w-2xl gap-3 text-sm leading-6 text-muted-readable">
           <p>
             Account deletion removes the signed-in Cadence account and its
@@ -58,7 +58,7 @@ export function AccountDeletionPanel({
           </p>
         </div>
 
-        <form action={formAction} className="grid gap-3 border-t border-line pt-4">
+        <form action={formAction} className="grid gap-3">
           <label className="flex items-start gap-3 text-sm leading-6 text-foreground">
             <input
               type="checkbox"
@@ -86,7 +86,7 @@ export function AccountDeletionPanel({
             autoComplete="off"
             value={confirmation}
             onChange={(event) => setConfirmation(event.currentTarget.value)}
-            className="min-h-11 border border-line bg-background px-3 py-2 text-base"
+            className="min-h-11 max-w-md border border-line bg-background px-3 py-2 text-base"
           />
           <p className="text-sm leading-6 text-muted-readable">
             Deletion unlocks after the export acknowledgement and typed
@@ -102,7 +102,7 @@ export function AccountDeletionPanel({
           </button>
 
           {state.message ? (
-            <p className="border-t border-line pt-3 text-sm leading-6 text-accent">
+            <p className="text-sm leading-6 text-accent">
               {state.message}
             </p>
           ) : null}

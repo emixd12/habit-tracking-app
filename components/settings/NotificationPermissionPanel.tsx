@@ -142,37 +142,31 @@ export function NotificationPermissionPanel({
   return (
     <section
       id="notifications"
-      className="scroll-mt-20 border-y border-line bg-background py-5 sm:py-6 md:col-span-2"
+      className="scroll-mt-20 bg-background py-5 sm:py-6"
     >
-      <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold leading-tight">Notifications</h2>
-          <dl className="mt-4 grid gap-3 text-sm leading-6 text-muted-readable">
-            <div>
-              <dt className="font-bold text-foreground">
-                Browser notifications
-              </dt>
-              <dd>{statusLabel}</dd>
-            </div>
-          </dl>
+      <h2 className="text-xl leading-tight">Notifications</h2>
+      <dl className="mt-4 grid gap-3 text-sm leading-6 text-muted-readable">
+        <div>
+          <dt className="font-bold text-foreground">Browser notifications</dt>
+          <dd>{statusLabel}</dd>
         </div>
+      </dl>
 
-        {showAction ? (
-          <button
-            type="button"
-            disabled={!canRequest}
-            onClick={handleEnable}
-            className="product-action product-action-primary min-h-11 py-2 text-sm font-bold"
-          >
-            {isBusy ? "Saving..." : buttonLabel(notificationsEnabled)}
-          </button>
-        ) : null}
-      </div>
+      {showAction ? (
+        <button
+          type="button"
+          disabled={!canRequest}
+          onClick={handleEnable}
+          className="product-action product-action-primary mt-4 min-h-11 w-fit py-2 text-sm"
+        >
+          {isBusy ? "Saving..." : buttonLabel(notificationsEnabled)}
+        </button>
+      ) : null}
 
       {message || unavailableMessage ? (
         <p
           className={[
-            "mt-5 border-t border-line pt-3 text-sm leading-6",
+            "mt-5 text-sm leading-6",
             saveState === "error" ? "text-accent" : "text-muted-readable",
           ].join(" ")}
         >

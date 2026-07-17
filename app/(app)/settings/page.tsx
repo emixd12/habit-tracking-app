@@ -38,8 +38,8 @@ async function SettingsContent() {
   );
 
   return (
-    <div className="grid gap-5 md:grid-cols-2">
-      <SettingsPanel title="Profile" className="md:col-span-2">
+    <div className="grid divide-y divide-line">
+      <SettingsPanel title="Profile">
         <dl className="grid gap-2 text-sm leading-6 text-muted-readable">
           <div>
             <dt className="font-bold text-foreground">Email</dt>

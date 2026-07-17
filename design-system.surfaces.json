@@ -520,7 +520,8 @@
       "tier": "module",
       "definition": "Settings panels for profile-adjacent account operations: timezone, browser notifications, trust/legal links, and account deletion.",
       "sharedContract": [
-        "Settings stays sparse and divider-led",
+        "Settings stays sparse and divider-led: a single-column stack with exactly one divider between adjacent sections, no per-section perimeter borders, and no nested container repeating a parent boundary",
+        "Timezone is chosen from one native select of IANA timezones whose value is the saved timezone; a detected-timezone hint appears only when it differs from the saved value",
         "Permission prompts happen only from explicit user action",
         "Timezone uses browser/OS data without geolocation",
         "Account deletion requires export acknowledgement and typed confirmation"
