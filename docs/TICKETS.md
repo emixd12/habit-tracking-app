@@ -3325,6 +3325,247 @@ Verification:
 
 ---
 
+## Ticket 060: Schedule integrity and missing occurrence repair
+
+Repair empty behavior schedules, restore the occurrences they suppressed, and
+prevent occurrence sync from silently treating structurally invalid schedules
+as fresh.
+
+Context:
+- A read-only hosted investigation on 2026-07-17 found one active weekly
+  behavior whose `behavior_schedules` parent was valid but had no
+  `behavior_schedule_slots` child. The compatibility columns on `behaviors`
+  still held its Friday recurrence and 11:30 AM time, so the Behaviors UI
+  synthesized a valid-looking editor row while occurrence generation produced
+  no rows.
+- The affected behavior has one preserved Completed occurrence on 2026-06-26.
+  Its scheduled 2026-07-03, 2026-07-10, and 2026-07-17 occurrences were absent
+  rather than stored as Unresolved. Any additional scheduled dates that pass
+  before this ticket is deployed must be detected from recurrence, not listed
+  manually.
+- Account occurrence sync still recorded a fresh 30-day horizon even though
+  this behavior produced no plan. Needs decision and the behavior heatmap were
+  downstream symptoms of missing occurrence rows, not Timeline or analytics
+  grouping defects.
+- The hosted audit found 36 behaviors, 37 schedules, and 36 slots. Only one of
+  27 active behaviors had an empty schedule. One archived behavior also had an
+  empty schedule. No orphaned or cross-owner schedule-slot links were found,
+  all relevant tables had RLS enabled, and hosted migration history matched
+  the repository.
+- `20260626140000_add_behavior_schedules.sql` backfilled schedule parents and
+  attached existing legacy slots, but it did not create a compatibility slot
+  when an older behavior had no slot row. Current behavior create/update also
+  commits the behavior/definition write separately from schedule replacement,
+  so a failed follow-on schedule write can still leave a partial graph.
+
+Implementation order:
+1. Add failing resolver/service and migration regression fixtures for a single
+   empty legacy schedule, a multi-schedule graph with one empty schedule, and a
+   schedule-write failure after the behavior write.
+2. Add a git-tracked, idempotent Supabase migration that repairs every empty
+   schedule from its owning behavior's compatibility recurrence/time fields;
+   do not hardcode hosted behavior, user, schedule, or occurrence IDs.
+3. In the same repair contract, insert only genuinely missing scheduled
+   occurrences for repaired active schedules from their stable local anchor
+   through the normal future horizon. Preserve all existing occurrences and
+   statuses. Mark affected account sync state stale so normal reminder
+   planning and horizon verification run afterward.
+4. Harden occurrence schedule normalization and freshness decisions so an
+   active schedule with no time entry cannot produce an empty plan and then be
+   recorded as fresh.
+5. Move manual behavior create/update plus definition-event, schedule-parent,
+   schedule-slot, and occurrence-sync-stale writes behind owner-scoped atomic
+   database functions. Keep repositories responsible for persistence and
+   resolvers responsible for planning/validation.
+6. Update contracts, generated database types, drift checks, and operational
+   deployment notes. Verify locally before requesting authorization for hosted
+   migration deployment.
+
+Acceptance criteria:
+
+Data repair:
+- Create the migration with `npm run supabase -- migration new
+  <descriptive_name>`; do not invent a filename or edit the hosted database
+  directly.
+- Before adding any stricter write guard, identify every
+  `behavior_schedules` row with zero owned `behavior_schedule_slots` rows.
+- For each empty schedule, insert one exact-time compatibility slot using:
+  - the same `user_id` and `behavior_id`,
+  - the empty schedule's `id` as `behavior_schedule_id`,
+  - `behaviors.scheduled_time` as `start_time`,
+  - `kind = 'exact'`, `preset = null`, `end_time = null`, and
+    `sort_order = 0`.
+- The slot backfill must be idempotent and owner-consistent. Existing valid
+  schedules and slots must remain byte-for-byte unchanged except for normal
+  trigger timestamps on rows intentionally updated by the migration.
+- Repair missing occurrences only for schedules repaired by this migration.
+  Recurrence expansion must match the existing recurrence resolver for daily,
+  every-N-days, weekly/every-N-weeks, and monthly-last-day rules in the
+  behavior timezone.
+- Use the behavior's stable local creation date as the interval anchor unless
+  a more specific existing anchor contract is present. Do not parse local
+  dates through JavaScript `Date` or use the database/server timezone as the
+  behavior timezone.
+- Insert missing occurrences idempotently with the repaired slot snapshot and
+  stored status `unresolved`. Do not update, delete, relabel, or recreate any
+  existing occurrence, including the preserved 2026-06-26 Completed row.
+- The known 2026-07-03, 2026-07-10, and 2026-07-17 Friday instances must exist
+  after repair. Also generate any later scheduled instances that become due
+  before deployment and maintain the documented 30-day future horizon.
+- Repaired historical rows must have no synthetic completion timestamps and
+  no fabricated status-history events. They must enter Needs decision through
+  the existing derived `unresolved` plus prior-`local_date` rule.
+- Do not create, send, or retry reminders for past repaired occurrences.
+  Normal resolver/service reminder planning may create pending deliveries only
+  for still-eligible future occurrences after the account is marked stale and
+  resynced.
+- The archived empty schedule may receive its missing compatibility slot, but
+  it must not generate new occurrences or reminders while archived.
+- Record aggregate, privacy-safe migration verification counts only. Do not
+  put hosted user IDs, emails, behavior IDs, schedule IDs, occurrence IDs, or
+  private notes in committed docs or logs.
+
+Runtime integrity and sync freshness:
+- `lib/services/occurrence.service.ts` must not filter an active empty schedule
+  into a successful no-op plan.
+- Define one explicit normalization result for schedule graphs, including a
+  typed invalid-schedule outcome. Do not let UI fallback rendering become the
+  occurrence-generation source of truth.
+- A single legacy-compatible empty schedule may use the behavior compatibility
+  fields only through the documented normalization/repair path. An ambiguous
+  graph, including one empty schedule among multiple schedules, must fail
+  loudly, keep `occurrence_sync_state.stale = true`, and surface a safe error
+  instead of marking the horizon fresh.
+- `markOccurrenceSyncFreshForPlans` may run only after every active behavior
+  has at least one valid schedule time entry and all planned occurrence writes
+  have succeeded.
+- A failed generation, schedule validation, occurrence write, or reminder-plan
+  write must not leave a false fresh horizon. Preserve the original error while
+  best-effort marking sync state `sync_failed`.
+- Keep recurrence generation and repair planning resolver-first. UI, API
+  routes, repositories, SQL query layers, and reminder adapters must not
+  duplicate ongoing recurrence rules. Any SQL recurrence expansion used only
+  for the one-time migration must have parity fixtures against
+  `recurrence.resolver.ts` for every supported recurrence type and DST/local
+  date boundary relevant to the repaired data.
+
+Atomic behavior schedule writes:
+- Manual behavior create must commit or roll back the behavior row, initial
+  definition event, all schedule parents, all schedule slots, and stale sync
+  state as one owner-scoped transaction.
+- Manual behavior update, including schedule-only edits, must commit or roll
+  back the behavior definition/category/reminder fields, optional definition
+  event, complete schedule graph replacement, and stale sync state as one
+  owner-scoped transaction.
+- Validate in the transaction that there is at least one schedule and at least
+  one time entry for every schedule. Reject empty, duplicate, malformed,
+  cross-owner, or stale schedule graphs before any partial product write is
+  committed.
+- Preserve the existing stale-definition/ABA guards and definition-event no-op
+  behavior. Schedule-only edits must not append definition-history events.
+- Database functions must validate `auth.uid()`, pin a safe `search_path`, use
+  minimum required privileges, and have explicit `EXECUTE` grants/revokes.
+  Do not add a general service-role bypass or broaden table access.
+- Document and test a deployment sequence that does not strand the currently
+  deployed app between an RPC/schema migration and the application code that
+  calls it. Any temporary compatibility fallback must be narrow, observable,
+  and removed or explicitly ticketed for removal after rollout.
+
+Verification and hosted proof:
+- Add resolver tests proving weekly Friday generation for the repaired shape,
+  every supported recurrence type, interval anchoring, monthly day-31
+  fallback, timezone boundaries, idempotence, and existing-status
+  preservation.
+- Add service/repository tests proving an empty or ambiguous schedule cannot be
+  marked fresh, write failures leave sync stale, and valid schedules retain
+  current generation behavior.
+- Add database/RPC tests proving behavior create/update schedule writes are
+  atomic, cross-owner calls fail, stale writes fail, and a forced schedule-slot
+  failure rolls back the behavior and definition event.
+- Add migration tests with at least:
+  - the confirmed weekly Friday empty-schedule shape,
+  - one archived empty schedule,
+  - one valid schedule that must remain untouched,
+  - one pre-existing Completed occurrence,
+  - one pre-existing Unresolved occurrence,
+  - an idempotent second repair run.
+- Run `npm run supabase -- db reset` from a clean local database and regenerate
+  `lib/db/database.types.ts` after schema/RPC changes.
+- Run a rollback-only local SQL smoke for repair counts, atomic create/update,
+  RLS ownership refusal, and idempotent replay.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Before hosted mutation, require explicit owner authorization, confirm local
+  and hosted migration histories, and create a fresh user-owned export/backup.
+- Deploy only through `npm run supabase -- db push`; do not use Dashboard SQL
+  or Table Editor repairs.
+- After hosted deployment, run the occurrence sync/reminder planning path once
+  for affected stale accounts, then verify with privacy-safe aggregate queries:
+  - zero active empty schedules,
+  - zero cross-owner/orphan schedule slots,
+  - the preserved Completed occurrence is unchanged,
+  - all expected repaired occurrences exist exactly once,
+  - prior repaired occurrences are Unresolved and counted by Needs decision,
+  - the current/future Friday occurrences appear on Timeline,
+  - no past reminder deliveries were created,
+  - the account's fresh horizon is recorded only after successful repair.
+- Browser QA the affected production account at `/timeline` and `/behaviors`:
+  verify Needs decision, current/future occurrences, heatmap/review visibility,
+  status actions, and no duplicate rows. Do not alter the preserved Completed
+  occurrence during QA.
+- Re-run hosted migration-list congruence and the Supabase security advisor
+  after deployment. Classify unrelated pre-existing advisor warnings
+  separately rather than expanding this ticket.
+
+Documentation updates required during implementation:
+- `docs/DATA_MODEL.md`: make the non-empty schedule invariant, atomic write
+  boundary, compatibility fallback, and repair behavior explicit.
+- `docs/RECURRENCE_RULES.md`: define repair range/anchor semantics and confirm
+  that prior missing occurrences remain Unresolved rather than being marked
+  automatically.
+- `docs/AGENT_RESOLVERS.md`: record schedule normalization/repair ownership and
+  the rule that freshness cannot bypass invalid schedules.
+- `docs/SUPABASE_WORKFLOW.md` or `docs/OPERATIONS.md`: record the gated hosted
+  repair and post-deploy verification sequence if it is reusable.
+- `STATUS.md`: mark Ticket 060 in progress before implementation and record
+  sanitized repair counts, verification, deployment, and remaining risk when
+  complete.
+
+Suggested files:
+- `supabase/migrations/*`
+- `lib/db/behaviors.repo.ts`
+- `lib/db/occurrences.repo.ts`
+- `lib/db/occurrenceSyncState.repo.ts`
+- `lib/db/behaviorDefinitionEvents.repo.ts`
+- `lib/services/behavior.service.ts`
+- `lib/services/occurrence.service.ts`
+- `lib/services/occurrence-sync-state.service.ts`
+- `lib/resolvers/occurrence.resolver.ts`
+- `lib/resolvers/recurrence.resolver.ts` only if a reusable range contract is
+  required; do not change supported recurrence semantics
+- `lib/services/behavior-form.ts` for server-side schedule graph validation
+- `lib/db/database.types.ts`
+- `tests/behavior-create.service.test.ts`
+- `tests/behavior-definition.service.test.ts`
+- `tests/occurrence.resolver.test.ts`
+- `tests/occurrence.service.test.ts`
+- `tests/occurrence-sync-state.service.test.ts`
+- `tests/recurrence.resolver.test.ts`
+- new focused migration/RPC tests under `tests/`
+- `docs/DATA_MODEL.md`
+- `docs/RECURRENCE_RULES.md`
+- `docs/AGENT_RESOLVERS.md`
+- `docs/SUPABASE_WORKFLOW.md` or `docs/OPERATIONS.md`
+- `STATUS.md`
+
+Out of scope:
+- New stored statuses, automatic Not Completed/missed decisions, bulk status
+  actions, admin repair dashboards, user-facing database diagnostics, schedule
+  history reconstruction, reminder sends for past occurrences, calendar sync,
+  PWA/offline work, AI coaching, or unrelated Supabase advisor cleanup.
+
+---
+
 ## Future ticket: Workspace restructuring
 
 Move toward the target composable architecture only when needed by marketing,

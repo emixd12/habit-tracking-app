@@ -90,6 +90,15 @@ product writes, definition history, provenance, and the applied ledger in one
 idempotent transaction. Its migration was deployed to hosted Supabase on
 2026-07-13.
 
+Ticket 060 is not started. A read-only hosted investigation on 2026-07-17
+confirmed that an active weekly behavior had a valid schedule parent but no
+schedule-slot child, causing occurrence generation to return no rows while the
+account horizon was still marked fresh. The ticket scopes a generic,
+idempotent slot and occurrence repair, invalid-schedule freshness guards,
+atomic behavior/schedule writes, local migration/RPC verification, and a gated
+hosted deployment with privacy-safe post-repair proof. No product or hosted
+data repair has been performed yet.
+
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
 surfaces are the authenticated Next.js web app and a sibling Astro marketing
