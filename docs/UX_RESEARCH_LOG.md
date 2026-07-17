@@ -268,8 +268,12 @@ participants what they expect the zero-count button to do before opening it.
 
 Reproduction update (2026-07-06): Confirmed as a copy risk and fixed. When the
 unresolved count is zero but retained rows remain, the launcher now says
-`Review decisions from today`, and all-decided date groups say `All decided
-today`.
+`Review decisions from today`.
+
+Follow-up (2026-07-17): The per-date label `All decided today` was misleading
+because each date group represents a prior day. Resolved date groups now say
+`None left to decide`, which describes the group state without changing the
+meaning of its date header.
 
 Status: Fixed
 

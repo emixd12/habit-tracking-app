@@ -4200,6 +4200,40 @@ Remaining risk:
   for two existing tables. The fresh user-owned full JSON export is the primary
   product-restorable safety artifact for this deployment.
 
+## Needs decision retained-date copy correction
+
+Status: complete.
+
+Implementation summary:
+- Changed the zero-unresolved label under retained prior-day date headers from
+  `All decided today` to `None left to decide` so the copy describes the group
+  state without calling a past date today.
+- Updated the UI regression test to require the new label and reject both the
+  old wording and `0 left to decide`.
+- Added the retained, fully decided date-group state to the local design-system
+  Needs decision preview and aligned the UI specification, user flow, and UX
+  research record with the corrected wording.
+
+Verification:
+- Pass: `npm run test -- tests/ux-ticket-049-052-ui.test.tsx` (1 file, 4
+  tests).
+- Pass: `npm run agents:check` (95 invariants).
+- Pass: `npm run resolvers:check` (156 invariants).
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (68 files, 442 tests).
+- Pass: `npm run build`.
+- Pass: `git diff --check`.
+- Browser QA: local design-system Needs decision preview at 1127x900 and
+  390x844 rendered one `None left to decide` label, rendered no `All decided
+  today` label, had no document-level horizontal overflow, and produced no
+  browser warnings or errors.
+
+Remaining risk:
+- None identified. This is a copy-only product change and does not alter
+  occurrence grouping, status storage, or Needs decision counts.
+
 ## Handoff notes
 
 - For the next coding agent: production browser push subscription is now

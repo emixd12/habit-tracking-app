@@ -103,7 +103,7 @@ describe("UX Tickets 049-052 UI regressions", () => {
     );
   });
 
-  it("labels all-decided Needs Decision date groups without empty-state language", () => {
+  it("labels resolved Needs Decision date groups without calling past dates today", () => {
     const html = renderToStaticMarkup(
       <TimelineGroup
         section={needsDecisionSection({
@@ -115,7 +115,8 @@ describe("UX Tickets 049-052 UI regressions", () => {
       />,
     );
 
-    expect(html).toContain("All decided today");
+    expect(html).toContain("None left to decide");
+    expect(html).not.toContain("All decided today");
     expect(html).not.toContain("0 left to decide");
   });
 });

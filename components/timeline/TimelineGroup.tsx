@@ -89,7 +89,7 @@ export function TimelineGroup({
 
 function decisionCountLabel(count: number): string {
   if (count === 0) {
-    return "All decided today";
+    return "None left to decide";
   }
 
   if (count === 1) {

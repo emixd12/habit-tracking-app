@@ -203,7 +203,8 @@ continues to count unresolved prior-day occurrences only, not retained decided
 rows. When there are no unresolved rows but retained decided rows still exist,
 the button may still open the modal with a zero count and should clarify that
 the modal is reviewing decisions from today. Date groups with retained rows and
-zero unresolved items should say that all items are decided today. Retention
+zero unresolved items should say `None left to decide`, without calling the
+past group today. Retention
 must be derived from existing occurrence status timing and the local day
 boundary; do not add a stored status or flag for it.
 

@@ -1582,6 +1582,12 @@ const previewFactories: Record<
             noteAction={occurrenceAction}
             variant="needsDecisionDialog"
           />
+          <TimelineGroup
+            section={retainedNeedsDecisionSection}
+            statusAction={occurrenceAction}
+            noteAction={occurrenceAction}
+            variant="needsDecisionDialog"
+          />
         </NeedsDecisionDialog>
       </ProductPreview>
     ),
@@ -1953,6 +1959,28 @@ const needsDecisionSection: TimelineDaySection = {
   occurrences: [needsDecisionOccurrence],
   unresolvedOccurrenceCount: 1,
   occurrenceGroups: toFixtureOccurrenceGroups([needsDecisionOccurrence]),
+};
+
+const retainedNeedsDecisionOccurrence: TimelineOccurrenceView = {
+  ...completedOccurrence,
+  id: "occurrence-prior-completed",
+  scheduledFor: "2026-06-06T16:00:00Z",
+  localDate: "2026-06-05",
+  isVisibleInNeedsDecision: true,
+};
+
+const retainedNeedsDecisionSection: TimelineDaySection = {
+  key: "needs-2026-06-05",
+  kind: "needs_decision_day",
+  localDate: "2026-06-05",
+  label: "Friday, June 5",
+  relativeLabel: "Prior unresolved",
+  emptyMessage: "No prior unresolved occurrences.",
+  occurrences: [retainedNeedsDecisionOccurrence],
+  unresolvedOccurrenceCount: 0,
+  occurrenceGroups: toFixtureOccurrenceGroups([
+    retainedNeedsDecisionOccurrence,
+  ]),
 };
 
 const todaySection: TimelineDaySection = {

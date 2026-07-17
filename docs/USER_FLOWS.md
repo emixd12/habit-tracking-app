@@ -145,7 +145,7 @@ then shows a count of unresolved items left to decide for that date. The date
 header text may leave room for the overlaid close control.
 When the unresolved count is zero but retained rows remain, the launcher should
 clarify that the modal reviews decisions from today, and the date group should
-state that all items are decided today.
+state `None left to decide` without describing the past date as today.
 
 Users should not browse previous days as ordinary timeline sections in v1.
 
