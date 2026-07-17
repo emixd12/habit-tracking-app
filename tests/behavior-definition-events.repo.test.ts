@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createBehaviorDefinitionEvent,
+  createBehaviorWithAtomicScheduleGraph,
   createBehaviorWithDefinitionEvent,
   listBehaviorDefinitionEvents,
+  updateBehaviorWithAtomicScheduleGraph,
   updateBehaviorWithDefinitionEvent,
 } from "../lib/db/behaviorDefinitionEvents.repo";
 import type { AppSupabaseClient } from "../lib/db/behaviors.repo";
@@ -13,6 +15,90 @@ const USER_ID = "11111111-1111-4111-8111-111111111111";
 const BEHAVIOR_ID = "22222222-2222-4222-8222-222222222222";
 
 describe("behavior definition events repository", () => {
+  it("persists manual create, definition history, schedules, and stale state through one RPC", async () => {
+    const behavior = storedBehaviorRow();
+    const rpc = vi.fn().mockResolvedValue({ data: behavior, error: null });
+    const supabase = { rpc } as unknown as AppSupabaseClient;
+
+    await expect(
+      createBehaviorWithAtomicScheduleGraph(supabase, {
+        behavior: {
+          user_id: USER_ID,
+          title: "Brush teeth",
+          description: null,
+          recurrence_rule: { frequency: "weekly", interval: 1, daysOfWeek: ["friday"] },
+          scheduled_time: "11:30",
+          timezone: "America/New_York",
+          browser_reminder_enabled: true,
+          email_reminder_enabled: false,
+          reminder_offset_minutes: 0,
+          active: true,
+          archived_at: null,
+        },
+        definitionEventPlan: initialPlan(),
+        schedules: [weeklyFridaySchedule()],
+      }),
+    ).resolves.toEqual(behavior);
+
+    expect(rpc).toHaveBeenCalledWith(
+      "create_behavior_with_schedule_graph",
+      expect.objectContaining({
+        schedule_graph: [
+          expect.objectContaining({
+            time_entries: [
+              expect.objectContaining({ start_time: "11:30" }),
+            ],
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("binds an atomic manual update to exact definition, schedule, and row-version state", async () => {
+    const behavior = storedBehaviorRow({ title: "Brush and floss" });
+    const rpc = vi.fn().mockResolvedValue({ data: behavior, error: null });
+    const supabase = { rpc } as unknown as AppSupabaseClient;
+    const expectedScheduleGraph = [weeklyFridaySchedule()];
+
+    await updateBehaviorWithAtomicScheduleGraph(supabase, {
+      behaviorId: BEHAVIOR_ID,
+      behavior: {
+        title: "Brush and floss",
+        description: null,
+        recurrence_rule: { frequency: "weekly", interval: 1, daysOfWeek: ["friday"] },
+        scheduled_time: "11:30",
+        browser_reminder_enabled: true,
+        email_reminder_enabled: false,
+        reminder_offset_minutes: 0,
+        active: true,
+        archived_at: null,
+      },
+      expectedDefinition: { title: "Brush teeth", description: null },
+      expectedNormalizedDefinition: {
+        title: "Brush teeth",
+        description: null,
+      },
+      expectedScheduleGraph,
+      expectedUpdatedAt: "2026-07-09T18:30:00Z",
+      definitionEventPlan: {
+        ...initialPlan(),
+        previousTitle: "Brush teeth",
+        nextTitle: "Brush and floss",
+      },
+      schedules: expectedScheduleGraph,
+    });
+
+    expect(rpc).toHaveBeenCalledWith(
+      "update_behavior_with_schedule_graph",
+      expect.objectContaining({
+        target_behavior_id: BEHAVIOR_ID,
+        expected_updated_at: "2026-07-09T18:30:00Z",
+        expected_schedule_graph: expect.any(Array),
+        schedule_graph: expect.any(Array),
+      }),
+    );
+  });
+
   it("persists behavior create and its pure initial-event plan through one RPC", async () => {
     const behavior = storedBehaviorRow();
     const rpc = vi.fn().mockResolvedValue({ data: behavior, error: null });
@@ -242,6 +328,28 @@ describe("behavior definition events repository", () => {
     });
   });
 });
+
+function weeklyFridaySchedule() {
+  return {
+    id: null,
+    recurrence_rule: {
+      frequency: "weekly",
+      interval: 1,
+      daysOfWeek: ["friday"],
+    },
+    sort_order: 0,
+    slots: [
+      {
+        id: null,
+        kind: "exact",
+        preset: null,
+        start_time: "11:30",
+        end_time: null,
+        sort_order: 0,
+      },
+    ],
+  };
+}
 
 function storedEvent(): BehaviorDefinitionEvent {
   return {

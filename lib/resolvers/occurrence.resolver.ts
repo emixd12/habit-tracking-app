@@ -94,6 +94,29 @@ export type PlanOccurrenceGenerationInput = {
   horizonDays?: number;
 };
 
+export type PlanOccurrenceRepairInput = PlanOccurrenceGenerationInput & {
+  repairStartLocalDate: string;
+};
+
+export type OccurrenceScheduleNormalizationResult =
+  | {
+      status: "valid";
+      source: "persisted" | "legacy_compatibility";
+      schedules: OccurrenceGenerationSchedule[];
+    }
+  | {
+      status: "repairable";
+      reason: "single_empty_schedule";
+      repairedSchedule: OccurrenceGenerationSchedule;
+    }
+  | {
+      status: "invalid";
+      reason:
+        | "missing_schedule"
+        | "ambiguous_empty_schedule"
+        | "malformed_schedule_graph";
+    };
+
 export function planOccurrenceGeneration(
   input: PlanOccurrenceGenerationInput,
 ): OccurrenceGenerationPlan {
@@ -106,6 +129,96 @@ export function planOccurrenceGeneration(
     timezone,
     horizonDays,
   });
+
+  return planOccurrenceGenerationForWindow(input, generationWindow);
+}
+
+export function planOccurrenceRepair(
+  input: PlanOccurrenceRepairInput,
+): OccurrenceGenerationPlan {
+  const timezone = input.behavior.timezone || DEFAULT_TIMEZONE;
+  const horizonDays = validateHorizonDays(
+    input.horizonDays ?? DEFAULT_OCCURRENCE_HORIZON_DAYS,
+  );
+  const generationWindow = resolveRepairGenerationWindow({
+    now: input.now,
+    timezone,
+    horizonDays,
+    repairStartLocalDate: input.repairStartLocalDate,
+  });
+
+  return planOccurrenceGenerationForWindow(input, generationWindow);
+}
+
+export function normalizeOccurrenceScheduleGraph(input: {
+  schedules: OccurrenceGenerationSchedule[];
+  compatibilitySchedule: OccurrenceGenerationSchedule;
+}): OccurrenceScheduleNormalizationResult {
+  if (input.schedules.length === 0) {
+    return isWellFormedSchedule(input.compatibilitySchedule)
+      ? {
+          status: "valid",
+          source: "legacy_compatibility",
+          schedules: [input.compatibilitySchedule],
+        }
+      : {
+          status: "invalid",
+          reason: "missing_schedule",
+        };
+  }
+
+  if (hasDuplicateScheduleIds(input.schedules)) {
+    return { status: "invalid", reason: "malformed_schedule_graph" };
+  }
+
+  const emptySchedules = input.schedules.filter(
+    (schedule) => schedule.timeEntries.length === 0,
+  );
+
+  if (emptySchedules.length > 0) {
+    if (
+      input.schedules.length === 1 &&
+      emptySchedules.length === 1 &&
+      input.compatibilitySchedule.timeEntries.length === 1 &&
+      isWellFormedSchedule(input.compatibilitySchedule)
+    ) {
+      const emptySchedule = emptySchedules[0];
+
+      return {
+        status: "repairable",
+        reason: "single_empty_schedule",
+        repairedSchedule: {
+          ...emptySchedule,
+          timeEntries: input.compatibilitySchedule.timeEntries.map((entry) => ({
+            ...entry,
+            scheduleId: emptySchedule.id,
+          })),
+        },
+      };
+    }
+
+    return {
+      status: "invalid",
+      reason: "ambiguous_empty_schedule",
+    };
+  }
+
+  if (!input.schedules.every(isWellFormedSchedule)) {
+    return { status: "invalid", reason: "malformed_schedule_graph" };
+  }
+
+  return {
+    status: "valid",
+    source: "persisted",
+    schedules: input.schedules,
+  };
+}
+
+function planOccurrenceGenerationForWindow(
+  input: PlanOccurrenceGenerationInput,
+  generationWindow: OccurrenceGenerationWindow,
+): OccurrenceGenerationPlan {
+  const timezone = input.behavior.timezone || DEFAULT_TIMEZONE;
   const desiredOccurrences = input.behavior.active
     ? resolveDesiredOccurrences({
         behavior: input.behavior,
@@ -190,6 +303,69 @@ export function planOccurrenceGeneration(
       .map((occurrence) => occurrence.id),
     generationWindow,
   };
+}
+
+function resolveRepairGenerationWindow(input: {
+  now: Temporal.Instant;
+  timezone: string;
+  horizonDays: number;
+  repairStartLocalDate: string;
+}): OccurrenceGenerationWindow {
+  const startDate = Temporal.PlainDate.from(input.repairStartLocalDate);
+  const today = input.now.toZonedDateTimeISO(input.timezone).toPlainDate();
+  const endDate = today.add({ days: input.horizonDays });
+
+  if (Temporal.PlainDate.compare(startDate, endDate) > 0) {
+    throw new RangeError(
+      "repairStartLocalDate must be on or before the repair horizon.",
+    );
+  }
+
+  return {
+    rangeStart: startOfLocalDay(startDate, input.timezone),
+    rangeEnd: startOfLocalDay(endDate.add({ days: 1 }), input.timezone).subtract({
+      nanoseconds: 1,
+    }),
+    startLocalDate: startDate.toString(),
+    endLocalDate: endDate.toString(),
+    timezone: input.timezone,
+  };
+}
+
+function hasDuplicateScheduleIds(
+  schedules: OccurrenceGenerationSchedule[],
+): boolean {
+  const ids = schedules
+    .map((schedule) => schedule.id)
+    .filter((id): id is string => id !== null);
+
+  return new Set(ids).size !== ids.length;
+}
+
+function isWellFormedSchedule(
+  schedule: OccurrenceGenerationSchedule,
+): boolean {
+  if (schedule.timeEntries.length === 0) {
+    return false;
+  }
+
+  const startTimes = schedule.timeEntries.map((entry) => entry.startTime);
+
+  if (new Set(startTimes).size !== startTimes.length) {
+    return false;
+  }
+
+  return schedule.timeEntries.every((entry) => {
+    if (entry.scheduleId && schedule.id && entry.scheduleId !== schedule.id) {
+      return false;
+    }
+
+    if (entry.kind === "exact") {
+      return entry.preset === null && entry.endTime === null;
+    }
+
+    return entry.endTime !== null && entry.endTime !== entry.startTime;
+  });
 }
 
 function resolveDesiredOccurrences(input: {

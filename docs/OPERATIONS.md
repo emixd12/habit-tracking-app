@@ -227,6 +227,31 @@ Implemented follow-up:
 - privacy-safe monitoring/error reporting through structured runtime logs that
   avoid sensitive behavior payloads.
 
+## Gated schedule-integrity repair deployment
+
+Ticket 060's schedule repair is a normal git-tracked Supabase migration, but it
+mutates existing product rows. Complete the following sequence before and
+after hosted deployment:
+
+1. Run `npm run supabase -- db reset` and
+   `npm run smoke:schedule-integrity:local`. The smoke is rollback-only and
+   covers idempotent repair, preserved statuses, atomic form create/update,
+   stale-write refusal, cross-owner refusal, and rollback after a forced slot
+   failure.
+2. Obtain explicit owner authorization for the linked hosted project, create a
+   fresh user-owned export/backup, and compare local and hosted migration
+   history. Do not use Dashboard SQL or Table Editor repair.
+3. Deploy only with `npm run supabase -- db push`.
+4. Run the protected occurrence sync/reminder-planning path once for affected
+   stale accounts. The migration itself never creates past reminders.
+5. Record only aggregate proof: active empty schedules, orphan/cross-owner
+   slots, repaired slot/occurrence counts, duplicate counts, past reminder
+   counts, and freshness outcome. Do not record user, behavior, schedule,
+   occurrence, provider, email, or note identifiers.
+6. Browser-QA Timeline, Behaviors, Needs decision, and behavior review without
+   changing preserved resolved occurrences. Recheck migration congruence and
+   the Supabase security advisor afterward.
+
 Marketing cookies and analytics are not launch scope, but any future addition
 should include consent and documentation updates.
 

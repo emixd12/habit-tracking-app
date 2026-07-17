@@ -192,6 +192,46 @@ describe("syncUserOccurrences", () => {
       timezone: "America/New_York",
     });
   });
+
+  it("fails an ambiguous schedule graph before occurrence writes and keeps sync stale", async () => {
+    const behavior = {
+      ...buildBehavior({
+        id: "behavior-1",
+        title: "Friday behavior",
+        scheduledTime: "11:30:00",
+      }),
+      schedules: [
+        buildSchedule({
+          id: "schedule-valid",
+          behaviorId: "behavior-1",
+          startTime: "11:30:00",
+        }),
+        buildSchedule({
+          id: "schedule-empty",
+          behaviorId: "behavior-1",
+          startTime: null,
+          sortOrder: 1,
+        }),
+      ],
+    };
+
+    await expect(
+      syncUserOccurrences(SUPABASE, "user-1", {
+        behaviors: [behavior],
+        now: NOW,
+        horizonDays: 0,
+      }),
+    ).rejects.toThrow("schedule needs repair");
+
+    expect(listBehaviorOccurrencesFrom).not.toHaveBeenCalled();
+    expect(createMissingOccurrences).not.toHaveBeenCalled();
+    expect(markOccurrenceSyncFreshForPlans).not.toHaveBeenCalled();
+    expect(markOccurrenceSyncStale).toHaveBeenCalledWith(SUPABASE, {
+      userId: "user-1",
+      reason: "sync_failed",
+      timezone: "America/New_York",
+    });
+  });
 });
 
 describe("ensureUserOccurrencesFresh", () => {
@@ -229,6 +269,45 @@ describe("ensureUserOccurrencesFresh", () => {
     expect(result.coverage).toEqual({ covered: true, reason: "covered" });
     expect(listBehaviorOccurrencesFrom).not.toHaveBeenCalled();
     expect(markOccurrenceSyncFreshForPlans).not.toHaveBeenCalled();
+  });
+
+  it("does not trust covered freshness when an active schedule has no persisted time entry", async () => {
+    const behavior = {
+      ...buildBehavior({
+        id: "behavior-1",
+        title: "Friday behavior",
+        scheduledTime: "11:30:00",
+      }),
+      schedules: [
+        buildSchedule({
+          id: "schedule-empty",
+          behaviorId: "behavior-1",
+          startTime: null,
+        }),
+      ],
+    };
+    vi.mocked(readOccurrenceSyncState).mockResolvedValue(
+      buildSyncState({
+        last_synced_local_date: "2026-06-08",
+        synced_through_local_date: "2026-07-08",
+      }),
+    );
+
+    await expect(
+      ensureUserOccurrencesFresh(SUPABASE, "user-1", {
+        behaviors: [behavior],
+        now: NOW,
+        timezone: "America/New_York",
+        horizonDays: 30,
+      }),
+    ).rejects.toThrow("schedule needs repair");
+
+    expect(markOccurrenceSyncFreshForPlans).not.toHaveBeenCalled();
+    expect(markOccurrenceSyncStale).toHaveBeenCalledWith(SUPABASE, {
+      userId: "user-1",
+      reason: "sync_failed",
+      timezone: "America/New_York",
+    });
   });
 
   it("uses caller-provided freshness state instead of reading it again", async () => {
@@ -941,6 +1020,44 @@ function buildBehavior(input: {
         updated_at: "2026-06-01T00:00:00Z",
       },
     ],
+  };
+}
+
+function buildSchedule(input: {
+  id: string;
+  behaviorId: string;
+  startTime: string | null;
+  sortOrder?: number;
+}) {
+  return {
+    id: input.id,
+    user_id: "user-1",
+    behavior_id: input.behaviorId,
+    recurrence_rule: {
+      frequency: "weekly",
+      interval: 1,
+      daysOfWeek: ["friday"],
+    },
+    sort_order: input.sortOrder ?? 0,
+    created_at: "2026-06-01T00:00:00Z",
+    updated_at: "2026-06-01T00:00:00Z",
+    schedule_slots: input.startTime
+      ? [
+          {
+            id: `${input.id}-slot-1`,
+            user_id: "user-1",
+            behavior_id: input.behaviorId,
+            behavior_schedule_id: input.id,
+            kind: "exact",
+            preset: null,
+            start_time: input.startTime,
+            end_time: null,
+            sort_order: 0,
+            created_at: "2026-06-01T00:00:00Z",
+            updated_at: "2026-06-01T00:00:00Z",
+          },
+        ]
+      : [],
   };
 }
 

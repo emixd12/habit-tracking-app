@@ -9,11 +9,9 @@ const SCHEDULE_SLOT_ID = "44444444-4444-4444-8444-444444444444";
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   requireCurrentUserId: vi.fn(),
-  createBehaviorWithDefinitionEvent: vi.fn(),
-  replaceBehaviorSchedules: vi.fn(),
+  createBehaviorWithAtomicScheduleGraph: vi.fn(),
   getBehaviorById: vi.fn(),
   getProfileTimezone: vi.fn(),
-  markOccurrenceSyncStale: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -29,18 +27,16 @@ vi.mock("@/lib/db/behaviors.repo", async (importOriginal) => {
 
   return {
     ...original,
-    replaceBehaviorSchedules: mocks.replaceBehaviorSchedules,
     getBehaviorById: mocks.getBehaviorById,
     getProfileTimezone: mocks.getProfileTimezone,
   };
 });
 
-vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
-  markOccurrenceSyncStale: mocks.markOccurrenceSyncStale,
-}));
-
 vi.mock("@/lib/db/behaviorDefinitionEvents.repo", () => ({
-  createBehaviorWithDefinitionEvent: mocks.createBehaviorWithDefinitionEvent,
+  createBehaviorWithAtomicScheduleGraph:
+    mocks.createBehaviorWithAtomicScheduleGraph,
+  updateBehaviorWithAtomicScheduleGraph: vi.fn(),
+  createBehaviorWithDefinitionEvent: vi.fn(),
   updateBehaviorWithDefinitionEvent: vi.fn(),
 }));
 
@@ -51,11 +47,9 @@ describe("createBehaviorFromFormData", () => {
     mocks.createClient.mockResolvedValue({ from: vi.fn() });
     mocks.requireCurrentUserId.mockResolvedValue(USER_ID);
     mocks.getProfileTimezone.mockResolvedValue("America/New_York");
-    mocks.createBehaviorWithDefinitionEvent.mockResolvedValue({
+    mocks.createBehaviorWithAtomicScheduleGraph.mockResolvedValue({
       ...storedBehavior(),
     });
-    mocks.replaceBehaviorSchedules.mockResolvedValue(undefined);
-    mocks.markOccurrenceSyncStale.mockResolvedValue(undefined);
     mocks.getBehaviorById.mockResolvedValue(storedBehavior());
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-26T12:00:00Z"));
@@ -87,7 +81,7 @@ describe("createBehaviorFromFormData", () => {
         label: "7:30 AM",
       }),
     ]);
-    expect(mocks.createBehaviorWithDefinitionEvent).toHaveBeenCalledWith(
+    expect(mocks.createBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
       expect.anything(),
       {
         behavior: expect.objectContaining({
@@ -107,13 +101,6 @@ describe("createBehaviorFromFormData", () => {
           source: "manual",
           reason: null,
         },
-      },
-    );
-    expect(mocks.replaceBehaviorSchedules).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        userId: USER_ID,
-        behaviorId: BEHAVIOR_ID,
         schedules: [
           expect.objectContaining({
             recurrence_rule: {
@@ -129,14 +116,6 @@ describe("createBehaviorFromFormData", () => {
             ],
           }),
         ],
-      }),
-    );
-    expect(mocks.markOccurrenceSyncStale).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        userId: USER_ID,
-        reason: "behavior_changed",
-        timezone: "America/New_York",
       },
     );
     expect(mocks.getBehaviorById).toHaveBeenCalledWith(
@@ -166,20 +145,18 @@ describe("createBehaviorFromFormData", () => {
     ]);
   });
 
-  it("does not run follow-on writes when the atomic behavior/event create fails", async () => {
+  it("does not run follow-on writes when the atomic behavior graph create fails", async () => {
     const { createBehaviorFromFormData } = await import(
       "../lib/services/behavior.service"
     );
-    mocks.createBehaviorWithDefinitionEvent.mockRejectedValueOnce(
-      new Error("Definition event insert failed."),
+    mocks.createBehaviorWithAtomicScheduleGraph.mockRejectedValueOnce(
+      new Error("Schedule slot insert failed."),
     );
 
     await expect(createBehaviorFromFormData(createFormData())).rejects.toThrow(
-      "Definition event insert failed.",
+      "Schedule slot insert failed.",
     );
 
-    expect(mocks.replaceBehaviorSchedules).not.toHaveBeenCalled();
-    expect(mocks.markOccurrenceSyncStale).not.toHaveBeenCalled();
     expect(mocks.getBehaviorById).not.toHaveBeenCalled();
   });
 });

@@ -90,14 +90,14 @@ product writes, definition history, provenance, and the applied ledger in one
 idempotent transaction. Its migration was deployed to hosted Supabase on
 2026-07-13.
 
-Ticket 060 is not started. A read-only hosted investigation on 2026-07-17
-confirmed that an active weekly behavior had a valid schedule parent but no
-schedule-slot child, causing occurrence generation to return no rows while the
-account horizon was still marked fresh. The ticket scopes a generic,
-idempotent slot and occurrence repair, invalid-schedule freshness guards,
-atomic behavior/schedule writes, local migration/RPC verification, and a gated
-hosted deployment with privacy-safe post-repair proof. No product or hosted
-data repair has been performed yet.
+Ticket 060 is complete. The idempotent schedule-integrity migration was
+deployed to hosted Supabase on 2026-07-17, the affected stale account was
+resynced through the protected production route, and the compatible
+application was deployed to Vercel production. Privacy-safe SQL proof and an
+authenticated browser walkthrough confirmed zero active empty schedules,
+owner-consistent schedule slots, exactly-once repaired occurrences, preserved
+manual history, Needs decision visibility, current/future Timeline rows, and a
+fresh post-sync horizon without past reminder deliveries.
 
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
@@ -4105,6 +4105,100 @@ Remaining risk:
   workflow from stale or altered payloads. It is not intended as a security
   boundary against an authenticated owner who already has normal CRUD access to
   that same owner's product rows.
+
+### Ticket 060: Schedule integrity and missing occurrence repair
+
+Status: complete.
+
+Implementation summary:
+- Added the CLI-created idempotent schedule-integrity migration. It discovers
+  every empty owned schedule without hardcoded product identifiers, inserts one
+  exact compatibility slot, repairs only genuinely missing Unresolved
+  occurrences for repaired active schedules from the stable local creation
+  anchor through the 30-day horizon, preserves existing rows/statuses, skips
+  archived occurrence generation, and marks affected account horizons stale.
+- Added SQL recurrence parity helpers for daily/every-N-days,
+  weekly/every-N-weeks, monthly last-day fallback, and Temporal-compatible
+  timezone conversion for the one-time migration contract.
+- Added pure schedule-graph normalization with typed valid, repairable, and
+  invalid outcomes plus explicit historical occurrence-repair planning.
+  Occurrence freshness now validates active schedules even when the stored
+  horizon claims coverage; empty or ambiguous graphs surface a safe error,
+  best-effort record `sync_failed`, and cannot be marked fresh.
+- Moved manual Behavior form create/update onto owner-scoped atomic
+  `SECURITY INVOKER` RPCs. Behavior data, optional definition history, complete
+  schedule graph, and stale sync state now commit or roll back together.
+  Updates bind to exact definition, schedule graph, and row-version state;
+  schedule-only edits still append no definition event.
+- Added repository, resolver, service, migration, and rollback-only local SQL
+  coverage, plus a reusable `npm run smoke:schedule-integrity:local` command.
+- Updated the data-model, recurrence, resolver ownership, and hosted operations
+  contracts.
+- Deployed the migration and compatible application after an owner-authorized
+  backup/dry-run gate, then ran the protected occurrence-sync path and verified
+  the repair with aggregate SQL and authenticated production browser QA.
+
+Verification:
+- Pass: focused Ticket 060 suite (6 files, 53 tests).
+- Pass: clean local `npm run supabase -- db reset` through
+  `20260717161342_repair_schedule_integrity_and_atomic_behavior_writes.sql`.
+- Pass: regenerated `lib/db/database.types.ts` from the clean local schema.
+- Pass: rollback-only `npm run smoke:schedule-integrity:local`, covering the
+  active weekly repair fixture, archived/valid graphs, preserved Completed and
+  Unresolved rows, idempotent replay, atomic create/update, stale and
+  cross-owner refusal, and forced create/update slot-write rollback.
+- Pass: `npm run agents:check` (95 invariants).
+- Pass: `npm run resolvers:check` (156 invariants).
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (68 files, 442 tests).
+- Pass: `npm run build`.
+- Pass: `git diff --check`.
+- Pass: fresh pre-mutation user-owned full JSON export with archived behaviors
+  and notes, plus a hosted `public` schema data-only SQL backup; both artifacts
+  were non-empty before deployment.
+- Pass: linked migration history check and `npm run supabase -- db push
+  --linked --dry-run`; only
+  `20260717161342_repair_schedule_integrity_and_atomic_behavior_writes.sql`
+  was pending.
+- Pass: owner-authorized `npm run supabase -- db push --linked --yes`; the
+  Ticket 060 migration was the only applied migration.
+- Pass: privacy-safe post-migration SQL proof: 37 schedules, 38 slots, zero
+  empty schedules, zero active empty schedules, zero orphan/cross-owner slots,
+  two repaired slots, seven exactly-once repaired occurrences, zero fabricated
+  status events, zero past reminder deliveries, and one preserved Completed
+  occurrence.
+- Pass: protected production occurrence sync checked and synced 6 accounts
+  with 0 skipped and 0 failed. Post-sync proof found 5 eligible current/future
+  reminder deliveries, no past repair reminders, and one repaired account with
+  a fresh horizon and no sync failure.
+- Pass: Vercel production deployment
+  `dpl_is4EZv6RhHrRCMAt2JRLeS3UG1Qu` reached `READY`; error-only build logs and
+  the two-hour production runtime-error view reported no errors.
+- Pass: authenticated production browser QA at `/timeline` and `/behaviors`.
+  Needs decision exposed the two prior repaired Unresolved Friday rows; the
+  2026-07-17, 2026-07-24, 2026-07-31, 2026-08-07, and 2026-08-14 rows each
+  appeared once; the behavior heatmap/review exposed the repaired history and
+  status/note controls; and the preserved Completed count remained 1. No
+  occurrence was changed during QA.
+- Pass: post-deploy `npm run smoke:rls` created and cleaned up 2 temporary
+  users and verified all 6 ownership checks.
+- Pass: post-deploy linked migration history is congruent through
+  `20260717161342`.
+- Pass with pre-existing warnings only: linked Supabase security/performance
+  advisors returned no error-level finding and no Ticket 060 function warning.
+  Existing warnings cover two authenticated restore `SECURITY DEFINER` RPCs,
+  leaked-password protection configuration, and RLS init-plan performance on
+  existing table policies; they remain outside this ticket.
+
+Remaining risk:
+- The production application was deployed from the verified local workspace by
+  Vercel CLI while the Ticket 060 changes were uncommitted (`gitDirty=1`). A
+  later Git-triggered deployment from the current remote `main` would not
+  contain Ticket 060 until these repository changes are committed and pushed.
+- The SQL data-only backup reported circular foreign-key restore-order warnings
+  for two existing tables. The fresh user-owned full JSON export is the primary
+  product-restorable safety artifact for this deployment.
 
 ## Handoff notes
 

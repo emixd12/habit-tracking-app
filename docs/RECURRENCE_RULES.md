@@ -74,7 +74,12 @@ when they share the same behavior, local date, start time, and end-time/range
 identity.
 
 Legacy behavior-level recurrence and flat schedule-slot records are normalized
-to a single schedule before occurrence generation.
+to a single schedule before occurrence generation. A persisted schedule parent
+with no time entry is a typed integrity outcome, not an empty generation plan.
+One legacy-compatible empty parent can be identified as repairable from the
+behavior compatibility recurrence/time fields; a graph with an empty schedule
+among multiple schedules is ambiguous and must fail without marking occurrence
+freshness successful.
 
 ## Timezone
 
@@ -107,6 +112,15 @@ The system should maintain generated occurrences for:
 - Prior unresolved items
 - Today
 - The next 30 days
+
+The Ticket 060 one-time repair uses the behavior's stable local creation date
+as its recurrence anchor and repair-range start, then expands through the
+current local day plus the same 30-day future horizon. It inserts only missing
+occurrences for schedules whose missing compatibility slot was repaired.
+Existing occurrences, including Completed or Not Completed rows, are
+preserved. A prior missing occurrence is inserted as Unresolved with no
+fabricated completion timestamp or status event; it enters Needs decision only
+through the normal prior-local-date rule.
 
 ## Idempotence
 

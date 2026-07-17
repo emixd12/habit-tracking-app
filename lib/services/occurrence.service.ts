@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/occurrenceStatusEvents.repo";
 import {
   DEFAULT_OCCURRENCE_HORIZON_DAYS,
+  normalizeOccurrenceScheduleGraph,
   planOccurrenceGeneration,
   resolveGenerationWindow,
   type ExistingOccurrenceForGeneration,
@@ -119,6 +120,8 @@ export async function syncUserOccurrences(
   userId: string,
   options: SyncUserOccurrencesOptions = {},
 ): Promise<OccurrenceGenerationPlan[]> {
+  let failureTimezone = options.timezone ?? DEFAULT_TIMEZONE;
+
   return measurePerformanceSpan(
     {
       span: "service.sync_user_occurrences",
@@ -136,7 +139,11 @@ export async function syncUserOccurrences(
         async () => options.behaviors ?? listUserBehaviors(supabase, userId),
       );
       const now = options.now ?? Temporal.Now.instant();
-      const syncTimezone = resolveUserSyncTimezone(behaviors, options.timezone);
+      const syncTimezone = resolveUserSyncTimezone(
+        behaviors,
+        options.timezone,
+      );
+      failureTimezone = syncTimezone ?? failureTimezone;
       const fallbackWindow = resolveGenerationWindow({
         now,
         timezone: syncTimezone ?? DEFAULT_TIMEZONE,
@@ -163,6 +170,11 @@ export async function syncUserOccurrences(
           horizonDays: options.horizonDays,
         }),
       }));
+      const schedulesByBehaviorId = await resolveBehaviorScheduleMap(
+        supabase,
+        userId,
+        behaviors,
+      );
       const existingOccurrencesByBehaviorId = await measurePerformanceSpan(
         {
           span: "occurrence_sync.existing_occurrence_reads",
@@ -176,43 +188,6 @@ export async function syncUserOccurrences(
             supabase,
             userId,
             behaviorWindows,
-          ),
-      );
-      const schedulesByBehaviorId = await measurePerformanceSpan(
-        {
-          span: "occurrence_sync.schedule_slot_resolution",
-          counts: (resolvedSchedulesByBehaviorId) => ({
-            behaviors: resolvedSchedulesByBehaviorId.size,
-            schedules: countMapValues(resolvedSchedulesByBehaviorId),
-            schedule_slots: Array.from(
-              resolvedSchedulesByBehaviorId.values(),
-            ).reduce(
-              (sum, schedules) =>
-                sum +
-                schedules.reduce(
-                  (scheduleSum, schedule) =>
-                    scheduleSum + schedule.timeEntries.length,
-                  0,
-                ),
-              0,
-            ),
-          }),
-        },
-        async () =>
-          new Map(
-            await Promise.all(
-              behaviorWindows.map(
-                async ({ behavior }) =>
-                  [
-                    behavior.id,
-                    await resolveBehaviorSchedulesForGeneration(
-                      supabase,
-                      userId,
-                      behavior,
-                    ),
-                  ] as const,
-              ),
-            ),
           ),
       );
       const plans = await measurePerformanceSpan(
@@ -286,7 +261,11 @@ export async function syncUserOccurrences(
               }),
             ),
           );
-          await deleteUnresolvedOccurrencesById(supabase, userId, deleteIds);
+          await deleteUnresolvedOccurrencesById(
+            supabase,
+            userId,
+            deleteIds,
+          );
         },
       );
 
@@ -354,7 +333,14 @@ export async function syncUserOccurrences(
 
       return plans;
     },
-  );
+  ).catch(async (error: unknown) => {
+    await markSyncFailedWithoutMaskingError(supabase, {
+      userId,
+      timezone: failureTimezone,
+    });
+
+    throw error;
+  });
 }
 
 export async function ensureUserOccurrencesFresh(
@@ -397,6 +383,20 @@ export async function ensureUserOccurrencesFresh(
       }),
     },
     async () => {
+      const behaviors =
+        options.behaviors ?? (await listUserBehaviors(supabase, userId));
+
+      try {
+        await resolveBehaviorScheduleMap(supabase, userId, behaviors);
+      } catch (error) {
+        await markSyncFailedWithoutMaskingError(supabase, {
+          userId,
+          timezone,
+        });
+
+        throw error;
+      }
+
       const state = hasPreloadedSyncState(options)
         ? (options.syncState ?? null)
         : await readOccurrenceSyncState(supabase, userId);
@@ -417,31 +417,22 @@ export async function ensureUserOccurrencesFresh(
         };
       }
 
-      try {
-        const plans = await syncUserOccurrences(supabase, userId, {
-          behaviors: options.behaviors,
-          horizonDays,
-          now,
-          planReminderDeliveries: options.planReminderDeliveries ?? false,
-          timezone,
-        });
+      const plans = await syncUserOccurrences(supabase, userId, {
+        behaviors,
+        horizonDays,
+        now,
+        planReminderDeliveries: options.planReminderDeliveries ?? false,
+        timezone,
+      });
 
-        return {
-          synced: true,
-          coverage,
-          startLocalDate: requiredWindow.startLocalDate,
-          endLocalDate: requiredWindow.endLocalDate,
-          horizonDays,
-          plans,
-        };
-      } catch (error) {
-        await markSyncFailedWithoutMaskingError(supabase, {
-          userId,
-          timezone,
-        });
-
-        throw error;
-      }
+      return {
+        synced: true,
+        coverage,
+        startLocalDate: requiredWindow.startLocalDate,
+        endLocalDate: requiredWindow.endLocalDate,
+        horizonDays,
+        plans,
+      };
     },
   );
 }
@@ -913,58 +904,128 @@ async function resolveBehaviorSchedulesForGeneration(
   userId: string,
   behavior: Behavior | BehaviorWithCategory,
 ): Promise<OccurrenceGenerationSchedule[]> {
-  if (
+  const persistedSchedules =
     "schedules" in behavior &&
     Array.isArray(behavior.schedules) &&
     behavior.schedules.length > 0
-  ) {
-    return behavior.schedules
-      .map((schedule) => {
-        const timeEntries = schedule.schedule_slots
-          .map((slot) =>
-            toScheduleSlotView({
+      ? behavior.schedules
+        .map((schedule) => {
+          const timeEntries = schedule.schedule_slots
+            .map((slot) =>
+              toScheduleSlotView({
+                id: slot.id,
+                scheduleId: slot.behavior_schedule_id ?? schedule.id,
+                kind: normalizeScheduleKind(slot.kind),
+                preset: normalizeSchedulePreset(slot.preset),
+                startTime: slot.start_time,
+                endTime: slot.end_time,
+                sortOrder: slot.sort_order,
+              }),
+            )
+            .sort(compareScheduleSlots)
+            .map((slot) => ({
               id: slot.id,
-              scheduleId: slot.behavior_schedule_id ?? schedule.id,
-              kind: normalizeScheduleKind(slot.kind),
-              preset: normalizeSchedulePreset(slot.preset),
-              startTime: slot.start_time,
-              endTime: slot.end_time,
-              sortOrder: slot.sort_order,
-            }),
-          )
-          .sort(compareScheduleSlots)
-          .map((slot) => ({
-            id: slot.id,
-            scheduleId: slot.scheduleId,
-            kind: slot.kind,
-            preset: slot.preset,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            sortOrder: slot.sortOrder,
-          }));
+              scheduleId: slot.scheduleId,
+              kind: slot.kind,
+              preset: slot.preset,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              sortOrder: slot.sortOrder,
+            }));
 
-        return {
-          id: schedule.id,
-          recurrenceRule: normalizeRecurrenceRule(schedule.recurrence_rule),
-          timeEntries,
-          sortOrder: schedule.sort_order,
-        };
-      })
-      .filter((schedule) => schedule.timeEntries.length > 0);
+          return {
+            id: schedule.id,
+            recurrenceRule: normalizeRecurrenceRule(schedule.recurrence_rule),
+            timeEntries,
+            sortOrder: schedule.sort_order,
+          };
+        })
+      : [];
+
+  if (!behavior.active) {
+    return persistedSchedules;
   }
 
-  return [
+  const compatibilitySchedule: OccurrenceGenerationSchedule = {
+    id: null,
+    recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
+    timeEntries: await resolveBehaviorScheduleSlots(
+      supabase,
+      userId,
+      behavior,
+    ),
+    sortOrder: 0,
+  };
+  const normalization = normalizeOccurrenceScheduleGraph({
+    schedules: persistedSchedules,
+    compatibilitySchedule,
+  });
+
+  if (normalization.status !== "valid") {
+    throw new OccurrenceScheduleIntegrityError(normalization.reason);
+  }
+
+  return normalization.schedules;
+}
+
+class OccurrenceScheduleIntegrityError extends Error {
+  readonly reason:
+    | "single_empty_schedule"
+    | "missing_schedule"
+    | "ambiguous_empty_schedule"
+    | "malformed_schedule_graph";
+
+  constructor(reason: OccurrenceScheduleIntegrityError["reason"]) {
+    super(
+      "This behavior schedule needs repair before occurrences can be generated.",
+    );
+    this.name = "OccurrenceScheduleIntegrityError";
+    this.reason = reason;
+  }
+}
+
+async function resolveBehaviorScheduleMap(
+  supabase: AppSupabaseClient,
+  userId: string,
+  behaviors: Array<Behavior | BehaviorWithCategory>,
+): Promise<Map<string, OccurrenceGenerationSchedule[]>> {
+  return measurePerformanceSpan(
     {
-      id: null,
-      recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
-      timeEntries: await resolveBehaviorScheduleSlots(
-        supabase,
-        userId,
-        behavior,
-      ),
-      sortOrder: 0,
+      span: "occurrence_sync.schedule_slot_resolution",
+      counts: (resolvedSchedulesByBehaviorId) => ({
+        behaviors: resolvedSchedulesByBehaviorId.size,
+        schedules: countMapValues(resolvedSchedulesByBehaviorId),
+        schedule_slots: Array.from(
+          resolvedSchedulesByBehaviorId.values(),
+        ).reduce(
+          (sum, schedules) =>
+            sum +
+            schedules.reduce(
+              (scheduleSum, schedule) =>
+                scheduleSum + schedule.timeEntries.length,
+              0,
+            ),
+          0,
+        ),
+      }),
     },
-  ];
+    async () =>
+      new Map(
+        await Promise.all(
+          behaviors.map(
+            async (behavior) =>
+              [
+                behavior.id,
+                await resolveBehaviorSchedulesForGeneration(
+                  supabase,
+                  userId,
+                  behavior,
+                ),
+              ] as const,
+          ),
+        ),
+      ),
+  );
 }
 
 function normalizeScheduleKind(value: string): ScheduleKind {

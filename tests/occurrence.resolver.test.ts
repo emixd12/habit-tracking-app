@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_OCCURRENCE_HORIZON_DAYS,
+  normalizeOccurrenceScheduleGraph,
   planOccurrenceGeneration,
+  planOccurrenceRepair,
   type ExistingOccurrenceForGeneration,
   type OccurrenceGenerationBehavior,
 } from "../lib/resolvers/occurrence.resolver";
@@ -432,5 +434,167 @@ describe("planOccurrenceGeneration", () => {
 
     expect(plan.create).toEqual([]);
     expect(plan.deleteUnresolvedIds).toEqual(["future-unresolved"]);
+  });
+});
+
+describe("normalizeOccurrenceScheduleGraph", () => {
+  const compatibilitySchedule = {
+    id: null,
+    recurrenceRule: {
+      frequency: "weekly" as const,
+      interval: 1,
+      daysOfWeek: ["friday" as const],
+    },
+    timeEntries: [
+      {
+        id: null,
+        scheduleId: null,
+        kind: "exact" as const,
+        preset: null,
+        startTime: "11:30",
+        endTime: null,
+        sortOrder: 0,
+      },
+    ],
+    sortOrder: 0,
+  };
+
+  it("returns a typed repairable result for one legacy-compatible empty schedule", () => {
+    const result = normalizeOccurrenceScheduleGraph({
+      schedules: [
+        {
+          ...compatibilitySchedule,
+          id: "schedule-empty",
+          timeEntries: [],
+        },
+      ],
+      compatibilitySchedule,
+    });
+
+    expect(result).toEqual({
+      status: "repairable",
+      reason: "single_empty_schedule",
+      repairedSchedule: {
+        ...compatibilitySchedule,
+        id: "schedule-empty",
+        timeEntries: [
+          expect.objectContaining({
+            id: null,
+            scheduleId: "schedule-empty",
+            startTime: "11:30",
+          }),
+        ],
+      },
+    });
+  });
+
+  it("rejects an ambiguous multi-schedule graph instead of filtering the empty schedule", () => {
+    const result = normalizeOccurrenceScheduleGraph({
+      schedules: [
+        {
+          ...compatibilitySchedule,
+          id: "schedule-valid",
+        },
+        {
+          ...compatibilitySchedule,
+          id: "schedule-empty",
+          timeEntries: [],
+          sortOrder: 1,
+        },
+      ],
+      compatibilitySchedule,
+    });
+
+    expect(result).toEqual({
+      status: "invalid",
+      reason: "ambiguous_empty_schedule",
+    });
+  });
+});
+
+describe("planOccurrenceRepair", () => {
+  it("repairs missing weekly Fridays from the stable local anchor while preserving existing status", () => {
+    const behavior: OccurrenceGenerationBehavior = {
+      ...BASE_BEHAVIOR,
+      recurrenceRule: {
+        frequency: "weekly",
+        interval: 1,
+        daysOfWeek: ["friday"],
+      },
+      schedules: [
+        {
+          id: "schedule-friday",
+          recurrenceRule: {
+            frequency: "weekly",
+            interval: 1,
+            daysOfWeek: ["friday"],
+          },
+          timeEntries: [
+            {
+              id: "slot-friday",
+              scheduleId: "schedule-friday",
+              kind: "exact",
+              preset: null,
+              startTime: "11:30",
+              endTime: null,
+              sortOrder: 0,
+            },
+          ],
+          sortOrder: 0,
+          anchorDate: "2026-06-26",
+        },
+      ],
+      scheduleSlots: [],
+      createdAt: "2026-06-26T12:00:00Z",
+    };
+    const completed = {
+      ...existingOccurrence(
+        "completed-2026-06-26",
+        "2026-06-26T15:30:00Z",
+        "2026-06-26",
+        "completed",
+      ),
+      scheduleSlotId: "slot-friday",
+      scheduleStartTime: "11:30",
+    };
+
+    const plan = planOccurrenceRepair({
+      behavior,
+      existingOccurrences: [completed],
+      now: Temporal.Instant.from("2026-07-17T16:00:00Z"),
+      repairStartLocalDate: "2026-06-26",
+      horizonDays: 0,
+    });
+
+    expect(plan.create.map((occurrence) => occurrence.localDate)).toEqual([
+      "2026-07-03",
+      "2026-07-10",
+      "2026-07-17",
+    ]);
+    expect(plan.updateUnresolved).toEqual([]);
+    expect(plan.deleteUnresolvedIds).toEqual([]);
+
+    const replay = planOccurrenceRepair({
+      behavior,
+      existingOccurrences: [
+        completed,
+        ...plan.create.map((occurrence, index) => ({
+          id: `repaired-${index}`,
+          scheduledFor: occurrence.scheduledFor,
+          localDate: occurrence.localDate,
+          status: occurrence.status,
+          scheduleSlotId: occurrence.scheduleSlotId,
+          scheduleKind: occurrence.scheduleKind,
+          schedulePreset: occurrence.schedulePreset,
+          scheduleStartTime: occurrence.scheduleStartTime,
+          scheduleEndTime: occurrence.scheduleEndTime,
+        })),
+      ],
+      now: Temporal.Instant.from("2026-07-17T16:00:00Z"),
+      repairStartLocalDate: "2026-06-26",
+      horizonDays: 0,
+    });
+
+    expect(replay.create).toEqual([]);
   });
 });

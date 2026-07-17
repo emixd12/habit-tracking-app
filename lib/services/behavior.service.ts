@@ -1,14 +1,14 @@
 import {
   getBehaviorById,
-  replaceBehaviorSchedules,
   updateBehavior,
   type AppSupabaseClient,
   type BehaviorScheduleWithSlots,
   type BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
 import {
-  createBehaviorWithDefinitionEvent,
-  updateBehaviorWithDefinitionEvent,
+  createBehaviorWithAtomicScheduleGraph,
+  updateBehaviorWithAtomicScheduleGraph,
+  type BehaviorScheduleGraphMutation,
 } from "@/lib/db/behaviorDefinitionEvents.repo";
 import { createClient } from "@/lib/supabase/server";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
@@ -111,27 +111,16 @@ export async function createBehaviorFromFormData(
     recordedAt: new Date().toISOString(),
     source: "manual",
   });
-  const createdBehavior = await createBehaviorWithDefinitionEvent(supabase, {
+  const schedules = input.schedules.map(toBehaviorScheduleMutation);
+  const createdBehavior = await createBehaviorWithAtomicScheduleGraph(supabase, {
     behavior: {
       ...behavior,
       title: initialDefinitionEvent.nextTitle,
       description: initialDefinitionEvent.nextDescription,
     },
     definitionEventPlan: initialDefinitionEvent,
+    schedules,
   });
-
-  await Promise.all([
-    markOccurrenceSyncStale(supabase, {
-      userId,
-      reason: "behavior_changed",
-      timezone: behavior.timezone,
-    }),
-    replaceBehaviorSchedules(supabase, {
-      userId,
-      behaviorId: createdBehavior.id,
-      schedules: input.schedules.map(toBehaviorScheduleMutation),
-    }),
-  ]);
   const confirmedBehavior = await getBehaviorById(
     supabase,
     userId,
@@ -192,33 +181,24 @@ export async function updateBehaviorFromFormData(
     active: input.active,
     archived_at: resolveArchiveTimestamp(existingBehavior, input.active),
   };
-  const [updatedBehavior] = await Promise.all([
-    updateBehaviorWithDefinitionEvent(supabase, {
-      behaviorId: input.behaviorId,
-      behavior,
-      expectedDefinition: {
-        title: existingBehavior.title,
-        description: existingBehavior.description,
-      },
-      expectedNormalizedDefinition: previousDefinition,
-      definitionEventPlan: definitionEvent,
-    }),
-    markOccurrenceSyncStale(supabase, {
-      userId,
-      reason: "behavior_changed",
-      timezone: existingBehavior.timezone,
-    }),
-  ]);
+  const updatedBehavior = await updateBehaviorWithAtomicScheduleGraph(supabase, {
+    behaviorId: input.behaviorId,
+    behavior,
+    expectedDefinition: {
+      title: existingBehavior.title,
+      description: existingBehavior.description,
+    },
+    expectedNormalizedDefinition: previousDefinition,
+    expectedScheduleGraph: toStoredBehaviorScheduleGraph(existingBehavior),
+    expectedUpdatedAt: existingBehavior.updated_at,
+    definitionEventPlan: definitionEvent,
+    schedules: input.schedules.map(toBehaviorScheduleMutation),
+  });
 
   if (!updatedBehavior) {
     throw new Error("Behavior not found.");
   }
 
-  await replaceBehaviorSchedules(supabase, {
-    userId,
-    behaviorId: updatedBehavior.id,
-    schedules: input.schedules.map(toBehaviorScheduleMutation),
-  });
   invalidateBehaviorData(userId);
 }
 
@@ -425,13 +405,33 @@ function formatBehaviorScheduleSummary(schedules: BehaviorScheduleView[]): strin
     .join("; ");
 }
 
-function toBehaviorScheduleMutation(schedule: BehaviorScheduleInput) {
+function toBehaviorScheduleMutation(
+  schedule: BehaviorScheduleInput,
+): BehaviorScheduleGraphMutation {
   return {
     id: schedule.id ?? undefined,
     recurrence_rule: recurrenceRuleToJson(schedule.recurrenceRule),
     sort_order: schedule.sortOrder,
     slots: schedule.timeEntries.map(toBehaviorScheduleSlotMutation),
   };
+}
+
+function toStoredBehaviorScheduleGraph(
+  behavior: BehaviorWithCategory,
+): BehaviorScheduleGraphMutation[] {
+  return (behavior.schedules ?? []).map((schedule) => ({
+    id: schedule.id,
+    recurrence_rule: schedule.recurrence_rule,
+    sort_order: schedule.sort_order,
+    slots: schedule.schedule_slots.map((slot) => ({
+      id: slot.id,
+      kind: slot.kind,
+      preset: slot.preset,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      sort_order: slot.sort_order,
+    })),
+  }));
 }
 
 function toBehaviorScheduleSlotMutation(slot: BehaviorScheduleInput["timeEntries"][number]) {

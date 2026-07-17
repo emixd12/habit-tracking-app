@@ -21,6 +21,7 @@
     "resolvers:check": "node scripts/check-resolvers.mjs",
     "perf:routes": "node scripts/performance-route-harness.mjs",
     "smoke:rls": "node scripts/supabase-rls-smoke.mjs",
+    "smoke:schedule-integrity:local": "psql postgresql://postgres:postgres@127.0.0.1:55322/postgres -v ON_ERROR_STOP=1 -f tests/sql/ticket-060-schedule-integrity-smoke.sql",
     "test-login:cleanup": "node scripts/supabase-test-login-cleanup.mjs",
     "agentmail": "node scripts/agentmail-cli.mjs",
     "agentmail:version": "node scripts/agentmail-cli.mjs --version",

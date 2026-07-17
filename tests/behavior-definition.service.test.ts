@@ -10,9 +10,7 @@ const mocks = vi.hoisted(() => ({
   requireCurrentUserId: vi.fn(),
   getBehaviorById: vi.fn(),
   updateBehavior: vi.fn(),
-  replaceBehaviorSchedules: vi.fn(),
-  updateBehaviorWithDefinitionEvent: vi.fn(),
-  markOccurrenceSyncStale: vi.fn(),
+  updateBehaviorWithAtomicScheduleGraph: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -30,17 +28,15 @@ vi.mock("@/lib/db/behaviors.repo", async (importOriginal) => {
     ...original,
     getBehaviorById: mocks.getBehaviorById,
     updateBehavior: mocks.updateBehavior,
-    replaceBehaviorSchedules: mocks.replaceBehaviorSchedules,
   };
 });
 
 vi.mock("@/lib/db/behaviorDefinitionEvents.repo", () => ({
   createBehaviorWithDefinitionEvent: vi.fn(),
-  updateBehaviorWithDefinitionEvent: mocks.updateBehaviorWithDefinitionEvent,
-}));
-
-vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
-  markOccurrenceSyncStale: mocks.markOccurrenceSyncStale,
+  createBehaviorWithAtomicScheduleGraph: vi.fn(),
+  updateBehaviorWithDefinitionEvent: vi.fn(),
+  updateBehaviorWithAtomicScheduleGraph:
+    mocks.updateBehaviorWithAtomicScheduleGraph,
 }));
 
 describe("updateBehaviorFromFormData definition history", () => {
@@ -61,8 +57,7 @@ describe("updateBehaviorFromFormData definition history", () => {
         updated_at: UPDATED_AT,
       }),
     );
-    mocks.replaceBehaviorSchedules.mockResolvedValue(undefined);
-    mocks.updateBehaviorWithDefinitionEvent.mockImplementation(
+    mocks.updateBehaviorWithAtomicScheduleGraph.mockImplementation(
       async (
         _supabase: unknown,
         input: { behavior: Record<string, unknown> },
@@ -72,7 +67,6 @@ describe("updateBehaviorFromFormData definition history", () => {
         updated_at: UPDATED_AT,
       }),
     );
-    mocks.markOccurrenceSyncStale.mockResolvedValue(undefined);
     vi.useFakeTimers();
     vi.setSystemTime(new Date(UPDATED_AT));
   });
@@ -93,7 +87,7 @@ describe("updateBehaviorFromFormData definition history", () => {
       }),
     );
 
-    expect(mocks.updateBehaviorWithDefinitionEvent).toHaveBeenCalledWith(
+    expect(mocks.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
       expect.anything(),
       {
         behaviorId: BEHAVIOR_ID,
@@ -119,6 +113,9 @@ describe("updateBehaviorFromFormData definition history", () => {
           source: "manual",
           reason: null,
         },
+        expectedScheduleGraph: [],
+        expectedUpdatedAt: "2026-06-26T12:00:00Z",
+        schedules: expect.any(Array),
       },
     );
     expect(mocks.updateBehavior).not.toHaveBeenCalled();
@@ -157,7 +154,7 @@ describe("updateBehaviorFromFormData definition history", () => {
       }),
     );
 
-    expect(mocks.updateBehaviorWithDefinitionEvent).toHaveBeenCalledWith(
+    expect(mocks.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         expectedDefinition: {
@@ -169,6 +166,9 @@ describe("updateBehaviorFromFormData definition history", () => {
           description: "Evening routine",
         },
         definitionEventPlan: null,
+        expectedScheduleGraph: [],
+        expectedUpdatedAt: "2026-06-26T12:00:00Z",
+        schedules: expect.any(Array),
         behavior: expect.objectContaining({
           title: "\t\u00a0Brush teeth\u3000",
           description: "\u2003Evening routine\u202f",
@@ -176,7 +176,6 @@ describe("updateBehaviorFromFormData definition history", () => {
       }),
     );
     expect(mocks.updateBehavior).not.toHaveBeenCalled();
-    expect(mocks.replaceBehaviorSchedules).toHaveBeenCalledTimes(1);
   });
 
   it("does not append an event for a schedule-only edit", async () => {
@@ -186,34 +185,22 @@ describe("updateBehaviorFromFormData definition history", () => {
 
     await updateBehaviorFromFormData(updateFormData({ scheduledTime: "08:30" }));
 
-    expect(mocks.updateBehaviorWithDefinitionEvent).toHaveBeenCalledWith(
+    expect(mocks.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ definitionEventPlan: null }),
     );
     expect(mocks.updateBehavior).not.toHaveBeenCalled();
-    expect(mocks.replaceBehaviorSchedules).toHaveBeenCalledWith(
+    expect(mocks.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        userId: USER_ID,
-        behaviorId: BEHAVIOR_ID,
         schedules: [
           expect.objectContaining({
             slots: [
-              expect.objectContaining({
-                start_time: "08:30",
-              }),
+              expect.objectContaining({ start_time: "08:30" }),
             ],
           }),
         ],
       }),
-    );
-    expect(mocks.markOccurrenceSyncStale).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        userId: USER_ID,
-        reason: "behavior_changed",
-        timezone: "America/New_York",
-      },
     );
   });
 
@@ -221,7 +208,7 @@ describe("updateBehaviorFromFormData definition history", () => {
     const { updateBehaviorFromFormData } = await import(
       "../lib/services/behavior.service"
     );
-    mocks.updateBehaviorWithDefinitionEvent.mockRejectedValueOnce(
+    mocks.updateBehaviorWithAtomicScheduleGraph.mockRejectedValueOnce(
       new Error("Definition event insert failed."),
     );
 
@@ -234,14 +221,13 @@ describe("updateBehaviorFromFormData definition history", () => {
     ).rejects.toThrow("Definition event insert failed.");
 
     expect(mocks.updateBehavior).not.toHaveBeenCalled();
-    expect(mocks.replaceBehaviorSchedules).not.toHaveBeenCalled();
   });
 
   it("rejects a stale schedule-only edit before replacing schedules", async () => {
     const { updateBehaviorFromFormData } = await import(
       "../lib/services/behavior.service"
     );
-    mocks.updateBehaviorWithDefinitionEvent.mockRejectedValueOnce(
+    mocks.updateBehaviorWithAtomicScheduleGraph.mockRejectedValueOnce(
       new Error("Behavior definition changed after it was read."),
     );
 
@@ -253,11 +239,10 @@ describe("updateBehaviorFromFormData definition history", () => {
       ),
     ).rejects.toThrow("changed after it was read");
 
-    expect(mocks.updateBehaviorWithDefinitionEvent).toHaveBeenCalledWith(
+    expect(mocks.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ definitionEventPlan: null }),
     );
-    expect(mocks.replaceBehaviorSchedules).not.toHaveBeenCalled();
   });
 });
 

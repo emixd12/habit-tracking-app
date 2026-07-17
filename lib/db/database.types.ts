@@ -955,6 +955,14 @@ export type Database = {
         Args: { behavior_payload: Json; definition_event_plan: Json }
         Returns: Json
       }
+      create_behavior_with_schedule_graph: {
+        Args: {
+          behavior_payload: Json
+          definition_event_plan: Json
+          schedule_graph: Json
+        }
+        Returns: Json
+      }
       get_export_page_read_bundle: {
         Args: { range_end_local_date: string; range_start_local_date: string }
         Returns: Json
@@ -964,6 +972,18 @@ export type Database = {
           behavior_payload: Json
           definition_event_plan: Json
           expected_definition: Json
+          target_behavior_id: string
+        }
+        Returns: Json
+      }
+      update_behavior_with_schedule_graph: {
+        Args: {
+          behavior_payload: Json
+          definition_event_plan: Json
+          expected_definition: Json
+          expected_schedule_graph: Json
+          expected_updated_at: string
+          schedule_graph: Json
           target_behavior_id: string
         }
         Returns: Json

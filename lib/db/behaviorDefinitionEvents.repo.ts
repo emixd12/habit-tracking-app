@@ -13,6 +13,92 @@ import type {
   NewBehaviorDefinitionEvent,
 } from "@/lib/types/database";
 
+export type BehaviorScheduleGraphMutation = {
+  id?: string | null;
+  recurrence_rule: Json;
+  sort_order: number;
+  slots: Array<{
+    id?: string | null;
+    kind: string;
+    preset: string | null;
+    start_time: string;
+    end_time: string | null;
+    sort_order: number;
+  }>;
+};
+
+export async function createBehaviorWithAtomicScheduleGraph(
+  supabase: AppSupabaseClient,
+  input: {
+    behavior: NewBehavior;
+    definitionEventPlan: BehaviorDefinitionEventPlan;
+    schedules: BehaviorScheduleGraphMutation[];
+  },
+): Promise<Behavior> {
+  const { data, error } = await supabase.rpc(
+    "create_behavior_with_schedule_graph",
+    {
+      behavior_payload: toBehaviorPayload(input.behavior),
+      definition_event_plan: toDefinitionEventPlanPayload(
+        input.definitionEventPlan,
+      ),
+      schedule_graph: toScheduleGraphPayload(input.schedules),
+    },
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("Behavior was not created.");
+  }
+
+  return data as unknown as Behavior;
+}
+
+export async function updateBehaviorWithAtomicScheduleGraph(
+  supabase: AppSupabaseClient,
+  input: {
+    behaviorId: string;
+    behavior: BehaviorUpdate;
+    expectedDefinition: BehaviorDefinition;
+    expectedNormalizedDefinition: BehaviorDefinition;
+    expectedScheduleGraph: BehaviorScheduleGraphMutation[];
+    expectedUpdatedAt: string;
+    definitionEventPlan: BehaviorDefinitionEventPlan | null;
+    schedules: BehaviorScheduleGraphMutation[];
+  },
+): Promise<Behavior | null> {
+  const { data, error } = await supabase.rpc(
+    "update_behavior_with_schedule_graph",
+    {
+      target_behavior_id: input.behaviorId,
+      behavior_payload: toBehaviorPayload(input.behavior),
+      expected_definition: {
+        stored_title: input.expectedDefinition.title,
+        stored_description: input.expectedDefinition.description,
+        normalized_title: input.expectedNormalizedDefinition.title,
+        normalized_description: input.expectedNormalizedDefinition.description,
+      },
+      expected_schedule_graph: toScheduleGraphPayload(
+        input.expectedScheduleGraph,
+      ),
+      expected_updated_at: input.expectedUpdatedAt,
+      definition_event_plan: input.definitionEventPlan
+        ? toDefinitionEventPlanPayload(input.definitionEventPlan)
+        : null,
+      schedule_graph: toScheduleGraphPayload(input.schedules),
+    },
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? (data as unknown as Behavior) : null;
+}
+
 export async function createBehaviorWithDefinitionEvent(
   supabase: AppSupabaseClient,
   input: {
@@ -152,4 +238,22 @@ function toDefinitionEventPlanPayload(
     source: plan.source,
     reason: plan.reason,
   };
+}
+
+function toScheduleGraphPayload(
+  schedules: BehaviorScheduleGraphMutation[],
+): Json {
+  return schedules.map((schedule) => ({
+    id: schedule.id ?? null,
+    recurrence_rule: schedule.recurrence_rule,
+    sort_order: schedule.sort_order,
+    time_entries: schedule.slots.map((slot) => ({
+      id: slot.id ?? null,
+      kind: slot.kind,
+      preset: slot.preset,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      sort_order: slot.sort_order,
+    })),
+  }));
 }

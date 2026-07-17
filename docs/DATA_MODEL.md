@@ -151,17 +151,20 @@ update or delete policy or grant for this table. Database cascades still remove
 events when the owning behavior or account is deleted.
 
 Manual Behavior form writes use the owner-scoped `SECURITY INVOKER` functions
-`create_behavior_with_definition_event` and
-`update_behavior_with_definition_event` for every Behavior form update. The
-service passes the pure resolver's optional event plan into the function; SQL
-validates the exact stored predecessor, its normalized form, and the next
-definition but does not calculate changed fields. Create or update and any
-event insertion commit or roll back as one statement transaction. Definition
-updates lock the owned current behavior row and reject a stale predecessor,
-including no-op and schedule-only submissions. A null event plan must preserve
-the exact stored title and description bytes, so canonical-equivalent tabs or
-Unicode edge whitespace cannot be rewritten without history. Schedule
-replacement remains a follow-on repository operation after that guard passes.
+`create_behavior_with_schedule_graph` and
+`update_behavior_with_schedule_graph`. The service passes the pure resolver's
+optional definition-event plan and the complete validated schedule graph into
+the function; SQL does not calculate changed fields or recurrence. The
+behavior row, optional definition event, every schedule parent and time entry,
+and `occurrence_sync_state.stale = true` commit or roll back together.
+
+Updates lock the owned behavior and bind the write to its exact stored
+definition, `updated_at`, and schedule graph. This preserves the definition
+ABA guard and also rejects stale schedule-only submissions. A null event plan
+must preserve the exact stored title and description bytes, so
+canonical-equivalent tabs or Unicode edge whitespace cannot be rewritten
+without history. The earlier definition-only functions remain available to
+the import path; manual form saves do not use their non-schedule boundary.
 
 Create-only and approved-merge BehaviorLog imports use the same atomic create
 function with `source = 'import'`, and preserve the imported behavior
@@ -190,9 +193,21 @@ create table behavior_schedules (
 ```
 
 Each behavior has one or more schedules. A schedule owns one recurrence pattern
-and one or more time entries. Legacy behavior rows without child schedules are
-normalized at runtime to one schedule using `behaviors.recurrence_rule`,
-`behaviors.scheduled_time`, and any legacy flat schedule slots.
+and must have one or more owned time entries. Manual form transactions reject
+empty, duplicate, malformed, stale, or cross-owner schedule graphs before the
+transaction commits.
+
+Legacy behavior rows without schedule parents may still be normalized at
+runtime to one schedule using `behaviors.recurrence_rule`,
+`behaviors.scheduled_time`, and legacy flat schedule slots. A persisted
+schedule parent with no child time entry is different: it is an integrity
+failure, not a valid empty schedule. Ticket 060's idempotent migration repairs
+every such parent with one exact compatibility slot using the owning
+behavior's stored `scheduled_time`; active repaired schedules also receive
+only missing Unresolved occurrences from the stable local creation-date anchor
+through the normal future horizon. Existing occurrences and statuses are not
+updated or recreated. Archived repaired schedules receive the slot but no new
+occurrences.
 
 ### `behavior_schedule_slots`
 
@@ -303,8 +318,12 @@ create table occurrence_sync_state (
 occurrence rows. Write paths mark it stale when behavior schedules, account
 timezone, or import/restore flows can affect generated occurrences. A successful
 account occurrence sync marks it fresh with the local-date horizon that was
-covered and aggregate counts for observability. Read routes still run the
-existing sync until the freshness-aware route work is implemented.
+covered and aggregate counts for observability. Freshness coverage is accepted
+only after every active behavior has a structurally valid normalized schedule
+graph and all occurrence and requested reminder-planning writes succeed. An
+empty or ambiguous persisted schedule graph raises a safe integrity error and
+best-effort records `stale_reason = 'sync_failed'`; it cannot be filtered out
+and then recorded as fresh.
 
 ### `occurrence_status_events`
 

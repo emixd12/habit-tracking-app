@@ -143,6 +143,27 @@ for (const entry of resolverRegistry) {
   }
 }
 
+const occurrenceResolver = read("lib/resolvers/occurrence.resolver.ts");
+const occurrenceService = read("lib/services/occurrence.service.ts");
+assert(
+  occurrenceResolver.includes("export function normalizeOccurrenceScheduleGraph"),
+  "Occurrence resolver must own typed schedule-graph normalization.",
+);
+assert(
+  occurrenceResolver.includes("export function planOccurrenceRepair"),
+  "Occurrence resolver must own explicit missing-occurrence repair planning.",
+);
+assert(
+  occurrenceService.includes('normalization.status !== "valid"'),
+  "Occurrence service must reject non-valid active schedule graphs.",
+);
+assert(
+  !occurrenceService.includes(
+    ".filter((schedule) => schedule.timeEntries.length > 0)",
+  ),
+  "Occurrence service must not filter empty schedules into a successful no-op.",
+);
+
 for (const file of walk("app")) {
   if (!file.endsWith(".ts") && !file.endsWith(".tsx")) continue;
   assert(!file.includes("dashboard"), `Forbidden dashboard route/file exists: ${file}`);
