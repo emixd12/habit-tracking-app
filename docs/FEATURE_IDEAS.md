@@ -31,124 +31,6 @@ For new rough ideas, add:
 - `Open questions`: decisions needed before ticketing.
 - `Scope guardrails`: what must not be accidentally pulled into v1.
 
-## Status Action Capture And Correction History
-
-Status: implemented by Ticket 058.
-
-Promoted ticket:
-`docs/TICKETS.md` Ticket 058.
-
-Why:
-Cadence should be able to tell when a user marked a specific occurrence as
-Completed or Not Completed, and when they later changed or cleared that status.
-This could support more granular analysis, including whether a user logs
-behaviors when they happen or batches decisions at the end of the day.
-
-Current implementation notes:
-
-- `occurrences.status_marked_at` stores the latest time a status was marked.
-- `occurrences.completed_at` stores the completion timestamp when the current
-  status is Completed.
-- `occurrence_status_events` stores append-only status history, including
-  previous status, new status, recorded time, effective time, status semantics,
-  source capture method, confidence, and `revises_event_id`.
-- Current resolver behavior creates explicit mark events for first resolution
-  and explicit correction events when a resolved status changes or returns to
-  Unresolved.
-
-Implemented shape:
-
-- Manual marks, corrections, and clears persist the current occurrence snapshot
-  and its append-only status event in one owner-scoped database transaction;
-  resolver-planned pending-reminder cancellation commits in that transaction.
-- Repeated taps of the current resolved status are idempotent, while true
-  corrections link to the locked latest prior event with `revises_event_id`,
-  and a stale latest-event token rejects ABA concurrency.
-- Existing resolved snapshots without an event remain unchanged internally.
-  BehaviorLog export represents them with a derived, medium-confidence fallback
-  rather than inventing manual, high-confidence provenance during migration.
-- Full JSON and BehaviorLog expose status history; Markdown directs agents to
-  use event timing and correction links for late-log and adherence-timing
-  analysis. JSONL and CSV remain current-snapshot formats.
-- Status history remains export context. Ticket 058 adds no audit-log UI and
-  note-only edits remain outside status history.
-
-Deferred questions:
-
-- Should users ever see a per-occurrence status history in the UI?
-- Should users be able to enter an actual completion time that differs from the
-  logging time?
-- Whether note edits need their own event model remains a separate future
-  decision; they do not create status events.
-- Should voice or text command logging add new `source_capture_method` values
-  such as `voice`, or map to the existing source vocabulary?
-
-Scope guardrails:
-Do not add a new stored status. Needs decision remains derived, and Unresolved
-must not be treated as failure.
-
-## Behavior Title And Description History
-
-Status: implemented by Ticket 057.
-
-Promoted ticket:
-`docs/TICKETS.md` Ticket 057.
-
-Why:
-A user's edits to a behavior title or description may show that their
-understanding of the behavior changed over time. For example, a vague behavior
-may become more specific, a protocol may gain or lose steps, or a title may be
-renamed to better match what the user is actually tracking. Agents analyzing
-exports could use that history to avoid treating all past occurrences as if the
-behavior definition had always been the same.
-
-Current implementation notes:
-
-- `behaviors.title` and `behaviors.description` store the current behavior
-  definition.
-- `behavior_definition_events` stores the append-only revision trail with
-  previous and next values.
-- Full JSON and BehaviorLog exports include the first-class revision history;
-  JSONL and CSV remain snapshot formats.
-
-Implemented shape:
-
-- Append-only behavior definition events are created for initial definitions
-  and normalized title or description changes.
-- Events capture full previous and next values, canonical changed fields,
-  `recorded_at`, source, and a nullable schema-only reason.
-- Full JSON and BehaviorLog include the revision trail by default, and Markdown
-  tells agents how to interpret renames and description changes without
-  repeating the historical text.
-- The initial UI remains minimal and does not add a revision browser or change
-  reason field.
-- BehaviorLog import and restore continue to use current definition snapshots
-  rather than replaying exported revision rows. New imported behaviors receive
-  an atomic `source = import` baseline, and restore records an atomic import
-  transition when it replaces a normalized definition. Reconstructing the
-  bundle's earlier revision trail remains deferred.
-
-Ticket 057 decisions:
-
-- Capture only normalized title or description changes, not every save.
-- Do not classify typo fixes separately in this ticket.
-- Keep reason support schema-only with no user input.
-- Export full previous and next text plus `changed_fields`, with no computed
-  diff.
-- Represent BehaviorLog history in the optional app-specific
-  `raw/cadence/behavior_definition_events.jsonl` file without changing core
-  records.
-
-Deferred privacy question:
-
-- How should users delete or redact old title and description text if it
-  becomes sensitive?
-
-Scope guardrails:
-Do not add multi-user audit logs, approval workflows, AI-generated behavior
-rewrites, or automatic splitting/merging of behaviors. This should remain a
-single-account personal history feature.
-
 ## Conversational Voice And Speech-To-Action Logging
 
 Status: idea.
@@ -330,7 +212,10 @@ controls, or complex tagging.
 
 ## Export Prompt Library For External AI Analysis
 
-Status: idea.
+Status: implemented by Ticket 061.
+
+Promoted ticket:
+`docs/TICKETS.md` Ticket 061.
 
 Why:
 Cadence exports can give users and their agents a useful behavior dataset, but

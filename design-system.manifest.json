@@ -242,6 +242,34 @@
       "notes": ""
     },
     {
+      "id": "module.prompt-library-panel",
+      "name": "PromptLibraryPanel",
+      "kind": "module",
+      "source": "components/export/PromptLibraryPanel.tsx",
+      "exportName": "PromptLibraryPanel",
+      "usageNames": [
+        "PromptLibraryPanel"
+      ],
+      "benchAnchor": "design-system#ds-module-prompt-library-panel",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "id": "module.prompt-copy-action",
+      "name": "PromptCopyAction",
+      "kind": "module",
+      "source": "components/export/PromptCopyAction.tsx",
+      "exportName": "PromptCopyAction",
+      "usageNames": [
+        "PromptCopyAction"
+      ],
+      "benchAnchor": "design-system#ds-module-prompt-copy-action",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": ""
+    },
+    {
       "id": "module.needs-decision-dialog",
       "name": "NeedsDecisionDialog",
       "kind": "module",

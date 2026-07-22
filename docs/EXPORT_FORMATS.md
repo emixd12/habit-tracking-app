@@ -614,6 +614,23 @@ By category:
 - Medical: 30 completed, 1 not completed, 0 unresolved
 ```
 
+## Prompt library
+
+The Export screen includes a UI-only library of static prompt templates after
+the AI summary. Users copy a template into their own assistant together with an
+export of the same range. The templates are not included in exported bundles,
+the BehaviorLog manifest, or the AI summary.
+
+Every status-touching template carries the occurrence-snapshot versus
+`status_events` semantics and states that Unresolved is missing decision data,
+not failure. Templates also state which export format and options provide any
+optional notes, status events, behavior definition history, or intervention
+data they require.
+
+The screen includes this sensitivity disclosure: "Whatever the export
+contains, including notes and historical definitions when those options are
+selected, becomes visible to the assistant you paste it into."
+
 ## Resolver contract
 
 Export formatting belongs in:

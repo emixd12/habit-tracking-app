@@ -2,6 +2,7 @@ import { BehaviorLogImportPanel } from "@/components/export/BehaviorLogImportPan
 import { BehaviorLogRestorePanel } from "@/components/export/BehaviorLogRestorePanel";
 import { ExportRangeSelector } from "@/components/export/ExportRangeSelector";
 import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActions";
+import { PromptLibraryPanel } from "@/components/export/PromptLibraryPanel";
 import type { BehaviorLogImportPageData } from "@/lib/types/behaviorlog-import-ui";
 import type { BehaviorLogRestorePageData } from "@/lib/types/behaviorlog-restore-ui";
 import type { ExportBundle } from "@/lib/types/export";
@@ -45,16 +46,16 @@ export function ExportPanel({
   restoreData,
 }: ExportPanelProps) {
   return (
-    <div className="grid gap-12 sm:gap-14">
+    <div className="grid gap-12">
       <section className="grid gap-8" aria-labelledby="export-section-title">
         <div className="border-b border-line pb-4">
           <h2
             id="export-section-title"
-            className="text-3xl font-bold leading-tight"
+            className="text-2xl leading-tight"
           >
             Export
           </h2>
-          <p className="mt-2 max-w-3xl text-sm text-muted-readable">
+          <p className="mt-3 max-w-3xl text-sm text-muted-readable">
             Set the options once. The counts, downloads, and AI summary use the
             same selected range, archived-behavior setting, and note setting.
           </p>
@@ -66,12 +67,12 @@ export function ExportPanel({
         >
           <h3
             id="export-options-title"
-            className="text-xl font-bold leading-tight"
+            className="text-xl leading-tight"
           >
             Options
           </h3>
 
-          <form method="get" className="mt-5 grid gap-5">
+          <form method="get" className="mt-4 grid gap-5">
             <ExportRangeSelector
               rangeOptions={exportData.rangeOptions}
               selectedRangeKey={exportData.range.key}
@@ -149,7 +150,7 @@ export function ExportPanel({
         >
           <h3
             id="export-downloads-title"
-            className="text-xl font-bold leading-tight"
+            className="text-xl leading-tight"
           >
             Downloads
           </h3>
@@ -194,7 +195,7 @@ export function ExportPanel({
             <div>
               <h3
                 id="export-summary-title"
-                className="text-xl font-bold leading-tight"
+                className="text-xl leading-tight"
               >
                 AI summary
               </h3>
@@ -213,22 +214,24 @@ export function ExportPanel({
             {exportData.markdownSummary}
           </pre>
         </section>
+
+        <PromptLibraryPanel />
       </section>
 
       <section className="grid gap-8" aria-labelledby="import-section-title">
         <div className="border-b border-line pb-4">
           <h2
             id="import-section-title"
-            className="text-3xl font-bold leading-tight"
+            className="text-2xl leading-tight"
           >
             Import
           </h2>
-          <p className="mt-2 max-w-3xl text-sm text-muted-readable">
+          <p className="mt-3 max-w-3xl text-sm text-muted-readable">
             Bring in a BehaviorLog bundle, review the preview, and apply only
             supported changes. Restore stays gated behind its own preview and
             confirmation.
           </p>
-          <p className="mt-2 max-w-3xl text-sm text-muted-readable">
+          <p className="mt-3 max-w-3xl text-sm text-muted-readable">
             Exported behavior definition revisions are not replayed on import or
             restore. Cadence uses the current title and description snapshot and
             records a new local import baseline or transition.

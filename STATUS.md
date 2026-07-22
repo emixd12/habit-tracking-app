@@ -949,6 +949,7 @@ Later ticket rollup:
 | 028: Promote imported interventions into reminder deliveries | complete | Service-level promotion path exists with explicit selection/confirmation; no user-facing promotion UI has been added. |
 | 029: Public web hardening account safety baseline | complete | Account deletion, legal/trust pages, endpoint hardening, bounded reminder processing, and RLS policy registry are implemented. Remaining public-launch follow-up is hosted multi-user RLS smoke QA, first-run onboarding, and privacy-conscious monitoring/error reporting. |
 | 030: Public web hardening follow-up | complete | Added dismissible Timeline first-run setup, privacy-safe structured runtime monitoring, and `npm run smoke:rls` many-user RLS smoke QA. | Pass: `npm run smoke:rls`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test` (35 files, 241 tests); Pass: `npm run build`; Pass: `npm run design-system:check`; Pass: `git diff --check`; Browser QA with a temporary authenticated Chrome user verified Timeline first-run setup at 1280px and 390px with no horizontal overflow, required links present, no console warnings/errors, and temporary user cleanup. | No Ticket 030 blocker remains. Re-run `npm run smoke:rls` before broad launch and after material RLS/schema changes. |
+| 061: Export prompt library for external AI analysis | complete | Added twelve static, provider-generic analysis prompts after the Export AI summary, with typed shared semantics, native disclosure rows, format/option requirements, and clipboard feedback. The library is UI-only and does not change export artifacts. |
 
 ## Post-ticket refinements
 
@@ -4233,6 +4234,36 @@ Verification:
 Remaining risk:
 - None identified. This is a copy-only product change and does not alter
   occurrence grouping, status storage, or Needs decision counts.
+
+## Export prompt library (Ticket 061)
+
+Status: complete.
+
+Implementation summary:
+- Added a typed static prompt module with twelve templates, one shared Cadence
+  export-semantics preamble, and a DOM-independent clipboard helper.
+- Added the Analysis prompts panel after the AI summary in the Export section.
+  It uses unboxed native disclosure rows, format and option requirements,
+  preformatted prompt text, an underlined Copy prompt action, and accessible
+  copy-result feedback.
+- Registered the prompt panel and copy action in the design-system manifest,
+  bench previews, and generated usage map.
+- Kept the feature static and UI-only. It does not alter export bundles, the
+  BehaviorLog manifest, the AI summary, resolvers, services, API routes, or the
+  database.
+
+Verification:
+- Pass: `npm run agents:check`.
+- Pass: `npm run resolvers:check`.
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test`.
+- Pass: `npm run build`.
+
+Remaining risk:
+- Clipboard availability still depends on the user's browser and permission
+  context; unsupported or rejected writes show Copy unavailable.
 
 ## Handoff notes
 

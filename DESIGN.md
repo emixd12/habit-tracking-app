@@ -223,6 +223,22 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 **The One-Line-Per-Boundary Rule.** Any boundary between two neighbors is drawn exactly once. Stacked page sections take a single divider between them (`divide-y` on the stack, or `border-t` on every section after the first), never per-section `border-y`, which doubles the line across the gap. A nested container never redraws its parent's boundary: a list inside a section uses inner `divide-y` only, with no outer border, and inline status text does not carry its own `border-t`.
 
+**The Spacing Scale.** Vertical space encodes hierarchy on a fixed ladder, and parallel objects always share the same value:
+
+| Boundary | Space | Owner |
+|---|---|---|
+| Page header rule → content; page-level siblings | 48px (`gap-12`) | the screen-frame stack |
+| Section ↔ section | 16px + 1px rule + 16px (33px, rule centered) | the section stack: `divide-y` with `py-4` sections, `first:pt-0 last:pb-0` |
+| Sub-block ↔ sub-block inside a section (fieldsets, Export subsections at 32px) | 24–32px | the section's own grid |
+| Heading block → its content | 16px (`mt-4`) | the section |
+| Sibling items (form controls, paragraphs) | 12px (`gap-3`) | the content grid |
+| Tight groups (stat rows, dl pairs) | 8px (`gap-2`) | the group |
+| Label → value | 4px (`gap-1`) | the item |
+
+A boundary's space always exceeds every boundary one level below it; header rules echo in halves (page title→rule 24, rule→content 48; Export super-header desc→rule 16, rule→subsections 32). Title→description is 12px (`mt-3`) at every tier. Row density keeps three named tiers — 8px dense feed rows (Timeline), 12px ledger rows (settings links, setup rows), 16px airy rows (export downloads, behavior records) — chosen per surface, never mixed within one list. Overlay panels pad at 16px with 12px inner insets. Timeline is exempt at the top: its day headers are the page's first tier and keep their promoted 48px rhythm. Public account pages follow the same ladder one step airier (24px section padding, 33→49px section gaps).
+
+**The Heading Ladder.** Page title `text-3xl sm:text-4xl` → super/promoted headers (Export's Export/Import, Timeline's today date) `text-2xl` → section headings `text-xl` → row titles `text-lg` and below. Headings never carry bold overrides; weight stays normal per the type experiment.
+
 ## 5. Components
 
 ### Buttons
@@ -245,7 +261,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Background:** Bleached Newsprint for normal rows; Cold Surface for empty states, expanded details, and low-emphasis panels.
 - **Shadow Strategy:** No shadows.
 - **Border:** Prefer single Ash Line dividers and unboxed sections. Behavior records and Timeline occurrence rows are unboxed list rows. Use perimeter borders only where a real field, modal, table, or dense control needs an explicit boundary.
-- **Internal Padding:** 20px for behavior rows, vertical 10-12px padding plus a compact horizontal inset for Timeline occurrence rows on both desktop and mobile, 64px for major page sections on desktop, 24px or less on mobile.
+- **Internal Padding:** 16px for behavior rows (airy row tier), vertical 10-12px padding plus a compact horizontal inset for Timeline occurrence rows on both desktop and mobile. Page sections follow the Spacing Scale (16px section padding inside a divided stack) instead of large per-section padding.
 
 ### Inputs / Fields
 
@@ -262,7 +278,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 - **Recurrence presets:** Segmented radio labels use Monolith Blue fill only for the selected preset. Weekday choices use compact borderless labels with a visible native checkbox.
 - **Reminder section:** Render as an unframed form section matching Recurrence, with a plain section heading, bordered checkbox controls, and smaller muted subsection labels such as Reminder offset.
 - **Create behavior:** Keep the creation form available from the Behaviors page without making existing behavior records secondary. When records already exist, use a simple native disclosure; when no records exist, the disclosure may open by default.
-- **Behavior records:** Active records are unboxed list rows separated by a single 1px Ash Line divider between adjacent records. They keep 20px padding, visible range-based adherence, Completed and Not Completed counts, and a per-behavior calendar sized to the row. Visible outcome stats use the same compact vertical rhythm as metadata inside Details and Settings. Lower-use behavior characteristics such as category, schedule, recurrence, reminders, and description live inside the row's Details and Settings disclosure with the edit form. Archive behavior appears at the end of that settings area and aligns to the opposite side of the Save/Cancel footer row on desktop. Create and edit forms use real field/control borders only; schedule slots use quiet row dividers instead of perimeter boxes.
+- **Behavior records:** Active records are unboxed list rows separated by a single 1px Ash Line divider between adjacent records. They keep 16px padding (airy row tier), visible range-based adherence, Completed and Not Completed counts, and a per-behavior calendar sized to the row. Visible outcome stats use the same compact vertical rhythm as metadata inside Details and Settings. Lower-use behavior characteristics such as category, schedule, recurrence, reminders, and description live inside the row's Details and Settings disclosure with the edit form. Archive behavior appears at the end of that settings area and aligns to the opposite side of the Save/Cancel footer row on desktop. Create and edit forms use real field/control borders only; schedule slots use quiet row dividers instead of perimeter boxes.
 - **Behavior date review:** Selecting a non-empty behavior calendar cell opens a quiet row-level review area for dated occurrence records. Date of behavior, Time of behavior, Status, and Note render as plain detail rows. Date and time are display-only. Status and Note correction controls stay hidden behind a per-occurrence Review disclosure.
 - **Archived behaviors:** Archived records stay out of the active behavior feed and live behind a low-priority bottom disclosure with a count. Restore uses the primary text-action treatment.
 - **Archive and restore actions:** Archive behavior uses a factual Rust Signal underlined action at the end of Details and Settings for active records. Archived records stay visible with a neutral square label and a factual Restore action using the primary text-action treatment.
@@ -308,10 +324,11 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 
 ### Export Panels
 
-- **Export structure:** Options, downloads, and AI summary stack as separate sections. Keep range, selected-range scope counts, archived-behavior controls, and note controls at the top so every download reflects the same selected state.
+- **Export structure:** Options, downloads, and AI summary stack as separate sections. Keep range, selected-range scope counts, archived-behavior controls, and note controls at the top so every download reflects the same selected state. Export and Import are super-sections one tier below the page title: `text-2xl` headers, 48px apart, with 32px to their subsections; subsection headings are `text-xl` with 16px to their content, per the Spacing Scale and Heading Ladder.
 - **Range controls:** Use underlined text-action choices for 7 days, 30 days, 90 days, and All time. Selected range uses Ink Black text. Inactive range choices use Readable Ash. The archived-behavior option uses a plain checkbox.
 - **Download actions:** JSONL, CSV, full JSON backup, and BehaviorLog bundle use compact two-column label/action rows with the file extension next to the format name. Avoid explanatory card grids, icons, or restore/import promises in the UI.
 - **AI summary:** Show a Markdown preview in a Cold Surface preformatted panel, with Copy summary and Download .md controls above it. The preview uses resolver-produced content; the UI does not calculate adherence or format export rows.
+- **Prompt library:** Place Analysis prompts after the AI summary as unboxed native disclosure rows with inner `divide-y` separators at the 16px airy tier. Expanded prompts use a bordered Cold Surface preformatted panel matching the AI summary preview and an underlined Copy prompt text action.
 - **BehaviorLog import:** Keep import preview sparse and ledger-like. Show privacy warnings, imported-note record counts, inline occurrence-note fill counts, and intervention preview counts before apply. High or restricted note sensitivity requires a separate checkbox acknowledgement. Do not add a generalized note browser here.
 
 ### Settings Panels
@@ -328,7 +345,7 @@ This system is flat by default. Depth is created with borders, spacing, surface 
 ### Public Account Information
 
 - **Routes:** `/terms`, `/privacy`, and `/trust` use the same square, flat product vocabulary as the authenticated app.
-- **Layout:** Keep public legal/trust pages narrow, text-first, and divided by quiet rules. Use plain navigation between the three pages and simple Sign in / Open settings actions.
+- **Layout:** Keep public legal/trust pages narrow, text-first, and divided by quiet rules. Use plain navigation between the three pages and simple Sign in / Open settings actions. They follow the Spacing Scale one step airier: 24px section padding in the divided stack, the standard 24px title→rule and 12px title→description, and 16px heading→content.
 - **Copy:** Keep legal/trust copy factual. Explain account isolation, manual statuses, portability, reminders, and deletion without marketing claims or motivational language.
 
 ### Astro Marketing Site

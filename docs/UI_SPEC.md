@@ -625,6 +625,17 @@ The AI summary is an export artifact, not an in-app coaching feature. It should
 state whether notes are included and should show notes only when the user opts
 into occurrence notes.
 
+Analysis prompts appears after the AI summary inside the Export section. It is
+a static, single-column library of native disclosure rows. Collapsed rows show
+the prompt title and one factual purpose sentence. Expanded rows show the
+required export format or options, the full prompt in a preformatted Cold
+Surface panel, and an underlined Copy prompt text action. Copy feedback appears
+next to the action through an `aria-live="polite"` status with Copied or Copy
+unavailable. Keep all copy in sentence case and factual, with no icons, warning
+box, or caution chrome. The muted intro includes the plain sensitivity
+disclosure that whatever the export contains becomes visible to the assistant
+the user pastes it into.
+
 Do not use icons in Export & Import page controls unless a later design-system
 ticket reintroduces a specific icon affordance.
 

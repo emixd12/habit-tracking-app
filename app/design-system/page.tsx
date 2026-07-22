@@ -25,6 +25,8 @@ import { BehaviorLogRestorePanel } from "@/components/export/BehaviorLogRestoreP
 import { ExportPanel } from "@/components/export/ExportPanel";
 import { ExportRangeSelector } from "@/components/export/ExportRangeSelector";
 import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActions";
+import { PromptCopyAction } from "@/components/export/PromptCopyAction";
+import { PromptLibraryPanel } from "@/components/export/PromptLibraryPanel";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   CadencePageBanner,
@@ -49,6 +51,7 @@ import { StatusButtons } from "@/components/timeline/StatusButtons";
 import { Timeline } from "@/components/timeline/Timeline";
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
 import { GoogleLoginButton } from "@/app/(auth)/login/GoogleLoginButton";
+import { EXPORT_PROMPT_TEMPLATES } from "@/lib/export-prompts";
 import { APP_NAV_ITEMS, type AppNavHref } from "@/lib/navigation";
 import type { AnalyticsView } from "@/lib/types/analytics";
 import { resolveBehaviorLogImportMergePreview } from "@/lib/resolvers/behaviorlog-import.resolver";
@@ -1674,6 +1677,19 @@ const previewFactories: Record<
         <MarkdownSummaryActions
           summary={exportFixture.markdownSummary}
           fileName={exportFixture.markdownFileName}
+        />
+      </ProductPreview>
+    ),
+  "module.prompt-library-panel": () => (
+      <ProductPreview maxHeight="38rem">
+        <PromptLibraryPanel />
+      </ProductPreview>
+    ),
+  "module.prompt-copy-action": () => (
+      <ProductPreview>
+        <PromptCopyAction
+          prompt={EXPORT_PROMPT_TEMPLATES[0].prompt}
+          templateTitle={EXPORT_PROMPT_TEMPLATES[0].title}
         />
       </ProductPreview>
     ),

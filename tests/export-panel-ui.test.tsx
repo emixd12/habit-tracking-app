@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { ExportPanel } from "../components/export/ExportPanel";
+import { EXPORT_PROMPT_TEMPLATES } from "../lib/export-prompts";
 import type { ExportBundle } from "../lib/types/export";
 
 describe("Export panel UI", () => {
@@ -40,6 +41,29 @@ describe("Export panel UI", () => {
     );
     expect(html).toContain(
       "records a new local import baseline or transition",
+    );
+  });
+
+  it("renders the analysis prompt library after the AI summary", () => {
+    const html = renderToStaticMarkup(
+      <ExportPanel
+        exportData={exportBundle()}
+        importData={{ recentRuns: [] }}
+        restoreData={{ recentRuns: [] }}
+      />,
+    );
+
+    expect(html).toContain("Analysis prompts");
+    expect(html).toContain(
+      "becomes visible to the assistant you paste it into",
+    );
+
+    for (const template of EXPORT_PROMPT_TEMPLATES) {
+      expect(html).toContain(template.title);
+    }
+
+    expect(html.indexOf("AI summary")).toBeLessThan(
+      html.indexOf("Analysis prompts"),
     );
   });
 });

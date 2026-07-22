@@ -3566,6 +3566,160 @@ Out of scope:
 
 ---
 
+## Ticket 061: Export prompt library for external AI analysis
+
+Add a copyable prompt library to the Export & Import screen so users can hand
+a Cadence export to their own AI assistant with prompts that use the full
+breadth of exported data correctly.
+
+Context:
+- Promoted from `docs/FEATURE_IDEAS.md` "Export Prompt Library For External AI
+  Analysis".
+- Exports already carry more analyzable structure than most users will think
+  to ask about: occurrence snapshots, append-only `status_events` with
+  `recorded_at`, `effective_at`, and `revises_event_id`, behavior definition
+  history, schedules and time slots, categories, opt-in occurrence notes, and
+  reminder delivery records in BehaviorLog `data/interventions.jsonl`.
+- The Markdown AI summary already teaches agents core semantics (snapshots vs
+  status history, Unresolved is not failure). The prompt library is the
+  user-facing counterpart: ready-made questions that respect those semantics.
+
+Product decisions for this ticket:
+- V1 templates are static text. No template is generated from user data and no
+  template interpolates per-user values. The selected export already carries
+  the range.
+- Templates stay provider-generic. They may reference "your calendar, email,
+  sleep, or location context your assistant already has" but must not name
+  external services or imply Cadence connects to them.
+- Prompt templates are UI-only. They are not added to exported bundles, the
+  BehaviorLog manifest, or the AI summary in this ticket.
+- Every template that touches status data must encode the core semantics:
+  Unresolved is missing decision data rather than failure, occurrence rows are
+  current snapshots, `status_events` is the correction/chronology source of
+  truth, and local analysis uses `local_date` plus the IANA timezone.
+- Templates that depend on optional data (notes, interventions, definition
+  history) must say which export option or format provides it, so users are
+  not confused when a JSONL/CSV export lacks that data.
+
+Prompt template set (final copy authored during implementation; each template
+must cover the listed intent and data grounding):
+
+1. Notes-explained failures: find recurring reasons in occurrence notes for
+   Not Completed occurrences, cluster them into themes, and rank themes by
+   frequency and by which behaviors they affect. Requires include-notes.
+2. Weekday and time-of-day dips: compare adherence by weekday and by schedule
+   slot label to find systematic low windows, using `local_date` and the
+   exported timezone rather than UTC.
+3. Category comparison: compare adherence and Unresolved counts across
+   categories and identify which category carries the most undecided
+   occurrences rather than the most failures.
+4. Logging chronology and batching: use `status_events.recorded_at` versus
+   occurrence scheduled times to determine whether decisions are logged near
+   the occurrence or batched later, and whether batching correlates with more
+   Not Completed or corrected decisions.
+5. Correction patterns: follow `revises_event_id` chains to find which
+   behaviors get corrected most, in which direction, and how long after the
+   first decision corrections happen.
+6. Reminder effectiveness: using BehaviorLog `data/interventions.jsonl`,
+   compare resolution and completion on occurrences with delivered reminders
+   versus without, split by channel, without treating correlation as proof.
+7. Definition drift: use behavior definition history to segment a behavior's
+   occurrences by definition period before comparing adherence across time,
+   instead of treating a renamed behavior as one unchanged behavior.
+8. Decision debt: profile Unresolved occurrences by behavior and age to show
+   where Needs decision items accumulate, treating them as missing data and
+   suggesting which behaviors need an easier decision moment.
+9. Schedule load and overcommitment: relate the number of scheduled
+   occurrences per day to that day's adherence and identify whether heavier
+   days degrade completion, suggesting candidates to reschedule or drop.
+10. Behavior lifecycle: compare each behavior's early adherence after creation
+    (using its baseline definition event time) against later periods to
+    detect novelty decay or slow-start patterns.
+11. Realistic timing: where `effective_at` is present, compare stated
+    completion times against scheduled times and suggest schedule times that
+    match when the user actually does the behavior.
+12. Cross-source context: ask the user's own assistant to compare adherence
+    dips against calendar, travel, sleep, or similar context it already has
+    access to, explicitly scoped to user-approved sources and with Cadence
+    data as the adherence source of truth.
+
+Acceptance criteria:
+
+UI structure and design conventions (per `DESIGN.md` and the existing
+`components/export/ExportPanel.tsx` vocabulary):
+- The prompt library renders as one more subsection of the Export
+  super-section, after AI summary, inside the existing `gap-8` subsection
+  stack: `text-xl leading-tight` heading ("Analysis prompts" or similar
+  factual label), with an `mt-2`/`mt-3` muted intro (`text-sm
+  text-muted-readable`, `max-w-3xl`) explaining that prompts are copied into
+  the user's own external assistant alongside an export.
+- The sensitivity disclosure is one plain muted sentence in that intro area,
+  matching the Downloads section's existing definition-history note. No
+  warning boxes, no Rust Signal (informational, not caution), no icons
+  (Export page controls remain icon-free).
+- The twelve templates render as unboxed list rows separated by single inner
+  1px Ash Line dividers (`divide-y`, no outer border, per the
+  One-Line-Per-Boundary Rule) at the 16px airy row tier used by export
+  download rows.
+- Each row is a native `details`/`summary` disclosure using the shared
+  disclosure-trigger class, per the product's standard disclosure pattern.
+  Collapsed rows show the template title (`text-sm font-bold
+  text-foreground`) and a one-line muted purpose sentence, mirroring the
+  download rows' label/description rhythm.
+- Expanded content shows: a muted requirements line stating which export
+  format and options the prompt needs (sentence case, factual), the full
+  prompt text in a bordered Cold Surface preformatted panel matching the AI
+  summary preview treatment (`border border-line bg-surface p-4 text-sm
+  whitespace-pre-wrap`), and a Copy prompt control.
+- Copy prompt uses the underlined text-action vocabulary
+  (`product-action`, min 44px tap target on mobile) and the
+  MarkdownSummaryActions clipboard pattern: async clipboard write with an
+  adjacent `aria-live="polite"` status showing Copied or Copy unavailable.
+  No filled or boxed button chrome.
+- Square corners, no shadows, no new colors, IBM Plex Sans only; body and
+  helper copy in sentence case per the Uppercase Limit Rule. The section
+  stacks single-column on mobile like the rest of the Export screen.
+- Template content is defined in one typed module, not inline in the panel
+  component, so copy review and future reuse stay simple.
+- All templates use Cadence status vocabulary exactly: Unresolved, Completed,
+  Not Completed, Needs decision.
+- No database schema, migration, export resolver output, or API route changes.
+- Tests cover template invariants: required semantics phrases for
+  status-touching templates, required format/option guidance for
+  optional-data templates, no external service names, and stable template ids.
+- Component tests cover render and copy behavior of the new section.
+- Run `npm run lint`, `npm run typecheck`, `npm run test`, and
+  `npm run build`.
+
+Documentation updates required during implementation:
+- `docs/EXPORT_FORMATS.md`: add a prompt library section describing placement,
+  static-template posture, and the sensitivity disclosure.
+- `docs/UI_SPEC.md`: describe the Export & Import prompt library section.
+- `DESIGN.md`: add the prompt library rows to the Export Panels component
+  section.
+- `docs/FEATURE_IDEAS.md`: mark the idea implemented by Ticket 061.
+- `STATUS.md`: track progress and completion.
+
+Suggested files:
+- `lib/export-prompts.ts` (new typed template module)
+- `components/export/PromptLibraryPanel.tsx` (new)
+- `components/export/ExportPanel.tsx` or `app/(app)/export/page.tsx` for
+  placement
+- `tests/export-prompts.test.ts` (new)
+- `docs/EXPORT_FORMATS.md`
+- `docs/UI_SPEC.md`
+- `DESIGN.md`
+- `docs/FEATURE_IDEAS.md`
+- `STATUS.md`
+
+Out of scope:
+- Prompt generation from user data, per-user interpolation, embedding prompts
+  in exported bundles or the AI summary, in-app AI analysis or chat, direct
+  integrations with calendar/email/wearables, provider-specific instructions,
+  and any change to export content or adherence semantics.
+
+---
+
 ## Future ticket: Workspace restructuring
 
 Move toward the target composable architecture only when needed by marketing,
