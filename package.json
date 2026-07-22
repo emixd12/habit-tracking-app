@@ -18,6 +18,7 @@
     "marketing:preview": "npm --workspace apps/marketing run preview",
     "design-system:check": "node scripts/check-design-system.mjs",
     "agents:check": "node scripts/check-agents.mjs",
+    "interactions:check": "node scripts/check-interactions.mjs",
     "resolvers:check": "node scripts/check-resolvers.mjs",
     "perf:routes": "node scripts/performance-route-harness.mjs",
     "smoke:rls": "node scripts/supabase-rls-smoke.mjs",

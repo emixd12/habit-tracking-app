@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
 const failures = [];
@@ -41,11 +42,15 @@ const requiredFiles = [
   "docs/DATETIME_STRATEGY.md",
   "docs/ROUTE_MAP.md",
   "docs/AGENT_RESOLVERS.md",
+  "docs/INTERACTION_REGISTRY.md",
   "docs/TICKETS.md",
   "docs/DECISIONS.md",
   "docs/NOTIFICATION_SPEC.md",
   "docs/DATA_MODEL.md",
   ".agents/skills/impeccable/SKILL.md",
+  "interaction-registry.json",
+  "interaction-registry.schema.json",
+  "scripts/check-interactions.mjs",
 ];
 
 for (const file of requiredFiles) {
@@ -59,6 +64,7 @@ const requiredScripts = [
   "test",
   "build",
   "agents:check",
+  "interactions:check",
   "resolvers:check",
   "supabase",
   "sequenzy",
@@ -104,7 +110,9 @@ for (const snippet of [
   "docs/SEQUENZY_WORKFLOW.md",
   "docs/DATETIME_STRATEGY.md",
   "docs/ROUTE_MAP.md",
+  "interaction-registry.json",
   "npm run agents:check",
+  "npm run interactions:check",
   "npm run resolvers:check",
   "Sequenzy",
   "Supabase CLI",
@@ -176,10 +184,26 @@ const docsMustMentionChecks = [
   ["docs/DATETIME_STRATEGY.md", "Temporal"],
   ["docs/ROUTE_MAP.md", "/timeline"],
   ["docs/OPERATIONS.md", "npm run agents:check"],
+  ["docs/OPERATIONS.md", "npm run interactions:check"],
 ];
 for (const [file, snippet] of docsMustMentionChecks) {
   assert(read(file).toLowerCase().includes(snippet.toLowerCase()), `${file} must mention ${snippet}.`);
 }
+
+const interactionCheck = spawnSync(
+  process.execPath,
+  [filePath("scripts/check-interactions.mjs")],
+  {
+    cwd: root,
+    encoding: "utf8",
+  },
+);
+assert(
+  interactionCheck.status === 0,
+  `Interaction registry validation failed:\n${(
+    interactionCheck.stderr || interactionCheck.stdout || "Unknown error"
+  ).trim()}`,
+);
 
 if (!exists("supabase/config.toml")) {
   notes.push("Supabase project has not been initialized yet; run `npm run supabase -- init` during the Supabase ticket before creating migrations.");

@@ -67,21 +67,22 @@ Product and implementation docs:
 3. `/docs/RECURRENCE_RULES.md`
 4. `/docs/UI_SPEC.md`
 5. `/docs/USER_FLOWS.md`
-6. `/docs/NOTIFICATION_SPEC.md`
-7. `/docs/EXPORT_FORMATS.md`
-8. `/docs/AGENT_RESOLVERS.md`
-9. `/docs/ROUTE_MAP.md`
-10. `/docs/DATETIME_STRATEGY.md`
-11. `/docs/SUPABASE_WORKFLOW.md`
-12. `/docs/SEQUENZY_WORKFLOW.md`
-13. `/docs/OPERATIONS.md`
-14. `/docs/TICKETS.md`
-15. `/docs/DECISIONS.md`
-16. `/docs/FUTURE_UPDATES.md`
-17. `/docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
-18. `/docs/VERCEL_WORKFLOW.md`
-19. `/docs/CRAWL_POLICY.md`
-20. `/docs/DESKTOP_BUILD.md`
+6. `/docs/INTERACTION_REGISTRY.md` plus `/interaction-registry.json`
+7. `/docs/NOTIFICATION_SPEC.md`
+8. `/docs/EXPORT_FORMATS.md`
+9. `/docs/AGENT_RESOLVERS.md`
+10. `/docs/ROUTE_MAP.md`
+11. `/docs/DATETIME_STRATEGY.md`
+12. `/docs/SUPABASE_WORKFLOW.md`
+13. `/docs/SEQUENZY_WORKFLOW.md`
+14. `/docs/OPERATIONS.md`
+15. `/docs/TICKETS.md`
+16. `/docs/DECISIONS.md`
+17. `/docs/FUTURE_UPDATES.md`
+18. `/docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+19. `/docs/VERCEL_WORKFLOW.md`
+20. `/docs/CRAWL_POLICY.md`
+21. `/docs/DESKTOP_BUILD.md`
 
 ## Product constraints
 
@@ -333,6 +334,7 @@ Before considering a ticket complete, run:
 
 ```bash
 npm run agents:check
+npm run interactions:check
 npm run resolvers:check
 npm run lint
 npm run typecheck
@@ -370,6 +372,12 @@ node .agents/skills/impeccable/scripts/context.mjs
 Then read `.agents/skills/impeccable/reference/product.md`. If a specific impeccable command is relevant, read the matching reference file.
 
 `DESIGN.md` is seeded. After real UI exists beyond the scaffold, update it from actual code rather than intentions.
+
+`interaction-registry.json` is the canonical inventory of implemented user
+interaction intents. Update it in the same change whenever a user-facing
+interaction is added, removed, renamed, moved, gated differently, or given a
+materially different side effect. Run `npm run interactions:check`; the command
+is also enforced by `npm run agents:check`.
 
 ## Completion criteria for any coding task
 

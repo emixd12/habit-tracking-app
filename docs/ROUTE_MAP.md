@@ -88,8 +88,11 @@ Do not add API routes that duplicate resolver logic. API routes are request/resp
 1. Update `lib/navigation.ts`.
 2. Update this file.
 3. Update `docs/UI_SPEC.md` and `docs/USER_FLOWS.md` if product behavior changes.
-4. Update or add tests.
-5. Run `npm run agents:check` and `npm run resolvers:check`.
+4. Update `interaction-registry.json` when the route change adds, removes,
+   moves, or materially changes a user interaction.
+5. Update or add tests.
+6. Run `npm run agents:check`, `npm run interactions:check`, and
+   `npm run resolvers:check`.
 
 ## Route creation checklist
 

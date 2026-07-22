@@ -21,6 +21,7 @@ marketing-site, workspace, desktop, or mobile work.
 ```bash
 npm install
 npm run agents:check
+npm run interactions:check
 npm run resolvers:check
 npm run lint
 npm run typecheck
@@ -49,6 +50,7 @@ Before marking a coding task complete, run:
 
 ```bash
 npm run agents:check
+npm run interactions:check
 npm run resolvers:check
 npm run lint
 npm run typecheck
@@ -310,6 +312,28 @@ inventory, or bench mapping, update the relevant design-system files and run:
 ```bash
 npm run design-system:check
 ```
+
+## Interaction registry
+
+`interaction-registry.json` is the canonical machine-readable inventory of
+implemented user interaction intents across the marketing site, public
+account-information surfaces, login, and authenticated app. Its contract and
+maintenance rules live in `docs/INTERACTION_REGISTRY.md` and
+`interaction-registry.schema.json`.
+
+Update the registry whenever a user-facing interaction is added, removed,
+renamed, moved to another route, gated differently, or given a materially
+different side effect or test-coverage posture. New interactive UI source files
+must also be added to the registry's `source_inventory`.
+
+Run:
+
+```bash
+npm run interactions:check
+```
+
+The interaction validator is also invoked from `npm run agents:check`, so new
+interactive source files cannot silently bypass the inventory.
 
 ## Secrets and local files
 

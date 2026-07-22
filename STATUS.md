@@ -4265,6 +4265,51 @@ Remaining risk:
 - Clipboard availability still depends on the user's browser and permission
   context; unsupported or rejected writes show Copy unavailable.
 
+## Canonical user interaction registry
+
+Status: complete.
+
+Implementation summary:
+- Added `interaction-registry.json` as the canonical machine-readable inventory
+  of 83 implemented user interaction intents across the Astro marketing site,
+  public login/account-information pages, authenticated app shell, onboarding,
+  Timeline, Behaviors, Export & Import, and Settings.
+- Each entry has a stable ID, surfaces and routes, UX journey links, intent,
+  triggers and variants, availability, success/failure results, material side
+  effects, risk and confirmation gates, implementation references, and an
+  explicit test-coverage posture.
+- Added `interaction-registry.schema.json` and
+  `docs/INTERACTION_REGISTRY.md` for the field contract, scope, exclusions,
+  maintenance workflow, and common queries.
+- Added `npm run interactions:check`. The validator checks registry structure,
+  unique IDs, known surfaces and journeys, every UX journey's coverage,
+  implementation/test reference existence, destructive-action confirmation,
+  interactive-source inventory coverage, and per-file interaction marker
+  counts. `npm run agents:check` now invokes it automatically.
+- Updated the agent rules, operations runbook, route-map maintenance checklist,
+  and UX journey inventory to treat the registry as the interaction traceability
+  source. No product UI, route behavior, resolver, service, database, or
+  provider behavior changed.
+
+Verification:
+- Pass: `npm run interactions:check` (3,428 invariants, 83 interactions, 33 UI
+  sources).
+- Pass: `npm run agents:check` (106 invariants).
+- Pass: `npm run resolvers:check` (156 invariants).
+- Pass: `npm run marketing:check` (25 Astro files, 0 errors/warnings/hints;
+  marketing agent-readability check passed).
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (70 files, 452 tests).
+- Pass: `npm run build`. One sandboxed attempt could not reach Google Fonts;
+  the authorized network retry fetched IBM Plex Sans and completed normally.
+- Pass: `git diff --check`.
+
+Remaining risk:
+- Marker-count drift checks catch new interactive files and most control/event
+  additions or removals. A semantic interaction change that preserves the same
+  marker count still requires the documented registry update during review.
+
 ## Handoff notes
 
 - For the next coding agent: production browser push subscription is now

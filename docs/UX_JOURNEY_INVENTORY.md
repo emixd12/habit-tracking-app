@@ -6,6 +6,10 @@ This document is Cadence's initial user-experience journey inventory. It turns
 the current product specification, UI specification, route map, and implemented
 surface model into a research-ready set of journeys.
 
+For the canonical machine-readable index of implemented user interaction
+intents, implementation references, confirmation gates, and test coverage, use
+`interaction-registry.json` with `docs/INTERACTION_REGISTRY.md`.
+
 Use this document to decide what to test, which persona lens to apply, and what
 success looks like before proposing UX or implementation changes.
 
