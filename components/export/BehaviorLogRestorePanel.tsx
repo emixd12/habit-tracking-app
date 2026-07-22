@@ -56,18 +56,18 @@ export function BehaviorLogRestorePanel({
   return (
     <section
       id="behaviorlog-restore"
-      className="scroll-mt-20 bg-background py-5 sm:py-6"
+      className="scroll-mt-20 bg-background"
       aria-labelledby="behaviorlog-restore-title"
     >
       <div className="flex flex-col gap-4 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h3
             id="behaviorlog-restore-title"
-            className="text-xl font-bold leading-tight"
+            className="text-xl leading-tight"
           >
             BehaviorLog restore
           </h3>
-          <p className="mt-2 text-sm font-bold text-muted-readable">
+          <p className="mt-3 text-sm text-muted-readable">
             Preview a trusted bundle before any restore apply confirmation.
           </p>
         </div>
@@ -128,7 +128,7 @@ export function BehaviorLogRestorePreviewDetails({
     <div className="mt-6 grid gap-6">
       <section aria-labelledby="restore-summary-title">
         <div className="border-b border-line pb-3">
-          <h3 id="restore-summary-title" className="text-xl font-bold leading-tight">
+          <h3 id="restore-summary-title" className="text-xl leading-tight">
             Restore preview
           </h3>
         </div>
@@ -160,7 +160,7 @@ export function BehaviorLogRestorePreviewDetails({
         <div className="border-b border-line pb-3">
           <h3
             id="restore-fingerprints-title"
-            className="text-xl font-bold leading-tight"
+            className="text-xl leading-tight"
           >
             Fingerprints
           </h3>
@@ -180,7 +180,7 @@ export function BehaviorLogRestorePreviewDetails({
         <div className="border-b border-line pb-3">
           <h3
             id="restore-boundaries-title"
-            className="text-xl font-bold leading-tight"
+            className="text-xl leading-tight"
           >
             Not restored
           </h3>
@@ -197,7 +197,7 @@ export function BehaviorLogRestorePreviewDetails({
 
       <section aria-labelledby="restore-policy-title">
         <div className="border-b border-line pb-3">
-          <h3 id="restore-policy-title" className="text-xl font-bold leading-tight">
+          <h3 id="restore-policy-title" className="text-xl leading-tight">
             Status history
           </h3>
         </div>
@@ -212,7 +212,7 @@ export function BehaviorLogRestorePreviewDetails({
 
       <section aria-labelledby="restore-actions-title">
         <div className="border-b border-line pb-3">
-          <h3 id="restore-actions-title" className="text-xl font-bold leading-tight">
+          <h3 id="restore-actions-title" className="text-xl leading-tight">
             Restore actions
           </h3>
         </div>
@@ -282,7 +282,7 @@ function RestoreApplyControls({
 
   return (
     <section className="mt-6 border-t border-line pt-5">
-      <h3 className="text-xl font-bold leading-tight">Apply restore</h3>
+      <h3 className="text-xl leading-tight">Apply restore</h3>
       {preview && preview.summary.unsupportedActionCount > 0 ? (
         <p
           data-testid="restore-stale-preview-message"
@@ -388,7 +388,7 @@ function RestoreApplyResult({
 
   return (
     <section className="mt-5 border-t border-line pt-4">
-      <h3 className="text-lg font-bold leading-tight">Restore applied</h3>
+      <h3 className="text-lg leading-tight">Restore applied</h3>
       <dl className="mt-4 grid gap-0 border border-line bg-background sm:grid-cols-2 lg:grid-cols-4">
         {Object.entries(result.appliedCounts).map(([label, value]) => (
           <SummaryStat key={label} label={label} value={value} />
@@ -405,7 +405,7 @@ function RestoreRunHistory({
 }>) {
   return (
     <section className="mt-6" aria-labelledby="restore-runs-title">
-      <h3 id="restore-runs-title" className="text-xl font-bold leading-tight">
+      <h3 id="restore-runs-title" className="text-xl leading-tight">
         Recent restores
       </h3>
       {runs.length > 0 ? (
@@ -490,7 +490,7 @@ function IssueList({
       <div className="border-b border-line pb-3">
         <h3
           id={`restore-${title.toLowerCase().replace(/\s+/g, "-")}`}
-          className="text-xl font-bold leading-tight"
+          className="text-xl leading-tight"
         >
           {title}
         </h3>

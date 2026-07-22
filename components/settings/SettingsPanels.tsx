@@ -17,7 +17,7 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   return (
     <section
-      className={["bg-background py-5 sm:py-6", className]
+      className={["bg-background py-4 first:pt-0 last:pb-0", className]
         .filter(Boolean)
         .join(" ")}
     >

@@ -164,21 +164,21 @@ export function LegalPageContent({
         })}
       </nav>
 
-      <header className="border-b border-line pb-8">
+      <header className="border-b border-line pb-6">
         <p className="text-sm leading-6 text-muted-readable">
           Last updated {page.updated}
         </p>
         <h1 className="mt-3 text-3xl leading-tight sm:text-4xl">
           {page.title}
         </h1>
-        <p className="mt-4 max-w-3xl text-base leading-7 text-muted-readable">
+        <p className="mt-3 max-w-3xl text-base leading-7 text-muted-readable">
           {page.summary}
         </p>
       </header>
 
-      <div className="grid gap-8">
+      <div className="grid divide-y divide-line">
         {page.sections.map((section) => (
-          <section key={section.title} className="border-b border-line pb-8">
+          <section key={section.title} className="py-6 first:pt-0 last:pb-0">
             <h2 className="text-2xl leading-tight">{section.title}</h2>
             <div className="mt-4 grid max-w-3xl gap-3 text-base leading-7 text-muted-readable">
               {section.paragraphs.map((paragraph) => (

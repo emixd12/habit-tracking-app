@@ -142,7 +142,7 @@ export function NotificationPermissionPanel({
   return (
     <section
       id="notifications"
-      className="scroll-mt-20 bg-background py-5 sm:py-6"
+      className="scroll-mt-20 bg-background py-4 first:pt-0 last:pb-0"
     >
       <h2 className="text-xl leading-tight">Notifications</h2>
       <dl className="mt-4 grid gap-3 text-sm leading-6 text-muted-readable">

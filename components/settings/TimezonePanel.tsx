@@ -69,7 +69,7 @@ export function TimezonePanel({
   return (
     <section
       id="timezone"
-      className="scroll-mt-20 bg-background py-5 sm:py-6"
+      className="scroll-mt-20 bg-background py-4 first:pt-0 last:pb-0"
     >
       <h2 className="text-xl leading-tight">Timezone</h2>
       <form

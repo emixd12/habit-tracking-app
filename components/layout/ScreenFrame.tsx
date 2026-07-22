@@ -36,7 +36,7 @@ export function ScreenFrame({
     <div className="flex w-full flex-col">
       <CadencePageBanner />
 
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
         <header className="border-b border-line pb-6">
           <h1 className="text-3xl font-bold leading-tight sm:text-4xl">
             {title}
@@ -61,7 +61,7 @@ export function PlaceholderPanel({
   children: React.ReactNode;
 }>) {
   return (
-    <section className="border-y border-line bg-background py-5 sm:py-6">
+    <section className="bg-background py-4 first:pt-0 last:pb-0">
       <h2 className="text-xl font-bold leading-tight">{title}</h2>
       <div className="mt-4 text-base leading-7 text-muted-readable">
         {children}
@@ -80,11 +80,11 @@ export function ScreenContentLoading({
       role="status"
       aria-busy="true"
       aria-live="polite"
-      className="grid gap-6"
+      className="grid gap-12"
     >
       <span className="sr-only">{label}</span>
 
-      <section aria-hidden="true" className="border-y border-line py-5 sm:py-6">
+      <section aria-hidden="true" className="py-4 first:pt-0">
         <SkeletonBlock className="h-5 w-36" />
         <div className="mt-4 grid gap-3">
           <SkeletonBlock className="h-3 w-full max-w-2xl" />
@@ -93,7 +93,7 @@ export function ScreenContentLoading({
         </div>
       </section>
 
-      <section aria-hidden="true" className="grid divide-y divide-line border-y border-line">
+      <section aria-hidden="true" className="grid divide-y divide-line">
         {["w-3/4", "w-2/3", "w-5/6"].map((width) => (
           <div key={width} className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <div className="grid gap-2">

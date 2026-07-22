@@ -36,7 +36,7 @@ export function AccountDeletionPanel({
   );
 
   return (
-    <section className="bg-background py-5 sm:py-6">
+    <section className="bg-background py-4 first:pt-0 last:pb-0">
       <h2 className="text-xl leading-tight">Delete account</h2>
       <div className="mt-4 grid gap-5">
         <div className="grid max-w-2xl gap-3 text-sm leading-6 text-muted-readable">

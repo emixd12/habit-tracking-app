@@ -172,7 +172,7 @@ export function NeedsDecisionDialog({
               <X aria-hidden="true" size={18} strokeWidth={2.5} />
             </button>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               {children}
             </div>
           </section>

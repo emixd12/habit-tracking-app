@@ -58,18 +58,18 @@ export function BehaviorLogImportPanel({
   return (
     <section
       id="behaviorlog-import"
-      className="scroll-mt-20 border-b border-line bg-background py-5 sm:py-6"
+      className="scroll-mt-20 bg-background"
       aria-labelledby="behaviorlog-import-title"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h3
             id="behaviorlog-import-title"
-            className="text-xl font-bold leading-tight"
+            className="text-xl leading-tight"
           >
             BehaviorLog import
           </h3>
-          <p className="mt-2 text-sm font-bold text-muted-readable">
+          <p className="mt-3 text-sm text-muted-readable">
             Preview a bundle, review safety details, and apply supported
             create or merge actions.
           </p>
@@ -154,7 +154,7 @@ export function BehaviorLogImportPreviewDetails({
         <div className="border-b border-line pb-3">
           <h3
             id="behaviorlog-preview-summary-title"
-            className="text-xl font-bold leading-tight"
+            className="text-xl leading-tight"
           >
             Dry-run summary
           </h3>
@@ -203,7 +203,7 @@ export function BehaviorLogImportPreviewDetails({
         <div className="border-b border-line pb-3">
           <h3
             id="behaviorlog-privacy-title"
-            className="text-xl font-bold leading-tight"
+            className="text-xl leading-tight"
           >
             Privacy
           </h3>
@@ -232,7 +232,7 @@ export function BehaviorLogImportPreviewDetails({
         <div className="border-b border-line pb-3">
           <h3
             id="behaviorlog-interventions-title"
-            className="text-xl font-bold leading-tight"
+            className="text-xl leading-tight"
           >
             Intervention preview
           </h3>
@@ -278,7 +278,7 @@ export function BehaviorLogImportPreviewDetails({
         <div className="border-b border-line pb-3">
           <h3
             id="behaviorlog-merge-actions-title"
-            className="text-xl font-bold leading-tight"
+            className="text-xl leading-tight"
           >
             Merge actions
           </h3>
@@ -382,7 +382,7 @@ function ApplyControls({
 }>) {
   return (
     <section className="mt-6 grid gap-4 border-t border-line pt-5">
-      <h3 className="text-xl font-bold leading-tight">Apply</h3>
+      <h3 className="text-xl leading-tight">Apply</h3>
       <div className="grid gap-4 lg:grid-cols-2">
       <BehaviorLogImportApplyForm
           title="Create-only"
@@ -468,7 +468,7 @@ export function BehaviorLogImportApplyForm({
         value={state.upload?.fileSize ?? 0}
       />
       <div>
-        <h4 className="text-lg font-bold leading-tight">{title}</h4>
+        <h4 className="text-lg leading-tight">{title}</h4>
         {disabledReason ? (
           <p className="mt-2 text-sm font-bold text-muted-readable">
             {disabledReason}
@@ -536,7 +536,7 @@ function ApplyResult({
 }>) {
   return (
     <section className="mt-5 border-t border-line pt-4">
-      <h3 className="text-lg font-bold leading-tight">Applied</h3>
+      <h3 className="text-lg leading-tight">Applied</h3>
       <dl className="mt-4 grid gap-0 border border-line bg-background sm:grid-cols-2 lg:grid-cols-4">
         <SummaryStat label="Behaviors" value={result.created.behaviors} />
         <SummaryStat label="Schedules" value={result.created.schedules} />
@@ -564,7 +564,7 @@ function ImportRunHistory({
 }>) {
   return (
     <section className="mt-6" aria-labelledby="import-runs-title">
-      <h3 id="import-runs-title" className="text-xl font-bold leading-tight">
+      <h3 id="import-runs-title" className="text-xl leading-tight">
         Recent imports
       </h3>
       {runs.length > 0 ? (
@@ -626,7 +626,7 @@ function CountList({
 }>) {
   return (
     <div className="border border-line">
-      <h4 className="border-b border-line p-3 text-sm font-bold text-muted-readable">
+      <h4 className="border-b border-line p-3 text-sm text-muted-readable">
         {title}
       </h4>
       {counts.length > 0 ? (
@@ -711,7 +711,7 @@ function IssueList({
       <div className="border-b border-line pb-3">
         <h3
           id={`${title.toLowerCase().replaceAll(" ", "-")}-title`}
-          className="text-xl font-bold leading-tight"
+          className="text-xl leading-tight"
         >
           {title}
         </h3>
@@ -754,7 +754,7 @@ function ConflictList({
       <div className="border-b border-line pb-3">
         <h3
           id="behaviorlog-conflicts-title"
-          className="text-xl font-bold leading-tight"
+          className="text-xl leading-tight"
         >
           Conflicts
         </h3>

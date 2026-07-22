@@ -240,7 +240,7 @@ export function BehaviorForm({
         />
       </fieldset>
 
-      <fieldset className="grid gap-4 border-0 p-0">
+      <fieldset className="grid gap-3 border-0 p-0">
         <legend className="mb-2 text-lg leading-tight">Schedule</legend>
 
         <input
@@ -347,7 +347,7 @@ function ScheduleRowEditor({
   onRemoveTime: (entryKey: string) => void;
 }>) {
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:items-start lg:gap-4">
+    <div className="grid gap-3 lg:grid-cols-[minmax(9rem,12rem)_minmax(9rem,1fr)_minmax(18rem,1.4fr)] lg:items-start lg:gap-3">
       <input
         type="hidden"
         name={`behavior_schedule_id_${index}`}

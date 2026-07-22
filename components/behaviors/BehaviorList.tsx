@@ -105,12 +105,12 @@ export function BehaviorList({
   }, []);
 
   return (
-    <div className="grid gap-8">
+    <div className="grid gap-4">
       <OverallAdherence analytics={analytics} />
 
       <section className="grid gap-4" aria-labelledby="active-behaviors-title">
         <div className="border-b border-line pb-3">
-          <h2 id="active-behaviors-title" className="text-2xl leading-tight">
+          <h2 id="active-behaviors-title" className="text-xl leading-tight">
             Active behaviors
           </h2>
         </div>
@@ -289,7 +289,7 @@ function BehaviorRecord({
 
   return (
     <article className="bg-background">
-      <div className="grid gap-6 pb-0 pt-5 md:grid-cols-[minmax(0,1fr)_minmax(16rem,19rem)] md:items-start">
+      <div className="grid gap-6 pb-0 pt-4 md:grid-cols-[minmax(0,1fr)_minmax(16rem,19rem)] md:items-start">
         <div className="grid min-w-0 gap-5">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="break-words text-xl leading-tight">{behavior.title}</h3>
@@ -666,8 +666,8 @@ function CategoryCounts({
   analytics: AnalyticsView;
 }>) {
   return (
-    <section className="grid gap-4 border-t border-line pt-6" aria-labelledby="category-counts-title">
-      <h2 id="category-counts-title" className="text-2xl leading-tight">
+    <section className="grid gap-4 border-t border-line pt-4" aria-labelledby="category-counts-title">
+      <h2 id="category-counts-title" className="text-xl leading-tight">
         Category counts
       </h2>
 

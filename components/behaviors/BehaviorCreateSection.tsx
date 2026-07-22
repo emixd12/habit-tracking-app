@@ -39,7 +39,7 @@ export function BehaviorCreateSection({
   }, []);
 
   return (
-    <section id="create-behavior" className="mb-9 scroll-mt-20">
+    <section id="create-behavior" className="scroll-mt-20">
       <details
         className="group"
         open={isOpen}
@@ -67,7 +67,7 @@ export function BehaviorCreateSection({
             Create behavior
           </span>
         </summary>
-        <div className="py-5 pl-4">
+        <div className="py-4 pl-4">
           <BehaviorForm
             key={formKey}
             mode="create"
@@ -81,7 +81,7 @@ export function BehaviorCreateSection({
 
       {successMessage ? (
         <p
-          className="mb-4 border-t border-line pt-3 text-sm leading-6 text-foreground"
+          className="mt-4 text-sm leading-6 text-foreground"
           role="status"
         >
           {successMessage}
