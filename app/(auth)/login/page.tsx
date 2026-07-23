@@ -7,7 +7,9 @@ import {
 import { DEFAULT_APP_ROUTE } from "@/lib/navigation";
 import { readSupabaseRuntimeConfig } from "@/lib/supabase/env";
 import { shouldShowTestLogin } from "@/lib/auth/test-login";
+import { AccountDeletedNotice } from "./AccountDeletedNotice";
 import { GoogleLoginButton } from "./GoogleLoginButton";
+import { SignedOutNotice } from "./SignedOutNotice";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -18,6 +20,7 @@ type LoginPageProps = Readonly<{
     account_deleted?: string | string[];
     error?: string | string[];
     next?: string | string[];
+    signedout?: string | string[];
   }>;
 }>;
 
@@ -26,6 +29,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const nextPath = normalizeRedirectPath(params.next, DEFAULT_APP_ROUTE);
   const authErrorMessage = getAuthErrorMessage(params.error);
   const accountDeleted = params.account_deleted === "1";
+  const signedOut = !accountDeleted && params.signedout === "1";
   const isConfigured = readSupabaseRuntimeConfig() !== null;
   const testLoginEnabled = shouldShowTestLogin();
 
@@ -65,11 +69,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </p>
             ) : null}
 
-            {accountDeleted ? (
-              <p className="max-w-[18rem] text-sm leading-6 text-foreground">
-                Account deleted.
-              </p>
-            ) : null}
+            {accountDeleted ? <AccountDeletedNotice /> : null}
+            {signedOut ? <SignedOutNotice /> : null}
 
             {!isConfigured ? (
               <p className="max-w-[18rem] text-sm leading-6 text-accent">

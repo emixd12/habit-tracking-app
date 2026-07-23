@@ -120,6 +120,19 @@ const CSV_COLUMNS = [
   "status_marked_at",
   "note",
 ] as const;
+type AppCsvColumn = (typeof CSV_COLUMNS)[number];
+const APP_CSV_FORMULA_NEUTRALIZED_COLUMNS = new Set<AppCsvColumn>([
+  "behavior_title",
+  "category",
+  "note",
+]);
+const BEHAVIORLOG_CSV_FORMULA_NEUTRALIZED_COLUMNS = new Set([
+  "title",
+  "description",
+  "category",
+  "success_definition",
+  "reason_code",
+]);
 
 export type ResolveExportInput = {
   profile: ExportProfileInput;
@@ -503,31 +516,47 @@ function toJsonl(input: {
 function toCsv(occurrences: ExportJsonOccurrence[]): string {
   const rows = [
     CSV_COLUMNS.join(","),
-    ...occurrences.map((occurrence) =>
-      [
-        occurrence.local_date,
-        occurrence.scheduled_for,
-        occurrence.schedule,
-        occurrence.behavior_title,
-        occurrence.category ?? "",
-        occurrence.status,
-        occurrence.status_marked_at ?? "",
-        occurrence.note ?? "",
-      ]
-        .map(escapeCsvCell)
-        .join(","),
-    ),
+    ...occurrences.map((occurrence) => {
+      const record: Record<AppCsvColumn, string> = {
+        local_date: occurrence.local_date,
+        scheduled_for: occurrence.scheduled_for,
+        schedule: occurrence.schedule,
+        behavior_title: occurrence.behavior_title,
+        category: occurrence.category ?? "",
+        status: occurrence.status,
+        status_marked_at: occurrence.status_marked_at ?? "",
+        note: occurrence.note ?? "",
+      };
+
+      return CSV_COLUMNS.map((column) =>
+        escapeCsvCell(
+          record[column],
+          APP_CSV_FORMULA_NEUTRALIZED_COLUMNS.has(column),
+        ),
+      ).join(",");
+    }),
   ];
 
   return rows.join("\n");
 }
 
-function escapeCsvCell(value: string): string {
-  if (!/[",\r\n]/.test(value)) {
-    return value;
+function escapeCsvCell(
+  value: string,
+  neutralizeFormulaPrefix = false,
+): string {
+  const spreadsheetSafeValue = neutralizeFormulaPrefix
+    ? neutralizeSpreadsheetFormula(value)
+    : value;
+
+  if (!/[",\r\n]/.test(spreadsheetSafeValue)) {
+    return spreadsheetSafeValue;
   }
 
-  return `"${value.replaceAll('"', '""')}"`;
+  return `"${spreadsheetSafeValue.replaceAll('"', '""')}"`;
+}
+
+function neutralizeSpreadsheetFormula(value: string): string {
+  return /^\s*[=+\-@]/u.test(value) ? `'${value}` : value;
 }
 
 function toBehaviorLogBundle(input: {
@@ -1850,7 +1879,12 @@ function toBehaviorLogCsv(
     columns.join(","),
     ...records.map((record) =>
       columns
-        .map((column) => escapeCsvCell(formatCsvValue(record[column])))
+        .map((column) =>
+          escapeCsvCell(
+            formatCsvValue(record[column]),
+            BEHAVIORLOG_CSV_FORMULA_NEUTRALIZED_COLUMNS.has(column),
+          ),
+        )
         .join(","),
     ),
   ].join("\n");

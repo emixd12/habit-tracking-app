@@ -74,6 +74,7 @@ export function ExportPanel({
 
           <form method="get" className="mt-4 grid gap-5">
             <ExportRangeSelector
+              key={exportData.range.key}
               rangeOptions={exportData.rangeOptions}
               selectedRangeKey={exportData.range.key}
             />

@@ -17,12 +17,40 @@ type NotificationPermissionPanelProps = Readonly<{
   vapidPublicKey: string;
 }>;
 
-type SaveState = "idle" | "saving" | "saved" | "error";
+export type NotificationSaveState = "idle" | "saving" | "saved" | "error";
 type DeviceNotificationStatus = "checking" | BrowserPushSubscriptionStatus;
 type BrowserPushUnavailableReason = Extract<
   BrowserPushSupport,
   { supported: false }
 >["reason"];
+
+type BrowserNotificationInspectionDependencies = Readonly<{
+  getSupport?: typeof getBrowserPushSupport;
+  readPermission?: typeof readNotificationPermission;
+  readSubscriptionStatus?: typeof readBrowserPushSubscriptionStatus;
+}>;
+
+type BrowserNotificationEnableDependencies = Readonly<{
+  getSupport?: typeof getBrowserPushSupport;
+  readPermission?: typeof readNotificationPermission;
+  requestPermission?: typeof requestNotificationPermission;
+  registerSubscription?: typeof registerBrowserPushSubscription;
+}>;
+
+export type BrowserNotificationInspection = Readonly<{
+  support: BrowserPushSupport;
+  permission: BrowserNotificationPermission;
+  subscriptionStatus: BrowserPushSubscriptionStatus;
+  errorMessage: string;
+}>;
+
+export type BrowserNotificationEnableResult = Readonly<{
+  support: BrowserPushSupport;
+  permission: BrowserNotificationPermission;
+  subscriptionStatus: BrowserPushSubscriptionStatus;
+  saveState: Extract<NotificationSaveState, "saved" | "error">;
+  message: string;
+}>;
 
 export function NotificationPermissionPanel({
   vapidPublicKey,
@@ -32,7 +60,8 @@ export function NotificationPermissionPanel({
     useState<BrowserNotificationPermission>("unavailable");
   const [subscriptionStatus, setSubscriptionStatus] =
     useState<DeviceNotificationStatus>("checking");
-  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveState, setSaveState] =
+    useState<NotificationSaveState>("idle");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -46,19 +75,23 @@ export function NotificationPermissionPanel({
     }, 0);
 
     async function loadBrowserNotificationState() {
-      const currentSupport = getBrowserPushSupport(vapidPublicKey);
-      const currentPermission = readNotificationPermission();
-      const currentSubscriptionStatus = currentSupport.supported
-        ? await readBrowserPushSubscriptionStatus(vapidPublicKey)
-        : "unavailable";
+      const inspection = await inspectBrowserNotificationState(vapidPublicKey);
 
       if (!isActive) {
         return;
       }
 
-      setSupport(currentSupport);
-      setPermission(currentPermission);
-      setSubscriptionStatus(currentSubscriptionStatus);
+      setSupport(inspection.support);
+      setPermission(inspection.permission);
+      setSubscriptionStatus(inspection.subscriptionStatus);
+
+      if (inspection.errorMessage) {
+        setSaveState("error");
+        setMessage(inspection.errorMessage);
+      } else {
+        setSaveState("idle");
+        setMessage("");
+      }
     }
 
     return () => {
@@ -72,10 +105,15 @@ export function NotificationPermissionPanel({
     [support],
   );
   const isBusy = saveState === "saving";
-  const showAction = support?.supported === true && permission !== "denied";
-  const canRequest = showAction && !isBusy;
   const notificationsEnabled =
     permission === "granted" && subscriptionStatus === "saved";
+  const actionModel = resolveNotificationPanelAction({
+    support,
+    permission,
+    notificationsEnabled,
+    inspectionFailed: saveState === "error" && permission === "granted",
+  });
+  const canRequest = actionModel.showAction && !isBusy;
   const statusLabel = deviceNotificationStatusLabel({
     permission,
     subscriptionStatus,
@@ -85,58 +123,13 @@ export function NotificationPermissionPanel({
   async function handleEnable() {
     setSaveState("saving");
     setMessage("");
+    const result = await enableBrowserNotificationsOnDevice(vapidPublicKey);
 
-    try {
-      const currentSupport = getBrowserPushSupport(vapidPublicKey);
-      setSupport(currentSupport);
-
-      if (!currentSupport.supported) {
-        setPermission(readNotificationPermission());
-        setSubscriptionStatus("unavailable");
-        setSaveState("idle");
-        setMessage(supportMessage(currentSupport.reason));
-        return;
-      }
-
-      let nextPermission = readNotificationPermission();
-
-      if (nextPermission !== "granted" && nextPermission !== "unavailable") {
-        nextPermission = await requestNotificationPermission();
-      }
-
-      setPermission(nextPermission);
-
-      if (nextPermission === "denied") {
-        setSubscriptionStatus("missing");
-        setSaveState("idle");
-        setMessage(
-          "Notifications are blocked in this browser. Allow them in browser settings, then return here.",
-        );
-        return;
-      }
-
-      if (nextPermission !== "granted") {
-        setSubscriptionStatus("missing");
-        setSaveState("idle");
-        setMessage(
-          "Notifications were not enabled. Click Enable notifications on this device to try again.",
-        );
-        return;
-      }
-
-      await registerBrowserPushSubscription(vapidPublicKey);
-      setSubscriptionStatus("saved");
-      setSaveState("saved");
-      setMessage("Notifications are enabled on this device.");
-    } catch (error) {
-      setSubscriptionStatus("missing");
-      setSaveState("error");
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Browser notifications could not be enabled.",
-      );
-    }
+    setSupport(result.support);
+    setPermission(result.permission);
+    setSubscriptionStatus(result.subscriptionStatus);
+    setSaveState(result.saveState);
+    setMessage(result.message);
   }
 
   return (
@@ -152,19 +145,31 @@ export function NotificationPermissionPanel({
         </div>
       </dl>
 
-      {showAction ? (
+      {actionModel.showAction ? (
         <button
           type="button"
           disabled={!canRequest}
           onClick={handleEnable}
           className="product-action product-action-primary mt-4 min-h-11 w-fit py-2 text-sm"
         >
-          {isBusy ? "Saving..." : buttonLabel(notificationsEnabled)}
+          {isBusy
+            ? "Saving..."
+            : actionModel.label}
         </button>
+      ) : null}
+
+      {actionModel.permissionBlocked ? (
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-readable">
+          Allow notifications for Cadence in your browser or site settings,
+          then return here and select Refresh this device.
+        </p>
       ) : null}
 
       {message || unavailableMessage ? (
         <p
+          role={notificationMessageSemantics(saveState).role}
+          aria-live={notificationMessageSemantics(saveState).ariaLive}
+          aria-atomic="true"
           className={[
             "mt-5 text-sm leading-6",
             saveState === "error" ? "text-accent" : "text-muted-readable",
@@ -175,6 +180,90 @@ export function NotificationPermissionPanel({
       ) : null}
     </section>
   );
+}
+
+export async function enableBrowserNotificationsOnDevice(
+  vapidPublicKey: string,
+  dependencies: BrowserNotificationEnableDependencies = {},
+): Promise<BrowserNotificationEnableResult> {
+  const getSupport = dependencies.getSupport ?? getBrowserPushSupport;
+  const readPermission =
+    dependencies.readPermission ?? readNotificationPermission;
+  const requestPermission =
+    dependencies.requestPermission ?? requestNotificationPermission;
+  const registerSubscription =
+    dependencies.registerSubscription ?? registerBrowserPushSubscription;
+  const support = getSupport(vapidPublicKey);
+  let permission = readPermission();
+
+  if (!support.supported) {
+    return {
+      support,
+      permission,
+      subscriptionStatus: "unavailable",
+      saveState: "error",
+      message: supportMessage(support.reason),
+    };
+  }
+
+  try {
+    if (permission === "default") {
+      permission = await requestPermission();
+    }
+
+    if (permission === "denied") {
+      return {
+        support,
+        permission,
+        subscriptionStatus: "missing",
+        saveState: "error",
+        message: "Notifications are still blocked in this browser.",
+      };
+    }
+
+    if (permission !== "granted") {
+      return {
+        support,
+        permission,
+        subscriptionStatus: "missing",
+        saveState: "error",
+        message:
+          "Notifications were not enabled. Click Enable notifications on this device to try again.",
+      };
+    }
+
+    await registerSubscription(vapidPublicKey);
+
+    return {
+      support,
+      permission,
+      subscriptionStatus: "saved",
+      saveState: "saved",
+      message: "Notifications are enabled on this device.",
+    };
+  } catch (error) {
+    return {
+      support,
+      permission,
+      subscriptionStatus: "missing",
+      saveState: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Browser notifications could not be enabled.",
+    };
+  }
+}
+
+export function notificationMessageSemantics(
+  saveState: NotificationSaveState,
+): Readonly<{
+  role: "alert" | "status";
+  ariaLive: "assertive" | "polite";
+}> {
+  return saveState === "error"
+    ? { role: "alert", ariaLive: "assertive" }
+    : { role: "status", ariaLive: "polite" };
 }
 
 function deviceNotificationStatusLabel(input: {
@@ -204,10 +293,71 @@ function deviceNotificationStatusLabel(input: {
   return "Not enabled on this device";
 }
 
-function buttonLabel(notificationsEnabled: boolean): string {
-  return notificationsEnabled
-    ? "Refresh this device"
-    : "Enable notifications on this device";
+export function resolveNotificationPanelAction({
+  support,
+  permission,
+  notificationsEnabled,
+  inspectionFailed,
+}: Readonly<{
+  support: BrowserPushSupport | null;
+  permission: BrowserNotificationPermission;
+  notificationsEnabled: boolean;
+  inspectionFailed: boolean;
+}>): Readonly<{
+  showAction: boolean;
+  permissionBlocked: boolean;
+  label: string;
+}> {
+  const showAction = support?.supported === true;
+  const permissionBlocked = showAction && permission === "denied";
+
+  return {
+    showAction,
+    permissionBlocked,
+    label:
+      notificationsEnabled || permissionBlocked || inspectionFailed
+        ? "Refresh this device"
+        : "Enable notifications on this device",
+  };
+}
+
+export async function inspectBrowserNotificationState(
+  vapidPublicKey: string,
+  dependencies: BrowserNotificationInspectionDependencies = {},
+): Promise<BrowserNotificationInspection> {
+  const getSupport = dependencies.getSupport ?? getBrowserPushSupport;
+  const readPermission =
+    dependencies.readPermission ?? readNotificationPermission;
+  const readSubscriptionStatus =
+    dependencies.readSubscriptionStatus ?? readBrowserPushSubscriptionStatus;
+  const support = getSupport(vapidPublicKey);
+  const permission = readPermission();
+
+  if (!support.supported) {
+    return {
+      support,
+      permission,
+      subscriptionStatus: "unavailable",
+      errorMessage: "",
+    };
+  }
+
+  try {
+    return {
+      support,
+      permission,
+      subscriptionStatus: await readSubscriptionStatus(vapidPublicKey),
+      errorMessage: "",
+    };
+  } catch {
+    return {
+      support,
+      permission,
+      subscriptionStatus: "missing",
+      errorMessage:
+        "Cadence could not check notification delivery for this device. Select Refresh this device to try again.",
+    };
+  }
 }
 
 function supportMessage(reason: BrowserPushUnavailableReason): string {

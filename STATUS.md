@@ -922,7 +922,7 @@ Supabase is initialized for local development. Ticket 003 added the first produc
 | 007: Timeline | complete | Added pure Timeline grouping resolver and tests; added timeline service and occurrence repository reads; replaced `/timeline` placeholder with Needs decision, current day, future day sections, show-more control, empty-day states, resolved-state styling, and expandable occurrence details. Status mutation and note editing remain for Ticket 008. Updated `DESIGN.md` from the implemented Timeline UI. | Pass: `npx vitest run tests/timeline.resolver.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: `/timeline` authenticated render at 1280px and 390px, no horizontal overflow, Needs decision/current/future empty states visible, show-more control visible on mobile. | Start Ticket 008: Status marking and notes. |
 | 008: Status marking and notes | complete | Added pure status transition and note normalization resolver; added occurrence repository/service update path; added Timeline server actions; replaced disabled Timeline buttons with live Completed / Not Completed controls; added inline expanded note editing; resolved rows can change status later from expanded details. | Pass: `npx vitest run tests/status.resolver.test.ts tests/timeline.resolver.test.ts`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run agents:check`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: in-app browser `/timeline` redirected unauthenticated session to `/login` with no console errors. Authenticated Timeline visual QA was not possible because the in-app browser did not have a Supabase session, and Chrome fallback was not used without explicit approval. | Start Ticket 009: Browser push. Reminder cancellation on status resolution remains for the reminder-service tickets, where deliveries are generated and processed. |
 | 009: Browser push | complete | Added reminder delivery resolver/tests; created reminder delivery repository/service and wired occurrence sync to create missing browser/email delivery rows from behavior reminder settings; resolving an occurrence cancels pending deliveries. Added authenticated push subscription API route, service validation, and repository upsert. Replaced Settings placeholder with profile, timezone, notification permission, and browser push availability panels plus a client enable/save control. Added minimal push service worker display/click handling without offline/PWA caching. Updated `DESIGN.md` from the implemented Settings UI and `docs/ROUTE_MAP.md` for the implemented Settings/API route state. No schema migration was needed because `push_subscriptions` and `reminder_deliveries` already existed. | Pass: `npx vitest run tests/reminder.resolver.test.ts tests/push-subscribe-route.test.ts tests/push-browser.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: in-app browser `/settings` authenticated render at 1280px and 390px, no horizontal overflow, no console errors. Local degraded-state QA showed permission `Blocked` and missing `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, so the real browser permission prompt/subscription handshake was not clicked in this environment. | Start Ticket 010: Email reminders. Configure `NEXT_PUBLIC_VAPID_PUBLIC_KEY` for real browser subscription testing; keep VAPID private/server keys out of browser code. |
-| 010: Email reminders | complete | Added a `processing_started_at` claim migration and regenerated Supabase types; extended the existing reminder repository/service to list, claim, cancel, mark sent, and mark failed due email deliveries; added a server-only Sequenzy transactional template adapter; added protected `POST /api/reminders/process`; stale pending email deliveries are cancelled when the behavior is inactive, email reminders are disabled, the occurrence is resolved, or the current resolver-planned offset no longer matches. Runtime uses `SUPABASE_SERVICE_ROLE_KEY`, `REMINDER_PROCESS_SECRET`, `SEQUENZY_API_KEY`, and `SEQUENZY_REMINDER_TEMPLATE_SLUG` only on the server side. Provider setup uses transactional slug `habit-reminder`, and local `.env.local` sets `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`. Hosted Supabase migration `20260608011000_add_reminder_delivery_processing_claim.sql` has been pushed. | Pass: `npm run supabase -- db reset`; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`; Pass: `npm run test -- tests/reminder.resolver.test.ts tests/reminder.service.test.ts tests/reminder-process-route.test.ts tests/sequenzy.service.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `npm run sequenzy -- whoami` with `.env.local` loaded; Pass: `npm run sequenzy -- transactional get habit-reminder --json`; Pass: one user-approved test send to `emibache@gmail.com`; Pass: `npm run supabase -- db push --linked --yes`; Pass: `npm run supabase -- migration list --linked` shows local and remote `20260608011000`. | Start Ticket 011: Analytics. Set `REMINDER_PROCESS_SECRET` in the deployed/server runtime before scheduling calls to `/api/reminders/process`; do not expose it to the browser. |
+| 010: Email reminders | complete | Added a `processing_started_at` claim migration and regenerated Supabase types; extended the existing reminder repository/service to list, claim, cancel, mark sent, and mark failed due email deliveries; added a server-only Sequenzy transactional template adapter; added protected `POST /api/reminders/process`; stale pending email deliveries are cancelled when the behavior is inactive, email reminders are disabled, the occurrence is resolved, or the current resolver-planned offset no longer matches. Runtime uses `SUPABASE_SERVICE_ROLE_KEY`, `REMINDER_PROCESS_SECRET`, `SEQUENZY_API_KEY`, and `SEQUENZY_REMINDER_TEMPLATE_SLUG` only on the server side. Provider setup uses transactional slug `habit-reminder`, and local `.env.local` sets `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`. Hosted Supabase migration `20260608011000_add_reminder_delivery_processing_claim.sql` has been pushed. | Pass: `npm run supabase -- db reset`; Pass: `./node_modules/.bin/supabase gen types typescript --local > lib/db/database.types.ts`; Pass: `npm run test -- tests/reminder.resolver.test.ts tests/reminder.service.test.ts tests/reminder-process-route.test.ts tests/sequenzy.service.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Pass: `npm run sequenzy -- whoami` with `.env.local` loaded; Pass: `npm run sequenzy -- transactional get habit-reminder --json`; Pass: one user-approved historical test send to a recipient now redacted from the working tree (the address remains in Git history); Pass: `npm run supabase -- db push --linked --yes`; Pass: `npm run supabase -- migration list --linked` shows local and remote `20260608011000`. | Start Ticket 011: Analytics. Set `REMINDER_PROCESS_SECRET` in the deployed/server runtime before scheduling calls to `/api/reminders/process`; do not expose it to the browser. |
 | 011: Analytics | complete | Added pure analytics resolver/types/tests; added analytics service orchestration over existing behavior and occurrence repositories; replaced `/analytics` with a sparse server-rendered screen containing overall adherence, 7/30/90 range links, an overall calendar heatmap, selected-day Not Completed inspection, per-behavior counts and heatmaps, and compact category counts. Updated `docs/ROUTE_MAP.md` and `DESIGN.md` from the implemented screen. | Pass: `npx vitest run tests/analytics.resolver.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: in-app browser `/analytics` redirected unauthenticated session to `/login?next=%2Fanalytics` at 1280px and 390px with no horizontal overflow and no console errors. Authenticated Analytics visual QA was not possible because the in-app browser did not have a Supabase session. | Start Ticket 012: Export. No Ticket 011 blockers. |
 | 012: Export | complete | Added pure export resolver/types/tests; added export service orchestration over categories, behaviors, occurrences, and profile timezone; added `/api/export/jsonl`, `/api/export/csv`, and `/api/export/json` download routes; replaced `/export` placeholder with range options, Include archived behaviors, download actions, and Markdown AI summary copy/download controls. JSONL emits category, behavior, and occurrence records one per line; CSV uses the documented occurrence columns with escaping; full JSON backup includes `exported_at`, profile timezone, categories, behaviors, and occurrences; Markdown adherence excludes unresolved occurrences. Updated `docs/ROUTE_MAP.md` and `DESIGN.md` from the implemented screen. | Pass: `npx vitest run tests/export.resolver.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; Browser QA: authenticated in-app browser `/export` rendered at 1280px and 390px with no horizontal overflow, no console warnings/errors, expected download links, and all-time plus archived query option state preserved. | No Ticket 012 blockers. Future restore/import history remains out of scope unless product docs change. |
 | 013: Vercel production deployment | complete | Added `vercel.json` with hourly Vercel Cron for `/api/reminders/process`; updated the route to support Vercel Cron `GET` plus existing protected manual `POST`; added `CRON_SECRET` support alongside `REMINDER_PROCESS_SECRET`; documented Vercel workflow, env ownership, Supabase Auth redirects, smoke QA, and rollback path. Later browser-push troubleshooting and production verification completed the original push-subscription/send blocker. | Pass: `npm run test -- tests/reminder-process-route.test.ts`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test`; Pass: `npm run build`; production smoke for login/protected redirects/authenticated app routes; production cron logs returned 200; Chrome verified notification permission plus active FCM PushSubscription; safe production browser-push send returned `{ checked: 1, claimed: 1, sent: 1, failed: 0, cancelled: 0 }`. | No Ticket 013 blocker remains. Chrome will not show the native notification permission prompt again for an origin that is already granted or denied unless site settings are reset. Actual file download events remain limited by browser automation, but Export page/link rendering was verified. |
@@ -4309,6 +4309,100 @@ Remaining risk:
 - Marker-count drift checks catch new interactive files and most control/event
   additions or removals. A semantic interaction change that preserves the same
   marker count still requires the documented registry update during review.
+
+## Exhaustive interaction audit and persona guides
+
+Status: complete_with_approval_and_environment_blocks.
+
+Implementation summary:
+- Froze the exact 83-interaction, 97-trigger, 55-variant, 152-case baseline at
+  126 pass, 22 fail, and 4 blocked cases. The immutable pre-fix report contains
+  0 P0, 6 P1, 17 P2, and 4 P3 findings.
+- Implemented 21 P1/P2 findings. IA-002 still requires schema deployment and
+  IA-023 remains production-deployment approval-dependent. IA-024 through
+  IA-028 are documented P3 risks and were not fixed.
+- Expanded the current registry additively to schema 1.1 with 85 interactions,
+  101 triggers, 55 variants, and required resolvable `user_guidance` metadata.
+  The final 156-case matrix records 144 pass, 0 fail, and 12 blocked cases while
+  preserving the frozen baseline evidence separately.
+- Added repository-only, task-based guides for Maya, Jordan, Priya, Sam, Lina,
+  Robin, and Alex. Eighty-two interactions point to user guides;
+  `INT-AUTH-002` and `INT-SHELL-007` point to the internal QA appendix. No
+  product route was added for documentation.
+- Redacted all retained screenshots. Deleted every task-created disposable
+  account, cleared task downloads and isolated-browser tabs, reset temporary
+  viewport changes, and did not use a personal account or recipient.
+- Google OAuth, exact-subscription push, and Sequenzy-to-AgentMail delivery are
+  explicitly blocked by unavailable disposable identity, isolated-browser
+  permission, and AgentMail credential respectively. The unscoped hosted
+  reminder queue was not invoked.
+
+Baseline verification:
+- Pass: `npm run interactions:check` (3,428 invariants, 83 interactions, 33 UI
+  sources).
+- Pass: `npm run test` (70 files, 452 tests).
+- Baseline commit: `79b964ac76f37d7dea1e40ae7a896afea086ebb1`.
+- Baseline interaction-registry SHA-256:
+  `852e30ff18a2dd45d31d3d13537d7d3f65c3f43a42ee30b57bf262735cc097a0`.
+
+Final verification:
+- Pass: `npm run agents:check` (106 invariants).
+- Pass: `npm run interactions:check` (4,142 invariants, 84 interactions, 34
+  sources).
+- Pass: `npm run resolvers:check` (157 invariants).
+- Pass: `npm run design-system:check` (0 errors and 0 warnings).
+- Pass: `npm run marketing:check` (0 errors, warnings, or hints).
+- Pass: lint, typecheck, 523 tests in 78 files, build, and `git diff --check`.
+- Blocked: `npm run supabase -- db reset`; Docker was unavailable. The local
+  IA-002 ownership migration was not deployed to the hosted project.
+
+Remaining approval work:
+- Approve production deployment for IA-023 and deployment of the IA-002
+  migration. IA-003, IA-019, and IA-021 are implemented.
+
+## Audit follow-up: import size architecture, Unmark registration, sign-out
+
+Status: complete.
+
+Implementation summary:
+- Wrapped the unapplied push-endpoint ownership migration in an explicit
+  transaction so its table lock is valid when the hosted CLI applies statements
+  without an implicit transaction.
+- Bound import and restore Apply to the exact previewed archive with a raw
+  SHA-256 fingerprint while transporting base64 bytes only once. Set the
+  advertised and enforced bundle limit to 2 MB and the Server Action request
+  ceiling to 4 MB.
+- Changed BehaviorLog ZIP output to DEFLATE and added a five-year,
+  ten-daily-Behavior export sanity corpus. Its 18,260 Occurrences, roughly
+  500-character Notes, and status history compressed to 1,230,362 bytes
+  (1.173 MiB).
+- Expanded `INT-TIMELINE-007` to cover Timeline **Unmark** and Behavior review
+  **Clear decision** through the same Unresolved correction and still-future
+  reminder reconciliation.
+- Added `INT-SHELL-008` and a POST-only Sign out route, the expanded/collapsed
+  desktop and mobile-drawer controls, and the focused **Signed out.** Login
+  status.
+
+Verification:
+- Pass: `npm run agents:check` (106 invariants).
+- Pass: `npm run interactions:check` (4,199 invariants, 85 interactions, 34
+  interaction sources).
+- Pass: `npm run resolvers:check` (159 invariants).
+- Pass: `npm run design-system:check` (0 errors and 0 warnings; 27 components,
+  51 product usages, 4 surfaces, and 14 canonical families).
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (80 files, 537 tests).
+- Pass: `npm run build` (Next.js 16.2.7; `/auth/sign-out` included in the route
+  manifest). One sandboxed retry could not reach Google Fonts; the approved
+  network-enabled retry fetched IBM Plex Sans and passed.
+- Pass: focused worst-case test output measured the BehaviorLog ZIP at
+  1,230,362 bytes (1.173 MiB).
+- Pass: `git diff --check`.
+
+Remaining risk:
+- The migration was edited only and remains unapplied, as required. Production
+  deployment remains outside this batch.
 
 ## Handoff notes
 

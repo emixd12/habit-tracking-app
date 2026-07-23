@@ -44,6 +44,11 @@ Collapsed navigation applies hover and active treatment only to the 64px icon
 cell so the rail feels like square targets. The active route uses the Timeline
 row hover fill with foreground text. Inactive hover uses the Surface fill.
 Primary navigation rows should be flush with no gap between row containers.
+The footer account region keeps the account row as a link to Settings. Directly
+below it, render a quiet Sign out POST control with the same text and hover
+treatment: icon plus label in the expanded desktop rail and mobile drawer, and
+an icon-only cell with the accessible name and tooltip Sign out in the
+collapsed desktop rail. Submitting from mobile closes the drawer.
 
 On mobile, do not use the collapsed rail. Use a sticky 64px top header that
 opens a left drawer. At the top of a page, the header does not draw a bottom
@@ -375,7 +380,10 @@ recurrence. Add schedule is underlined black text and creates another
 recurrence row. Keep the section unboxed with thin dividers and inline fields.
 Do not show decorative clock, bell, or info icons in the form body. Separate
 Reminders from Schedule with a thin divider. The primary submit action is Save
-behavior; Cancel is a secondary text action.
+behavior; Cancel is a secondary text action. Cancel restores the complete draft
+to the values present when the create or edit form opened, including identity,
+recurrence, schedule rows, exact times or ranges, reminder choices, and active
+state. It does not persist any of the discarded edits.
 
 Preset time ranges:
 - Morning: 6:00 AM-Noon
@@ -498,6 +506,12 @@ timeline. They should sit at the bottom of the Behaviors screen behind a
 low-priority Archived behaviors disclosure with a count, where Restore remains
 available.
 
+Archive and Restore change the behavior's durable active state and mark the
+occurrence/reminder graph stale in one transaction. If either write fails, both
+roll back. After that transaction commits, the behavior-state change remains
+successful when immediate repair fails because background processing can retry
+from the durable stale marker.
+
 Category editing belongs in Settings.
 
 ## Behavior review details
@@ -543,9 +557,11 @@ italic No note. Correction controls stay hidden behind a per-occurrence Review
 disclosure until the user chooses to review that occurrence. Inside the
 disclosure, Change status and the Completed / Not Completed actions should sit
 on one row when space allows. A resolved occurrence also exposes Clear decision
-in this behavior-date context only, returning it to Unresolved; do not expose
-that control globally in Timeline or Needs decision. The inline Note form
-follows the status controls. Do not use
+in this behavior-date context, returning it to Unresolved. An expanded,
+just-decided Timeline occurrence exposes the same correction as Unmark; Needs
+decision does not expose it as a global action. Both labels use the same status
+service and restore only still-future reminders. The inline Note form follows
+the status controls. Do not use
 internal divider lines that visually compete with the behavior-row separators.
 Do not add bulk edit, all-time search, automatic suggestions, AI coaching, or
 gamified language. Do not render an empty review panel when the selected
@@ -651,13 +667,24 @@ If high or restricted sensitivity notes would be imported, apply controls must
 also require a dedicated privacy acknowledgement. Do not add generalized notes
 browsing or intervention-to-reminder writes in this screen.
 
+Import and restore show and enforce a 2 MB bundle limit before submission and
+on the server, plus bounded archive-entry, extracted-size, and compression-ratio
+safety limits. The Next.js Server Action ceiling is 4 MB: a 2 MB ZIP is about
+2.7 MB after base64 encoding, leaving margin below Vercel's 4.5 MB Function
+request cap. Apply submits the base64 archive once. Action state carries only
+the SHA-256 fingerprint of the exact previewed archive bytes.
+
 Import apply controls must remain bound to the persisted accepted merge-preview
-run currently being reviewed. The server verifies matching bundle, local-data,
-and combined preview fingerprints before any write. When that verification
+run currently being reviewed. The server first verifies the submitted archive's
+SHA-256 against the accepted raw-archive fingerprint, then authoritatively
+re-parses and verifies matching bundle, local-data, and combined preview
+fingerprints before any write. When that verification
 refuses an unaccepted, stale, altered, or mismatched preview, show the refusal
 as an alert, retain the reviewed preview, and require the user to generate and
 accept a fresh preview. Do not silently replace the reviewed plan or provide a
-global bypass.
+global bypass. Keep each Apply control disabled until the user has reviewed the
+exact preview and completed every sensitivity acknowledgement required for that
+preview; native required validation remains a secondary safeguard.
 
 BehaviorLog restore preview may also appear in the Import section when a restore
 ticket is active. It should stay separate from create-only and merge import,
@@ -671,7 +698,8 @@ Restore apply controls should appear only after a valid restore preview. They
 must require a fresh-backup checkbox, typed `RESTORE` confirmation, and a
 separate high/restricted note sensitivity acknowledgement when relevant. The UI
 should show stale-preview or unsupported-action refusal as an alert and keep the
-preview visible for review. Apply result or failure details should appear in the
+preview visible for review. Keep Apply restore disabled until all applicable
+gates are satisfied. Apply result or failure details should appear in the
 Restore section history.
 
 ## Settings screen
@@ -699,6 +727,15 @@ typed confirmation, and stale-preview refusal before destructive writes.
 The account deletion action should stay disabled in the client until both the
 export acknowledgement and typed confirmation match, while server-side
 validation remains authoritative.
+
+Notification, behavior archive/restore, and account-deletion action results
+must use one concise live result per action. Successful results use status
+semantics; failures use alert semantics. Do not announce the same message from
+multiple live regions. After successful account deletion redirects to Login,
+the `Account deleted.` status receives focus so the result is announced on the
+destination page. Unsupported, blocked, dismissed, or otherwise unsuccessful
+notification-enable attempts use alert semantics; passive availability details
+and successful saves use status semantics.
 
 ## Offline UI
 

@@ -8,14 +8,21 @@ import {
   BehaviorLogImportApplyForm,
   BehaviorLogImportPanel,
   BehaviorLogImportPreviewDetails,
+  isBehaviorLogImportApplyReady,
 } from "../components/export/BehaviorLogImportPanel";
 import {
   applyBehaviorLogImportUploadFromFormData,
+  BehaviorLogImportAuthError,
+  listBehaviorLogExistingRecords,
   previewBehaviorLogImportUploadFromFormData,
   resolveBehaviorLogImportCapabilities,
 } from "../lib/services/behaviorlog-import.service";
 import { createStoredZip } from "../lib/services/zip";
 import { resolveBehaviorLogImportMergePreview } from "../lib/resolvers/behaviorlog-import.resolver";
+import {
+  BEHAVIORLOG_BUNDLE_SIZE_ERROR,
+  getBehaviorLogBundleSizeError,
+} from "../lib/types/behaviorlog-bundle-ui";
 import type {
   BehaviorLogExistingRecords,
   BehaviorLogImportFile,
@@ -142,21 +149,51 @@ describe("BehaviorLog import UI workflow", () => {
     });
   });
 
-  it("rejects unsupported upload files before auth or persistence", async () => {
+  it("authenticates before parsing a supported-name upload", async () => {
+    mocks.createClient.mockResolvedValue({
+      auth: {
+        getClaims: vi.fn(async () => ({
+          data: { claims: {} },
+          error: null,
+        })),
+      },
+    });
     const formData = new FormData();
 
     formData.set(
       "behaviorlog_file",
-      new File(["not a zip"], "cadence-export.zip", {
+      new File(["not a zip"], "cadence-export.behaviorlog.zip", {
         type: "application/zip",
       }),
     );
 
     await expect(
       previewBehaviorLogImportUploadFromFormData(formData),
-    ).rejects.toThrow("Upload a .behaviorlog.zip bundle");
-    expect(mocks.createClient).not.toHaveBeenCalled();
+    ).rejects.toBeInstanceOf(BehaviorLogImportAuthError);
+    expect(mocks.createClient).toHaveBeenCalled();
     expect(mocks.createBehaviorLogImportRunFromPreview).not.toHaveBeenCalled();
+  });
+
+  it("authenticates before decoding an apply bundle payload", async () => {
+    mocks.createClient.mockResolvedValue({
+      auth: {
+        getClaims: vi.fn(async () => ({
+          data: { claims: {} },
+          error: null,
+        })),
+      },
+    });
+    const formData = new FormData();
+
+    formData.set("import_mode", "merge_by_user_approved_plan");
+    formData.set("confirm_apply", "yes");
+    formData.set("bundle_payload", Buffer.from("not a zip").toString("base64"));
+
+    await expect(
+      applyBehaviorLogImportUploadFromFormData(formData),
+    ).rejects.toBeInstanceOf(BehaviorLogImportAuthError);
+    expect(mocks.getBehaviorLogImportRunById).not.toHaveBeenCalled();
+    expect(mocks.applyApprovedBehaviorLogMergePlan).not.toHaveBeenCalled();
   });
 
   it("persists preview runs without calling import writers", async () => {
@@ -183,6 +220,36 @@ describe("BehaviorLog import UI workflow", () => {
     );
     expect(mocks.applyCreateMissingBehaviorLogImportPlan).not.toHaveBeenCalled();
     expect(mocks.applyApprovedBehaviorLogMergePlan).not.toHaveBeenCalled();
+  });
+
+  it("projects both canonical and Cadence display categories for merge identity", async () => {
+    mocks.listUserBehaviors.mockResolvedValueOnce([
+      {
+        id: "local-behavior",
+        updated_at: "2026-06-08T12:00:00Z",
+        title: "Track measurement",
+        description: null,
+        active: true,
+        archived_at: null,
+        created_at: "2026-05-01T12:00:00Z",
+        timezone: TIMEZONE,
+        recurrence_rule: { frequency: "daily", interval: 1 },
+        schedule_slots: [],
+        category: {
+          name: "Measurements",
+        },
+      },
+    ]);
+
+    const existing = await listBehaviorLogExistingRecords(
+      {} as never,
+      USER_ID,
+    );
+
+    expect(existing.behaviors?.[0]).toMatchObject({
+      category: "health_wellness",
+      cadenceCategoryName: "Measurements",
+    });
   });
 
   it("renders invalid bundle errors", () => {
@@ -298,6 +365,7 @@ describe("BehaviorLog import UI workflow", () => {
         disabled={false}
         disabledReason={null}
         requiresSensitiveNoteConfirmation={false}
+        bundlePayload="encoded-bundle"
         formAction={() => undefined}
         state={{
           status: "previewed",
@@ -306,7 +374,7 @@ describe("BehaviorLog import UI workflow", () => {
             fileName: "cadence-export.behaviorlog.zip",
             fileSize: 123,
           },
-          bundlePayload: "encoded-bundle",
+          archiveFingerprint: "a".repeat(64),
           preview,
           previewRun: {
             id: "import-run-preview",
@@ -330,6 +398,52 @@ describe("BehaviorLog import UI workflow", () => {
     expect(html).toContain(`value="${preview.localDataFingerprint}"`);
     expect(html).toContain('name="bundle_fingerprint"');
     expect(html).toContain(`value="${preview.bundleFingerprint}"`);
+    expect(html).toContain('name="archive_fingerprint"');
+    expect(html).toContain(`value="${"a".repeat(64)}"`);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Apply import<\/button>/);
+  });
+
+  it("keeps import apply unavailable until every applicable acknowledgement is complete", () => {
+    expect(
+      isBehaviorLogImportApplyReady({
+        unavailable: false,
+        previewAcknowledged: false,
+        requiresSensitiveNoteConfirmation: false,
+        sensitiveNotesAcknowledged: false,
+      }),
+    ).toBe(false);
+    expect(
+      isBehaviorLogImportApplyReady({
+        unavailable: false,
+        previewAcknowledged: true,
+        requiresSensitiveNoteConfirmation: false,
+        sensitiveNotesAcknowledged: false,
+      }),
+    ).toBe(true);
+    expect(
+      isBehaviorLogImportApplyReady({
+        unavailable: false,
+        previewAcknowledged: true,
+        requiresSensitiveNoteConfirmation: true,
+        sensitiveNotesAcknowledged: false,
+      }),
+    ).toBe(false);
+    expect(
+      isBehaviorLogImportApplyReady({
+        unavailable: false,
+        previewAcknowledged: true,
+        requiresSensitiveNoteConfirmation: true,
+        sensitiveNotesAcknowledged: true,
+      }),
+    ).toBe(true);
+    expect(
+      isBehaviorLogImportApplyReady({
+        unavailable: true,
+        previewAcknowledged: true,
+        requiresSensitiveNoteConfirmation: false,
+        sensitiveNotesAcknowledged: true,
+      }),
+    ).toBe(false);
   });
 
   it("requires separate acknowledgement before applying high-sensitivity notes", async () => {
@@ -340,7 +454,7 @@ describe("BehaviorLog import UI workflow", () => {
     });
     const baseFormData = createApplyFormData({ files, preview });
     mocks.getBehaviorLogImportRunById.mockResolvedValue(
-      createAcceptedPreviewRun(preview),
+      createAcceptedPreviewRun(preview, files),
     );
 
     await expect(
@@ -439,7 +553,7 @@ describe("BehaviorLog import UI workflow", () => {
     expect(mocks.applyCreateMissingBehaviorLogImportPlan).not.toHaveBeenCalled();
   });
 
-  it("rejects altered uploaded data after a preview was accepted", async () => {
+  it("rejects archive bytes that no longer match the accepted preview", async () => {
     const acceptedFiles = behaviorLogFiles();
     const preview = resolveBehaviorLogImportMergePreview({
       files: acceptedFiles,
@@ -448,14 +562,17 @@ describe("BehaviorLog import UI workflow", () => {
     const formData = createApplyFormData({
       files: behaviorLogFiles({ behaviorDescription: "Changed after review." }),
       preview,
+      acceptedFiles,
     });
     mocks.getBehaviorLogImportRunById.mockResolvedValue(
-      createAcceptedPreviewRun(preview),
+      createAcceptedPreviewRun(preview, acceptedFiles),
     );
 
     await expect(
       applyBehaviorLogImportUploadFromFormData(formData),
-    ).rejects.toThrow("Uploaded bundle changed since this import preview.");
+    ).rejects.toThrow(
+      "The uploaded bundle no longer matches the accepted import preview. Preview the import again.",
+    );
     expect(mocks.createBehaviorLogImportRunFromPreview).not.toHaveBeenCalled();
     expect(mocks.applyCreateMissingBehaviorLogImportPlan).not.toHaveBeenCalled();
   });
@@ -543,6 +660,102 @@ describe("BehaviorLog import UI workflow", () => {
     );
     expect(mocks.applyCreateMissingBehaviorLogImportPlan).toHaveBeenCalledTimes(1);
   });
+
+  it("previews, accepts, and applies one valid bundle larger than 750 KiB", async () => {
+    const files = behaviorLogFiles({
+      readmeContent: createDeterministicArchivePadding(1_700_000),
+    });
+    const zip = createStoredZip(files);
+
+    expect(zip.byteLength).toBeGreaterThan(750 * 1024);
+    expect(zip.byteLength).toBeLessThan(2 * 1024 * 1024);
+
+    const previewFormData = new FormData();
+
+    previewFormData.set(
+      "behaviorlog_file",
+      new File([new Uint8Array(zip)], "large-valid.behaviorlog.zip", {
+        type: "application/zip",
+      }),
+    );
+
+    const previewState =
+      await previewBehaviorLogImportUploadFromFormData(previewFormData);
+    const preview = previewState.preview;
+
+    expect(preview?.valid).toBe(true);
+    expect(previewState).not.toHaveProperty("bundlePayload");
+    expect(previewState.archiveFingerprint).toBe(sha256Bytes(zip));
+
+    if (!preview) {
+      throw new Error("Expected a valid large-bundle preview.");
+    }
+
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(
+      createAcceptedPreviewRun(preview, files),
+    );
+    mocks.createBehaviorLogImportRunFromPreview.mockResolvedValueOnce({
+      id: "large-import-run-apply",
+      import_mode: "create_missing_only",
+      status: "previewed",
+      started_at: "2026-06-08T21:11:00Z",
+      completed_at: "2026-06-08T21:11:02Z",
+      failure_message: null,
+    });
+    mocks.applyCreateMissingBehaviorLogImportPlan.mockResolvedValueOnce({
+      importRun: {
+        id: "large-import-run-apply",
+        import_mode: "create_missing_only",
+        status: "applied",
+        started_at: "2026-06-08T21:11:00Z",
+        completed_at: "2026-06-08T21:11:02Z",
+        failure_message: null,
+      },
+      created: {
+        behaviors: 1,
+        schedules: 1,
+        occurrences: 1,
+        statusEvents: 1,
+        notes: 0,
+        mappings: 4,
+      },
+      skipped: {
+        behaviors: 0,
+        schedules: 0,
+        occurrences: 0,
+        statusEvents: 0,
+        notes: 0,
+      },
+      warnings: [],
+    });
+
+    const appliedState = await applyBehaviorLogImportUploadFromFormData(
+      createApplyFormData({ files, preview }),
+    );
+
+    expect(appliedState.status).toBe("applied");
+  });
+
+  it("rejects files above 2 MB with Cadence's exact size error", async () => {
+    expect(getBehaviorLogBundleSizeError(2 * 1024 * 1024 + 1)).toBe(
+      BEHAVIORLOG_BUNDLE_SIZE_ERROR,
+    );
+    const formData = new FormData();
+
+    formData.set(
+      "behaviorlog_file",
+      new File(
+        [new Uint8Array(2 * 1024 * 1024 + 1)],
+        "too-large.behaviorlog.zip",
+        { type: "application/zip" },
+      ),
+    );
+
+    await expect(
+      previewBehaviorLogImportUploadFromFormData(formData),
+    ).rejects.toThrow(BEHAVIORLOG_BUNDLE_SIZE_ERROR);
+    expect(mocks.createBehaviorLogImportRunFromPreview).not.toHaveBeenCalled();
+  });
 });
 
 const EMPTY_EXISTING_RECORDS: BehaviorLogExistingRecords = {
@@ -560,6 +773,7 @@ function behaviorLogFiles(
     includeNote?: boolean;
     includeIntervention?: boolean;
     behaviorDescription?: string;
+    readmeContent?: string;
   } = {},
 ): BehaviorLogImportFile[] {
   const records = {
@@ -688,7 +902,7 @@ function behaviorLogFiles(
   };
   const contentByPath = new Map([
     ["schema.json", "{}"],
-    ["README.md", "# BehaviorLog"],
+    ["README.md", input.readmeContent ?? "# BehaviorLog"],
     ["AGENTS.md", "# AGENTS"],
     ["data/behaviors.jsonl", JSON.stringify(records.behavior)],
     ["data/schedules.jsonl", JSON.stringify(records.schedule)],
@@ -762,8 +976,10 @@ function createApplyFormData(input: {
   files: BehaviorLogImportFile[];
   preview: ReturnType<typeof resolveBehaviorLogImportMergePreview>;
   includePreviewBinding?: boolean;
+  acceptedFiles?: BehaviorLogImportFile[];
 }): FormData {
   const zip = createStoredZip(input.files);
+  const acceptedZip = createStoredZip(input.acceptedFiles ?? input.files);
   const formData = new FormData();
 
   formData.set("intent", "apply");
@@ -781,6 +997,7 @@ function createApplyFormData(input: {
       input.preview.localDataFingerprint,
     );
     formData.set("bundle_fingerprint", input.preview.bundleFingerprint);
+    formData.set("archive_fingerprint", sha256Bytes(acceptedZip));
   }
 
   return formData;
@@ -788,6 +1005,7 @@ function createApplyFormData(input: {
 
 function createAcceptedPreviewRun(
   preview: ReturnType<typeof resolveBehaviorLogImportMergePreview>,
+  files: BehaviorLogImportFile[] = behaviorLogFiles(),
 ) {
   return {
     id: "import-run-preview",
@@ -797,6 +1015,7 @@ function createAcceptedPreviewRun(
     dry_run_summary: {
       valid: preview.valid,
       bundleFingerprint: preview.bundleFingerprint,
+      archiveFingerprint: sha256Bytes(createStoredZip(files)),
       localDataFingerprint: preview.localDataFingerprint,
       previewFingerprint: preview.previewFingerprint,
     },
@@ -805,4 +1024,20 @@ function createAcceptedPreviewRun(
 
 function sha256(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+function sha256Bytes(content: Uint8Array): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+function createDeterministicArchivePadding(length: number): string {
+  let output = "";
+  let seed = "cadence-large-bundle";
+
+  while (output.length < length) {
+    seed = sha256(seed);
+    output += seed;
+  }
+
+  return output.slice(0, length);
 }

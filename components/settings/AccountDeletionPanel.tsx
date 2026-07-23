@@ -15,13 +15,15 @@ export type DeleteAccountAction = (
 export function AccountDeletionPanel({
   confirmationLabel,
   deleteAccountAction,
+  initialState = ACCOUNT_DELETION_INITIAL_STATE,
 }: Readonly<{
   confirmationLabel: string;
   deleteAccountAction: DeleteAccountAction;
+  initialState?: AccountDeletionActionState;
 }>) {
   const [state, formAction, isPending] = useActionState(
     deleteAccountAction,
-    ACCOUNT_DELETION_INITIAL_STATE,
+    initialState,
   );
   const [exportAcknowledged, setExportAcknowledged] = useState(false);
   const [confirmation, setConfirmation] = useState("");
@@ -102,7 +104,12 @@ export function AccountDeletionPanel({
           </button>
 
           {state.message ? (
-            <p className="text-sm leading-6 text-accent">
+            <p
+              role={state.status === "error" ? "alert" : "status"}
+              aria-live={state.status === "error" ? "assertive" : "polite"}
+              aria-atomic="true"
+              className="text-sm leading-6 text-accent"
+            >
               {state.message}
             </p>
           ) : null}

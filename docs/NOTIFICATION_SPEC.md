@@ -33,7 +33,15 @@ Requirements:
   while the browser still reports an undecided permission state. Browsers do
   not show the native prompt again after the origin is explicitly allowed or
   blocked; a blocked origin needs browser/site settings changed before Cadence
-  can save a working subscription.
+  can save a working subscription. The blocked-state recovery instruction and
+  Refresh this device action remain visible after reload.
+- If the initial current-subscription inspection fails, Settings must settle
+  into a factual, retryable not-enabled state instead of remaining on Checking.
+  First-run setup must treat the same failure as a missing current-device
+  subscription so its Settings recovery link remains available.
+- A user-triggered enable attempt that ends unsupported, blocked, dismissed, or
+  otherwise unsuccessful is an alert. Passive availability information and a
+  successful subscription save use status semantics.
 - Public launch onboarding may also request notification permission after the
   user creates the first behavior, but only through a user-clicked control that
   routes to the existing Settings subscription action. The onboarding prompt
@@ -42,6 +50,24 @@ Requirements:
   does not have a current push subscription, first-run setup should continue to
   offer the Settings notification action even if another device was already
   enabled.
+- Enabled on this device requires both the browser's current subscription and
+  an exact active `push_subscriptions` row for the signed-in account, including
+  matching endpoint and subscription keys. A browser subscription left by a
+  different account must be unsubscribed before Cadence creates a fresh
+  subscription for the current account. At most one account may have an active
+  row for one endpoint.
+- If current-account ownership cannot be verified, Settings must not report the
+  device as enabled. If saving a newly created browser subscription fails,
+  Cadence must unsubscribe that new browser state and show a retryable setup
+  failure. The retry remains the existing Enable notifications on this device
+  or Refresh this device action; no privileged cross-account transfer or
+  service-role write is allowed.
+- A successfully unsubscribed prior-account endpoint is invalid at the push
+  provider even if its old database row remains active until the next send.
+  Existing gone/not-found delivery cleanup then marks that row inactive. If a
+  provider reissues the same still-active endpoint and the database uniqueness
+  guard rejects the new row, Cadence must unsubscribe the rejected new browser
+  subscription and leave Settings in the retryable not-enabled state.
 - V1 does not need a test notification button.
 
 Behavior fields:
@@ -166,7 +192,34 @@ approved import/restore apply work, and protected/background occurrence horizon
 syncs may create missing pending deliveries or cancel pending deliveries for
 inactive behavior occurrences. Timeline, Analytics, and Export read-route
 freshness checks may repair occurrence rows when stale, but must not create or
-cancel reminder deliveries while rendering a page.
+cancel reminder deliveries while rendering a page. A read-only occurrence
+repair must leave the account horizon stale until a write/background path also
+completes reminder reconciliation; otherwise the protected planner could skip
+an account whose occurrence rows are fresh but whose reminder rows are not.
+
+Planning reconciles the expected delivery set against existing rows for the
+same occurrences. It creates missing rows, cancels unclaimed pending rows that
+no longer match the behavior's channels or offset, and returns a cancelled row
+to pending when an unresolved occurrence becomes eligible again (for example,
+after behavior restore). These repairs apply only when `scheduled_send_at` is
+strictly after the planner's injected current instant. Missing or cancelled
+past/due rows are not created or reactivated, and existing past/due pending rows
+are left for due-delivery validation rather than reclassified by planning. Sent
+deliveries remain historical records, and failed deliveries are not retried
+automatically in v1.
+
+Behavior and approved import/restore graph writes are committed before this
+derived repair. A repair failure must not report the already-committed product
+write as failed. The account remains durably stale for protected/background
+retry, and the service records a privacy-safe monitoring event. An import may
+therefore plan future reminders for newly imported active behaviors through the
+normal behavior/occurrence rules; passive imported intervention rows themselves
+never become operational deliveries without the separate promotion workflow.
+The protected processor selects from that durable sync-state ledger with stale
+accounts first, then the earliest covered horizon, oldest update, and user id.
+Successful repairs therefore rotate out of a bounded batch, while repeated
+failures move behind older stale work instead of permanently starving later
+accounts.
 
 For exact-time occurrences, the scheduled start is the exact time. For range
 occurrences, the scheduled start is the beginning of the preset range.
@@ -192,6 +245,14 @@ When an occurrence changes from `unresolved` to:
 
 Then pending reminder deliveries for that occurrence should be cancelled.
 
+When Clear decision commits a correction back to `unresolved`, immediately
+reconcile that owning behavior and occurrence using the action's injected
+current instant. Only strictly future cancelled or missing deliveries become
+pending again; due or past rows remain unchanged. This repair must not send a
+provider notification. If it fails after the status transaction commits, keep
+the successful status result, record a privacy-safe monitoring event, and mark
+occurrence/reminder coverage stale for protected/background retry.
+
 Do not cancel reminders that were already sent.
 
 ## Idempotence
@@ -200,6 +261,9 @@ Reminder processing must be idempotent.
 
 Rules:
 - Do not create duplicate pending deliveries for the same occurrence/channel/scheduled_send_at.
+- Reconciliation must be retry-safe after a partial service failure. A repeated
+  behavior or timezone save may repair occurrence and reminder coverage even
+  when the profile or behavior already contains the requested value.
 - Do not send the same reminder twice.
 - Claim a due pending delivery before provider calls so overlapping process runs skip already-claimed work.
 - If a send fails, log the failure.

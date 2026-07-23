@@ -9,6 +9,7 @@ import {
   Download,
   ListChecks,
   LogIn,
+  LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -249,6 +250,51 @@ function LoginPreviewLink({
         <span className="block truncate">Preview login</span>
       </span>
     </Link>
+  );
+}
+
+export function SignOutControl({
+  isCollapsed,
+  onSubmit,
+}: Readonly<{
+  isCollapsed: boolean;
+  onSubmit?: () => void;
+}>) {
+  return (
+    <form action="/auth/sign-out" method="post" onSubmit={onSubmit}>
+      <button
+        type="submit"
+        title={isCollapsed ? "Sign out" : undefined}
+        aria-label={isCollapsed ? "Sign out" : undefined}
+        className={[
+          "group flex h-10 w-full items-center overflow-hidden text-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+          isCollapsed
+            ? "text-muted-foreground"
+            : "text-muted-foreground hover:bg-surface hover:text-foreground",
+        ].join(" ")}
+      >
+        <span
+          className={[
+            "flex h-10 w-16 shrink-0 items-center justify-center transition-colors",
+            isCollapsed
+              ? "group-hover:bg-surface group-hover:text-foreground"
+              : "",
+          ].join(" ")}
+        >
+          <LogOut aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+        </span>
+        <span
+          className={[
+            "min-w-0 overflow-hidden whitespace-nowrap text-left transition-opacity duration-200",
+            isCollapsed
+              ? "w-0 opacity-0 pointer-events-none"
+              : "w-[calc(100%-4rem)] opacity-100",
+          ].join(" ")}
+        >
+          Sign out
+        </span>
+      </button>
+    </form>
   );
 }
 
@@ -653,6 +699,10 @@ export function AppShell({
               isCollapsed={false}
               onNavigate={closeMobileNav}
             />
+            <SignOutControl
+              isCollapsed={false}
+              onSubmit={closeMobileNav}
+            />
           </div>
         </aside>
 
@@ -731,6 +781,7 @@ export function AppShell({
               displayName={displayName}
               isCollapsed={!isDesktopSidebarOpen}
             />
+            <SignOutControl isCollapsed={!isDesktopSidebarOpen} />
           </div>
         </aside>
 

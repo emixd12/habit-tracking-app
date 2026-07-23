@@ -369,6 +369,16 @@ this browser` and did not show the enable action. The allowed path initially
 found a real browser bug where PushManager subscription could run before the
 service worker was active; this was fixed in the browser push helper.
 
+Audit update (2026-07-22): The exhaustive interaction audit reopened this
+finding because the blocked recovery action and detailed instructions
+disappeared after reload, while a rejected initial device inspection could
+remain on `Checking`. IA-012 now keeps browser-settings recovery visible with
+**Refresh this device**, settles failed inspection into a retryable factual
+state, and announces user-triggered notification failures as alerts. The
+isolated exact-subscription delivery remained blocked because no safe browser
+permission/profile combination was available; no personal subscription was
+used.
+
 Status: Fixed
 
 ### UX-006: Export Format Choice May Need Task-Based Clarity
@@ -476,7 +486,14 @@ Recommended follow-up: Run TS12 in local or authorized hosted environment with
 temporary test users only. Verify blocked submissions before the final
 destructive step even when a full deletion run is skipped.
 
-Status: Open
+Reproduction update (2026-07-22): The interaction audit exercised deletion
+gates and full deletion only with sequential synthetic disposable accounts.
+Each successful deletion returned to Login with **Account deleted.**, and the
+audit cleanup found zero remaining disposable accounts. The result message is
+now a focused polite status on the redirect target; failed submissions remain
+alerts in Settings.
+
+Status: Fixed
 
 ### UX-009: Marketing Surface Exposes Trust And Legal Information Late
 
@@ -1027,7 +1044,17 @@ Source-of-truth reference: `docs/PRODUCT_SPEC.md`, `docs/USER_FLOWS.md`
 Recommended follow-up: Decide whether v1 correction should include Clear
 decision. If yes, update source docs, wire through services/UI, and add tests.
 
-Status: Open
+Resolution update (2026-07-22): The scoped Behavior date-review flow exposes
+**Clear decision**, returns the selected Occurrence to Unresolved, and now
+reconciles an eligible still-future reminder.
+
+Resolution update (2026-07-23): Timeline's **Unmark** control is registered on
+the same correction intent for immediate correction of an expanded,
+just-decided Occurrence. It uses the same status service and reconciliation as
+Behavior review's **Clear decision**, so only still-future reminders are
+restored.
+
+Status: Fixed
 
 ### UX-023: Behavior Date Review Heading Is Too Vague
 
@@ -1295,7 +1322,11 @@ Source-of-truth reference: `docs/EXPORT_FORMATS.md`, `docs/USER_FLOWS.md`
 Recommended follow-up: Reproduce with TS11. If confirmed, update preview
 history status/timestamps so read-only previews do not look unfinished.
 
-Status: Needs reproduction
+Resolution update (2026-07-22): Ticket 055 records completed restore previews
+with their completion timestamp and regression coverage. The interaction audit
+preserved that history and found no recurrence of the stale Open label.
+
+Status: Fixed
 
 ### UX-030: Import Apply Is Not Bound To The Exact Reviewed Preview
 
@@ -1330,7 +1361,13 @@ Recommended follow-up: Decide whether import apply needs a preview-run or
 fingerprint gate similar to restore. Run TS11 with changed local data between
 preview and apply.
 
-Status: Open
+Resolution update (2026-07-22): Ticket 055 bound Import Apply to one persisted
+accepted merge-preview run and its bundle, local-data, and combined
+fingerprints. The current UI additionally keeps Apply disabled until the exact
+preview and any sensitivity warning are acknowledged. A changed bundle or
+local dataset requires a fresh preview.
+
+Status: Fixed
 
 ### UX-031: Full JSON Backup Label May Overpromise Status History
 
@@ -1365,7 +1402,12 @@ Recommended follow-up: Verify current full JSON contents in TS10. If status
 history is absent by design, clarify the label or update docs so BehaviorLog is
 the clearly complete interoperability/restore path.
 
-Status: Open
+Resolution update (2026-07-22): Full JSON includes the sorted append-only
+`status_events` history for exported Occurrences, with resolver tests covering
+correction chronology. BehaviorLog remains the uploadable portability and
+restore format, while Full JSON remains an app-native backup download.
+
+Status: Fixed
 
 ### UX-032: Import Preview Details May Be Hidden From The User
 

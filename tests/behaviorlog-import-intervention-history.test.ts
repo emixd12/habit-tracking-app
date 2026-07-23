@@ -22,16 +22,25 @@ const COMPLETED_AT = "2026-06-18T12:00:00Z";
 
 const occurrenceSyncMocks = vi.hoisted(() => ({
   markOccurrenceSyncStale: vi.fn(),
+  repairUserOccurrenceReminderGraphBestEffort: vi.fn(),
 }));
 
 vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
   markOccurrenceSyncStale: occurrenceSyncMocks.markOccurrenceSyncStale,
 }));
 
+vi.mock("@/lib/services/occurrence-reminder-repair.service", () => ({
+  repairUserOccurrenceReminderGraphBestEffort:
+    occurrenceSyncMocks.repairUserOccurrenceReminderGraphBestEffort,
+}));
+
 describe("BehaviorLog imported intervention history", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     occurrenceSyncMocks.markOccurrenceSyncStale.mockResolvedValue({} as never);
+    occurrenceSyncMocks.repairUserOccurrenceReminderGraphBestEffort.mockResolvedValue(
+      false,
+    );
   });
 
   it("previews passive storage and redacts or drops sensitive delivery fields", () => {

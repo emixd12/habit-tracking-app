@@ -13,6 +13,15 @@ const migrationSql = readFileSync(
   "utf8",
 );
 const normalizedSql = migrationSql.replace(/\s+/g, " ");
+const definitionEventMigrationSql = readFileSync(
+  join(
+    process.cwd(),
+    "supabase",
+    "migrations",
+    "20260709201516_add_behavior_definition_events.sql",
+  ),
+  "utf8",
+);
 
 describe("Ticket 060 schedule integrity migration", () => {
   it("discovers every empty owned schedule and inserts one exact compatibility slot", () => {
@@ -109,6 +118,33 @@ describe("Ticket 060 schedule integrity migration", () => {
     expect(replacementSql).toContain("and user_id = target_user_id");
     expect(replacementSql).toContain("and behavior_id = target_behavior_id");
     expect(replacementSql).toContain("using errcode = '40001'");
+  });
+
+  it("commits lifecycle fields and the stale retry marker through the same atomic RPC", () => {
+    const updateSql = migrationSql.match(
+      /create or replace function public\.update_behavior_with_schedule_graph[\s\S]+?\$\$;/,
+    )?.[0];
+    const definitionUpdateSql = definitionEventMigrationSql.match(
+      /create or replace function public\.update_behavior_with_definition_event[\s\S]+?\$\$;/,
+    )?.[0];
+
+    expect(updateSql).toBeDefined();
+    expect(definitionUpdateSql).toBeDefined();
+    expect(definitionUpdateSql).toContain(
+      "active = (behavior_payload ->> 'active')::boolean",
+    );
+    expect(definitionUpdateSql).toContain(
+      "archived_at = (behavior_payload ->> 'archived_at')::timestamptz",
+    );
+    expect(updateSql).toContain(
+      "updated_behavior := public.update_behavior_with_definition_event(",
+    );
+    expect(updateSql).toContain("insert into public.occurrence_sync_state (");
+    expect(updateSql).toContain("stale = true");
+    expect(updateSql).toContain("stale_reason = 'behavior_changed'");
+    expect(updateSql?.indexOf("update_behavior_with_definition_event(")).toBeLessThan(
+      updateSql?.indexOf("insert into public.occurrence_sync_state (") ?? -1,
+    );
   });
 
   it("exposes only the two public atomic entry points to authenticated callers", () => {

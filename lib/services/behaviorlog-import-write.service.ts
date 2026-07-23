@@ -44,6 +44,7 @@ import {
 } from "@/lib/resolvers/behaviorlog-import.resolver";
 import { planInitialBehaviorDefinitionEvent } from "@/lib/resolvers/behavior-definition.resolver";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
+import { repairUserOccurrenceReminderGraphBestEffort } from "@/lib/services/occurrence-reminder-repair.service";
 import {
   invalidateBehaviorData,
   invalidateImportRunData,
@@ -113,6 +114,7 @@ export type CreateBehaviorLogImportRunFromPreviewInput = {
   userId: string;
   files: BehaviorLogImportFile[];
   preview: BehaviorLogImportPreview;
+  archiveFingerprint?: string | null;
   importMode?: BehaviorLogImportMode;
   acceptedPreviewRunId?: string | null;
   acceptedPreviewFingerprint?: string | null;
@@ -150,7 +152,12 @@ export async function createBehaviorLogImportRunFromPreview(
     importMode: input.importMode ?? "preview_only",
     acceptedPreviewRunId: input.acceptedPreviewRunId,
     acceptedPreviewFingerprint: input.acceptedPreviewFingerprint,
-    dryRunSummary: toDryRunSummarySnapshot(input.preview),
+    dryRunSummary: {
+      ...toDryRunSummarySnapshot(input.preview),
+      ...(input.archiveFingerprint
+        ? { archiveFingerprint: input.archiveFingerprint }
+        : {}),
+    },
     status: input.status ?? "previewed",
     startedAt: input.startedAt ?? now,
     completedAt: input.completedAt ?? now,
@@ -710,6 +717,14 @@ export async function applyCreateMissingBehaviorLogImportPlan(
     }
 
     invalidateBehaviorData(input.userId);
+    await repairUserOccurrenceReminderGraphBestEffort(
+      supabase,
+      input.userId,
+      {
+        operation: "behaviorlog_import_create_missing",
+        now: Temporal.Instant.from(completedAt),
+      },
+    );
 
     return result;
   } catch (error) {
@@ -1351,6 +1366,14 @@ export async function applyApprovedBehaviorLogMergePlan(
     }
 
     invalidateBehaviorData(input.userId);
+    await repairUserOccurrenceReminderGraphBestEffort(
+      supabase,
+      input.userId,
+      {
+        operation: "behaviorlog_import_merge",
+        now: Temporal.Instant.from(completedAt),
+      },
+    );
 
     return result;
   } catch (error) {

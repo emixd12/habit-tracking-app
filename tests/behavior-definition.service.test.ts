@@ -9,8 +9,12 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   requireCurrentUserId: vi.fn(),
   getBehaviorById: vi.fn(),
+  getProfileTimezone: vi.fn(),
+  listUserBehaviors: vi.fn(),
   updateBehavior: vi.fn(),
   updateBehaviorWithAtomicScheduleGraph: vi.fn(),
+  syncUserOccurrencesAndReminders: vi.fn(),
+  reportMonitoringError: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -27,9 +31,19 @@ vi.mock("@/lib/db/behaviors.repo", async (importOriginal) => {
   return {
     ...original,
     getBehaviorById: mocks.getBehaviorById,
+    getProfileTimezone: mocks.getProfileTimezone,
+    listUserBehaviors: mocks.listUserBehaviors,
     updateBehavior: mocks.updateBehavior,
   };
 });
+
+vi.mock("@/lib/services/occurrence.service", () => ({
+  syncUserOccurrencesAndReminders: mocks.syncUserOccurrencesAndReminders,
+}));
+
+vi.mock("@/lib/monitoring/privacy-safe-events", () => ({
+  reportMonitoringError: mocks.reportMonitoringError,
+}));
 
 vi.mock("@/lib/db/behaviorDefinitionEvents.repo", () => ({
   createBehaviorWithDefinitionEvent: vi.fn(),
@@ -45,6 +59,9 @@ describe("updateBehaviorFromFormData definition history", () => {
     mocks.createClient.mockResolvedValue({ from: vi.fn() });
     mocks.requireCurrentUserId.mockResolvedValue(USER_ID);
     mocks.getBehaviorById.mockResolvedValue(storedBehavior());
+    mocks.getProfileTimezone.mockResolvedValue("America/New_York");
+    mocks.listUserBehaviors.mockResolvedValue([storedBehavior()]);
+    mocks.syncUserOccurrencesAndReminders.mockResolvedValue([]);
     mocks.updateBehavior.mockImplementation(
       async (
         _supabase: unknown,
@@ -119,6 +136,36 @@ describe("updateBehaviorFromFormData definition history", () => {
       },
     );
     expect(mocks.updateBehavior).not.toHaveBeenCalled();
+    expect(mocks.syncUserOccurrencesAndReminders).toHaveBeenCalledWith(
+      expect.anything(),
+      USER_ID,
+      {
+        behaviors: [storedBehavior()],
+        timezone: "America/New_York",
+      },
+    );
+  });
+
+  it("keeps the committed update successful when post-write graph repair fails", async () => {
+    const failure = new Error("reminder repair failed");
+    mocks.syncUserOccurrencesAndReminders.mockRejectedValueOnce(failure);
+    const { updateBehaviorFromFormData } = await import(
+      "../lib/services/behavior.service"
+    );
+
+    await expect(
+      updateBehaviorFromFormData(
+        updateFormData({
+          title: "Brush and floss",
+          description: "Morning and evening routine",
+        }),
+      ),
+    ).resolves.toBeUndefined();
+    expect(mocks.reportMonitoringError).toHaveBeenCalledWith(
+      "behavior_graph_post_write_sync_failed",
+      failure,
+      { operation: "update" },
+    );
   });
 
   it("does not append an event for a normalized definition no-op", async () => {
@@ -176,6 +223,7 @@ describe("updateBehaviorFromFormData definition history", () => {
       }),
     );
     expect(mocks.updateBehavior).not.toHaveBeenCalled();
+    expect(mocks.syncUserOccurrencesAndReminders).toHaveBeenCalledOnce();
   });
 
   it("does not append an event for a schedule-only edit", async () => {
@@ -202,6 +250,7 @@ describe("updateBehaviorFromFormData definition history", () => {
         ],
       }),
     );
+    expect(mocks.syncUserOccurrencesAndReminders).toHaveBeenCalledOnce();
   });
 
   it("does not replace schedules when the atomic definition update rolls back", async () => {
@@ -221,6 +270,7 @@ describe("updateBehaviorFromFormData definition history", () => {
     ).rejects.toThrow("Definition event insert failed.");
 
     expect(mocks.updateBehavior).not.toHaveBeenCalled();
+    expect(mocks.syncUserOccurrencesAndReminders).not.toHaveBeenCalled();
   });
 
   it("rejects a stale schedule-only edit before replacing schedules", async () => {
@@ -243,6 +293,7 @@ describe("updateBehaviorFromFormData definition history", () => {
       expect.anything(),
       expect.objectContaining({ definitionEventPlan: null }),
     );
+    expect(mocks.syncUserOccurrencesAndReminders).not.toHaveBeenCalled();
   });
 });
 

@@ -3,6 +3,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import {
   type AppSupabaseClient,
   type BehaviorWithCategory,
+  getBehaviorById,
   listBehaviorScheduleSlots,
   listUserBehaviors,
 } from "@/lib/db/behaviors.repo";
@@ -47,6 +48,7 @@ import {
   toScheduleSlotView,
 } from "@/lib/services/schedule";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
+import { reportMonitoringError } from "@/lib/monitoring/privacy-safe-events";
 import {
   syncReminderDeliveriesForBehaviors,
   syncReminderDeliveriesForBehavior,
@@ -273,7 +275,9 @@ export async function syncUserOccurrences(
         createdOccurrences.length > 0 ||
         scheduleUpdates.length > 0 ||
         deleteIds.length > 0;
-      if (options.planReminderDeliveries !== false) {
+      const plannedReminderDeliveries =
+        options.planReminderDeliveries !== false;
+      if (plannedReminderDeliveries) {
         const reminderOccurrences = mutatedOccurrences
           ? await measurePerformanceSpan(
               {
@@ -319,17 +323,20 @@ export async function syncUserOccurrences(
               supabase,
               userId,
               reminderInputs,
+              { now },
             ),
         );
       }
 
-      await markOccurrenceSyncFreshForPlans(supabase, {
-        userId,
-        plans,
-        fallbackWindow,
-        syncedAt: now.toString(),
-        timezone: syncTimezone,
-      });
+      if (plannedReminderDeliveries) {
+        await markOccurrenceSyncFreshForPlans(supabase, {
+          userId,
+          plans,
+          fallbackWindow,
+          syncedAt: now.toString(),
+          timezone: syncTimezone,
+        });
+      }
 
       return plans;
     },
@@ -340,6 +347,17 @@ export async function syncUserOccurrences(
     });
 
     throw error;
+  });
+}
+
+export async function syncUserOccurrencesAndReminders(
+  supabase: AppSupabaseClient,
+  userId: string,
+  options: Omit<SyncUserOccurrencesOptions, "planReminderDeliveries"> = {},
+): Promise<OccurrenceGenerationPlan[]> {
+  return syncUserOccurrences(supabase, userId, {
+    ...options,
+    planReminderDeliveries: true,
   });
 }
 
@@ -407,6 +425,13 @@ export async function ensureUserOccurrencesFresh(
       });
 
       if (coverage.covered) {
+        if (options.planReminderDeliveries) {
+          await syncCoveredReminderDeliveries(supabase, userId, behaviors, {
+            now,
+            horizonDays,
+          });
+        }
+
         return {
           synced: false,
           coverage,
@@ -434,6 +459,43 @@ export async function ensureUserOccurrencesFresh(
         plans,
       };
     },
+  );
+}
+
+async function syncCoveredReminderDeliveries(
+  supabase: AppSupabaseClient,
+  userId: string,
+  behaviors: BehaviorWithCategory[],
+  options: {
+    now: Temporal.Instant;
+    horizonDays: number;
+  },
+): Promise<void> {
+  const behaviorWindows = behaviors.map((behavior) => ({
+    behavior,
+    generationWindow: resolveGenerationWindow({
+      now: options.now,
+      timezone: behavior.timezone,
+      horizonDays: options.horizonDays,
+    }),
+  }));
+  const occurrencesByBehaviorId = await listExistingOccurrencesForBehaviorWindows(
+    supabase,
+    userId,
+    behaviorWindows,
+  );
+
+  await syncReminderDeliveriesForBehaviors(
+    supabase,
+    userId,
+    behaviorWindows.map(({ behavior, generationWindow }) => ({
+      behavior,
+      occurrences: occurrencesFromWindowStart(
+        occurrencesByBehaviorId.get(behavior.id) ?? [],
+        generationWindow.rangeStart,
+      ),
+    })),
+    { now: options.now },
   );
 }
 
@@ -572,6 +634,7 @@ export async function syncBehaviorOccurrences(
   await syncReminderDeliveriesForBehavior(supabase, userId, behavior, {
     scheduledFrom: generationWindow.rangeStart.toString(),
     occurrences: mutatedOccurrences ? undefined : existingOccurrences,
+    now,
   });
 
   return plan;
@@ -637,7 +700,61 @@ export async function applyOccurrenceStatusTransition(
     event: eventPlan,
   });
 
+  if (
+    input.nextStatus === "unresolved" &&
+    normalizeOccurrenceStatus(result.occurrence.status) === "unresolved"
+  ) {
+    await repairClearedDecisionReminderCoverage(supabase, userId, {
+      occurrence: result.occurrence,
+      timezone: occurrence.behavior?.timezone ?? DEFAULT_TIMEZONE,
+      now: input.now,
+    });
+  }
+
   return result;
+}
+
+async function repairClearedDecisionReminderCoverage(
+  supabase: AppSupabaseClient,
+  userId: string,
+  input: {
+    occurrence: Occurrence;
+    timezone: string;
+    now: Temporal.Instant;
+  },
+): Promise<void> {
+  try {
+    const behavior = await getBehaviorById(
+      supabase,
+      userId,
+      input.occurrence.behavior_id,
+    );
+
+    if (!behavior) {
+      throw new Error("Behavior not found for reminder repair.");
+    }
+
+    await syncReminderDeliveriesForBehavior(supabase, userId, behavior, {
+      scheduledFrom: input.occurrence.scheduled_for,
+      occurrences: [input.occurrence],
+      now: input.now,
+    });
+  } catch (error) {
+    await markSyncFailedWithoutMaskingError(supabase, {
+      userId,
+      timezone: input.timezone,
+    });
+
+    try {
+      reportMonitoringError(
+        "clear_decision_reminder_repair_failed",
+        error,
+        { operation: "clear_decision" },
+      );
+    } catch {
+      // Monitoring must not change the already-committed status result.
+    }
+  }
 }
 
 export async function updateOccurrenceNoteFromFormData(

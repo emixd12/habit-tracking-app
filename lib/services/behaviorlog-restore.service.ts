@@ -9,7 +9,6 @@ import {
 } from "@/lib/db/behaviorLogImports.repo";
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import {
-  createBehaviorLogImportBundleFingerprint,
   resolveBehaviorLogImportPreview,
 } from "@/lib/resolvers/behaviorlog-import.resolver";
 import {
@@ -24,6 +23,7 @@ import {
   type BehaviorLogZipInput,
 } from "@/lib/services/behaviorlog-import.service";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
+import { repairUserOccurrenceReminderGraphBestEffort } from "@/lib/services/occurrence-reminder-repair.service";
 import {
   invalidateBehaviorData,
   invalidateImportRunData,
@@ -47,6 +47,7 @@ import type {
 } from "@/lib/types/behavior-definition-event";
 import { DEFAULT_TIMEZONE, type Weekday } from "@/lib/types/recurrence";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_ZIP_READ_LIMITS } from "@/lib/services/zip";
 import type {
   BehaviorLogRestoreAction,
   BehaviorLogRestorePreview,
@@ -58,9 +59,10 @@ import type {
   BehaviorLogRestoreRunView,
 } from "@/lib/types/behaviorlog-restore-ui";
 import { BEHAVIORLOG_RESTORE_INITIAL_STATE } from "@/lib/types/behaviorlog-restore-ui";
+import { BEHAVIORLOG_BUNDLE_SIZE_ERROR } from "@/lib/types/behaviorlog-bundle-ui";
 
 const BEHAVIORLOG_FORMAT = "behaviorlog.bundle";
-const MAX_BEHAVIORLOG_UPLOAD_BYTES = 20 * 1024 * 1024;
+const MAX_BEHAVIORLOG_UPLOAD_BYTES = DEFAULT_ZIP_READ_LIMITS.maxArchiveBytes;
 const RESTORE_CONFIRMATION_TEXT = "RESTORE";
 
 type BehaviorLogRestoreUploadBundle = {
@@ -68,7 +70,7 @@ type BehaviorLogRestoreUploadBundle = {
   fileSize: number;
   zip: Buffer;
   files: BehaviorLogImportFile[];
-  bundlePayload: string;
+  archiveFingerprint: string;
 };
 
 type RestoreRpcClient = {
@@ -211,6 +213,7 @@ export async function createBehaviorLogRestorePreviewRun(
   input: {
     userId: string;
     files: BehaviorLogImportFile[];
+    archiveFingerprint: string;
     statusHistoryPolicy?: BehaviorLogRestoreStatusHistoryPolicy;
   },
 ): Promise<{
@@ -238,7 +241,7 @@ export async function createBehaviorLogRestorePreviewRun(
     importMode: "restore_preview",
     dryRunSummary: toRestorePreviewSnapshot(
       preview,
-      createBehaviorLogImportBundleFingerprint(input.files),
+      input.archiveFingerprint,
     ),
     status: "previewed",
     failureMessage: null,
@@ -276,14 +279,15 @@ export function createBehaviorLogRestorePageDataFromRuns(
 export async function previewBehaviorLogRestoreUploadFromFormData(
   formData: FormData,
 ): Promise<BehaviorLogRestoreActionState> {
-  const bundle = await readUploadBundle(formData);
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
+  const bundle = await readUploadBundle(formData);
   const { preview, importRun } = await createBehaviorLogRestorePreviewRun(
     supabase,
     {
       userId,
       files: bundle.files,
+      archiveFingerprint: bundle.archiveFingerprint,
     },
   );
 
@@ -296,7 +300,7 @@ export async function previewBehaviorLogRestoreUploadFromFormData(
       fileName: bundle.fileName,
       fileSize: bundle.fileSize,
     },
-    bundlePayload: bundle.bundlePayload,
+    archiveFingerprint: bundle.archiveFingerprint,
     preview,
     previewRun: toRestoreRunView(importRun),
     applyResult: null,
@@ -308,6 +312,8 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
 ): Promise<BehaviorLogRestoreActionState> {
   assertRestoreApplyAcknowledgements(formData);
 
+  const supabase = await createClient();
+  const userId = await requireUserId(supabase);
   const bundle = readBundlePayload(formData);
   const previewRunId = readRequiredString(
     formData,
@@ -324,8 +330,11 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
     "local_data_fingerprint",
     "Preview the BehaviorLog restore again before applying.",
   );
-  const supabase = await createClient();
-  const userId = await requireUserId(supabase);
+  const acceptedArchiveFingerprint = readRequiredString(
+    formData,
+    "archive_fingerprint",
+    "Preview the BehaviorLog restore again before applying.",
+  );
   const previewRun = await getBehaviorLogImportRunById(
     supabase,
     userId,
@@ -336,10 +345,11 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
     previewRun,
     acceptedPreviewFingerprint,
     acceptedLocalDataFingerprint,
+    acceptedArchiveFingerprint,
   );
-  const bundlePayloadFingerprint = assertBundleMatchesAcceptedPreview(
-    bundle.files,
-    previewRun,
+  const archiveFingerprint = assertArchiveMatchesAcceptedPreview(
+    bundle.archiveFingerprint,
+    acceptedArchiveFingerprint,
   );
 
   const alreadyAppliedRun =
@@ -350,6 +360,9 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
     });
 
   if (alreadyAppliedRun) {
+    await repairUserOccurrenceReminderGraphBestEffort(supabase, userId, {
+      operation: "behaviorlog_restore",
+    });
     return createAlreadyAppliedRestoreState({
       bundle,
       previewRun,
@@ -381,6 +394,9 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
       });
 
     if (concurrentlyAppliedRun) {
+      await repairUserOccurrenceReminderGraphBestEffort(supabase, userId, {
+        operation: "behaviorlog_restore",
+      });
       return createAlreadyAppliedRestoreState({
         bundle,
         previewRun,
@@ -399,7 +415,7 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
   const manifest = readManifestMetadata(bundle.files);
   const applyRunSummary = toRestorePreviewSnapshot(
     preview,
-    bundlePayloadFingerprint,
+    archiveFingerprint,
   );
   const applyRun = await createBehaviorLogImportRun(supabase, {
     userId,
@@ -437,7 +453,7 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
       accepted_preview_fingerprint: acceptedPreviewFingerprint,
       accepted_local_data_fingerprint: acceptedLocalDataFingerprint,
       accepted_bundle_fingerprint: preview.bundleFingerprint,
-      accepted_bundle_payload_fingerprint: bundlePayloadFingerprint,
+      accepted_bundle_payload_fingerprint: archiveFingerprint,
       mappings: mappings.map((mapping) => ({
         record_type: mapping.recordType,
         external_id: mapping.externalId,
@@ -485,6 +501,9 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
         });
 
       if (committedRun) {
+        await repairUserOccurrenceReminderGraphBestEffort(supabase, userId, {
+          operation: "behaviorlog_restore",
+        });
         return createAlreadyAppliedRestoreState({
           bundle,
           previewRun,
@@ -499,6 +518,9 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
   const rpcResult = normalizeRestoreRpcResult(rpcData, applyRun);
   invalidateBehaviorData(userId);
   invalidateImportRunData(userId);
+  await repairUserOccurrenceReminderGraphBestEffort(supabase, userId, {
+    operation: "behaviorlog_restore",
+  });
 
   return {
     status: "applied",
@@ -509,7 +531,7 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
       fileName: bundle.fileName,
       fileSize: bundle.fileSize,
     },
-    bundlePayload: null,
+    archiveFingerprint: null,
     preview,
     previewRun: toRestoreRunView(previewRun),
     applyResult: {
@@ -533,7 +555,7 @@ export function behaviorLogRestoreErrorToActionState(
 
 function toRestorePreviewSnapshot(
   preview: BehaviorLogRestorePreview,
-  bundlePayloadFingerprint: string,
+  archiveFingerprint: string,
 ): Record<string, unknown> {
   return {
     mode: preview.mode,
@@ -541,7 +563,7 @@ function toRestorePreviewSnapshot(
     previewFingerprint: preview.previewFingerprint,
     localDataFingerprint: preview.localDataFingerprint,
     bundleFingerprint: preview.bundleFingerprint,
-    bundlePayloadFingerprint,
+    archiveFingerprint,
     statusHistoryPolicy: preview.statusHistoryPolicy,
     semantics: preview.semantics,
     summary: preview.summary,
@@ -569,7 +591,7 @@ function createAlreadyAppliedRestoreState(input: {
       fileName: input.bundle.fileName,
       fileSize: input.bundle.fileSize,
     },
-    bundlePayload: null,
+    archiveFingerprint: null,
     preview: readRestorePreviewSnapshot(input.previewRun),
     previewRun: toRestoreRunView(input.previewRun),
     applyResult: {
@@ -1583,6 +1605,7 @@ function assertAcceptedPreviewRun(
   run: BehaviorLogImportRun | null,
   previewFingerprint: string,
   localDataFingerprint: string,
+  archiveFingerprint: string,
 ): asserts run is BehaviorLogImportRun {
   if (!run || run.import_mode !== "restore_preview" || run.status !== "previewed") {
     throw new BehaviorLogRestoreUserError(
@@ -1594,7 +1617,8 @@ function assertAcceptedPreviewRun(
 
   if (
     readString(summary?.previewFingerprint) !== previewFingerprint ||
-    readString(summary?.localDataFingerprint) !== localDataFingerprint
+    readString(summary?.localDataFingerprint) !== localDataFingerprint ||
+    readString(summary?.archiveFingerprint) !== archiveFingerprint
   ) {
     throw new BehaviorLogRestoreUserError(
       "Restore preview no longer matches the accepted preview run.",
@@ -1635,27 +1659,17 @@ function assertAcceptedRestorePreviewSnapshotCanApply(
   }
 }
 
-function assertBundleMatchesAcceptedPreview(
-  files: BehaviorLogImportFile[],
-  previewRun: BehaviorLogImportRun,
+function assertArchiveMatchesAcceptedPreview(
+  archiveFingerprint: string,
+  acceptedArchiveFingerprint: string,
 ): string {
-  const summary = readObject(previewRun.dry_run_summary);
-  const acceptedBundlePayloadFingerprint = readString(
-    summary?.bundlePayloadFingerprint,
-  );
-  const bundlePayloadFingerprint =
-    createBehaviorLogImportBundleFingerprint(files);
-
-  if (
-    !acceptedBundlePayloadFingerprint ||
-    bundlePayloadFingerprint !== acceptedBundlePayloadFingerprint
-  ) {
+  if (archiveFingerprint !== acceptedArchiveFingerprint) {
     throw new BehaviorLogRestoreUserError(
       "The uploaded bundle no longer matches the accepted restore preview. Preview the restore again.",
     );
   }
 
-  return bundlePayloadFingerprint;
+  return archiveFingerprint;
 }
 
 function assertFreshAcceptedPreview(input: {
@@ -1708,9 +1722,7 @@ async function readUploadBundle(
   }
 
   if (value.size > MAX_BEHAVIORLOG_UPLOAD_BYTES) {
-    throw new BehaviorLogRestoreUserError(
-      "The uploaded bundle is too large for this restore screen.",
-    );
+    throw new BehaviorLogRestoreUserError(BEHAVIORLOG_BUNDLE_SIZE_ERROR);
   }
 
   const zip = Buffer.from(await value.arrayBuffer());
@@ -1740,9 +1752,7 @@ function readBundlePayload(formData: FormData): BehaviorLogRestoreUploadBundle {
   }
 
   if (zip.byteLength > MAX_BEHAVIORLOG_UPLOAD_BYTES) {
-    throw new BehaviorLogRestoreUserError(
-      "The uploaded bundle is too large for this restore screen.",
-    );
+    throw new BehaviorLogRestoreUserError(BEHAVIORLOG_BUNDLE_SIZE_ERROR);
   }
 
   return createUploadBundle({
@@ -1767,7 +1777,9 @@ function createUploadBundle(input: {
     return {
       ...input,
       files: parseBehaviorLogZipFiles(input.zip),
-      bundlePayload: input.zip.toString("base64"),
+      archiveFingerprint: createHash("sha256")
+        .update(input.zip)
+        .digest("hex"),
     };
   } catch (error) {
     throw new BehaviorLogRestoreUserError(

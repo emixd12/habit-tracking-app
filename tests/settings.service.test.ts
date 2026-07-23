@@ -14,7 +14,7 @@ import {
   TimezoneSettingsUserError,
   updateCurrentUserTimezoneFromFormData,
 } from "@/lib/services/settings.service";
-import { syncUserOccurrences } from "@/lib/services/occurrence.service";
+import { syncUserOccurrencesAndReminders } from "@/lib/services/occurrence.service";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import { createClient } from "@/lib/supabase/server";
 import { clearUserReadCache } from "@/lib/cache/user-read-cache";
@@ -33,7 +33,7 @@ vi.mock("@/lib/db/behaviors.repo", () => ({
 }));
 
 vi.mock("@/lib/services/occurrence.service", () => ({
-  syncUserOccurrences: vi.fn(),
+  syncUserOccurrencesAndReminders: vi.fn(),
 }));
 
 vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
@@ -158,7 +158,7 @@ describe("updateCurrentUserTimezoneFromFormData", () => {
       ACTIVE_BEHAVIOR,
     ]);
     vi.mocked(markOccurrenceSyncStale).mockResolvedValue({} as never);
-    vi.mocked(syncUserOccurrences).mockResolvedValue([]);
+    vi.mocked(syncUserOccurrencesAndReminders).mockResolvedValue([]);
   });
 
   it("updates the profile, active behavior timezones, and resyncs active occurrences", async () => {
@@ -187,7 +187,7 @@ describe("updateCurrentUserTimezoneFromFormData", () => {
       reason: "timezone_changed",
       timezone: "America/Los_Angeles",
     });
-    expect(syncUserOccurrences).toHaveBeenCalledWith(
+    expect(syncUserOccurrencesAndReminders).toHaveBeenCalledWith(
       SUPABASE,
       "user-1",
       {
@@ -198,18 +198,92 @@ describe("updateCurrentUserTimezoneFromFormData", () => {
     );
   });
 
-  it("does not mutate behaviors when the timezone is already saved", async () => {
+  it("repairs active behavior timezones and occurrence coverage when the profile timezone is already saved", async () => {
     await expect(
       updateCurrentUserTimezoneFromFormData(timezoneForm("America/New_York")),
     ).resolves.toEqual({
       timezone: "America/New_York",
-      activeBehaviorCount: 0,
+      activeBehaviorCount: 1,
       changed: false,
     });
 
     expect(updateProfileTimezone).not.toHaveBeenCalled();
-    expect(updateActiveBehaviorTimezones).not.toHaveBeenCalled();
-    expect(markOccurrenceSyncStale).not.toHaveBeenCalled();
-    expect(syncUserOccurrences).not.toHaveBeenCalled();
+    expect(updateActiveBehaviorTimezones).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      "America/New_York",
+    );
+    expect(markOccurrenceSyncStale).toHaveBeenCalledWith(SUPABASE, {
+      userId: "user-1",
+      reason: "timezone_changed",
+      timezone: "America/New_York",
+    });
+    expect(syncUserOccurrencesAndReminders).toHaveBeenCalledWith(SUPABASE, "user-1", {
+      behaviors: [ACTIVE_BEHAVIOR],
+      now: expect.any(Object),
+      timezone: "America/New_York",
+    });
+  });
+
+  it("repairs a partial save when the profile write succeeded before behavior propagation failed", async () => {
+    vi.mocked(updateActiveBehaviorTimezones)
+      .mockRejectedValueOnce(new Error("behavior timezone write failed"))
+      .mockResolvedValueOnce([ACTIVE_BEHAVIOR]);
+
+    await expect(
+      updateCurrentUserTimezoneFromFormData(
+        timezoneForm("America/Los_Angeles"),
+      ),
+    ).rejects.toThrow("behavior timezone write failed");
+
+    vi.mocked(getProfileSettings).mockResolvedValue({
+      email: "user@example.com",
+      timezone: "America/Los_Angeles",
+    });
+
+    await expect(
+      updateCurrentUserTimezoneFromFormData(
+        timezoneForm("America/Los_Angeles"),
+      ),
+    ).resolves.toEqual({
+      timezone: "America/Los_Angeles",
+      activeBehaviorCount: 1,
+      changed: false,
+    });
+
+    expect(updateProfileTimezone).toHaveBeenCalledTimes(1);
+    expect(updateActiveBehaviorTimezones).toHaveBeenCalledTimes(2);
+    expect(syncUserOccurrencesAndReminders).toHaveBeenCalledOnce();
+  });
+
+  it("repairs a partial save when occurrence and reminder synchronization failed", async () => {
+    vi.mocked(syncUserOccurrencesAndReminders)
+      .mockRejectedValueOnce(new Error("occurrence sync failed"))
+      .mockResolvedValueOnce([]);
+
+    await expect(
+      updateCurrentUserTimezoneFromFormData(
+        timezoneForm("America/Los_Angeles"),
+      ),
+    ).rejects.toThrow("occurrence sync failed");
+
+    vi.mocked(getProfileSettings).mockResolvedValue({
+      email: "user@example.com",
+      timezone: "America/Los_Angeles",
+    });
+
+    await expect(
+      updateCurrentUserTimezoneFromFormData(
+        timezoneForm("America/Los_Angeles"),
+      ),
+    ).resolves.toEqual({
+      timezone: "America/Los_Angeles",
+      activeBehaviorCount: 1,
+      changed: false,
+    });
+
+    expect(updateProfileTimezone).toHaveBeenCalledTimes(1);
+    expect(updateActiveBehaviorTimezones).toHaveBeenCalledTimes(2);
+    expect(syncUserOccurrencesAndReminders).toHaveBeenCalledTimes(2);
   });
 });

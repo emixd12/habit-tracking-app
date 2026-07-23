@@ -6,7 +6,7 @@ import {
   getCurrentUserClaims,
   requireCurrentUserId,
 } from "@/lib/auth/current-user";
-import { syncUserOccurrences } from "@/lib/services/occurrence.service";
+import { syncUserOccurrencesAndReminders } from "@/lib/services/occurrence.service";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import {
   invalidateBehaviorData,
@@ -69,40 +69,36 @@ export async function updateCurrentUserTimezoneFromFormData(
   const timezone = normalizeTimezoneInput(formData.get("timezone"));
   const profile = await readCachedProfileSettings(supabase, userId);
   const currentTimezone = profile?.timezone ?? DEFAULT_TIMEZONE;
-
-  if (currentTimezone === timezone) {
-    return {
-      timezone,
-      activeBehaviorCount: 0,
-      changed: false,
-    };
-  }
+  const changed = currentTimezone !== timezone;
 
   await markOccurrenceSyncStale(supabase, {
     userId,
     reason: "timezone_changed",
     timezone,
   });
-  await updateProfileTimezone(supabase, userId, timezone);
+  if (changed) {
+    await updateProfileTimezone(supabase, userId, timezone);
+    invalidateProfileData(userId);
+  }
+
   const activeBehaviors = await updateActiveBehaviorTimezones(
     supabase,
     userId,
     timezone,
   );
+  invalidateBehaviorData(userId);
   const now = Temporal.Now.instant();
 
-  await syncUserOccurrences(supabase, userId, {
+  await syncUserOccurrencesAndReminders(supabase, userId, {
     behaviors: activeBehaviors,
     now,
     timezone,
   });
-  invalidateProfileData(userId);
-  invalidateBehaviorData(userId);
 
   return {
     timezone,
     activeBehaviorCount: activeBehaviors.length,
-    changed: true,
+    changed,
   };
 }
 

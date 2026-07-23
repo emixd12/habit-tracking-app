@@ -1,8 +1,16 @@
+import {
+  Children,
+  isValidElement,
+  type ElementType,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
 
 import { ExportPanel } from "../components/export/ExportPanel";
+import { ExportRangeSelector } from "../components/export/ExportRangeSelector";
 import { EXPORT_PROMPT_TEMPLATES } from "../lib/export-prompts";
 import type { ExportBundle } from "../lib/types/export";
 
@@ -66,7 +74,78 @@ describe("Export panel UI", () => {
       html.indexOf("Analysis prompts"),
     );
   });
+
+  it("resets range-control state when navigation supplies a different selected range", () => {
+    const thirtyDayPanel = ExportPanel({
+      exportData: exportBundle(),
+      importData: { recentRuns: [] },
+      restoreData: { recentRuns: [] },
+    });
+    const ninetyDayData = exportBundle();
+
+    ninetyDayData.range = {
+      key: "90",
+      label: "90 days",
+      startLocalDate: "2026-03-11",
+      endLocalDate: "2026-06-08",
+      summaryLabel: "2026-03-11 to 2026-06-08",
+    };
+
+    const ninetyDayPanel = ExportPanel({
+      exportData: ninetyDayData,
+      importData: { recentRuns: [] },
+      restoreData: { recentRuns: [] },
+    });
+    const thirtyDaySelector = findElementByType(
+      thirtyDayPanel,
+      ExportRangeSelector,
+    );
+    const ninetyDaySelector = findElementByType(
+      ninetyDayPanel,
+      ExportRangeSelector,
+    );
+
+    expect(String(thirtyDaySelector?.key)).toContain("30");
+    expect(String(ninetyDaySelector?.key)).toContain("90");
+    expect(ninetyDaySelector?.key).not.toBe(thirtyDaySelector?.key);
+
+    const html = renderToStaticMarkup(ninetyDayPanel);
+    const ninetyDayInput = html.match(
+      /<input[^>]*name="range"[^>]*value="90"[^>]*>/,
+    )?.[0];
+    const thirtyDayInput = html.match(
+      /<input[^>]*name="range"[^>]*value="30"[^>]*>/,
+    )?.[0];
+
+    expect(ninetyDayInput).toContain('checked=""');
+    expect(thirtyDayInput).not.toContain('checked=""');
+  });
 });
+
+function findElementByType(
+  node: ReactNode,
+  type: ElementType,
+): ReactElement | null {
+  if (!isValidElement(node)) {
+    return null;
+  }
+
+  if (node.type === type) {
+    return node;
+  }
+
+  const props = node.props as { children?: ReactNode };
+
+  for (const child of Children.toArray(props.children)) {
+    const match = findElementByType(child, type);
+
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+}
 
 function exportBundle(): ExportBundle {
   return {

@@ -86,7 +86,7 @@ function readVapidSubject(): string {
   try {
     const url = new URL(siteUrl);
 
-    if (url.protocol === "https:" || url.protocol === "http:") {
+    if (url.protocol === "https:") {
       return url.origin;
     }
   } catch {

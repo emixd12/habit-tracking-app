@@ -17,6 +17,7 @@ import {
   getBrowserPushSupport,
   readBrowserPushSubscriptionStatus,
   readNotificationPermission,
+  type BrowserPushSupport,
 } from "@/lib/push/browser";
 import { resolveFirstRunOnboardingModel } from "@/lib/services/onboarding-model";
 import type {
@@ -68,9 +69,11 @@ export function FirstRunOnboardingPanel({
       const support = getBrowserPushSupport(onboarding.vapidPublicKey);
       const browserTimezone =
         Intl.DateTimeFormat().resolvedOptions().timeZone || null;
-      const notificationSubscriptionStatus = support.supported
-        ? await readBrowserPushSubscriptionStatus(onboarding.vapidPublicKey)
-        : "unavailable";
+      const notificationSubscriptionStatus =
+        await inspectFirstRunNotificationSubscriptionStatus(
+          support,
+          onboarding.vapidPublicKey,
+        );
 
       if (!isActive) {
         return;
@@ -201,4 +204,23 @@ export function FirstRunOnboardingPanel({
       </div>
     </section>
   );
+}
+
+export async function inspectFirstRunNotificationSubscriptionStatus(
+  support: BrowserPushSupport,
+  vapidPublicKey: string,
+  readStatus: typeof readBrowserPushSubscriptionStatus =
+    readBrowserPushSubscriptionStatus,
+): Promise<
+  FirstRunOnboardingClientSnapshot["notificationSubscriptionStatus"]
+> {
+  if (!support.supported) {
+    return "unavailable";
+  }
+
+  try {
+    return await readStatus(vapidPublicKey);
+  } catch {
+    return "missing";
+  }
 }

@@ -1,9 +1,9 @@
 {
   "$schema": "./interaction-registry.schema.json",
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "registry_id": "cadence.user-interactions",
   "product": "Cadence",
-  "updated": "2026-07-22",
+  "updated": "2026-07-23",
   "scope": {
     "unit": "One entry per meaningful user intent; equivalent controls with the same effect are represented as variants or multiple triggers.",
     "includes": [
@@ -204,7 +204,7 @@
     {
       "path": "components/export/BehaviorLogImportPanel.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 17,
+      "interaction_marker_count": 22,
       "interaction_ids": [
         "INT-EXPORT-010",
         "INT-EXPORT-011",
@@ -215,7 +215,7 @@
     {
       "path": "components/export/BehaviorLogRestorePanel.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 17,
+      "interaction_marker_count": 23,
       "interaction_ids": [
         "INT-EXPORT-014",
         "INT-EXPORT-015",
@@ -257,7 +257,7 @@
     {
       "path": "components/layout/AppShell.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 19,
+      "interaction_marker_count": 23,
       "interaction_ids": [
         "INT-SHELL-001",
         "INT-SHELL-002",
@@ -265,7 +265,8 @@
         "INT-SHELL-004",
         "INT-SHELL-005",
         "INT-SHELL-006",
-        "INT-SHELL-007"
+        "INT-SHELL-007",
+        "INT-SHELL-008"
       ]
     },
     {
@@ -312,7 +313,7 @@
     {
       "path": "components/timeline/NeedsDecisionDialog.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 4,
+      "interaction_marker_count": 5,
       "interaction_ids": ["INT-TIMELINE-002", "INT-TIMELINE-003"]
     },
     {
@@ -338,12 +339,22 @@
       "classification": "cataloged",
       "interaction_marker_count": 1,
       "interaction_ids": ["INT-TIMELINE-001"]
+    },
+    {
+      "path": "public/push-service-worker.js",
+      "classification": "cataloged",
+      "interaction_marker_count": 1,
+      "interaction_ids": ["INT-NOTIFICATION-001"]
     }
   ],
   "interactions": [
     {
       "id": "INT-AUTH-001",
       "name": "Start Google sign-in",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#sign-in-with-google"]
+      },
       "status": "implemented",
       "surfaces": ["login"],
       "routes": ["/login", "/auth/google", "/auth/callback"],
@@ -370,6 +381,10 @@
     {
       "id": "INT-AUTH-002",
       "name": "Continue as a temporary test user",
+      "user_guidance": {
+        "audience": "internal_qa",
+        "references": ["docs/user-guide/internal-qa.md#int-auth-002-continue-as-a-temporary-test-user"]
+      },
       "status": "implemented",
       "surfaces": ["development_login"],
       "routes": ["/login", "/auth/test-login"],
@@ -392,6 +407,10 @@
     {
       "id": "INT-AUTH-003",
       "name": "Open account information before sign-in",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#read-account-information"]
+      },
       "status": "implemented",
       "surfaces": ["login", "public_legal"],
       "routes": ["/login", "/terms", "/privacy", "/trust"],
@@ -419,6 +438,10 @@
     {
       "id": "INT-LEGAL-001",
       "name": "Switch public account-information page",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#read-account-information"]
+      },
       "status": "implemented",
       "surfaces": ["public_legal"],
       "routes": ["/terms", "/privacy", "/trust"],
@@ -446,6 +469,10 @@
     {
       "id": "INT-LEGAL-002",
       "name": "Leave a public account-information page",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#read-account-information"]
+      },
       "status": "implemented",
       "surfaces": ["public_legal", "login", "settings", "marketing"],
       "routes": ["/terms", "/privacy", "/trust", "/login", "/settings", "/cadence"],
@@ -473,6 +500,10 @@
     {
       "id": "INT-MKT-001",
       "name": "Skip marketing navigation",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#explore-the-public-marketing-site"]
+      },
       "status": "implemented",
       "surfaces": ["marketing"],
       "routes": ["/", "/cadence", "/standard", "/docs", "/examples", "/about"],
@@ -491,6 +522,10 @@
     {
       "id": "INT-MKT-002",
       "name": "Open marketing home from the brand",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#explore-the-public-marketing-site"]
+      },
       "status": "implemented",
       "surfaces": ["marketing"],
       "routes": ["/", "/cadence", "/standard", "/docs", "/examples", "/about"],
@@ -509,6 +544,10 @@
     {
       "id": "INT-MKT-003",
       "name": "Use primary marketing navigation",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#explore-the-public-marketing-site"]
+      },
       "status": "implemented",
       "surfaces": ["marketing"],
       "routes": ["/cadence", "/standard"],
@@ -531,6 +570,10 @@
     {
       "id": "INT-MKT-004",
       "name": "Open Cadence sign-in from marketing",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#explore-the-public-marketing-site"]
+      },
       "status": "implemented",
       "surfaces": ["marketing", "login"],
       "routes": ["/login"],
@@ -549,6 +592,10 @@
     {
       "id": "INT-MKT-005",
       "name": "Use marketing footer navigation",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#explore-the-public-marketing-site"]
+      },
       "status": "implemented",
       "surfaces": ["marketing", "public_legal"],
       "routes": ["/cadence", "/standard", "/about", "/llms.txt", "/trust", "/privacy", "/terms"],
@@ -577,6 +624,10 @@
     {
       "id": "INT-MKT-006",
       "name": "Try Cadence",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#explore-the-public-marketing-site"]
+      },
       "status": "implemented",
       "surfaces": ["marketing", "login"],
       "routes": ["/", "/cadence", "/login"],
@@ -595,6 +646,10 @@
     {
       "id": "INT-MKT-007",
       "name": "Open BehaviorLog information",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#explore-the-public-marketing-site"]
+      },
       "status": "implemented",
       "surfaces": ["marketing"],
       "routes": ["/standard"],
@@ -618,6 +673,10 @@
     {
       "id": "INT-MKT-008",
       "name": "Open a project repository",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#explore-the-public-marketing-site"]
+      },
       "status": "implemented",
       "surfaces": ["marketing"],
       "routes": ["/", "/cadence", "/standard", "/about"],
@@ -645,9 +704,13 @@
     {
       "id": "INT-MKT-009",
       "name": "Download the example BehaviorLog bundle",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#download-the-sanitized-example-bundle"]
+      },
       "status": "implemented",
       "surfaces": ["marketing"],
-      "routes": ["/", "/standard", "/docs", "/examples", "/examples/cadence-example.behaviorlog.zip"],
+      "routes": ["/", "/standard", "/docs", "/examples", "/examples/cadence-demo.behaviorlog.zip"],
       "journeys": ["J01", "J22"],
       "intent": "Download the sanitized example bundle for inspection or parser testing.",
       "triggers": [{ "kind": "activate", "control": "Download Example Bundle or direct download link" }],
@@ -668,6 +731,10 @@
     {
       "id": "INT-MKT-010",
       "name": "Open a machine-readable marketing resource",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#use-behaviorlog-and-machine-readable-resources"]
+      },
       "status": "implemented",
       "surfaces": ["marketing"],
       "routes": ["/docs", "/llms.txt", "/llms-full.txt", "/data/route-manifest.json", "/index.md", "/cadence.md", "/standard.md", "/examples.md", "/docs.md", "/about.md"],
@@ -686,6 +753,10 @@
     {
       "id": "INT-MKT-011",
       "name": "Follow an in-page or related marketing link",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#explore-the-public-marketing-site"]
+      },
       "status": "implemented",
       "surfaces": ["marketing"],
       "routes": ["/", "/cadence", "/standard", "/docs", "/examples", "/about"],
@@ -710,6 +781,10 @@
     {
       "id": "INT-SHELL-001",
       "name": "Navigate between primary app screens",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/navigation-and-setup.md#move-between-app-screens"]
+      },
       "status": "implemented",
       "surfaces": ["app_shell"],
       "routes": ["/timeline", "/behaviors", "/export", "/settings"],
@@ -734,6 +809,10 @@
     {
       "id": "INT-SHELL-002",
       "name": "Open Timeline from the app brand",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/navigation-and-setup.md#move-between-app-screens"]
+      },
       "status": "implemented",
       "surfaces": ["app_shell", "timeline"],
       "routes": ["/timeline"],
@@ -752,6 +831,10 @@
     {
       "id": "INT-SHELL-003",
       "name": "Open account settings",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/navigation-and-setup.md#move-between-app-screens"]
+      },
       "status": "implemented",
       "surfaces": ["app_shell", "settings"],
       "routes": ["/settings"],
@@ -770,6 +853,10 @@
     {
       "id": "INT-SHELL-004",
       "name": "Toggle the desktop navigation rail",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/navigation-and-setup.md#collapse-or-expand-the-desktop-rail"]
+      },
       "status": "implemented",
       "surfaces": ["app_shell"],
       "routes": ["/timeline", "/behaviors", "/export", "/settings"],
@@ -788,6 +875,10 @@
     {
       "id": "INT-SHELL-005",
       "name": "Open mobile navigation",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/navigation-and-setup.md#use-the-mobile-navigation-drawer"]
+      },
       "status": "implemented",
       "surfaces": ["app_shell"],
       "routes": ["/timeline", "/behaviors", "/export", "/settings"],
@@ -809,6 +900,10 @@
     {
       "id": "INT-SHELL-006",
       "name": "Close mobile navigation",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/navigation-and-setup.md#use-the-mobile-navigation-drawer"]
+      },
       "status": "implemented",
       "surfaces": ["app_shell"],
       "routes": ["/timeline", "/behaviors", "/export", "/settings"],
@@ -833,6 +928,10 @@
     {
       "id": "INT-SHELL-007",
       "name": "Preview the login screen while authenticated",
+      "user_guidance": {
+        "audience": "internal_qa",
+        "references": ["docs/user-guide/internal-qa.md#int-shell-007-preview-the-login-screen-while-authenticated"]
+      },
       "status": "implemented",
       "surfaces": ["app_shell", "login"],
       "routes": ["/login?preview=1"],
@@ -849,8 +948,34 @@
       "test_coverage": { "level": "indirect", "references": ["tests/supabase-proxy.test.ts"], "notes": "Local preview routing is partly covered by proxy tests and browser QA." }
     },
     {
+      "id": "INT-SHELL-008",
+      "name": "Sign out",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/privacy-and-account.md#sign-out"]
+      },
+      "status": "implemented",
+      "surfaces": ["app_shell"],
+      "routes": ["/timeline", "/behaviors", "/export", "/settings"],
+      "journeys": ["J02", "J21"],
+      "intent": "End the current authenticated Cadence session, including before leaving a shared device.",
+      "triggers": [{ "kind": "submit", "control": "Sign out" }],
+      "availability": "Available directly below the account row in the expanded desktop rail, collapsed desktop rail, and mobile drawer.",
+      "success_result": "Ends the session and redirects to /login with the signed-out status.",
+      "failure_result": "Shows a factual recoverable error and leaves the session state unchanged.",
+      "effects": ["authentication_session", "navigation"],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": ["components/layout/AppShell.tsx", "app/auth/sign-out/route.ts", "app/(auth)/login/page.tsx"],
+      "test_coverage": { "level": "direct", "references": ["tests/sign-out-route.test.ts", "tests/sign-out-shell.test.tsx", "tests/ux-ticket-049-052-ui.test.tsx"], "notes": "POST-only sign-out, all shell presentations, and the focused login status are covered." }
+    },
+    {
       "id": "INT-ONBOARD-001",
       "name": "Dismiss first-run setup",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/navigation-and-setup.md#use-first-run-setup"]
+      },
       "status": "implemented",
       "surfaces": ["onboarding", "timeline"],
       "routes": ["/timeline"],
@@ -872,6 +997,10 @@
     {
       "id": "INT-ONBOARD-002",
       "name": "Open a first-run setup task",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/navigation-and-setup.md#use-first-run-setup"]
+      },
       "status": "implemented",
       "surfaces": ["onboarding", "behaviors", "settings", "export_import"],
       "routes": ["/behaviors#create-behavior", "/settings#notifications", "/settings#timezone", "/export#behaviorlog-import"],
@@ -896,6 +1025,10 @@
     {
       "id": "INT-TIMELINE-001",
       "name": "Show more future days",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/timeline.md#reveal-more-future-days"]
+      },
       "status": "implemented",
       "surfaces": ["timeline"],
       "routes": ["/timeline?days=..."],
@@ -914,6 +1047,10 @@
     {
       "id": "INT-TIMELINE-002",
       "name": "Open Needs decision",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/timeline.md#review-needs-decision"]
+      },
       "status": "implemented",
       "surfaces": ["timeline"],
       "routes": ["/timeline"],
@@ -932,6 +1069,10 @@
     {
       "id": "INT-TIMELINE-003",
       "name": "Close Needs decision",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/timeline.md#review-needs-decision"]
+      },
       "status": "implemented",
       "surfaces": ["timeline"],
       "routes": ["/timeline"],
@@ -939,7 +1080,8 @@
       "intent": "Return from the Needs decision modal to the forward Timeline.",
       "triggers": [
         { "kind": "activate", "control": "Close Needs decision" },
-        { "kind": "keyboard", "control": "Escape" }
+        { "kind": "keyboard", "control": "Escape" },
+        { "kind": "activate", "control": "Needs decision modal backdrop" }
       ],
       "availability": "Available while the Needs decision modal is open.",
       "success_result": "Closes the modal, unlocks background scrolling, and restores focus to the launcher.",
@@ -953,6 +1095,10 @@
     {
       "id": "INT-TIMELINE-004",
       "name": "Toggle occurrence details",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/timeline.md#open-or-close-occurrence-details"]
+      },
       "status": "implemented",
       "surfaces": ["timeline"],
       "routes": ["/timeline"],
@@ -971,6 +1117,10 @@
     {
       "id": "INT-TIMELINE-005",
       "name": "Set an occurrence to Completed",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/timeline.md#record-an-occurrence-status"]
+      },
       "status": "implemented",
       "surfaces": ["timeline", "behaviors"],
       "routes": ["/timeline", "/behaviors"],
@@ -993,6 +1143,10 @@
     {
       "id": "INT-TIMELINE-006",
       "name": "Set an occurrence to Not Completed",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/timeline.md#record-an-occurrence-status"]
+      },
       "status": "implemented",
       "surfaces": ["timeline", "behaviors"],
       "routes": ["/timeline", "/behaviors"],
@@ -1015,24 +1169,42 @@
     {
       "id": "INT-TIMELINE-007",
       "name": "Clear a submitted occurrence decision",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#unmark-a-decision-from-the-timeline",
+          "docs/user-guide/behaviors-and-review.md#review-and-correct-one-day"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["behaviors"],
-      "routes": ["/behaviors"],
-      "journeys": ["J10"],
-      "intent": "Return a resolved occurrence to Unresolved during deliberate behavior date review.",
-      "triggers": [{ "kind": "submit", "control": "Clear decision" }],
-      "availability": "Available only inside the Review disclosure for a resolved behavior-date occurrence.",
-      "success_result": "Atomically changes the occurrence to Unresolved, appends a correction event, refreshes review metrics, and allows reminder re-planning through normal service rules.",
+      "surfaces": ["timeline", "behaviors"],
+      "routes": ["/timeline", "/behaviors"],
+      "journeys": ["J07", "J10"],
+      "intent": "Return a resolved occurrence to Unresolved, either as an immediate Timeline correction or during deliberate behavior date review.",
+      "triggers": [
+        { "kind": "submit", "control": "Unmark" },
+        { "kind": "submit", "control": "Clear decision" }
+      ],
+      "availability": "Unmark is available on an expanded, just-decided Timeline occurrence; Clear decision is available inside the Review disclosure for a resolved behavior-date occurrence.",
+      "success_result": "Atomically changes the occurrence to Unresolved, appends a correction event, refreshes the owning view, and restores only reminders that are still future.",
       "failure_result": "Shows a factual error and preserves the current resolved state.",
       "effects": ["database_write", "ui_state", "reminder_planning"],
       "risk": "moderate",
       "confirmation": "none",
-      "implementation": ["components/timeline/StatusButtons.tsx", "app/(app)/behaviors/actions.ts#markBehaviorReviewOccurrenceStatusAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/status.resolver.test.ts", "tests/behavior-review-ui.test.tsx"], "notes": "The Unresolved transition and behavior-review-only control are covered." }
+      "implementation": [
+        "components/timeline/StatusButtons.tsx",
+        "app/(app)/timeline/actions.ts#markOccurrenceStatusAction",
+        "app/(app)/behaviors/actions.ts#markBehaviorReviewOccurrenceStatusAction"
+      ],
+      "test_coverage": { "level": "direct", "references": ["tests/status.resolver.test.ts", "tests/occurrence.service.test.ts", "tests/behavior-review-ui.test.tsx"], "notes": "The Unresolved transition, both labels and surfaces, and still-future reminder re-planning are covered." }
     },
     {
       "id": "INT-TIMELINE-008",
       "name": "Save an occurrence note",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/timeline.md#save-or-edit-an-occurrence-note"]
+      },
       "status": "implemented",
       "surfaces": ["timeline", "behaviors"],
       "routes": ["/timeline", "/behaviors"],
@@ -1058,6 +1230,10 @@
     {
       "id": "INT-BEHAVIOR-001",
       "name": "Change the behavior review range",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#change-the-review-range"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors?range=..."],
@@ -1081,6 +1257,10 @@
     {
       "id": "INT-BEHAVIOR-002",
       "name": "Open a behavior day review",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#review-and-correct-one-day"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors?behavior=...&day=..."],
@@ -1099,6 +1279,10 @@
     {
       "id": "INT-BEHAVIOR-003",
       "name": "Toggle occurrence correction controls in behavior review",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#review-and-correct-one-day"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1117,6 +1301,10 @@
     {
       "id": "INT-BEHAVIOR-004",
       "name": "Toggle the create behavior form",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#open-the-create-form"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors#create-behavior"],
@@ -1135,6 +1323,10 @@
     {
       "id": "INT-BEHAVIOR-005",
       "name": "Toggle behavior Details and Settings",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#edit-archive-or-restore-a-behavior"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1153,6 +1345,10 @@
     {
       "id": "INT-BEHAVIOR-006",
       "name": "Toggle archived behaviors",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#edit-archive-or-restore-a-behavior"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1171,6 +1367,10 @@
     {
       "id": "INT-BEHAVIOR-007",
       "name": "Edit behavior identity fields",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#create-a-behavior"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1192,6 +1392,10 @@
     {
       "id": "INT-BEHAVIOR-008",
       "name": "Choose a recurrence pattern",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#build-schedules-and-times"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1216,6 +1420,10 @@
     {
       "id": "INT-BEHAVIOR-009",
       "name": "Configure recurrence details",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#build-schedules-and-times"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1237,6 +1445,10 @@
     {
       "id": "INT-BEHAVIOR-010",
       "name": "Add a behavior schedule",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#build-schedules-and-times"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1255,6 +1467,10 @@
     {
       "id": "INT-BEHAVIOR-011",
       "name": "Remove a behavior schedule",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#build-schedules-and-times"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1273,6 +1489,10 @@
     {
       "id": "INT-BEHAVIOR-012",
       "name": "Choose a schedule time mode",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#build-schedules-and-times"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1295,6 +1515,10 @@
     {
       "id": "INT-BEHAVIOR-013",
       "name": "Edit a schedule time",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#build-schedules-and-times"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1321,6 +1545,10 @@
     {
       "id": "INT-BEHAVIOR-014",
       "name": "Add a time to a behavior schedule",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#build-schedules-and-times"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1339,6 +1567,10 @@
     {
       "id": "INT-BEHAVIOR-015",
       "name": "Remove a schedule time",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#build-schedules-and-times"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1357,6 +1589,10 @@
     {
       "id": "INT-BEHAVIOR-016",
       "name": "Set behavior browser-reminder intent",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/reminders-and-timezone.md#configure-reminders-for-a-behavior"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1375,6 +1611,10 @@
     {
       "id": "INT-BEHAVIOR-017",
       "name": "Set behavior email-reminder intent",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/reminders-and-timezone.md#configure-reminders-for-a-behavior"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1393,6 +1633,10 @@
     {
       "id": "INT-BEHAVIOR-018",
       "name": "Choose the behavior reminder offset",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/reminders-and-timezone.md#configure-reminders-for-a-behavior"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1418,6 +1662,10 @@
     {
       "id": "INT-BEHAVIOR-019",
       "name": "Create a behavior",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#create-a-behavior"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1425,9 +1673,9 @@
       "intent": "Persist a new recurring behavior and its schedule graph.",
       "triggers": [{ "kind": "submit", "control": "Save behavior in create mode" }],
       "availability": "Available when the create form is open and required browser validation passes.",
-      "success_result": "Atomically creates the owned behavior, initial definition event, schedules, and time slots; marks occurrence sync stale; closes and resets the form; and adds the behavior row to the UI.",
+      "success_result": "Atomically creates the owned behavior, initial definition event, schedules, and time slots; marks occurrence and reminder coverage stale; closes and resets the form; adds the behavior row to the UI; and immediately attempts occurrence and reminder repair without overturning the durable save if retryable repair fails.",
       "failure_result": "Shows field or form errors without creating a partial behavior graph.",
-      "effects": ["database_write", "occurrence_sync_stale", "ui_state"],
+      "effects": ["database_write", "occurrence_sync_stale", "occurrence_sync", "reminder_planning", "ui_state"],
       "risk": "moderate",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx", "app/(app)/behaviors/actions.ts#createBehaviorAction"],
@@ -1436,6 +1684,10 @@
     {
       "id": "INT-BEHAVIOR-020",
       "name": "Update a behavior",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#save-reset-or-update-a-behavior-draft"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1443,9 +1695,9 @@
       "intent": "Persist edits to an existing behavior definition, schedules, time slots, and reminder settings.",
       "triggers": [{ "kind": "submit", "control": "Save behavior in edit mode" }],
       "availability": "Available inside an opened behavior Details and Settings edit form.",
-      "success_result": "Atomically updates the owner-scoped behavior graph, appends a definition event when title or description changed, and marks occurrence sync stale for repair.",
+      "success_result": "Atomically updates the owner-scoped behavior graph, appends a definition event when title or description changed, marks occurrence and reminder coverage stale, and immediately attempts repair without overturning the durable save if retryable repair fails.",
       "failure_result": "Shows field or form errors and preserves the last stored behavior graph.",
-      "effects": ["database_write", "occurrence_sync_stale", "ui_state"],
+      "effects": ["database_write", "occurrence_sync_stale", "occurrence_sync", "reminder_planning", "ui_state"],
       "risk": "moderate",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx", "app/(app)/behaviors/actions.ts#updateBehaviorAction"],
@@ -1454,6 +1706,10 @@
     {
       "id": "INT-BEHAVIOR-021",
       "name": "Reset unsaved behavior changes",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#save-reset-or-update-a-behavior-draft"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1461,8 +1717,8 @@
       "intent": "Discard current unsaved field values in a create or edit behavior form.",
       "triggers": [{ "kind": "activate", "control": "Cancel reset button" }],
       "availability": "Available in open create and edit behavior forms.",
-      "success_result": "Runs native form reset for uncontrolled fields; no server action or product write occurs.",
-      "failure_result": "Client-managed schedule-row structure remains subject to the current component state until the form remounts.",
+      "success_result": "Restores the complete create or edit draft to the values present when the form opened, including identity, recurrence, schedule and time rows, reminder choices, and active state; no server action or product write occurs.",
+      "failure_result": "No product data is written; a client rendering failure leaves the last stored behavior unchanged.",
       "effects": ["form_draft"],
       "risk": "low",
       "confirmation": "none",
@@ -1472,6 +1728,10 @@
     {
       "id": "INT-BEHAVIOR-022",
       "name": "Archive a behavior",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#edit-archive-or-restore-a-behavior"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1479,9 +1739,9 @@
       "intent": "Make an active behavior inactive without deleting its history.",
       "triggers": [{ "kind": "submit", "control": "Archive behavior" }],
       "availability": "Available at the end of Details and Settings for an active behavior.",
-      "success_result": "Marks the behavior inactive, preserves history, marks occurrence sync stale, refreshes Behaviors, and removes it from the Timeline after sync repair.",
-      "failure_result": "Shows a factual error and leaves the behavior active.",
-      "effects": ["database_write", "occurrence_sync_stale", "ui_state"],
+      "success_result": "Atomically marks the behavior inactive with a durable occurrence/reminder stale marker, preserves history, immediately moves the row to Archived behaviors, and attempts occurrence and reminder repair; retryable repair failure does not overturn the committed archive.",
+      "failure_result": "A transaction failure shows a factual error and leaves the behavior active; a post-commit repair failure remains queued by the durable stale marker.",
+      "effects": ["database_write", "occurrence_sync_stale", "occurrence_sync", "reminder_planning", "ui_state"],
       "risk": "high",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorList.tsx", "app/(app)/behaviors/actions.ts#archiveBehaviorAction"],
@@ -1490,6 +1750,10 @@
     {
       "id": "INT-BEHAVIOR-023",
       "name": "Restore an archived behavior",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/behaviors-and-review.md#edit-archive-or-restore-a-behavior"]
+      },
       "status": "implemented",
       "surfaces": ["behaviors"],
       "routes": ["/behaviors"],
@@ -1497,9 +1761,9 @@
       "intent": "Return an archived behavior to the active behavior set.",
       "triggers": [{ "kind": "submit", "control": "Restore" }],
       "availability": "Available on behavior rows inside Archived behaviors.",
-      "success_result": "Marks the behavior active, marks occurrence sync stale, refreshes Behaviors, and allows future occurrences to be regenerated.",
-      "failure_result": "Shows a factual error and leaves the behavior archived.",
-      "effects": ["database_write", "occurrence_sync_stale", "ui_state"],
+      "success_result": "Atomically marks the behavior active with a durable occurrence/reminder stale marker, immediately moves the row to Active behaviors, and attempts to regenerate occurrences and eligible reminders; retryable repair failure does not overturn the committed restore.",
+      "failure_result": "A transaction failure shows a factual error and leaves the behavior archived; a post-commit repair failure remains queued by the durable stale marker.",
+      "effects": ["database_write", "occurrence_sync_stale", "occurrence_sync", "reminder_planning", "ui_state"],
       "risk": "moderate",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorList.tsx", "app/(app)/behaviors/actions.ts#restoreBehaviorAction"],
@@ -1508,6 +1772,10 @@
     {
       "id": "INT-EXPORT-001",
       "name": "Choose an export range",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#choose-export-options"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export"],
@@ -1526,6 +1794,10 @@
     {
       "id": "INT-EXPORT-002",
       "name": "Include or exclude archived behaviors from exports",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#choose-export-options"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export"],
@@ -1544,6 +1816,10 @@
     {
       "id": "INT-EXPORT-003",
       "name": "Include or exclude occurrence notes from exports",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#choose-export-options"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export"],
@@ -1562,6 +1838,10 @@
     {
       "id": "INT-EXPORT-004",
       "name": "Apply export options",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#choose-export-options"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export?range=..."],
@@ -1580,6 +1860,10 @@
     {
       "id": "INT-EXPORT-005",
       "name": "Download a structured export",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#download-structured-data"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/api/export/jsonl", "/api/export/csv", "/api/export/json", "/api/export/behaviorlog"],
@@ -1610,6 +1894,10 @@
     {
       "id": "INT-EXPORT-006",
       "name": "Copy the Markdown AI summary",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#copy-or-download-the-markdown-ai-summary"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export"],
@@ -1628,6 +1916,10 @@
     {
       "id": "INT-EXPORT-007",
       "name": "Download the Markdown AI summary",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#copy-or-download-the-markdown-ai-summary"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export"],
@@ -1646,6 +1938,10 @@
     {
       "id": "INT-EXPORT-008",
       "name": "Toggle an analysis prompt",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#use-an-analysis-prompt"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export"],
@@ -1664,6 +1960,10 @@
     {
       "id": "INT-EXPORT-009",
       "name": "Copy an analysis prompt",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#use-an-analysis-prompt"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export"],
@@ -1682,6 +1982,10 @@
     {
       "id": "INT-EXPORT-010",
       "name": "Preview a BehaviorLog import",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#import-a-behaviorlog-bundle"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export#behaviorlog-import"],
@@ -1691,7 +1995,7 @@
         { "kind": "upload", "control": "Upload .behaviorlog.zip file input" },
         { "kind": "submit", "control": "Preview import" }
       ],
-      "availability": "Available in the BehaviorLog import section for authenticated users.",
+      "availability": "Available in the BehaviorLog import section for authenticated users with a .behaviorlog.zip bundle no larger than 2 MB.",
       "success_result": "Parses and validates the bundle, gathers current owned data, persists the preview run, and renders counts, warnings, conflicts, privacy notes, fingerprints, and supported apply modes without product writes.",
       "failure_result": "Shows validation or processing errors and exposes no apply control for an unsafe preview.",
       "effects": ["file_read", "preview_only", "audit_write", "ui_state"],
@@ -1703,6 +2007,10 @@
     {
       "id": "INT-EXPORT-011",
       "name": "Acknowledge the exact accepted import preview",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#import-a-behaviorlog-bundle"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export#behaviorlog-import"],
@@ -1721,6 +2029,10 @@
     {
       "id": "INT-EXPORT-012",
       "name": "Acknowledge sensitive imported notes",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#import-a-behaviorlog-bundle"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export#behaviorlog-import"],
@@ -1739,6 +2051,10 @@
     {
       "id": "INT-EXPORT-013",
       "name": "Apply a BehaviorLog import",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#import-a-behaviorlog-bundle"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export#behaviorlog-import"],
@@ -1761,6 +2077,10 @@
     {
       "id": "INT-EXPORT-014",
       "name": "Preview a BehaviorLog restore",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#restore-from-a-trusted-behaviorlog-bundle"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export#behaviorlog-restore"],
@@ -1770,7 +2090,7 @@
         { "kind": "upload", "control": "Upload trusted .behaviorlog.zip file input" },
         { "kind": "submit", "control": "Preview restore" }
       ],
-      "availability": "Available in the BehaviorLog restore section for authenticated users.",
+      "availability": "Available in the BehaviorLog restore section for authenticated users with a trusted .behaviorlog.zip bundle no larger than 2 MB.",
       "success_result": "Parses and validates the bundle, gathers current owned data, persists the preview run, and renders create/replace/archive/delete/keep/skip actions, destructive counts, boundaries, warnings, and fingerprints without product writes.",
       "failure_result": "Shows validation or processing errors and does not enable restore apply.",
       "effects": ["file_read", "preview_only", "audit_write", "ui_state"],
@@ -1782,6 +2102,10 @@
     {
       "id": "INT-EXPORT-015",
       "name": "Acknowledge a fresh backup before restore",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#restore-from-a-trusted-behaviorlog-bundle"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export#behaviorlog-restore"],
@@ -1800,6 +2124,10 @@
     {
       "id": "INT-EXPORT-016",
       "name": "Acknowledge sensitive restored notes",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#restore-from-a-trusted-behaviorlog-bundle"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export#behaviorlog-restore"],
@@ -1818,6 +2146,10 @@
     {
       "id": "INT-EXPORT-017",
       "name": "Type restore confirmation",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#restore-from-a-trusted-behaviorlog-bundle"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export#behaviorlog-restore"],
@@ -1836,6 +2168,10 @@
     {
       "id": "INT-EXPORT-018",
       "name": "Apply a BehaviorLog restore",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#restore-from-a-trusted-behaviorlog-bundle"]
+      },
       "status": "implemented",
       "surfaces": ["export_import"],
       "routes": ["/export#behaviorlog-restore"],
@@ -1854,6 +2190,10 @@
     {
       "id": "INT-SETTINGS-001",
       "name": "Choose a timezone",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/reminders-and-timezone.md#choose-and-save-a-timezone"]
+      },
       "status": "implemented",
       "surfaces": ["settings"],
       "routes": ["/settings#timezone"],
@@ -1875,6 +2215,10 @@
     {
       "id": "INT-SETTINGS-002",
       "name": "Use the browser-detected timezone",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/reminders-and-timezone.md#choose-and-save-a-timezone"]
+      },
       "status": "implemented",
       "surfaces": ["settings"],
       "routes": ["/settings#timezone"],
@@ -1893,6 +2237,10 @@
     {
       "id": "INT-SETTINGS-003",
       "name": "Save the account timezone",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/reminders-and-timezone.md#choose-and-save-a-timezone"]
+      },
       "status": "implemented",
       "surfaces": ["settings"],
       "routes": ["/settings#timezone"],
@@ -1911,6 +2259,10 @@
     {
       "id": "INT-SETTINGS-004",
       "name": "Enable or refresh browser notifications on this device",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/reminders-and-timezone.md#enable-browser-notifications-on-this-device"]
+      },
       "status": "implemented",
       "surfaces": ["settings"],
       "routes": ["/settings#notifications", "/api/push/subscribe"],
@@ -1929,6 +2281,10 @@
     {
       "id": "INT-SETTINGS-005",
       "name": "Open public trust or legal information from Settings",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/privacy-and-account.md#open-trust-privacy-or-terms-from-settings"]
+      },
       "status": "implemented",
       "surfaces": ["settings", "public_legal"],
       "routes": ["/settings", "/trust", "/privacy", "/terms"],
@@ -1952,6 +2308,10 @@
     {
       "id": "INT-SETTINGS-006",
       "name": "Open Export before account deletion",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/privacy-and-account.md#create-an-export-before-deletion"]
+      },
       "status": "implemented",
       "surfaces": ["settings", "export_import"],
       "routes": ["/settings", "/export"],
@@ -1970,6 +2330,10 @@
     {
       "id": "INT-SETTINGS-007",
       "name": "Acknowledge the account-deletion export decision",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/privacy-and-account.md#complete-or-clear-the-deletion-gates"]
+      },
       "status": "implemented",
       "surfaces": ["settings"],
       "routes": ["/settings"],
@@ -1988,6 +2352,10 @@
     {
       "id": "INT-SETTINGS-008",
       "name": "Type account-deletion confirmation",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/privacy-and-account.md#complete-or-clear-the-deletion-gates"]
+      },
       "status": "implemented",
       "surfaces": ["settings"],
       "routes": ["/settings"],
@@ -2006,6 +2374,10 @@
     {
       "id": "INT-SETTINGS-009",
       "name": "Delete the signed-in account",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/privacy-and-account.md#delete-the-signed-in-account"]
+      },
       "status": "implemented",
       "surfaces": ["settings", "login"],
       "routes": ["/settings", "/login?account_deleted=1"],
@@ -2020,6 +2392,28 @@
       "confirmation": "acknowledgement_and_typed",
       "implementation": ["components/settings/AccountDeletionPanel.tsx", "app/(app)/settings/actions.ts#deleteAccountAction"],
       "test_coverage": { "level": "direct", "references": ["tests/account-deletion.service.test.ts"], "notes": "Gates, global sign-out, deletion, error handling, and redirect result are covered." }
+    },
+    {
+      "id": "INT-NOTIFICATION-001",
+      "name": "Open Cadence from a delivered browser notification",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/reminders-and-timezone.md#enable-browser-notifications-on-this-device"]
+      },
+      "status": "implemented",
+      "surfaces": ["timeline"],
+      "routes": ["/timeline"],
+      "journeys": ["J12"],
+      "intent": "Open the occurrence review target from a delivered Cadence browser notification.",
+      "triggers": [{ "kind": "activate", "control": "Delivered Cadence browser notification" }],
+      "availability": "Available after a Cadence browser notification is delivered; protected routes may require the user to sign in again.",
+      "success_result": "Closes the notification, navigates an existing same-origin Cadence window to the notification target and focuses it, or opens the target in a new window when no Cadence window exists.",
+      "failure_result": "Cross-origin targets fall back to /timeline; normal browser window-opening or protected-route sign-in behavior applies.",
+      "effects": ["navigation", "focus_navigation"],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": ["public/push-service-worker.js"],
+      "test_coverage": { "level": "direct", "references": ["tests/push-service-worker.test.ts"], "notes": "Existing-window navigation/focus and new-window opening are executed against the service worker source." }
     }
   ]
 }

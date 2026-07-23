@@ -1,6 +1,6 @@
 import {
   getBehaviorById,
-  updateBehavior,
+  listUserBehaviors,
   type AppSupabaseClient,
   type BehaviorScheduleWithSlots,
   type BehaviorWithCategory,
@@ -11,7 +11,8 @@ import {
   type BehaviorScheduleGraphMutation,
 } from "@/lib/db/behaviorDefinitionEvents.repo";
 import { createClient } from "@/lib/supabase/server";
-import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
+import { syncUserOccurrencesAndReminders } from "@/lib/services/occurrence.service";
+import { reportMonitoringError } from "@/lib/monitoring/privacy-safe-events";
 import {
   invalidateBehaviorData,
   readCachedBehaviorCategories,
@@ -23,7 +24,7 @@ import type {
   BehaviorView,
   CategoryOption,
 } from "@/lib/types/behavior";
-import type { BehaviorUpdate, NewBehavior } from "@/lib/types/database";
+import type { Behavior, BehaviorUpdate, NewBehavior } from "@/lib/types/database";
 import {
   planBehaviorDefinitionChangeEvent,
   planInitialBehaviorDefinitionEvent,
@@ -132,6 +133,7 @@ export async function createBehaviorFromFormData(
   }
 
   invalidateBehaviorData(userId);
+  await syncBehaviorGraphForUser(supabase, userId, "create");
 
   return toBehaviorView(confirmedBehavior);
 }
@@ -200,6 +202,11 @@ export async function updateBehaviorFromFormData(
   }
 
   invalidateBehaviorData(userId);
+  await syncBehaviorGraphForUser(
+    supabase,
+    userId,
+    "update",
+  );
 }
 
 export async function archiveBehaviorFromFormData(
@@ -208,22 +215,28 @@ export async function archiveBehaviorFromFormData(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const behaviorId = getBehaviorIdForArchive(formData);
-  const [updatedBehavior] = await Promise.all([
-    updateBehavior(supabase, userId, behaviorId, {
-      active: false,
-      archived_at: new Date().toISOString(),
-    }),
-    markOccurrenceSyncStale(supabase, {
-      userId,
-      reason: "behavior_changed",
-    }),
-  ]);
+  const existingBehavior = await requireBehaviorForLifecycleChange(
+    supabase,
+    userId,
+    behaviorId,
+  );
+
+  const updatedBehavior = await updateBehaviorLifecycleStateAtomically(
+    supabase,
+    existingBehavior,
+    false,
+  );
 
   if (!updatedBehavior) {
     throw new Error("Behavior not found.");
   }
 
   invalidateBehaviorData(userId);
+  await syncBehaviorGraphForUser(
+    supabase,
+    userId,
+    "archive",
+  );
 }
 
 export async function restoreBehaviorFromFormData(
@@ -232,22 +245,149 @@ export async function restoreBehaviorFromFormData(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const behaviorId = getBehaviorIdForArchive(formData);
-  const [updatedBehavior] = await Promise.all([
-    updateBehavior(supabase, userId, behaviorId, {
-      active: true,
-      archived_at: null,
-    }),
-    markOccurrenceSyncStale(supabase, {
-      userId,
-      reason: "behavior_changed",
-    }),
-  ]);
+  const existingBehavior = await requireBehaviorForLifecycleChange(
+    supabase,
+    userId,
+    behaviorId,
+  );
+
+  const updatedBehavior = await updateBehaviorLifecycleStateAtomically(
+    supabase,
+    existingBehavior,
+    true,
+  );
 
   if (!updatedBehavior) {
     throw new Error("Behavior not found.");
   }
 
   invalidateBehaviorData(userId);
+  await syncBehaviorGraphForUser(
+    supabase,
+    userId,
+    "restore",
+  );
+}
+
+async function requireBehaviorForLifecycleChange(
+  supabase: AppSupabaseClient,
+  userId: string,
+  behaviorId: string,
+): Promise<BehaviorWithCategory> {
+  const behavior = await getBehaviorById(supabase, userId, behaviorId);
+
+  if (!behavior) {
+    throw new Error("Behavior not found.");
+  }
+
+  return behavior;
+}
+
+async function updateBehaviorLifecycleStateAtomically(
+  supabase: AppSupabaseClient,
+  existingBehavior: BehaviorWithCategory,
+  active: boolean,
+): Promise<Behavior | null> {
+  const expectedScheduleGraph =
+    toStoredBehaviorScheduleGraph(existingBehavior);
+  const expectedDefinition = {
+    title: existingBehavior.title,
+    description: existingBehavior.description,
+  };
+
+  return updateBehaviorWithAtomicScheduleGraph(supabase, {
+    behaviorId: existingBehavior.id,
+    behavior: {
+      category_id: existingBehavior.category_id,
+      title: existingBehavior.title,
+      description: existingBehavior.description,
+      recurrence_rule: existingBehavior.recurrence_rule,
+      scheduled_time: existingBehavior.scheduled_time,
+      browser_reminder_enabled: existingBehavior.browser_reminder_enabled,
+      email_reminder_enabled: existingBehavior.email_reminder_enabled,
+      reminder_offset_minutes: existingBehavior.reminder_offset_minutes,
+      active,
+      archived_at: active ? null : new Date().toISOString(),
+    },
+    expectedDefinition,
+    expectedNormalizedDefinition:
+      normalizeBehaviorDefinition(expectedDefinition),
+    expectedScheduleGraph,
+    expectedUpdatedAt: existingBehavior.updated_at,
+    definitionEventPlan: null,
+    schedules: expectedScheduleGraph,
+  });
+}
+
+async function syncBehaviorGraphForUser(
+  supabase: AppSupabaseClient,
+  userId: string,
+  operation: "create" | "update" | "archive" | "restore",
+): Promise<void> {
+  const syncTimezone = await readAuthoritativeProfileTimezone(
+    supabase,
+    userId,
+    operation,
+  );
+
+  if (!syncTimezone) {
+    return;
+  }
+
+  try {
+    const behaviors = await listUserBehaviors(supabase, userId);
+
+    await syncUserOccurrencesAndReminders(supabase, userId, {
+      behaviors,
+      timezone: syncTimezone,
+    });
+  } catch (error) {
+    reportBehaviorGraphErrorSafely(
+      "behavior_graph_post_write_sync_failed",
+      error,
+      operation,
+    );
+  }
+}
+
+async function readAuthoritativeProfileTimezone(
+  supabase: AppSupabaseClient,
+  userId: string,
+  operation: "create" | "update" | "archive" | "restore",
+): Promise<string | null> {
+  try {
+    const timezone = await readCachedProfileTimezone(supabase, userId);
+
+    if (!timezone) {
+      reportBehaviorGraphErrorSafely(
+        "behavior_graph_profile_timezone_missing",
+        new Error("Profile timezone is unavailable for behavior graph repair."),
+        operation,
+      );
+      return null;
+    }
+
+    return timezone;
+  } catch (error) {
+    reportBehaviorGraphErrorSafely(
+      "behavior_graph_profile_timezone_read_failed",
+      error,
+      operation,
+    );
+    return null;
+  }
+}
+
+function reportBehaviorGraphErrorSafely(
+  name: string,
+  error: unknown,
+  operation: "create" | "update" | "archive" | "restore",
+): void {
+  try {
+    reportMonitoringError(name, error, { operation });
+  } catch {
+    // Monitoring must never change the result of a product write.
+  }
 }
 
 function toBehaviorView(behavior: BehaviorWithCategory): BehaviorView {

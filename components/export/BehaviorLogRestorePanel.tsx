@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef, useState } from "react";
 
 import { submitBehaviorLogRestoreAction } from "@/app/(app)/export/actions";
 import type {
@@ -15,6 +15,10 @@ import type {
   BehaviorLogRestoreRunView,
 } from "@/lib/types/behaviorlog-restore-ui";
 import { BEHAVIORLOG_RESTORE_INITIAL_STATE } from "@/lib/types/behaviorlog-restore-ui";
+import {
+  getBehaviorLogBundleSizeError,
+  readBehaviorLogBundleAsBase64,
+} from "@/lib/types/behaviorlog-bundle-ui";
 
 type BehaviorLogRestorePanelProps = Readonly<{
   recentRuns: BehaviorLogRestoreRunView[];
@@ -52,6 +56,48 @@ export function BehaviorLogRestorePanel({
   );
   const preview = state.preview;
   const runs = mergeRecentRuns(recentRuns, state);
+  const bundleReadVersionRef = useRef(0);
+  const [bundlePayload, setBundlePayload] = useState<string | null>(null);
+  const [clientError, setClientError] = useState<string | null>(null);
+  const [isPreparingBundle, setIsPreparingBundle] = useState(false);
+
+  async function handleBundleFileChange(file: File | null) {
+    const readVersion = bundleReadVersionRef.current + 1;
+    bundleReadVersionRef.current = readVersion;
+    setBundlePayload(null);
+    setClientError(null);
+
+    if (!file) {
+      setIsPreparingBundle(false);
+      return;
+    }
+
+    const sizeError = getBehaviorLogBundleSizeError(file.size);
+
+    if (sizeError) {
+      setClientError(sizeError);
+      setIsPreparingBundle(false);
+      return;
+    }
+
+    setIsPreparingBundle(true);
+
+    try {
+      const payload = await readBehaviorLogBundleAsBase64(file);
+
+      if (bundleReadVersionRef.current === readVersion) {
+        setBundlePayload(payload);
+      }
+    } catch {
+      if (bundleReadVersionRef.current === readVersion) {
+        setClientError("Cadence could not prepare this file. Choose it again.");
+      }
+    } finally {
+      if (bundleReadVersionRef.current === readVersion) {
+        setIsPreparingBundle(false);
+      }
+    }
+  }
 
   return (
     <section
@@ -78,7 +124,24 @@ export function BehaviorLogRestorePanel({
         ) : null}
       </div>
 
-      <form action={formAction} className="mt-5 grid gap-4">
+      <form
+        action={formAction}
+        onSubmit={(event) => {
+          const file = new FormData(event.currentTarget).get(
+            "restore_behaviorlog_file",
+          );
+          const sizeError =
+            file instanceof File
+              ? getBehaviorLogBundleSizeError(file.size)
+              : null;
+
+          if (sizeError) {
+            event.preventDefault();
+            setClientError(sizeError);
+          }
+        }}
+        className="mt-5 grid gap-4"
+      >
         <input type="hidden" name="intent" value="restore_preview" />
         <label className="grid gap-2">
           <span className="text-sm font-bold text-muted-readable">
@@ -88,13 +151,19 @@ export function BehaviorLogRestorePanel({
             type="file"
             name="restore_behaviorlog_file"
             accept=".behaviorlog.zip,application/zip"
+            onChange={(event) => {
+              void handleBundleFileChange(event.currentTarget.files?.[0] ?? null);
+            }}
             className="min-h-11 w-full bg-background px-0 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-transparent file:px-0 file:py-1 file:text-sm file:font-bold file:text-foreground file:underline file:decoration-1 file:underline-offset-4"
           />
+          <span className="text-sm text-muted-readable">
+            Maximum file size: 2 MB.
+          </span>
         </label>
         <div>
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || isPreparingBundle || clientError !== null}
             className="product-action product-action-primary min-h-11 py-2 text-sm font-bold"
           >
             Preview restore
@@ -102,11 +171,19 @@ export function BehaviorLogRestorePanel({
         </div>
       </form>
 
+      {clientError ? (
+        <p className="mt-5 text-sm font-bold text-accent" role="alert">
+          {clientError}
+        </p>
+      ) : null}
+
       {state.message ? <RestoreMessage state={state} /> : null}
       {state.applyResult ? <RestoreApplyResult state={state} /> : null}
       {preview ? <BehaviorLogRestorePreviewDetails preview={preview} /> : null}
-      {preview && state.bundlePayload && state.previewRun ? (
+      {preview && state.archiveFingerprint && state.previewRun ? (
         <RestoreApplyControls
+          key={`${state.previewRun.id}:${preview.previewFingerprint}`}
+          bundlePayload={bundlePayload}
           formAction={formAction}
           state={state}
           isPending={isPending}
@@ -263,22 +340,38 @@ export function BehaviorLogRestorePreviewDetails({
 }
 
 function RestoreApplyControls({
+  bundlePayload,
   formAction,
   state,
   isPending,
 }: Readonly<{
+  bundlePayload: string | null;
   formAction: (formData: FormData) => void;
   state: BehaviorLogRestoreActionState;
   isPending: boolean;
 }>) {
   const preview = state.preview;
-  const disabled =
+  const unavailable =
     !preview ||
     !preview.valid ||
     !preview.statusHistoryPolicy.applySupportedInThisTicket ||
     preview.summary.unsupportedActionCount > 0 ||
     preview.summary.skippedCount > 0 ||
+    !bundlePayload ||
     isPending;
+  const [backupAcknowledged, setBackupAcknowledged] = useState(false);
+  const [sensitiveNotesAcknowledged, setSensitiveNotesAcknowledged] =
+    useState(false);
+  const [typedConfirmation, setTypedConfirmation] = useState("");
+  const requiresSensitiveNoteConfirmation =
+    preview?.sensitivity.highOrRestrictedNotesPresent === true;
+  const canSubmit = isBehaviorLogRestoreApplyReady({
+    unavailable,
+    backupAcknowledged,
+    requiresSensitiveNoteConfirmation,
+    sensitiveNotesAcknowledged,
+    typedConfirmation,
+  });
 
   return (
     <section className="mt-6 border-t border-line pt-5">
@@ -302,7 +395,12 @@ function RestoreApplyControls({
       ) : null}
       <form action={formAction} className="mt-4 grid gap-4 border-t border-line pt-4">
         <input type="hidden" name="intent" value="restore_apply" />
-        <input type="hidden" name="bundle_payload" value={state.bundlePayload ?? ""} />
+        <input type="hidden" name="bundle_payload" value={bundlePayload ?? ""} />
+        <input
+          type="hidden"
+          name="archive_fingerprint"
+          value={state.archiveFingerprint ?? ""}
+        />
         <input type="hidden" name="restore_preview_run_id" value={state.previewRun?.id ?? ""} />
         <input type="hidden" name="preview_fingerprint" value={preview?.previewFingerprint ?? ""} />
         <input type="hidden" name="local_data_fingerprint" value={preview?.localDataFingerprint ?? ""} />
@@ -316,7 +414,11 @@ function RestoreApplyControls({
             name="confirm_backup"
             value="yes"
             required
-            disabled={disabled}
+            disabled={unavailable}
+            checked={backupAcknowledged}
+            onChange={(event) =>
+              setBackupAcknowledged(event.currentTarget.checked)
+            }
             className="mt-1 h-5 w-5 accent-foreground"
           />
           <span>I created or downloaded a fresh backup before restoring.</span>
@@ -328,7 +430,11 @@ function RestoreApplyControls({
               name="confirm_sensitive_notes"
               value="yes"
               required
-              disabled={disabled}
+              disabled={unavailable}
+              checked={sensitiveNotesAcknowledged}
+              onChange={(event) =>
+                setSensitiveNotesAcknowledged(event.currentTarget.checked)
+              }
               className="mt-1 h-5 w-5 accent-foreground"
             />
             <span>I reviewed high or restricted note sensitivity warnings.</span>
@@ -339,20 +445,44 @@ function RestoreApplyControls({
           <input
             name="confirm_restore_text"
             autoComplete="off"
-            disabled={disabled}
+            required
+            disabled={unavailable}
+            value={typedConfirmation}
+            onChange={(event) => setTypedConfirmation(event.currentTarget.value)}
             className="min-h-11 border border-line bg-background px-3 py-2"
           />
         </label>
         <button
           data-testid="restore-apply-button"
           type="submit"
-          disabled={disabled}
+          disabled={!canSubmit}
           className="product-action product-action-primary min-h-11 w-fit py-2 text-sm font-bold"
         >
           Apply restore
         </button>
       </form>
     </section>
+  );
+}
+
+export function isBehaviorLogRestoreApplyReady({
+  unavailable,
+  backupAcknowledged,
+  requiresSensitiveNoteConfirmation,
+  sensitiveNotesAcknowledged,
+  typedConfirmation,
+}: Readonly<{
+  unavailable: boolean;
+  backupAcknowledged: boolean;
+  requiresSensitiveNoteConfirmation: boolean;
+  sensitiveNotesAcknowledged: boolean;
+  typedConfirmation: string;
+}>): boolean {
+  return (
+    !unavailable &&
+    backupAcknowledged &&
+    typedConfirmation === "RESTORE" &&
+    (!requiresSensitiveNoteConfirmation || sensitiveNotesAcknowledged)
   );
 }
 

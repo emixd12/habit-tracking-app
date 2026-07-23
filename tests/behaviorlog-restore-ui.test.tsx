@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   BehaviorLogRestorePanel,
   BehaviorLogRestorePreviewDetails,
+  isBehaviorLogRestoreApplyReady,
 } from "../components/export/BehaviorLogRestorePanel";
 import type { BehaviorLogRestorePreview } from "../lib/types/behaviorlog-restore";
 
@@ -45,6 +46,98 @@ describe("BehaviorLog restore UI", () => {
 
     expect(html).toContain("Recent restores");
     expect(html).toContain("Still open");
+  });
+
+  it("keeps restore apply unavailable until every server-enforced gate is complete", () => {
+    expect(
+      isBehaviorLogRestoreApplyReady({
+        unavailable: false,
+        backupAcknowledged: false,
+        requiresSensitiveNoteConfirmation: true,
+        sensitiveNotesAcknowledged: false,
+        typedConfirmation: "",
+      }),
+    ).toBe(false);
+    expect(
+      isBehaviorLogRestoreApplyReady({
+        unavailable: false,
+        backupAcknowledged: true,
+        requiresSensitiveNoteConfirmation: true,
+        sensitiveNotesAcknowledged: false,
+        typedConfirmation: "RESTORE",
+      }),
+    ).toBe(false);
+    expect(
+      isBehaviorLogRestoreApplyReady({
+        unavailable: false,
+        backupAcknowledged: true,
+        requiresSensitiveNoteConfirmation: true,
+        sensitiveNotesAcknowledged: true,
+        typedConfirmation: "restore",
+      }),
+    ).toBe(false);
+    expect(
+      isBehaviorLogRestoreApplyReady({
+        unavailable: false,
+        backupAcknowledged: true,
+        requiresSensitiveNoteConfirmation: true,
+        sensitiveNotesAcknowledged: true,
+        typedConfirmation: " RESTORE ",
+      }),
+    ).toBe(false);
+    expect(
+      isBehaviorLogRestoreApplyReady({
+        unavailable: false,
+        backupAcknowledged: true,
+        requiresSensitiveNoteConfirmation: true,
+        sensitiveNotesAcknowledged: true,
+        typedConfirmation: "RESTORE",
+      }),
+    ).toBe(true);
+    expect(
+      isBehaviorLogRestoreApplyReady({
+        unavailable: true,
+        backupAcknowledged: true,
+        requiresSensitiveNoteConfirmation: false,
+        sensitiveNotesAcknowledged: false,
+        typedConfirmation: "RESTORE",
+      }),
+    ).toBe(false);
+
+    const preview = restorePreview();
+    const html = renderToStaticMarkup(
+      <BehaviorLogRestorePanel
+        recentRuns={[]}
+        initialState={{
+          status: "previewed",
+          message: "Restore preview ready.",
+          upload: {
+            fileName: "cadence.behaviorlog.zip",
+            fileSize: 123,
+          },
+          archiveFingerprint: "a".repeat(64),
+          preview,
+          previewRun: {
+            id: "restore-preview-run",
+            mode: "restore_preview",
+            status: "previewed",
+            startedAt: "2026-06-08T21:10:00Z",
+            completedAt: "2026-06-08T21:10:02Z",
+            failureMessage: null,
+          },
+          applyResult: null,
+        }}
+      />,
+    );
+
+    expect(html).toMatch(
+      /data-testid="restore-apply-button"[^>]*disabled=""/,
+    );
+    const confirmationInput = html.match(
+      /<input[^>]*name="confirm_restore_text"[^>]*>/,
+    )?.[0];
+
+    expect(confirmationInput).toContain('required=""');
   });
 });
 

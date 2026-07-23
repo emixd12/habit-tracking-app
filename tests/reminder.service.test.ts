@@ -9,15 +9,17 @@ import {
 import { getProfileSettings } from "@/lib/db/profiles.repo";
 import {
   cancelPendingReminderDeliveriesForOccurrence,
-  cancelPendingReminderDeliveriesForOccurrences,
+  cancelUnclaimedPendingReminderDeliveriesById,
   cancelPendingReminderDeliveryById,
   claimPendingBrowserPushReminderDelivery,
   claimPendingEmailReminderDelivery,
   createMissingReminderDeliveries,
+  listReminderDeliveriesByOccurrenceIds,
   listDuePendingBrowserPushReminderDeliveries,
   listDuePendingEmailReminderDeliveries,
   markReminderDeliveryFailed,
   markReminderDeliverySent,
+  reactivateCancelledReminderDeliveriesById,
 } from "@/lib/db/reminderDeliveries.repo";
 import {
   deactivatePushSubscriptionById,
@@ -55,14 +57,16 @@ vi.mock("@/lib/db/profiles.repo", () => ({
 vi.mock("@/lib/db/reminderDeliveries.repo", () => ({
   cancelPendingReminderDeliveryById: vi.fn(),
   cancelPendingReminderDeliveriesForOccurrence: vi.fn(),
-  cancelPendingReminderDeliveriesForOccurrences: vi.fn(),
+  cancelUnclaimedPendingReminderDeliveriesById: vi.fn(),
   claimPendingBrowserPushReminderDelivery: vi.fn(),
   claimPendingEmailReminderDelivery: vi.fn(),
   createMissingReminderDeliveries: vi.fn(),
+  listReminderDeliveriesByOccurrenceIds: vi.fn(),
   listDuePendingBrowserPushReminderDeliveries: vi.fn(),
   listDuePendingEmailReminderDeliveries: vi.fn(),
   markReminderDeliveryFailed: vi.fn(),
   markReminderDeliverySent: vi.fn(),
+  reactivateCancelledReminderDeliveriesById: vi.fn(),
 }));
 
 vi.mock("@/lib/db/pushSubscriptions.repo", () => ({
@@ -72,6 +76,7 @@ vi.mock("@/lib/db/pushSubscriptions.repo", () => ({
 
 const NOW = Temporal.Instant.from("2026-06-08T14:00:00Z");
 const NOW_STRING = NOW.toString();
+const PLANNING_NOW = Temporal.Instant.from("2026-06-08T11:00:00Z");
 const SUPABASE = { kind: "supabase" } as never;
 
 const BASE_DELIVERY: ReminderDelivery = {
@@ -148,15 +153,22 @@ const BASE_BEHAVIOR: Behavior = {
 describe("syncReminderDeliveriesForBehavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(listReminderDeliveriesByOccurrenceIds).mockResolvedValue([]);
   });
 
   it("uses provided occurrences instead of re-reading them", async () => {
     await syncReminderDeliveriesForBehavior(SUPABASE, "user-1", BASE_BEHAVIOR, {
       scheduledFrom: "2026-06-08T00:00:00Z",
       occurrences: [BASE_OCCURRENCE],
+      now: PLANNING_NOW,
     });
 
     expect(listBehaviorOccurrencesFrom).not.toHaveBeenCalled();
+    expect(listReminderDeliveriesByOccurrenceIds).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      ["occurrence-1"],
+    );
     expect(createMissingReminderDeliveries).toHaveBeenCalledOnce();
     expect(
       vi
@@ -176,17 +188,29 @@ describe("syncReminderDeliveriesForBehavior", () => {
       id: "occurrence-2",
       behavior_id: inactiveBehavior.id,
     };
-
-    await syncReminderDeliveriesForBehaviors(SUPABASE, "user-1", [
+    vi.mocked(listReminderDeliveriesByOccurrenceIds).mockResolvedValue([
       {
-        behavior: BASE_BEHAVIOR,
-        occurrences: [BASE_OCCURRENCE],
-      },
-      {
-        behavior: inactiveBehavior,
-        occurrences: [inactiveOccurrence],
+        ...BASE_BROWSER_DELIVERY,
+        id: "inactive-delivery",
+        occurrence_id: inactiveOccurrence.id,
       },
     ]);
+
+    await syncReminderDeliveriesForBehaviors(
+      SUPABASE,
+      "user-1",
+      [
+        {
+          behavior: BASE_BEHAVIOR,
+          occurrences: [BASE_OCCURRENCE],
+        },
+        {
+          behavior: inactiveBehavior,
+          occurrences: [inactiveOccurrence],
+        },
+      ],
+      { now: PLANNING_NOW },
+    );
 
     expect(createMissingReminderDeliveries).toHaveBeenCalledOnce();
     expect(
@@ -194,11 +218,118 @@ describe("syncReminderDeliveriesForBehavior", () => {
         .mocked(createMissingReminderDeliveries)
         .mock.calls[0]?.[1].map((delivery) => delivery.channel),
     ).toEqual(["browser_push", "email"]);
-    expect(cancelPendingReminderDeliveriesForOccurrences).toHaveBeenCalledWith(
+    expect(cancelUnclaimedPendingReminderDeliveriesById).toHaveBeenCalledWith(
       SUPABASE,
       "user-1",
-      ["occurrence-2"],
+      ["inactive-delivery"],
     );
+  });
+
+  it("revives a cancelled delivery when restore makes it expected again", async () => {
+    vi.mocked(listReminderDeliveriesByOccurrenceIds).mockResolvedValue([
+      {
+        ...BASE_BROWSER_DELIVERY,
+        id: "cancelled-browser",
+        status: "cancelled",
+      },
+      {
+        ...BASE_DELIVERY,
+        id: "cancelled-email",
+        status: "cancelled",
+      },
+    ]);
+
+    await syncReminderDeliveriesForBehavior(SUPABASE, "user-1", BASE_BEHAVIOR, {
+      scheduledFrom: "2026-06-08T00:00:00Z",
+      occurrences: [BASE_OCCURRENCE],
+      now: PLANNING_NOW,
+    });
+
+    expect(reactivateCancelledReminderDeliveriesById).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      ["cancelled-browser", "cancelled-email"],
+    );
+    expect(createMissingReminderDeliveries).toHaveBeenCalledWith(SUPABASE, []);
+  });
+
+  it("cancels an obsolete offset and creates the current expected delivery", async () => {
+    vi.mocked(listReminderDeliveriesByOccurrenceIds).mockResolvedValue([
+      {
+        ...BASE_DELIVERY,
+        id: "old-email-offset",
+        scheduled_send_at: "2026-06-08T12:00:00Z",
+      },
+    ]);
+
+    await syncReminderDeliveriesForBehavior(
+      SUPABASE,
+      "user-1",
+      {
+        ...BASE_BEHAVIOR,
+        browser_reminder_enabled: false,
+        reminder_offset_minutes: 60,
+      },
+      {
+        scheduledFrom: "2026-06-08T00:00:00Z",
+        occurrences: [BASE_OCCURRENCE],
+        now: PLANNING_NOW,
+      },
+    );
+
+    expect(cancelUnclaimedPendingReminderDeliveriesById).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      ["old-email-offset"],
+    );
+    expect(createMissingReminderDeliveries).toHaveBeenCalledWith(SUPABASE, [
+      expect.objectContaining({
+        occurrence_id: "occurrence-1",
+        channel: "email",
+        scheduled_send_at: "2026-06-08T13:00:00Z",
+      }),
+    ]);
+  });
+
+  it("does not recreate past coverage or cancel a due pending row", async () => {
+    vi.mocked(listReminderDeliveriesByOccurrenceIds).mockResolvedValue([
+      {
+        ...BASE_BROWSER_DELIVERY,
+        id: "past-cancelled-browser",
+        status: "cancelled",
+      },
+      {
+        ...BASE_DELIVERY,
+        id: "due-obsolete-email",
+        scheduled_send_at: "2026-06-08T13:30:00Z",
+      },
+    ]);
+
+    await syncReminderDeliveriesForBehavior(
+      SUPABASE,
+      "user-1",
+      {
+        ...BASE_BEHAVIOR,
+        email_reminder_enabled: true,
+      },
+      {
+        scheduledFrom: "2026-06-08T00:00:00Z",
+        occurrences: [BASE_OCCURRENCE],
+        now: NOW,
+      },
+    );
+
+    expect(reactivateCancelledReminderDeliveriesById).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      [],
+    );
+    expect(cancelUnclaimedPendingReminderDeliveriesById).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      [],
+    );
+    expect(createMissingReminderDeliveries).toHaveBeenCalledWith(SUPABASE, []);
   });
 });
 

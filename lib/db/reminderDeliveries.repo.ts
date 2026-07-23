@@ -88,6 +88,57 @@ export async function cancelPendingReminderDeliveriesForOccurrence(
   }
 }
 
+export async function cancelUnclaimedPendingReminderDeliveriesById(
+  supabase: AppSupabaseClient,
+  userId: string,
+  deliveryIds: string[],
+): Promise<void> {
+  if (deliveryIds.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("reminder_deliveries")
+    .update({
+      status: "cancelled",
+      error: null,
+    })
+    .eq("user_id", userId)
+    .eq("status", "pending")
+    .is("processing_started_at", null)
+    .in("id", deliveryIds);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function reactivateCancelledReminderDeliveriesById(
+  supabase: AppSupabaseClient,
+  userId: string,
+  deliveryIds: string[],
+): Promise<void> {
+  if (deliveryIds.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("reminder_deliveries")
+    .update({
+      status: "pending",
+      sent_at: null,
+      processing_started_at: null,
+      error: null,
+    })
+    .eq("user_id", userId)
+    .eq("status", "cancelled")
+    .in("id", deliveryIds);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function listDuePendingEmailReminderDeliveries(
   supabase: AppSupabaseClient,
   options: {

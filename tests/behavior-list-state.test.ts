@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  reconcileCreatedBehaviorViews,
   removeBehaviorView,
   upsertBehaviorView,
 } from "../components/behaviors/behavior-list-state";
@@ -63,6 +64,57 @@ describe("behavior list state", () => {
     );
 
     expect(result.map((behavior) => behavior.id)).toEqual(["keep"]);
+  });
+
+  it("keeps a client-created behavior visible until either server list owns its id", () => {
+    const created = behaviorView({
+      id: "created",
+      title: "Client-created title",
+    });
+
+    expect(reconcileCreatedBehaviorViews([created], [], [])).toEqual([created]);
+
+    expect(
+      reconcileCreatedBehaviorViews(
+        [created],
+        [
+          behaviorView({
+            id: "created",
+            title: "Server-confirmed title",
+          }),
+        ],
+        [],
+      ),
+    ).toEqual([]);
+  });
+
+  it("discards a stale client-created row across archive and restore server transitions", () => {
+    const created = behaviorView({ id: "created", active: true });
+    const archived = behaviorView({
+      id: "created",
+      active: false,
+      archivedAt: "2026-06-27T12:00:00Z",
+    });
+
+    const afterArchive = reconcileCreatedBehaviorViews(
+      [created],
+      [],
+      [archived],
+    );
+    expect(afterArchive).toEqual([]);
+
+    const afterRestore = reconcileCreatedBehaviorViews(
+      afterArchive,
+      [
+        behaviorView({
+          id: "created",
+          active: true,
+          updatedAt: "2026-06-28T12:00:00Z",
+        }),
+      ],
+      [],
+    );
+    expect(afterRestore).toEqual([]);
   });
 });
 

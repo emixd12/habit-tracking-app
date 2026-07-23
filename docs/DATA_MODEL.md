@@ -325,6 +325,16 @@ empty or ambiguous persisted schedule graph raises a safe integrity error and
 best-effort records `stale_reason = 'sync_failed'`; it cannot be filtered out
 and then recorded as fresh.
 
+The protected occurrence/reminder repair process reads this ledger rather than
+the oldest profiles. It orders stale rows first, followed by the earliest or
+missing `synced_through_local_date`, oldest `updated_at`, and `user_id` as a
+stable tie-break. After choosing that ordered batch, it resolves each target's
+current timezone from `profiles`; the ledger's copied timezone is not used to
+mark coverage fresh. This matters for archived behaviors, whose historical
+timezone may differ from the current profile timezone. Updating a successful
+or failed attempt therefore rotates bounded batches fairly as the account
+population grows.
+
 ### `occurrence_status_events`
 
 ```sql
@@ -860,6 +870,34 @@ create table push_subscriptions (
   updated_at timestamptz not null default now()
 );
 ```
+
+An active push endpoint belongs to at most one account. The database enforces
+this with a partial unique index on `endpoint` where `active = true`, while the
+existing `(user_id, endpoint)` constraint keeps a user's stored endpoint rows
+idempotent. The ownership-hardening migration deactivates older active
+duplicates for the same endpoint before creating the index, retaining the most
+recently updated row as active.
+
+Current-device readiness is not inferred from the browser alone. Cadence
+compares the browser subscription's exact endpoint, `p256dh`, and `auth` key
+material with an active row visible to the signed-in user through normal RLS.
+If the browser holds a subscription that is not persisted for the current
+account, the client unsubscribes that stale browser state before creating a
+fresh subscription. If the fresh subscription cannot be persisted, the client
+unsubscribes it and reports setup failure instead of reloading as enabled.
+
+The browser status and registration API uses the ordinary authenticated
+Supabase client. It does not use the service-role key or a privileged ownership
+transfer function. A provider that reissues an endpoint still active for a
+different account is rejected by the unique index; Cadence removes the new
+browser subscription and the user can retry after the obsolete endpoint has
+been deactivated. The prior owner's database row can remain active briefly, but
+successful browser unsubscribe invalidates its provider endpoint, so it cannot
+deliver to that browser. A later normal push attempt receives the provider's
+gone/not-found response and uses the existing delivery cleanup to mark that row
+inactive. If browser unsubscribe itself fails, Cadence refuses to create a new
+subscription and the user can retry the existing Settings action after clearing
+the obsolete subscription in browser/site settings.
 
 ### `exports`
 

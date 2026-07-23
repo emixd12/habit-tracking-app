@@ -88,4 +88,106 @@ describe("push service worker", () => {
     expect(focused).not.toHaveBeenCalled();
     expect(openWindow).not.toHaveBeenCalled();
   });
+
+  it("opens the notification target when no Cadence window exists", async () => {
+    const listeners = new Map<string, ServiceWorkerEventHandler>();
+    const matchAll = vi.fn().mockResolvedValue([]);
+    const openWindow = vi.fn().mockResolvedValue(undefined);
+    const selfMock = {
+      addEventListener: (
+        eventName: string,
+        handler: ServiceWorkerEventHandler,
+      ) => {
+        listeners.set(eventName, handler);
+      },
+      clients: {
+        matchAll,
+        openWindow,
+      },
+      location: {
+        origin: "https://cadence.example",
+      },
+      registration: {
+        showNotification: vi.fn(),
+      },
+    };
+    const source = readFileSync("public/push-service-worker.js", "utf8");
+
+    vm.runInNewContext(source, {
+      self: selfMock,
+      URL,
+    });
+
+    const waitUntil = vi.fn();
+    const close = vi.fn();
+    const clickHandler = listeners.get("notificationclick");
+
+    clickHandler?.({
+      notification: {
+        close,
+        data: {
+          url: "/timeline",
+        },
+      },
+      waitUntil,
+    });
+
+    const [pendingWork] = waitUntil.mock.calls[0] ?? [];
+    await pendingWork;
+
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(openWindow).toHaveBeenCalledWith(
+      "https://cadence.example/timeline",
+    );
+  });
+
+  it("falls back to the same-origin Timeline for a cross-origin target", async () => {
+    const listeners = new Map<string, ServiceWorkerEventHandler>();
+    const matchAll = vi.fn().mockResolvedValue([]);
+    const openWindow = vi.fn().mockResolvedValue(undefined);
+    const selfMock = {
+      addEventListener: (
+        eventName: string,
+        handler: ServiceWorkerEventHandler,
+      ) => {
+        listeners.set(eventName, handler);
+      },
+      clients: {
+        matchAll,
+        openWindow,
+      },
+      location: {
+        origin: "https://cadence.example",
+      },
+      registration: {
+        showNotification: vi.fn(),
+      },
+    };
+    const source = readFileSync("public/push-service-worker.js", "utf8");
+
+    vm.runInNewContext(source, {
+      self: selfMock,
+      URL,
+    });
+
+    const waitUntil = vi.fn();
+    const clickHandler = listeners.get("notificationclick");
+
+    clickHandler?.({
+      notification: {
+        close: vi.fn(),
+        data: {
+          url: "https://outside.example/private",
+        },
+      },
+      waitUntil,
+    });
+
+    const [pendingWork] = waitUntil.mock.calls[0] ?? [];
+    await pendingWork;
+
+    expect(openWindow).toHaveBeenCalledWith(
+      "https://cadence.example/timeline",
+    );
+  });
 });

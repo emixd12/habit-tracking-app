@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   createBehaviorWithAtomicScheduleGraph: vi.fn(),
   getBehaviorById: vi.fn(),
   getProfileTimezone: vi.fn(),
+  listUserBehaviors: vi.fn(),
+  syncUserOccurrencesAndReminders: vi.fn(),
+  reportMonitoringError: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -29,8 +32,17 @@ vi.mock("@/lib/db/behaviors.repo", async (importOriginal) => {
     ...original,
     getBehaviorById: mocks.getBehaviorById,
     getProfileTimezone: mocks.getProfileTimezone,
+    listUserBehaviors: mocks.listUserBehaviors,
   };
 });
+
+vi.mock("@/lib/services/occurrence.service", () => ({
+  syncUserOccurrencesAndReminders: mocks.syncUserOccurrencesAndReminders,
+}));
+
+vi.mock("@/lib/monitoring/privacy-safe-events", () => ({
+  reportMonitoringError: mocks.reportMonitoringError,
+}));
 
 vi.mock("@/lib/db/behaviorDefinitionEvents.repo", () => ({
   createBehaviorWithAtomicScheduleGraph:
@@ -51,6 +63,8 @@ describe("createBehaviorFromFormData", () => {
       ...storedBehavior(),
     });
     mocks.getBehaviorById.mockResolvedValue(storedBehavior());
+    mocks.listUserBehaviors.mockResolvedValue([storedBehavior()]);
+    mocks.syncUserOccurrencesAndReminders.mockResolvedValue([]);
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-26T12:00:00Z"));
   });
@@ -123,6 +137,31 @@ describe("createBehaviorFromFormData", () => {
       USER_ID,
       BEHAVIOR_ID,
     );
+    expect(mocks.syncUserOccurrencesAndReminders).toHaveBeenCalledWith(
+      expect.anything(),
+      USER_ID,
+      {
+        behaviors: [storedBehavior()],
+        timezone: "America/New_York",
+      },
+    );
+  });
+
+  it("returns the committed behavior when post-write graph repair fails", async () => {
+    const failure = new Error("reminder repair failed");
+    mocks.syncUserOccurrencesAndReminders.mockRejectedValueOnce(failure);
+    const { createBehaviorFromFormData } = await import(
+      "../lib/services/behavior.service"
+    );
+
+    await expect(
+      createBehaviorFromFormData(createFormData()),
+    ).resolves.toMatchObject({ id: BEHAVIOR_ID, title: "Brush teeth" });
+    expect(mocks.reportMonitoringError).toHaveBeenCalledWith(
+      "behavior_graph_post_write_sync_failed",
+      failure,
+      { operation: "create" },
+    );
   });
 
   it("returns a resavable fallback schedule row when the confirmed behavior has no slot rows", async () => {
@@ -158,6 +197,7 @@ describe("createBehaviorFromFormData", () => {
     );
 
     expect(mocks.getBehaviorById).not.toHaveBeenCalled();
+    expect(mocks.syncUserOccurrencesAndReminders).not.toHaveBeenCalled();
   });
 });
 

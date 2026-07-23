@@ -216,5 +216,11 @@ On 2026-06-08, the provider setup was verified for this app:
 - Confirmed CLI account access with `npm run sequenzy -- whoami`.
 - Created transactional template slug `habit-reminder` through `POST /api/v1/transactional`.
 - Inspected it with `npm run sequenzy -- transactional get habit-reminder --json`.
-- Sent one user-approved test email to `emibache@gmail.com`.
+- Sent one user-approved test email; the recipient is intentionally redacted
+  from repository documentation.
 - Set local `SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder`.
+
+This working-tree redaction does not remove the prior recipient value from Git
+history or existing clones. If that history has been published or distributed,
+the repository owner should separately assess whether a coordinated history
+rewrite is appropriate; do not copy the recipient into new QA records.

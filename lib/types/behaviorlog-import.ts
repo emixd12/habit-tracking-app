@@ -115,6 +115,7 @@ export type BehaviorLogExistingBehavior = {
   title: string;
   description?: string | null;
   category?: string | null;
+  cadenceCategoryName?: string | null;
   active?: boolean | null;
   archivedAt?: string | null;
   sourceOriginalId?: string | null;

@@ -1,9 +1,17 @@
+import { readFileSync } from "node:fs";
+
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { BehaviorForm } from "../components/behaviors/BehaviorForm";
-import { BehaviorList } from "../components/behaviors/BehaviorList";
+import {
+  BehaviorForm,
+  resetBehaviorScheduleDraft,
+} from "../components/behaviors/BehaviorForm";
+import {
+  BehaviorActionResultAnnouncement,
+  BehaviorList,
+} from "../components/behaviors/BehaviorList";
 import { StatusButtons } from "../components/timeline/StatusButtons";
 import type { AnalyticsView } from "../lib/types/analytics";
 import type {
@@ -60,6 +68,110 @@ describe("behavior date review UI", () => {
 
     expect(dailyHtml).not.toContain('name="schedule_0_weekly_days"');
     expect(weeklyHtml.match(/name="schedule_0_weekly_days"/g)).toHaveLength(7);
+  });
+
+  it("restores every controlled schedule value to the initial edit draft", () => {
+    const behavior = behaviorViewWithSchedules();
+    const dirtyDraft = resetBehaviorScheduleDraft([], behavior);
+
+    dirtyDraft[0]!.recurrenceKind = "daily";
+    dirtyDraft[0]!.timeEntries[0] = {
+      ...dirtyDraft[0]!.timeEntries[0]!,
+      kind: "exact",
+      exactTime: "09:15",
+      rangePreset: null,
+    };
+    dirtyDraft.splice(1, 1);
+
+    expect(resetBehaviorScheduleDraft(dirtyDraft, behavior)).toMatchObject([
+      {
+        id: "schedule-monthly",
+        recurrenceKind: "monthly",
+        recurrenceDefaults: {
+          kind: "monthly",
+          monthlyInterval: 2,
+          monthlyDay: 31,
+        },
+        timeEntries: [
+          {
+            id: "slot-evening",
+            kind: "range",
+            rangeStart: "18:00",
+            rangeEnd: "00:00",
+            rangePreset: "evening",
+          },
+          {
+            id: "slot-late",
+            kind: "exact",
+            exactTime: "22:30",
+          },
+        ],
+      },
+      {
+        id: "schedule-weekly",
+        recurrenceKind: "weekly",
+        timeEntries: [
+          {
+            id: "slot-morning",
+            kind: "exact",
+            exactTime: "07:00",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("names every repeated time-mode control by schedule and time row", () => {
+    const html = renderToStaticMarkup(
+      <BehaviorForm
+        mode="edit"
+        action={behaviorAction}
+        categories={[{ id: "category-1", name: "Health" }]}
+        behavior={behaviorViewWithSchedules()}
+      />,
+    );
+
+    expect(html).toContain('aria-label="Schedule 1, time 1 mode"');
+    expect(html).toContain('aria-label="Schedule 1, time 2 mode"');
+    expect(html).toContain('aria-label="Schedule 2, time 1 mode"');
+    expect(html).toContain('<button type="reset"');
+    expect(html).toContain('name="email_reminder" checked=""');
+    expect(html).toContain(
+      '<option value="1440" selected="">1 day before</option>',
+    );
+  });
+
+  it("keeps archive and restore results above moving rows with status and alert semantics", () => {
+    const source = readFileSync(
+      new URL("../components/behaviors/BehaviorList.tsx", import.meta.url),
+      "utf8",
+    );
+    const parentStart = source.indexOf("export function BehaviorList(");
+    const announcementStart = source.indexOf(
+      "export function BehaviorActionResultAnnouncement(",
+    );
+    const rowFormStart = source.indexOf("function BehaviorStateForm(");
+    const rowButtonStart = source.indexOf("function BehaviorStateButton(");
+    const parentSource = source.slice(parentStart, announcementStart);
+    const rowFormSource = source.slice(rowFormStart, rowButtonStart);
+    const archivedHtml = renderToStaticMarkup(
+      <BehaviorActionResultAnnouncement
+        result={{ status: "success", message: "Behavior archived." }}
+      />,
+    );
+    const restoreFailureHtml = renderToStaticMarkup(
+      <BehaviorActionResultAnnouncement
+        result={{ status: "error", message: "Behavior could not be restored." }}
+      />,
+    );
+
+    expect(parentSource.match(/useActionState\(/g)).toHaveLength(1);
+    expect(parentSource).toContain('intent === "archive" ? archiveAction : restoreAction');
+    expect(rowFormSource).not.toContain("useActionState(");
+    expect(archivedHtml).toContain('role="status"');
+    expect(archivedHtml).toContain("Behavior archived.");
+    expect(restoreFailureHtml).toContain('role="alert"');
+    expect(restoreFailureHtml).toContain("Behavior could not be restored.");
   });
 
   it("gives actionable heatmap days review scent and names the selected-day panel", () => {
@@ -166,6 +278,88 @@ function behaviorView(): BehaviorView {
     archivedAt: null,
     createdAt: "2026-06-01T12:00:00Z",
     updatedAt: "2026-06-01T12:00:00Z",
+  };
+}
+
+function behaviorViewWithSchedules(): BehaviorView {
+  return {
+    ...behaviorView(),
+    browserReminderEnabled: false,
+    emailReminderEnabled: true,
+    reminderOffsetMinutes: 1440,
+    schedules: [
+      {
+        id: "schedule-monthly",
+        recurrenceRule: {
+          frequency: "monthly",
+          interval: 2,
+          dayOfMonth: 31,
+        },
+        recurrenceSummary: "Every 2 months on day 31",
+        recurrenceDefaults: {
+          kind: "monthly",
+          dailyInterval: 1,
+          everyDays: 2,
+          weeklyInterval: 1,
+          weeklyDays: ["monday"],
+          monthlyInterval: 2,
+          monthlyDay: 31,
+        },
+        timeEntries: [
+          {
+            id: "slot-evening",
+            kind: "range",
+            preset: "evening",
+            startTime: "18:00",
+            endTime: "00:00",
+            sortOrder: 0,
+            label: "Evening",
+          },
+          {
+            id: "slot-late",
+            kind: "exact",
+            preset: null,
+            startTime: "22:30",
+            endTime: null,
+            sortOrder: 1,
+            label: "10:30 PM",
+          },
+        ],
+        timeSummary: "Evening, 10:30 PM",
+        sortOrder: 0,
+      },
+      {
+        id: "schedule-weekly",
+        recurrenceRule: {
+          frequency: "weekly",
+          interval: 1,
+          daysOfWeek: ["monday", "wednesday"],
+        },
+        recurrenceSummary: "Weekly on Monday and Wednesday",
+        recurrenceDefaults: {
+          kind: "weekly",
+          dailyInterval: 1,
+          everyDays: 2,
+          weeklyInterval: 1,
+          weeklyDays: ["monday", "wednesday"],
+          monthlyInterval: 1,
+          monthlyDay: 1,
+        },
+        timeEntries: [
+          {
+            id: "slot-morning",
+            kind: "exact",
+            preset: null,
+            startTime: "07:00",
+            endTime: null,
+            sortOrder: 0,
+            label: "7:00 AM",
+          },
+        ],
+        timeSummary: "7:00 AM",
+        sortOrder: 1,
+      },
+    ],
   };
 }
 

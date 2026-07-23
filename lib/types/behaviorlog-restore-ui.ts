@@ -21,7 +21,7 @@ export type BehaviorLogRestoreActionState = {
     fileName: string;
     fileSize: number;
   } | null;
-  bundlePayload: string | null;
+  archiveFingerprint: string | null;
   preview: BehaviorLogRestorePreview | null;
   previewRun: BehaviorLogRestoreRunView | null;
   applyResult: BehaviorLogRestoreApplyResult | null;
@@ -40,7 +40,7 @@ export const BEHAVIORLOG_RESTORE_INITIAL_STATE: BehaviorLogRestoreActionState = 
   status: "idle",
   message: null,
   upload: null,
-  bundlePayload: null,
+  archiveFingerprint: null,
   preview: null,
   previewRun: null,
   applyResult: null,

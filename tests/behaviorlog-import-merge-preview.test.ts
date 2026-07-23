@@ -3,9 +3,18 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { resolveBehaviorLogImportMergePreview } from "../lib/resolvers/behaviorlog-import.resolver";
-import type { BehaviorLogImportFile } from "../lib/types/behaviorlog-import";
+import type {
+  BehaviorLogExistingRecords,
+  BehaviorLogImportFile,
+} from "../lib/types/behaviorlog-import";
 
 const TIMEZONE = "America/New_York";
+type ExistingRecordsFixture = Required<
+  Pick<
+    BehaviorLogExistingRecords,
+    "behaviors" | "schedules" | "occurrences" | "statusEvents"
+  >
+>;
 
 describe("resolveBehaviorLogImportMergePreview", () => {
   it("plans create_new actions for records without local matches and previews optional records", () => {
@@ -109,6 +118,94 @@ describe("resolveBehaviorLogImportMergePreview", () => {
     expect(preview.mergePreview.actions.statusEvents[0]).toMatchObject({
       action: "skip_existing",
       localId: "local-event",
+    });
+  });
+
+  it("maps an immediately re-imported Cadence bundle by its canonical category", () => {
+    const records = existingRecords();
+
+    records.behaviors[0].category = "hygiene";
+    records.behaviors[0].cadenceCategoryName = "Grooming";
+
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles({
+        behavior: {
+          category: "hygiene",
+        },
+      }),
+      existing: {
+        ...records,
+        mappings: [
+          {
+            recordType: "behavior",
+            externalId: "behavior-brush",
+            localId: "local-behavior",
+          },
+          {
+            recordType: "schedule",
+            externalId: "schedule-brush",
+            localId: "local-schedule",
+          },
+          {
+            recordType: "occurrence",
+            externalId: "occurrence-1",
+            localId: "local-occurrence",
+          },
+          {
+            recordType: "status_event",
+            externalId: "event-1",
+            localId: "local-event",
+          },
+        ],
+      },
+    });
+
+    expect(preview.valid).toBe(true);
+    expect(preview.mergePreview.conflictCount).toBe(0);
+    expect(preview.mergePreview.actions.behaviors[0]).toMatchObject({
+      action: "map_to_existing",
+      localId: "local-behavior",
+      conflictCodes: [],
+    });
+    expect(preview.mergePreview.actionCounts).toEqual({
+      create_new: 0,
+      map_to_existing: 3,
+      skip_existing: 1,
+      conflict_requires_decision: 0,
+    });
+  });
+
+  it("keeps distinct Cadence display categories separate when the canonical category matches", () => {
+    const records = existingRecords();
+
+    records.behaviors[0] = {
+      ...records.behaviors[0],
+      category: "health_wellness",
+      cadenceCategoryName: "Measurements",
+    };
+
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles({
+        behavior: {
+          category: "health_wellness",
+          extensions: {
+            "app.cadence": {
+              category_name: "Medical",
+              active: true,
+              browser_reminder_enabled: true,
+              email_reminder_enabled: false,
+              reminder_offset_minutes: 0,
+            },
+          },
+        },
+      }),
+      existing: records,
+    });
+
+    expect(preview.mergePreview.actions.behaviors[0]).toMatchObject({
+      action: "conflict_requires_decision",
+      localId: "local-behavior",
+      conflictCodes: ["behavior_identity_mismatch"],
     });
   });
 
@@ -308,7 +405,7 @@ describe("resolveBehaviorLogImportMergePreview", () => {
   });
 });
 
-function existingRecords() {
+function existingRecords(): ExistingRecordsFixture {
   return {
     behaviors: [
       {

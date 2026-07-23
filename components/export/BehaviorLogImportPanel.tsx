@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef, useState } from "react";
 
 import { submitBehaviorLogImportAction } from "@/app/(app)/export/actions";
 import type {
@@ -20,6 +20,10 @@ import type {
   BehaviorLogImportRunView,
 } from "@/lib/types/behaviorlog-import-ui";
 import { BEHAVIORLOG_IMPORT_INITIAL_STATE } from "@/lib/types/behaviorlog-import-ui";
+import {
+  getBehaviorLogBundleSizeError,
+  readBehaviorLogBundleAsBase64,
+} from "@/lib/types/behaviorlog-bundle-ui";
 
 type BehaviorLogImportPanelProps = Readonly<{
   recentRuns: BehaviorLogImportRunView[];
@@ -54,6 +58,48 @@ export function BehaviorLogImportPanel({
   );
   const preview = state.preview;
   const runs = mergeRecentRuns(recentRuns, state);
+  const bundleReadVersionRef = useRef(0);
+  const [bundlePayload, setBundlePayload] = useState<string | null>(null);
+  const [clientError, setClientError] = useState<string | null>(null);
+  const [isPreparingBundle, setIsPreparingBundle] = useState(false);
+
+  async function handleBundleFileChange(file: File | null) {
+    const readVersion = bundleReadVersionRef.current + 1;
+    bundleReadVersionRef.current = readVersion;
+    setBundlePayload(null);
+    setClientError(null);
+
+    if (!file) {
+      setIsPreparingBundle(false);
+      return;
+    }
+
+    const sizeError = getBehaviorLogBundleSizeError(file.size);
+
+    if (sizeError) {
+      setClientError(sizeError);
+      setIsPreparingBundle(false);
+      return;
+    }
+
+    setIsPreparingBundle(true);
+
+    try {
+      const payload = await readBehaviorLogBundleAsBase64(file);
+
+      if (bundleReadVersionRef.current === readVersion) {
+        setBundlePayload(payload);
+      }
+    } catch {
+      if (bundleReadVersionRef.current === readVersion) {
+        setClientError("Cadence could not prepare this file. Choose it again.");
+      }
+    } finally {
+      if (bundleReadVersionRef.current === readVersion) {
+        setIsPreparingBundle(false);
+      }
+    }
+  }
 
   return (
     <section
@@ -81,7 +127,22 @@ export function BehaviorLogImportPanel({
         ) : null}
       </div>
 
-      <form action={formAction} className="mt-5 grid gap-4">
+      <form
+        action={formAction}
+        onSubmit={(event) => {
+          const file = new FormData(event.currentTarget).get("behaviorlog_file");
+          const sizeError =
+            file instanceof File
+              ? getBehaviorLogBundleSizeError(file.size)
+              : null;
+
+          if (sizeError) {
+            event.preventDefault();
+            setClientError(sizeError);
+          }
+        }}
+        className="mt-5 grid gap-4"
+      >
         <input type="hidden" name="intent" value="preview" />
         <label className="grid gap-2">
           <span className="text-sm font-bold text-muted-readable">
@@ -91,19 +152,31 @@ export function BehaviorLogImportPanel({
             type="file"
             name="behaviorlog_file"
             accept=".behaviorlog.zip,application/zip"
+            onChange={(event) => {
+              void handleBundleFileChange(event.currentTarget.files?.[0] ?? null);
+            }}
             className="min-h-11 w-full bg-background px-0 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-transparent file:px-0 file:py-1 file:text-sm file:font-bold file:text-foreground file:underline file:decoration-1 file:underline-offset-4"
           />
+          <span className="text-sm text-muted-readable">
+            Maximum file size: 2 MB.
+          </span>
         </label>
         <div>
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || isPreparingBundle || clientError !== null}
             className="product-action product-action-primary min-h-11 py-2 text-sm font-bold"
           >
             Preview import
           </button>
         </div>
       </form>
+
+      {clientError ? (
+        <p className="mt-5 text-sm font-bold text-accent" role="alert">
+          {clientError}
+        </p>
+      ) : null}
 
       {state.message ? <ImportMessage state={state} /> : null}
 
@@ -118,8 +191,10 @@ export function BehaviorLogImportPanel({
         />
       ) : null}
 
-      {preview && state.bundlePayload && state.capabilities ? (
+      {preview && state.archiveFingerprint && state.capabilities ? (
         <ApplyControls
+          key={`${state.previewRun?.id ?? "no-run"}:${state.archiveFingerprint}`}
+          bundlePayload={bundlePayload}
           formAction={formAction}
           state={state}
           capabilities={state.capabilities}
@@ -370,11 +445,13 @@ export function BehaviorLogImportPreviewDetails({
 }
 
 function ApplyControls({
+  bundlePayload,
   formAction,
   state,
   capabilities,
   isPending,
 }: Readonly<{
+  bundlePayload: string | null;
   formAction: (formData: FormData) => void;
   state: BehaviorLogImportActionState;
   capabilities: BehaviorLogImportCapabilities;
@@ -384,7 +461,8 @@ function ApplyControls({
     <section className="mt-6 grid gap-4 border-t border-line pt-5">
       <h3 className="text-xl leading-tight">Apply</h3>
       <div className="grid gap-4 lg:grid-cols-2">
-      <BehaviorLogImportApplyForm
+        <BehaviorLogImportApplyForm
+          key={`${state.previewRun?.id ?? "no-run"}:${state.preview?.previewFingerprint ?? "no-preview"}:create-only`}
           title="Create-only"
           mode="create_missing_only"
           buttonLabel="Apply create-only import"
@@ -393,10 +471,12 @@ function ApplyControls({
           requiresSensitiveNoteConfirmation={previewRequiresSensitiveNoteConfirmation(
             state.preview,
           )}
+          bundlePayload={bundlePayload}
           formAction={formAction}
           state={state}
         />
-      <BehaviorLogImportApplyForm
+        <BehaviorLogImportApplyForm
+          key={`${state.previewRun?.id ?? "no-run"}:${state.preview?.previewFingerprint ?? "no-preview"}:approved-merge`}
           title="Approved merge"
           mode="merge_by_user_approved_plan"
           buttonLabel="Apply approved merge"
@@ -405,6 +485,7 @@ function ApplyControls({
           requiresSensitiveNoteConfirmation={previewRequiresSensitiveNoteConfirmation(
             state.preview,
           )}
+          bundlePayload={bundlePayload}
           formAction={formAction}
           state={state}
         />
@@ -420,6 +501,7 @@ export function BehaviorLogImportApplyForm({
   disabled,
   disabledReason,
   requiresSensitiveNoteConfirmation,
+  bundlePayload,
   formAction,
   state,
 }: Readonly<{
@@ -429,14 +511,31 @@ export function BehaviorLogImportApplyForm({
   disabled: boolean;
   disabledReason: string | null;
   requiresSensitiveNoteConfirmation: boolean;
+  bundlePayload: string | null;
   formAction: (formData: FormData) => void;
   state: BehaviorLogImportActionState;
 }>) {
+  const [previewAcknowledged, setPreviewAcknowledged] = useState(false);
+  const [sensitiveNotesAcknowledged, setSensitiveNotesAcknowledged] =
+    useState(false);
+  const unavailable = disabled || !bundlePayload;
+  const canSubmit = isBehaviorLogImportApplyReady({
+    unavailable,
+    previewAcknowledged,
+    requiresSensitiveNoteConfirmation,
+    sensitiveNotesAcknowledged,
+  });
+
   return (
     <form action={formAction} className="grid gap-4 border-t border-line pt-4">
       <input type="hidden" name="intent" value="apply" />
       <input type="hidden" name="import_mode" value={mode} />
-      <input type="hidden" name="bundle_payload" value={state.bundlePayload ?? ""} />
+      <input type="hidden" name="bundle_payload" value={bundlePayload ?? ""} />
+      <input
+        type="hidden"
+        name="archive_fingerprint"
+        value={state.archiveFingerprint ?? ""}
+      />
       <input
         type="hidden"
         name="import_preview_run_id"
@@ -481,7 +580,11 @@ export function BehaviorLogImportApplyForm({
           name="confirm_apply"
           value="yes"
           required
-          disabled={disabled}
+          disabled={unavailable}
+          checked={previewAcknowledged}
+          onChange={(event) =>
+            setPreviewAcknowledged(event.currentTarget.checked)
+          }
           className="mt-1 h-5 w-5 accent-foreground"
         />
         <span>I reviewed this exact preview.</span>
@@ -493,7 +596,11 @@ export function BehaviorLogImportApplyForm({
             name="confirm_sensitive_notes"
             value="yes"
             required
-            disabled={disabled}
+            disabled={unavailable}
+            checked={sensitiveNotesAcknowledged}
+            onChange={(event) =>
+              setSensitiveNotesAcknowledged(event.currentTarget.checked)
+            }
             className="mt-1 h-5 w-5 accent-foreground"
           />
           <span>I reviewed high or restricted note sensitivity warnings.</span>
@@ -501,12 +608,30 @@ export function BehaviorLogImportApplyForm({
       ) : null}
       <button
         type="submit"
-        disabled={disabled}
+        disabled={!canSubmit}
         className="product-action product-action-primary min-h-11 w-fit py-2 text-sm font-bold"
       >
         {buttonLabel}
       </button>
     </form>
+  );
+}
+
+export function isBehaviorLogImportApplyReady({
+  unavailable,
+  previewAcknowledged,
+  requiresSensitiveNoteConfirmation,
+  sensitiveNotesAcknowledged,
+}: Readonly<{
+  unavailable: boolean;
+  previewAcknowledged: boolean;
+  requiresSensitiveNoteConfirmation: boolean;
+  sensitiveNotesAcknowledged: boolean;
+}>): boolean {
+  return (
+    !unavailable &&
+    previewAcknowledged &&
+    (!requiresSensitiveNoteConfirmation || sensitiveNotesAcknowledged)
   );
 }
 

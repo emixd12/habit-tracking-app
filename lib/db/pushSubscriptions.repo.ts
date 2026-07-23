@@ -38,6 +38,30 @@ export async function upsertPushSubscription(
   return data;
 }
 
+export async function hasActivePushSubscriptionForUser(
+  supabase: AppSupabaseClient,
+  input: Pick<
+    PushSubscriptionInput,
+    "userId" | "endpoint" | "p256dh" | "auth"
+  >,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("push_subscriptions")
+    .select("id")
+    .eq("user_id", input.userId)
+    .eq("endpoint", input.endpoint)
+    .eq("p256dh", input.p256dh)
+    .eq("auth", input.auth)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data !== null;
+}
+
 export async function listActivePushSubscriptionsForUser(
   supabase: AppSupabaseClient,
   userId: string,

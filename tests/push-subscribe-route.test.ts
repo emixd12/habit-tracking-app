@@ -1,16 +1,20 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { upsertPushSubscription } from "@/lib/db/pushSubscriptions.repo";
+import {
+  hasActivePushSubscriptionForUser,
+  upsertPushSubscription,
+} from "@/lib/db/pushSubscriptions.repo";
 import { resetAuthFailureRateLimitersForTests } from "@/lib/security/auth-failure-rate-limits";
 import { createClient } from "@/lib/supabase/server";
-import { POST } from "../app/api/push/subscribe/route";
+import { POST, PUT } from "../app/api/push/subscribe/route";
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
 vi.mock("@/lib/db/pushSubscriptions.repo", () => ({
+  hasActivePushSubscriptionForUser: vi.fn(),
   upsertPushSubscription: vi.fn(),
 }));
 
@@ -105,6 +109,71 @@ describe("push subscribe route", () => {
     });
   });
 
+  it("checks persisted ownership for the exact current-device endpoint", async () => {
+    const supabase = {
+      auth: {
+        getClaims: vi.fn().mockResolvedValue({
+          data: { claims: { sub: "user-1" } },
+          error: null,
+        }),
+      },
+    };
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(hasActivePushSubscriptionForUser).mockResolvedValue(true);
+
+    const response = await PUT(pushStatusRequest());
+
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      saved: true,
+    });
+    expect(response.status).toBe(200);
+    expect(hasActivePushSubscriptionForUser).toHaveBeenCalledWith(supabase, {
+      userId: "user-1",
+      endpoint: "https://push.example.com/subscription/1",
+      p256dh: "public-key",
+      auth: "auth-secret",
+    });
+  });
+
+  it("returns a neutral missing result for an endpoint not owned by the current user", async () => {
+    const supabase = {
+      auth: {
+        getClaims: vi.fn().mockResolvedValue({
+          data: { claims: { sub: "user-2" } },
+          error: null,
+        }),
+      },
+    };
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(hasActivePushSubscriptionForUser).mockResolvedValue(false);
+
+    const response = await PUT(pushStatusRequest());
+
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      saved: false,
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("requires authentication before checking persisted endpoint ownership", async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getClaims: vi.fn().mockResolvedValue({
+          data: null,
+          error: null,
+        }),
+      },
+    } as never);
+
+    const response = await PUT(pushStatusRequest());
+
+    await expect(response.json()).resolves.toMatchObject({ ok: false });
+    expect(response.status).toBe(401);
+    expect(hasActivePushSubscriptionForUser).not.toHaveBeenCalled();
+  });
+
   it("rate limits repeated unauthenticated subscription attempts", async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
@@ -137,6 +206,20 @@ function pushRequest() {
     body: JSON.stringify(VALID_SUBSCRIPTION),
     headers: {
       "x-forwarded-for": "203.0.113.10",
+    },
+  });
+}
+
+function pushStatusRequest() {
+  return new NextRequest("http://localhost:3000/api/push/subscribe", {
+    method: "PUT",
+    body: JSON.stringify({
+      endpoint: VALID_SUBSCRIPTION.endpoint,
+      keys: VALID_SUBSCRIPTION.keys,
+    }),
+    headers: {
+      "content-type": "application/json",
+      "x-forwarded-for": "203.0.113.20",
     },
   });
 }

@@ -1694,6 +1694,10 @@ type MergePreviewContext = {
     string,
     NonNullable<BehaviorLogExistingRecords["behaviors"]>[number]
   >;
+  behaviorsByCadenceIdentity: Map<
+    string,
+    NonNullable<BehaviorLogExistingRecords["behaviors"]>[number]
+  >;
   behaviorsByTitle: Map<
     string,
     NonNullable<BehaviorLogExistingRecords["behaviors"]>[number]
@@ -1854,6 +1858,21 @@ function createMergePreviewContext(
         behavior,
       ]),
     ),
+    behaviorsByCadenceIdentity: new Map(
+      behaviors.flatMap((behavior) =>
+        behavior.cadenceCategoryName
+          ? [
+              [
+                behaviorIdentity(
+                  behavior.title,
+                  behavior.cadenceCategoryName,
+                ),
+                behavior,
+              ] as const,
+            ]
+          : [],
+      ),
+    ),
     behaviorsByTitle: new Map(
       behaviors.map((behavior) => [normalizeIdentity(behavior.title), behavior]),
     ),
@@ -1963,9 +1982,16 @@ function resolveBehaviorMergeAction(
     });
   }
 
-  const identityMatch = context.behaviorsByIdentity.get(
-    behaviorIdentity(behavior.title, behaviorCategoryForIdentity(behavior)),
-  );
+  const cadenceIdentityMatch = behavior.cadenceCategoryName
+    ? context.behaviorsByCadenceIdentity.get(
+        behaviorIdentity(behavior.title, behavior.cadenceCategoryName),
+      )
+    : undefined;
+  const identityMatch =
+    cadenceIdentityMatch ??
+    context.behaviorsByIdentity.get(
+      behaviorIdentity(behavior.title, behaviorCategoryForIdentity(behavior)),
+    );
 
   if (identityMatch) {
     return behaviorCandidateAction({
@@ -1973,7 +1999,9 @@ function resolveBehaviorMergeAction(
       existing: identityMatch,
       context,
       conflicts,
-      reason: `Behavior ${behavior.externalId} matches local title/category identity.`,
+      reason: cadenceIdentityMatch
+        ? `Behavior ${behavior.externalId} matches local Cadence title/category identity.`
+        : `Behavior ${behavior.externalId} matches local canonical title/category identity.`,
     });
   }
 
@@ -2861,11 +2889,16 @@ function compareBehaviorCandidate(
 ): { codes: string[]; reasons: string[] } {
   const codes: string[] = [];
   const reasons: string[] = [];
-
-  if (
+  const canonicalIdentityDiffers =
     behaviorIdentity(behavior.title, behaviorCategoryForIdentity(behavior)) !==
-    behaviorIdentity(existing.title, existing.category ?? null)
-  ) {
+    behaviorIdentity(existing.title, existing.category ?? null);
+  const cadenceDisplayCategoryDiffers =
+    behavior.cadenceCategoryName !== null &&
+    existing.cadenceCategoryName != null &&
+    normalizeIdentity(behavior.cadenceCategoryName) !==
+      normalizeIdentity(existing.cadenceCategoryName);
+
+  if (canonicalIdentityDiffers || cadenceDisplayCategoryDiffers) {
     codes.push("behavior_identity_mismatch");
     reasons.push(
       `Behavior ${behavior.externalId} differs from local behavior ${existing.id} by title or category identity.`,
@@ -3079,7 +3112,10 @@ function countMergeActions(
 function behaviorCategoryForIdentity(
   behavior: BehaviorLogImportBehaviorPlan,
 ): string | null {
-  return behavior.cadenceCategoryName ?? behavior.category;
+  // Candidate lookup follows the authoritative BehaviorLog category. When
+  // both records also carry Cadence display-category metadata,
+  // compareBehaviorCandidate verifies that identity separately.
+  return behavior.category;
 }
 
 function importedBehaviorArchived(

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { Temporal } from "@js-temporal/polyfill";
 
 import {
@@ -26,7 +28,10 @@ import {
 } from "@/lib/services/behaviorlog-import-write.service";
 import { readCachedBehaviorLogImportRuns } from "@/lib/cache/stable-user-data.cache";
 import { normalizeRecurrenceRule } from "@/lib/services/behavior-form";
-import { readZipEntries } from "@/lib/services/zip";
+import {
+  DEFAULT_ZIP_READ_LIMITS,
+  readZipEntries,
+} from "@/lib/services/zip";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -46,6 +51,7 @@ import type {
   BehaviorLogImportCapabilities,
   BehaviorLogImportPageData,
 } from "@/lib/types/behaviorlog-import-ui";
+import { BEHAVIORLOG_BUNDLE_SIZE_ERROR } from "@/lib/types/behaviorlog-bundle-ui";
 import {
   BEHAVIORLOG_IMPORT_INITIAL_STATE,
   isBehaviorLogApplyMode,
@@ -63,7 +69,7 @@ import { DEFAULT_TIMEZONE, type RecurrenceRule } from "@/lib/types/recurrence";
 
 export type BehaviorLogZipInput = Buffer | Uint8Array | ArrayBuffer;
 
-const MAX_BEHAVIORLOG_UPLOAD_BYTES = 20 * 1024 * 1024;
+const MAX_BEHAVIORLOG_UPLOAD_BYTES = DEFAULT_ZIP_READ_LIMITS.maxArchiveBytes;
 const BEHAVIORLOG_RECURRENCE_PROFILE = "behaviorlog.calendar_simple.v1";
 
 type BehaviorLogUploadBundle = {
@@ -71,7 +77,7 @@ type BehaviorLogUploadBundle = {
   fileSize: number;
   zip: Buffer;
   files: BehaviorLogImportFile[];
-  bundlePayload: string;
+  archiveFingerprint: string;
 };
 
 export class BehaviorLogImportAuthError extends Error {
@@ -172,9 +178,9 @@ export function createBehaviorLogImportPageDataFromRuns(
 export async function previewBehaviorLogImportUploadFromFormData(
   formData: FormData,
 ): Promise<BehaviorLogImportActionState> {
-  const bundle = await readUploadBundle(formData);
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
+  const bundle = await readUploadBundle(formData);
   const existing = await listBehaviorLogExistingRecords(supabase, userId);
   const preview = previewBehaviorLogMergeImportFromFiles({
     files: bundle.files,
@@ -184,6 +190,7 @@ export async function previewBehaviorLogImportUploadFromFormData(
     userId,
     files: bundle.files,
     preview,
+    archiveFingerprint: bundle.archiveFingerprint,
     importMode: "merge_preview",
   });
 
@@ -196,7 +203,7 @@ export async function previewBehaviorLogImportUploadFromFormData(
       fileName: bundle.fileName,
       fileSize: bundle.fileSize,
     },
-    bundlePayload: bundle.bundlePayload,
+    archiveFingerprint: bundle.archiveFingerprint,
     preview,
     previewRun: toImportRunView(importRun),
     capabilities: resolveBehaviorLogImportCapabilities(preview),
@@ -219,6 +226,8 @@ export async function applyBehaviorLogImportUploadFromFormData(
     );
   }
 
+  const supabase = await createClient();
+  const userId = await requireUserId(supabase);
   const bundle = readBundlePayload(formData);
   const previewRunId = readRequiredString(
     formData,
@@ -240,8 +249,11 @@ export async function applyBehaviorLogImportUploadFromFormData(
     "bundle_fingerprint",
     "Preview the .behaviorlog.zip bundle again before applying.",
   );
-  const supabase = await createClient();
-  const userId = await requireUserId(supabase);
+  const acceptedArchiveFingerprint = readRequiredString(
+    formData,
+    "archive_fingerprint",
+    "Preview the .behaviorlog.zip bundle again before applying.",
+  );
   const previewRun = await getBehaviorLogImportRunById(
     supabase,
     userId,
@@ -251,11 +263,16 @@ export async function applyBehaviorLogImportUploadFromFormData(
   const acceptedPreview = {
     run: previewRun,
     bundleFingerprint: acceptedBundleFingerprint,
+    archiveFingerprint: acceptedArchiveFingerprint,
     localDataFingerprint: acceptedLocalDataFingerprint,
     previewFingerprint: acceptedPreviewFingerprint,
   };
 
   assertAcceptedImportPreviewRun(acceptedPreview);
+  assertArchiveMatchesAcceptedImportPreview(
+    bundle.archiveFingerprint,
+    acceptedArchiveFingerprint,
+  );
 
   const existing = await listBehaviorLogExistingRecords(supabase, userId);
   const preview = previewBehaviorLogMergeImportFromFiles({
@@ -296,7 +313,7 @@ export async function applyBehaviorLogImportUploadFromFormData(
         fileName: bundle.fileName,
         fileSize: bundle.fileSize,
       },
-      bundlePayload: null,
+      archiveFingerprint: null,
       preview,
       previewRun: toImportRunView(importRun),
       capabilities,
@@ -322,7 +339,7 @@ export async function applyBehaviorLogImportUploadFromFormData(
       fileName: bundle.fileName,
       fileSize: bundle.fileSize,
     },
-    bundlePayload: null,
+    archiveFingerprint: null,
     preview,
     previewRun: toImportRunView(importRun),
     capabilities,
@@ -447,9 +464,7 @@ async function readUploadBundle(
   }
 
   if (value.size > MAX_BEHAVIORLOG_UPLOAD_BYTES) {
-    throw new BehaviorLogImportUserError(
-      "The uploaded bundle is too large for this import screen.",
-    );
+    throw new BehaviorLogImportUserError(BEHAVIORLOG_BUNDLE_SIZE_ERROR);
   }
 
   const zip = Buffer.from(await value.arrayBuffer());
@@ -479,9 +494,7 @@ function readBundlePayload(formData: FormData): BehaviorLogUploadBundle {
   }
 
   if (zip.byteLength > MAX_BEHAVIORLOG_UPLOAD_BYTES) {
-    throw new BehaviorLogImportUserError(
-      "The uploaded bundle is too large for this import screen.",
-    );
+    throw new BehaviorLogImportUserError(BEHAVIORLOG_BUNDLE_SIZE_ERROR);
   }
 
   return createUploadBundle({
@@ -500,6 +513,7 @@ function readBundlePayload(formData: FormData): BehaviorLogUploadBundle {
 function assertAcceptedImportPreviewRun(input: {
   run: BehaviorLogImportRun | null;
   bundleFingerprint: string;
+  archiveFingerprint: string;
   localDataFingerprint: string;
   previewFingerprint: string;
 }): asserts input is { run: BehaviorLogImportRun } & typeof input {
@@ -519,6 +533,7 @@ function assertAcceptedImportPreviewRun(input: {
     summary?.valid !== true ||
     input.run.bundle_fingerprint !== input.bundleFingerprint ||
     readString(summary?.bundleFingerprint) !== input.bundleFingerprint ||
+    readString(summary?.archiveFingerprint) !== input.archiveFingerprint ||
     readString(summary?.localDataFingerprint) !== input.localDataFingerprint ||
     readString(summary?.previewFingerprint) !== input.previewFingerprint
   ) {
@@ -526,6 +541,19 @@ function assertAcceptedImportPreviewRun(input: {
       "Import preview no longer matches the accepted preview run.",
     );
   }
+}
+
+function assertArchiveMatchesAcceptedImportPreview(
+  archiveFingerprint: string,
+  acceptedArchiveFingerprint: string,
+): void {
+  if (archiveFingerprint === acceptedArchiveFingerprint) {
+    return;
+  }
+
+  throw new BehaviorLogImportUserError(
+    "The uploaded bundle no longer matches the accepted import preview. Preview the import again.",
+  );
 }
 
 function assertFreshAcceptedImportPreview(input: {
@@ -588,7 +616,7 @@ function createUploadBundle(input: {
     return {
       ...input,
       files: parseBehaviorLogZipFiles(input.zip),
-      bundlePayload: input.zip.toString("base64"),
+      archiveFingerprint: createHash("sha256").update(input.zip).digest("hex"),
     };
   } catch (error) {
     throw new BehaviorLogImportUserError(
@@ -701,6 +729,7 @@ function toExistingBehavior(behavior: BehaviorWithCategory) {
     title: behavior.title,
     description: behavior.description,
     category: toBehaviorLogCategory(behavior.category?.name ?? null),
+    cadenceCategoryName: behavior.category?.name ?? null,
     active: behavior.active,
     archivedAt: behavior.archived_at,
     sourceOriginalId: behavior.id,

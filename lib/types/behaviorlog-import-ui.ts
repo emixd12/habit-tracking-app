@@ -64,7 +64,7 @@ export type BehaviorLogImportActionState = {
   status: "idle" | "previewed" | "applied" | "error";
   message: string | null;
   upload: BehaviorLogImportUpload | null;
-  bundlePayload: string | null;
+  archiveFingerprint: string | null;
   preview: BehaviorLogImportMergePreviewResult | null;
   previewRun: BehaviorLogImportRunView | null;
   capabilities: BehaviorLogImportCapabilities | null;
@@ -84,7 +84,7 @@ export const BEHAVIORLOG_IMPORT_INITIAL_STATE: BehaviorLogImportActionState = {
   status: "idle",
   message: null,
   upload: null,
-  bundlePayload: null,
+  archiveFingerprint: null,
   preview: null,
   previewRun: null,
   capabilities: null,

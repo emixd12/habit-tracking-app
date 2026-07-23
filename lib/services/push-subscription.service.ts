@@ -1,5 +1,6 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import {
+  hasActivePushSubscriptionForUser,
   upsertPushSubscription,
   type PushSubscriptionInput,
 } from "@/lib/db/pushSubscriptions.repo";
@@ -49,6 +50,18 @@ export function parsePushSubscriptionRequest(
   };
 }
 
+export function parsePushSubscriptionStatusRequest(
+  value: unknown,
+): Pick<PushSubscriptionRequestInput, "endpoint" | "p256dh" | "auth"> {
+  const input = parsePushSubscriptionRequest(value, null);
+
+  return {
+    endpoint: input.endpoint,
+    p256dh: input.p256dh,
+    auth: input.auth,
+  };
+}
+
 export async function registerPushSubscription(
   input: PushSubscriptionRequestInput,
 ): Promise<PushSubscription> {
@@ -61,6 +74,22 @@ export async function registerPushSubscription(
     p256dh: input.p256dh,
     auth: input.auth,
     userAgent: input.userAgent,
+  });
+}
+
+export async function getCurrentUserPushSubscriptionStatus(input: {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}): Promise<boolean> {
+  const supabase = await createClient();
+  const userId = await requireUserId(supabase);
+
+  return hasActivePushSubscriptionForUser(supabase, {
+    userId,
+    endpoint: input.endpoint,
+    p256dh: input.p256dh,
+    auth: input.auth,
   });
 }
 

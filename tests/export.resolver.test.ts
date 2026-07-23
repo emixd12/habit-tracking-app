@@ -8,6 +8,7 @@ import {
   resolveExportBundle,
   resolveExportDateRange,
 } from "../lib/resolvers/export.resolver";
+import { createStoredZip } from "../lib/services/zip";
 import type {
   ExportBehaviorInput,
   ExportBehaviorDefinitionEventInput,
@@ -274,6 +275,150 @@ describe("resolveExportBundle", () => {
         '2026-06-08,2026-06-08T09:00:00-04:00,9:00 AM,"Brush, ""teeth""","Grooming\nCare",completed,2026-06-08T09:05:00-04:00,"Line one\nLine ""two"", more"',
       ].join("\n"),
     );
+  });
+
+  it("neutralizes formula-leading values in app and BehaviorLog CSV cells", () => {
+    const bundle = resolve({
+      includeNotes: true,
+      behaviors: [
+        behavior({
+          id: "behavior-brush",
+          title: "=HYPERLINK(\"https://example.invalid\")",
+          description: "@SUM(1+1)",
+          categoryName: "+SUM(1+1)",
+        }),
+      ],
+      occurrences: [
+        occurrence({
+          id: "formula-row",
+          note: "  @SUM(1+1)",
+        }),
+      ],
+      statusEvents: [
+        {
+          id: "formula-reason-event",
+          occurrenceId: "formula-row",
+          behaviorId: "behavior-brush",
+          previousStatus: "unresolved",
+          status: "completed",
+          statusSemantics: "explicit_user_correction",
+          recordedAt: "2026-06-08T13:05:00Z",
+          effectiveAt: "2026-06-08T13:05:00Z",
+          localDate: "2026-06-08",
+          timezone: DEFAULT_TIMEZONE,
+          sourceCaptureMethod: "imported",
+          sourceConfidence: "high",
+          revisesEventId: null,
+          reasonCode: "-imported-formula",
+        },
+      ],
+    });
+
+    const [appCsvRow] = parseCsv(bundle.csv);
+    const behaviorsCsv =
+      bundle.behaviorLog.files.find((file) => file.path === "csv/behaviors.csv")
+        ?.content ?? "";
+    const [behaviorLogCsvRow] = parseCsv(behaviorsCsv);
+    const statusEventsCsv =
+      bundle.behaviorLog.files.find(
+        (file) => file.path === "csv/status_events.csv",
+      )?.content ?? "";
+    const [statusEventCsvRow] = parseCsv(statusEventsCsv);
+
+    expect(appCsvRow).toMatchObject({
+      schedule: "9:00 AM",
+      behavior_title: "'=HYPERLINK(\"https://example.invalid\")",
+      category: "'+SUM(1+1)",
+      note: "'  @SUM(1+1)",
+    });
+    expect(behaviorLogCsvRow).toMatchObject({
+      title: "'=HYPERLINK(\"https://example.invalid\")",
+      description: "'@SUM(1+1)",
+      category: "'+SUM(1+1)",
+      success_definition:
+        "Complete =HYPERLINK(\"https://example.invalid\") for each scheduled occurrence.",
+    });
+    expect(statusEventCsvRow).toMatchObject({
+      reason_code: "'-imported-formula",
+      utc_offset_at_event: "-04:00",
+    });
+  });
+
+  it("preserves signed machine-generated offsets in BehaviorLog CSV views", () => {
+    const bundle = resolve({
+      behaviors: [
+        behavior({
+          id: "behavior-west",
+          title: "West behavior",
+          timezone: "America/New_York",
+        }),
+        behavior({
+          id: "behavior-east",
+          title: "East behavior",
+          timezone: "Asia/Kolkata",
+        }),
+      ],
+      occurrences: [
+        occurrence({
+          id: "occurrence-west",
+          behaviorId: "behavior-west",
+        }),
+        occurrence({
+          id: "occurrence-east",
+          behaviorId: "behavior-east",
+        }),
+      ],
+      statusEvents: [
+        {
+          id: "event-west",
+          occurrenceId: "occurrence-west",
+          behaviorId: "behavior-west",
+          previousStatus: "unresolved",
+          status: "completed",
+          statusSemantics: "explicit_user_mark",
+          recordedAt: "2026-06-08T13:05:00Z",
+          effectiveAt: "2026-06-08T13:05:00Z",
+          localDate: "2026-06-08",
+          timezone: "America/New_York",
+          sourceCaptureMethod: "manual_tap",
+          sourceConfidence: "high",
+          revisesEventId: null,
+          reasonCode: null,
+        },
+        {
+          id: "event-east",
+          occurrenceId: "occurrence-east",
+          behaviorId: "behavior-east",
+          previousStatus: "unresolved",
+          status: "completed",
+          statusSemantics: "explicit_user_mark",
+          recordedAt: "2026-06-08T13:05:00Z",
+          effectiveAt: "2026-06-08T13:05:00Z",
+          localDate: "2026-06-08",
+          timezone: "Asia/Kolkata",
+          sourceCaptureMethod: "manual_tap",
+          sourceConfidence: "high",
+          revisesEventId: null,
+          reasonCode: null,
+        },
+      ],
+    });
+    const fileByPath = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file]),
+    );
+    const occurrenceRows = parseCsv(
+      fileByPath.get("csv/occurrences.csv")?.content ?? "",
+    );
+    const statusEventRows = parseCsv(
+      fileByPath.get("csv/status_events.csv")?.content ?? "",
+    );
+
+    expect(
+      occurrenceRows.map((row) => row.utc_offset_at_event).sort(),
+    ).toEqual(["+05:30", "-04:00"]);
+    expect(
+      statusEventRows.map((row) => row.utc_offset_at_event).sort(),
+    ).toEqual(["+05:30", "-04:00"]);
   });
 
   it("omits occurrence notes from every export output by default", () => {
@@ -1411,6 +1556,107 @@ describe("resolveExportBundle", () => {
       "inside-range",
     ]);
   });
+
+  it("keeps a five-year, ten-daily-behavior export comfortably below 2 MiB", () => {
+    const worstCaseBehaviors = Array.from({ length: 10 }, (_, index) =>
+      behavior({
+        id: `worst-behavior-${index}`,
+        title: `Daily behavior ${index + 1}`,
+        scheduleSlots: [
+          {
+            id: `worst-slot-${index}`,
+            kind: "exact",
+            preset: null,
+            startTime: "09:00",
+            endTime: null,
+            sortOrder: 0,
+            label: "9:00 AM",
+          },
+        ],
+      }),
+    );
+    const worstCaseOccurrences: ExportOccurrenceInput[] = [];
+    const worstCaseStatusEvents: ExportStatusEventInput[] = [];
+    let date = Temporal.PlainDate.from("2021-01-01");
+    const endDate = Temporal.PlainDate.from("2025-12-31");
+
+    while (Temporal.PlainDate.compare(date, endDate) <= 0) {
+      const localDate = date.toString();
+
+      for (let behaviorIndex = 0; behaviorIndex < 10; behaviorIndex += 1) {
+        const occurrenceId = `worst-occurrence-${behaviorIndex}-${localDate}`;
+        const behaviorId = `worst-behavior-${behaviorIndex}`;
+        const status = behaviorIndex % 2 === 0 ? "completed" : "not_completed";
+        const markedAt = `${localDate}T14:05:00Z`;
+        const noteSeed =
+          `Daily reflection for behavior ${behaviorIndex + 1} on ${localDate}. ` +
+          "Completed the planned routine, recorded the surrounding context, " +
+          "and noted the practical details that may help explain future patterns. ";
+        const note = noteSeed.repeat(Math.ceil(500 / noteSeed.length)).slice(0, 500);
+
+        worstCaseOccurrences.push(
+          occurrence({
+            id: occurrenceId,
+            behaviorId,
+            behaviorScheduleSlotId: `worst-slot-${behaviorIndex}`,
+            scheduledFor: `${localDate}T14:00:00Z`,
+            localDate,
+            status,
+            completedAt: status === "completed" ? markedAt : null,
+            statusMarkedAt: markedAt,
+            note,
+            createdAt: `${localDate}T13:55:00Z`,
+            updatedAt: markedAt,
+          }),
+        );
+        worstCaseStatusEvents.push({
+          id: `worst-event-${behaviorIndex}-${localDate}`,
+          occurrenceId,
+          behaviorId,
+          previousStatus: "unresolved",
+          status,
+          statusSemantics: "explicit_user_mark",
+          recordedAt: markedAt,
+          effectiveAt: markedAt,
+          localDate,
+          timezone: DEFAULT_TIMEZONE,
+          sourceCaptureMethod: "manual_tap",
+          sourceConfidence: "high",
+          revisesEventId: null,
+          reasonCode: null,
+          createdAt: markedAt,
+          updatedAt: markedAt,
+        });
+      }
+
+      date = date.add({ days: 1 });
+    }
+
+    const bundle = resolveExportBundle({
+      profile: {
+        timezone: DEFAULT_TIMEZONE,
+        subjectId: "subject_worst_case",
+      },
+      categories,
+      behaviors: worstCaseBehaviors,
+      occurrences: worstCaseOccurrences,
+      statusEvents: worstCaseStatusEvents,
+      reminderDeliveries: [],
+      now: Temporal.Instant.from("2026-01-01T17:00:00Z"),
+      timezone: DEFAULT_TIMEZONE,
+      range: "all",
+      includeNotes: true,
+    });
+    const zip = createStoredZip(bundle.behaviorLog.files);
+
+    console.info(
+      `Worst-case BehaviorLog export ZIP: ${zip.byteLength} bytes ` +
+        `(${(zip.byteLength / (1024 * 1024)).toFixed(3)} MiB)`,
+    );
+    expect(worstCaseOccurrences).toHaveLength(18_260);
+    expect(worstCaseStatusEvents).toHaveLength(18_260);
+    expect(zip.byteLength).toBeLessThan(1.5 * 1024 * 1024);
+  }, 30_000);
 });
 
 function parseJsonl(content: string): Array<Record<string, unknown>> {

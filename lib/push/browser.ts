@@ -80,7 +80,23 @@ export async function readBrowserPushSubscriptionStatus(
   const registration = await navigator.serviceWorker.getRegistration();
   const subscription = await registration?.pushManager.getSubscription();
 
-  return subscription ? "saved" : "missing";
+  if (!subscription) {
+    return "missing";
+  }
+
+  const persistedStatus = await readPersistedPushSubscriptionStatus(
+    subscription,
+  );
+
+  if (persistedStatus === "saved") {
+    return "saved";
+  }
+
+  if (persistedStatus === "missing") {
+    await bestEffortUnsubscribe(subscription);
+  }
+
+  return "missing";
 }
 
 export async function registerBrowserPushSubscription(
@@ -101,8 +117,34 @@ export async function registerBrowserPushSubscription(
   );
   const activeRegistration = await navigator.serviceWorker.ready;
   const pushRegistration = activeRegistration ?? registration;
-  const existingSubscription =
+  let existingSubscription =
     await pushRegistration.pushManager.getSubscription();
+
+  if (existingSubscription) {
+    const persistedStatus = await readPersistedPushSubscriptionStatus(
+      existingSubscription,
+    );
+
+    if (persistedStatus === "unavailable") {
+      throw new Error(
+        "Browser notification setup could not verify this device.",
+      );
+    }
+
+    if (persistedStatus === "missing") {
+      const removed = await existingSubscription.unsubscribe();
+
+      if (!removed) {
+        throw new Error(
+          "Browser notification setup could not replace the previous account subscription.",
+        );
+      }
+
+      existingSubscription = null;
+    }
+  }
+
+  const createdSubscription = existingSubscription === null;
   const subscription =
     existingSubscription ??
     (await pushRegistration.pushManager.subscribe({
@@ -110,17 +152,85 @@ export async function registerBrowserPushSubscription(
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
     }));
 
-  const response = await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(subscription.toJSON()),
-  });
+  let response: Response;
 
-  if (!response.ok) {
+  try {
+    response = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(subscription.toJSON()),
+    });
+  } catch {
+    if (createdSubscription) {
+      await bestEffortUnsubscribe(subscription);
+    }
+
     throw new Error("Browser notification setup could not be saved.");
   }
+
+  if (!response.ok) {
+    if (createdSubscription) {
+      await bestEffortUnsubscribe(subscription);
+    }
+
+    throw new Error("Browser notification setup could not be saved.");
+  }
+}
+
+type PersistedPushSubscriptionStatus =
+  | "saved"
+  | "missing"
+  | "unavailable";
+
+async function readPersistedPushSubscriptionStatus(
+  subscription: PushSubscription,
+): Promise<PersistedPushSubscriptionStatus> {
+  let response: Response;
+
+  try {
+    response = await fetch("/api/push/subscribe", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(subscription.toJSON()),
+    });
+  } catch {
+    return "unavailable";
+  }
+
+  if (!response.ok) {
+    return "unavailable";
+  }
+
+  try {
+    const body: unknown = await response.json();
+
+    if (!isRecord(body) || body.ok !== true || typeof body.saved !== "boolean") {
+      return "unavailable";
+    }
+
+    return body.saved ? "saved" : "missing";
+  } catch {
+    return "unavailable";
+  }
+}
+
+async function bestEffortUnsubscribe(
+  subscription: PushSubscription,
+): Promise<void> {
+  try {
+    await subscription.unsubscribe();
+  } catch {
+    // Persisted ownership still controls the displayed state. A later refresh
+    // retries stale browser-state cleanup without reporting a false success.
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function urlBase64ToUint8Array(

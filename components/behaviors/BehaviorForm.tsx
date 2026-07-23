@@ -35,7 +35,7 @@ type BehaviorFormProps = Readonly<{
   onSuccess?: (state: BehaviorActionState) => void;
 }>;
 
-type TimeEntryRow = {
+export type TimeEntryRow = {
   key: string;
   id: string;
   kind: "exact" | "range";
@@ -45,7 +45,7 @@ type TimeEntryRow = {
   rangePreset: TimeRangePreset | null;
 };
 
-type ScheduleFormRow = {
+export type ScheduleFormRow = {
   key: string;
   id: string;
   recurrenceDefaults: BehaviorRecurrenceFormDefaults;
@@ -197,8 +197,12 @@ export function BehaviorForm({
     );
   }
 
+  function resetFormDraft() {
+    setScheduleRows((rows) => resetBehaviorScheduleDraft(rows, behavior));
+  }
+
   return (
-    <form action={formAction} className="grid gap-6">
+    <form action={formAction} onReset={resetFormDraft} className="grid gap-6">
       {behavior ? (
         <input type="hidden" name="behavior_id" value={behavior.id} />
       ) : null}
@@ -534,6 +538,7 @@ function TimeEntryEditor({
         <select
           name={`${prefix}_kind_${entryIndex}`}
           value={entry.kind}
+          aria-label={`Schedule ${scheduleIndex + 1}, time ${entryIndex + 1} mode`}
           onChange={(event) => {
             const nextKind = event.currentTarget.value as TimeEntryRow["kind"];
 
@@ -888,6 +893,13 @@ function initialScheduleRows(behavior?: BehaviorView): ScheduleFormRow[] {
       };
     }),
   }));
+}
+
+export function resetBehaviorScheduleDraft(
+  _currentRows: readonly ScheduleFormRow[],
+  behavior?: BehaviorView,
+): ScheduleFormRow[] {
+  return initialScheduleRows(behavior);
 }
 
 function newExactTimeEntry(time: string, index: number): TimeEntryRow {

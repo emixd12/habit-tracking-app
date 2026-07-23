@@ -34,6 +34,22 @@ export type ReminderDeliveryCancellation = {
   reason: "occurrence_resolved" | null;
 };
 
+export type ExistingReminderDeliveryForReconciliation = {
+  id: string;
+  userId: string;
+  occurrenceId: string;
+  channel: ReminderChannel;
+  scheduledSendAt: string;
+  status: ReminderDeliveryStatus;
+  processingStartedAt: string | null;
+};
+
+export type ReminderDeliveryReconciliation = {
+  create: ResolvedReminderDelivery[];
+  reactivateIds: string[];
+  cancelIds: string[];
+};
+
 export function resolveReminderDeliveries(input: {
   behavior: ReminderResolverBehavior;
   occurrence: ReminderResolverOccurrence;
@@ -81,6 +97,63 @@ export function resolveReminderDeliveryCancellation(input: {
   };
 }
 
+export function resolveReminderDeliveryReconciliation(input: {
+  expected: ResolvedReminderDelivery[];
+  existing: ExistingReminderDeliveryForReconciliation[];
+  now: Temporal.Instant;
+}): ReminderDeliveryReconciliation {
+  const expectedByIdentity = new Map(
+    input.expected.map((delivery) => [
+      reminderDeliveryIdentity(delivery),
+      delivery,
+    ]),
+  );
+  const existingIdentities = new Set(
+    input.existing.map(reminderDeliveryIdentity),
+  );
+  const reactivateIds: string[] = [];
+  const cancelIds: string[] = [];
+
+  for (const delivery of input.existing) {
+    const isExpected = expectedByIdentity.has(reminderDeliveryIdentity(delivery));
+    const isFuture = isScheduledAfter(delivery.scheduledSendAt, input.now);
+
+    if (isExpected && delivery.status === "cancelled" && isFuture) {
+      reactivateIds.push(delivery.id);
+      continue;
+    }
+
+    if (
+      !isExpected &&
+      delivery.status === "pending" &&
+      delivery.processingStartedAt === null &&
+      isFuture
+    ) {
+      cancelIds.push(delivery.id);
+    }
+  }
+
+  return {
+    create: input.expected.filter(
+      (delivery) =>
+        isScheduledAfter(delivery.scheduledSendAt, input.now) &&
+        !existingIdentities.has(reminderDeliveryIdentity(delivery)),
+    ),
+    reactivateIds,
+    cancelIds,
+  };
+}
+
+function isScheduledAfter(
+  scheduledSendAt: string,
+  now: Temporal.Instant,
+): boolean {
+  return Temporal.Instant.compare(
+    Temporal.Instant.from(scheduledSendAt),
+    now,
+  ) > 0;
+}
+
 function resolveReminderChannels(
   behavior: ReminderResolverBehavior,
 ): ReminderChannel[] {
@@ -112,4 +185,18 @@ function assertSameUser(
   if (behavior.userId !== occurrence.userId) {
     throw new Error("Reminder behavior and occurrence must belong to the same user.");
   }
+}
+
+function reminderDeliveryIdentity(delivery: {
+  userId: string;
+  occurrenceId: string;
+  channel: ReminderChannel;
+  scheduledSendAt: string;
+}): string {
+  return [
+    delivery.userId,
+    delivery.occurrenceId,
+    delivery.channel,
+    Temporal.Instant.from(delivery.scheduledSendAt).toString(),
+  ].join("\u0000");
 }

@@ -5,6 +5,8 @@ const root = process.cwd();
 const registryPath = "interaction-registry.json";
 const schemaPath = "interaction-registry.schema.json";
 const journeyPath = "docs/UX_JOURNEY_INVENTORY.md";
+const userGuideDirectory = "docs/user-guide";
+const internalQaInteractionIds = new Set(["INT-AUTH-002", "INT-SHELL-007"]);
 const failures = [];
 let assertions = 0;
 
@@ -63,6 +65,31 @@ function splitReference(reference) {
   };
 }
 
+function githubHeadingSlug(heading) {
+  return heading
+    .trim()
+    .toLowerCase()
+    .replace(/<[^>]*>/g, "")
+    .replace(/[`*_~]/g, "")
+    .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+    .replace(/\s+/g, "-");
+}
+
+function markdownHeadingAnchors(relativePath) {
+  const anchors = new Set();
+  const slugCounts = new Map();
+
+  for (const match of read(relativePath).matchAll(/^#{1,6}[ \t]+(.+)$/gm)) {
+    const heading = match[1].replace(/[ \t]+#+[ \t]*$/, "").trim();
+    const baseSlug = githubHeadingSlug(heading);
+    const duplicateCount = slugCounts.get(baseSlug) ?? 0;
+    slugCounts.set(baseSlug, duplicateCount + 1);
+    anchors.add(duplicateCount === 0 ? baseSlug : `${baseSlug}-${duplicateCount}`);
+  }
+
+  return anchors;
+}
+
 function walk(directory) {
   const files = [];
   for (const entry of fs.readdirSync(absolute(directory), {
@@ -80,11 +107,11 @@ function walk(directory) {
 }
 
 function interactiveSourceFiles() {
-  const roots = ["app", "components", "apps/marketing/src"];
+  const roots = ["app", "components", "apps/marketing/src", "public"];
 
   return roots
     .flatMap(walk)
-    .filter((file) => /\.(?:tsx|astro)$/.test(file))
+    .filter((file) => /\.(?:tsx|astro|js)$/.test(file))
     .filter((file) => interactionMarkerCount(read(file)) > 0)
     .sort();
 }
@@ -92,7 +119,7 @@ function interactiveSourceFiles() {
 function interactionMarkerCount(content) {
   return (
     content.match(
-      /<(?:Link|a|button|form|input|select|textarea|summary)\b|\bon(?:Click|Submit|Change|KeyDown|PointerDown|TouchStart|TouchMove|TouchEnd|Toggle)=/g,
+      /<(?:Link|a|button|form|input|select|textarea|summary)\b|\bon(?:Click|Submit|Change|KeyDown|MouseDown|PointerDown|TouchStart|TouchMove|TouchEnd|Toggle)=|\bself\.addEventListener\(\s*["']notificationclick["']/g,
     ) ?? []
   ).length;
 }
@@ -115,8 +142,8 @@ assert(
   `${registryPath} must reference ./interaction-registry.schema.json.`,
 );
 assert(
-  /^\d+\.\d+\.\d+$/.test(registry.schema_version ?? ""),
-  `${registryPath} schema_version must be semantic version text.`,
+  registry.schema_version === "1.1.0",
+  `${registryPath} schema_version must be 1.1.0.`,
 );
 assert(
   registry.registry_id === "cadence.user-interactions",
@@ -288,6 +315,52 @@ for (const interaction of interactions) {
       );
     }
   }
+  const guidance = interaction.user_guidance;
+  assert(
+    guidance && typeof guidance === "object" && !Array.isArray(guidance),
+    `${label} needs user_guidance.`,
+  );
+  if (guidance && typeof guidance === "object" && !Array.isArray(guidance)) {
+    const expectedAudience = internalQaInteractionIds.has(label) ? "internal_qa" : "user";
+    assert(
+      guidance.audience === expectedAudience,
+      `${label} user_guidance.audience must be ${expectedAudience}.`,
+    );
+    assert(
+      isNonEmptyStringArray(guidance.references),
+      `${label} user_guidance.references must be a unique non-empty string array.`,
+    );
+
+    for (const reference of Array.isArray(guidance.references)
+      ? guidance.references
+      : []) {
+      if (!isNonEmptyString(reference)) continue;
+      const { file, symbol: anchor } = splitReference(reference);
+      assert(
+        /^docs\/user-guide\/[^/#]+\.md$/.test(file) && !file.includes(".."),
+        `${label} user guidance must use a docs/user-guide/*.md#anchor reference: ${reference}.`,
+      );
+      assert(isNonEmptyString(anchor), `${label} user guidance needs an anchor: ${reference}.`);
+      assert(exists(file), `${label} user guidance file does not exist: ${file}.`);
+      if (expectedAudience === "internal_qa") {
+        assert(
+          file === `${userGuideDirectory}/internal-qa.md`,
+          `${label} internal QA guidance must stay in ${userGuideDirectory}/internal-qa.md.`,
+        );
+      } else {
+        assert(
+          file !== `${userGuideDirectory}/internal-qa.md`,
+          `${label} user guidance must not point to the internal QA appendix.`,
+        );
+      }
+      if (exists(file) && isNonEmptyString(anchor)) {
+        assert(
+          markdownHeadingAnchors(file).has(anchor),
+          `${label} user guidance anchor does not resolve: ${reference}.`,
+        );
+      }
+    }
+  }
   const coverage = interaction.test_coverage;
   assert(coverage && typeof coverage === "object", `${label} needs test_coverage.`);
   if (coverage && typeof coverage === "object") {
@@ -374,7 +447,7 @@ const scannedSources = interactiveSourceFiles();
 for (const scannedSource of scannedSources) {
   assert(
     sourcePaths.has(scannedSource),
-    `Interactive UI source is missing from source_inventory: ${scannedSource}.`,
+    `Interactive source is missing from source_inventory: ${scannedSource}.`,
   );
 }
 for (const sourcePath of sourcePaths) {
@@ -414,7 +487,7 @@ function report() {
   }
 
   console.log(
-    `interactions:check passed (${assertions} invariants, ${interactions.length} interactions, ${sourceInventory.length} UI sources).`,
+    `interactions:check passed (${assertions} invariants, ${interactions.length} interactions, ${sourceInventory.length} interaction sources).`,
   );
   process.exit(0);
 }

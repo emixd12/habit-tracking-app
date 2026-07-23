@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { Temporal } from "@js-temporal/polyfill";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveBehaviorLogImportPreview } from "../lib/resolvers/behaviorlog-import.resolver";
@@ -25,16 +26,25 @@ const IMPORT_RUN_ID = "22222222-2222-4222-8222-222222222222";
 
 const occurrenceSyncMocks = vi.hoisted(() => ({
   markOccurrenceSyncStale: vi.fn(),
+  repairUserOccurrenceReminderGraphBestEffort: vi.fn(),
 }));
 
 vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
   markOccurrenceSyncStale: occurrenceSyncMocks.markOccurrenceSyncStale,
 }));
 
+vi.mock("@/lib/services/occurrence-reminder-repair.service", () => ({
+  repairUserOccurrenceReminderGraphBestEffort:
+    occurrenceSyncMocks.repairUserOccurrenceReminderGraphBestEffort,
+}));
+
 describe("BehaviorLog import write service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     occurrenceSyncMocks.markOccurrenceSyncStale.mockResolvedValue({} as never);
+    occurrenceSyncMocks.repairUserOccurrenceReminderGraphBestEffort.mockResolvedValue(
+      false,
+    );
   });
 
   it("creates an import run with manifest metadata and a dry-run summary snapshot", async () => {
@@ -326,6 +336,12 @@ describe("BehaviorLog import write service", () => {
       failure_message: null,
       completed_at: COMPLETED_AT,
     });
+    expect(
+      occurrenceSyncMocks.repairUserOccurrenceReminderGraphBestEffort,
+    ).toHaveBeenCalledWith(supabase, USER_ID, {
+      operation: "behaviorlog_import_create_missing",
+      now: Temporal.Instant.from(COMPLETED_AT),
+    });
 
     const rerun = await applyCreateMissingBehaviorLogImportPlan(supabase, {
       userId: USER_ID,
@@ -490,6 +506,12 @@ describe("BehaviorLog import write service", () => {
       occurrences: 1,
       statusEvents: 2,
       mappings: 5,
+    });
+    expect(
+      occurrenceSyncMocks.repairUserOccurrenceReminderGraphBestEffort,
+    ).toHaveBeenCalledWith(supabase, USER_ID, {
+      operation: "behaviorlog_import_merge",
+      now: Temporal.Instant.from(COMPLETED_AT),
     });
     expect(tables.occurrence_status_events).toHaveLength(2);
     expect(tables.occurrence_status_events[1]).toMatchObject({

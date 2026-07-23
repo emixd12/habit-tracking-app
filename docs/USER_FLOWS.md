@@ -83,6 +83,10 @@ Desktop behavior:
 - Navigation and account rows keep a fixed 64px icon/avatar column so expanded
   and collapsed icon positions match.
 - Labels fade and collapse visually but remain in the DOM.
+- The account row continues to open Settings. A quiet Sign out POST control
+  sits directly below it; expanded desktop shows its icon and label, while the
+  collapsed rail shows an icon-only cell with the accessible name and tooltip
+  Sign out.
 
 Mobile behavior:
 - The collapsed rail is not used under 1024px.
@@ -92,6 +96,7 @@ Mobile behavior:
   click, or a left swipe.
 - Edge swipe from the first 20px of the viewport opens the drawer.
 - Focus stays inside the open drawer and body scrolling is locked.
+- Sign out appears below the account row and closes the drawer when submitted.
 
 Primary navigation:
 1. Timeline
@@ -105,6 +110,11 @@ The default authenticated route is:
 The root route should eventually redirect authenticated users to `/timeline`.
 
 Do not use `/dashboard` for the primary app screen.
+
+Signing out submits POST `/auth/sign-out`, ends the current Supabase session,
+and redirects to `/login?signedout=1`. Login announces the focused polite status
+**Signed out.** Only the exact `signedout=1` query value enables that notice;
+GET does not sign out.
 
 Categories should not appear in navigation or timeline filtering.
 
@@ -224,7 +234,7 @@ an underlined text action, matching the Completed and Not Completed controls.
 An expanded occurrence holds the same blue background used on row hover, rather
 than adding a separate details box.
 
-Every explicit status mark, correction, or Clear decision updates the current
+Every explicit status mark, correction, Unmark, or Clear decision updates the current
 occurrence snapshot and appends one status-history event atomically. Repeating
 the already-current resolved choice does not create a duplicate event. Saving a
 Note without a status change preserves both status timestamps and status
@@ -281,11 +291,22 @@ inside the same recurrence pattern. Add schedule creates a new recurrence
 pattern. Behavior-level reminder settings apply to all generated occurrences in
 v1.
 
+Cancel discards the complete unsaved behavior draft and restores the values
+present when the create or edit form opened. This includes recurrence details,
+schedule and time rows, exact times or ranges, reminder choices, and active
+state.
+
 The recurrence editor should use segmented presets first, with advanced options below.
 
 Archived behaviors appear in a separate low-priority bottom disclosure and do
 not appear on the timeline. Archived behaviors can be restored from that
 section.
+
+Archive and Restore save the behavior active-state change and a durable
+occurrence/reminder stale marker in one transaction. If either write fails,
+both roll back. Once the transaction commits, immediate reconciliation is
+best-effort and a failure remains available for background retry through the
+saved marker.
 
 Active behavior rows keep Archive behavior at the end of Details and Settings
 so the collapsed row remains focused on review metrics and the behavior
@@ -360,7 +381,8 @@ Behavior date review should:
   and Note text.
 - Keep status corrections behind the per-occurrence Review disclosure. A
   resolved occurrence can use Clear decision there to return to Unresolved;
-  Timeline and Needs decision do not expose Clear decision as a global action.
+  an expanded, just-decided Timeline occurrence uses Unmark for the same
+  correction. Needs decision does not expose either as a global action.
 - Display empty notes as italic No note.
 - Hide correction controls behind a per-occurrence Review disclosure until the
   user chooses to review that occurrence.
@@ -412,7 +434,12 @@ definition trail for each included behavior, ordered by `recorded_at`, then
 `id`. Excluding archived behaviors also excludes their definition events.
 
 BehaviorLog import flow:
-1. Upload a `.behaviorlog.zip` bundle from the Export & Import screen.
+1. Upload a `.behaviorlog.zip` bundle from the Export & Import screen. Cadence
+   authenticates the account before archive extraction and rejects bundles
+   that exceed its parser-side entry-count, extracted-size, compression-ratio,
+   or 2 MB compressed-size limit. The UI checks `file.size` before submission,
+   and the server repeats the same check with the factual error **This file is
+   larger than the 2 MB limit for BehaviorLog bundles.**
 2. Review validation errors, warnings, conflicts, privacy notes, note
    sensitivity warnings, intervention preview counts, passive imported
    intervention storage counts, dropped/redacted intervention field summaries,
@@ -425,10 +452,12 @@ BehaviorLog import flow:
    `merge_preview` run.
 5. Confirm high or restricted note sensitivity separately when those notes would
    be imported.
-6. On apply, the server verifies the accepted preview-run identity plus matching
-   bundle, local-data, and combined preview fingerprints. It rejects stale,
-   altered, mismatched, or unaccepted preview data and requires a fresh preview
-   instead of recomputing a replacement plan silently.
+6. On apply, the base64 archive travels once in the form. The server recomputes
+   its SHA-256 and compares it with the raw-archive fingerprint retained from
+   the accepted preview, then re-parses and verifies the preview-run identity
+   plus matching bundle, local-data, and combined preview fingerprints. It
+   rejects stale, altered, mismatched, or unaccepted preview data and requires a
+   fresh preview instead of recomputing a replacement plan silently.
 7. Review recent import runs for status, mode, timestamps, failure message, and
    the accepted preview relationship when present.
 
@@ -465,7 +494,8 @@ BehaviorLog restore apply flow:
 4. Acknowledge high or restricted note sensitivity when the preview contains
    those notes.
 5. Submit apply. The server re-parses the bundle, re-gathers the current local
-   graph, and refuses the apply if the preview or local-data fingerprint is
+   graph, verifies that its raw SHA-256 matches the accepted preview, and
+   refuses the apply if the archive, preview, or local-data fingerprint is
    stale.
 6. Review the applied or failed restore run in Restore history.
 
@@ -502,13 +532,18 @@ When the user clicks Enable notifications on this device, Settings requests
 browser notification permission if the browser still allows prompting, then
 saves the current browser's push subscription after permission is allowed. If
 the browser reports notifications are blocked, Settings shows the blocked state
-and asks the user to allow the origin in browser settings before returning.
+and persistently asks the user to allow the origin in browser or site settings
+before returning. A Refresh this device action remains available after reload
+so the user can re-check delivery readiness. If the initial subscription check
+fails, Settings settles into a factual not-enabled state with a retry action;
+first-run setup likewise remains available instead of hanging or disappearing.
 
 Account deletion requires the signed-in user to acknowledge the export reminder
 and type the account email, or `DELETE` if no email is available. The server
 signs out the account globally and deletes the Supabase auth user through a
 server-only service-role client, relying on the database ownership cascades to
-remove hosted Cadence records.
+remove hosted Cadence records. On success, Login focuses and announces the
+`Account deleted.` confirmation reached by the deletion redirect.
 The client should mirror those gates by disabling the destructive submit until
 the acknowledgement and exact typed confirmation are present; the server still
 enforces the same requirements.

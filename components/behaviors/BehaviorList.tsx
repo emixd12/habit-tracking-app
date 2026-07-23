@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { BehaviorForm } from "@/components/behaviors/BehaviorForm";
@@ -11,7 +10,10 @@ import {
   BEHAVIOR_CREATED_EVENT,
   isBehaviorCreatedEvent,
 } from "@/components/behaviors/behavior-events";
-import { upsertBehaviorView } from "@/components/behaviors/behavior-list-state";
+import {
+  reconcileCreatedBehaviorViews,
+  upsertBehaviorView,
+} from "@/components/behaviors/behavior-list-state";
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
 import { StatusButtons } from "@/components/timeline/StatusButtons";
 import type {
@@ -48,6 +50,25 @@ const EMPTY_ACTION_STATE: BehaviorActionState = {
   message: "",
 };
 
+type BehaviorActionAnnouncement = Pick<
+  BehaviorActionState,
+  "status" | "message"
+>;
+
+type BehaviorLifecycleActionState = BehaviorActionState & {
+  behaviorId: string | null;
+  intent: BehaviorLifecycleIntent | null;
+};
+
+type BehaviorLifecycleFormAction = (formData: FormData) => void;
+type BehaviorLifecycleIntent = "archive" | "restore";
+
+const EMPTY_LIFECYCLE_ACTION_STATE: BehaviorLifecycleActionState = {
+  ...EMPTY_ACTION_STATE,
+  behaviorId: null,
+  intent: null,
+};
+
 const OVERALL_CELL_CLASSES: Record<AnalyticsOverallDayState, string> = {
   completed: "border-line text-primary-foreground",
   partial: "border-line text-foreground",
@@ -78,7 +99,39 @@ export function BehaviorList({
   const [createdBehaviorRows, setCreatedBehaviorRows] = useState<BehaviorView[]>(
     [],
   );
-  const activeBehaviorRows = createdBehaviorRows.reduce(
+  const lifecycleAction = useCallback(
+    (
+      previousState: BehaviorLifecycleActionState,
+      formData: FormData,
+    ) => {
+      const intent = readBehaviorLifecycleIntent(formData);
+
+      if (!intent) {
+        return invalidBehaviorLifecycleActionState(formData);
+      }
+
+      return runBehaviorLifecycleAction(
+        intent === "archive" ? archiveAction : restoreAction,
+        intent,
+        previousState,
+        formData,
+      );
+    },
+    [archiveAction, restoreAction],
+  );
+  const [lifecycleState, lifecycleFormAction] = useActionState(
+    lifecycleAction,
+    EMPTY_LIFECYCLE_ACTION_STATE,
+  );
+  const actionAnnouncement = isBehaviorActionAnnouncement(lifecycleState)
+    ? lifecycleState
+    : null;
+  const pendingCreatedBehaviorRows = reconcileCreatedBehaviorViews(
+    createdBehaviorRows,
+    activeBehaviors,
+    archivedBehaviors,
+  );
+  const activeBehaviorRows = pendingCreatedBehaviorRows.reduce(
     (current, behavior) => upsertBehaviorView(current, behavior),
     activeBehaviors,
   );
@@ -106,6 +159,10 @@ export function BehaviorList({
 
   return (
     <div className="grid gap-4">
+      {actionAnnouncement?.message ? (
+        <BehaviorActionResultAnnouncement result={actionAnnouncement} />
+      ) : null}
+
       <OverallAdherence analytics={analytics} />
 
       <section className="grid gap-4" aria-labelledby="active-behaviors-title">
@@ -129,8 +186,8 @@ export function BehaviorList({
                 analytics={analytics}
                 behaviorAnalytics={behaviorAnalyticsById.get(behavior.id) ?? null}
                 updateAction={updateAction}
-                archiveAction={archiveAction}
-                restoreAction={restoreAction}
+                lifecycleFormAction={lifecycleFormAction}
+                lifecycleResult={lifecycleState}
                 statusAction={statusAction}
                 noteAction={noteAction}
               />
@@ -145,10 +202,27 @@ export function BehaviorList({
         archivedBehaviors={archivedBehaviors}
         categories={categories}
         updateAction={updateAction}
-        archiveAction={archiveAction}
-        restoreAction={restoreAction}
+        lifecycleFormAction={lifecycleFormAction}
+        lifecycleResult={lifecycleState}
       />
     </div>
+  );
+}
+
+export function BehaviorActionResultAnnouncement({
+  result,
+}: Readonly<{
+  result: BehaviorActionAnnouncement;
+}>) {
+  return (
+    <p
+      role={result.status === "error" ? "alert" : "status"}
+      aria-live={result.status === "error" ? "assertive" : "polite"}
+      aria-atomic="true"
+      className="sr-only"
+    >
+      {result.message}
+    </p>
   );
 }
 
@@ -265,8 +339,8 @@ function BehaviorRecord({
   analytics,
   behaviorAnalytics,
   updateAction,
-  archiveAction,
-  restoreAction,
+  lifecycleFormAction,
+  lifecycleResult,
   statusAction,
   noteAction,
 }: Readonly<{
@@ -275,8 +349,8 @@ function BehaviorRecord({
   analytics?: AnalyticsView;
   behaviorAnalytics?: AnalyticsBehaviorSummary | null;
   updateAction: BehaviorFormAction;
-  archiveAction: BehaviorFormAction;
-  restoreAction: BehaviorFormAction;
+  lifecycleFormAction: BehaviorLifecycleFormAction;
+  lifecycleResult: BehaviorLifecycleActionState;
   statusAction?: OccurrenceFormAction;
   noteAction?: OccurrenceFormAction;
 }>) {
@@ -308,7 +382,9 @@ function BehaviorRecord({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <BehaviorStateForm
                 behaviorId={behavior.id}
-                action={restoreAction}
+                intent="restore"
+                action={lifecycleFormAction}
+                result={lifecycleResult}
                 buttonLabel="Restore"
                 pendingLabel="Restoring..."
                 variant="primary"
@@ -368,7 +444,9 @@ function BehaviorRecord({
                   <div className="sm:absolute sm:bottom-0 sm:right-0">
                     <BehaviorStateForm
                       behaviorId={behavior.id}
-                      action={archiveAction}
+                      intent="archive"
+                      action={lifecycleFormAction}
+                      result={lifecycleResult}
                       buttonLabel="Archive behavior"
                       pendingLabel="Archiving..."
                       variant="danger"
@@ -709,14 +787,14 @@ function ArchivedBehaviorDisclosure({
   archivedBehaviors,
   categories,
   updateAction,
-  archiveAction,
-  restoreAction,
+  lifecycleFormAction,
+  lifecycleResult,
 }: Readonly<{
   archivedBehaviors: BehaviorView[];
   categories: CategoryOption[];
   updateAction: BehaviorFormAction;
-  archiveAction: BehaviorFormAction;
-  restoreAction: BehaviorFormAction;
+  lifecycleFormAction: BehaviorLifecycleFormAction;
+  lifecycleResult: BehaviorLifecycleActionState;
 }>) {
   return (
     <section className="border-t border-line pt-4" aria-labelledby="archived-behaviors-title">
@@ -743,8 +821,8 @@ function ArchivedBehaviorDisclosure({
                 behavior={behavior}
                 categories={categories}
                 updateAction={updateAction}
-                archiveAction={archiveAction}
-                restoreAction={restoreAction}
+                lifecycleFormAction={lifecycleFormAction}
+                lifecycleResult={lifecycleResult}
               />
             ))}
           </div>
@@ -773,48 +851,105 @@ function SummaryItem({
 
 function BehaviorStateForm({
   behaviorId,
+  intent,
   action,
+  result,
   buttonLabel,
   pendingLabel,
   variant,
 }: Readonly<{
   behaviorId: string;
-  action: BehaviorFormAction;
+  intent: BehaviorLifecycleIntent;
+  action: BehaviorLifecycleFormAction;
+  result: BehaviorLifecycleActionState;
   buttonLabel: string;
   pendingLabel: string;
   variant: "primary" | "danger";
 }>) {
-  const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
-  const router = useRouter();
-
-  useEffect(() => {
-    if (state.status === "success") {
-      router.refresh();
-    }
-  }, [router, state.status]);
+  const matchingResult =
+    result.behaviorId === behaviorId && result.intent === intent ? result : null;
 
   return (
-    <form action={formAction} className="grid justify-start gap-2 text-sm">
+    <form action={action} className="grid justify-start gap-2 text-sm">
       <input type="hidden" name="behavior_id" value={behaviorId} />
       <BehaviorStateButton
+        intent={intent}
         label={buttonLabel}
         pendingLabel={pendingLabel}
         variant={variant}
       />
-      {state.status === "error" && state.message ? (
-        <p className="max-w-48 border-t border-line pt-2 text-sm leading-6 text-accent">
-          {state.message}
+      {matchingResult?.message ? (
+        <p
+          className={[
+            "max-w-48 border-t border-line pt-2 text-sm leading-6",
+            matchingResult.status === "error"
+              ? "text-accent"
+              : "text-muted-readable",
+          ].join(" ")}
+        >
+          {matchingResult.message}
         </p>
       ) : null}
     </form>
   );
 }
 
+async function runBehaviorLifecycleAction(
+  action: BehaviorFormAction,
+  intent: BehaviorLifecycleIntent,
+  previousState: BehaviorLifecycleActionState,
+  formData: FormData,
+): Promise<BehaviorLifecycleActionState> {
+  const behaviorId = formData.get("behavior_id");
+  const result = await action(previousState, formData);
+
+  return {
+    ...result,
+    intent,
+    behaviorId:
+      typeof behaviorId === "string" && behaviorId.length > 0
+        ? behaviorId
+        : null,
+  };
+}
+
+function readBehaviorLifecycleIntent(
+  formData: FormData,
+): BehaviorLifecycleIntent | null {
+  const intent = formData.get("behavior_lifecycle_intent");
+
+  return intent === "archive" || intent === "restore" ? intent : null;
+}
+
+function invalidBehaviorLifecycleActionState(
+  formData: FormData,
+): BehaviorLifecycleActionState {
+  const behaviorId = formData.get("behavior_id");
+
+  return {
+    status: "error",
+    message: "Behavior action is unavailable. Try again.",
+    behaviorId: typeof behaviorId === "string" ? behaviorId : null,
+    intent: null,
+  };
+}
+
+function isBehaviorActionAnnouncement(
+  state: BehaviorLifecycleActionState,
+): state is BehaviorLifecycleActionState & BehaviorActionAnnouncement {
+  return (
+    (state.status === "success" || state.status === "error") &&
+    state.message.length > 0
+  );
+}
+
 function BehaviorStateButton({
+  intent,
   label,
   pendingLabel,
   variant,
 }: Readonly<{
+  intent: BehaviorLifecycleIntent;
   label: string;
   pendingLabel: string;
   variant: "primary" | "danger";
@@ -824,6 +959,8 @@ function BehaviorStateButton({
   return (
     <button
       type="submit"
+      name="behavior_lifecycle_intent"
+      value={intent}
       disabled={pending}
       className={[
         "product-action min-h-11 py-2 text-sm",

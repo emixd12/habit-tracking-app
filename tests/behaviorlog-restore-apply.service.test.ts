@@ -1,15 +1,19 @@
+import { createHash } from "node:crypto";
+
 import { Temporal } from "@js-temporal/polyfill";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveExportBundle } from "../lib/resolvers/export.resolver";
-import { createBehaviorLogImportBundleFingerprint } from "../lib/resolvers/behaviorlog-import.resolver";
 import {
   applyBehaviorLogRestoreUploadFromFormData,
+  BehaviorLogRestoreAuthError,
   createBehaviorLogRestorePreviewRun,
   deriveBehaviorLogRestoreLocalId,
   previewBehaviorLogRestoreFromZip,
+  previewBehaviorLogRestoreUploadFromFormData,
 } from "../lib/services/behaviorlog-restore.service";
 import { createStoredZip } from "../lib/services/zip";
+import { BEHAVIORLOG_BUNDLE_SIZE_ERROR } from "../lib/types/behaviorlog-bundle-ui";
 import type {
   ExportBehaviorInput,
   ExportCategoryInput,
@@ -91,6 +95,7 @@ const mocks = vi.hoisted(() => ({
   bindBehaviorLogRestoreApplyPayload: vi.fn(),
   listBehaviorLogExistingRecords: vi.fn(),
   markOccurrenceSyncStale: vi.fn(),
+  repairUserOccurrenceReminderGraphBestEffort: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -127,6 +132,11 @@ vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
   markOccurrenceSyncStale: mocks.markOccurrenceSyncStale,
 }));
 
+vi.mock("@/lib/services/occurrence-reminder-repair.service", () => ({
+  repairUserOccurrenceReminderGraphBestEffort:
+    mocks.repairUserOccurrenceReminderGraphBestEffort,
+}));
+
 describe("BehaviorLog restore apply service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -149,6 +159,7 @@ describe("BehaviorLog restore apply service", () => {
     );
     mocks.markBehaviorLogRestoreRunFailedIfPending.mockResolvedValue({});
     mocks.markOccurrenceSyncStale.mockResolvedValue({});
+    mocks.repairUserOccurrenceReminderGraphBestEffort.mockResolvedValue(false);
     mocks.bindBehaviorLogRestoreApplyPayload.mockResolvedValue(
       "a".repeat(64),
     );
@@ -200,6 +211,102 @@ describe("BehaviorLog restore apply service", () => {
     expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
   });
 
+  it("authenticates before parsing a supported-name restore upload", async () => {
+    mocks.createClient.mockResolvedValue({
+      auth: {
+        getClaims: vi.fn(async () => ({
+          data: { claims: {} },
+          error: null,
+        })),
+      },
+      rpc: vi.fn(),
+    });
+    const formData = new FormData();
+
+    formData.set(
+      "restore_behaviorlog_file",
+      new File(["not a zip"], "cadence-export.behaviorlog.zip", {
+        type: "application/zip",
+      }),
+    );
+
+    await expect(
+      previewBehaviorLogRestoreUploadFromFormData(formData),
+    ).rejects.toBeInstanceOf(BehaviorLogRestoreAuthError);
+    expect(mocks.createClient).toHaveBeenCalled();
+    expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
+  });
+
+  it("authenticates before decoding a restore apply bundle payload", async () => {
+    mocks.createClient.mockResolvedValue({
+      auth: {
+        getClaims: vi.fn(async () => ({
+          data: { claims: {} },
+          error: null,
+        })),
+      },
+      rpc: vi.fn(),
+    });
+    const formData = new FormData();
+
+    formData.set("confirm_backup", "yes");
+    formData.set("confirm_restore_text", "RESTORE");
+    formData.set("bundle_payload", Buffer.from("not a zip").toString("base64"));
+
+    await expect(
+      applyBehaviorLogRestoreUploadFromFormData(formData),
+    ).rejects.toBeInstanceOf(BehaviorLogRestoreAuthError);
+    expect(mocks.getBehaviorLogImportRunById).not.toHaveBeenCalled();
+    expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects restore files above 2 MB with Cadence's exact size error", async () => {
+    const formData = new FormData();
+
+    formData.set(
+      "restore_behaviorlog_file",
+      new File(
+        [new Uint8Array(2 * 1024 * 1024 + 1)],
+        "too-large.behaviorlog.zip",
+        { type: "application/zip" },
+      ),
+    );
+
+    await expect(
+      previewBehaviorLogRestoreUploadFromFormData(formData),
+    ).rejects.toThrow(BEHAVIORLOG_BUNDLE_SIZE_ERROR);
+    expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
+  });
+
+  it("keeps only the exact raw-archive fingerprint in restore preview action state", async () => {
+    const zip = createStoredZip(bundleFiles());
+    const formData = new FormData();
+
+    mocks.createBehaviorLogImportRun.mockResolvedValueOnce({
+      id: "preview-run",
+      user_id: USER_ID,
+      import_mode: "restore_preview",
+      status: "previewed",
+      dry_run_summary: {},
+      started_at: "2026-06-08T21:10:00Z",
+      completed_at: "2026-06-08T21:10:01Z",
+      failure_message: null,
+    });
+    formData.set(
+      "restore_behaviorlog_file",
+      new File([new Uint8Array(zip)], "cadence-export.behaviorlog.zip", {
+        type: "application/zip",
+      }),
+    );
+
+    const state =
+      await previewBehaviorLogRestoreUploadFromFormData(formData);
+
+    expect(state.status).toBe("previewed");
+    expect(state).not.toHaveProperty("bundlePayload");
+    expect(state.archiveFingerprint).toBe(sha256Bytes(zip));
+  });
+
   it("records synchronously completed restore previews with a completion time", async () => {
     mocks.createBehaviorLogImportRun.mockResolvedValueOnce({
       id: "preview-run",
@@ -217,6 +324,7 @@ describe("BehaviorLog restore apply service", () => {
       {
         userId: USER_ID,
         files: bundleFiles(),
+        archiveFingerprint: sha256Bytes(createStoredZip(bundleFiles())),
       },
     );
 
@@ -258,6 +366,7 @@ describe("BehaviorLog restore apply service", () => {
     formData.set("restore_preview_run_id", "preview-run");
     formData.set("preview_fingerprint", "accepted-preview");
     formData.set("local_data_fingerprint", "accepted-local");
+    formData.set("archive_fingerprint", sha256Bytes(zip));
     formData.set("bundle_payload", Buffer.from(zip).toString("base64"));
     formData.set("upload_file_name", "cadence-export.behaviorlog.zip");
     formData.set("upload_file_size", String(zip.byteLength));
@@ -327,6 +436,11 @@ describe("BehaviorLog restore apply service", () => {
     expect(result.status).toBe("applied");
     expect(result.message).toContain("already applied");
     expect(result.preview?.previewFingerprint).toBe(preview.previewFingerprint);
+    expect(
+      mocks.repairUserOccurrenceReminderGraphBestEffort,
+    ).toHaveBeenCalledWith(expect.anything(), USER_ID, {
+      operation: "behaviorlog_restore",
+    });
     expect(result.applyResult?.importRun.id).toBe(appliedRun.id);
     expect(result.applyResult?.appliedCounts).toEqual({
       upserted_schedules: 1,
@@ -355,9 +469,11 @@ describe("BehaviorLog restore apply service", () => {
 
     await expect(
       applyBehaviorLogRestoreUploadFromFormData(
-        restoreApplyFormData(createStoredZip(changedFiles), preview),
+        restoreApplyFormData(createStoredZip(changedFiles), preview, zip),
       ),
-    ).rejects.toThrow("uploaded bundle no longer matches");
+    ).rejects.toThrow(
+      "The uploaded bundle no longer matches the accepted restore preview. Preview the restore again.",
+    );
     expect(
       mocks.getAppliedBehaviorLogRestoreRunByAcceptedPreview,
     ).not.toHaveBeenCalled();
@@ -395,6 +511,11 @@ describe("BehaviorLog restore apply service", () => {
     );
 
     expect(result.status).toBe("applied");
+    expect(
+      mocks.repairUserOccurrenceReminderGraphBestEffort,
+    ).toHaveBeenCalledWith(expect.anything(), USER_ID, {
+      operation: "behaviorlog_restore",
+    });
     expect(result.applyResult?.importRun.id).toBe(appliedRun.id);
     expect(
       mocks.getAppliedBehaviorLogRestoreRunByAcceptedPreview,
@@ -702,6 +823,7 @@ function emptyExisting() {
 
 function restorePreviewRun(
   preview: ReturnType<typeof previewBehaviorLogRestoreFromZip>,
+  zip: Uint8Array = createStoredZip(bundleFiles()),
 ) {
   return {
     id: "22222222-2222-4222-8222-222222222222",
@@ -709,7 +831,7 @@ function restorePreviewRun(
     import_mode: "restore_preview",
     status: "previewed",
     bundle_fingerprint: preview.bundleFingerprint,
-    dry_run_summary: acceptedPreviewSnapshot(preview),
+    dry_run_summary: acceptedPreviewSnapshot(preview, zip),
     started_at: "2026-06-08T21:10:00Z",
     completed_at: "2026-06-08T21:10:01Z",
     failure_message: null,
@@ -718,13 +840,13 @@ function restorePreviewRun(
 
 function acceptedPreviewSnapshot(
   preview: ReturnType<typeof previewBehaviorLogRestoreFromZip>,
+  zip: Uint8Array = createStoredZip(bundleFiles()),
 ) {
   return {
     ...preview,
     errorCount: preview.errors.length,
     warningCount: preview.warnings.length,
-    bundlePayloadFingerprint:
-      createBehaviorLogImportBundleFingerprint(bundleFiles()),
+    archiveFingerprint: sha256Bytes(zip),
   };
 }
 
@@ -938,6 +1060,7 @@ function restoreApplyFormData(
     previewFingerprint: string;
     localDataFingerprint: string;
   },
+  acceptedZip: Uint8Array = zip,
 ): FormData {
   const formData = new FormData();
 
@@ -946,9 +1069,14 @@ function restoreApplyFormData(
   formData.set("restore_preview_run_id", "22222222-2222-4222-8222-222222222222");
   formData.set("preview_fingerprint", preview.previewFingerprint);
   formData.set("local_data_fingerprint", preview.localDataFingerprint);
+  formData.set("archive_fingerprint", sha256Bytes(acceptedZip));
   formData.set("bundle_payload", Buffer.from(zip).toString("base64"));
   formData.set("upload_file_name", "cadence-export.behaviorlog.zip");
   formData.set("upload_file_size", String(zip.byteLength));
 
   return formData;
+}
+
+function sha256Bytes(content: Uint8Array): string {
+  return createHash("sha256").update(content).digest("hex");
 }

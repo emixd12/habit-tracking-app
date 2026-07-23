@@ -9,6 +9,28 @@ export function upsertBehaviorView(
   );
 }
 
+export function reconcileCreatedBehaviorViews(
+  createdBehaviorRows: BehaviorView[],
+  activeBehaviors: readonly BehaviorView[],
+  archivedBehaviors: readonly BehaviorView[],
+): BehaviorView[] {
+  if (createdBehaviorRows.length === 0) {
+    return createdBehaviorRows;
+  }
+
+  const serverBehaviorIds = new Set([
+    ...activeBehaviors.map((behavior) => behavior.id),
+    ...archivedBehaviors.map((behavior) => behavior.id),
+  ]);
+  const pendingCreatedRows = createdBehaviorRows.filter(
+    (behavior) => !serverBehaviorIds.has(behavior.id),
+  );
+
+  return pendingCreatedRows.length === createdBehaviorRows.length
+    ? createdBehaviorRows
+    : pendingCreatedRows;
+}
+
 export function removeBehaviorView(
   behaviors: BehaviorView[],
   behaviorId: string,

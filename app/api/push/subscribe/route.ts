@@ -10,13 +10,98 @@ import {
 } from "@/lib/monitoring/privacy-safe-events";
 import type { RateLimitResult } from "@/lib/security/rate-limiter";
 import {
+  getCurrentUserPushSubscriptionStatus,
   parsePushSubscriptionRequest,
+  parsePushSubscriptionStatusRequest,
   PushSubscriptionAuthError,
   PushSubscriptionValidationError,
   registerPushSubscription,
 } from "@/lib/services/push-subscription.service";
 
 const RATE_LIMIT_SCOPE = "push-subscribe-auth";
+
+export async function PUT(request: NextRequest) {
+  const rateLimitKey = buildAuthFailureRateLimitKey(
+    RATE_LIMIT_SCOPE,
+    request.headers,
+  );
+  const rateLimit = pushSubscribeAuthFailureLimiter.check(rateLimitKey);
+
+  if (!rateLimit.allowed) {
+    reportMonitoringEvent({
+      name: "push_subscription_status_auth_rate_limited",
+      severity: "warning",
+      context: routeContext(request),
+    });
+    return rateLimitError(rateLimit);
+  }
+
+  let body: unknown;
+
+  try {
+    body = await request.json();
+  } catch {
+    reportMonitoringEvent({
+      name: "push_subscription_status_invalid_json",
+      severity: "warning",
+      context: routeContext(request),
+    });
+    return jsonError("Subscription payload must be valid JSON.", 400);
+  }
+
+  try {
+    const input = parsePushSubscriptionStatusRequest(body);
+    const saved = await getCurrentUserPushSubscriptionStatus(input);
+
+    pushSubscribeAuthFailureLimiter.reset(rateLimitKey);
+    reportMonitoringEvent({
+      name: "push_subscription_status_checked",
+      context: routeContext(request),
+    });
+
+    return NextResponse.json({
+      ok: true,
+      saved,
+    });
+  } catch (error) {
+    if (error instanceof PushSubscriptionValidationError) {
+      reportMonitoringEvent({
+        name: "push_subscription_status_validation_failed",
+        severity: "warning",
+        context: routeContext(request),
+      });
+      return jsonError(error.message, 400);
+    }
+
+    if (error instanceof PushSubscriptionAuthError) {
+      const failureLimit =
+        pushSubscribeAuthFailureLimiter.recordFailure(rateLimitKey);
+
+      if (!failureLimit.allowed) {
+        reportMonitoringEvent({
+          name: "push_subscription_status_auth_rate_limited",
+          severity: "warning",
+          context: routeContext(request),
+        });
+        return rateLimitError(failureLimit);
+      }
+
+      reportMonitoringEvent({
+        name: "push_subscription_status_unauthorized",
+        severity: "warning",
+        context: routeContext(request),
+      });
+      return jsonError(error.message, 401);
+    }
+
+    reportMonitoringError(
+      "push_subscription_status_failed",
+      error,
+      routeContext(request),
+    );
+    return jsonError("Unable to verify browser reminder subscription.", 500);
+  }
+}
 
 export async function POST(request: NextRequest) {
   const rateLimitKey = buildAuthFailureRateLimitKey(

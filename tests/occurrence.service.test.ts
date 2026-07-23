@@ -2,6 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  getBehaviorById,
   listBehaviorScheduleSlots,
   listUserBehaviors,
 } from "@/lib/db/behaviors.repo";
@@ -18,6 +19,7 @@ import {
   getLatestOccurrenceStatusEventForOccurrence,
 } from "@/lib/db/occurrenceStatusEvents.repo";
 import { listProfileOccurrenceSyncTargets } from "@/lib/db/profiles.repo";
+import { reportMonitoringError } from "@/lib/monitoring/privacy-safe-events";
 import {
   markOccurrenceSyncFreshForPlans,
   markOccurrenceSyncStale,
@@ -30,7 +32,10 @@ import {
   syncUserOccurrences,
   updateOccurrenceNote,
 } from "@/lib/services/occurrence.service";
-import { syncReminderDeliveriesForBehaviors } from "@/lib/services/reminder.service";
+import {
+  syncReminderDeliveriesForBehavior,
+  syncReminderDeliveriesForBehaviors,
+} from "@/lib/services/reminder.service";
 import type {
   Behavior,
   BehaviorScheduleSlot,
@@ -46,6 +51,7 @@ vi.mock("@/lib/db/behaviors.repo", async (importOriginal) => {
 
   return {
     ...actual,
+    getBehaviorById: vi.fn(),
     listBehaviorScheduleSlots: vi.fn(),
     listUserBehaviors: vi.fn(),
   };
@@ -73,6 +79,10 @@ vi.mock("@/lib/db/occurrenceStatusEvents.repo", () => ({
 vi.mock("@/lib/services/reminder.service", () => ({
   syncReminderDeliveriesForBehavior: vi.fn(),
   syncReminderDeliveriesForBehaviors: vi.fn(),
+}));
+
+vi.mock("@/lib/monitoring/privacy-safe-events", () => ({
+  reportMonitoringError: vi.fn(),
 }));
 
 vi.mock(
@@ -179,6 +189,7 @@ describe("syncUserOccurrences", () => {
         { behavior: behaviors[0], occurrences: [occurrences[0]] },
         { behavior: behaviors[1], occurrences: [occurrences[1]] },
       ],
+      { now: NOW },
     );
     expect(markOccurrenceSyncFreshForPlans).toHaveBeenCalledWith(SUPABASE, {
       userId: "user-1",
@@ -359,7 +370,7 @@ describe("ensureUserOccurrencesFresh", () => {
       "behavior-1",
       "2026-06-08T04:00:00Z",
     );
-    expect(markOccurrenceSyncFreshForPlans).toHaveBeenCalledOnce();
+    expect(markOccurrenceSyncFreshForPlans).not.toHaveBeenCalled();
     expect(syncReminderDeliveriesForBehaviors).not.toHaveBeenCalled();
   });
 
@@ -395,6 +406,7 @@ describe("ensureUserOccurrencesFresh", () => {
       SUPABASE,
       "user-1",
       [{ behavior, occurrences: [occurrence] }],
+      { now: NOW },
     );
   });
 
@@ -438,11 +450,17 @@ describe("processOccurrenceSyncHorizons", () => {
     vi.mocked(syncReminderDeliveriesForBehaviors).mockResolvedValue();
   });
 
-  it("checks profile sync targets and skips users whose horizon is already covered", async () => {
+  it("reconciles reminders even when occurrence coverage is already fresh", async () => {
     const behavior = buildBehavior({
       id: "behavior-1",
       title: "Morning behavior",
       scheduledTime: "10:00:00",
+    });
+    const occurrence = buildOccurrence({
+      id: "occurrence-1",
+      behaviorId: "behavior-1",
+      scheduledFor: "2026-06-08T14:00:00Z",
+      startTime: "10:00:00",
     });
 
     vi.mocked(listProfileOccurrenceSyncTargets).mockResolvedValue([
@@ -458,6 +476,7 @@ describe("processOccurrenceSyncHorizons", () => {
         synced_through_local_date: "2026-07-08",
       }),
     );
+    vi.mocked(listBehaviorOccurrencesFrom).mockResolvedValue([occurrence]);
 
     await expect(
       processOccurrenceSyncHorizons({
@@ -476,7 +495,18 @@ describe("processOccurrenceSyncHorizons", () => {
       limit: 5,
     });
     expect(listUserBehaviors).toHaveBeenCalledWith(SUPABASE, "user-1");
-    expect(listBehaviorOccurrencesFrom).not.toHaveBeenCalled();
+    expect(listBehaviorOccurrencesFrom).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      "behavior-1",
+      "2026-06-08T04:00:00Z",
+    );
+    expect(syncReminderDeliveriesForBehaviors).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      [{ behavior, occurrences: [occurrence] }],
+      { now: NOW },
+    );
   });
 
   it("uses the background horizon process to plan reminder deliveries after occurrence sync", async () => {
@@ -523,6 +553,7 @@ describe("processOccurrenceSyncHorizons", () => {
       SUPABASE,
       "user-1",
       [{ behavior, occurrences: [occurrence] }],
+      { now: NOW },
     );
   });
 });
@@ -533,6 +564,15 @@ describe("applyOccurrenceStatusTransition", () => {
     vi.mocked(getLatestOccurrenceStatusEventForOccurrence).mockResolvedValue(
       null,
     );
+    vi.mocked(getBehaviorById).mockResolvedValue(
+      buildBehavior({
+        id: "behavior-1",
+        title: "Morning behavior",
+        scheduledTime: "11:00:00",
+      }),
+    );
+    vi.mocked(syncReminderDeliveriesForBehavior).mockResolvedValue();
+    vi.mocked(markOccurrenceSyncStale).mockResolvedValue({} as never);
   });
 
   it("atomically applies a first Completed mark and its explicit-mark event", async () => {
@@ -732,13 +772,13 @@ describe("applyOccurrenceStatusTransition", () => {
     );
   });
 
-  it("plans a correction back to Unresolved without status timestamps", async () => {
+  it("replans a still-future reminder when Timeline Unmark returns an occurrence to Unresolved", async () => {
     const occurrence = {
       ...buildOccurrence({
         id: "occurrence-1",
         behaviorId: "behavior-1",
-        scheduledFor: "2026-06-08T14:00:00Z",
-        startTime: "10:00:00",
+        scheduledFor: "2026-06-08T18:00:00Z",
+        startTime: "14:00:00",
       }),
       status: "not_completed" as const,
       status_marked_at: "2026-06-07T12:00:00Z",
@@ -794,6 +834,90 @@ describe("applyOccurrenceStatusTransition", () => {
         effectiveAt: null,
       }),
     });
+    expect(getBehaviorById).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      "behavior-1",
+    );
+    expect(syncReminderDeliveriesForBehavior).toHaveBeenCalledWith(
+      SUPABASE,
+      "user-1",
+      expect.objectContaining({ id: "behavior-1" }),
+      {
+        scheduledFrom: "2026-06-08T18:00:00Z",
+        occurrences: [updatedOccurrence],
+        now: NOW,
+      },
+    );
+    expect(markOccurrenceSyncStale).not.toHaveBeenCalled();
+  });
+
+  it("keeps a cleared decision committed and marks retry state when reminder repair fails", async () => {
+    const occurrence = {
+      ...buildOccurrence({
+        id: "occurrence-1",
+        behaviorId: "behavior-1",
+        scheduledFor: "2026-06-08T15:00:00Z",
+        startTime: "11:00:00",
+      }),
+      status: "not_completed" as const,
+      status_marked_at: "2026-06-07T12:00:00Z",
+    };
+    const updatedOccurrence = {
+      ...occurrence,
+      status: "unresolved" as const,
+      completed_at: null,
+      status_marked_at: null,
+    };
+    const transitionResult = {
+      statusChanged: true,
+      concurrentDuplicate: false,
+      occurrence: updatedOccurrence,
+      statusEvent: buildStatusEvent({
+        previousStatus: "not_completed",
+        status: "unresolved",
+        semantics: "explicit_user_correction",
+        effectiveAt: null,
+      }),
+    };
+    const repairFailure = new Error("reminder repair failed");
+
+    vi.mocked(getOccurrenceWithBehaviorTimezoneById).mockResolvedValue({
+      ...occurrence,
+      behavior: { timezone: "America/New_York" },
+    });
+    vi.mocked(getLatestOccurrenceStatusEventForOccurrence).mockResolvedValue(
+      buildStatusEvent({
+        previousStatus: "unresolved",
+        status: "not_completed",
+        semantics: "explicit_user_mark",
+        effectiveAt: "2026-06-07T12:00:00Z",
+      }),
+    );
+    vi.mocked(applyOccurrenceStatusTransitionRpc).mockResolvedValue(
+      transitionResult,
+    );
+    vi.mocked(syncReminderDeliveriesForBehavior).mockRejectedValueOnce(
+      repairFailure,
+    );
+
+    await expect(
+      applyOccurrenceStatusTransition(SUPABASE, "user-1", {
+        occurrenceId: occurrence.id,
+        nextStatus: "unresolved",
+        now: NOW,
+      }),
+    ).resolves.toEqual(transitionResult);
+    expect(markOccurrenceSyncStale).toHaveBeenCalledWith(SUPABASE, {
+      userId: "user-1",
+      reason: "sync_failed",
+      timezone: "America/New_York",
+    });
+    expect(reportMonitoringError).toHaveBeenCalledWith(
+      "clear_decision_reminder_repair_failed",
+      repairFailure,
+      { operation: "clear_decision" },
+    );
   });
 
   it("treats resolution after a cleared decision as a correction", async () => {

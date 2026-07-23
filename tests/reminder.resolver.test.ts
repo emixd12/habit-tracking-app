@@ -1,8 +1,10 @@
+import { Temporal } from "@js-temporal/polyfill";
 import { describe, expect, it } from "vitest";
 
 import {
   resolveReminderDeliveries,
   resolveReminderDeliveryCancellation,
+  resolveReminderDeliveryReconciliation,
   type ReminderResolverBehavior,
   type ReminderResolverOccurrence,
 } from "../lib/resolvers/reminder.resolver";
@@ -145,6 +147,177 @@ describe("resolveReminderDeliveryCancellation", () => {
     ).toEqual({
       cancelPending: true,
       reason: "occurrence_resolved",
+    });
+  });
+});
+
+describe("resolveReminderDeliveryReconciliation", () => {
+  it("creates missing deliveries, revives cancelled expected rows, and cancels obsolete pending rows", () => {
+    expect(
+      resolveReminderDeliveryReconciliation({
+        now: Temporal.Instant.from("2026-06-08T12:00:00Z"),
+        expected: [
+          {
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "browser_push",
+            scheduledSendAt: "2026-06-08T14:30:00Z",
+            status: "pending",
+          },
+          {
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "email",
+            scheduledSendAt: "2026-06-08T13:30:00Z",
+            status: "pending",
+          },
+        ],
+        existing: [
+          {
+            id: "cancelled-browser",
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "browser_push",
+            scheduledSendAt: "2026-06-08T14:30:00+00:00",
+            status: "cancelled",
+            processingStartedAt: null,
+          },
+          {
+            id: "obsolete-email",
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "email",
+            scheduledSendAt: "2026-06-08T12:30:00Z",
+            status: "pending",
+            processingStartedAt: null,
+          },
+        ],
+      }),
+    ).toEqual({
+      create: [
+        {
+          userId: "user-1",
+          occurrenceId: "occurrence-1",
+          channel: "email",
+          scheduledSendAt: "2026-06-08T13:30:00Z",
+          status: "pending",
+        },
+      ],
+      reactivateIds: ["cancelled-browser"],
+      cancelIds: ["obsolete-email"],
+    });
+  });
+
+  it("does not retry failed or sent deliveries and leaves claimed obsolete rows to due-delivery validation", () => {
+    const expected = {
+      userId: "user-1",
+      occurrenceId: "occurrence-1",
+      channel: "email" as const,
+      scheduledSendAt: "2026-06-08T13:30:00Z",
+      status: "pending" as const,
+    };
+
+    expect(
+      resolveReminderDeliveryReconciliation({
+        now: Temporal.Instant.from("2026-06-08T12:00:00Z"),
+        expected: [expected],
+        existing: [
+          {
+            id: "failed-expected",
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "email",
+            scheduledSendAt: expected.scheduledSendAt,
+            status: "failed",
+            processingStartedAt: null,
+          },
+          {
+            id: "claimed-obsolete",
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "browser_push",
+            scheduledSendAt: "2026-06-08T14:30:00Z",
+            status: "pending",
+            processingStartedAt: "2026-06-08T14:30:01Z",
+          },
+        ],
+      }),
+    ).toEqual({
+      create: [],
+      reactivateIds: [],
+      cancelIds: [],
+    });
+  });
+
+  it("repairs only future coverage while preserving due pending rows", () => {
+    expect(
+      resolveReminderDeliveryReconciliation({
+        now: Temporal.Instant.from("2026-06-08T14:00:00Z"),
+        expected: [
+          {
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "email",
+            scheduledSendAt: "2026-06-08T13:00:00Z",
+            status: "pending",
+          },
+          {
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "browser_push",
+            scheduledSendAt: "2026-06-08T13:30:00Z",
+            status: "pending",
+          },
+          {
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "email",
+            scheduledSendAt: "2026-06-08T16:00:00Z",
+            status: "pending",
+          },
+        ],
+        existing: [
+          {
+            id: "past-cancelled",
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "email",
+            scheduledSendAt: "2026-06-08T13:00:00Z",
+            status: "cancelled",
+            processingStartedAt: null,
+          },
+          {
+            id: "due-pending",
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "browser_push",
+            scheduledSendAt: "2026-06-08T14:00:00Z",
+            status: "pending",
+            processingStartedAt: null,
+          },
+          {
+            id: "future-obsolete",
+            userId: "user-1",
+            occurrenceId: "occurrence-1",
+            channel: "browser_push",
+            scheduledSendAt: "2026-06-08T15:00:00Z",
+            status: "pending",
+            processingStartedAt: null,
+          },
+        ],
+      }),
+    ).toEqual({
+      create: [
+        {
+          userId: "user-1",
+          occurrenceId: "occurrence-1",
+          channel: "email",
+          scheduledSendAt: "2026-06-08T16:00:00Z",
+          status: "pending",
+        },
+      ],
+      reactivateIds: [],
+      cancelIds: ["future-obsolete"],
     });
   });
 });

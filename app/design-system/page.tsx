@@ -2423,7 +2423,7 @@ function behaviorLogImportStateFixture(
         fileName: "invalid.behaviorlog.zip",
         fileSize: 481,
       },
-      bundlePayload: "bench-invalid-bundle",
+      archiveFingerprint: "a".repeat(64),
       preview: emptyImportPreviewFixture,
       previewRun,
       capabilities: {
@@ -2446,7 +2446,7 @@ function behaviorLogImportStateFixture(
       fileName: "accepted-preview.behaviorlog.zip",
       fileSize: 2048,
     },
-    bundlePayload: "bench-accepted-bundle",
+    archiveFingerprint: "b".repeat(64),
     preview: acceptedImportPreviewFixture,
     previewRun,
     capabilities: {
@@ -2582,7 +2582,7 @@ const behaviorLogRestoreStateFixture: BehaviorLogRestoreActionState = {
     fileName: "destructive-preview.behaviorlog.zip",
     fileSize: 4096,
   },
-  bundlePayload: "bench-restore-bundle",
+  archiveFingerprint: "c".repeat(64),
   preview: destructiveRestorePreviewFixture,
   previewRun: {
     id: "bench-restore-preview",

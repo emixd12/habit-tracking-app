@@ -24,6 +24,10 @@ interaction IDs and implementation traceability.
 - `scripts/check-interactions.mjs`: structural, reference, coverage, and drift
   validation.
 
+The current additive schema version is `1.1.0`. Version 1.1 adds required
+`user_guidance` metadata without changing the meaning of existing interaction
+fields.
+
 Do not maintain a second hand-written list of interaction entries. Query or
 transform the JSON registry when another representation is needed.
 
@@ -63,10 +67,18 @@ Each interaction records:
 - success and failure results;
 - material effects, risk, and confirmation level;
 - implementation references;
+- user-guidance audience and one or more task-guide references;
 - explicit test-coverage level and references.
 
 `implementation` references use repository-relative paths. A `#symbol` suffix
 may identify an exported action or function in that file.
+
+`user_guidance.audience` is `user` for product interactions and `internal_qa`
+for test-only interactions. `user_guidance.references` contains unique,
+repository-relative `docs/user-guide/*.md#anchor` references. The anchor must be
+the GitHub-style slug of an existing Markdown heading. Only `INT-AUTH-002` and
+`INT-SHELL-007` use `internal_qa`; their references stay in
+`docs/user-guide/internal-qa.md`.
 
 ## Updating the registry
 
@@ -81,8 +93,12 @@ side effect, or receives materially different test coverage.
    refresh `interaction_marker_count` when a file's recognized controls or
    event handlers change. The validator reports the expected and actual count.
 5. Add or update the relevant implementation and test references.
-6. Run `npm run interactions:check`.
-7. For UI work, also run the project-required design and full verification
+6. Add or update `user_guidance` so every interaction points to the applicable
+   task procedure. Add the guide procedure in the same change when no suitable
+   heading exists.
+7. Run `npm run interactions:check`. The validator checks the declared
+   audience, guide path, file existence, and resolved Markdown heading anchor.
+8. For UI work, also run the project-required design and full verification
    commands.
 
 ## Useful queries
@@ -109,4 +125,10 @@ List interactions for one journey:
 
 ```bash
 jq -r '.interactions[] | select(.journeys | index("J07")) | .id + "\t" + .name' interaction-registry.json
+```
+
+List interaction guide references:
+
+```bash
+jq -r '.interactions[] | .id as $id | .user_guidance.references[] | $id + "\t" + .' interaction-registry.json
 ```

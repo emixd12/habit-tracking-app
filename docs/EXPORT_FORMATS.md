@@ -92,6 +92,16 @@ complete status history.
 CSV does not include behavior definition events. Use Full JSON or BehaviorLog
 when definition history is needed.
 
+Cadence neutralizes spreadsheet formula prefixes in CSV columns that can carry
+user-controlled free text. Before normal CSV quoting, a protected cell whose
+first non-whitespace character is `=`, `+`, `-`, or `@` receives a leading
+apostrophe. Protected app-native columns are behavior title, category, and
+note. Protected BehaviorLog projections are behavior title, description,
+category, success definition, and status-event reason code. Machine-generated
+structured values such as signed UTC offsets, timestamps, stable IDs, and
+status vocabulary remain exact. JSON and JSONL exports retain the original
+text unchanged.
+
 ## Full JSON backup
 
 Shape:
@@ -354,6 +364,11 @@ Merge-preview rules:
   for user review and to feed a later user-approved merge plan.
 - Behavior comparisons use existing import mappings, source original id,
   title/category identity, archive state, and compatible schedule shape.
+- Behavior title/category identity uses the authoritative BehaviorLog category
+  for cross-product matching. When both the imported and local records also
+  provide a Cadence display category, that display category must match too;
+  canonical `health_wellness` does not make `Medical` and `Measurements`
+  interchangeable.
 - Schedule comparisons use mapped behavior, recurrence profile, recurrence
   payload, timezone, active date bounds, and exact-time or preset range slot.
 - Occurrence comparisons use mapped behavior/schedule plus
@@ -429,6 +444,19 @@ User-facing import UI rules:
   import entry point.
 - Uploads must be `.behaviorlog.zip` bundles; unsupported files should fail
   before preview.
+- The compressed archive ceiling is 2 MB. Cadence authenticates
+  the account before it reads archive entries, then rejects archives with more
+  than 128 entries, an extracted entry larger than 32 MiB, more than 64 MiB
+  extracted in total, or an entry whose declared compression ratio exceeds
+  100:1. These bounds apply to import and restore, including accepted-preview
+  apply.
+- The Next.js Server Action request ceiling is 4 MB. A 2 MB ZIP is about
+  2.7 MB when base64-encoded, leaving margin below Vercel's 4.5 MB Function
+  request cap.
+- Apply transports the base64 archive once in the submitted form. Action state
+  retains only the SHA-256 fingerprint of the exact archive bytes accepted at
+  preview. Apply recomputes that fingerprint, refuses a mismatch, and still
+  re-parses and re-validates the submitted archive authoritatively.
 - Preview persists an import-run ledger row and must not write product records.
 - The UI must show validation output, dry-run counts, privacy notes,
   sensitivity warnings, intervention preview counts, passive intervention
@@ -688,6 +716,9 @@ The resolver should not query Supabase directly.
 - BehaviorLog CSV views match their authoritative JSONL source record counts
   and stable IDs, escape commas, quotes, and newlines, and keep extension data
   in a single JSON string column.
+- App-native and BehaviorLog CSV views prefix formula-leading user-controlled
+  text projections with an apostrophe before standard CSV escaping while
+  preserving signed machine-generated values such as UTC offsets.
 - BehaviorLog Intervention Profile export emits reminder deliveries as optional
   `intervention` records, validates their references through the conformance
   harness, represents pending/sent/failed/cancelled statuses, lists and hashes
