@@ -9,6 +9,22 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("app-shell sign out control", () => {
+  it("renders the collapsed desktop header as an expand-only control", () => {
+    const html = renderToStaticMarkup(
+      <AppShell
+        user={{ email: "person@example.test" }}
+        defaultDesktopSidebarOpen={false}
+      >
+        <p>Protected content</p>
+      </AppShell>,
+    );
+
+    expect(html).toContain('aria-label="Expand navigation"');
+    expect(html).toContain('title="Expand navigation"');
+    expect(html.match(/aria-label="Open Timeline"/gu)).toHaveLength(2);
+    expect(html).not.toContain('title="Open Timeline"');
+  });
+
   it("renders the expanded desktop row directly as a POST form", () => {
     const html = renderToStaticMarkup(
       <SignOutControl isCollapsed={false} />,

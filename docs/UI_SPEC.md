@@ -30,14 +30,15 @@ sits underneath the fixed rail.
 
 The desktop sidebar uses a stable 64px icon column in both states. Header,
 navigation, and footer account rows keep icons or avatar centered in that
-column. Labels remain in the DOM and collapse visually with `opacity-0`,
-`pointer-events-none`, `w-0`, and `overflow-hidden`; expanded labels use
-`opacity-100` and `whitespace-nowrap`.
-The desktop sidebar header does not draw a bottom divider. The Cadence mark and
-name link to `/timeline`; the expanded-state collapse control stays separate
-from the brand link. In the collapsed desktop rail, hovering the brand icon cell
-swaps the Cadence mark to the open-sidebar icon. Brand links use a 70% opacity
-state on hover and press.
+column. Navigation and footer labels remain in the DOM and collapse visually
+with `opacity-0`, `pointer-events-none`, `w-0`, and `overflow-hidden`; expanded
+labels use `opacity-100` and `whitespace-nowrap`.
+The desktop sidebar header does not draw a bottom divider. In the expanded
+rail, the Cadence mark and name link to `/timeline`, and the collapse control
+stays separate from the brand link. In the collapsed rail, the same 64px cell
+becomes an **Expand navigation** button with no navigation side effect.
+Hovering that button swaps the Cadence mark to the open-sidebar icon. Brand
+links use a 70% opacity state on hover and press.
 
 Expanded navigation applies hover and active treatment to the whole row.
 Collapsed navigation applies hover and active treatment only to the 64px icon

@@ -1320,9 +1320,10 @@ const previewFactories: Record<
             aria-label="Primary route registry collapsed"
             className="flex h-[22rem] w-16 flex-col overflow-hidden border-r border-line bg-card"
           >
-            <a
-              href="/timeline"
-              aria-label="Open Timeline"
+            <button
+              type="button"
+              aria-label="Expand navigation"
+              title="Expand navigation"
               className="group relative flex h-16 w-16 items-center justify-center transition-opacity duration-150 ease-out hover:opacity-70"
             >
               <Image
@@ -1332,14 +1333,14 @@ const previewFactories: Record<
                 width={24}
                 height={24}
                 sizes="24px"
-                className="h-6 w-6 object-contain"
+                className="h-6 w-6 object-contain transition-opacity duration-200 group-hover:opacity-0"
               />
               <PanelLeftOpen
                 aria-hidden="true"
-                className="absolute h-4 w-4 opacity-0"
+                className="absolute h-4 w-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                 strokeWidth={2}
               />
-            </a>
+            </button>
             <div className="flex flex-1 flex-col py-3">
               {APP_NAV_ITEMS.map((item, index) => {
                 const Icon = navIcons[item.href];
@@ -1472,9 +1473,9 @@ const previewFactories: Record<
             <section className="border-y border-line bg-background py-5">
               <h2 className="text-2xl font-bold">App shell preview</h2>
               <p className="mt-2 text-sm leading-6 text-muted-readable">
-                Sidebar, brand Timeline links with opacity feedback, the
-                collapsed desktop opener affordance, mobile navigation, and the
-                scroll-faded mobile header divider render from the live shell.
+                Sidebar, expanded-state brand Timeline links, the collapsed
+                expand-only affordance, mobile navigation, and the scroll-faded
+                mobile header divider render from the live shell.
               </p>
             </section>
           </div>

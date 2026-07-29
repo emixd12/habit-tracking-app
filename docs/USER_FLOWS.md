@@ -77,8 +77,10 @@ Desktop behavior:
 - Expanded rail is 16rem wide.
 - Collapsed rail is 4rem wide.
 - Main content shifts with matching left padding at large breakpoints.
-- The logo button toggles the rail. In collapsed mode, hovering the logo shows
-  the expand icon in the same 64px square.
+- In the expanded rail, the Cadence mark and name link to Timeline, and a
+  separate button collapses the rail.
+- In the collapsed rail, the 64px brand cell becomes an expand-only button.
+  Hovering it shows the expand icon, and activating it does not navigate.
 - The desktop sidebar header does not draw a bottom divider.
 - Navigation and account rows keep a fixed 64px icon/avatar column so expanded
   and collapsed icon positions match.

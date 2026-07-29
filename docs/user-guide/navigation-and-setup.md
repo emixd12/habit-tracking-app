@@ -16,8 +16,8 @@ sign-in.
    import, and restore.
 4. Choose **Settings** for the profile timezone, this device's browser
    notifications, public account information, and account deletion.
-5. Choose the **Cadence** brand, whose accessible name is **Open Timeline**, to
-   return to Timeline.
+5. In the expanded desktop rail or mobile navigation, choose the **Cadence**
+   brand, whose accessible name is **Open Timeline**, to return to Timeline.
 6. Choose the account row, whose accessible name is
    **Open account settings**, to open Settings.
 
@@ -43,8 +43,8 @@ open the navigation drawer as described below.
 1. In the expanded rail, choose **Collapse navigation**.
 2. In the collapsed rail, primary destinations remain available as icons with
    accessible names and hover titles.
-3. To expand the rail again, activate the **Cadence** brand cell, exposed as
-   **Open Timeline**. This also navigates to Timeline.
+3. To expand the rail again, choose **Expand navigation** in the top 64px
+   cell. It expands the rail without changing the current screen.
 
 **Result and persistence:** Cadence stores the open or collapsed preference in
 browser local storage when available. The preference applies only to this
@@ -58,7 +58,7 @@ other local-only Cadence preferences.
 **Privacy and safety:** The rail preference contains no Behavior record, but
 clearing all site data may also clear the authentication session.
 
-**Keyboard and mobile:** **Collapse navigation** and **Open Timeline** are
+**Keyboard and mobile:** **Collapse navigation** and **Expand navigation** are
 keyboard-operable. Labels remain available to assistive technology when the
 rail is visually collapsed. Reduced-motion settings remove the width
 transition. Mobile does not use this collapsed rail.

@@ -257,7 +257,7 @@
     {
       "path": "components/layout/AppShell.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 23,
+      "interaction_marker_count": 25,
       "interaction_ids": [
         "INT-SHELL-001",
         "INT-SHELL-002",
@@ -862,15 +862,22 @@
       "routes": ["/timeline", "/behaviors", "/export", "/settings"],
       "journeys": ["J21"],
       "intent": "Collapse or expand the fixed desktop navigation rail.",
-      "triggers": [{ "kind": "activate", "control": "Collapse sidebar or Open sidebar" }],
-      "availability": "Available at desktop widths; the separate collapse button is visible while expanded and the brand cell expands a collapsed rail.",
+      "triggers": [
+        { "kind": "activate", "control": "Collapse navigation" },
+        { "kind": "activate", "control": "Expand navigation" }
+      ],
+      "variants": [
+        { "id": "collapse_navigation", "label": "Collapse navigation", "result": "Collapse the expanded desktop navigation rail." },
+        { "id": "expand_navigation", "label": "Expand navigation", "result": "Expand the collapsed desktop navigation rail without navigating." }
+      ],
+      "availability": "Available at desktop widths; the separate collapse button is visible while expanded and the top icon cell is an expand-only button while collapsed.",
       "success_result": "Changes rail width and persists the preference in localStorage when available.",
       "failure_result": "The rail still changes for the current session if localStorage is unavailable.",
       "effects": ["ui_state", "local_preference"],
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/layout/AppShell.tsx"],
-      "test_coverage": { "level": "manual", "references": [], "notes": "Validated at desktop viewport during UI QA." }
+      "test_coverage": { "level": "direct", "references": ["tests/sign-out-shell.test.tsx"], "notes": "The app-shell test renders the collapsed header as Expand navigation and verifies that its brand cell is no longer a Timeline destination." }
     },
     {
       "id": "INT-SHELL-005",

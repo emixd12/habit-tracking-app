@@ -301,12 +301,16 @@ export function SignOutControl({
 export function AppShell({
   children,
   user,
+  defaultDesktopSidebarOpen = true,
 }: Readonly<{
   children: React.ReactNode;
   user?: AppShellUser;
+  defaultDesktopSidebarOpen?: boolean;
 }>) {
   const pathname = usePathname();
-  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(
+    defaultDesktopSidebarOpen,
+  );
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [mobileHeaderBorderOpacity, setMobileHeaderBorderOpacity] = useState(0);
   const [pendingHref, setPendingHref] = useState<AppNavHref | null>(null);
@@ -344,21 +348,7 @@ export function AppShell({
     if (DEFAULT_APP_ROUTE !== pathname) {
       setPendingHref(DEFAULT_APP_ROUTE);
     }
-
-    if (isDesktopSidebarOpen) {
-      return;
-    }
-
-    hasStoredSidebarPreferenceRef.current = true;
-
-    try {
-      window.localStorage.setItem(SIDEBAR_STORAGE_KEY, "true");
-    } catch {
-      // Persistence is a convenience; the sidebar still works without it.
-    }
-
-    setIsDesktopSidebarOpen(true);
-  }, [isDesktopSidebarOpen, pathname]);
+  }, [pathname]);
 
   const toggleDesktopSidebar = useCallback(() => {
     setIsDesktopSidebarOpen((current) => {
@@ -713,40 +703,36 @@ export function AppShell({
           ].join(" ")}
         >
           <div className="relative grid h-16 grid-cols-[4rem_1fr] items-center">
-            <Link
-              href={DEFAULT_APP_ROUTE}
-              title={!isDesktopSidebarOpen ? "Open Timeline" : undefined}
-              aria-label="Open Timeline"
-              onClick={handleDesktopBrandNavigate}
-              className="group grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center text-left transition-opacity duration-150 ease-out hover:opacity-70 active:opacity-70 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            >
-              <span className="relative flex h-16 w-16 items-center justify-center">
-                <BrandMark
-                  className={[
-                    "absolute h-6 w-6 transition-opacity duration-200 motion-reduce:transition-none",
-                    isDesktopSidebarOpen
-                      ? "opacity-100"
-                      : "opacity-100 group-hover:opacity-0",
-                  ].join(" ")}
-                />
+            {isDesktopSidebarOpen ? (
+              <Link
+                href={DEFAULT_APP_ROUTE}
+                aria-label="Open Timeline"
+                onClick={handleDesktopBrandNavigate}
+                className="grid h-16 min-w-0 grid-cols-[4rem_1fr] items-center text-left transition-opacity duration-150 ease-out hover:opacity-70 active:opacity-70 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <span className="flex h-16 w-16 items-center justify-center">
+                  <BrandMark />
+                </span>
+                <span className="min-w-0 pr-12">
+                  <span className="block truncate text-lg">Cadence</span>
+                </span>
+              </Link>
+            ) : (
+              <button
+                type="button"
+                title="Expand navigation"
+                aria-label="Expand navigation"
+                onClick={toggleDesktopSidebar}
+                className="group relative flex h-16 w-16 items-center justify-center transition-opacity duration-150 ease-out hover:opacity-70 active:opacity-70 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <BrandMark className="absolute h-6 w-6 transition-opacity duration-200 group-hover:opacity-0 motion-reduce:transition-none" />
                 <PanelLeftOpen
                   aria-hidden="true"
-                  className={[
-                    "absolute h-4 w-4 transition-opacity duration-200 motion-reduce:transition-none",
-                    isDesktopSidebarOpen ? "opacity-0" : "opacity-0 group-hover:opacity-100",
-                  ].join(" ")}
+                  className="absolute h-4 w-4 opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none"
                   strokeWidth={2}
                 />
-              </span>
-              <span
-                className={[
-                  "min-w-0 pr-12 transition-opacity duration-200",
-                  isDesktopSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0",
-                ].join(" ")}
-              >
-                <span className="block truncate text-lg">Cadence</span>
-              </span>
-            </Link>
+              </button>
+            )}
             {isDesktopSidebarOpen ? (
               <button
                 type="button"
