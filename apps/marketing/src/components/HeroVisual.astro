@@ -1,36 +1,227 @@
-<div class="hero-media hero-media--reference" aria-hidden="true">
-  <span class="hero-media__backplate">
-    <img
-      class="hero-media__image hero-media__image--base"
-      src="/brand/cadence-home-reference-base.png"
-      width="850"
-      height="620"
-      alt=""
-      loading="eager"
-      decoding="async"
-      fetchpriority="high"
-    />
-  </span>
-  <span class="hero-media__screen hero-media__screen--timeline">
-    <img
-      src="/brand/cadence-ui-timeline-capture.png"
-      width="736"
-      height="360"
-      alt=""
-      loading="eager"
-      decoding="async"
-      fetchpriority="high"
-    />
-  </span>
-  <span class="hero-media__screen hero-media__screen--behavior">
-    <img
-      src="/brand/cadence-ui-behavior-row-capture.png"
-      width="1190"
-      height="289"
-      alt=""
-      loading="eager"
-      decoding="async"
-      fetchpriority="high"
-    />
-  </span>
+---
+// Live hero group: horse illustration + real timeline + behavior record.
+// Replaces the screenshot collage. Positions match the approved design
+// (arranged visually): horse 0/0 @51.5%, timeline 25.5%/17.6% @72.9%,
+// module 8%/53.2% @68.6%. The group is one fixed-ratio canvas (1650:1095)
+// so it scales as a unit at every viewport size.
+---
+
+<div class="hg" aria-hidden="true">
+  <img
+    class="hg__horse"
+    src="/brand/cadence-home-reference-base.png"
+    width="850"
+    height="620"
+    alt=""
+    loading="eager"
+    decoding="async"
+    fetchpriority="high"
+  />
+
+  <div class="hg__timeline">
+    <div class="hg__day">
+      <span class="hg__quiet">Current day</span>
+      <span class="hg__date">Tuesday, June 30</span>
+    </div>
+    <div class="hg__rule"></div>
+    <div class="hg__row">
+      <span class="hg__time">Morning</span>
+      <span class="hg__title">Morning walk</span>
+      <span class="hg__actions"><span>✓ <u>Completed</u></span><span>✕ <u>Not Completed</u></span></span>
+    </div>
+    <div class="hg__row hg__row--completed">
+      <span class="hg__time">12:30 PM</span>
+      <span class="hg__title">Lunch notes</span>
+      <span class="hg__status">Completed</span>
+    </div>
+    <div class="hg__row hg__row--not-completed">
+      <span class="hg__time">Evening</span>
+      <span class="hg__title">Read for twenty minutes</span>
+      <span class="hg__status">Not Completed</span>
+    </div>
+  </div>
+
+  <div class="hg__module">
+    <div class="hg__module-grid">
+      <div class="hg__module-copy">
+        <h3>Evening reset</h3>
+        <dl>
+          <div><dt>Adherence</dt><dd>80%</dd></div>
+          <div><dt>Completed</dt><dd>24</dd></div>
+          <div><dt>Not Completed</dt><dd>6</dd></div>
+          <div><dt>Tracking since</dt><dd>06-02-26</dd></div>
+        </dl>
+      </div>
+      <div class="hg__module-cal">
+        <div class="hg__ranges">
+          <span>7 days</span><span class="is-active">30 days</span><span>90 days</span>
+        </div>
+        <div class="hg__heatmap">
+          {Array.from({ length: 30 }, (_, i) => (
+            <span
+              class:list={[
+                "hg__cell",
+                [3, 7, 12, 18, 24, 28].includes(i) && "hg__cell--nc",
+                i === 0 && "hg__cell--start",
+              ]}
+            ></span>
+          ))}
+        </div>
+      </div>
+    </div>
+    <div class="hg__disclosure">
+      <span class="hg__tri"></span>
+      <span class="hg__disclosure-label">Details and Settings</span>
+    </div>
+  </div>
 </div>
+
+<style>
+  .hg {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1650 / 1095;
+    container-type: inline-size;
+  }
+
+  .hg__horse {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 51.5%;
+    height: auto;
+  }
+
+  .hg__timeline {
+    position: absolute;
+    left: 25.5%;
+    top: 17.6%;
+    width: 72.9%;
+    font-size: 1.94cqi;
+    border: 1px solid rgba(111, 137, 175, 0.3);
+    background: var(--background);
+    box-shadow: 0 18px 48px rgba(15, 30, 51, 0.12);
+    z-index: 2;
+  }
+
+  .hg__day { padding: 0.75em 1.25em 0.5em; }
+  .hg__quiet { display: block; color: var(--muted-readable); font-size: 0.72em; }
+  .hg__date { display: block; font-size: 1.2em; }
+  .hg__rule { height: 1px; background: var(--line); }
+
+  .hg__row {
+    display: grid;
+    grid-template-columns: 5.3em 1fr auto;
+    gap: 0.75em;
+    align-items: center;
+    padding: 0.7em 1.25em;
+  }
+
+  .hg__time { color: var(--muted-readable); font-size: 0.75em; white-space: nowrap; }
+  .hg__title { font-size: 0.9em; }
+  .hg__status { font-size: 0.75em; white-space: nowrap; }
+
+  .hg__actions { display: flex; gap: 0.75em; font-size: 0.75em; }
+  .hg__actions > span { white-space: nowrap; }
+  .hg__actions u { text-underline-offset: 4px; text-decoration-thickness: 1px; }
+
+  .hg__row--completed { background: var(--primary); color: var(--background); }
+  .hg__row--completed .hg__time { color: inherit; }
+  .hg__row--not-completed { background: var(--accent); color: var(--background); }
+  .hg__row--not-completed .hg__time { color: inherit; }
+
+  .hg__module {
+    position: absolute;
+    left: 8%;
+    top: 53.2%;
+    width: 68.6%;
+    font-size: 1.94cqi;
+    border: 1px solid rgba(111, 137, 175, 0.3);
+    background: var(--background);
+    box-shadow: 0 18px 48px rgba(15, 30, 51, 0.14);
+    padding: 1em 1.25em 0.6em;
+    z-index: 3;
+  }
+
+  .hg__module-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 10.5em;
+    gap: 1.1em;
+    align-items: start;
+  }
+
+  .hg__module-copy { display: grid; gap: 0.6em; min-width: 0; }
+  .hg__module-copy h3 { font-size: 1em; font-weight: 400; line-height: 1.2; }
+
+  .hg__module-copy dl {
+    margin: 0;
+    display: grid;
+    gap: 0.19em;
+    font-size: 0.72em;
+    line-height: 1.65;
+  }
+
+  .hg__module-copy dl > div {
+    display: grid;
+    grid-template-columns: 9em minmax(0, 1fr);
+    gap: 0 0.75em;
+  }
+
+  .hg__module-copy dt { color: var(--foreground); white-space: nowrap; }
+  .hg__module-copy dd { margin: 0; color: var(--muted-readable); }
+
+  .hg__module-cal { display: grid; gap: 0.44em; }
+
+  .hg__ranges { display: flex; gap: 0.9em; font-size: 0.72em; }
+  .hg__ranges span {
+    color: var(--muted-readable);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    white-space: nowrap;
+  }
+  .hg__ranges .is-active { color: var(--foreground); }
+
+  .hg__heatmap {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.19em;
+  }
+
+  .hg__cell {
+    aspect-ratio: 1;
+    border: 1px solid var(--line);
+    background: var(--primary);
+  }
+  .hg__cell--nc { background: var(--accent); }
+  .hg__cell--start { border: 1px dotted var(--foreground); }
+
+  .hg__disclosure {
+    display: flex;
+    align-items: center;
+    min-height: 2.2em;
+    margin-top: 0.25em;
+    font-size: 0.72em;
+    color: var(--foreground);
+  }
+
+  .hg__tri {
+    width: 0;
+    height: 0;
+    flex-shrink: 0;
+    margin-right: 6px;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 6px solid var(--muted-readable);
+    transform: translateY(-2px);
+  }
+
+  .hg__disclosure-label {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    background-size: 100% 1px;
+    padding-bottom: 4px;
+    white-space: nowrap;
+  }
+</style>

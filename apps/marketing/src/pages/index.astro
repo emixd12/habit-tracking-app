@@ -1,7 +1,8 @@
 ---
 import HeroVisual from "../components/HeroVisual.astro";
+import HowItWorks from "../components/HowItWorks.astro";
 import { getRouteById } from "../data/routes";
-import { primaryCtas } from "../data/site";
+import { primaryCtas, siteConfig } from "../data/site";
 import BaseLayout from "../layouts/BaseLayout.astro";
 
 const route = getRouteById("home");
@@ -13,159 +14,73 @@ const route = getRouteById("home");
       <div class="hero-copy">
         <h1 id="home-title">Decide your days. Own every record.</h1>
         <p>
-          Cadence is an open-source tracker for the recurring patterns in your life. Each scheduled item waits for your call: Completed, Not Completed, or left alone until you decide. Nothing is ever marked missed for you, and your whole history exports as plain files any tool can read.
+          An open-source tracker for recurring behaviors. Every scheduled item waits for your call — nothing is ever marked missed for you — and your whole history exports as plain files any tool can read.
         </p>
         <div class="cta-row" aria-label="Primary actions">
-          <a class="button button--primary" href={primaryCtas.tryCadence.href}>
-            Try Cadence
-          </a>
-          <a class="button" href="#how-it-works">See how it works</a>
+          <a class="text-action text-action--primary" href={primaryCtas.tryCadence.href}>Try Cadence →</a>
+          <a class="text-action text-action--secondary" href={siteConfig.githubUrl}>View on GitHub</a>
         </div>
+        <span class="quiet-label">Open source · Google sign-in · Export anytime</span>
       </div>
-      <HeroVisual />
+      <div class="hero-visual-col">
+        <HeroVisual />
+      </div>
     </div>
   </section>
 
-  <section class="page-section principles-section" aria-labelledby="principles-title">
+  <section class="page-section ledger-section" aria-labelledby="ledger-title">
     <div class="page-section__inner">
-      <div class="section-heading">
-        <h2 id="principles-title">No streaks. No guilt. No lock-in.</h2>
-        <p>Cadence tracks what you decide and nothing else, so the record stays yours to trust.</p>
-      </div>
-      <div class="ledger-panel principles-ledger" data-reveal>
-        <article class="ledger-row">
-          <h3>Undecided stays undecided.</h3>
-          <p>An item stays Unresolved until you decide it. Yesterday's open items wait in Needs decision, without judgment.</p>
-        </article>
-        <article class="ledger-row">
-          <h3>Every change is on the record.</h3>
-          <p>Each decision writes an append-only status event, so the full history is always there to check.</p>
-        </article>
-        <article class="ledger-row">
-          <h3>Leave anytime, take everything.</h3>
-          <p>Export your complete history in five formats: JSONL, CSV, full JSON, a Markdown summary, or a BehaviorLog bundle.</p>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <section id="how-it-works" class="page-section how-section" aria-labelledby="how-title">
-    <div class="page-section__inner">
-      <div class="section-heading">
-        <h2 id="how-title">How Cadence works</h2>
-        <p>Four steps from a behavior you define to a record you own.</p>
-      </div>
-      <div class="steps-list">
-        <article class="step-row" data-reveal>
-          <div class="step-copy">
-            <span class="step-number" aria-hidden="true">01</span>
-            <div>
-              <h3>Define a behavior</h3>
-              <p>Give it a title and a schedule: daily, every N days, weekly, or monthly, at exact times or ranges like Morning and Evening. Add a category, a description, and reminders if you want them.</p>
-            </div>
-          </div>
-          <div class="step-visual step-visual--schedule" aria-label="Example schedule options">
-            <div class="visual-chip-row">
-              <span>Daily</span>
-              <span>Every 3 days</span>
-              <span>Weekly</span>
-              <span>Monthly</span>
-            </div>
-            <div class="step-visual__rule"></div>
-            <div class="visual-chip-row">
-              <span>Morning · 6:00–12:00</span>
-              <span>21:30</span>
-            </div>
+      <h2 id="ledger-title" class="sr-only">What Cadence does</h2>
+      <div class="feature-ledger" data-reveal>
+        <article>
+          <span class="feature-ledger__kicker">01 · Define</span>
+          <h3>Behaviors on your schedule</h3>
+          <p>Daily, every N days, weekly, or monthly — at exact times or ranges like Morning and Evening. Reminders optional.</p>
+          <div class="chip-row">
+            <span>Daily</span><span>Weekly</span><span class="chip--nowrap">Morning · 6:00–12:00</span>
           </div>
         </article>
-
-        <article class="step-row" data-reveal>
-          <div class="step-copy">
-            <span class="step-number" aria-hidden="true">02</span>
-            <div>
-              <h3>Occurrences land on your timeline</h3>
-              <p>Cadence turns each scheduled slot into an occurrence, a dated entry on a today-first timeline. Optional browser or email reminders keep the day from slipping past.</p>
-            </div>
-          </div>
-          <div class="step-visual timeline-mini" aria-label="Example timeline day">
-            <div class="timeline-mini__row"><span>Morning</span><strong>Morning walk</strong></div>
-            <div class="timeline-mini__row"><span>12:30 PM</span><strong>Lunch notes</strong></div>
-            <div class="timeline-mini__row"><span>Evening</span><strong>Read for twenty minutes</strong></div>
+        <article>
+          <span class="feature-ledger__kicker">02 · Decide</span>
+          <h3>You make every call</h3>
+          <p>Completed, Not Completed, or left Unresolved until you settle it. Silence is never turned into failure.</p>
+          <div class="status-row">
+            <span>✓ <u>Completed</u></span>
+            <span class="status--nc">✕ <u>Not Completed</u></span>
+            <span class="status--muted">Unresolved</span>
           </div>
         </article>
-
-        <article class="step-row" data-reveal>
-          <div class="step-copy">
-            <span class="step-number" aria-hidden="true">03</span>
-            <div>
-              <h3>You make the call</h3>
-              <p>Mark each occurrence Completed or Not Completed, and attach a note for context. Undecided items stay Unresolved, and yesterday's collect in a small Needs decision list until you settle them.</p>
-            </div>
-          </div>
-          <div class="step-visual decision-mini" aria-label="Example occurrence decisions">
-            <div class="decision-mini__actions">
-              <span class="decision-pill decision-pill--completed">Completed</span>
-              <span class="decision-pill decision-pill--not-completed">Not Completed</span>
-              <span class="decision-pill decision-pill--unresolved">Unresolved</span>
-            </div>
-            <span class="needs-chip">Needs decision · 2</span>
-          </div>
-        </article>
-
-        <article class="step-row" data-reveal>
-          <div class="step-copy">
-            <span class="step-number" aria-hidden="true">04</span>
-            <div>
-              <h3>Review, then take it with you</h3>
-              <p>Follow adherence across 7, 30, or 90 days and see completion intensity on a calendar heatmap. Export the whole history whenever you want. It is yours.</p>
-            </div>
-          </div>
-          <div class="step-visual step-visual--exports" aria-label="Available export formats">
-            <div class="visual-chip-row">
-              <span>JSONL</span>
-              <span>CSV</span>
-              <span>JSON</span>
-              <span>Markdown</span>
-              <span class="visual-chip--primary">BehaviorLog</span>
-            </div>
+        <article>
+          <span class="feature-ledger__kicker">03 · Take it with you</span>
+          <h3>Plain files, five formats</h3>
+          <p>Export the full history anytime — readable in a text editor, a spreadsheet, or by any AI tool you point at it.</p>
+          <div class="chip-row">
+            <span>JSONL</span><span>CSV</span><span>Markdown</span><span class="chip--primary">BehaviorLog</span>
           </div>
         </article>
       </div>
     </div>
   </section>
+
+  <HowItWorks />
 
   <section class="page-section page-section--ink" aria-labelledby="behaviorlog-title">
-    <div class="page-section__inner section-grid" data-reveal>
-      <div class="stack behaviorlog-copy">
+    <div class="page-section__inner record-grid" data-reveal>
+      <div class="stack">
         <span class="quiet-label quiet-label--ink">The record layer</span>
         <h2 id="behaviorlog-title">Every export opens without Cadence.</h2>
-        <p>A BehaviorLog bundle is a folder of plain JSONL files with a manifest and checksums. Read it in a text editor, hand it to another tool, or archive it for decades. If this app disappeared tomorrow, your record would still open.</p>
-        <div class="contract-list">
-          <div class="contract-row">
-            <h3>Plain files carry the history.</h3>
-            <p>JSONL records are the source of truth; CSV views exist for spreadsheets and migration.</p>
-          </div>
-          <div class="contract-row">
-            <h3>Status history is explicit.</h3>
-            <p>Every decision is an event in <code>status_events.jsonl</code>. Silence is never treated as intent.</p>
-          </div>
-          <div class="contract-row">
-            <h3>Bundles come back in, too.</h3>
-            <p>Cadence imports BehaviorLog bundles with a verified preview, so a history can move between tools without loss.</p>
-          </div>
-        </div>
+        <p>A BehaviorLog bundle is plain JSONL files with a manifest and checksums. If this app disappeared tomorrow, your record would still open.</p>
         <div class="cta-row">
-          <a class="button button--outline-light" href="/standard">Read the BehaviorLog spec</a>
-          <a class="button button--ghost" href={primaryCtas.downloadExample.href}>Download the example bundle (12 KB zip)</a>
+          <a class="text-action text-action--ink" href="/standard">Read the BehaviorLog spec →</a>
+          <a class="text-action text-action--ink-muted" href={primaryCtas.downloadExample.href}>Download the example bundle</a>
         </div>
       </div>
-
       <div class="bundle-tree" aria-label="Files in the Cadence example BehaviorLog bundle">
         <div class="bundle-tree__header">
           <span>cadence-demo.behaviorlog.zip</span>
           <span class="bundle-tree__meta">8 files · SHA-256 verified</span>
         </div>
-        <pre><span>├── manifest.json          files + SHA-256 hashes</span>
+        <pre><span>├── manifest.json</span>
 <span>├── schema.json</span>
 <span>├── README.md</span>
 <span>├── AGENTS.md</span>
@@ -183,8 +98,8 @@ const route = getRouteById("home");
       <h2 id="closing-title">Start your record.</h2>
       <p>Create a behavior, decide your first occurrence, and export whenever you like.</p>
       <div class="cta-row">
-        <a class="button button--primary" href={primaryCtas.tryCadence.href}>Try Cadence</a>
-        <a class="button" href={primaryCtas.viewGithub.href}>View on GitHub</a>
+        <a class="text-action text-action--primary" href={primaryCtas.tryCadence.href}>Try Cadence →</a>
+        <a class="text-action text-action--secondary" href={primaryCtas.viewGithub.href}>View on GitHub</a>
       </div>
       <span class="quiet-label closing-cta__note">Open source · Google sign-in · Export anytime</span>
     </div>
@@ -215,3 +130,108 @@ const route = getRouteById("home");
     })();
   </script>
 </BaseLayout>
+
+<style>
+  /* Approved landing revisions: 2.5rem headline, split hero with the live
+     horse/product group, and app-native underlined text actions (no buttons,
+     no rounded corners). */
+
+  .hero--home h1 {
+    font-size: 2.5rem;
+    max-width: 16ch;
+  }
+
+  .hero-visual-col {
+    position: relative;
+    min-width: 0;
+    left: -4.5rem;
+  }
+
+  .cta-row { gap: 2rem; }
+
+  .text-action {
+    font-size: 1.1rem;
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    white-space: nowrap;
+    transition: color 160ms ease-out, text-shadow 160ms ease-out;
+  }
+  .text-action:hover { text-shadow: 0.02em 0 currentColor; }
+  .text-action--primary { color: var(--primary); }
+  .text-action--secondary { color: var(--muted-readable); }
+  .text-action--secondary:hover { color: var(--foreground); }
+  .text-action--ink { color: var(--ink-text); font-size: 0.95rem; }
+  .text-action--ink-muted { color: var(--ink-muted); font-size: 0.95rem; }
+  .text-action--ink-muted:hover { color: var(--ink-text); }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .ledger-section .page-section__inner { padding-block: 4.5rem; }
+
+  .feature-ledger {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    border: 1px solid var(--line);
+    background: var(--line);
+  }
+  .feature-ledger article {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1.75rem;
+    background: var(--background);
+    align-content: start;
+  }
+  .feature-ledger__kicker { color: var(--primary); font-size: 0.82rem; }
+  .feature-ledger h3 { font-size: 1.2rem; line-height: 1.25; }
+  .feature-ledger p { font-size: 0.95rem; }
+
+  .chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .chip-row > span {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--line);
+    padding: 0.3rem 0.6rem;
+    color: var(--muted-readable);
+    font-size: 0.72rem;
+  }
+  .chip-row > .chip--primary {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--foreground);
+  }
+  .chip--nowrap { white-space: nowrap; }
+
+  .status-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: baseline;
+    font-size: 0.85rem;
+  }
+  .status-row > span { white-space: nowrap; }
+  .status-row u { text-underline-offset: 4px; text-decoration-thickness: 1px; }
+  .status--nc { color: var(--accent); }
+  .status--muted { color: var(--muted-readable); }
+
+  .record-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3.5rem;
+    align-items: center;
+  }
+
+  @media (width < 820px) {
+    .hero-visual-col { left: 0; }
+    .feature-ledger { grid-template-columns: 1fr; }
+    .record-grid { grid-template-columns: 1fr; }
+  }
+</style>

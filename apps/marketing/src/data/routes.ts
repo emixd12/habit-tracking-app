@@ -35,10 +35,10 @@ Cadence is an open-source personal behavior tracker. You define behaviors with s
 
 ## How Cadence Works
 
-1. Define a behavior with a title and a schedule: daily, every N days, weekly, or monthly, at exact times or time ranges.
-2. Cadence turns each scheduled slot into an occurrence on a today-first timeline, with optional browser or email reminders.
-3. The user marks each occurrence Completed or Not Completed and can attach notes. Undecided occurrences stay Unresolved.
-4. Review adherence across 7, 30, or 90 days, then export the full history anytime.
+1. Define a behavior with a title and a schedule: daily, every N days, weekly, or monthly, at exact times or time ranges. Categories, descriptions, and reminders are optional.
+2. Each scheduled slot becomes an occurrence on a today-first timeline; yesterday's undecided items collect in a small Needs decision group. Nothing is ever auto-marked missed.
+3. Mark each occurrence Completed or Not Completed, with an optional note. Undecided occurrences stay Unresolved; every decision writes an append-only status event.
+4. Review adherence across 7, 30, or 90 days on a calendar heatmap, then export the full history anytime.
 
 ## Read First
 
