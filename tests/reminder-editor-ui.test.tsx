@@ -17,5 +17,9 @@ describe("ReminderEditor", () => {
     expect(html).toContain("Browser reminders use devices");
     expect(html).toContain("enabled in Settings");
     expect(html).toContain("behavior is still tracked");
+    expect(html).toContain('name="browser_reminder"');
+    expect(html).toContain('name="email_reminder"');
+    expect(html).toContain('name="reminder_offset"');
+    expect(html).toContain("<select");
   });
 });

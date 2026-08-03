@@ -11,6 +11,10 @@ import {
   reportMonitoringEvent,
 } from "@/lib/monitoring/privacy-safe-events";
 import type { RateLimitResult } from "@/lib/security/rate-limiter";
+import {
+  assertLaunchCircuitBreakerClosed,
+  LaunchCircuitBreakerOpenError,
+} from "@/lib/security/launch-circuit-breakers";
 import { processOccurrenceSyncHorizons } from "@/lib/services/occurrence.service";
 
 export const runtime = "nodejs";
@@ -77,6 +81,20 @@ async function processOccurrenceSyncRequest(request: NextRequest) {
   }
 
   occurrenceSyncAuthFailureLimiter.reset(rateLimitKey);
+
+  try {
+    assertLaunchCircuitBreakerClosed("occurrence_sync_batches");
+  } catch (error) {
+    if (error instanceof LaunchCircuitBreakerOpenError) {
+      return jsonError(
+        "Occurrence sync is temporarily unavailable.",
+        503,
+        error.state.retryAfterSeconds,
+      );
+    }
+
+    throw error;
+  }
 
   try {
     const result = await processOccurrenceSyncHorizons({
@@ -161,13 +179,22 @@ function parseLimit(value: string | null): number | undefined {
   return Math.min(parsed, MAX_OCCURRENCE_SYNC_LIMIT);
 }
 
-function jsonError(message: string, status: number) {
+function jsonError(
+  message: string,
+  status: number,
+  retryAfterSeconds?: number,
+) {
   return NextResponse.json(
     {
       ok: false,
       error: message,
     },
-    { status },
+    {
+      status,
+      headers: retryAfterSeconds
+        ? { "Retry-After": String(retryAfterSeconds) }
+        : undefined,
+    },
   );
 }
 

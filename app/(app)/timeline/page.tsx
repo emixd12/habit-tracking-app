@@ -9,6 +9,9 @@ import { withPerformanceRoute } from "@/lib/services/performance-timing";
 import { getTimelinePageBundle } from "@/lib/services/timeline.service";
 import {
   markOccurrenceStatusAction,
+  resetTimeTrackingAction,
+  startTimeTrackingAction,
+  stopTimeTrackingAction,
   updateOccurrenceNoteAction,
 } from "./actions";
 
@@ -86,6 +89,9 @@ async function TimelineContent({
         timeline={timeline}
         statusAction={markOccurrenceStatusAction}
         noteAction={updateOccurrenceNoteAction}
+        startTimeTrackingAction={startTimeTrackingAction}
+        stopTimeTrackingAction={stopTimeTrackingAction}
+        resetTimeTrackingAction={resetTimeTrackingAction}
       />
     </>
   );

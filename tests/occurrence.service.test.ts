@@ -1,6 +1,7 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { requireCurrentUserId } from "@/lib/auth/current-user";
 import {
   getBehaviorById,
   listBehaviorScheduleSlots,
@@ -28,6 +29,7 @@ import {
 import {
   applyOccurrenceStatusTransition,
   ensureUserOccurrencesFresh,
+  markOccurrenceStatusFromFormData,
   processOccurrenceSyncHorizons,
   syncUserOccurrences,
   updateOccurrenceNote,
@@ -36,6 +38,7 @@ import {
   syncReminderDeliveriesForBehavior,
   syncReminderDeliveriesForBehaviors,
 } from "@/lib/services/reminder.service";
+import { createClient } from "@/lib/supabase/server";
 import type {
   Behavior,
   BehaviorScheduleSlot,
@@ -44,6 +47,14 @@ import type {
   OccurrenceSyncState,
   OccurrenceStatusEvent,
 } from "@/lib/types/database";
+
+vi.mock("@/lib/auth/current-user", () => ({
+  requireCurrentUserId: vi.fn(),
+}));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(),
+}));
 
 vi.mock("@/lib/db/behaviors.repo", async (importOriginal) => {
   const actual =
@@ -108,6 +119,7 @@ const CATEGORY: Pick<Category, "id" | "name"> = {
   id: "category-1",
   name: "General",
 };
+const FORM_OCCURRENCE_ID = "11111111-1111-4111-8111-111111111111";
 
 describe("syncUserOccurrences", () => {
   beforeEach(() => {
@@ -609,6 +621,7 @@ describe("applyOccurrenceStatusTransition", () => {
     await expect(
       applyOccurrenceStatusTransition(SUPABASE, "user-1", {
         occurrenceId: occurrence.id,
+        expectedStatus: "unresolved",
         nextStatus: "completed",
         now: NOW,
       }),
@@ -643,6 +656,38 @@ describe("applyOccurrenceStatusTransition", () => {
       "user-1",
       occurrence.id,
     );
+  });
+
+  it("rejects a stale rendered status before the transactional RPC", async () => {
+    const occurrence = {
+      ...buildOccurrence({
+        id: "occurrence-1",
+        behaviorId: "behavior-1",
+        scheduledFor: "2026-06-08T14:00:00Z",
+        startTime: "10:00:00",
+      }),
+      status: "completed" as const,
+      completed_at: "2026-06-08T14:05:00Z",
+      status_marked_at: "2026-06-08T14:05:00Z",
+    };
+
+    vi.mocked(getOccurrenceWithBehaviorTimezoneById).mockResolvedValue({
+      ...occurrence,
+      behavior: { timezone: "America/New_York" },
+    });
+
+    await expect(
+      applyOccurrenceStatusTransition(SUPABASE, "user-1", {
+        occurrenceId: occurrence.id,
+        expectedStatus: "unresolved",
+        nextStatus: "not_completed",
+        now: NOW,
+      }),
+    ).rejects.toThrow(
+      "Occurrence status changed. Review the latest status and try again.",
+    );
+
+    expect(applyOccurrenceStatusTransitionRpc).not.toHaveBeenCalled();
   });
 
   it("plans a correction from Completed to Not Completed for the transactional RPC", async () => {
@@ -1063,6 +1108,39 @@ describe("applyOccurrenceStatusTransition", () => {
     );
     expect(updateOccurrenceById).not.toHaveBeenCalled();
   });
+});
+
+describe("markOccurrenceStatusFromFormData", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(createClient).mockResolvedValue(SUPABASE);
+    vi.mocked(requireCurrentUserId).mockResolvedValue("user-1");
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["unsupported", "missed"],
+  ])(
+    "rejects a %s expected status before reading or mutating the occurrence",
+    async (_case, expectedStatus) => {
+      const formData = new FormData();
+      formData.set("occurrence_id", FORM_OCCURRENCE_ID);
+      formData.set("status", "completed");
+
+      if (expectedStatus) {
+        formData.set("expected_status", expectedStatus);
+      }
+
+      await expect(markOccurrenceStatusFromFormData(formData)).rejects.toThrow(
+        "Refresh this occurrence and try again.",
+      );
+
+      expect(
+        getOccurrenceWithBehaviorTimezoneById,
+      ).not.toHaveBeenCalled();
+      expect(applyOccurrenceStatusTransitionRpc).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("updateOccurrenceNote", () => {

@@ -2,6 +2,8 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
+import { hasMainLandmark } from "./agent-readability-html.mjs";
+
 const root = process.cwd();
 const dist = join(root, "dist");
 const failures = [];
@@ -99,7 +101,7 @@ function checkBuiltOutput() {
     "about/index.html",
   ]) {
     const html = read(htmlFile);
-    assert(html.includes('<main id="main">'), `${htmlFile} missing main landmark.`);
+    assert(hasMainLandmark(html), `${htmlFile} missing main landmark.`);
     assert(html.includes('rel="canonical"'), `${htmlFile} missing canonical link.`);
     assert(html.includes('rel="alternate" type="text/markdown"'), `${htmlFile} missing markdown alternate.`);
     assert(html.includes('application/ld+json'), `${htmlFile} missing JSON-LD.`);
@@ -131,4 +133,3 @@ function assert(condition, message) {
 function fail(message) {
   failures.push(message);
 }
-

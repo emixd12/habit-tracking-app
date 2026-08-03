@@ -3,7 +3,7 @@
   "schema_version": "1.1.0",
   "registry_id": "cadence.user-interactions",
   "product": "Cadence",
-  "updated": "2026-07-23",
+  "updated": "2026-08-02",
   "scope": {
     "unit": "One entry per meaningful user intent; equivalent controls with the same effect are represented as variants or multiple triggers.",
     "includes": [
@@ -113,7 +113,8 @@
         "INT-MKT-002",
         "INT-MKT-003",
         "INT-MKT-004",
-        "INT-MKT-005"
+        "INT-MKT-005",
+        "INT-MKT-010"
       ]
     },
     {
@@ -196,6 +197,12 @@
       ]
     },
     {
+      "path": "components/behaviors/BehaviorReviewTimeReset.tsx",
+      "classification": "cataloged",
+      "interaction_marker_count": 3,
+      "interaction_ids": ["INT-TIMELINE-009"]
+    },
+    {
       "path": "components/behaviors/ReminderEditor.tsx",
       "classification": "cataloged",
       "interaction_marker_count": 3,
@@ -227,8 +234,8 @@
     {
       "path": "components/export/ExportPanel.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 5,
-      "interaction_ids": ["INT-EXPORT-002", "INT-EXPORT-003", "INT-EXPORT-004", "INT-EXPORT-005"]
+      "interaction_marker_count": 6,
+      "interaction_ids": ["INT-EXPORT-002", "INT-EXPORT-003", "INT-EXPORT-019", "INT-EXPORT-004", "INT-EXPORT-005"]
     },
     {
       "path": "components/export/ExportRangeSelector.tsx",
@@ -331,8 +338,14 @@
     {
       "path": "components/timeline/StatusButtons.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 7,
+      "interaction_marker_count": 8,
       "interaction_ids": ["INT-TIMELINE-005", "INT-TIMELINE-006", "INT-TIMELINE-007"]
+    },
+    {
+      "path": "components/timeline/TimeTracker.tsx",
+      "classification": "cataloged",
+      "interaction_marker_count": 8,
+      "interaction_ids": ["INT-TIMELINE-009"]
     },
     {
       "path": "components/timeline/Timeline.tsx",
@@ -374,8 +387,8 @@
       ],
       "test_coverage": {
         "level": "direct",
-        "references": ["tests/auth-google-route.test.ts", "tests/auth-callback-route.test.ts"],
-        "notes": "Route behavior and redirect handling are automated; provider-owned UI remains outside scope."
+        "references": ["tests/login-interactions-ui.test.tsx"],
+        "notes": "The login test renders the Google control and its sanitized next destination; route behavior is covered separately and provider-owned UI remains outside scope."
       }
     },
     {
@@ -400,8 +413,8 @@
       "implementation": ["app/(auth)/login/page.tsx", "app/auth/test-login/route.ts#GET"],
       "test_coverage": {
         "level": "direct",
-        "references": ["tests/test-login.test.ts"],
-        "notes": "Environment gates and credential construction are automated."
+        "references": ["tests/login-interactions-ui.test.tsx"],
+        "notes": "The login test renders the temporary-user control behind its local QA gate; route safety remains covered separately."
       }
     },
     {
@@ -431,8 +444,8 @@
       "implementation": ["app/(auth)/login/page.tsx"],
       "test_coverage": {
         "level": "direct",
-        "references": ["tests/legal-content.test.tsx"],
-        "notes": "Legal route content and links are covered."
+        "references": ["tests/login-interactions-ui.test.tsx"],
+        "notes": "The login test renders and asserts all three public account-information links."
       }
     },
     {
@@ -726,7 +739,7 @@
         "apps/marketing/src/pages/docs.astro",
         "apps/marketing/src/pages/examples.astro"
       ],
-      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-conformance.test.ts"], "notes": "The downloadable bundle is validated against the pinned BehaviorLog reference validator." }
+      "test_coverage": { "level": "indirect", "references": ["apps/marketing/scripts/check-agent-readability.mjs"], "notes": "The marketing check validates the built example artifact and route; activating the download control remains browser QA." }
     },
     {
       "id": "INT-MKT-010",
@@ -748,7 +761,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["apps/marketing/src/pages/docs.astro", "apps/marketing/src/layouts/BaseLayout.astro"],
-      "test_coverage": { "level": "indirect", "references": ["apps/marketing/src/data/agent-output.ts"], "notes": "Marketing build validation owns output generation and route consistency." }
+      "test_coverage": { "level": "indirect", "references": ["apps/marketing/scripts/check-agent-readability.mjs"], "notes": "The marketing check validates generated resources and route consistency without activating each link." }
     },
     {
       "id": "INT-MKT-011",
@@ -804,7 +817,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/layout/AppShell.tsx", "lib/navigation.ts"],
-      "test_coverage": { "level": "direct", "references": ["tests/navigation.test.ts", "tests/supabase-proxy.test.ts"], "notes": "Navigation contract and protected-route handling are automated." }
+      "test_coverage": { "level": "direct", "references": ["tests/sign-out-shell.test.tsx"], "notes": "The app-shell test renders all four primary navigation destinations in the owning shell." }
     },
     {
       "id": "INT-SHELL-002",
@@ -826,7 +839,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/layout/AppShell.tsx"],
-      "test_coverage": { "level": "indirect", "references": ["tests/navigation.test.ts"], "notes": "Default route is automated; detailed rail state is browser-tested." }
+      "test_coverage": { "level": "direct", "references": ["tests/sign-out-shell.test.tsx"], "notes": "The app-shell test renders the Timeline brand destinations and accessible names; detailed state transitions remain browser-tested." }
     },
     {
       "id": "INT-SHELL-003",
@@ -974,7 +987,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/layout/AppShell.tsx", "app/auth/sign-out/route.ts", "app/(auth)/login/page.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/sign-out-route.test.ts", "tests/sign-out-shell.test.tsx", "tests/ux-ticket-049-052-ui.test.tsx"], "notes": "POST-only sign-out, all shell presentations, and the focused login status are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/sign-out-shell.test.tsx"], "notes": "The app-shell test renders the POST-only Sign out control in every shell presentation; route and focused-result behavior are covered separately." }
     },
     {
       "id": "INT-ONBOARD-001",
@@ -989,7 +1002,7 @@
       "journeys": ["J04"],
       "intent": "Hide the optional first-run setup pop-up in the current browser.",
       "triggers": [
-        { "kind": "activate", "control": "Close setup" },
+        { "kind": "activate", "control": "Dismiss setup" },
         { "kind": "activate", "control": "Skip setup" }
       ],
       "availability": "Available while the setup pop-up is visible.",
@@ -999,7 +1012,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/onboarding/FirstRunOnboardingPanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/ux-ticket-049-052-ui.test.tsx"], "notes": "Dismiss controls and non-blocking setup behavior are covered." }
+      "test_coverage": { "level": "indirect", "references": ["tests/ux-ticket-049-052-ui.test.tsx"], "notes": "Notification-state handling is automated, but rendering and activating the client-only dismissal controls remains browser QA." }
     },
     {
       "id": "INT-ONBOARD-002",
@@ -1027,7 +1040,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/onboarding/FirstRunOnboardingPanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/onboarding.service.test.ts", "tests/ux-ticket-049-052-ui.test.tsx"], "notes": "Task state and links are covered." }
+      "test_coverage": { "level": "indirect", "references": ["tests/onboarding.service.test.ts", "tests/ux-ticket-049-052-ui.test.tsx"], "notes": "Task resolution and client-state handling are automated, but activating the client-only setup links remains browser QA." }
     },
     {
       "id": "INT-TIMELINE-001",
@@ -1049,7 +1062,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/timeline/Timeline.tsx", "lib/resolvers/timeline.resolver.ts"],
-      "test_coverage": { "level": "direct", "references": ["tests/timeline.resolver.test.ts", "tests/ux-ticket-049-052-ui.test.tsx"], "notes": "Bounds and control rendering are automated." }
+      "test_coverage": { "level": "direct", "references": ["tests/timeline-interactions-ui.test.tsx"], "notes": "The Timeline UI test renders the bounded Show more days destination." }
     },
     {
       "id": "INT-TIMELINE-002",
@@ -1071,7 +1084,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/timeline/NeedsDecisionDialog.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/ux-ticket-049-052-ui.test.tsx", "tests/timeline.resolver.test.ts"], "notes": "Launcher copy, grouping, and retained-state behavior are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/timeline-interactions-ui.test.tsx"], "notes": "The Timeline UI test renders the Needs decision launcher and its accessible name." }
     },
     {
       "id": "INT-TIMELINE-003",
@@ -1107,9 +1120,9 @@
         "references": ["docs/user-guide/timeline.md#open-or-close-occurrence-details"]
       },
       "status": "implemented",
-      "surfaces": ["timeline"],
-      "routes": ["/timeline"],
-      "journeys": ["J07", "J09"],
+      "surfaces": ["timeline", "behaviors"],
+      "routes": ["/timeline", "/behaviors"],
+      "journeys": ["J07", "J09", "J10"],
       "intent": "Reveal or hide an occurrence description, category, schedule, correction controls, and Note field.",
       "triggers": [{ "kind": "activate", "control": "Occurrence row summary outside its status actions" }],
       "availability": "Available for every rendered Timeline or Needs decision occurrence row.",
@@ -1119,7 +1132,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/timeline/OccurrenceRow.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/ux-ticket-049-052-ui.test.tsx"], "notes": "Disclosure structure and details content are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/timeline-interactions-ui.test.tsx"], "notes": "The Timeline UI test renders the occurrence details disclosure and its content." }
     },
     {
       "id": "INT-TIMELINE-005",
@@ -1145,7 +1158,7 @@
         "app/(app)/timeline/actions.ts#markOccurrenceStatusAction",
         "app/(app)/behaviors/actions.ts#markBehaviorReviewOccurrenceStatusAction"
       ],
-      "test_coverage": { "level": "direct", "references": ["tests/status.resolver.test.ts", "tests/occurrence-status-rpc-migration.test.ts", "tests/timeline-optimistic-status.test.ts", "tests/completion-feedback.test.ts", "tests/behavior-review-ui.test.tsx"], "notes": "Transition, atomic persistence, optimistic state, sound policy, and review usage are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/timeline-interactions-ui.test.tsx"], "notes": "The Timeline UI test renders the Completed submission control; transition and persistence behavior are covered separately." }
     },
     {
       "id": "INT-TIMELINE-006",
@@ -1171,7 +1184,7 @@
         "app/(app)/timeline/actions.ts#markOccurrenceStatusAction",
         "app/(app)/behaviors/actions.ts#markBehaviorReviewOccurrenceStatusAction"
       ],
-      "test_coverage": { "level": "direct", "references": ["tests/status.resolver.test.ts", "tests/occurrence-status-rpc-migration.test.ts", "tests/timeline-optimistic-status.test.ts", "tests/behavior-review-ui.test.tsx"], "notes": "Transition, atomic persistence, optimistic state, and review usage are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/timeline-interactions-ui.test.tsx"], "notes": "The Timeline UI test renders the Not Completed submission control; transition and persistence behavior are covered separately." }
     },
     {
       "id": "INT-TIMELINE-007",
@@ -1181,8 +1194,8 @@
         "references": [
           "docs/user-guide/timeline.md#unmark-a-decision-from-the-timeline",
           "docs/user-guide/behaviors-and-review.md#review-and-correct-one-day"
-        ]
-      },
+      ]
+    },
       "status": "implemented",
       "surfaces": ["timeline", "behaviors"],
       "routes": ["/timeline", "/behaviors"],
@@ -1203,7 +1216,7 @@
         "app/(app)/timeline/actions.ts#markOccurrenceStatusAction",
         "app/(app)/behaviors/actions.ts#markBehaviorReviewOccurrenceStatusAction"
       ],
-      "test_coverage": { "level": "direct", "references": ["tests/status.resolver.test.ts", "tests/occurrence.service.test.ts", "tests/behavior-review-ui.test.tsx"], "notes": "The Unresolved transition, both labels and surfaces, and still-future reminder re-planning are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/timeline-interactions-ui.test.tsx"], "notes": "The Timeline UI test renders the Unmark correction control; transition and reminder behavior are covered separately." }
     },
     {
       "id": "INT-TIMELINE-008",
@@ -1232,7 +1245,43 @@
         "app/(app)/timeline/actions.ts#updateOccurrenceNoteAction",
         "app/(app)/behaviors/actions.ts#updateBehaviorReviewOccurrenceNoteAction"
       ],
-      "test_coverage": { "level": "direct", "references": ["tests/status.resolver.test.ts", "tests/occurrence.service.test.ts", "tests/behavior-review-ui.test.tsx"], "notes": "Note-only timestamp/history preservation and both user surfaces are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/timeline-interactions-ui.test.tsx"], "notes": "The Timeline UI test renders the Note field and Save note submission control; note persistence is covered separately." }
+    },
+    {
+      "id": "INT-TIMELINE-009",
+      "name": "Track occurrence time",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#track-occurrence-time",
+          "docs/user-guide/behaviors-and-review.md#review-and-correct-one-day"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": ["timeline", "behaviors"],
+      "routes": ["/timeline", "/behaviors"],
+      "journeys": ["J07", "J09", "J10"],
+      "intent": "Start, stop, or reset elapsed time captured for one occurrence.",
+      "triggers": [
+        { "kind": "submit", "control": "Track Time" },
+        { "kind": "submit", "control": "Stop" },
+        { "kind": "submit", "control": "Reset tracked time" }
+      ],
+      "availability": "Track Time is available only for a current-local-day occurrence of an active behavior. Stop and Reset tracked time remain available for a persisted running or recorded session. Behaviors exposes Reset tracked time only inside Review for an occurrence with timing data.",
+      "success_result": "Persists one start or stop interval, or deletes every interval for the occurrence. Timeline and Behaviors refresh without changing occurrence status or reminders.",
+      "failure_result": "Shows a factual inline error and preserves the saved timing sessions.",
+      "effects": ["database_write", "ui_state"],
+      "risk": "moderate",
+      "confirmation": "none",
+      "implementation": [
+        "components/timeline/TimeTracker.tsx",
+        "components/behaviors/BehaviorReviewTimeReset.tsx",
+        "app/(app)/timeline/actions.ts#startTimeTrackingAction",
+        "app/(app)/timeline/actions.ts#stopTimeTrackingAction",
+        "app/(app)/timeline/actions.ts#resetTimeTrackingAction",
+        "app/(app)/behaviors/actions.ts#resetBehaviorReviewOccurrenceTimeTrackingAction"
+      ],
+      "test_coverage": { "level": "direct", "references": ["tests/timeline-time-tracking-ui.test.tsx", "tests/behavior-review-ui.test.tsx"], "notes": "Timeline and Behaviors UI tests render their timing controls. Timing service tests cover idempotent reset persistence." }
     },
     {
       "id": "INT-BEHAVIOR-001",
@@ -1259,7 +1308,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorList.tsx", "lib/resolvers/analytics.resolver.ts"],
-      "test_coverage": { "level": "direct", "references": ["tests/analytics.resolver.test.ts", "tests/behavior-review-ui.test.tsx"], "notes": "Range normalization, metrics, and UI links are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior-review UI test renders all three range destinations." }
     },
     {
       "id": "INT-BEHAVIOR-002",
@@ -1281,7 +1330,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorList.tsx", "lib/resolvers/analytics.resolver.ts"],
-      "test_coverage": { "level": "direct", "references": ["tests/analytics.resolver.test.ts", "tests/behavior-review-ui.test.tsx"], "notes": "Actionable versus passive cells and selected-day rows are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior-review UI test renders actionable heatmap cells and the selected-day review." }
     },
     {
       "id": "INT-BEHAVIOR-003",
@@ -1325,7 +1374,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorCreateSection.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-form.test.ts"], "notes": "Create disclosure and form behavior are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders the Create behavior disclosure and open form." }
     },
     {
       "id": "INT-BEHAVIOR-005",
@@ -1347,7 +1396,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorList.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx", "tests/behavior-form.test.ts"], "notes": "Behavior row disclosure and edit form presence are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior-review UI test renders the Details and Settings disclosure." }
     },
     {
       "id": "INT-BEHAVIOR-006",
@@ -1394,7 +1443,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-form.test.ts", "tests/behavior-create.service.test.ts"], "notes": "Field contract and server validation are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders the title, description, and category controls." }
     },
     {
       "id": "INT-BEHAVIOR-008",
@@ -1422,7 +1471,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-form.test.ts", "tests/recurrence.resolver.test.ts"], "notes": "Rendered recurrence controls and recurrence planning are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders the recurrence-kind control in the owning form." }
     },
     {
       "id": "INT-BEHAVIOR-009",
@@ -1447,7 +1496,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx", "lib/resolvers/recurrence.resolver.ts"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-form.test.ts", "tests/recurrence.resolver.test.ts"], "notes": "Intervals, weekdays, and monthly fallback are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders the recurrence detail controls for weekly and monthly schedules." }
     },
     {
       "id": "INT-BEHAVIOR-010",
@@ -1469,7 +1518,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-form.test.ts"], "notes": "Multiple schedule rows and limits are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders the Add schedule control." }
     },
     {
       "id": "INT-BEHAVIOR-011",
@@ -1491,7 +1540,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-form.test.ts"], "notes": "Minimum schedule preservation is covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders Remove schedule when the form has multiple schedules." }
     },
     {
       "id": "INT-BEHAVIOR-012",
@@ -1517,7 +1566,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-form.test.ts", "tests/schedule.test.ts"], "notes": "Exact and range modes are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders exact-time and range-mode controls." }
     },
     {
       "id": "INT-BEHAVIOR-013",
@@ -1547,7 +1596,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx", "lib/services/schedule.ts"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-form.test.ts", "tests/schedule.test.ts"], "notes": "Preset conversion and time validation are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders exact-time and range-preset inputs." }
     },
     {
       "id": "INT-BEHAVIOR-014",
@@ -1569,7 +1618,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-form.test.ts"], "notes": "Multiple time entries and limits are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders the Add time control." }
     },
     {
       "id": "INT-BEHAVIOR-015",
@@ -1591,7 +1640,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-form.test.ts"], "notes": "Minimum time-entry preservation is covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders Remove time when a schedule has multiple entries." }
     },
     {
       "id": "INT-BEHAVIOR-016",
@@ -1613,7 +1662,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/ReminderEditor.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/reminder-editor-ui.test.tsx", "tests/behavior-create.service.test.ts"], "notes": "Default and persisted reminder intent are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/reminder-editor-ui.test.tsx"], "notes": "The reminder-editor UI test renders the browser-reminder checkbox." }
     },
     {
       "id": "INT-BEHAVIOR-017",
@@ -1635,7 +1684,7 @@
       "risk": "moderate",
       "confirmation": "none",
       "implementation": ["components/behaviors/ReminderEditor.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/reminder-editor-ui.test.tsx", "tests/reminder.service.test.ts"], "notes": "Opt-in default and reminder planning are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/reminder-editor-ui.test.tsx"], "notes": "The reminder-editor UI test renders the email-reminder checkbox." }
     },
     {
       "id": "INT-BEHAVIOR-018",
@@ -1664,7 +1713,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/ReminderEditor.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/reminder-editor-ui.test.tsx", "tests/reminder.resolver.test.ts"], "notes": "Options and delivery-time planning are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/reminder-editor-ui.test.tsx"], "notes": "The reminder-editor UI test renders the reminder-offset select." }
     },
     {
       "id": "INT-BEHAVIOR-019",
@@ -1686,7 +1735,7 @@
       "risk": "moderate",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx", "app/(app)/behaviors/actions.ts#createBehaviorAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-actions.test.ts", "tests/behavior-create.service.test.ts", "tests/behavior-definition.service.test.ts"], "notes": "Validation, atomic writes, and schedule ownership are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders Save behavior in create mode; validation and atomic persistence are covered separately." }
     },
     {
       "id": "INT-BEHAVIOR-020",
@@ -1708,7 +1757,7 @@
       "risk": "moderate",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx", "app/(app)/behaviors/actions.ts#updateBehaviorAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-actions.test.ts", "tests/behavior-definition.service.test.ts", "tests/occurrence-sync-state.service.test.ts"], "notes": "Atomic graph updates, definition history, and sync invalidation are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior UI test renders Save behavior in edit mode; graph persistence and sync invalidation are covered separately." }
     },
     {
       "id": "INT-BEHAVIOR-021",
@@ -1722,7 +1771,7 @@
       "routes": ["/behaviors"],
       "journeys": ["J05", "J06"],
       "intent": "Discard current unsaved field values in a create or edit behavior form.",
-      "triggers": [{ "kind": "activate", "control": "Cancel reset button" }],
+      "triggers": [{ "kind": "activate", "control": "Cancel" }],
       "availability": "Available in open create and edit behavior forms.",
       "success_result": "Restores the complete create or edit draft to the values present when the form opened, including identity, recurrence, schedule and time rows, reminder choices, and active state; no server action or product write occurs.",
       "failure_result": "No product data is written; a client rendering failure leaves the last stored behavior unchanged.",
@@ -1730,7 +1779,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorForm.tsx"],
-      "test_coverage": { "level": "manual", "references": ["tests/behavior-form.test.ts"], "notes": "Form structure is covered; complete browser-native reset behavior is manually verified." }
+      "test_coverage": { "level": "manual", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "Draft-reset helpers and form structure are automated; complete browser-native reset behavior remains manual QA." }
     },
     {
       "id": "INT-BEHAVIOR-022",
@@ -1752,7 +1801,7 @@
       "risk": "high",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorList.tsx", "app/(app)/behaviors/actions.ts#archiveBehaviorAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-actions.test.ts", "tests/occurrence-sync-state.service.test.ts"], "notes": "Archive state and sync invalidation are covered." }
+      "test_coverage": { "level": "manual", "references": ["tests/behavior-actions.test.ts", "tests/occurrence-sync-state.service.test.ts"], "notes": "Archive persistence and sync invalidation are automated, but the lazily mounted Archive behavior control remains browser QA." }
     },
     {
       "id": "INT-BEHAVIOR-023",
@@ -1774,7 +1823,7 @@
       "risk": "moderate",
       "confirmation": "none",
       "implementation": ["components/behaviors/BehaviorList.tsx", "app/(app)/behaviors/actions.ts#restoreBehaviorAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/behavior-actions.test.ts", "tests/occurrence-sync-state.service.test.ts"], "notes": "Restore state and sync invalidation are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behavior-review-ui.test.tsx"], "notes": "The behavior-review UI test renders the Restore submission control; state and sync behavior are covered separately." }
     },
     {
       "id": "INT-EXPORT-001",
@@ -1796,7 +1845,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/export/ExportRangeSelector.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/export-panel-ui.test.tsx", "tests/export.resolver.test.ts"], "notes": "Options and normalization are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/export-panel-ui.test.tsx"], "notes": "The export-panel UI test renders every export range option." }
     },
     {
       "id": "INT-EXPORT-002",
@@ -1818,7 +1867,7 @@
       "risk": "moderate",
       "confirmation": "none",
       "implementation": ["components/export/ExportPanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/export-panel-ui.test.tsx", "tests/export.resolver.test.ts"], "notes": "Archived inclusion across outputs is covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/export-panel-ui.test.tsx"], "notes": "The export-panel UI test renders the archived-behavior inclusion control." }
     },
     {
       "id": "INT-EXPORT-003",
@@ -1840,7 +1889,29 @@
       "risk": "high",
       "confirmation": "none",
       "implementation": ["components/export/ExportPanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/export-panel-ui.test.tsx", "tests/export.resolver.test.ts"], "notes": "Default exclusion and opt-in propagation are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/export-panel-ui.test.tsx"], "notes": "The export-panel UI test renders the occurrence-note inclusion control." }
+    },
+    {
+      "id": "INT-EXPORT-019",
+      "name": "Include or exclude time tracking from exports",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/data-portability.md#choose-export-options"]
+      },
+      "status": "implemented",
+      "surfaces": ["export_import"],
+      "routes": ["/export"],
+      "journeys": ["J15"],
+      "intent": "Opt exact timing-session timestamps and derived durations into or out of export artifacts.",
+      "triggers": [{ "kind": "change", "control": "Include time tracking checkbox" }],
+      "availability": "Always available in Export Options and off by default.",
+      "success_result": "Updates the options draft; after apply, counts, downloads, Markdown, and filenames use the selected timing rule.",
+      "failure_result": "Time tracking remains excluded unless the applied query contains the exact value include_time_tracking=1.",
+      "effects": ["form_draft", "sensitive_data_scope"],
+      "risk": "high",
+      "confirmation": "none",
+      "implementation": ["components/export/ExportPanel.tsx", "app/(app)/export/page.tsx", "app/api/export/_shared.ts", "lib/services/export.service.ts", "lib/resolvers/export.resolver.ts"],
+      "test_coverage": { "level": "direct", "references": ["tests/export-panel-ui.test.tsx"], "notes": "The panel test renders the default-off and enabled control states. Route and service tests separately verify exact opt-in parsing and no timing repository read by default." }
     },
     {
       "id": "INT-EXPORT-004",
@@ -1862,7 +1933,7 @@
       "risk": "moderate",
       "confirmation": "none",
       "implementation": ["components/export/ExportPanel.tsx", "lib/resolvers/export.resolver.ts"],
-      "test_coverage": { "level": "direct", "references": ["tests/export-panel-ui.test.tsx", "tests/export.resolver.test.ts"], "notes": "Shared option propagation is covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/export-panel-ui.test.tsx"], "notes": "The export-panel UI test renders Apply export options with the shared option form." }
     },
     {
       "id": "INT-EXPORT-005",
@@ -1885,7 +1956,7 @@
       ],
       "availability": "Available after the Export page loads successfully.",
       "success_result": "The authenticated export API returns a downloadable artifact using the applied query options.",
-      "failure_result": "Invalid auth or export failure returns an HTTP error without a partial artifact.",
+      "failure_result": "Invalid auth, a six-per-minute account limit, an open export circuit breaker, or export failure returns a stable HTTP error without a partial artifact. Rate limits include Retry-After guidance.",
       "effects": ["file_download", "sensitive_data_disclosure"],
       "risk": "high",
       "confirmation": "none",
@@ -1894,9 +1965,12 @@
         "app/api/export/jsonl/route.ts#GET",
         "app/api/export/csv/route.ts#GET",
         "app/api/export/json/route.ts#GET",
-        "app/api/export/behaviorlog/route.ts#GET"
+        "app/api/export/behaviorlog/route.ts#GET",
+        "app/api/export/_shared.ts#exportDownloadResponse",
+        "lib/services/export.service.ts#getExportDownload",
+        "lib/db/launchRateLimits.repo.ts#consumeExportDownloadRateLimit"
       ],
-      "test_coverage": { "level": "direct", "references": ["tests/export.resolver.test.ts", "tests/export.service.test.ts", "tests/behaviorlog-conformance.test.ts"], "notes": "Formats, scoping, file integrity, and BehaviorLog conformance are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/export-panel-ui.test.tsx", "tests/export-download-route.test.ts"], "notes": "The export-panel UI test renders each structured download destination. The route-adapter test covers authenticated failure, stable 429 Retry-After, and scoped breaker responses without partial downloads; format integrity and conformance are covered separately." }
     },
     {
       "id": "INT-EXPORT-006",
@@ -1962,7 +2036,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/export/PromptLibraryPanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/prompt-library-ui.test.tsx", "tests/export-prompts.test.ts"], "notes": "Prompt inventory, ordering, and disclosure content are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/prompt-library-ui.test.tsx"], "notes": "The prompt-library UI test renders the prompt disclosure controls and content." }
     },
     {
       "id": "INT-EXPORT-009",
@@ -1984,7 +2058,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/export/PromptCopyAction.tsx", "lib/export-prompts.ts#copyPromptText"],
-      "test_coverage": { "level": "direct", "references": ["tests/prompt-library-ui.test.tsx", "tests/export-prompts.test.ts"], "notes": "Clipboard success/failure states and prompt identity are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/prompt-library-ui.test.tsx"], "notes": "The prompt-library UI test renders the named Copy prompt control and status region." }
     },
     {
       "id": "INT-EXPORT-010",
@@ -2009,7 +2083,7 @@
       "risk": "moderate",
       "confirmation": "none",
       "implementation": ["components/export/BehaviorLogImportPanel.tsx", "app/(app)/export/actions.ts#submitBehaviorLogImportAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-import-ui.test.tsx", "tests/behaviorlog-import.resolver.test.ts", "tests/behaviorlog-import-merge-preview.test.ts"], "notes": "Upload validation, preview rendering, conflicts, and fingerprints are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-import-ui.test.tsx"], "notes": "The import UI test renders the bundle upload and Preview import controls." }
     },
     {
       "id": "INT-EXPORT-011",
@@ -2031,7 +2105,7 @@
       "risk": "high",
       "confirmation": "acknowledgement",
       "implementation": ["components/export/BehaviorLogImportPanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-import-ui.test.tsx", "tests/behaviorlog-import-write.service.test.ts"], "notes": "UI gate and server enforcement are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-import-ui.test.tsx"], "notes": "The import UI test renders the exact-preview acknowledgement gate." }
     },
     {
       "id": "INT-EXPORT-012",
@@ -2053,7 +2127,7 @@
       "risk": "high",
       "confirmation": "acknowledgement",
       "implementation": ["components/export/BehaviorLogImportPanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-import-ui.test.tsx", "tests/behaviorlog-import-notes.test.ts"], "notes": "Sensitivity detection and UI/server acknowledgement are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-import-ui.test.tsx"], "notes": "The import UI test renders the conditional sensitive-note acknowledgement gate." }
     },
     {
       "id": "INT-EXPORT-013",
@@ -2067,10 +2141,13 @@
       "routes": ["/export#behaviorlog-import"],
       "journeys": ["J16"],
       "intent": "Write the supported create-only or safe merge actions from the exact accepted preview.",
-      "triggers": [{ "kind": "submit", "control": "Apply create import or Apply merge import" }],
+      "triggers": [
+        { "kind": "submit", "control": "Apply create-only import" },
+        { "kind": "submit", "control": "Apply approved merge" }
+      ],
       "variants": [
-        { "id": "create", "label": "Apply create import", "result": "Create supported records without mapping onto existing records." },
-        { "id": "merge", "label": "Apply merge import", "result": "Apply only supported create, map, and skip actions from the accepted merge preview." }
+        { "id": "create", "label": "Apply create-only import", "result": "Create supported records without mapping onto existing records." },
+        { "id": "merge", "label": "Apply approved merge", "result": "Apply only supported create, map, and skip actions from the accepted merge preview." }
       ],
       "availability": "Enabled only for a valid supported preview with exact-preview acknowledgement and any required sensitivity acknowledgement.",
       "success_result": "Verifies the persisted preview identity and all fingerprints, writes the supported owner-scoped records, and records the applied import run and mappings.",
@@ -2079,7 +2156,7 @@
       "risk": "high",
       "confirmation": "acknowledgement",
       "implementation": ["components/export/BehaviorLogImportPanel.tsx", "app/(app)/export/actions.ts#submitBehaviorLogImportAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-import-write.service.test.ts", "tests/behaviorlog-import-ui.test.tsx", "tests/behaviorlog-import-interventions.test.ts", "tests/behaviorlog-import-notes.test.ts"], "notes": "Bindings, idempotency, record types, notes, interventions, and refusal paths are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-import-ui.test.tsx"], "notes": "The import UI test renders both apply variants and their required gates; write semantics are covered separately." }
     },
     {
       "id": "INT-EXPORT-014",
@@ -2104,7 +2181,7 @@
       "risk": "high",
       "confirmation": "none",
       "implementation": ["components/export/BehaviorLogRestorePanel.tsx", "app/(app)/export/actions.ts#submitBehaviorLogRestoreAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-restore-ui.test.tsx", "tests/behaviorlog-restore.resolver.test.ts", "tests/behaviorlog-restore.service.test.ts"], "notes": "Preview safety counts, actions, warnings, and fingerprints are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-restore-ui.test.tsx"], "notes": "The restore UI test renders the trusted bundle upload and Preview restore controls." }
     },
     {
       "id": "INT-EXPORT-015",
@@ -2126,7 +2203,7 @@
       "risk": "destructive",
       "confirmation": "acknowledgement",
       "implementation": ["components/export/BehaviorLogRestorePanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-restore-ui.test.tsx", "tests/behaviorlog-restore-apply.service.test.ts"], "notes": "Client gate and server enforcement are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-restore-ui.test.tsx"], "notes": "The restore UI test renders the fresh-backup acknowledgement gate." }
     },
     {
       "id": "INT-EXPORT-016",
@@ -2148,7 +2225,7 @@
       "risk": "destructive",
       "confirmation": "acknowledgement",
       "implementation": ["components/export/BehaviorLogRestorePanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-restore-ui.test.tsx", "tests/behaviorlog-restore-apply.service.test.ts"], "notes": "Conditional gate and server enforcement are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-restore-ui.test.tsx"], "notes": "The restore UI test renders the conditional sensitive-note acknowledgement gate." }
     },
     {
       "id": "INT-EXPORT-017",
@@ -2170,7 +2247,7 @@
       "risk": "destructive",
       "confirmation": "typed",
       "implementation": ["components/export/BehaviorLogRestorePanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-restore-ui.test.tsx", "tests/behaviorlog-restore-apply.service.test.ts"], "notes": "Typed gate and server enforcement are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-restore-ui.test.tsx"], "notes": "The restore UI test renders the required typed confirmation gate." }
     },
     {
       "id": "INT-EXPORT-018",
@@ -2192,7 +2269,7 @@
       "risk": "destructive",
       "confirmation": "acknowledgement_and_typed",
       "implementation": ["components/export/BehaviorLogRestorePanel.tsx", "app/(app)/export/actions.ts#submitBehaviorLogRestoreAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-restore-apply.service.test.ts", "tests/behaviorlog-restore-rpc-migration.test.ts", "tests/behaviorlog-restore-ui.test.tsx"], "notes": "Atomic apply, stale refusal, idempotency, destructive counts, and gates are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/behaviorlog-restore-ui.test.tsx"], "notes": "The restore UI test renders Apply restore behind every required gate; atomic apply and stale refusal are covered separately." }
     },
     {
       "id": "INT-SETTINGS-001",
@@ -2217,7 +2294,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/settings/TimezonePanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/settings.service.test.ts"], "notes": "Timezone validation and update behavior are covered; select rendering is browser-dependent." }
+      "test_coverage": { "level": "manual", "references": ["tests/settings-interactions-ui.test.tsx", "tests/settings.service.test.ts"], "notes": "The timezone select and server validation are automated; the browser-dependent manual-field fallback remains manual QA." }
     },
     {
       "id": "INT-SETTINGS-002",
@@ -2261,7 +2338,7 @@
       "risk": "high",
       "confirmation": "none",
       "implementation": ["components/settings/TimezonePanel.tsx", "app/(app)/settings/actions.ts#updateTimezoneAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/settings.service.test.ts", "tests/occurrence-sync-state.service.test.ts"], "notes": "Timezone propagation and historical preservation are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/settings-interactions-ui.test.tsx"], "notes": "The Settings UI test renders Save timezone; propagation and historical preservation are covered separately." }
     },
     {
       "id": "INT-SETTINGS-004",
@@ -2283,7 +2360,7 @@
       "risk": "moderate",
       "confirmation": "browser_prompt",
       "implementation": ["components/settings/NotificationPermissionPanel.tsx", "app/api/push/subscribe/route.ts#POST", "lib/push/browser.ts#registerBrowserPushSubscription"],
-      "test_coverage": { "level": "direct", "references": ["tests/push-browser.test.ts", "tests/push-subscribe-route.test.ts"], "notes": "Support states, subscription registration, validation, and route behavior are covered." }
+      "test_coverage": { "level": "indirect", "references": ["tests/push-browser.test.ts", "tests/push-subscribe-route.test.ts"], "notes": "Push registration and route behavior are automated, but activating the browser permission control remains browser QA." }
     },
     {
       "id": "INT-SETTINGS-005",
@@ -2297,7 +2374,11 @@
       "routes": ["/settings", "/trust", "/privacy", "/terms"],
       "journeys": ["J18"],
       "intent": "Review Trust, Privacy, or Terms from the authenticated product.",
-      "triggers": [{ "kind": "activate", "control": "Trust and legal row" }],
+      "triggers": [
+        { "kind": "activate", "control": "Privacy" },
+        { "kind": "activate", "control": "Terms" },
+        { "kind": "activate", "control": "Trust" }
+      ],
       "variants": [
         { "id": "privacy", "label": "Privacy", "result": "Navigate to /privacy." },
         { "id": "terms", "label": "Terms", "result": "Navigate to /terms." },
@@ -2310,7 +2391,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/settings/SettingsPanels.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/legal-content.test.tsx"], "notes": "Legal page contract and navigation targets are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/settings-interactions-ui.test.tsx"], "notes": "The Settings UI test renders the Trust, Privacy, and Terms destinations." }
     },
     {
       "id": "INT-SETTINGS-006",
@@ -2332,7 +2413,7 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": ["components/settings/AccountDeletionPanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/account-deletion.service.test.ts"], "notes": "Deletion export requirement is covered; link behavior is standard navigation." }
+      "test_coverage": { "level": "direct", "references": ["tests/settings-interactions-ui.test.tsx"], "notes": "The Settings UI test renders the Open Export prerequisite destination." }
     },
     {
       "id": "INT-SETTINGS-007",
@@ -2354,7 +2435,7 @@
       "risk": "destructive",
       "confirmation": "acknowledgement",
       "implementation": ["components/settings/AccountDeletionPanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/account-deletion.service.test.ts"], "notes": "Readiness calculation and server gate are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/settings-interactions-ui.test.tsx"], "notes": "The Settings UI test renders the export-decision acknowledgement gate." }
     },
     {
       "id": "INT-SETTINGS-008",
@@ -2376,7 +2457,7 @@
       "risk": "destructive",
       "confirmation": "typed",
       "implementation": ["components/settings/AccountDeletionPanel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/account-deletion.service.test.ts"], "notes": "Client readiness and server exact-match validation are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/settings-interactions-ui.test.tsx"], "notes": "The Settings UI test renders the typed confirmation field and required label." }
     },
     {
       "id": "INT-SETTINGS-009",
@@ -2398,7 +2479,7 @@
       "risk": "destructive",
       "confirmation": "acknowledgement_and_typed",
       "implementation": ["components/settings/AccountDeletionPanel.tsx", "app/(app)/settings/actions.ts#deleteAccountAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/account-deletion.service.test.ts"], "notes": "Gates, global sign-out, deletion, error handling, and redirect result are covered." }
+      "test_coverage": { "level": "direct", "references": ["tests/settings-interactions-ui.test.tsx"], "notes": "The Settings UI test renders Delete account behind the acknowledgement and typed gates; destructive service behavior is covered separately." }
     },
     {
       "id": "INT-NOTIFICATION-001",

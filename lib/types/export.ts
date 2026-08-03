@@ -143,6 +143,23 @@ export type ExportReminderDeliveryInput = {
   updatedAt?: string | null;
 };
 
+export type ExportTimeSessionInput = {
+  id: string;
+  occurrenceId: string;
+  behaviorId: string;
+  startedAt: string;
+  stoppedAt: string | null;
+};
+
+export type ExportJsonTimeSession = {
+  id: string;
+  occurrence_id: string;
+  behavior_id: string;
+  started_at: string;
+  stopped_at: string | null;
+  duration_seconds: number | null;
+};
+
 export type ExportDateRange = {
   key: ExportRangeKey;
   label: string;
@@ -169,6 +186,7 @@ export type ExportJsonBackup = {
   occurrences: ExportJsonOccurrence[];
   status_events: ExportJsonStatusEvent[];
   behavior_definition_events: ExportJsonBehaviorDefinitionEvent[];
+  time_sessions?: ExportJsonTimeSession[];
 };
 
 export type ExportJsonCategory = {
@@ -271,11 +289,13 @@ export type ExportBundle = {
   exportedAt: string;
   includeArchived: boolean;
   includeNotes?: boolean;
+  includeTimeTracking: boolean;
   range: ExportDateRange;
   rangeOptions: ExportRangeOption[];
   categoryCount: number;
   behaviorCount: number;
   occurrenceCount: number;
+  timeSessionCount?: number;
   overallCounts: ExportStatusCounts;
   overallAdherenceLabel: string;
   jsonl: string;

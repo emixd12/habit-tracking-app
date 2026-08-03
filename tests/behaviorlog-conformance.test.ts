@@ -9,6 +9,8 @@ import { describe, expect, it } from "vitest";
 
 import { resolveBehaviorLogImportPreview } from "../lib/resolvers/behaviorlog-import.resolver";
 import { resolveExportBundle } from "../lib/resolvers/export.resolver";
+import { previewBehaviorLogImportFromZip } from "../lib/services/behaviorlog-import.service";
+import { createStoredZip } from "../lib/services/zip";
 import type {
   BehaviorLogFile,
   ExportBehaviorInput,
@@ -17,6 +19,7 @@ import type {
   ExportOccurrenceInput,
   ExportReminderDeliveryInput,
   ExportStatusEventInput,
+  ExportTimeSessionInput,
 } from "../lib/types/export";
 import { DEFAULT_TIMEZONE } from "../lib/types/recurrence";
 
@@ -270,7 +273,10 @@ function conformanceReminderDeliveries(): ExportReminderDeliveryInput[] {
   ];
 }
 
-function resolveConformanceBundle() {
+function resolveConformanceBundle(input: {
+  includeTimeTracking?: boolean;
+  timeSessions?: ExportTimeSessionInput[];
+} = {}) {
   return resolveExportBundle({
     profile: {
       timezone: DEFAULT_TIMEZONE,
@@ -288,10 +294,71 @@ function resolveConformanceBundle() {
     timezone: DEFAULT_TIMEZONE,
     range: "all",
     includeNotes: true,
+    includeTimeTracking: input.includeTimeTracking,
+    timeSessions: input.timeSessions,
   }).behaviorLog;
 }
 
 describe("BehaviorLog core conformance", () => {
+  it("keeps Cadence timing data optional, hashed, ZIP-packaged, and export-only", async () => {
+    const bundle = resolveConformanceBundle({
+      includeTimeTracking: true,
+      timeSessions: [
+        {
+          id: "session-1",
+          occurrenceId: "occurrence-1",
+          behaviorId: "behavior-brush",
+          startedAt: "2026-06-08T13:00:00Z",
+          stoppedAt: null,
+        },
+      ],
+    });
+    const filesByPath = new Map(bundle.files.map((file) => [file.path, file]));
+    const manifest = parseJson(filesByPath.get("manifest.json")?.content ?? "");
+    const timingPath = "raw/cadence/occurrence_time_sessions.jsonl";
+    const timingFile = filesByPath.get(timingPath);
+    const cadenceExtensions = manifest.extensions as Record<
+      string,
+      Record<string, unknown>
+    >;
+
+    expect(timingFile?.content).toContain('"record_type":"occurrence_time_session"');
+    expect(manifest.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: timingPath, required: false }),
+      ]),
+    );
+    expect(cadenceExtensions["app.cadence"].occurrence_time_sessions).toEqual(
+      expect.objectContaining({
+        path: timingPath,
+        record_count: 1,
+        import_restore_support: "export_only",
+      }),
+    );
+    expect(resolveBehaviorLogImportPreview({ files: bundle.files }).valid).toBe(
+      true,
+    );
+    expect(
+      previewBehaviorLogImportFromZip({ zip: createStoredZip(bundle.files) })
+        .valid,
+    ).toBe(true);
+
+    const { root, bundlePath } = await writeBehaviorLogDirectory(bundle.files);
+
+    try {
+      const result = spawnSync(
+        process.execPath,
+        ["scripts/behaviorlog-conformance.mjs", bundlePath],
+        { cwd: process.cwd(), encoding: "utf8" },
+      );
+
+      expect(result.status, result.stderr || result.stdout).toBe(0);
+      expect(result.stdout).toContain("BehaviorLog bundle valid:");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("materializes Cadence output and passes the upstream reference validator snapshot", async () => {
     const bundle = resolveConformanceBundle();
     const { root, bundlePath } = await writeBehaviorLogDirectory(bundle.files);

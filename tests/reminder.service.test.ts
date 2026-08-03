@@ -448,6 +448,33 @@ describe("processDueEmailReminders", () => {
     expect(markReminderDeliveryFailed).not.toHaveBeenCalled();
   });
 
+  it("leaves due email rows unclaimed when email sends are disabled", async () => {
+    const sendEmail = vi.fn();
+
+    await expect(
+      processDueEmailReminders({
+        supabase: SUPABASE,
+        now: NOW,
+        sendEmail,
+        circuitBreakerEnvironment: {
+          CADENCE_DISABLE_EMAIL_SENDS: "1",
+          CADENCE_LAUNCH_BREAKER_REASON_CODE: "provider_incident",
+        },
+      }),
+    ).resolves.toEqual({
+      checked: 0,
+      claimed: 0,
+      skipped: 0,
+      sent: 0,
+      failed: 0,
+      cancelled: 0,
+    });
+
+    expect(listDuePendingEmailReminderDeliveries).not.toHaveBeenCalled();
+    expect(claimPendingEmailReminderDelivery).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
   it("treats Supabase +00:00 timestamps as the current expected email delivery", async () => {
     vi.mocked(listDuePendingEmailReminderDeliveries).mockResolvedValue([
       {
@@ -691,6 +718,33 @@ describe("processDueBrowserPushReminders", () => {
       sentAt: NOW_STRING,
     });
     expect(markReminderDeliveryFailed).not.toHaveBeenCalled();
+  });
+
+  it("leaves due push rows unclaimed when browser push sends are disabled", async () => {
+    const sendBrowserPush = vi.fn();
+
+    await expect(
+      processDueBrowserPushReminders({
+        supabase: SUPABASE,
+        now: NOW,
+        sendBrowserPush,
+        circuitBreakerEnvironment: {
+          CADENCE_DISABLE_BROWSER_PUSH_SENDS: "1",
+          CADENCE_LAUNCH_BREAKER_REASON_CODE: "cost_surge",
+        },
+      }),
+    ).resolves.toEqual({
+      checked: 0,
+      claimed: 0,
+      skipped: 0,
+      sent: 0,
+      failed: 0,
+      cancelled: 0,
+    });
+
+    expect(listDuePendingBrowserPushReminderDeliveries).not.toHaveBeenCalled();
+    expect(claimPendingBrowserPushReminderDelivery).not.toHaveBeenCalled();
+    expect(sendBrowserPush).not.toHaveBeenCalled();
   });
 
   it("treats Supabase +00:00 timestamps as the current expected browser push delivery", async () => {

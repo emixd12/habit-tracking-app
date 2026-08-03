@@ -79,6 +79,8 @@ import type { FirstRunOnboardingState } from "@/lib/types/onboarding";
 import type {
   OccurrenceActionState,
   OccurrenceFormAction,
+  TimeTrackingActionState,
+  TimeTrackingFormAction,
   TimelineDaySection,
   TimelineOccurrenceView,
   TimelineView,
@@ -1219,6 +1221,9 @@ function buildPreviews(
 
 const behaviorAction: BehaviorFormAction = benchBehaviorAction;
 const occurrenceAction: OccurrenceFormAction = benchOccurrenceAction;
+const timeTrackingAction: TimeTrackingFormAction = async (
+  state: TimeTrackingActionState,
+) => state;
 const timezoneAction: TimezoneUpdateAction = benchTimezoneAction;
 const deleteAccountAction: DeleteAccountAction = benchDeleteAccountAction;
 const behaviorLogImportAction: BehaviorLogImportFormAction =
@@ -1531,6 +1536,9 @@ const previewFactories: Record<
           timeline={timelineFixture}
           statusAction={occurrenceAction}
           noteAction={occurrenceAction}
+          startTimeTrackingAction={timeTrackingAction}
+          stopTimeTrackingAction={timeTrackingAction}
+          resetTimeTrackingAction={timeTrackingAction}
         />
       </ProductPreview>
     ),
@@ -1540,6 +1548,9 @@ const previewFactories: Record<
           section={todaySection}
           statusAction={occurrenceAction}
           noteAction={occurrenceAction}
+          startTimeTrackingAction={timeTrackingAction}
+          stopTimeTrackingAction={timeTrackingAction}
+          resetTimeTrackingAction={timeTrackingAction}
         />
       </ProductPreview>
     ),
@@ -1553,6 +1564,9 @@ const previewFactories: Record<
                 occurrence={occurrence}
                 statusAction={occurrenceAction}
                 noteAction={occurrenceAction}
+                startTimeTrackingAction={timeTrackingAction}
+                stopTimeTrackingAction={timeTrackingAction}
+                resetTimeTrackingAction={timeTrackingAction}
               />
             ),
           )}
@@ -1584,12 +1598,18 @@ const previewFactories: Record<
             section={needsDecisionSection}
             statusAction={occurrenceAction}
             noteAction={occurrenceAction}
+            startTimeTrackingAction={timeTrackingAction}
+            stopTimeTrackingAction={timeTrackingAction}
+            resetTimeTrackingAction={timeTrackingAction}
             variant="needsDecisionDialog"
           />
           <TimelineGroup
             section={retainedNeedsDecisionSection}
             statusAction={occurrenceAction}
             noteAction={occurrenceAction}
+            startTimeTrackingAction={timeTrackingAction}
+            stopTimeTrackingAction={timeTrackingAction}
+            resetTimeTrackingAction={timeTrackingAction}
             variant="needsDecisionDialog"
           />
         </NeedsDecisionDialog>
@@ -1626,6 +1646,7 @@ const previewFactories: Record<
           restoreAction={behaviorAction}
           statusAction={occurrenceAction}
           noteAction={occurrenceAction}
+          resetTimeTrackingAction={timeTrackingAction}
         />
       </ProductPreview>
     ),
@@ -1871,6 +1892,8 @@ const needsDecisionOccurrence: TimelineOccurrenceView = {
   categoryName: activeBehavior.categoryName,
   scheduleSummary: activeBehavior.recurrenceSummary,
   note: "",
+  timeTracking: { recordedSeconds: 0, runningStartedAt: null },
+  canStartTimeTracking: false,
 };
 
 const currentOccurrence: TimelineOccurrenceView = {
@@ -1888,6 +1911,7 @@ const currentOccurrence: TimelineOccurrenceView = {
   description: "Start the morning with one full glass.",
   categoryName: "Health",
   scheduleSummary: "Daily",
+  canStartTimeTracking: true,
 };
 
 const currentGroupedCompletedOccurrence: TimelineOccurrenceView = {
@@ -2100,6 +2124,7 @@ const analyticsFixture: AnalyticsView = {
       detailLabel: "8 of 10 resolved",
       trackingStartLocalDate: "2026-06-02",
       trackingStartLabel: "Tuesday, June 2",
+      averageTrackedTime: null,
       dailyCells: [
         behaviorCell("2026-06-02", "Jun 2", "2", "full", true),
         behaviorCell("2026-06-03", "Jun 3", "3", "partial"),
@@ -2151,6 +2176,7 @@ const analyticsFixture: AnalyticsView = {
         status: "not_completed",
         statusLabel: "Not Completed",
         note: "Skipped while traveling.",
+        trackedTime: null,
       },
     ],
   },
@@ -2186,6 +2212,7 @@ const exportFixture: ExportBundle = {
   exportedAt: "2026-06-08T21:00:00Z",
   includeArchived: false,
   includeNotes: false,
+  includeTimeTracking: false,
   range: {
     key: "30",
     label: "Last 30 days",

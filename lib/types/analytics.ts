@@ -17,6 +17,28 @@ export type AnalyticsOccurrenceInput = {
   timezone: string;
 };
 
+export type AnalyticsTimeSessionInput = {
+  id: string;
+  userId: string;
+  occurrenceId: string;
+  behaviorId: string;
+  startedAt: string;
+  stoppedAt: string | null;
+};
+
+export type AnalyticsTrackedTime = {
+  recordedSeconds: number;
+  durationLabel: string;
+  hasRecordedTime: boolean;
+  isInProgress: boolean;
+};
+
+export type AnalyticsAverageTrackedTime = {
+  averageSeconds: number;
+  durationLabel: string;
+  timedOccurrenceCount: number;
+};
+
 export type AnalyticsStatusCounts = {
   completedCount: number;
   notCompletedCount: number;
@@ -80,6 +102,7 @@ export type AnalyticsBehaviorSummary = AnalyticsStatusCounts &
     categoryName: string;
     trackingStartLocalDate: string;
     trackingStartLabel: string;
+    averageTrackedTime: AnalyticsAverageTrackedTime | null;
     dailyCells: AnalyticsBehaviorDayCell[];
   };
 
@@ -98,6 +121,7 @@ export type AnalyticsSelectedDayOccurrence = {
   status: AnalyticsStatus;
   statusLabel: string;
   note: string;
+  trackedTime: AnalyticsTrackedTime | null;
 };
 
 export type AnalyticsSelectedBehaviorDay = {

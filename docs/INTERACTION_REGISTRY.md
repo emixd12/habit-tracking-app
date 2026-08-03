@@ -80,6 +80,27 @@ the GitHub-style slug of an existing Markdown heading. Only `INT-AUTH-002` and
 `INT-SHELL-007` use `internal_qa`; their references stay in
 `docs/user-guide/internal-qa.md`.
 
+### Test-coverage levels
+
+Coverage describes evidence for the registered user intent and trigger, not
+only for adjacent resolver, service, route, or artifact logic:
+
+- `direct`: every cited reference is an automated test under `tests/` that
+  renders the registered control or activates the registered interaction and
+  asserts its user-visible result or material effect.
+- `indirect`: cited automated tests or repository check scripts verify adjacent
+  logic, routes, generated artifacts, or state transitions without rendering
+  or activating the registered control itself.
+- `manual`: the trigger or a browser/provider-owned outcome still requires
+  browser, device, or human QA. References may name adjacent automated tests,
+  but the notes must state what remains manual.
+- `none`: no current test or recorded manual evidence covers the interaction.
+
+Production components, resolvers, services, data modules, and generators are
+implementation references, not test evidence. `direct` references must use
+`tests/*.test.*` or `tests/*.spec.*`. `indirect` references may additionally use
+repository `check-*` scripts.
+
 ## Updating the registry
 
 Update the registry in the same change whenever a user-facing interaction is
@@ -96,10 +117,53 @@ side effect, or receives materially different test coverage.
 6. Add or update `user_guidance` so every interaction points to the applicable
    task procedure. Add the guide procedure in the same change when no suitable
    heading exists.
-7. Run `npm run interactions:check`. The validator checks the declared
-   audience, guide path, file existence, and resolved Markdown heading anchor.
-8. For UI work, also run the project-required design and full verification
+7. Classify test coverage at the registered trigger boundary. Do not call
+   adjacent service, route, parser, resolver, or artifact checks `direct`.
+8. Run `npm run interactions:check`. The validator checks the declared
+   audience, guide path, file existence, resolved Markdown heading anchor, and
+   whether automated evidence references use test or check-script paths.
+9. For UI work, also run the project-required design and full verification
    commands.
+
+The one occurrence-time interaction also covers **Reset tracked time** inside
+the Behaviors Review disclosure. It reuses the Timing interaction ID because
+the owner-scoped deletion intent and service semantics are unchanged. Its
+Behaviors component and action must remain listed beside the Timeline controls.
+
+## Load-test companion manifest
+
+`interaction-registry.json` continues to describe user intent. HTTP execution
+metadata belongs in `load-tests/scenarios/interaction-map.json`, keyed by the
+stable interaction ID; do not add routes, load weights, environment
+eligibility, fixture preconditions, or cleanup ownership to the canonical
+registry schema.
+
+Every live interaction must have exactly one companion classification:
+`loadable_http`, `browser_only`, `external_provider`,
+`destructive_serial_only`, or `not_load_bearing`. A loadable interaction may
+map to multiple HTTP requests. Non-loadable entries require a concise reason
+without copying the registry's intent, risk, effects, success/failure, or
+guidance prose.
+
+When either inventory changes, run both checks:
+
+```bash
+npm run interactions:check
+npm run load:manifest:check
+```
+
+The load validator rejects missing, duplicate, unknown, or misclassified IDs
+and prevents destructive interactions from entering ordinary mixed profiles.
+See `docs/LOAD_TESTING_PLAN.md` for request naming, environment, secret,
+artifact, and execution rules.
+
+Ticket 068 classifies occurrence time tracking as `not_load_bearing`. Its
+elapsed duration is user-paced and the ordinary authenticated Timeline document
+request remains the shared route-capacity proof.
+
+Ticket 070 registers `INT-EXPORT-019` for the default-off time-tracking export
+choice. It is `browser_only` because it changes an unsaved sensitive-data scope
+draft before the existing export-options request.
 
 ## Useful queries
 

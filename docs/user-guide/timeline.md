@@ -135,6 +135,28 @@ become this inline Note field.
 supports it. At high zoom it stacks above its action rather than requiring a
 horizontal pointer gesture.
 
+## Track occurrence time
+
+**Prerequisites:** Expand a current-local-day Occurrence for an active Behavior.
+
+1. Choose **Track Time**. Cadence saves the start before showing the counter.
+2. Choose **Stop** when finished. The row shows the combined saved time.
+3. Choose **Track Time** again for another interval when needed.
+4. Choose **Reset tracked time** to remove every captured interval for that
+   Occurrence, including a running interval.
+
+**Result and persistence:** Refreshing restores a running counter from the
+saved start instant. A final total sums stopped intervals only. Start does not
+mark an Occurrence Completed or Not Completed and does not change reminders.
+
+**Recovery or undo:** Stop or Reset remains available after local midnight for
+an earlier valid start. Reset is an immediate correction and cannot restore
+deleted timing sessions.
+
+**Keyboard and mobile:** Tab to each text action and press Enter or Space.
+Start, Stop, Reset, and failures announce one result; the one-second counter
+does not repeatedly announce itself.
+
 ## Review Needs decision
 
 **Prerequisites:** At least one prior-day Unresolved Occurrence exists, or a

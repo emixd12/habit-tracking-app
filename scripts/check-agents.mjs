@@ -43,6 +43,9 @@ const requiredFiles = [
   "docs/ROUTE_MAP.md",
   "docs/AGENT_RESOLVERS.md",
   "docs/INTERACTION_REGISTRY.md",
+  "docs/LOAD_TESTING_PLAN.md",
+  "docs/LOAD_TESTING_RUNBOOK.md",
+  "docs/PERFORMANCE_SPEED_LOG.md",
   "docs/TICKETS.md",
   "docs/DECISIONS.md",
   "docs/NOTIFICATION_SPEC.md",
@@ -51,6 +54,38 @@ const requiredFiles = [
   "interaction-registry.json",
   "interaction-registry.schema.json",
   "scripts/check-interactions.mjs",
+  "scripts/check-load-test-interactions.mjs",
+  "scripts/check-load-test-mutation-evidence.mjs",
+  "scripts/load-test-cleanup.mjs",
+  "scripts/load-test-fixtures.mjs",
+  "scripts/load-test-integrity.mjs",
+  "scripts/load-test-fake-sequenzy.mjs",
+  "scripts/load-test-hosted-preflight.mjs",
+  "scripts/launch-cost-preflight.mjs",
+  "scripts/launch-surge-drill.mjs",
+  "scripts/load-test-local-runtime.mjs",
+  "scripts/load-test-mutation-report.mjs",
+  "scripts/load-test-mutation-suite.mjs",
+  "scripts/load-test-provision.mjs",
+  "scripts/load-test-read-report.mjs",
+  "scripts/load-test-read-suite.mjs",
+  "scripts/load-test-seed.mjs",
+  "load-tests/read_locustfile.py",
+  "load-tests/mutation_locustfile.py",
+  "load-tests/cadence_load/actions.py",
+  "load-tests/cadence_load/integrity.py",
+  "load-tests/cadence_load/mutation_shapes.py",
+  "load-tests/cadence_load/users/contention.py",
+  "load-tests/cadence_load/users/daily.py",
+  "load-tests/cadence_load/users/exporter.py",
+  "load-tests/cadence_load/users/maintainer.py",
+  "load-tests/cadence_load/users/operator.py",
+  "load-tests/cadence_load/users/reviewer.py",
+  "load-tests/cadence_load/users/timezone.py",
+  "load-tests/scenarios/interaction-map.json",
+  "load-tests/scenarios/mutation-profiles.json",
+  "load-tests/scenarios/profiles.json",
+  "load-tests/requirements.txt",
 ];
 
 for (const file of requiredFiles) {
@@ -66,6 +101,34 @@ const requiredScripts = [
   "agents:check",
   "interactions:check",
   "resolvers:check",
+  "load:install",
+  "load:manifest:check",
+  "load:python:test",
+  "load:web",
+  "load:protocol:smoke",
+  "load:provision",
+  "load:seed",
+  "load:integrity",
+  "load:cleanup",
+  "load:read:smoke",
+  "load:read:baseline",
+  "load:read:ramp",
+  "load:read:full",
+  "load:mutation:smoke",
+  "load:mutation:baseline",
+  "load:mutation:ramp",
+  "load:mutation:spike",
+  "load:mutation:soak",
+  "load:mutation:breakpoint",
+  "load:mutation:timezone",
+  "load:mutation:contention",
+  "load:mutation:operator",
+  "load:mutation:full",
+  "load:mutation:evidence:check",
+  "load:hosted:preflight",
+  "launch:cost:preflight",
+  "launch:surge:drill",
+  "smoke:launch-rate-limit:local",
   "supabase",
   "sequenzy",
 ];
@@ -134,6 +197,12 @@ for (const name of [
   "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
   "VAPID_PRIVATE_KEY",
   "REMINDER_PROCESS_SECRET",
+  "CADENCE_DISABLE_EMAIL_SENDS",
+  "CADENCE_DISABLE_BROWSER_PUSH_SENDS",
+  "CADENCE_DISABLE_REMINDER_BATCHES",
+  "CADENCE_DISABLE_OCCURRENCE_SYNC_BATCHES",
+  "CADENCE_DISABLE_EXPORT_DOWNLOADS",
+  "CADENCE_LAUNCH_BREAKER_REASON_CODE",
 ]) {
   assert(envExample.includes(`${name}=`), `.env.example is missing ${name}.`);
 }
@@ -202,6 +271,23 @@ assert(
   interactionCheck.status === 0,
   `Interaction registry validation failed:\n${(
     interactionCheck.stderr || interactionCheck.stdout || "Unknown error"
+  ).trim()}`,
+);
+
+const loadInteractionCheck = spawnSync(
+  process.execPath,
+  [filePath("scripts/check-load-test-interactions.mjs")],
+  {
+    cwd: root,
+    encoding: "utf8",
+  },
+);
+assert(
+  loadInteractionCheck.status === 0,
+  `Load interaction manifest validation failed:\n${(
+    loadInteractionCheck.stderr ||
+    loadInteractionCheck.stdout ||
+    "Unknown error"
   ).trim()}`,
 );
 

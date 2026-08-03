@@ -13,6 +13,7 @@ export const config = {
     "/behaviors/:path*",
     "/analytics/:path*",
     "/export/:path*",
+    "/api/export/:path*",
     "/settings/:path*",
   ],
 };

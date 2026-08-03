@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
 import { StatusButtons } from "@/components/timeline/StatusButtons";
+import { TimeTracker } from "@/components/timeline/TimeTracker";
 import {
   beginOptimisticStatus,
   confirmOptimisticStatus,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/resolvers/timeline-optimistic-status.resolver";
 import type {
   OccurrenceFormAction,
+  TimeTrackingFormAction,
   TimelineOccurrenceView,
 } from "@/lib/types/timeline";
 
@@ -22,6 +24,9 @@ type OccurrenceRowProps = Readonly<{
   occurrence: TimelineOccurrenceView;
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
+  startTimeTrackingAction: TimeTrackingFormAction;
+  stopTimeTrackingAction: TimeTrackingFormAction;
+  resetTimeTrackingAction: TimeTrackingFormAction;
 }>;
 
 type KeyedOptimisticStatusState = Readonly<{
@@ -57,6 +62,9 @@ export function OccurrenceRow({
   occurrence,
   statusAction,
   noteAction,
+  startTimeTrackingAction,
+  stopTimeTrackingAction,
+  resetTimeTrackingAction,
 }: OccurrenceRowProps) {
   const serverStatusKey = [
     occurrence.id,
@@ -180,6 +188,15 @@ export function OccurrenceRow({
             <DetailItem
               label="Schedule"
               value={visibleOccurrence.scheduleSummary}
+            />
+
+            <TimeTracker
+              occurrenceId={visibleOccurrence.id}
+              tracking={visibleOccurrence.timeTracking}
+              canStart={visibleOccurrence.canStartTimeTracking}
+              startAction={startTimeTrackingAction}
+              stopAction={stopTimeTrackingAction}
+              resetAction={resetTimeTrackingAction}
             />
 
             {!optimisticView.showPrimaryStatusActions ? (

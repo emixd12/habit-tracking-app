@@ -143,6 +143,7 @@ export function StatusButtons({
       >
         <StatusSubmitForm
           occurrenceId={occurrenceId}
+          currentStatus={currentStatus}
           status="completed"
           label="Completed"
           action={formAction}
@@ -154,6 +155,7 @@ export function StatusButtons({
         />
         <StatusSubmitForm
           occurrenceId={occurrenceId}
+          currentStatus={currentStatus}
           status="not_completed"
           label="Not Completed"
           action={formAction}
@@ -166,6 +168,7 @@ export function StatusButtons({
         {includeUnresolved ? (
           <StatusSubmitForm
             occurrenceId={occurrenceId}
+            currentStatus={currentStatus}
             status="unresolved"
             label={unresolvedLabel}
             action={formAction}
@@ -184,6 +187,7 @@ export function StatusButtons({
 
 function StatusSubmitForm({
   occurrenceId,
+  currentStatus,
   status,
   label,
   action,
@@ -194,6 +198,7 @@ function StatusSubmitForm({
   singleLine,
 }: Readonly<{
   occurrenceId: string;
+  currentStatus: TimelineStatus;
   status: StatusButtonValue;
   label: string;
   action: StatusFormAction;
@@ -213,6 +218,7 @@ function StatusSubmitForm({
       className="contents"
     >
       <input type="hidden" name="occurrence_id" value={occurrenceId} />
+      <input type="hidden" name="expected_status" value={currentStatus} />
       <input type="hidden" name="status" value={status} />
       <StatusSubmitButton
         status={status}

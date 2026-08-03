@@ -8,6 +8,7 @@ import {
   BehaviorForm,
   resetBehaviorScheduleDraft,
 } from "../components/behaviors/BehaviorForm";
+import { BehaviorCreateSection } from "../components/behaviors/BehaviorCreateSection";
 import {
   BehaviorActionResultAnnouncement,
   BehaviorList,
@@ -22,6 +23,8 @@ import type {
 import type {
   OccurrenceActionState,
   OccurrenceFormAction,
+  TimeTrackingActionState,
+  TimeTrackingFormAction,
 } from "../lib/types/timeline";
 
 vi.mock("next/navigation", () => ({
@@ -38,7 +41,48 @@ const occurrenceAction: OccurrenceFormAction = async (
   state: OccurrenceActionState,
 ) => state;
 
+const timeTrackingAction: TimeTrackingFormAction = async (
+  state: TimeTrackingActionState,
+) => state;
+
 describe("behavior date review UI", () => {
+  it("renders the registered create, identity, recurrence, schedule, and save controls", () => {
+    const createHtml = renderToStaticMarkup(
+      <BehaviorCreateSection
+        action={behaviorAction}
+        categories={[{ id: "category-1", name: "Health" }]}
+        defaultTimezone="America/New_York"
+        defaultOpen
+      />,
+    );
+    const editHtml = renderToStaticMarkup(
+      <BehaviorForm
+        mode="edit"
+        action={behaviorAction}
+        categories={[{ id: "category-1", name: "Health" }]}
+        behavior={behaviorViewWithSchedules()}
+      />,
+    );
+
+    expect(createHtml).toContain("Create behavior");
+    expect(createHtml).toContain('name="title"');
+    expect(createHtml).toContain('name="description"');
+    expect(createHtml).toContain('name="category_id"');
+    expect(createHtml).toContain('name="schedule_0_recurrence_kind"');
+    expect(createHtml).toContain(">Add schedule</button>");
+    expect(createHtml).toContain(">Add time</button>");
+    expect(createHtml).toContain(">Save behavior</button>");
+
+    expect(editHtml).toContain('name="schedule_0_monthly_day"');
+    expect(editHtml).toContain('name="schedule_1_weekly_days"');
+    expect(editHtml).toContain('name="schedule_0_time_entry_kind_0"');
+    expect(editHtml).toContain('name="schedule_0_time_entry_range_preset_0"');
+    expect(editHtml).toContain('name="schedule_0_time_entry_exact_time_1"');
+    expect(editHtml).toContain(">Remove schedule</button>");
+    expect(editHtml).toContain(">Remove time</button>");
+    expect(editHtml).toContain(">Save behavior</button>");
+  });
+
   it("renders weekday checkboxes only for weekly recurrence", () => {
     const dailyBehavior = behaviorView();
     const dailyHtml = renderToStaticMarkup(
@@ -177,10 +221,17 @@ describe("behavior date review UI", () => {
   it("gives actionable heatmap days review scent and names the selected-day panel", () => {
     const behavior = behaviorView();
     const analytics = analyticsView(behavior);
+    const archivedBehavior = {
+      ...behaviorView(),
+      id: "behavior-archived",
+      title: "Archived walk",
+      active: false,
+      archivedAt: "2026-06-06T12:00:00Z",
+    };
     const html = renderToStaticMarkup(
       <BehaviorList
         activeBehaviors={[behavior]}
-        archivedBehaviors={[]}
+        archivedBehaviors={[archivedBehavior]}
         categories={[{ id: "category-1", name: "Health" }]}
         analytics={analytics}
         updateAction={behaviorAction}
@@ -188,6 +239,7 @@ describe("behavior date review UI", () => {
         restoreAction={behaviorAction}
         statusAction={occurrenceAction}
         noteAction={occurrenceAction}
+        resetTimeTrackingAction={timeTrackingAction}
       />,
     );
 
@@ -198,6 +250,16 @@ describe("behavior date review UI", () => {
     expect(html).toContain("Change status");
     expect(html).toContain("Clear decision");
     expect(html).toContain('name="status" value="unresolved"');
+    expect(html).toContain("<span>Completed</span>");
+    expect(html).toContain("<span>Not Completed</span>");
+    expect(html).toContain('name="note"');
+    expect(html).toContain(">Save note</button>");
+    expect(html).toContain("Details and Settings");
+    expect(html).toContain("Archived behaviors (1)");
+    expect(html).toContain(">Restore</button>");
+    expect(html).toContain("?range=7");
+    expect(html).toContain("?range=30");
+    expect(html).toContain("?range=90");
   });
 
   it("does not render Clear decision for an unresolved selected-day occurrence", () => {
@@ -214,10 +276,49 @@ describe("behavior date review UI", () => {
         restoreAction={behaviorAction}
         statusAction={occurrenceAction}
         noteAction={occurrenceAction}
+        resetTimeTrackingAction={timeTrackingAction}
       />,
     );
 
     expect(html).not.toContain("Clear decision");
+  });
+
+  it("renders only recorded timing context and reset inside the selected-day review", () => {
+    const behavior = behaviorView();
+    const analytics = analyticsView(behavior);
+    analytics.behaviorSummaries[0]!.averageTrackedTime = {
+      averageSeconds: 134,
+      durationLabel: "2m 14s",
+      timedOccurrenceCount: 1,
+    };
+    analytics.selectedBehaviorDay!.occurrences[0]!.trackedTime = {
+      recordedSeconds: 120,
+      durationLabel: "2m 0s",
+      hasRecordedTime: true,
+      isInProgress: true,
+    };
+
+    const html = renderToStaticMarkup(
+      <BehaviorList
+        activeBehaviors={[behavior]}
+        archivedBehaviors={[]}
+        categories={[{ id: "category-1", name: "Health" }]}
+        analytics={analytics}
+        updateAction={behaviorAction}
+        archiveAction={behaviorAction}
+        restoreAction={behaviorAction}
+        statusAction={occurrenceAction}
+        noteAction={occurrenceAction}
+        resetTimeTrackingAction={timeTrackingAction}
+      />,
+    );
+
+    expect(html).toContain("Average tracked time");
+    expect(html).toContain("2m 14s");
+    expect(html).toContain("Tracked time");
+    expect(html).toContain("2m 0s");
+    expect(html).toContain("In progress");
+    expect(html).toContain("Reset tracked time");
   });
 
   it("uses Unmark for Timeline status controls that include unresolved", () => {
@@ -416,6 +517,7 @@ function analyticsView(
         categoryName: behavior.categoryName,
         trackingStartLocalDate: "2026-06-01",
         trackingStartLabel: "Jun 1",
+        averageTrackedTime: null,
         dailyCells: [
           {
             key: "behavior-1-2026-06-05",
@@ -466,6 +568,7 @@ function analyticsView(
           statusLabel:
             selectedOccurrenceStatus === "completed" ? "Completed" : "Unresolved",
           note: "",
+          trackedTime: null,
         },
       ],
     },

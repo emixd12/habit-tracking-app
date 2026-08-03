@@ -66,6 +66,108 @@ describe("Supabase proxy session update", () => {
     expect(response.headers.get("location")).toBeNull();
   });
 
+  it("forwards refreshed auth cookies for authenticated export API requests", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const getClaims = vi.fn().mockImplementation(async () => ({
+      data: {
+        claims: {
+          sub: "user-1",
+        },
+      },
+      error: null,
+    }));
+
+    vi.mocked(createServerClient).mockImplementation(
+      ((...args: unknown[]) => {
+        const options = args[2] as {
+          cookies: {
+            setAll: (
+              cookies: Array<{
+                name: string;
+                value: string;
+                options: { path: string };
+              }>,
+              headers: Record<string, string>,
+            ) => void;
+          };
+        };
+        getClaims.mockImplementationOnce(async () => {
+          options.cookies.setAll(
+            [
+              {
+                name: "sb-test-auth-token",
+                value: "refreshed-token",
+                options: { path: "/" },
+              },
+            ],
+            { "cache-control": "private, no-store" },
+          );
+          return {
+            data: {
+              claims: {
+                sub: "user-1",
+              },
+            },
+            error: null,
+          };
+        });
+        return {
+          auth: {
+            getClaims,
+          },
+        };
+      }) as never,
+    );
+
+    const response = await updateSession(
+      requestWithAuthCookie("http://localhost:3000/api/export/json"),
+    );
+
+    expect(getClaims).toHaveBeenCalledOnce();
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.cookies.get("sb-test-auth-token")?.value).toBe(
+      "refreshed-token",
+    );
+    expect(response.headers.get("cache-control")).toBe(
+      "private, no-store",
+    );
+  });
+
+  it("leaves anonymous export API authentication to the route response", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+
+    const response = await updateSession(
+      new NextRequest("http://localhost:3000/api/export/json"),
+    );
+
+    expect(createServerClient).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("does not redirect invalid export API sessions to the login document", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const getClaims = vi.fn().mockResolvedValue({
+      data: null,
+      error: new Error("invalid token"),
+    });
+
+    vi.mocked(createServerClient).mockReturnValue({
+      auth: {
+        getClaims,
+      },
+    } as never);
+
+    const response = await updateSession(
+      requestWithAuthCookie("http://localhost:3000/api/export/json"),
+    );
+
+    expect(getClaims).toHaveBeenCalledOnce();
+    expect(response.headers.get("location")).toBeNull();
+  });
+
   it("redirects protected route requests when claims validation fails", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");

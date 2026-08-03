@@ -222,6 +222,7 @@ and show:
 - Description
 - Category
 - Schedule details
+- Track time
 - Note field
 - Option to change a Completed or Not Completed status
 
@@ -241,6 +242,21 @@ occurrence snapshot and appends one status-history event atomically. Repeating
 the already-current resolved choice does not create a duplicate event. Saving a
 Note without a status change preserves both status timestamps and status
 history.
+
+### Track occurrence time
+
+For a current-local-day occurrence of an active behavior, expand the row and
+choose **Track Time**. Cadence persists a session before the counter begins, so
+a refresh restores a running session. Choose **Stop** to persist its end. The
+shown total includes all stopped sessions for that occurrence. A later **Track
+Time** creates another session. **Reset tracked time** removes every session,
+including a running one, with no confirmation.
+
+Start is unavailable for prior or future local dates and archived behaviors.
+Stop and reset remain available after midnight for an earlier valid start. None
+of these controls marks a status, changes a note, affects adherence, or changes
+reminder eligibility. The counter is display-only; saved duration always uses
+server-side persisted instants.
 
 BehaviorLog imports may fill this occurrence Note field only when an accepted
 import plan identifies the target occurrence safely, the imported note is not
@@ -361,6 +377,12 @@ Show behavior-level Completed and Not Completed counts plus calendars inside
 each active behavior row. Unresolved remains visible through neutral heatmap
 and behavior date review states, but not as a behavior or category count row.
 
+When the selected 7, 30, or 90-day range contains recorded timing for a
+behavior, show one compact Average tracked time row. Sum stopped sessions per
+occurrence before averaging timed occurrence totals. Do not count untimed or
+running-only occurrences, and do not show a placeholder when no recorded total
+exists.
+
 Each behavior count row shows when that behavior started being tracked. When
 the tracking start day is within the selected range, the behavior calendar marks
 that day.
@@ -379,8 +401,9 @@ Behavior date review should:
 - Use an explicit heading such as Review selected day.
 - Show that behavior's occurrences for the selected local date when rows exist,
   not only Not Completed occurrences.
-- Show occurrence details as plain Date of behavior, Time of behavior, Status,
-  and Note text.
+- Show occurrence details as plain Date of behavior, Time of behavior,
+  conditional Tracked time, Status, and Note text. Stopped time shows its total;
+  running-only time shows In progress; both states show both labels.
 - Keep status corrections behind the per-occurrence Review disclosure. A
   resolved occurrence can use Clear decision there to return to Unresolved;
   an expanded, just-decided Timeline occurrence uses Unmark for the same
@@ -391,6 +414,9 @@ Behavior date review should:
 - Allow individual Completed and Not Completed corrections through the same
   status service used by Timeline.
 - Allow occurrence Note edits.
+- Allow Reset tracked time inside the existing Review disclosure when timing
+  data exists. Reset deletes that occurrence's timing sessions and refreshes
+  timing context without changing Status or Note.
 - Refresh Behaviors counts, adherence, heatmaps, and behavior date rows after a
   correction.
 - Avoid internal divider lines that visually compete with the behavior-row
@@ -422,6 +448,7 @@ Export options:
 - All time
 - Include archived behaviors
 - Include occurrence notes, off by default
+- Include time tracking, off by default
 
 Full JSON and BehaviorLog include behavior title and description revision
 history by default for the behaviors in the export. This is not a separate
@@ -434,6 +461,12 @@ Behavior definition events follow behavior inclusion rather than the selected
 occurrence date range. A 7, 30, or 90 day export therefore includes the complete
 definition trail for each included behavior, ordered by `recorded_at`, then
 `id`. Excluding archived behaviors also excludes their definition events.
+
+Time tracking is omitted unless **Include time tracking** is selected. Its exact
+timestamps can reveal activity patterns. With the option selected, each format
+includes only sessions for occurrences already in the applied range and
+archived-behavior scope. Import and restore validate the optional Cadence timing
+file and hash, but do not replay its sessions.
 
 BehaviorLog import flow:
 1. Upload a `.behaviorlog.zip` bundle from the Export & Import screen. Cadence

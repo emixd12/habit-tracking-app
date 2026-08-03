@@ -14,6 +14,8 @@ const MIGRATION_SQL = [
   "20260625204148_add_occurrence_sync_state.sql",
   "20260626140000_add_behavior_schedules.sql",
   "20260709201516_add_behavior_definition_events.sql",
+  "20260801051601_add_launch_export_rate_limit.sql",
+  "20260802000000_add_occurrence_time_sessions.sql",
 ]
   .map((fileName) => readFileSync(join(MIGRATION_DIR, fileName), "utf8"))
   .join("\n");
@@ -34,6 +36,8 @@ const USER_OWNED_TABLES = [
   "behaviorlog_import_record_mappings",
   "imported_notes",
   "imported_interventions",
+  "launch_rate_limits",
+  "occurrence_time_sessions",
 ] as const;
 
 const NORMALIZED_MIGRATION_SQL = MIGRATION_SQL.replace(/\s+/g, " ");
@@ -54,6 +58,8 @@ const AUTHENTICATED_TABLE_GRANTS = new Map<(typeof USER_OWNED_TABLES)[number], s
   ["behaviorlog_import_record_mappings", "select, insert, update, delete"],
   ["imported_notes", "select, insert, update, delete"],
   ["imported_interventions", "select, insert, update, delete"],
+  ["launch_rate_limits", "select"],
+  ["occurrence_time_sessions", "select, insert, update, delete"],
 ]);
 
 describe("RLS policy registry", () => {

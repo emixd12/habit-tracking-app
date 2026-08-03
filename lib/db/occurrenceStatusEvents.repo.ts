@@ -51,8 +51,15 @@ type OccurrenceStatusTransitionRpcClient = {
       planned_event_source_confidence: "high" | null;
       planned_cancel_pending_reminders: boolean;
     },
-  ) => Promise<{ data: unknown; error: Error | null }>;
+  ) => Promise<{ data: unknown; error: unknown }>;
 };
+
+const STALE_OCCURRENCE_STATUS_MESSAGE =
+  "Occurrence status changed. Review the latest status and try again.";
+const STALE_OCCURRENCE_STATUS_RPC_MESSAGES = new Set([
+  "Occurrence status changed concurrently. Review the latest status and try again.",
+  "Occurrence status history changed concurrently. Review the latest status and try again.",
+]);
 
 export async function applyOccurrenceStatusTransitionRpc(
   supabase: AppSupabaseClient,
@@ -77,7 +84,7 @@ export async function applyOccurrenceStatusTransitionRpc(
   });
 
   if (error) {
-    throw error;
+    throw normalizeStatusTransitionRpcError(error);
   }
 
   return normalizeStatusTransitionRpcResult(data);
@@ -184,6 +191,23 @@ export async function getLatestOccurrenceStatusEventForOccurrence(
   }
 
   return data ?? null;
+}
+
+function normalizeStatusTransitionRpcError(error: unknown): Error {
+  if (
+    isRecord(error) &&
+    error.code === "P0001" &&
+    typeof error.message === "string" &&
+    STALE_OCCURRENCE_STATUS_RPC_MESSAGES.has(error.message)
+  ) {
+    return new Error(STALE_OCCURRENCE_STATUS_MESSAGE);
+  }
+
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error("Unable to update this occurrence.");
 }
 
 function normalizeStatusTransitionRpcResult(

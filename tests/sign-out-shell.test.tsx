@@ -9,6 +9,26 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("app-shell sign out control", () => {
+  it("renders the primary navigation and Timeline brand destinations", () => {
+    const html = renderToStaticMarkup(
+      <AppShell user={{ email: "person@example.test" }}>
+        <p>Protected content</p>
+      </AppShell>,
+    );
+
+    for (const [href, label] of [
+      ["/timeline", "Timeline"],
+      ["/behaviors", "Behaviors"],
+      ["/export", "Export &amp; Import"],
+      ["/settings", "Settings"],
+    ]) {
+      expect(html).toContain(`href="${href}"`);
+      expect(html).toContain(`>${label}`);
+    }
+
+    expect(html).toContain('aria-label="Open Timeline"');
+  });
+
   it("renders the collapsed desktop header as an expand-only control", () => {
     const html = renderToStaticMarkup(
       <AppShell

@@ -3,18 +3,28 @@ import { Plus } from "lucide-react";
 
 import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
-import type { OccurrenceFormAction, TimelineView } from "@/lib/types/timeline";
+import type {
+  OccurrenceFormAction,
+  TimeTrackingFormAction,
+  TimelineView,
+} from "@/lib/types/timeline";
 
 type TimelineProps = Readonly<{
   timeline: TimelineView;
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
+  startTimeTrackingAction: TimeTrackingFormAction;
+  stopTimeTrackingAction: TimeTrackingFormAction;
+  resetTimeTrackingAction: TimeTrackingFormAction;
 }>;
 
 export function Timeline({
   timeline,
   statusAction,
   noteAction,
+  startTimeTrackingAction,
+  stopTimeTrackingAction,
+  resetTimeTrackingAction,
 }: TimelineProps) {
   return (
     <div className="grid gap-8 pb-32 sm:pb-24">
@@ -38,6 +48,9 @@ export function Timeline({
                 section={section}
                 statusAction={statusAction}
                 noteAction={noteAction}
+                startTimeTrackingAction={startTimeTrackingAction}
+                stopTimeTrackingAction={stopTimeTrackingAction}
+                resetTimeTrackingAction={resetTimeTrackingAction}
                 variant="needsDecisionDialog"
               />
             ))}
@@ -52,6 +65,9 @@ export function Timeline({
             section={section}
             statusAction={statusAction}
             noteAction={noteAction}
+            startTimeTrackingAction={startTimeTrackingAction}
+            stopTimeTrackingAction={stopTimeTrackingAction}
+            resetTimeTrackingAction={resetTimeTrackingAction}
           />
         ))}
       </div>

@@ -101,6 +101,12 @@ export function ExportPanel({
                   label="Default adherence"
                   value={exportData.overallAdherenceLabel}
                 />
+                {exportData.includeTimeTracking ? (
+                  <ExportStat
+                    label="Timing sessions"
+                    value={exportData.timeSessionCount ?? 0}
+                  />
+                ) : null}
               </dl>
             </div>
 
@@ -129,6 +135,24 @@ export function ExportPanel({
                   <span className="mt-1 block font-normal text-muted-readable">
                     Off by default. Notes can contain private context, so every
                     export output omits them unless this is selected.
+                  </span>
+                </span>
+              </label>
+
+              <label className="flex max-w-3xl items-start gap-3 text-sm font-bold">
+                <input
+                  type="checkbox"
+                  name="include_time_tracking"
+                  value="1"
+                  defaultChecked={exportData.includeTimeTracking}
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-foreground"
+                />
+                <span>
+                  Include time tracking
+                  <span className="mt-1 block font-normal text-muted-readable">
+                    Off by default. Exact timing-session timestamps can reveal
+                    activity patterns, so every export omits time tracking
+                    unless this is selected.
                   </span>
                 </span>
               </label>
@@ -237,6 +261,10 @@ export function ExportPanel({
             restore. Cadence uses the current title and description snapshot and
             records a new local import baseline or transition.
           </p>
+          <p className="mt-3 max-w-3xl text-sm text-muted-readable">
+            Cadence validates optional time-tracking export files and their
+            hashes, but import and restore do not replay timing sessions.
+          </p>
         </div>
         <BehaviorLogImportPanel recentRuns={importData.recentRuns} />
         <BehaviorLogRestorePanel recentRuns={restoreData.recentRuns} />
@@ -276,6 +304,10 @@ function downloadHref(
 
   if (exportData.includeNotes) {
     params.set("include_notes", "1");
+  }
+
+  if (exportData.includeTimeTracking) {
+    params.set("include_time_tracking", "1");
   }
 
   return `/api/export/${format}?${params.toString()}`;

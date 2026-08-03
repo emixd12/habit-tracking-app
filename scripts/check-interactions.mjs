@@ -65,6 +65,23 @@ function splitReference(reference) {
   };
 }
 
+function isAutomatedTestReference(relativePath) {
+  return /^tests\/.+\.(?:test|spec)\.[cm]?[jt]sx?$/.test(relativePath);
+}
+
+function isRepositoryCheckReference(relativePath) {
+  return /^(?:scripts|apps\/[^/]+\/scripts)\/check-[^/]+\.[cm]?[jt]s$/.test(
+    relativePath,
+  );
+}
+
+function isCoverageEvidenceReference(relativePath) {
+  return (
+    isAutomatedTestReference(relativePath) ||
+    isRepositoryCheckReference(relativePath)
+  );
+}
+
 function githubHeadingSlug(heading) {
   return heading
     .trim()
@@ -376,9 +393,25 @@ for (const interaction of interactions) {
         `${label} ${coverage.level} test coverage needs at least one reference.`,
       );
     }
+    if (coverage.level === "none") {
+      assert(
+        coverage.references.length === 0,
+        `${label} test coverage level none must not cite evidence.`,
+      );
+    }
     for (const reference of coverage.references ?? []) {
       const { file, symbol } = splitReference(reference);
       assert(exists(file), `${label} test reference does not exist: ${file}.`);
+      assert(
+        isCoverageEvidenceReference(file),
+        `${label} test evidence must use tests/*.(test|spec).* or a repository check-* script: ${file}.`,
+      );
+      if (coverage.level === "direct") {
+        assert(
+          isAutomatedTestReference(file),
+          `${label} direct test coverage must cite an automated test under tests/: ${file}.`,
+        );
+      }
       if (symbol && exists(file)) {
         assert(
           read(file).includes(symbol),

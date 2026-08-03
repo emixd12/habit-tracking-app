@@ -43,7 +43,36 @@ When updating a ticket row:
 
 ## Current repository state
 
-This repository now contains the Ticket 001 Next.js application scaffold, Ticket 002 Supabase Auth setup, Ticket 003 database schema, Ticket 004 recurrence resolver, Ticket 005 behavior CRUD, Ticket 006 occurrence generation, Ticket 007 Timeline screen, Ticket 008 status marking and notes, Ticket 009 browser push subscription/reminder planning, Ticket 010 email reminder processing with Sequenzy provider setup, Ticket 011 Analytics, Ticket 012 Export, Ticket 013 Vercel production deployment, BehaviorLog interoperability and import work through Ticket 024, Ticket 025A restore preview, Ticket 025B restore apply/UI, Ticket 026 imported notes, Ticket 027 imported intervention history, Ticket 028 imported intervention promotion services, Ticket 029 public web hardening, Ticket 030 public web hardening follow-up, Ticket 031 Astro marketing site, Ticket 032 Needs Decision same-day correction retention, Ticket 033 Analytics selected-day occurrence correction, Ticket 034 multi-account Supabase launch readiness sign-off planning, and the project-definition and agent-bootstrap layer.
+The numbered implementation sequence is complete through Ticket 065. Ticket
+066 continues the Locust infrastructure stress-testing roadmap with an
+approval-gated hosted capacity run. Ticket 067 is `blocked`; its local
+launch cost guardrails and traffic-surge operations are implemented, while its
+owner-policy and provider acceptance gates remain unresolved. It adds no product
+billing or an admin dashboard. Tickets 068, 069, and 070 are complete. Ticket
+070 adds privacy-gated time-tracking exports after the Timeline
+stopwatch capture/reset and compact Behaviors timing context. Ticket 068 may
+proceed locally without the provider gates blocking Tickets 066-067; Ticket 070
+follows Ticket 069 so export aggregation reuses the settled Behaviors semantics.
+Ticket
+063's local-only harness, registry-derived workload manifest, authenticated
+protocol proof, and exact disposable-account cleanup are implemented and
+verified. Ticket 064's independent synthetic identities, realistic read
+cohorts, bounded local baseline/ramp/recovery, integrity gates, and exact
+cleanup are also implemented and verified. The only
+human-gated interaction-audit item at this frontier is IA-024, which needs a
+product decision before onboarding dismissal can change from origin-global
+browser storage to account-specific storage. Workspace restructuring,
+desktop/mobile, PWA/offline, billing, and AI/speech work remain deferred or
+unticketed.
+
+The completed sequence includes the Ticket 001 Next.js scaffold, Ticket 002
+Supabase Auth setup, Ticket 003 database schema, Tickets 004-012 core behavior
+tracking and export, Ticket 013 Vercel deployment, BehaviorLog interoperability
+and import/restore work through Ticket 028, public hardening and launch
+readiness through Ticket 034, performance work through Ticket 047, UX and trust
+work through Ticket 056, history/restore/schedule integrity through Ticket 060,
+Ticket 061's export prompt library, and the project-definition and
+agent-bootstrap layer.
 
 The current UX backlog pass has completed implementation for Tickets 048-052:
 UX research reproduction/triage, Settings baseline correctness, first-run
@@ -950,8 +979,64 @@ Later ticket rollup:
 | 029: Public web hardening account safety baseline | complete | Account deletion, legal/trust pages, endpoint hardening, bounded reminder processing, and RLS policy registry are implemented. Remaining public-launch follow-up is hosted multi-user RLS smoke QA, first-run onboarding, and privacy-conscious monitoring/error reporting. |
 | 030: Public web hardening follow-up | complete | Added dismissible Timeline first-run setup, privacy-safe structured runtime monitoring, and `npm run smoke:rls` many-user RLS smoke QA. | Pass: `npm run smoke:rls`; Pass: `npm run agents:check`; Pass: `npm run resolvers:check`; Pass: `npm run lint`; Pass: `npm run typecheck`; Pass: `npm run test` (35 files, 241 tests); Pass: `npm run build`; Pass: `npm run design-system:check`; Pass: `git diff --check`; Browser QA with a temporary authenticated Chrome user verified Timeline first-run setup at 1280px and 390px with no horizontal overflow, required links present, no console warnings/errors, and temporary user cleanup. | No Ticket 030 blocker remains. Re-run `npm run smoke:rls` before broad launch and after material RLS/schema changes. |
 | 061: Export prompt library for external AI analysis | complete | Added twelve static, provider-generic analysis prompts after the Export AI summary, with typed shared semantics, native disclosure rows, format/option requirements, and clipboard feedback. The library is UI-only and does not change export artifacts. |
+| 062: Interaction audit P3 traceability and narrow-screen follow-up | complete | Closed locally actionable IA-025 through IA-028: exact registry labels, complete marketing source ownership, honest direct/indirect/manual coverage, 320px Settings containment, and stale deployment-ledger reconciliation. IA-024 remains product-decision-gated. |
 
 ## Post-ticket refinements
+
+### Desktop rail expansion navigation fix (2026-07-28)
+
+Status: complete.
+
+Implementation summary:
+- Reproduced the recorded request: the collapsed desktop brand cell expanded
+  the rail and navigated to Timeline as one combined interaction.
+- Split the header behavior by rail state. Expanded mode keeps the Cadence
+  brand link to Timeline and the separate Collapse navigation button.
+  Collapsed mode now renders an Expand navigation button with no `href` and no
+  navigation side effect.
+- Preserved the 64px target, persisted `sidebar-open` preference, Cadence-mark
+  to open-sidebar-icon hover treatment, width transition, primary route icons,
+  mobile navigation, and expanded brand navigation.
+- Updated `components/layout/AppShell.tsx`, the focused shell and registry-label
+  tests, `interaction-registry.json`, the design-system preview/catalog,
+  `DESIGN.md`, `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, and the task-based app
+  navigation guide.
+- No route, schema, resolver, provider, authentication, or product-data
+  behavior changed.
+
+Verification:
+- Pass: `npm run test -- tests/sign-out-shell.test.tsx tests/interaction-registry-labels.test.ts`
+  (2 files, 10 tests).
+- Pass: `npm run agents:check` (106 invariants).
+- Pass: `npm run interactions:check` (4299 invariants, 85 interactions, 34
+  interaction sources).
+- Pass: `npm run resolvers:check` (159 invariants).
+- Pass: `npm run design-system:check`.
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (87 files, 564 tests).
+- Pass: `npm run build`.
+- Pass: `git diff --check`.
+- Browser QA: the live AppShell design-system preview exposed one Collapse
+  navigation control while expanded and one Expand navigation control while
+  collapsed. Expanding restored the separate Open Timeline brand link without
+  changing the current URL. No browser warnings or errors appeared.
+- Pass: isolated clean-tree verification for production commit
+  `c8c92b3bcd18522eaa1e2d5859a3b3469f5c34d7`: agent, interaction, resolver,
+  design-system, focused shell, lint, typecheck, full test (81 files, 542
+  tests), and production build checks.
+- Pass: Vercel production deployment
+  `dpl_DLJRWazbUqznKhXyC8F2ZSK2qVCV` reached `READY` and assigned the canonical
+  `https://cadence-blush-three.vercel.app` alias.
+- Pass: authenticated production browser QA at `/export`. Expanding the
+  collapsed rail kept the URL on `/export`, restored the separate Open Timeline
+  link to `/timeline`, and exposed the Collapse navigation control. Vercel
+  reported no `/export` runtime errors in the selected post-deploy window.
+
+Remaining risk:
+- No sidebar deployment blocker remains. The production build completed with
+  an existing Ink/React peer-dependency warning; it did not prevent the build
+  or the authenticated live smoke.
 
 ### Hosted July schema deployment and occurrence-status recovery (2026-07-13)
 
@@ -4312,19 +4397,23 @@ Remaining risk:
 
 ## Exhaustive interaction audit and persona guides
 
-Status: complete_with_approval_and_environment_blocks.
+Status: complete.
 
 Implementation summary:
 - Froze the exact 83-interaction, 97-trigger, 55-variant, 152-case baseline at
   126 pass, 22 fail, and 4 blocked cases. The immutable pre-fix report contains
   0 P0, 6 P1, 17 P2, and 4 P3 findings.
-- Implemented 21 P1/P2 findings. IA-002 still requires schema deployment and
-  IA-023 remains production-deployment approval-dependent. IA-024 through
-  IA-028 are documented P3 risks and were not fixed.
-- Expanded the current registry additively to schema 1.1 with 85 interactions,
-  101 triggers, 55 variants, and required resolvable `user_guidance` metadata.
-  The final 156-case matrix records 144 pass, 0 fail, and 12 blocked cases while
-  preserving the frozen baseline evidence separately.
+- Implemented the P1/P2 findings. The IA-002 ownership migration is deployed,
+  the compatible authenticated app build is READY in production, and IA-023's
+  audited marketing build is deployed. At the original audit cutoff, IA-024
+  through IA-028 were documented as the subsequent P3 frontier; Ticket 062
+  later closes IA-025 through IA-028 while leaving IA-024 decision-gated.
+- The original remediation retest expanded the registry additively to schema
+  1.1 with 85 interactions, 101 triggers, 55 variants, and required resolvable
+  `user_guidance` metadata. Its dated 156-case matrix records 144 pass, 0 fail,
+  and 12 blocked cases while preserving the frozen baseline evidence
+  separately. The live registry is canonical and its later structural counts
+  are recorded under Ticket 062.
 - Added repository-only, task-based guides for Maya, Jordan, Priya, Sam, Lina,
   Robin, and Alex. Eighty-two interactions point to user guides;
   `INT-AUTH-002` and `INT-SHELL-007` point to the internal QA appendix. No
@@ -4332,10 +4421,9 @@ Implementation summary:
 - Redacted all retained screenshots. Deleted every task-created disposable
   account, cleared task downloads and isolated-browser tabs, reset temporary
   viewport changes, and did not use a personal account or recipient.
-- Google OAuth, exact-subscription push, and Sequenzy-to-AgentMail delivery are
-  explicitly blocked by unavailable disposable identity, isolated-browser
-  permission, and AgentMail credential respectively. The unscoped hosted
-  reminder queue was not invoked.
+- Google OAuth, exact-subscription push, and Sequenzy-to-AgentMail delivery were
+  blocked at the frozen audit cutoff, then passed in owner-authorized follow-up
+  QA on 2026-07-23. The unscoped hosted reminder queue was not invoked.
 
 Baseline verification:
 - Pass: `npm run interactions:check` (3,428 invariants, 83 interactions, 33 UI
@@ -4353,21 +4441,21 @@ Final verification:
 - Pass: `npm run design-system:check` (0 errors and 0 warnings).
 - Pass: `npm run marketing:check` (0 errors, warnings, or hints).
 - Pass: lint, typecheck, 523 tests in 78 files, build, and `git diff --check`.
-- Blocked: `npm run supabase -- db reset`; Docker was unavailable. The local
-  IA-002 ownership migration was not deployed to the hosted project.
+- Blocked: `npm run supabase -- db reset`; Docker was unavailable. Later
+  read-only hosted migration history confirms the IA-002 ownership migration
+  is deployed.
 
-Remaining approval work:
-- Approve production deployment for IA-023 and deployment of the IA-002
-  migration. IA-003, IA-019, and IA-021 are implemented.
+Remaining environment limitation:
+- A clean local Supabase reset still requires an available Docker engine.
 
 ## Audit follow-up: import size architecture, Unmark registration, sign-out
 
 Status: complete.
 
 Implementation summary:
-- Wrapped the unapplied push-endpoint ownership migration in an explicit
-  transaction so its table lock is valid when the hosted CLI applies statements
-  without an implicit transaction.
+- Wrapped the push-endpoint ownership migration in an explicit transaction so
+  its table lock is valid when the hosted CLI applies statements without an
+  implicit transaction. The migration was subsequently deployed.
 - Bound import and restore Apply to the exact previewed archive with a raw
   SHA-256 fingerprint while transporting base64 bytes only once. Set the
   advertised and enforced bundle limit to 2 MB and the Server Action request
@@ -4401,8 +4489,695 @@ Verification:
 - Pass: `git diff --check`.
 
 Remaining risk:
-- The migration was edited only and remains unapplied, as required. Production
-  deployment remains outside this batch.
+- The clean local database reset remains environment-blocked while Docker is
+  unavailable. Hosted migration history includes the ownership migration, and
+  Vercel shows the compatible `635cdb8` authenticated app deployment as READY.
+
+## Interaction audit P3 traceability and narrow-screen follow-up (Ticket 062)
+
+Status: complete.
+
+Implementation summary:
+- Aligned IA-025 registry triggers and variants with exact visible labels for
+  onboarding dismissal, desktop-rail controls, Behavior form cancellation,
+  import apply actions, and Settings trust/legal links.
+- Added IA-026 `INT-MKT-010` ownership to the marketing BaseLayout source
+  inventory.
+- Audited IA-027 across all 85 interactions. The live coverage posture is 59
+  direct, 6 indirect, and 20 manual declarations. Direct references now point
+  to focused interaction/UI tests; the checker rejects production or generator
+  files as coverage evidence and distinguishes test references from repository
+  check scripts.
+- Fixed IA-028 with a zero-minimum Settings panel track, wrapping Profile
+  identifiers, and bounded select/text-input timezone controls. Extracted the
+  two timezone control variants so both responsive contracts are testable.
+- Made the marketing agent-readability check tolerant of valid attributes and
+  attribute ordering on `<main id="main">`, with focused regression coverage.
+- Reconciled stale IA-002 and IA-023 deployment text, corrected the current
+  route inventory, and kept the original interaction-audit reports clearly
+  separated from the live 85-interaction, 105-trigger, 57-variant registry.
+- Kept IA-024 unchanged because account-specific onboarding dismissal requires
+  a product decision.
+
+Verification:
+- Read-only hosted Supabase migration history includes
+  `20260722213732_enforce_single_active_push_endpoint_owner`.
+- Read-only Vercel deployment history shows the authenticated app production
+  deployment for commit `635cdb8d283b514b523cfbc4fc4b5bcf03394ed0`
+  is `READY`.
+- Read-only Vercel deployment history shows the owner-approved audited
+  marketing production deployment is `READY`; its content checks are recorded
+  in the interaction-audit remediation ledger.
+- Pass: `npm run interactions:check` (4,295 invariants, 85 interactions, 34
+  interaction sources).
+- Pass: focused Ticket 062 coverage (14 files, 61 tests).
+- Pass: `npm run agents:check` (106 invariants).
+- Pass: `npm run resolvers:check` (159 invariants).
+- Pass: `npm run design-system:check` (0 errors and 0 warnings; 27 components,
+  51 product usages, 4 surfaces, and 14 canonical families).
+- Pass: `npm run marketing:build` and `npm run marketing:check` (26 Astro
+  files, no errors, warnings, or hints; readability check passed).
+- Pass: `npm run lint`.
+- Pass: `npm run typecheck`.
+- Pass: `npm run test` (87 files, 563 tests).
+- Pass: `npm run build` (Next.js 16.2.7).
+- Pass: authenticated browser QA with a 65-character disposable identifier at
+  320px and 390px. At both widths, document scroll width equaled client width,
+  the Profile identifier wrapped, and no descendant exceeded the viewport.
+- Pass: temporary browser viewport/tab restoration and scoped test-login
+  cleanup; one disposable `cadence-test-*@example.invalid` user was deleted.
+- Pass: `git diff --check`.
+
+Remaining risk:
+- IA-024 is the only unresolved interaction-audit item and remains
+  product-decision-gated.
+- A clean local `npm run supabase -- db reset` still cannot run because no
+  Docker engine is available. Ticket 062 has no schema changes, and hosted
+  migration history confirms the previously pending IA-002 migration is
+  deployed.
+
+## Locust infrastructure stress-testing roadmap (Tickets 063-066)
+
+Status: blocked (Ticket 066 provider and staging-target gates); Tickets 063-065
+complete.
+
+Planning summary:
+- Ticket 063 defines the registry-derived load-test contract, classifies every
+  live interaction for load suitability, and proves public, authenticated,
+  export, and real Next.js Server Action request paths locally. It forbids a
+  permanent test-only product API or weakened auth/RLS boundary.
+- Ticket 064 adds exact run-scoped synthetic Supabase identities, fixture
+  cohorts, session preparation, integrity/cleanup scripts, public and
+  authenticated read workloads, and a bounded local baseline/ramp.
+- Ticket 065 adds common status, note, Behavior lifecycle, review, timezone,
+  export, occurrence-sync, fake-provider reminder, and same-account contention
+  workloads plus spike, soak, breakpoint, recovery, and integrity gates.
+- Ticket 066 is the only hosted capacity slice. It requires an isolated
+  synthetic target, explicit owner authorization, Vercel policy approval, and
+  Supabase coordination where current provider guidance requires it before any
+  hosted load begins.
+- The roadmap treats Locust as an HTTP/infrastructure tool, not a browser or UX
+  substitute. Client-only registry interactions remain covered by the existing
+  browser, component, accessibility, and interaction-audit evidence.
+- Identity creation and sign-in occur outside timed capacity measurements so
+  Supabase Auth limits do not distort ordinary route/action results. A
+  separate future profile may measure Auth only if explicitly scoped.
+- Real Google OAuth, Sequenzy email, Web Push, import/restore/account-deletion
+  swarms, production user data, and unapproved Vercel traffic are excluded.
+
+Current state:
+- Ticket 063 completed on 2026-07-29.
+- Ticket 064 completed on 2026-07-29.
+- Ticket 065 completed on 2026-07-31. Its mixed mutation, spike/recovery, soak,
+  breakpoint, changed-timezone, same-account contention, protected operator,
+  loopback fake-provider, integrity, RLS, artifact, and exact-cleanup
+  implementation passed its authoritative full run and final repository gates.
+- Ticket 066 is blocked before traffic as of 2026-07-31. Hosted traffic has not
+  started. Read-only provider discovery found no dedicated Cadence Vercel
+  staging project and no separate Supabase staging project. Supabase reports a
+  Pro organization. The Vercel Enterprise plan, Vercel approval, exact staging
+  hostname, owner authorization, traffic window and sources, cost ceiling, and
+  monitoring retention are not documented.
+- Ticket 066 now has a fail-closed static single-stage preflight, 23 focused
+  tests, provider request templates, human checkpoints, abort/rollback/cleanup
+  procedures, and a sanitized blocked-readiness report. The preflight performs
+  no network request and cannot launch Locust. It rejects production reuse,
+  missing provider approval, unsafe data/provider posture, automatic stage
+  advance, expired or excessive traffic, missing monitoring, source mismatch,
+  dirty deployment evidence, and unsafe manifest files.
+- Full retry `20260731t005526z-b2e8cca38514` passed every load stage through
+  changed-timezone, including a zero-failure 60-minute soak, then rejected
+  contention before any write. RLS passed, all 108 completed-stage artifacts
+  reconciled, exact cleanup deleted 100 of 100 users, and zero product rows
+  remained.
+- Standalone contention run `20260731t040008z-e71b7359d3fb` proved that an
+  active, untouched prior-day Behavior still failed on raw Timeline discovery.
+  Needs decision rows mount only after client dialog state opens, so the HTTP
+  response contains no occurrence forms. The corrected contention user loads
+  the same stable prior-day occurrence through the server-rendered selected
+  behavior/day review. Its private session pair binds the exact Behavior, date,
+  occurrence, owner, and expected status. The failed run passed zero-write
+  integrity, RLS, 6/6 artifact reconciliation, one-user exact cleanup, and zero
+  residual rows.
+- Standalone run `20260731t040440z-c8b2da9f2887` proved selected-day form
+  discovery, then exposed an application-level contention defect. The winning
+  status action returned in 56ms, while PostgreSQL error code `40001` made
+  PostgREST retry the stale loser for 64.249 seconds. The run appended exactly
+  one event and passed integrity, RLS, artifact, and cleanup checks, but its
+  semantic gate correctly rejected the delayed ambiguous loser.
+- Migration
+  `20260731041500_use_nonretryable_occurrence_contention_errors.sql` preserves
+  the transactional RPC and changes its two deliberate stale-plan exceptions
+  from retryable `40001` to nonretryable `P0001`. A clean local database reset
+  applied the complete migration chain and verified both live exception
+  markers. The repository translates only those two known structured errors
+  to the documented stale-status action result.
+- Post-migration diagnostic run `20260731t041025z-4d0b1c472a84` returned the
+  stale loser in 59ms, proving the retry storm was removed. It remained
+  rejected because the plain structured Supabase error reached the action as a
+  generic message. Repository normalization and regression tests now cover
+  both known stale messages and hide unknown structured database errors.
+- Authoritative focused contention run
+  `20260731t041227z-eeff1bbf9832` passed its five-minute stage and independent
+  exact-run checker. It completed 726 requests with zero failures, p95 50ms,
+  242 status-action submissions with exact semantic readbacks, zero integrity
+  violations, RLS success, 6/6 artifact reconciliation, deletion of its one
+  synthetic user, and zero residual rows. A fresh uninterrupted full run
+  remains required before Ticket 065 can complete.
+- Full run `20260731t041910z-685ce0119003` passed 18 stages through corrected
+  contention, then rejected the final operator-overlap stage after eight
+  seconds. The 60-minute soak completed 43,368 requests with zero failures and
+  p95 88ms. Breakpoint 50 passed at p95 160ms, 75 users established a
+  zero-failure p95 430ms boundary, timezone preservation verified all 27,319
+  captured occurrences, and contention completed 744 requests with zero
+  failures and p95 52ms.
+- The final-stage failure was deterministic selector invalidation. The prior
+  changed-timezone stage used the first five identities and could legitimately
+  replace a future Unresolved row. Operator overlap then leased the first ten
+  identities, so one fixed Timeline occurrence selector no longer existed.
+  Changed-timezone traffic now refreshes and leases the final five identities;
+  operator overlap retains the first ten plus its eleventh spare repair
+  account. Focused plan, lifecycle, Python lease, lint, and type checks pass.
+  The rejected run passed post-failure zero-violation integrity, RLS, 114/114
+  artifact reconciliation, cleanup of 100/100 users, and zero residual rows.
+- Focused operator run `20260731t071641z-dcfe303bd59e` completed both traffic
+  stages with zero request failures, then rejected five due/past reminder
+  reactivations. The protected loop began before five Daily users completed
+  their startup resolve-and-Clear proof, so it sent those reminders first.
+  The first protected operator loop now waits one bounded 20-second readiness
+  interval; later loops keep the declared 20-second cadence.
+- Replacement operator run `20260731t072654z-27ed797933e3` passed both stages
+  and the independent exact-run checker. Operator overlap completed 1,464
+  Locust requests with zero failures at 4.87 RPS and p95 79ms. Twenty-nine
+  protected requests passed, one spare-account causal repair was proven, all
+  16 fake-provider sends were unique, five exercised due/past reminders
+  remained cancelled, integrity and RLS passed, all 12/12 artifacts
+  reconciled, cleanup deleted 11/11 users, and zero product rows remained.
+- Authoritative full run `20260731t073716z-8108c309ba98` passed all 19
+  completed stages, the independent exact-run checker, RLS, integrity,
+  artifact, and exact-cleanup gates. It served 101,534 Locust requests with
+  zero stage failures. The 60-minute soak served 42,794 requests at 11.88 RPS
+  and p95 86ms. Ramp 50 was the highest sustainable local plateau at 24.61
+  RPS and p95 150ms. Breakpoint 75 established the first zero-failure latency
+  boundary at 35.04 RPS and p95 450ms, so breakpoint 100 skipped as declared.
+- The accepted full run preserved all 27,312 captured past or resolved
+  occurrences through the changed-timezone stage. Contention completed 762
+  requests with zero failures and p95 49ms. Operator overlap completed 1,434
+  Locust requests with zero failures and p95 79ms. Its 27 protected requests
+  proved one spare-account causal repair and accepted 191 unique loopback
+  fake-provider sends with zero rejections, duplicates, or Web Push attempts.
+- Final integrity found zero violations across 94,375 rows and reconciled
+  9,053 appended status events. All 91 exercised due/past reminders remained
+  cancelled with zero reactivations. The soak's warmed median app RSS declined
+  from 494,731,264 to 481,533,952 bytes, and database connections declined
+  from 22 to 21. RLS passed, all 114/114 artifacts reconciled, cleanup deleted
+  100/100 synthetic users, and zero product rows remained.
+- The first independent check of that unchanged run exposed a checker-only
+  cohort-allocation defect. The checker validated the changed-timezone cohort
+  against identities 0-4 instead of its declared 95-99 offset. The checker and
+  fixture generator now apply each stage's exact identity offset. A full-suite
+  regression test covers the disjoint timezone window, and the unchanged run
+  passes independent verification. Final repository verification remains
+  before Ticket 065 can be marked complete.
+- Full mutation run `20260729t213920z-1e245694539d` reached all four ramp
+  plateaus with zero request failures, then failed closed on a Locust
+  shutdown-accounting mismatch: final HTML and one-use semantic receipts
+  counted 154 successful/read-back Behavior restore submissions while the
+  asynchronous CSV snapshot retained 152. RLS passed, all 48 completed-stage
+  artifacts reconciled without orphans, exact cleanup deleted 100 of 100 users,
+  and zero product rows remained. The rejected run is diagnostic only.
+- Final Locust in-memory request counts now atomically replace the existing
+  stage stats CSV at shutdown. Soak admission also now matches Ticket 065:
+  all four ramps and a passing ramp-25 are mandatory, and soak-25 must be
+  strictly below an integrity-clean recorded latency boundary or a passing
+  higher plateau. Focused verification passed 131 Python tests, 55 mutation
+  evidence/lifecycle tests, TypeScript, lint, and 165 agent invariants. A
+  fresh uninterrupted full run is still required before completion.
+- Full run `20260730t040022z-343af39cb28f` remains rejected: its 100-user
+  spike hold crossed the declared failure and p95 gates. The artifact,
+  integrity, RLS, and cleanup evidence passed, but a failed stress stage is not
+  promotable. The focused replacement spike
+  `20260730t052531z-ae1c72853fae` passed the supervised lifecycle and exact-run
+  checker, including a clean 10-user recovery after the expected p95-only
+  100-user stress result.
+- Full run `20260730t060556z-2ac31aca9b05` passed through spike/recovery but
+  stopped its soak at 3,447.135 of 3,600 seconds after one export-only session
+  returned `401` at JWT rollover. `/api/export/*` now traverses the Supabase
+  cookie-refresh proxy without becoming an app-screen redirect route, and
+  authenticated/anonymous/invalid-cookie proxy tests preserve the export
+  route's JSON `401` contract. Final Locust stats, failures, and exceptions are
+  now atomically rewritten from one shutdown snapshot.
+- Replacement standalone soak `20260730t083919z-a5462699b1c1` proved the auth
+  correction across the full 3,600.646-second traffic stage: 43,204 requests,
+  zero failures, 12.0007 RPS, p95 85ms, zero `5xx` or exceptions, exact
+  semantic readbacks, zero-violation integrity, RLS pass, 36/36 retained
+  artifacts, and cleanup of 100/100 users with zero residual rows. It remains
+  rejected because the old RSS gate compared a 65.859 MiB cold idle trough
+  before users warmed with one 312.563 MiB hot terminal sample, despite a
+  554.375 MiB peak followed by substantial reclamation and database
+  connections falling from 22 to 16.
+- Mutation run `20260730t104504z-5c16794e5fcd` was interrupted during soak
+  before it could write summary or completion evidence. Exact recovery removed
+  all 100 run-scoped users and verified zero matching users afterward. The
+  partial run remains unusable.
+- Authoritative schema `1.1.0` standalone soak
+  `20260730t154126z-1f1a904f9ca5` passed all six declared stages and the
+  independent exact-run checker. Its 3,601.427-second 25-user soak served
+  42,856 requests at 11.9020 RPS with zero failures, p95 110ms, exact semantic
+  readbacks, zero-violation integrity, RLS pass, 36/36 retained artifacts, and
+  cleanup of 100/100 users with zero residual rows. Database connections fell
+  from 22 to 17.
+- The accepted soak retained 722 monotonic five-second resource observations.
+  Its `[5 minutes, 10 minutes)` median app RSS was 252,502,016 bytes and its
+  final-five-minute median was 256,139,264 bytes. Growth was 3,637,248 bytes
+  (1.4405%) against the unchanged 134,217,728-byte allowance. Both windows
+  retained 60 valid samples, zero invalid samples, and maximum gaps under
+  5,003ms. The independent checker recomputed and accepted the bounded-growth
+  result. Legacy `1.0.0` runs remain diagnostic and cannot be retroactively
+  promoted. A fresh authoritative full suite remains required.
+- Full run `20260730t172728z-69ee594dc997` completed 17 stages through the
+  changed-timezone profile, then failed closed before contention and operator
+  overlap. The changed-timezone profile preserved all 27,150 captured past or
+  resolved occurrences and passed 20 exact Settings mutation readbacks. Its
+  next integrity checkpoint rejected two fewer reminder rows than the original
+  fixture count. The cause was a harness invariant, not an eligible-reminder
+  gap: timezone resync may replace a future Unresolved occurrence after its
+  reminder became due, while documented planning semantics forbid recreating
+  missing due/past deliveries.
+- Mutation integrity no longer requires a monotonic total reminder count. It
+  still requires every strictly future eligible reminder, rejects duplicate or
+  unexpected pending rows, and now preserves the identity of every baseline
+  reminder attached to a past or resolved occurrence. Focused lifecycle,
+  mutation-suite, and evidence tests pass with 111 checks. The rejected run
+  passed RLS, retained the exact 102/102 completed-stage artifacts, deleted all
+  100 run users, and left zero product rows. A fresh full suite remains
+  required.
+- Full retry `20260730t203346z-c8186c148525` remains rejected. Its 100-user
+  spike completed 7,682 requests with 41 loopback connection resets, a 0.53%
+  failure ratio above the strict less-than-0.5% gate, and p95 5,400ms. RLS
+  passed, all 60/60 completed-stage artifacts reconciled, exact cleanup deleted
+  100/100 users, and zero product rows remained. The unchanged strict suite is
+  being rerun; this result is diagnostic only.
+- Full retry `20260730t220333z-43601180a45b` passed smoke, calibration,
+  baselines, ramp, spike/recovery, the full 60-minute soak, and breakpoint
+  discovery. The soak served 43,038 requests with zero failures at 11.95 RPS
+  and p95 100ms. Breakpoint 50 passed at p95 140ms, while 75 users established
+  the first zero-failure latency boundary at p95 380ms. Changed-timezone
+  traffic also passed, but the following contention stage failed immediately
+  because its seed-time current-day occurrence selector had been replaced by
+  the preceding timezone resync. RLS passed, exact cleanup deleted 100/100
+  users, and zero product rows remained. The rejected run is diagnostic only.
+- Contention fixtures now reserve the most recent prior-day Unresolved
+  occurrence on the maintainer behavior. Prior-day identities are part of the
+  timezone-preservation contract and render under Needs decision, so the
+  contention selector remains valid after the required timezone stage. A
+  focused fixture test locks the prior-day, owner-behavior, and Unresolved
+  properties. A fresh uninterrupted full run remains required.
+- Full mutation run `20260729t225646z-3a40ecd7daf3` then passed smoke,
+  calibration, both mixed baselines, and the 10/25-user ramp plateaus before a
+  harness abort stopped ramp-100 at 232.976 of 240 seconds. The stage retained
+  7,161 requests, two GET connection-reset failures, zero `5xx`, and no
+  resource breach. Final request accounting matched successful mutation
+  submissions, but 16 one-use semantic receipts remained pending because the
+  stage ended early. Post-failure integrity and RLS passed; all 48 artifacts
+  reconciled without orphans; exact cleanup deleted 100 of 100 users with zero
+  residual product rows.
+- The second run exposed a false runtime classification: generic loopback HTTP
+  resets were treated as database refusals, and inline reentrant shutdown hid
+  the triggering request and initiating reason. Generic HTTP transport loss
+  now remains under the ordinary request-failure gate; the repeated database
+  refusal gate requires explicit database context or an unambiguous
+  capacity-refusal message. Guarded abort is now one-shot, sanitized,
+  reason-retaining, and deferred until the triggering request reaches Locust
+  accounting.
+- Ramp run `20260730t014631z-063151d6e33e` completed calibration and all four
+  plateaus, but was rejected by an incorrect aggregate due/past reminder gate.
+  Its retained final counters were 100 tracked occurrences and deliveries, 102
+  Clear events, 100 Unresolved occurrences, 71 cancelled deliveries, and zero
+  reactivated deliveries. The old gate incorrectly required all tracked
+  deliveries to be cancelled after any Clear and did not retain the unique
+  exercised-occurrence count, so the artifact remains rejected.
+- The corrected producer and independent checker now retain an exact
+  seven-field due/past contract. Authoritative ramp run
+  `20260730t023443z-b35dca7c46da` passed calibration and all four declared ramp
+  stages, RLS, zero-violation integrity, the exact 30-artifact inventory,
+  cleanup of 100 of 100 users with zero residual product rows, and
+  `npm run load:mutation:evidence:check`. Its highest sustainable local
+  plateau was 50 users at 24.1705 RPS and p95 160ms; 100 users was a
+  zero-failure latency boundary at 36.8510 RPS and p95 1,600ms. Final due/past
+  evidence was 100 tracked occurrences, 100 tracked deliveries, 71 unique
+  exercised occurrences, 102 Clear events, 100 Unresolved occurrences, 71
+  cancelled deliveries, and zero reactivations. The result is local-only and
+  does not complete Ticket 065 without a passing authoritative full suite.
+- `load-tests/scenarios/interaction-map.json` classifies all 85 live
+  interactions exactly once; its governance validator is integrated into
+  `npm run agents:check` and has mutation fixtures for missing, duplicate, and
+  destructive misclassification failures.
+- The independent Python tree pins Locust 2.46.2. The Ticket 063 protocol
+  supervisor rejects non-loopback Cadence or Supabase targets, creates exactly
+  one ordinary synthetic account, keeps the service-role key outside Locust,
+  dynamically discovers the current Next.js `$ACTION_*` multipart form fields,
+  and verifies cleanup. The Ticket 065 mutation supervisor instead creates the
+  exact independent cohort and reserved sessions declared by its selected
+  suite.
+- Timeline status forms now submit the rendered `expected_status`. A replay
+  whose expected state no longer matches the owner-scoped occurrence is
+  rejected before the transactional RPC, while direct service callers remain
+  compatible.
+- The headless protocol proof completed five requests with zero failures:
+  public Terms, authenticated Timeline, full JSON export, Completed Server
+  Action, and stale replay rejection. Direct persistence verification found
+  one explicit-user-mark event and no stale-replay event. Cleanup removed the
+  exact Auth user and all owned product rows; an independent aggregate query
+  found zero remaining `cadence-load-...@example.invalid` users and profiles.
+- An intentionally interrupted first diagnostic run left its owner-only
+  recovery file. The corrected supervisor recovered that exact account before
+  the passing run, providing evidence for the bounded interrupted-run recovery
+  path without a prefix or wildcard deletion.
+- Generated reports and session material are ignored under
+  `load-tests/.runs/`. No product API, migration, RLS bypass, provider call,
+  hosted write, or production load was added.
+- The Ticket 064 lifecycle provisions exact run-scoped identities, writes
+  product fixtures through ordinary authenticated RLS clients, refreshes
+  per-stage sessions outside statistics, leases one unique cookie jar to each
+  active virtual user, and removes private session material plus every exact
+  run-created user and row in `finally`.
+- The five fixture cohorts cover Empty, Typical daily, Review-heavy,
+  Export-heavy, and an explicitly tagged Heavy schedule profile. The full
+  fixture allocated 10/60/20/10 ordinary accounts plus five reserved heavy
+  accounts and passed pre/post integrity over 70,010 rows with zero violations.
+- Full local run `20260729t091314z-911e90cdbcf7` passed all 10 declared stages:
+  1-user smoke/warm, 5- and 10-user 10-minute baselines, bounded
+  10/25/50/100-user ramps, 10-user recovery, and the separate five-user Heavy
+  schedule stage. It recorded 14,354 requests, five non-`5xx` transport-status
+  `0` failures below the strict 0.5% stage gate, zero unexpected `5xx`,
+  cross-account markers, Locust exceptions, or resource breaches, and all 15
+  normalized timed request names.
+- The one-user warm p95 was 63ms, making the provisional ceiling 126ms. The
+  highest stage p95 was 110ms in the tagged Heavy schedule stage. Recovery p95
+  was 63ms versus the 64ms pre-ramp baseline, with zero failures in both
+  stages.
+- Post-load RLS smoke passed. Exact cleanup deleted all 105 users with zero
+  residual product rows; an independent Auth query also returned zero matching
+  synthetic users. The independent artifact audit found a `0700` report
+  directory, 54 `0600` files, zero symlinks, matching digests, no private
+  session directory, and no retained path, identity, cookie, token, key, or
+  fixture markers.
+- The sanitized baseline and local persistent-Node/shared-machine caveats are
+  recorded in `docs/PERFORMANCE_SPEED_LOG.md`; the reusable workflow is in
+  `docs/LOAD_TESTING_RUNBOOK.md`, `docs/OPERATIONS.md`, and
+  `docs/SUPABASE_WORKFLOW.md`.
+- Current official guidance reviewed on 2026-07-31 still recommends Supabase
+  load testing on staging and advance support notice for heavy/prolonged hosted
+  load, while Vercel load testing remains Enterprise-only and
+  approval-coordinated.
+
+Verification:
+- `npx vitest run tests/load-test-hosted-preflight.test.ts` passed (one file,
+  23 tests).
+- `npm run load:hosted:preflight -- --manifest <missing-file>` failed closed
+  before network access and omitted the requested private path from its error.
+- `npm run load:mutation:full` passed for authoritative run
+  `20260731t073716z-8108c309ba98` (19 completed stages, one valid breakpoint
+  skip, 101,534 Locust requests, zero stage failures, integrity, RLS, 114/114
+  artifacts, cleanup 100/100, and zero residual rows).
+- `npm run load:mutation:evidence:check -- --run-id
+  20260731t073716z-8108c309ba98` passed after the checker-only identity-offset
+  correction.
+- `npx vitest run tests/load-test-mutation-evidence.test.ts` passed (one file,
+  35 tests).
+- `npm run load:manifest:check` passed (1,632 invariants, 85 interactions, 23
+  loadable).
+- `npm run load:python:test` passed (138 tests).
+- `npm run agents:check` passed (167 invariants).
+- `npm run interactions:check` passed (4,299 invariants, 85 interactions, 34
+  interaction sources).
+- `npm run resolvers:check` passed (159 invariants).
+- `npm run lint` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed (Next.js 16.2.7 production build).
+- `git diff --check` passed.
+- `npm run test` passed (100 files, 780 tests) with loopback permission for the
+  local fake-provider server.
+- A clean `npm run supabase -- db reset` passed after migration
+  `20260731041500_use_nonretryable_occurrence_contention_errors.sql`.
+
+Earlier Ticket 063-064 verification:
+- `npm run load:manifest:check` passed (1,632 invariants, 85 interactions, 23
+  loadable).
+- `npm run load:python:test` passed (43 tests).
+- `npm run load:protocol:smoke` passed (one user, five requests, zero request
+  failures, persistence/event/stale/cleanup gates passed).
+- `npm run load:read:smoke` passed (two stages, 72 requests, zero failures,
+  pre/post integrity, RLS, exact cleanup, and artifact safety).
+- `npm run load:read:full` passed (10 stages, 105 identities, 14,354 requests,
+  all provisional gates, pre/post integrity, RLS, exact cleanup, and artifact
+  safety).
+- `npm run agents:check` passed (137 invariants).
+- `npm run interactions:check` passed (4,299 invariants, 85 interactions, 34
+  interaction sources).
+- `npm run resolvers:check` passed (159 invariants).
+- `npm run lint` passed.
+- `npm run typecheck` passed.
+- `npm run test` passed (90 files, 613 tests).
+- `npm run build` passed (Next.js 16.2.7 production build).
+- `git diff --check` passed.
+
+Next action:
+- The owner must authorize dedicated synthetic-only Vercel and Supabase staging
+  resources, provide Vercel Enterprise and load-approval evidence, name the
+  exact staging hostname, and approve the window, sources, limits, USD cost
+  ceiling, and monitoring plan. Implement the hosted-specific supervised
+  provision/run/cleanup lifecycle only after those gates are concrete. Do not
+  run hosted traffic or fall back to production.
+
+## Launch cost guardrails and traffic-surge operations (Ticket 067)
+
+Status: blocked (owner risk policy and provider authorization); local technical
+implementation is complete and verified.
+
+Implemented:
+
+- A private, fail-closed cost-policy preflight validates current owner roles,
+  ordered USD thresholds, tested primary and backup notification roles,
+  provider costs and control gaps, traffic controls, monitoring signals,
+  incident levels, and safe-resumption evidence. It rejects secret, payment,
+  account, recipient, and raw-provider fields.
+- A sanitized provider inventory records current verified facts and every
+  unresolved Vercel, Supabase, Sequenzy, domain, and monitoring field.
+- Structured downloads now use one atomic Supabase-backed account limit of six
+  attempts per 60 seconds across formats and application instances. Denied
+  downloads return `429` plus `Retry-After` before export reads.
+- Independent server-only breakers can stop email sends, browser-push sends,
+  reminder batches, occurrence-sync batches, or structured downloads. They
+  preserve Auth, RLS, ordinary Timeline decisions, and pending reminder
+  idempotency.
+- Protected process routes return `503` plus `Retry-After` when their scoped
+  breaker is open. Breaker logs contain only an allow-listed breaker name,
+  state, reason code, and blocked count.
+- The operations runbook defines separate traffic classes, privacy-safe
+  monitoring, candidate Vercel log-only rules, four incident levels, rollback,
+  and safe resumption.
+- The zero-network technical drill covers seven surge and cost scenarios. It
+  generated no provider request or billable traffic. Human proof remains
+  pending.
+
+Verification:
+
+- Pass: clean `npm run supabase -- db reset`, including migration
+  `20260801051601_add_launch_export_rate_limit.sql`.
+- Pass: `npm run smoke:launch-rate-limit:local`; the first six attempts were
+  allowed, the seventh was denied, authenticated direct writes were blocked,
+  and the transaction rolled back.
+- Pass: focused Ticket 067 coverage (10 files, 58 tests).
+- Pass: `npm run launch:surge:drill -- --synthetic` (seven scenarios, zero
+  network requests, no billable traffic).
+- Pass: `npm run agents:check`, `npm run interactions:check`,
+  `npm run load:manifest:check`, and `npm run resolvers:check`.
+- Pass: `npm run lint`, `npm run typecheck`, `npm run test` (106 files, 802
+  tests), and `npm run build` (Next.js 16.2.7).
+- Pass: `git diff --check`.
+
+Blocking acceptance gates:
+
+- The owner has not approved current provider plans, billing cycles, budgets,
+  warning/urgent/emergency USD thresholds, maximum unplanned spend, accepted
+  outage, billing roles, incident roles, or tested primary and backup alert
+  delivery.
+- Vercel notifications, webhook delivery, hard-limit posture, and log-only
+  firewall rules remain unconfigured and untested. The team-wide project-pause
+  blast radius remains an explicit owner decision.
+- Supabase Spend Cap posture remains unverified. Compute and listed add-ons
+  remain outside Spend Cap coverage.
+- Sequenzy account allowance, account alert or cap, and manual review owner
+  remain unverified.
+- The non-production human tabletop, false-positive review, OAuth/Cron bypass
+  proof, and firewall preview require owner participants and exact targets.
+- The new migration is local only. Do not deploy the application guardrail
+  before the owner authorizes `db push` and the migration reaches hosted
+  Supabase. Provider settings and production environment variables also require
+  exact owner authorization.
+
+No provider setting changed. No hosted migration ran. No firewall rule was
+published. No project paused. No plan, compute size, add-on, budget, or limit
+changed. No provider message was sent.
+
+Next action:
+
+- The owner supplies the private risk policy and exact provider authorizations.
+  Run the private preflight, deploy the migration before compatible application
+  code, configure only approved controls, test alert delivery and log-only
+  rules, then complete the human drill and sanitized acceptance report.
+
+## Occurrence stopwatch capture, reset, and persistence (Ticket 068)
+
+Status: complete.
+
+Scope:
+
+- Add one additive `occurrence_time_sessions` migration with no backfill or
+  mutation of existing product rows.
+- Add resolver-first start, stop, duration, multiple-session, and reset logic
+  with owner-scoped repositories, services, RLS, and generated types.
+- Add Track Time, Stop, persisted refresh recovery, combined occurrence time,
+  and Reset tracked time to the existing expanded Timeline occurrence row.
+- Keep time tracking separate from occurrence status and reminders.
+- Update product, data, UI, user-flow, decision, route, resolver, interaction,
+  load-manifest, and user-guide contracts during implementation.
+
+Dependencies and next action:
+
+- Ticket 068 is not blocked by Tickets 066-067 and may be implemented and
+  verified against local Supabase.
+- Before coding, mark the ticket `in_progress`, run the project-local
+  impeccable context workflow before UI edits, and write the failing resolver,
+  migration, service, RLS, and Timeline UI tests.
+- Hosted migration deployment requires separate authorization for the exact
+  linked Supabase project.
+
+Verification:
+
+- Pass: local `npm run supabase -- db reset`, including
+  `20260802000000_add_occurrence_time_sessions.sql` with no timing-session
+  backfill.
+- Pass: regenerated local Supabase types match
+  `lib/db/database.types.ts` apart from a final generated newline.
+- Pass: focused Ticket 068 resolver, service, repository, migration, RLS, and
+  Timeline UI coverage (22 tests).
+- Pass: `npm run agents:check`, `npm run interactions:check`,
+  `npm run load:manifest:check`, `npm run resolvers:check`,
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`, and
+  `npm run build`.
+- Pass: `npm run test` (111 files, 820 tests) with local loopback permission
+  for the existing fake-provider test server.
+- Pass: `git diff --check`.
+
+Hosted migration state:
+
+- Local only. No hosted Supabase migration, application deployment, provider
+  operation, or production data change ran.
+
+Remaining risk:
+
+- A separate owner authorization is required before deploying the new migration
+  to the exact linked Supabase project.
+
+## Behavior timing averages and selected-day review (Ticket 069)
+
+Status: complete.
+
+Scope:
+
+- After Ticket 068, add a conditional Average tracked time line to behavior
+  outcome metadata using the selected 7, 30, or 90-day range.
+- Sum stopped sessions per occurrence, then average only timed occurrence
+  totals. Exclude untimed and running-only occurrences.
+- Add conditional Tracked time content to Review selected day and reuse Reset
+  tracked time inside the existing Review disclosure.
+- Add no history disclosure, chart, table, pop-up, modal, route, or empty
+  placeholder.
+
+Dependencies and next action:
+
+- Ticket 068 must be complete before Ticket 069 starts.
+- When starting, mark the ticket `in_progress`, add failing analytics and UI
+  tests first, and keep all duration aggregation in resolvers rather than
+  components.
+
+Verification:
+
+- Pass: focused `tests/analytics.resolver.test.ts`,
+  `tests/time-tracking.service.test.ts`, and `tests/behavior-review-ui.test.tsx`
+  (26 tests).
+- Pass: `npm run agents:check`, `npm run interactions:check`,
+  `npm run load:manifest:check`, `npm run resolvers:check`,
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test`, and `npm run build`.
+- Pass: `git diff --check`.
+
+Implementation notes:
+
+- Behaviors loads timing sessions in one owner-scoped repository read for the
+  selected occurrence range. The analytics resolver sums stopped sessions per
+  occurrence, excludes running-only and untimed occurrences, formats values,
+  and derives the selected-range average.
+- Review selected day conditionally shows recorded time and/or In progress. Its
+  existing Review disclosure now reuses the time-tracking reset service and
+  refreshes both Behaviors and Timeline without changing Status or Note.
+
+Remaining risk:
+
+- The Ticket 068 migration remains local only. Hosted deployment still needs
+  separate owner authorization.
+
+## Privacy-gated time-tracking exports (Ticket 070)
+
+Status: complete.
+
+Scope:
+
+- After Tickets 068-069, add an unchecked Include time tracking option to
+  Export & Import using `include_time_tracking=1` as the only enabling query
+  value.
+- Disabled exports must not read or expose timing data and must preserve all
+  existing artifact shapes.
+- Enabled exports add scoped raw sessions and derived durations to Full JSON,
+  JSONL, CSV, BehaviorLog, filenames, selected-range context, and Markdown as
+  defined in `docs/TICKETS.md`.
+- BehaviorLog timing data remains an optional Cadence export-only file; import
+  and restore validate and disclose it but do not replay it in this ticket.
+
+Dependencies:
+
+- Tickets 068 and 069 are complete. Ticket 070 reuses their settled
+  persistence, reset, duration, and aggregation semantics.
+
+Verification:
+
+- Pass: focused export resolver, service, page, route, BehaviorLog
+  conformance, import, and restore tests (78 tests). Coverage includes exact
+  opt-in parsing, disabled repository no-call, deterministic session ordering,
+  range and archived filtering, CSV escaping, optional-file hashing, and
+  export-only import/restore behavior.
+- Pass: `npm run agents:check`, `npm run interactions:check`,
+  `npm run load:manifest:check`, `npm run resolvers:check`,
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test` (111 files, 838 tests), `npm run build`, and
+  `git diff --check`.
+
+Implementation notes:
+
+- Default exports never query `occurrence_time_sessions`. The exact
+  `include_time_tracking=1` option scopes the owner read to occurrences already
+  selected by range and archived-behavior filtering.
+- Enabled Full JSON, JSONL, CSV, BehaviorLog, filenames, selected-range
+  summary, and Markdown include timing with stopped-only duration aggregates.
+  BehaviorLog uses an optional hashed Cadence extension file.
+
+Remaining limitation:
+
+- Time-session history remains export-only. Import and restore validate the
+  optional Cadence file and hash but do not replay timing sessions.
 
 ## Handoff notes
 

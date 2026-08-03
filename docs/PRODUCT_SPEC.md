@@ -241,7 +241,7 @@ fingerprints before writing, refuses stale or mismatched input, and retains the
 accepted preview relationship on the applied import run for audit. It must not
 silently recompute and apply a different plan.
 
-V1 does not need structured measurement fields. For measurements, the user can write values in the behavior title, description, or occurrence note.
+V1 does not need structured measurement fields. For measurements, the user can write values in the behavior title, description, or occurrence note. The one narrow exception is elapsed occurrence time: a user may persist start/stop sessions for one occurrence, with the displayed total derived from stopped intervals. It is not a measurement template, target, or status signal.
 
 Example:
 - Behavior title: "Take body measurements"
@@ -269,6 +269,19 @@ Behavior review should be basic:
   behavior-level calendar, with non-empty cells presented as the review entry
   point and empty cells remaining passive
 - Default adherence rate excludes unresolved
+
+When a behavior has stopped timing sessions in the selected 7, 30, or 90-day
+range, its compact outcome metadata shows `Average tracked time`. Cadence sums
+stopped sessions for each occurrence, then takes the arithmetic mean of those
+occurrence totals. Untimed occurrences and occurrences with only a running
+session are excluded. The line remains hidden when no recorded occurrence total
+exists in the selected range.
+
+Review selected day shows `Tracked time` only when an occurrence has stopped
+time or a running session. A stopped total shows its recorded duration, a
+running-only session shows `In progress`, and both states show both labels.
+The existing Review disclosure exposes `Reset tracked time`, which removes all
+of that occurrence's timing sessions without changing Status or Note.
 
 The Overall adherence range selector sits directly above the overall calendar.
 The selected date range appears under the adherence percentage in compact
@@ -329,6 +342,12 @@ Historical titles and descriptions can be sensitive. The Export & Import screen
 must disclose their default inclusion. Current BehaviorLog import and restore
 use the current behavior snapshot and do not apply definition revision events;
 the revision trail remains export-only until a later scoped import ticket.
+
+Time tracking is excluded from exports by default because exact timestamps can
+reveal activity patterns. The Export & Import option uses
+`include_time_tracking=1` only after explicit selection. Enabled exports scope
+sessions to included occurrences and archived-behavior rules. Import and restore
+validate the optional Cadence timing file but do not replay sessions.
 
 Account deletion and export should be first-class before broad public launch,
 consistent with the BehaviorLog portability posture.

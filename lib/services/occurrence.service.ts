@@ -647,6 +647,7 @@ export async function markOccurrenceStatusFromFormData(
   const userId = await requireUserId(supabase);
   await applyOccurrenceStatusTransition(supabase, userId, {
     occurrenceId: getOccurrenceIdFromFormData(formData),
+    expectedStatus: getExpectedStatusFromFormData(formData),
     nextStatus: getStatusFromFormData(formData),
     now: Temporal.Now.instant(),
   });
@@ -657,6 +658,7 @@ export async function applyOccurrenceStatusTransition(
   userId: string,
   input: {
     occurrenceId: string;
+    expectedStatus?: OccurrenceStatus;
     nextStatus: OccurrenceStatus;
     now: Temporal.Instant;
   },
@@ -674,6 +676,16 @@ export async function applyOccurrenceStatusTransition(
     ),
   ]);
   const statusOccurrence = toStatusResolverOccurrence(occurrence);
+
+  if (
+    input.expectedStatus !== undefined &&
+    input.expectedStatus !== statusOccurrence.status
+  ) {
+    throw new Error(
+      "Occurrence status changed. Review the latest status and try again.",
+    );
+  }
+
   const update = resolveStatusTransition({
     occurrence: statusOccurrence,
     nextStatus: input.nextStatus,
@@ -1228,6 +1240,20 @@ function getStatusFromFormData(formData: FormData): OccurrenceStatus {
   }
 
   throw new Error("Choose a valid occurrence status.");
+}
+
+function getExpectedStatusFromFormData(formData: FormData): OccurrenceStatus {
+  const value = formData.get("expected_status");
+
+  if (
+    value === "unresolved" ||
+    value === "completed" ||
+    value === "not_completed"
+  ) {
+    return value;
+  }
+
+  throw new Error("Refresh this occurrence and try again.");
 }
 
 function getNoteFromFormData(formData: FormData): string {

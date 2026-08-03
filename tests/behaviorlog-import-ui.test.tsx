@@ -149,6 +149,18 @@ describe("BehaviorLog import UI workflow", () => {
     });
   });
 
+  it("renders the bundle upload and Preview import interactions", () => {
+    const html = renderToStaticMarkup(
+      <BehaviorLogImportPanel recentRuns={[]} />,
+    );
+
+    expect(html).toContain('name="behaviorlog_file"');
+    expect(html).toContain(
+      'accept=".behaviorlog.zip,application/zip"',
+    );
+    expect(html).toContain(">Preview import</button>");
+  });
+
   it("authenticates before parsing a supported-name upload", async () => {
     mocks.createClient.mockResolvedValue({
       auth: {
@@ -361,7 +373,39 @@ describe("BehaviorLog import UI workflow", () => {
       <BehaviorLogImportApplyForm
         title="Create missing records"
         mode="create_missing_only"
-        buttonLabel="Apply import"
+        buttonLabel="Apply create-only import"
+        disabled={false}
+        disabledReason={null}
+        requiresSensitiveNoteConfirmation
+        bundlePayload="encoded-bundle"
+        formAction={() => undefined}
+        state={{
+          status: "previewed",
+          message: "BehaviorLog preview ready.",
+          upload: {
+            fileName: "cadence-export.behaviorlog.zip",
+            fileSize: 123,
+          },
+          archiveFingerprint: "a".repeat(64),
+          preview,
+          previewRun: {
+            id: "import-run-preview",
+            import_mode: "merge_preview",
+            status: "previewed",
+            started_at: "2026-06-08T21:10:00Z",
+            completed_at: "2026-06-08T21:10:02Z",
+            failure_message: null,
+          },
+          capabilities: resolveBehaviorLogImportCapabilities(preview),
+          applyResult: null,
+        }}
+      />,
+    );
+    const mergeHtml = renderToStaticMarkup(
+      <BehaviorLogImportApplyForm
+        title="Approved merge"
+        mode="merge_by_user_approved_plan"
+        buttonLabel="Apply approved merge"
         disabled={false}
         disabledReason={null}
         requiresSensitiveNoteConfirmation={false}
@@ -400,7 +444,16 @@ describe("BehaviorLog import UI workflow", () => {
     expect(html).toContain(`value="${preview.bundleFingerprint}"`);
     expect(html).toContain('name="archive_fingerprint"');
     expect(html).toContain(`value="${"a".repeat(64)}"`);
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Apply import<\/button>/);
+    expect(html).toContain('name="confirm_apply"');
+    expect(html).toContain("I reviewed this exact preview.");
+    expect(html).toContain('name="confirm_sensitive_notes"');
+    expect(html).toContain(
+      "I reviewed high or restricted note sensitivity warnings.",
+    );
+    expect(html).toMatch(
+      /<button[^>]*disabled=""[^>]*>Apply create-only import<\/button>/,
+    );
+    expect(mergeHtml).toContain(">Apply approved merge</button>");
   });
 
   it("keeps import apply unavailable until every applicable acknowledgement is complete", () => {

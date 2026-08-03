@@ -6,6 +6,7 @@ import { useActionState, useCallback, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { BehaviorForm } from "@/components/behaviors/BehaviorForm";
+import { BehaviorReviewTimeReset } from "@/components/behaviors/BehaviorReviewTimeReset";
 import {
   BEHAVIOR_CREATED_EVENT,
   isBehaviorCreatedEvent,
@@ -31,7 +32,10 @@ import type {
   BehaviorView,
   CategoryOption,
 } from "@/lib/types/behavior";
-import type { OccurrenceFormAction } from "@/lib/types/timeline";
+import type {
+  OccurrenceFormAction,
+  TimeTrackingFormAction,
+} from "@/lib/types/timeline";
 
 type BehaviorListProps = Readonly<{
   activeBehaviors: BehaviorView[];
@@ -43,6 +47,7 @@ type BehaviorListProps = Readonly<{
   restoreAction: BehaviorFormAction;
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
+  resetTimeTrackingAction: TimeTrackingFormAction;
 }>;
 
 const EMPTY_ACTION_STATE: BehaviorActionState = {
@@ -95,6 +100,7 @@ export function BehaviorList({
   restoreAction,
   statusAction,
   noteAction,
+  resetTimeTrackingAction,
 }: BehaviorListProps) {
   const [createdBehaviorRows, setCreatedBehaviorRows] = useState<BehaviorView[]>(
     [],
@@ -190,6 +196,7 @@ export function BehaviorList({
                 lifecycleResult={lifecycleState}
                 statusAction={statusAction}
                 noteAction={noteAction}
+                resetTimeTrackingAction={resetTimeTrackingAction}
               />
             ))}
           </div>
@@ -343,6 +350,7 @@ function BehaviorRecord({
   lifecycleResult,
   statusAction,
   noteAction,
+  resetTimeTrackingAction,
 }: Readonly<{
   behavior: BehaviorView;
   categories: CategoryOption[];
@@ -353,6 +361,7 @@ function BehaviorRecord({
   lifecycleResult: BehaviorLifecycleActionState;
   statusAction?: OccurrenceFormAction;
   noteAction?: OccurrenceFormAction;
+  resetTimeTrackingAction?: TimeTrackingFormAction;
 }>) {
   const [hasOpenedEdit, setHasOpenedEdit] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -412,7 +421,7 @@ function BehaviorRecord({
           }
         }}
       >
-        <summary className="product-disclosure-trigger flex min-h-10 items-center py-2 text-sm text-foreground">
+        <summary className="product-disclosure-trigger flex min-h-10 items-center pb-4 pt-2 text-sm text-foreground">
           <span
             aria-hidden="true"
             className="product-disclosure-indicator"
@@ -468,11 +477,12 @@ function BehaviorRecord({
         </div>
       </details>
 
-      {selectedBehaviorDay && statusAction && noteAction ? (
+      {selectedBehaviorDay && statusAction && noteAction && resetTimeTrackingAction ? (
         <BehaviorDateReview
           selectedBehaviorDay={selectedBehaviorDay}
           statusAction={statusAction}
           noteAction={noteAction}
+          resetTimeTrackingAction={resetTimeTrackingAction}
         />
       ) : null}
     </article>
@@ -521,6 +531,12 @@ function BehaviorOutcomeStats({
         label="Not Completed"
         value={String(behaviorAnalytics.notCompletedCount)}
       />
+      {behaviorAnalytics.averageTrackedTime ? (
+        <SummaryItem
+          label="Average tracked time"
+          value={behaviorAnalytics.averageTrackedTime.durationLabel}
+        />
+      ) : null}
       <SummaryItem
         label="Tracking since"
         value={formatCompactLocalDate(behaviorAnalytics.trackingStartLocalDate)}
@@ -623,10 +639,12 @@ function BehaviorDateReview({
   selectedBehaviorDay,
   statusAction,
   noteAction,
+  resetTimeTrackingAction,
 }: Readonly<{
   selectedBehaviorDay: NonNullable<AnalyticsView["selectedBehaviorDay"]>;
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
+  resetTimeTrackingAction: TimeTrackingFormAction;
 }>) {
   return (
     <div
@@ -675,6 +693,13 @@ function BehaviorDateReview({
                   note={occurrence.note}
                   action={noteAction}
                 />
+
+                {occurrence.trackedTime ? (
+                  <BehaviorReviewTimeReset
+                    occurrenceId={occurrence.id}
+                    action={resetTimeTrackingAction}
+                  />
+                ) : null}
               </div>
             </details>
           </article>
@@ -709,6 +734,16 @@ function BehaviorDateOccurrenceSummary({
           {occurrence.scheduledTimeLabel}
         </time>
       </BehaviorDateOccurrenceDetail>
+      {occurrence.trackedTime ? (
+        <BehaviorDateOccurrenceDetail label="Tracked time">
+          <span className="inline-flex flex-wrap gap-x-2">
+            {occurrence.trackedTime.hasRecordedTime ? (
+              <span>{occurrence.trackedTime.durationLabel}</span>
+            ) : null}
+            {occurrence.trackedTime.isInProgress ? <span>In progress</span> : null}
+          </span>
+        </BehaviorDateOccurrenceDetail>
+      ) : null}
       <BehaviorDateOccurrenceDetail label="Status">
         {occurrence.statusLabel}
       </BehaviorDateOccurrenceDetail>

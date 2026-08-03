@@ -3096,14 +3096,16 @@ Acceptance criteria:
   rewrites, automatic behavior splitting/merging, or broad account activity
   logs.
 
-Owner questions before implementation:
-- Should behavior definition history be included in exports by default, or
-  behind an "include behavior history" option?
-- Should exports include full previous/next text, a computed diff, or both?
-- Should the user be able to enter a reason for a title or description change
-  in this ticket, or should reason support be schema-only for now?
-- Should imported behavior definition history be applied on restore in the
-  first implementation, or only preserved in export until a later import ticket?
+Settled implementation decisions:
+- Full JSON and BehaviorLog include behavior definition history by default;
+  there is no separate history option.
+- Events include full previous/next title and description text plus canonical
+  `changed_fields`; the exporter does not synthesize a text diff.
+- `reason` support is schema-only for normal Behavior form changes. Import and
+  restore paths may record machine-readable provenance.
+- Import and restore create local baselines or transitions from the current
+  exported definition. They validate but do not replay the earlier
+  Cadence-specific revision trail.
 
 Suggested files:
 - `supabase/migrations/*`
@@ -3193,7 +3195,7 @@ Acceptance criteria:
 - Do not add a `missed` status, automatic missed marking, AI coaching, broad
   audit-log UI, or status-history editing.
 
-Owner questions before implementation:
+Settled implementation decisions:
 - Full JSON includes `occurrence_status_events` as an additive
   `status_events` root array; BehaviorLog remains the interoperable and
   restore-oriented format.
@@ -3717,6 +3719,1467 @@ Out of scope:
   in exported bundles or the AI summary, in-app AI analysis or chat, direct
   integrations with calendar/email/wearables, provider-specific instructions,
   and any change to export content or adherence semantics.
+
+---
+
+## Ticket 062: Interaction audit P3 traceability and narrow-screen follow-up
+
+Close the locally actionable P3 findings from the 2026-07-22 exhaustive
+interaction audit without making the separate product decision about
+account-specific onboarding dismissal.
+
+Context:
+- Tickets 001-061 are complete.
+- The interaction-audit remediation pass intentionally stopped after P0-P2
+  findings and preserved IA-024 through IA-028 as a research backlog.
+- IA-024 is human-gated because changing the browser-local onboarding
+  dismissal key to account-specific storage changes the product contract.
+- IA-025 through IA-028 can be corrected locally without provider writes,
+  schema changes, new routes, or product-scope expansion.
+
+Scope:
+- IA-025: align registered trigger and variant labels with the visible controls
+  and the task-based user guides.
+- IA-026: map `INT-MKT-010` to every source-inventory entry that implements it,
+  including the marketing footer in `BaseLayout.astro`.
+- IA-027: audit direct test-coverage declarations against the cited tests.
+  Add focused UI assertions where they are small and valuable; otherwise
+  classify coverage honestly as indirect or manual and cite the real evidence
+  owner.
+- IA-028: prevent the Settings Profile email from causing document-level
+  horizontal overflow at the supported 320px minimum viewport.
+- Reconcile stale status text for the already-deployed IA-002 migration and
+  already-ready app and marketing deployments using read-only provider
+  evidence.
+
+Acceptance criteria:
+- Registry labels name controls users can find verbatim, while grouped variants
+  remain explicit where one interaction has multiple visible controls.
+- The `BaseLayout.astro` source inventory includes `INT-MKT-010`.
+- Every `direct` coverage declaration is backed by a cited test that renders or
+  activates the registered interaction. Adjacent resolver, service, route, or
+  artifact checks are labeled `indirect` unless a focused UI test closes the
+  gap.
+- Settings remains within a 320px viewport with a long account identifier and
+  still follows the single-column Settings design contract.
+- IA-024 remains unchanged and is recorded as the only product-decision-gated
+  audit item.
+- No database migration, hosted mutation, provider send, new route, stored
+  status, or onboarding behavior change is introduced.
+- Update `interaction-registry.json`, the interaction-audit remediation ledger,
+  `docs/OPERATIONS.md`, and `STATUS.md` to match the verified current state.
+- Run `npm run agents:check`, `npm run interactions:check`,
+  `npm run resolvers:check`, `npm run design-system:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, and `npm run build`.
+- Run focused Settings/registry tests and inspect Settings at 320px and 390px
+  when a local authenticated browser fixture is available. If browser QA is
+  environment-blocked, record the exact limitation and retain automated layout
+  evidence.
+
+Out of scope:
+- Deciding or implementing account-specific onboarding dismissal (IA-024),
+  rewriting the frozen pre-remediation finding report, changing provider
+  configuration, redeploying an already-ready production build, or expanding
+  the product beyond the existing v1 surfaces.
+
+---
+
+## Ticket 063: Locust load-test contract and authenticated protocol spike
+
+Establish the repository contract for registry-derived load testing and prove
+that Locust can exercise Cadence's real authenticated HTTP paths without
+adding a permanent product API for test traffic.
+
+Context:
+- Tickets 001-062 are complete.
+- `interaction-registry.json` is the canonical inventory of implemented user
+  interaction intents, while `docs/UX_JOURNEY_INVENTORY.md` and
+  `docs/USER_FLOWS.md` define realistic journey order and success semantics.
+- The live registry currently contains 85 interactions. Some interactions
+  produce network traffic, while form drafts, disclosures, focus movement,
+  clipboard writes, local preferences, browser permission prompts, and other
+  client-only effects do not.
+- Locust's `HttpUser` preserves cookies and makes HTTP requests but is not a
+  browser: it does not render the page, execute Cadence client JavaScript, or
+  automatically load page assets.
+- Cadence mutations use Next.js Server Actions. Their generated action
+  identifiers must not be hard-coded because they may change between builds.
+- Ticket 062 already occupies the number originally proposed for this slice;
+  the Locust roadmap therefore starts at Ticket 063.
+
+Product and architecture decisions:
+- Keep `interaction-registry.json` focused on user intent. Store HTTP
+  workload metadata in a separate load-test manifest keyed by stable
+  interaction ID.
+- Classify every live interaction as exactly one of:
+  `loadable_http`, `browser_only`, `external_provider`,
+  `destructive_serial_only`, or `not_load_bearing`.
+- Permit one interaction to map to zero, one, or multiple HTTP requests.
+  Conversely, permit one shared HTTP request to support multiple interaction
+  variants when the registry says they have the same user intent.
+- Use request names that include the interaction ID and normalized operation,
+  such as `INT-TIMELINE-005 POST /timeline server-action`, so Locust statistics
+  remain traceable to the canonical registry.
+- Do not add a general `/api/load-test/*` route, service-role browser path, RLS
+  bypass, stable mutation API, or production authentication shortcut solely
+  to simplify Locust.
+- Keep browser-only behavior in the existing browser/UX testing layer. The
+  load suite must not claim to verify rendering, hydration, focus, clipboard,
+  sound, notification permission, mobile layout, or accessibility.
+- Pin the selected Locust version and every direct Python dependency. Do not
+  use an unbounded dependency range.
+
+Scope:
+- Add a concise load-testing architecture document that defines:
+  - purpose and non-goals;
+  - registry-to-workload classification;
+  - environment safety levels;
+  - identity, secret, and artifact handling;
+  - request naming and semantic response assertions;
+  - provisional performance and integrity gates;
+  - provider approval boundaries;
+  - the dependency graph for Tickets 064-066.
+- Add a Python/Locust directory that can be installed independently from the
+  Next.js workspace and invoked through project-local npm scripts.
+- Add a machine-readable interaction workload manifest and a validator that:
+  - loads the live registry;
+  - requires exactly one load classification for every interaction ID;
+  - rejects unknown or duplicate IDs;
+  - requires a reason for every non-loadable entry;
+  - requires route, method, expected result, environment, data
+    preconditions, and cleanup ownership for every loadable entry;
+  - rejects destructive interactions from ordinary mixed-workload profiles;
+  - does not duplicate the registry's intent, risk, effect, or user-guidance
+    prose.
+- Prove four request types locally:
+  1. one public document request;
+  2. one authenticated protected-page document request;
+  3. one authenticated structured-export download;
+  4. one authenticated Timeline occurrence-status Server Action submission.
+- For the Server Action proof:
+  - fetch the current server-rendered page or action metadata;
+  - discover the current build's generated action fields dynamically;
+  - submit the exact user-owned occurrence ID, expected current state, and
+    status payload through the real action;
+  - verify both the action response and the persisted occurrence/status-event
+    result;
+  - prove a stale or cross-owner payload is rejected through normal auth,
+    service, resolver, RPC, and RLS boundaries.
+- Record the exact limitation if current React/Next.js form output cannot be
+  replayed safely from Locust. In that case, stop before adding a test-only
+  product route and revise the mutation-load design through a follow-up
+  decision.
+
+Acceptance criteria:
+- A documented local command starts Locust in web-UI mode for exploration and
+  a separate headless command runs the protocol smoke.
+- The smoke uses one disposable synthetic account and leaves no product data
+  or auth user after cleanup.
+- Protected-page validation fails when the response is a login redirect or
+  login document even if an intermediate response has a successful status.
+- Export validation checks content type, disposition, non-empty body, and a
+  small format-specific semantic marker rather than accepting HTTP status
+  alone.
+- Server Action validation proves the requested status transition and the
+  resulting append-only event, not merely a sub-400 response.
+- Locust logs and generated reports contain no cookies, passwords, access
+  tokens, refresh tokens, service-role keys, user IDs, emails, behavior
+  titles, occurrence notes, push endpoints, provider payloads, or uploaded
+  bundles.
+- Generated run artifacts are ignored by git. Only sanitized aggregate
+  summaries may be committed.
+- The manifest validator passes against the current interaction registry and
+  fails when a fixture removes, duplicates, or misclassifies an interaction.
+- A pull-request-safe smoke command is bounded to one user and local targets.
+  No default script can point at production.
+- `npm run agents:check`, `npm run interactions:check`,
+  `npm run resolvers:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test`, `npm run build`, the Python manifest tests, and the local
+  Locust protocol smoke pass.
+
+Documentation updates required during implementation:
+- Create `docs/LOAD_TESTING_PLAN.md`.
+- Add the local installation and smoke workflow to `docs/OPERATIONS.md`.
+- Add load-test artifact and secret handling to `.gitignore` and the runbook.
+- Update `docs/INTERACTION_REGISTRY.md` with the companion-manifest rule,
+  without adding load metadata to the canonical interaction schema.
+- Update `STATUS.md` when the ticket starts and completes.
+
+Suggested files:
+- `load-tests/requirements.txt`
+- `load-tests/locustfile.py`
+- `load-tests/cadence_load/__init__.py`
+- `load-tests/cadence_load/assertions.py`
+- `load-tests/cadence_load/forms.py`
+- `load-tests/cadence_load/registry.py`
+- `load-tests/scenarios/interaction-map.json`
+- `load-tests/tests/test_interaction_map.py`
+- `load-tests/tests/test_response_assertions.py`
+- `scripts/check-load-test-interactions.mjs` if the canonical drift check is
+  kept in the existing Node governance layer
+- `package.json`
+- `.gitignore`
+- `docs/LOAD_TESTING_PLAN.md`
+- `docs/INTERACTION_REGISTRY.md`
+- `docs/OPERATIONS.md`
+- `STATUS.md`
+
+Out of scope:
+- High-concurrency runs, hosted Supabase writes, Vercel load, distributed
+  workers, Google OAuth automation, real email or browser-push sends,
+  destructive import/restore/account deletion load, UI rendering assertions,
+  performance optimization, database migrations, and new product routes.
+
+---
+
+## Ticket 064: Synthetic load identities and read-workload baseline
+
+Build the disposable many-account fixture lifecycle and the first realistic
+public/authenticated read workloads, then establish a repeatable local capacity
+baseline.
+
+Dependency:
+- Ticket 063 must be complete, including a passing authenticated protocol smoke
+  and a validated interaction workload manifest.
+
+Context:
+- Cadence supports many independent accounts, but each account is
+  single-player. Sharing one account across a large swarm would distort RLS,
+  per-user cache behavior, occurrence freshness, and realistic query shapes.
+- Supabase Auth applies endpoint and IP-based rate limits. Account creation and
+  sign-in traffic must therefore be provisioned before the timed workload
+  unless a separate run is explicitly measuring Auth.
+- The existing `/auth/test-login` route is local/dev-only and blocked by
+  production runtime guards. Load provisioning must not weaken those guards.
+- `npm run smoke:rls` already proves a two-user ownership boundary. Load
+  fixtures should reuse its safety posture: service-role access only for
+  setup/cleanup, and ordinary signed-in clients plus RLS for product access.
+
+Product and architecture decisions:
+- Assign one disposable Supabase Auth identity and one cookie jar to each
+  active Locust user.
+- Provision accounts, sessions, and data before starting Locust statistics.
+  Do not include user creation, password sign-in, or initial cookie generation
+  in normal route-capacity measurements.
+- Store temporary session material only in a run-specific file outside tracked
+  source, with owner-only filesystem permissions. Delete it during cleanup
+  even when the workload fails.
+- Name disposable auth accounts with an exact run-scoped
+  `cadence-load-...@example.invalid` pattern that cannot match ordinary users.
+- Require an explicit target classification: `local`, `hosted_staging`, or
+  `hosted_production`. Ticket 064 supports `local` only.
+- Use a production build of the Next.js app where practical. Document any
+  difference between local persistent Node execution and Vercel serverless
+  behavior.
+
+Fixture cohorts:
+- Empty account:
+  - profile and default categories;
+  - no behaviors or occurrences.
+- Typical daily account:
+  - 8-12 active behaviors;
+  - 1-2 archived behaviors;
+  - daily, weekly, every-N-day, every-N-week, and monthly recurrence coverage;
+  - exact and range schedule slots;
+  - current Completed, Not Completed, and Unresolved occurrences;
+  - prior Unresolved occurrences for Needs decision;
+  - sparse synthetic notes;
+  - email reminders disabled and no push subscription.
+- Review-heavy account:
+  - at least 90 local days of occurrence/status history;
+  - status corrections with valid `revises_event_id` chains;
+  - behavior-definition history;
+  - behavior-date review data across 7-, 30-, and 90-day ranges.
+- Export-heavy account:
+  - active and archived behaviors;
+  - one year of bounded synthetic history;
+  - enough status events, notes, reminder history, and definition history to
+    produce non-trivial JSONL, CSV, JSON, BehaviorLog, and Markdown outputs;
+  - no real personal or provider data.
+- Heavy schedule account:
+  - 30-50 behaviors and multiple schedule slots;
+  - still within supported product contracts;
+  - used only in explicitly tagged capacity profiles, not the default mix.
+
+Scope:
+- Add run-scoped provision, session preparation, seed, integrity, and cleanup
+  scripts.
+- Make provisioning idempotent for one run ID and cleanup exact-targeted:
+  - repeated provisioning does not create uncontrolled duplicates;
+  - cleanup refuses an empty, malformed, wildcard, or overly broad run ID;
+  - cleanup deletes only users and rows owned by the exact synthetic run;
+  - aggregate counts are reported without identifiers.
+- Add Locust users for:
+  - public Login/Terms/Privacy/Trust documents;
+  - protected Timeline, Behaviors, Export, and Settings document loads;
+  - Timeline future-day query states;
+  - Behaviors review range and selected-day reads;
+  - JSONL, CSV, full JSON, and BehaviorLog download reads.
+- Use realistic task weights and think time from the documented personas and
+  journeys, while labeling the weights as initial product assumptions rather
+  than observed user analytics.
+- Add local load shapes:
+  - smoke: 1 user for 2-5 minutes;
+  - baseline: 5 and 10 users for 10 minutes each;
+  - read ramp: 10, 25, 50, and 100 users with bounded plateaus;
+  - recovery: return to the initial user count and confirm latency/error
+    recovery.
+- Name variable query paths consistently so dynamic IDs and dates do not
+  fragment Locust statistics.
+- Capture CSV history, failures, exceptions, and an HTML report under one
+  ignored run directory.
+
+Acceptance criteria:
+- Provisioning produces the requested number of independent accounts and
+  reports only cohort/count summaries.
+- Every timed protected request uses an ordinary authenticated session and
+  product RLS. No service-role key is available to Locust workers.
+- A virtual user fails fast when no unique identity is available; identities
+  are not silently shared.
+- Default profiles never enable email sends, create push subscriptions, invoke
+  process secrets, or submit destructive actions.
+- Route assertions distinguish expected redirects, authenticated content, and
+  semantic page failures.
+- Exports contain only synthetic data belonging to the assigned account.
+- The initial report records achieved requests per second, p50/p75/p95/p99
+  latency, failure ratio, response bytes, cohort mix, local hardware/runtime,
+  Next.js mode, Supabase mode, and warm/cold caveats.
+- Provisional nominal gates are:
+  - zero cross-account data;
+  - zero unexpected `5xx` responses;
+  - less than 0.5% unexpected request failures;
+  - p95 no worse than twice the calibrated one-user warm baseline;
+  - recovery to within 10% of the pre-ramp baseline after load returns to the
+    initial level.
+- Post-run integrity finds no duplicate occurrences, invalid owner
+  relationships, false-fresh occurrence horizons, or unexpected reminder
+  deliveries.
+- `npm run smoke:rls` passes against the local target after the run.
+- Cleanup removes every run-created auth user, product row, session artifact,
+  and report copy containing sensitive session material. Sanitized aggregate
+  result artifacts remain.
+- Full repository verification plus Python unit tests and the local smoke,
+  baseline, and bounded ramp pass.
+
+Documentation updates required during implementation:
+- Expand `docs/LOAD_TESTING_PLAN.md` with cohorts, weights, load shapes, gates,
+  and local-vs-hosted interpretation.
+- Create `docs/LOAD_TESTING_RUNBOOK.md` with setup, preflight, run, abort,
+  integrity, cleanup, and failure-recovery procedures.
+- Document the reusable local load lifecycle in `docs/OPERATIONS.md`.
+- Update `docs/SUPABASE_WORKFLOW.md` with the synthetic-load rule: service role
+  for exact setup/cleanup only, ordinary clients for timed access, no hosted
+  use without authorization.
+- Append the sanitized baseline to `docs/PERFORMANCE_SPEED_LOG.md`.
+- Update `STATUS.md` when the ticket starts and completes.
+
+Suggested files:
+- `load-tests/cadence_load/auth.py`
+- `load-tests/cadence_load/data.py`
+- `load-tests/cadence_load/shapes.py`
+- `load-tests/cadence_load/users/public.py`
+- `load-tests/cadence_load/users/reader.py`
+- `load-tests/scenarios/profiles.json`
+- `load-tests/tests/test_identity_pool.py`
+- `load-tests/tests/test_profiles.py`
+- `scripts/load-test-provision.mjs`
+- `scripts/load-test-seed.mjs`
+- `scripts/load-test-integrity.mjs`
+- `scripts/load-test-cleanup.mjs`
+- `tests/load-test-lifecycle.test.ts`
+- `package.json`
+- `docs/LOAD_TESTING_PLAN.md`
+- `docs/LOAD_TESTING_RUNBOOK.md`
+- `docs/OPERATIONS.md`
+- `docs/SUPABASE_WORKFLOW.md`
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `STATUS.md`
+
+Out of scope:
+- Mutating user workloads, Auth-capacity testing, hosted targets, Vercel,
+  provider processing, production data, schema changes made only to support
+  fixtures, performance remediation, destructive interactions, and claims
+  about production capacity.
+
+---
+
+## Ticket 065: Mixed mutation, contention, and integrity load profiles
+
+Extend the proven read harness to the common write paths and system contention
+cases, with automatic integrity verification and strictly local provider
+isolation.
+
+Dependencies:
+- Tickets 063 and 064 must be complete.
+- The authenticated Server Action protocol must be proven against the current
+  Next.js build.
+- The synthetic identity lifecycle, baseline gates, and cleanup must be
+  reliable before mutation load begins.
+
+Context:
+- The registry currently identifies twelve interactions with database-write
+  effects. Ordinary load should focus on status decisions, occurrence notes,
+  Behavior lifecycle changes, timezone saves, and synthetic exports.
+- Cadence's reminder, occurrence, status-event, and behavior-definition
+  contracts are idempotent or append-only in specific ways. Load testing must
+  validate those contracts after concurrent execution rather than evaluating
+  latency alone.
+- Needs decision remains derived from Unresolved plus local date. No load
+  scenario may invent or persist a `needs_decision` or missed status.
+- Real Sequenzy email, Web Push, Google OAuth, and third-party repository
+  traffic must remain outside the workload.
+
+Workload coverage:
+- Daily tracker:
+  - read Timeline;
+  - mark an Unresolved occurrence Completed or Not Completed;
+  - Clear decision back to Unresolved when the scenario owns a suitable row;
+  - save or edit a bounded synthetic occurrence note;
+  - verify the refreshed row and status-event result.
+- Behavior maintainer:
+  - create a minimal valid behavior;
+  - update title, recurrence, or one schedule field;
+  - archive and restore the same run-owned behavior;
+  - verify occurrence sync remains stale until repair and becomes fresh only
+    after valid successful repair.
+- Reflective reviewer:
+  - open a selected behavior/date;
+  - change one status or note through the Behaviors action;
+  - verify counts and review data reconcile.
+- Settings:
+  - save an unchanged timezone as the common low-write path;
+  - run changed-timezone synchronization only in a separately tagged,
+    low-frequency profile because it updates active behaviors and future
+    Unresolved occurrences.
+- Portability:
+  - mix structured export downloads at a low rate against concurrent
+    Timeline/Behaviors activity;
+  - keep import preview/apply, restore preview/apply, and account deletion out
+    of the ordinary swarm.
+- System overlap:
+  - run one fixed-count operator user for protected occurrence-horizon sync;
+  - test reminder-processing claim/idempotence only against seeded synthetic
+    deliveries and a local fake Sequenzy endpoint;
+  - create no active browser-push subscriptions, so Web Push is never called.
+- Same-account contention:
+  - use two independent sessions for one synthetic account to submit
+    coordinated writes to the same occurrence;
+  - require one valid transactional result and the documented idempotent,
+    stale, or concurrent-duplicate outcome for the competing request;
+  - verify no lost status event, invalid revision chain, duplicate reminder
+    cancellation, or cross-owner effect.
+
+Load shapes:
+- Mixed baseline: realistic read/write weights at 5 and 10 users.
+- Ramp: 10, 25, 50, and 100 users with a minimum stable plateau at each step.
+- Spike: stable baseline followed by a rapid 10x increase, bounded hold, and
+  recovery.
+- Soak: 25-50 users for 1-2 hours, sized below the proven breakpoint.
+- Breakpoint: increase in bounded steps until an automatic gate fails or the
+  authorized local ceiling is reached.
+- Contention: coordinated small-user scenarios that maximize write collision
+  rather than raw request volume.
+- Operator overlap: run occurrence sync and fake-provider reminder processing
+  during a stable mixed workload.
+
+Automatic abort conditions:
+- Any cross-account data exposure or write.
+- Any real provider request attempt.
+- Unexpected account deletion, restore apply, or import apply.
+- Sustained unexpected `5xx` ratio above the documented threshold.
+- Repeated database connection refusal, false-fresh occurrence horizon, or
+  integrity-check failure.
+- Run-directory/session leakage or inability to identify the exact cleanup
+  target.
+- A configured maximum request count, runtime, users, or requests-per-second
+  ceiling is reached.
+
+Acceptance criteria:
+- Each mutation is performed against state owned by that Locust user and is
+  semantically verified after submission.
+- Normal task weights keep reads dominant. Mutation weights, think times, and
+  achieved requests per second are recorded in the report.
+- Dynamic occurrence, behavior, and date identifiers are grouped under stable
+  interaction-ID request names while the exact IDs remain out of reports.
+- Status transitions preserve the stored vocabulary:
+  `unresolved`, `completed`, and `not_completed`.
+- Occurrence generation remains unique and preserves past/resolved history.
+- Status-event history remains append-only, owner-consistent, ordered, and
+  valid under idempotent and competing submissions.
+- Pending reminders cancel when an occurrence resolves; eligible strictly
+  future reminders may reconcile when a decision is cleared; due/past rows do
+  not reactivate.
+- Behavior create/update/archive/restore leaves an owner-consistent,
+  non-empty schedule graph and does not create definition-history events for
+  schedule-only changes.
+- Changed-timezone scenarios preserve past and resolved occurrences.
+- Reminder processing against the local fake provider proves claim,
+  duplicate-send avoidance, and final status without contacting Sequenzy or
+  Web Push.
+- Soak runs show no unbounded growth in failures, memory, open database
+  connections, pending processing claims, or orphaned synthetic rows.
+- The result identifies the highest sustainable local user count and achieved
+  requests per second under the calibrated nominal gates. It does not label
+  that result as production capacity.
+- Post-run aggregate checks prove:
+  - zero cross-owner rows;
+  - zero unexpected duplicate occurrences or deliveries;
+  - zero invalid status-event or definition-event chains;
+  - zero false-fresh horizons;
+  - zero provider sends;
+  - exact cleanup counts.
+- Full repository verification, Python tests, focused existing resolver/service
+  tests, local database integrity checks, and every new bounded load profile
+  pass.
+
+Documentation updates required during implementation:
+- Expand `docs/LOAD_TESTING_PLAN.md` with the final workload mix, state
+  machines, contention rules, and abort gates.
+- Expand `docs/LOAD_TESTING_RUNBOOK.md` with fake-provider setup and recovery
+  from interrupted mutation runs.
+- Add the resulting local capacity curve and bottleneck evidence to
+  `docs/PERFORMANCE_SPEED_LOG.md`.
+- Update `docs/NOTIFICATION_SPEC.md` only if a reusable fake-provider
+  operations seam is introduced; do not change reminder product semantics.
+- Update `docs/AGENT_RESOLVERS.md` only if new test orchestration touches an
+  owning service boundary; load code must not become an allowed product caller
+  of resolvers or repositories.
+- Update `STATUS.md` when the ticket starts and completes.
+
+Suggested files:
+- `load-tests/cadence_load/actions.py`
+- `load-tests/cadence_load/integrity.py`
+- `load-tests/cadence_load/users/daily.py`
+- `load-tests/cadence_load/users/maintainer.py`
+- `load-tests/cadence_load/users/reviewer.py`
+- `load-tests/cadence_load/users/exporter.py`
+- `load-tests/cadence_load/users/operator.py`
+- `load-tests/tests/test_action_payloads.py`
+- `load-tests/tests/test_load_shapes.py`
+- `scripts/load-test-fake-sequenzy.mjs`
+- `scripts/load-test-integrity.mjs`
+- `tests/load-test-lifecycle.test.ts`
+- focused existing resolver/service/route tests as required
+- `docs/LOAD_TESTING_PLAN.md`
+- `docs/LOAD_TESTING_RUNBOOK.md`
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `docs/NOTIFICATION_SPEC.md` if required
+- `docs/AGENT_RESOLVERS.md` if required
+- `STATUS.md`
+
+Out of scope:
+- Real provider sends, Google OAuth load, permanent load-test APIs, production
+  traffic, provider rate-limit tuning, schema changes without product need,
+  import apply swarms, restore apply swarms, account deletion swarms, browser
+  rendering, accessibility conclusions, and implementing performance fixes
+  discovered by the test.
+
+---
+
+## Ticket 066: Authorized hosted capacity run and evidence report
+
+Execute the proven Locust suite against a production-like hosted staging
+environment only after provider authorization, then publish a sanitized
+capacity and bottleneck report.
+
+Dependencies:
+- Tickets 063-065 must be complete with passing local smoke, baseline, mixed,
+  spike, soak, contention, integrity, and cleanup evidence.
+- The owner must identify the exact Vercel plan, Supabase project/tier,
+  hostname, cost ceiling, and staging isolation posture.
+- The hosted target must use synthetic accounts and data only.
+
+Hard provider gates:
+- Current Vercel policy permits load testing only on Enterprise plans and
+  requires prior coordination with Vercel. If the target plan is not
+  Enterprise or approval is not documented, do not run Locust against any
+  Vercel Preview, Staging, or Production deployment.
+- The Vercel approval request must provide the planned start/end time,
+  estimated maximum requests per second, target hostname, source geography,
+  source IPs, distributed/localized posture, and Fluid Compute posture when
+  applicable.
+- Current Supabase production guidance recommends staging for load tests. For
+  heavy or prolonged hosted load on Team/Enterprise, contact Supabase support
+  with at least two weeks notice and provide the expected traffic window and
+  profile.
+- Provider approval does not authorize real email, Web Push, Google OAuth, or
+  unrelated third-party traffic.
+- A user request to "run the test" does not waive these provider gates. Record
+  a blocked ticket state when approval or an isolated target is missing.
+
+Hosted environment contract:
+- Prefer a dedicated application staging hostname and dedicated Supabase
+  staging project with migration history congruent to git.
+- Match production-relevant regions, environment variables, runtime mode,
+  schema, RLS, indexes, and synthetic data volume without copying real user
+  records.
+- Use local or isolated fake provider endpoints for Sequenzy-dependent paths
+  and no active browser-push subscriptions.
+- Keep service-role and process secrets outside Locust source, reports, command
+  history, and worker output.
+- Pre-provision identities and sessions outside timed statistics.
+- Protect the staging deployment from unrelated traffic while allowing only
+  the approved load-generator sources.
+
+Preflight:
+- Record git commit, deployment ID, target hostname, Vercel region/runtime,
+  Supabase project ref in private task notes, Supabase region/compute tier,
+  migration congruence, fixture cohort counts, Locust version, worker count,
+  source regions/IPs, maximum users/RPS/runtime, cost ceiling, and approval
+  references.
+- Run repository verification, local protocol smoke, local integrity, hosted
+  `npm run smoke:rls`, hosted migration-list comparison, Supabase advisors,
+  unauthenticated route smoke, authenticated one-user smoke, and exact cleanup
+  dry run.
+- Confirm monitoring retention and collection before traffic starts:
+  - Locust CSV/HTML artifacts;
+  - sanitized Cadence `performance_timing` spans;
+  - Vercel request/function status, duration, invocation, memory/CPU, and cost
+    evidence available on the plan;
+  - Supabase CPU, memory, disk IOPS/throughput, database connections,
+    PostgREST/Auth signals, and slow-query evidence.
+- Establish a fresh one-user and ten-user hosted baseline before any ramp.
+
+Execution:
+- Run one bounded stage at a time: public/read baseline, authenticated read
+  ramp, mixed mutation ramp, spike/recovery, soak, and contention/operator
+  overlap.
+- Require a human checkpoint between major stages. Do not automatically move
+  from a safe baseline into breakpoint traffic.
+- Start below the approved ceiling and stop at the first application,
+  database, provider, integrity, cost, or policy gate.
+- Record achieved requests per second rather than inferring capacity from
+  virtual-user count.
+- Separate cold/warm, cache-hit/miss, freshness-repair, and provider-stub
+  samples where evidence permits.
+- Do not change infrastructure size, indexes, queries, caches, or application
+  code during the measurement run. File separate remediation tickets from the
+  evidence afterward.
+
+Acceptance criteria:
+- Provider authorization and the exact hosted target are recorded before the
+  first Locust request.
+- No request reaches the current public production hostname unless the owner
+  explicitly authorizes that hostname and Vercel approves it.
+- No real user record, personal behavior data, personal note, provider
+  subscription, or real recipient is created, read, mutated, exported, or
+  logged.
+- Nominal hosted gates are calibrated from the fresh hosted baseline and
+  include:
+  - zero cross-account access;
+  - zero unexpected `5xx` at target load;
+  - less than 0.5% unexpected failures at target load;
+  - p95 within the documented route/action budget;
+  - bounded p99 and timeout rate;
+  - recovery to within 10% of baseline after a spike;
+  - no sustained connection, CPU, memory, IOPS, throughput, or cost saturation;
+  - zero data-integrity violations.
+- The run identifies:
+  - maximum tested and maximum sustainable virtual users;
+  - achieved requests per second for each workload mix;
+  - p50/p75/p95/p99 by interaction ID and route/action group;
+  - failure/status distribution;
+  - first breached gate and likely owning layer;
+  - Vercel versus Supabase versus application bottleneck evidence;
+  - cold-start, cache, occurrence-freshness, export-size, and contention
+    observations;
+  - recovery behavior and remaining headroom;
+  - the limits of extrapolating staging evidence to production.
+- Post-run hosted integrity, `npm run smoke:rls`, migration congruence, provider
+  no-send proof, exact synthetic cleanup, and a final one-user recovery smoke
+  pass.
+- All raw artifacts remain ignored/private. Commit only aggregate,
+  privacy-safe evidence.
+- Create narrowly scoped follow-up tickets for proven bottlenecks. Do not
+  implement fixes opportunistically in Ticket 066.
+
+Documentation updates required during implementation:
+- Finalize `docs/LOAD_TESTING_RUNBOOK.md` with provider approval templates,
+  hosted preflight, human checkpoints, abort, rollback, and cleanup.
+- Add the hosted environment and approval rules to `docs/VERCEL_WORKFLOW.md`,
+  `docs/SUPABASE_WORKFLOW.md`, and `docs/OPERATIONS.md`.
+- Append the sanitized capacity report to
+  `docs/PERFORMANCE_SPEED_LOG.md` or create a dated report under
+  `docs/qa/load-testing/` and link it from the performance log.
+- Update `STATUS.md` with provider gates, execution state, results, cleanup,
+  follow-up tickets, and remaining uncertainty.
+
+Suggested files:
+- `load-tests/cadence_load/shapes.py`
+- `load-tests/scenarios/profiles.json`
+- `load-tests/tests/test_hosted_guards.py`
+- `scripts/load-test-preflight.mjs`
+- `scripts/load-test-integrity.mjs`
+- `scripts/load-test-cleanup.mjs`
+- `docs/LOAD_TESTING_RUNBOOK.md`
+- `docs/PERFORMANCE_SPEED_LOG.md`
+- `docs/qa/load-testing/<YYYY-MM-DD>-hosted-capacity.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `docs/SUPABASE_WORKFLOW.md`
+- `docs/OPERATIONS.md`
+- `STATUS.md`
+
+Out of scope:
+- Unapproved Vercel traffic, copying production user data, real provider sends,
+  changing hosted schema outside migrations, production performance claims
+  from local-only evidence, automatic infrastructure upgrades, opportunistic
+  performance fixes, admin dashboards, product analytics/tracking, and
+  expansion beyond Cadence's existing single-account product scope.
+
+---
+
+## Ticket 067: Launch cost guardrails and traffic-surge operations
+
+Protect the owner from runaway infrastructure and provider charges, and create
+a rehearsed protocol for legitimate usage surges, abusive traffic, provider
+incidents, and application regressions before broad public launch.
+
+Context:
+- Ticket 065 proved local correctness, integrity, recovery, and bounded resource
+  growth. Latency was the first local stress signal. It did not establish hosted
+  cost or capacity.
+- Ticket 066 remains the source of hosted staging capacity evidence when its
+  target and provider approvals exist. Ticket 067 may implement conservative
+  launch guardrails before Ticket 066 runs; later hosted evidence may tune them
+  through a separate reviewed change.
+- Current Vercel Spend Management can provide spend notifications and an
+  optional hard limit that pauses projects. Exact availability, scope, pricing,
+  default values, notification channels, and pause behavior must be rechecked
+  against the owner's current plan before configuration.
+- Current Supabase Pro cost controls include a Spend Cap for specific variable
+  usage items. The cap does not cover every charge, including compute and some
+  add-ons, and it does not provide fine-grained per-item budgets or threshold
+  notifications. Recheck the current billing documentation and changelog before
+  configuration.
+- Platform DDoS, firewall, rate-limit, and challenge controls have distinct
+  plan, billing, false-positive, and regional-counter behavior. Treat them as
+  traffic controls, not as a complete billing guarantee.
+- No provider control can guarantee zero unexpected charges. The ticket must
+  document alert latency, already-incurred usage, uncovered billing categories,
+  provider outages, and owner-approved availability-versus-cost tradeoffs.
+
+Dependencies:
+- Tickets 029-030 public hardening and privacy-safe runtime monitoring must
+  remain intact.
+- Tickets 063-065 local load and integrity evidence must remain passing.
+- The owner must identify the current Vercel, Supabase, Sequenzy, domain, and
+  any other billable provider plans and name the billing/incident contact.
+- Provider-setting mutations, production firewall publication, project pauses,
+  plan changes, purchases, and real incident actions require explicit owner
+  authorization for the exact target.
+
+Implementation strategy:
+1. Build a sanitized launch cost inventory:
+   - record each provider, plan, billing cycle, fixed cost, metered dimensions,
+     included quota, overage rate, current baseline, billing owner, and official
+     documentation URL;
+   - include Vercel requests, transfer, function execution, builds, monitoring,
+     firewall features, and project count;
+   - include Supabase compute, database/disk, egress, Auth MAU, logs, backups,
+     add-ons, project count, and every Spend Cap coverage gap;
+   - include Sequenzy email delivery and any domain, logging, or alerting cost;
+   - keep account identifiers, invoice details, payment data, secrets, and user
+     data out of git-tracked artifacts.
+2. Obtain an explicit owner risk policy:
+   - monthly normal-operating budget;
+   - warning, urgent, and emergency USD thresholds;
+   - maximum acceptable unplanned spend;
+   - acceptable outage duration if a hard cap pauses the app;
+   - who may acknowledge alerts, enable emergency controls, pause service,
+     change a limit, or resume traffic;
+   - which notification channels have a tested human recipient and backup.
+3. Configure provider-native cost controls where the current plan supports
+   them:
+   - Vercel spend alerts at every supported threshold, a tested notification or
+     webhook path, and the owner-approved hard-limit/pause posture;
+   - Supabase Spend Cap enabled when the owner chooses availability restriction
+     over covered overage, plus explicit tracking of compute and other uncovered
+     charges;
+   - Sequenzy/provider sending limits or account alerts where available;
+   - no automatic plan upgrade, add-on purchase, compute resize, or budget
+     increase.
+4. Add a privacy-safe cost and surge preflight/report command:
+   - verify required cost-policy fields and provider-control evidence without
+     reading or printing payment data or secrets;
+   - report request/error/latency, function, database, Auth, egress, reminder,
+     and provider-send signals needed by the response protocol;
+   - fail closed on missing owners, thresholds, notification tests, rollback
+     steps, or known uncovered-cost acknowledgement;
+   - keep raw provider exports and alert payloads private. Commit only sanitized
+     aggregate evidence.
+5. Audit and implement bounded traffic controls for current expensive or
+   sensitive paths:
+   - inventory public documents, OAuth start/callback, protected app reads,
+     export downloads, push subscription writes, Next.js Server Actions, and
+     occurrence/reminder process routes separately by method and cost;
+   - preserve the process routes' secret checks and batch ceilings;
+   - replace reliance on per-runtime in-memory failure limits where distributed
+     enforcement is required;
+   - prefer provider-edge enforcement for anonymous abusive traffic when it is
+     available and cheaper than executing application code;
+   - stage candidate firewall rules in log-only mode, measure legitimate
+     traffic, test Google OAuth and cron bypasses, then require a human review
+     before publish;
+   - use per-account or action-aware controls for authenticated expensive work.
+     Do not apply one broad IP limit that can block households, schools, VPNs,
+     accessibility tools, or shared networks;
+   - return stable `429` and `Retry-After` behavior where application rate
+     limiting applies. Do not silently drop successful user mutations.
+6. Add narrowly scoped server-side circuit breakers for cost-amplifying work:
+   - independently stop real email sends, browser-push sends, reminder batches,
+     occurrence-sync batches, and large/repeated exports without disabling
+     account access or ordinary Timeline decisions;
+   - default every breaker to normal product behavior and keep it server-only;
+   - log only a privacy-safe breaker name, state, reason code, and aggregate
+     count;
+   - document exact enable, verification, rollback, and recovery procedures;
+   - update user-facing copy and the interaction registry only when a breaker
+     changes a visible response.
+7. Create a four-level surge and cost incident runbook:
+   - Level 0, normal: review usage and alert delivery on a fixed cadence;
+   - Level 1, warning: identify the source, compare against expected launch
+     traffic, and increase observation without changing limits;
+   - Level 2, urgent: enable scoped throttles or circuit breakers for the proven
+     cost source while preserving core tracking when safe;
+   - Level 3, emergency: enable provider attack controls or the owner-approved
+     spend hard stop/project pause, notify users if availability changes, and
+     contact provider support;
+   - every level names entry/exit thresholds, decision owner, maximum response
+     time, evidence to capture, prohibited actions, rollback, and escalation;
+   - resumption requires costs to stop accelerating, traffic and latency to
+     stabilize, integrity/RLS checks to pass, queues to be understood, and one
+     owner to record the go decision.
+8. Run a non-production tabletop and technical drill:
+   - simulate a legitimate traffic spike, anonymous abuse, export amplification,
+     reminder backlog, provider-send surge, cost alert, hard-stop decision, and
+     false-positive throttle;
+   - prove the owner can find current spend, identify the owning layer, stop the
+     scoped cost source, preserve data integrity, roll back the control, and
+     recover normal service;
+   - do not generate billable stress traffic merely to test billing controls.
+
+Acceptance criteria:
+- A sanitized provider cost inventory identifies every known fixed and metered
+  cost, current plan, included quota, overage path, billing owner, and control
+  coverage gap.
+- The owner approves concrete USD thresholds, notification recipients,
+  availability tradeoffs, escalation authority, and the hard-stop posture.
+- Vercel spend notifications are enabled and tested. The selected hard-limit
+  behavior is verified or explicitly declined with the residual exposure
+  documented.
+- Supabase Spend Cap posture is verified. Covered and uncovered usage items are
+  listed explicitly; the ticket does not describe the cap as protection from
+  compute or all possible charges.
+- Sequenzy and every other billable provider has a verified usage-limit, alert,
+  or manual review protocol. Missing provider controls are recorded as residual
+  risk rather than assumed.
+- Cost and surge monitoring has warning, urgent, and emergency signals with a
+  tested human delivery path and a backup contact.
+- Anonymous, authenticated, export, provider, and protected process traffic use
+  separate controls based on measured cost and legitimate behavior.
+- Firewall rules are tested in log-only or preview form before enforcement.
+  OAuth callbacks, Vercel Cron, ordinary authenticated tracking, exports under
+  the declared limit, and accessibility/shared-network scenarios remain usable.
+- Circuit breakers can stop each cost-amplifying subsystem independently. No
+  breaker weakens Auth, RLS, audit history, status integrity, or exact reminder
+  idempotency.
+- Every throttled application response has deterministic tests for status,
+  retry guidance, monitoring, and no partial mutation.
+- The incident runbook covers surge triage, cost containment, attack response,
+  provider escalation, rollback, queue recovery, integrity/RLS verification,
+  user communication, and safe resumption.
+- A non-production drill produces sanitized evidence that the owner can detect,
+  contain, roll back, and recover from each declared incident class.
+- `npm run agents:check`, `npm run interactions:check`,
+  `npm run resolvers:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test`, and `npm run build` pass.
+
+Documentation updates required during implementation:
+- Add the owner-approved cost policy and incident protocol to
+  `docs/OPERATIONS.md` without committing private billing data.
+- Add Vercel spend, firewall, deployment-pause, and rollback procedures to
+  `docs/VERCEL_WORKFLOW.md`.
+- Add Supabase Spend Cap coverage, usage review, compute/add-on exposure, and
+  recovery procedures to `docs/SUPABASE_WORKFLOW.md`.
+- Add provider-send caps and emergency disable/recovery behavior to
+  `docs/SEQUENZY_WORKFLOW.md` and `docs/NOTIFICATION_SPEC.md` when reminder
+  delivery behavior changes.
+- Update `docs/ROUTE_MAP.md`, `docs/INTERACTION_REGISTRY.md`, and
+  `interaction-registry.json` when a route or visible interaction changes.
+- Add a sanitized dated drill report under `docs/qa/launch-safety/`.
+- Update `STATUS.md` when implementation starts, blocks, or completes.
+
+Suggested files:
+- `scripts/launch-cost-preflight.mjs`
+- `scripts/launch-surge-drill.mjs`
+- `lib/security/rate-limiter.ts`
+- `lib/security/launch-circuit-breakers.ts`
+- `lib/monitoring.ts`
+- `app/api/export/*/route.ts`
+- `app/api/push/subscribe/route.ts`
+- `app/api/reminders/process/route.ts`
+- `app/api/occurrences/sync/route.ts`
+- focused Server Action adapters only when their measured cost requires it
+- `tests/launch-cost-preflight.test.ts`
+- `tests/launch-circuit-breakers.test.ts`
+- focused route, action, monitoring, reminder, and export tests
+- `docs/OPERATIONS.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `docs/SUPABASE_WORKFLOW.md`
+- `docs/SEQUENZY_WORKFLOW.md`
+- `docs/NOTIFICATION_SPEC.md` when provider delivery behavior changes
+- `docs/ROUTE_MAP.md` and interaction registry files when required
+- `docs/qa/launch-safety/<YYYY-MM-DD>-cost-surge-drill.md`
+- `STATUS.md`
+
+Official references to recheck during implementation:
+- <https://vercel.com/docs/spend-management>
+- <https://vercel.com/docs/vercel-firewall>
+- <https://vercel.com/docs/vercel-firewall/vercel-waf/usage-and-pricing>
+- <https://supabase.com/docs/guides/platform/cost-control>
+- <https://supabase.com/docs/guides/platform/billing-on-supabase>
+- <https://supabase.com/changelog.md>
+
+Out of scope:
+- Payment or subscription infrastructure for Cadence users.
+- An admin dashboard, product analytics platform, marketing tracking, or social
+  features.
+- Guaranteed zero charges, automatic refunds, or assumptions that provider
+  alerts arrive before usage is billed.
+- Automatic project pause, production firewall publication, attack-mode
+  activation, plan changes, purchases, compute resizing, or budget increases
+  without exact owner authorization.
+- Broad throttles that make ordinary Timeline decisions unreliable, silently
+  discard mutations, weaken RLS, or prevent export/account portability without
+  an explicit emergency state.
+- New monitoring, queue, rate-limit, or incident-management vendors without a
+  separate privacy, security, reliability, and recurring-cost decision.
+- Opportunistic capacity tuning or implementation of Ticket 066 hosted load.
+
+---
+
+## Ticket 068: Occurrence stopwatch capture, reset, and persistence
+
+Add a small stopwatch to the existing expanded Timeline occurrence row so a
+user can record how long one occurrence takes, stop the timer, and reset the
+recorded time when it was captured by mistake.
+
+Context:
+- Cadence currently stores scheduled times and status timestamps, but it does
+  not store elapsed time spent on an occurrence.
+- `docs/DECISIONS.md` and `docs/PRODUCT_SPEC.md` currently defer structured
+  measurements. This ticket intentionally creates one narrow duration-only
+  exception. It must not create a general measurement-template system.
+- Timeline already uses an expanded native disclosure for Description,
+  Category, Schedule, status correction, and Note. Time tracking belongs in
+  that disclosure and does not need a new route, modal, or card treatment.
+- Tickets 066 and 067 concern hosted load and launch operations. Their provider
+  gates do not block this local product slice.
+
+Dependencies:
+- Existing Timeline, occurrence, status, Supabase Auth, and RLS behavior must
+  remain passing.
+- Run the project-local impeccable context workflow before editing the
+  Timeline UI. Use existing product actions, spacing, and typography.
+- Hosted migration deployment remains separately authorization-gated. This
+  ticket may be implemented and verified locally without resolving Tickets 066
+  or 067.
+
+Settled product decisions:
+- This is an elapsed-time stopwatch, not a countdown timer.
+- A timing session is one persisted start/stop interval attached to one
+  occurrence and its owning behavior.
+- Starting persists the session before the visible stopwatch begins. Refreshing
+  or reopening the page restores a still-running session from its saved
+  `started_at` instant.
+- One occurrence may have at most one running timing session. Different
+  occurrences may run concurrently.
+- An occurrence may have multiple stopped timing sessions. Stop followed by a
+  later Track Time action creates another session.
+- Duration is derived from `stopped_at - started_at`. Do not duplicate it in a
+  mutable database column.
+- Stop records time only. It does not mark the occurrence Completed, Not
+  Completed, or Unresolved and does not change reminder eligibility.
+- Start is available only for current-local-day occurrences belonging to an
+  active behavior. A previously started session may still be stopped or reset
+  after the local day changes.
+- Reset tracked time deletes every timing session for that occurrence,
+  including a running session. It returns the row to the idle Track Time state.
+- Reset uses a clearly named inline text action without a confirmation modal.
+  It is an explicit user correction, not an automatic cleanup rule.
+- Countdown configuration, pause/resume state, manual duration entry,
+  individual-session editing, and individual-session deletion are out of
+  scope.
+
+Implementation order:
+1. Update the product, data, UI, user-flow, decision, resolver-ownership, route,
+   and interaction contracts before implementation.
+2. Add one additive migration for `occurrence_time_sessions`. The migration
+   creates only the new table, its indexes, ownership constraints, updated-at
+   trigger, RLS policies, and authenticated grants.
+3. Regenerate Supabase database types and add explicit timing-session domain
+   types.
+4. Write the failing pure resolver tests for start, stop, elapsed duration,
+   multiple stopped sessions, running state, formatting, invalid timestamps,
+   and reset planning.
+5. Implement the resolver, repository, and service boundaries.
+6. Add Timeline Server Actions for start, stop, and reset. Keep authentication,
+   user ownership, occurrence lookup, and date/behavior eligibility in the
+   service layer.
+7. Add the Track Time line to the existing expanded occurrence disclosure and
+   cover its idle, saving, running, stopping, stopped, resetting, and error
+   states.
+8. Register the new user intent, update the load-test companion
+   classification, add user guidance, and run full verification.
+
+Data and migration requirements:
+- Create exactly one additive migration named with the project-local Supabase
+  workflow, such as `add_occurrence_time_sessions`.
+- The new table should contain:
+  - `id uuid` primary key;
+  - `user_id uuid` with account-deletion cascade;
+  - `occurrence_id uuid`;
+  - `behavior_id uuid`;
+  - `started_at timestamptz`;
+  - nullable `stopped_at timestamptz`;
+  - `created_at` and `updated_at` timestamps.
+- Enforce one owner-consistent foreign key from
+  `(user_id, occurrence_id, behavior_id)` to the existing occurrence ownership
+  tuple. Deleting the occurrence or account must cascade to its timing
+  sessions.
+- Enforce `stopped_at is null or stopped_at >= started_at`.
+- Add one partial unique index on `(user_id, occurrence_id)` where
+  `stopped_at is null` so duplicate starts cannot create two running sessions
+  for the same occurrence.
+- Add behavior-history and occurrence-lookup indexes without introducing a
+  generalized analytics table.
+- Add owner-scoped select, insert, update, and delete RLS policies and minimum
+  authenticated grants. Reset requires owner-scoped delete access.
+- Do not alter, backfill, rewrite, or recalculate any existing behavior,
+  occurrence, status event, note, reminder, import, or export row.
+- Existing occurrences begin with zero timing sessions. No data conversion is
+  required.
+- Do not modify the existing Export-page read RPC in this ticket.
+- Do not deploy the migration to hosted Supabase without explicit owner
+  authorization for the exact linked project.
+
+Resolver, repository, and service requirements:
+- Add `lib/resolvers/time-tracking.resolver.ts` and register it in
+  `docs/AGENT_RESOLVERS.md` with paired tests.
+- Resolvers must receive `now` explicitly and must not read browser APIs,
+  environment variables, Supabase, or the system clock.
+- Use Temporal instants for authoritative start, stop, and duration math. Do
+  not parse local dates with JavaScript `Date`.
+- Keep persistence in `lib/db/timeSessions.repo.ts` and orchestration in
+  `lib/services/time-tracking.service.ts`.
+- Start must be idempotent for an already-running occurrence. A race must
+  resolve to one running row rather than a duplicate session.
+- Stop must update only the current user's still-running session. A repeated
+  stop submission must return the saved stopped result or a stable no-op
+  result instead of creating another session.
+- Reset must delete all current-user sessions for the occurrence atomically
+  from the application's perspective. A repeated reset must be an idempotent
+  success.
+- Server-side eligibility must reject a start for a future or prior local date,
+  an archived behavior, a missing occurrence, or another user's occurrence.
+  Crafted form submissions must not bypass the UI gate.
+- Stop and reset must not reject only because midnight passed after a valid
+  start.
+- Time tracking must not mutate occurrence status, `completed_at`,
+  `status_marked_at`, status-event history, notes, or reminder deliveries.
+
+Timeline UI requirements:
+- Add the control inside `components/timeline/OccurrenceRow.tsx` after Schedule
+  details and before status/note correction content.
+- Reuse an isolated `TimeTracker` component if it keeps action state and the
+  one-second visual counter out of `OccurrenceRow`.
+- Idle state shows the exact action label `Track Time`.
+- Running state shows an elapsed `HH:MM:SS` value and the exact action label
+  `Stop`.
+- After stopping, show the combined recorded time for the occurrence plus
+  `Track Time` and `Reset tracked time` actions.
+- Reset immediately returns the component to its idle state after confirmed
+  persistence.
+- The client counter may update once per second for display, but the saved
+  duration must use persisted server instants. Page suspension or timer drift
+  must not change the final duration.
+- Do not announce every timer tick through a live region. Announce start, stop,
+  reset, and failure results only.
+- Preserve 44px mobile action targets, keyboard operation, reduced-motion
+  expectations, and the existing unboxed disclosure treatment.
+- Do not add a new page, API route, modal, floating timer, chart, design token,
+  card border, or permanent Timeline column.
+
+Acceptance criteria:
+- A signed-in user can open a current-day occurrence, select Track Time, see a
+  running counter, select Stop, and see the persisted combined duration.
+- Refreshing during a running session restores the running state and elapsed
+  value from the persisted `started_at` instant.
+- Starting again after a stop creates a second session and the occurrence total
+  equals the sum of its stopped sessions.
+- Reset tracked time removes every session for that occurrence, discards a
+  running session when present, and returns the UI to Track Time.
+- Stop and reset remain user-owned and idempotent under double submission or
+  stale UI state.
+- Two accounts cannot read, start, stop, update, reset, or infer each other's
+  timing sessions through normal authenticated clients.
+- A user may run timers for two different occurrences, but cannot create two
+  simultaneous running sessions for the same occurrence.
+- Stop and reset do not alter occurrence status or reminder state.
+- Existing rows are preserved. A clean migration produces an empty timing
+  table for existing fixtures without backfill work.
+- Timeline remains mobile-responsive and uses the existing design system.
+- Interaction registry, user guide, load-test companion classification, RLS
+  policy registry, and resolver registry checks cover the new feature.
+
+Documentation updates required during implementation:
+- `docs/PRODUCT_SPEC.md`: add duration-only occurrence time tracking and keep
+  general structured measurements out of scope.
+- `docs/DECISIONS.md`: record the narrow exception to the existing measurement
+  decision and the separate timing/status semantics.
+- `docs/DATA_MODEL.md`: document the table, constraints, RLS, cascades, and
+  derived-duration contract.
+- `docs/UI_SPEC.md` and `docs/USER_FLOWS.md`: document Track Time, Stop,
+  persistence, reset, conditional availability, and accessibility.
+- `docs/AGENT_RESOLVERS.md`: register time-tracking resolver ownership and
+  forbidden UI/service duplication.
+- `docs/ROUTE_MAP.md`: note the added Timeline interaction without creating a
+  route.
+- `docs/INTERACTION_REGISTRY.md`, `interaction-registry.json`,
+  `load-tests/scenarios/interaction-map.json`, and
+  `docs/user-guide/timeline.md`: register and explain the interaction.
+- `STATUS.md`: mark Ticket 068 in progress before implementation and record
+  verification, migration deployment state, and remaining risks at completion.
+
+Suggested files:
+- `supabase/migrations/*_add_occurrence_time_sessions.sql`
+- `lib/db/database.types.ts`
+- `lib/types/database.ts`
+- `lib/types/time-tracking.ts`
+- `lib/resolvers/time-tracking.resolver.ts`
+- `lib/db/timeSessions.repo.ts`
+- `lib/services/time-tracking.service.ts`
+- `lib/types/timeline.ts`
+- `lib/services/timeline.service.ts`
+- `app/(app)/timeline/actions.ts`
+- `app/(app)/timeline/page.tsx`
+- `components/timeline/Timeline.tsx`
+- `components/timeline/TimelineGroup.tsx`
+- `components/timeline/OccurrenceRow.tsx`
+- `components/timeline/TimeTracker.tsx`
+- `tests/time-tracking.resolver.test.ts`
+- `tests/time-tracking.service.test.ts`
+- `tests/time-sessions.repo.test.ts`
+- `tests/time-tracking-migration.test.ts`
+- `tests/timeline-time-tracking-ui.test.tsx`
+- `tests/rls-policy-registry.test.ts`
+- product, resolver, route, interaction, and user-guide docs listed above
+- `STATUS.md`
+
+Verification:
+- Run focused resolver, service, repository, migration, RLS, and Timeline UI
+  tests first.
+- Run `npm run supabase -- db reset` from a clean local database.
+- Regenerate `lib/db/database.types.ts` from the local schema.
+- Run `node .agents/skills/impeccable/scripts/context.mjs` before UI edits and
+  verify the result against `.agents/skills/impeccable/reference/product.md`.
+- Run `npm run agents:check`, `npm run interactions:check`,
+  `npm run load:manifest:check`, `npm run resolvers:check`,
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test`, and `npm run build`.
+
+Out of scope:
+- General measurements, expected-duration targets, countdowns, pause/resume,
+  manual duration entry, automatic Completed status, automatic reminder
+  changes, per-session editing, per-session deletion, a global active-timer
+  dashboard, charts, history tables, new routes, offline timers, PWA sync,
+  background native timers, desktop/mobile implementation, social timing, or
+  AI coaching.
+
+---
+
+## Ticket 069: Behavior timing averages and selected-day review
+
+Show compact timing context on Behaviors after Ticket 068 has reliable timing
+sessions: one conditional average per behavior and one conditional tracked-time
+row for the selected occurrence day.
+
+Dependencies:
+- Ticket 068 must be complete with passing migration, resolver, RLS, service,
+  Timeline, reset, and interaction tests.
+- Use the existing 7, 30, and 90-day Behaviors range. Do not add a separate
+  time-tracking range selector.
+- Run the project-local impeccable context workflow before UI edits and reuse
+  the existing behavior metadata and selected-day review patterns.
+
+Settled product decisions:
+- A stopped timing session contributes to recorded time. A running session does
+  not contribute to a finalized duration or average.
+- One occurrence's recorded tracked time is the sum of all its stopped timing
+  sessions.
+- The behavior average is the arithmetic mean of recorded occurrence totals
+  for timed occurrences in the selected 7, 30, or 90-day range.
+- Untimed occurrences and occurrences with only a running session are excluded
+  from the denominator.
+- The `Average tracked time` line is conditionally hidden when the selected
+  range has no recorded occurrence totals. Do not render `No tracked time`.
+- In Review selected day, `Tracked time` appears only for an occurrence with
+  recorded time or a running session.
+- A selected-day occurrence with stopped time shows its combined recorded
+  duration. A running-only occurrence shows `In progress`. An occurrence with
+  both stopped time and a running session shows its recorded duration plus an
+  In progress label.
+- Review selected day exposes `Reset tracked time` inside the existing Review
+  disclosure and reuses Ticket 068's reset service/action semantics.
+- No behavior-level time history disclosure, chart, pop-up, table, empty
+  placeholder, or new report section is included.
+
+Implementation order:
+1. Add failing analytics resolver tests for per-occurrence totals, behavior
+   averages, range boundaries, multiple sessions, active sessions, reset-empty
+   state, and deterministic duration formatting.
+2. Extend the analytics input/output types and resolver with timing-session
+   summaries. Reuse the Ticket 068 duration helpers instead of duplicating
+   elapsed-time math.
+3. Load timing sessions for the already selected occurrence range and selected
+   day without per-row database queries.
+4. Add the conditional Average tracked time row to the existing behavior
+   outcome metadata.
+5. Add the conditional Tracked time row to each selected-day occurrence summary
+   between Time of behavior and Status.
+6. Add Reset tracked time to the existing per-occurrence Review disclosure and
+   refresh Behaviors and Timeline after success.
+7. Update UI/product docs, interaction traceability, user guidance, and tests.
+
+Acceptance criteria:
+- A behavior with recorded timing in the selected range shows one line such as
+  `Average tracked time  2m 14s` in its existing outcome metadata.
+- A behavior without recorded timing in the selected range renders no Average
+  tracked time line and consumes no placeholder space.
+- Changing between 7, 30, and 90 days recalculates the average from occurrences
+  inside that selected local-date range.
+- Multiple stopped sessions on one occurrence are summed before that occurrence
+  contributes one value to the behavior average.
+- An occurrence with an active session and no stopped session does not affect
+  the average.
+- Selecting a non-empty behavior calendar day keeps the existing Review
+  selected day panel and adds Tracked time only to occurrences with timing
+  data.
+- Reset tracked time from Review selected day deletes that occurrence's timing
+  sessions, refreshes the average, removes the Tracked time row when no timing
+  remains, and does not change Status or Note.
+- Behavior adherence, status counts, heatmaps, tracking-since metadata, and
+  category counts retain their existing meaning and do not include duration
+  data.
+- The UI remains sparse, divider-based, mobile-responsive, and accessible. No
+  new modal, table, disclosure, chart, route, or design token is added.
+
+Documentation updates required during implementation:
+- `docs/PRODUCT_SPEC.md`, `docs/UI_SPEC.md`, and `docs/USER_FLOWS.md`: define
+  the average formula, conditional visibility, selected-day row, and reset
+  correction path.
+- `docs/AGENT_RESOLVERS.md`: record analytics ownership of timing aggregation
+  and forbid component-side duration calculations.
+- `docs/ROUTE_MAP.md`: note the additive Behaviors review content without a new
+  route.
+- `docs/INTERACTION_REGISTRY.md`, `interaction-registry.json`,
+  `load-tests/scenarios/interaction-map.json`, and
+  `docs/user-guide/behaviors-and-review.md`: trace the reset control on the
+  Behaviors surface when needed.
+- `STATUS.md`: mark Ticket 069 in progress before implementation and record
+  verification at completion.
+
+Suggested files:
+- `lib/types/analytics.ts`
+- `lib/resolvers/analytics.resolver.ts`
+- `lib/services/analytics.service.ts`
+- `lib/db/timeSessions.repo.ts`
+- `app/(app)/behaviors/actions.ts`
+- `app/(app)/behaviors/page.tsx`
+- `components/behaviors/BehaviorList.tsx`
+- `tests/analytics.resolver.test.ts`
+- `tests/behavior-review-ui.test.tsx`
+- `tests/time-tracking.service.test.ts`
+- product, resolver, route, interaction, and user-guide docs listed above
+- `STATUS.md`
+
+Verification:
+- Run focused analytics, time-tracking service, and behavior-review UI tests.
+- Run `node .agents/skills/impeccable/scripts/context.mjs` before UI edits and
+  verify the result against `.agents/skills/impeccable/reference/product.md`.
+- Run `npm run agents:check`, `npm run interactions:check`,
+  `npm run load:manifest:check`, `npm run resolvers:check`,
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test`, and `npm run build`.
+
+Out of scope:
+- Time history UI, charts, trend lines, target durations, expected-duration
+  configuration, category/overall duration dashboards, session editing,
+  manual timing entry, a separate timing range, new routes, modals, AI
+  interpretation, or changes to adherence semantics.
+
+---
+
+## Ticket 070: Privacy-gated time-tracking exports
+
+Add an Include time tracking option to Export & Import so exact activity
+timestamps and derived durations remain excluded by default and enter export
+artifacts only after an explicit user choice.
+
+Dependencies:
+- Tickets 068 and 069 must be complete so persistence, duration derivation,
+  reset behavior, and aggregate semantics are stable before export formats
+  adopt them.
+- Existing export range, archived-behavior, note, rate-limit, circuit-breaker,
+  BehaviorLog conformance, and download-route behavior must remain intact.
+
+Settled product and privacy decisions:
+- The option label is `Include time tracking`.
+- The option is off by default on the page and on every direct download route.
+- Exact timing-session timestamps can reveal activity patterns. The option copy
+  must state that time tracking is omitted from every export unless selected.
+- The query parameter is `include_time_tracking=1`. Other values do not enable
+  inclusion.
+- When disabled, the export service does not read timing sessions and all
+  existing export shapes remain unchanged.
+- When enabled, include timing sessions attached only to occurrences and
+  behaviors already included by the selected range and archived-behavior
+  option.
+- Raw exports may include a running session with `stopped_at = null`.
+  `duration_seconds` remains null for that running session.
+- Derived totals and averages include stopped sessions only and use the same
+  aggregation semantics as Ticket 069.
+- Timing history remains export-only in this ticket. BehaviorLog import and
+  restore validate the optional Cadence file and disclose that they do not
+  replay timing sessions.
+
+Format contract when Include time tracking is disabled:
+- Full JSON omits the `time_sessions` property rather than emitting an empty
+  array.
+- JSONL emits no `time_session` records or timing-derived fields.
+- CSV preserves its current columns and emits no timing data.
+- BehaviorLog omits the timing file and timing extension declaration.
+- Markdown summary omits timing counts, totals, averages, and timing guidance.
+- Filenames retain the current format.
+
+Format contract when Include time tracking is enabled:
+- Full JSON adds an optional `time_sessions` root containing the raw included
+  sessions plus derived `duration_seconds` for stopped sessions.
+- App-native JSONL adds one `time_session` record per included session with
+  session, occurrence, and behavior IDs; start/stop instants; and nullable
+  derived duration.
+- App-native occurrence CSV preserves one row per occurrence and adds
+  `tracked_duration_seconds`, `time_session_count`, and a `time_sessions` JSON
+  column containing the included raw session array.
+- BehaviorLog adds
+  `raw/cadence/occurrence_time_sessions.jsonl` as an optional, hashed,
+  Cadence-specific file and declares its path, record count, ordering, and
+  `export_only` support under `manifest.extensions.app.cadence`.
+- Markdown summary adds behavior-level stopped-session count, recorded total,
+  and average tracked time without listing every exact timestamp.
+- The Export selected-range summary may show Timing sessions only while the
+  option is enabled.
+- Export filenames add `with-time-tracking` so sensitive artifacts are
+  identifiable after download.
+
+Implementation order:
+1. Add failing resolver tests proving the option defaults off and that disabled
+   artifacts contain no raw or derived timing data.
+2. Extend export input/output types with optional timing-session inputs and an
+   explicit `includeTimeTracking` flag.
+3. Add the unchecked checkbox and privacy copy to the existing Options form.
+4. Thread `include_time_tracking=1` through page search params, download links,
+   shared download parsing, export page data, and direct routes.
+5. Read timing sessions only when enabled and only for already included
+   occurrence IDs. Use a separate owner-scoped repository read rather than
+   changing the Export-page read RPC or adding another migration.
+6. Implement the Full JSON, JSONL, CSV, BehaviorLog, filename, range-summary,
+   and Markdown contracts above in the export resolver.
+7. Update import/restore validation and copy so the optional Cadence file is
+   accepted, hash-checked, and explicitly not replayed.
+8. Update interaction traceability, privacy/export docs, user guidance, and
+   full verification.
+
+Acceptance criteria:
+- Export & Import shows an unchecked Include time tracking checkbox beside the
+  existing options with factual sensitivity copy.
+- Applying export options preserves the selected timing value, and every
+  download link includes `include_time_tracking=1` only when selected.
+- Calling any export download route without the exact opt-in parameter omits
+  timing data, even if the account has timing sessions.
+- Disabled exports do not query timing-session rows and do not expose session
+  existence through counts, filenames, empty arrays, optional files, Markdown,
+  or derived fields.
+- Enabled exports include only timing sessions attached to occurrences inside
+  the selected export scope.
+- Reset sessions deleted by Ticket 068 do not appear in later exports.
+- Running sessions preserve their start instant and null stop/duration without
+  entering stopped-session averages.
+- Full JSON, JSONL, CSV, BehaviorLog, and Markdown outputs satisfy the settled
+  format contracts and remain deterministic.
+- BehaviorLog manifest hashes, file counts, extension metadata, conformance
+  checks, and ZIP packaging pass with and without the optional timing file.
+- Import and restore accept a valid Cadence timing file without treating it as
+  a core record, do not write timing sessions, and clearly disclose the
+  export-only limitation.
+- Export rate limiting, circuit breakers, authentication, RLS, CSV formula
+  protection, note privacy, archived filtering, and behavior-definition
+  history remain unchanged.
+
+Documentation updates required during implementation:
+- `docs/EXPORT_FORMATS.md`: document the default-off option, privacy rationale,
+  format-specific inclusion, range rules, running-session semantics, and
+  export-only import/restore limitation.
+- `docs/PRODUCT_SPEC.md`, `docs/UI_SPEC.md`, and `docs/USER_FLOWS.md`: document
+  the Export option and default omission.
+- `docs/DATA_MODEL.md`: note export filtering and derived-duration semantics
+  without adding another schema field.
+- `docs/AGENT_RESOLVERS.md`: record export resolver ownership for timing
+  filtering and formatting.
+- `docs/INTERACTION_REGISTRY.md`, `interaction-registry.json`,
+  `load-tests/scenarios/interaction-map.json`, and
+  `docs/user-guide/data-portability.md`: register and explain the opt-in.
+- `STATUS.md`: mark Ticket 070 in progress before implementation and record
+  verification and the remaining export-only restore limitation at completion.
+
+Suggested files:
+- `components/export/ExportPanel.tsx`
+- `app/(app)/export/page.tsx`
+- `app/api/export/_shared.ts`
+- `lib/types/export.ts`
+- `lib/services/export.service.ts`
+- `lib/resolvers/export.resolver.ts`
+- `lib/db/timeSessions.repo.ts`
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `lib/resolvers/behaviorlog-restore.resolver.ts` only if its optional-file
+  disclosure is resolver-owned
+- `tests/export-panel-ui.test.tsx`
+- `tests/export-download-route.test.ts`
+- `tests/export.resolver.test.ts`
+- `tests/behaviorlog-conformance.test.ts`
+- focused BehaviorLog import/restore validation tests
+- product, export, resolver, interaction, and user-guide docs listed above
+- `STATUS.md`
+
+Verification:
+- Run focused export option, resolver, route, CSV, BehaviorLog conformance,
+  import validation, and restore validation tests first.
+- Verify disabled fixtures contain no timing field name, timestamp, count,
+  filename suffix, manifest entry, or Markdown section.
+- Verify enabled fixtures cover multiple sessions, a running session, reset
+  omission, archived filtering, 7/30/90/all ranges, deterministic ordering,
+  CSV JSON escaping, and manifest hashing.
+- Run `npm run agents:check`, `npm run interactions:check`,
+  `npm run load:manifest:check`, `npm run resolvers:check`,
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test`, and `npm run build`.
+
+Out of scope:
+- Importing or restoring timing sessions, enabling time tracking by default,
+  separate time-tracking downloads, time-history UI, charts, provider calls,
+  public sharing, automatic redaction, configurable timestamp precision,
+  generalized measurement export profiles, or changing the BehaviorLog core
+  schema.
 
 ---
 

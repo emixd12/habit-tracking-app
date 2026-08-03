@@ -9,11 +9,13 @@ import {
   listResolvedOccurrencesBeforeLocalDateMarkedBetween,
   listUnresolvedOccurrencesBeforeLocalDate,
 } from "@/lib/db/occurrences.repo";
+import { listTimeSessionsByOccurrenceIds } from "@/lib/db/timeSessions.repo";
 import { resolveGenerationWindow } from "@/lib/resolvers/occurrence.resolver";
 import {
   TIMELINE_MAX_FUTURE_DAYS,
   resolveTimeline,
 } from "@/lib/resolvers/timeline.resolver";
+import { resolveOccurrenceTimeTracking } from "@/lib/resolvers/time-tracking.resolver";
 import {
   normalizeRecurrenceRule,
   normalizeScheduledTime,
@@ -31,6 +33,8 @@ import {
   readCachedUserBehaviors,
 } from "@/lib/cache/stable-user-data.cache";
 import type { Occurrence } from "@/lib/types/database";
+import type { OccurrenceTimeSession } from "@/lib/types/database";
+import type { TimeSession } from "@/lib/types/time-tracking";
 import type { FirstRunOnboardingState } from "@/lib/types/onboarding";
 import type {
   TimelineOccurrenceInput,
@@ -161,15 +165,25 @@ async function getTimelineViewForUser(input: {
       .filter((behavior) => behavior.active)
       .map((behavior) => [behavior.id, behavior]),
   );
-  const occurrences = [
+  const occurrenceRows = [
     ...dedupeOccurrences([
       ...priorUnresolvedOccurrences,
       ...retainedPriorOccurrences,
     ]),
     ...forwardOccurrences,
-  ]
+  ];
+  const timeSessions = await listTimeSessionsByOccurrenceIds(supabase, {
+    userId,
+    occurrenceIds: occurrenceRows.map((occurrence) => occurrence.id),
+  });
+  const timeSessionsByOccurrenceId = groupTimeSessionsByOccurrenceId(timeSessions);
+  const occurrences = occurrenceRows
     .map((occurrence) =>
-      toTimelineOccurrenceInput(occurrence, activeBehaviorById),
+      toTimelineOccurrenceInput(
+        occurrence,
+        activeBehaviorById,
+        timeSessionsByOccurrenceId.get(occurrence.id) ?? [],
+      ),
     )
     .filter((occurrence): occurrence is TimelineOccurrenceInput =>
       Boolean(occurrence),
@@ -192,6 +206,7 @@ async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
 function toTimelineOccurrenceInput(
   occurrence: Occurrence,
   activeBehaviorById: Map<string, BehaviorWithCategory>,
+  timeSessions: TimeSession[],
 ): TimelineOccurrenceInput | null {
   const behavior = activeBehaviorById.get(occurrence.behavior_id);
 
@@ -200,6 +215,7 @@ function toTimelineOccurrenceInput(
   }
 
   const recurrenceRule = normalizeRecurrenceRule(behavior.recurrence_rule);
+  const tracking = resolveOccurrenceTimeTracking(timeSessions);
 
   return {
     id: occurrence.id,
@@ -221,7 +237,33 @@ function toTimelineOccurrenceInput(
     status: normalizeTimelineStatus(occurrence.status),
     statusMarkedAt: occurrence.status_marked_at,
     note: occurrence.note ?? "",
+    timeTracking: {
+      recordedSeconds: tracking.recordedSeconds,
+      runningStartedAt: tracking.runningSession?.startedAt ?? null,
+    },
+    canStartTimeTracking: behavior.active,
   };
+}
+
+function groupTimeSessionsByOccurrenceId(
+  sessions: OccurrenceTimeSession[],
+): Map<string, TimeSession[]> {
+  const byOccurrenceId = new Map<string, TimeSession[]>();
+
+  for (const session of sessions) {
+    const groupedSessions = byOccurrenceId.get(session.occurrence_id) ?? [];
+    groupedSessions.push({
+      id: session.id,
+      userId: session.user_id,
+      occurrenceId: session.occurrence_id,
+      behaviorId: session.behavior_id,
+      startedAt: session.started_at,
+      stoppedAt: session.stopped_at,
+    });
+    byOccurrenceId.set(session.occurrence_id, groupedSessions);
+  }
+
+  return byOccurrenceId;
 }
 
 function resolveLocalDayInstantWindow(

@@ -16,6 +16,7 @@ import type {
   ExportOccurrenceInput,
   ExportReminderDeliveryInput,
   ExportStatusEventInput,
+  ExportTimeSessionInput,
 } from "../lib/types/export";
 import { DEFAULT_TIMEZONE } from "../lib/types/recurrence";
 
@@ -115,6 +116,18 @@ function reminderDelivery(
   };
 }
 
+function timeSession(
+  overrides: Partial<ExportTimeSessionInput> & Pick<ExportTimeSessionInput, "id">,
+): ExportTimeSessionInput {
+  return {
+    occurrenceId: "occurrence-1",
+    behaviorId: "behavior-brush",
+    startedAt: "2026-06-08T13:00:00Z",
+    stoppedAt: "2026-06-08T13:02:14Z",
+    ...overrides,
+  };
+}
+
 function behaviorDefinitionEvent(
   overrides: Partial<ExportBehaviorDefinitionEventInput> &
     Pick<ExportBehaviorDefinitionEventInput, "id">,
@@ -142,9 +155,11 @@ function resolve(
     occurrences?: ExportOccurrenceInput[];
     statusEvents?: ExportStatusEventInput[];
     reminderDeliveries?: ExportReminderDeliveryInput[];
+    timeSessions?: ExportTimeSessionInput[];
     range?: string | number | null;
     includeArchived?: boolean;
     includeNotes?: boolean;
+    includeTimeTracking?: boolean;
   } = {},
 ) {
   return resolveExportBundle({
@@ -158,11 +173,13 @@ function resolve(
     occurrences: overrides.occurrences ?? [occurrence({ id: "occurrence-1" })],
     statusEvents: overrides.statusEvents,
     reminderDeliveries: overrides.reminderDeliveries,
+    timeSessions: overrides.timeSessions,
     now: NOW,
     timezone: DEFAULT_TIMEZONE,
     range: overrides.range,
     includeArchived: overrides.includeArchived,
     includeNotes: overrides.includeNotes,
+    includeTimeTracking: overrides.includeTimeTracking,
   });
 }
 
@@ -193,6 +210,175 @@ describe("resolveExportDateRange", () => {
 });
 
 describe("resolveExportBundle", () => {
+  it("omits time tracking from every disabled artifact by default", () => {
+    const bundle = resolve({
+      timeSessions: [timeSession({ id: "session-hidden" })],
+    });
+
+    expect(bundle.includeTimeTracking).toBe(false);
+    expect(bundle.timeSessionCount).toBeUndefined();
+    expect(bundle.jsonBackup).not.toHaveProperty("time_sessions");
+    expect(bundle.jsonl).not.toContain("time_session");
+    expect(bundle.csv).not.toContain("tracked_duration_seconds");
+    expect(bundle.fileBaseName).not.toContain("with-time-tracking");
+    expect(bundle.markdownSummary).not.toContain("tracked time");
+    expect(
+      bundle.behaviorLog.files.some((file) =>
+        file.path.includes("occurrence_time_sessions"),
+      ),
+    ).toBe(false);
+    expect(JSON.stringify(bundle.behaviorLog.files[0])).not.toContain(
+      "occurrence_time_sessions",
+    );
+  });
+
+  it("includes scoped sessions and stopped-only duration summaries when enabled", () => {
+    const bundle = resolve({
+      includeTimeTracking: true,
+      timeSessions: [
+        timeSession({
+          id: "session-running",
+          startedAt: "2026-06-08T14:00:00Z",
+          stoppedAt: null,
+        }),
+        timeSession({ id: "session-stopped" }),
+        timeSession({
+          id: "session-outside",
+          occurrenceId: "occurrence-outside",
+          behaviorId: "behavior-outside",
+        }),
+      ],
+    });
+
+    expect(bundle.timeSessionCount).toBe(2);
+    expect(bundle.fileBaseName).toContain("with-time-tracking");
+    expect(bundle.jsonBackup.time_sessions).toEqual([
+      expect.objectContaining({
+        id: "session-stopped",
+        duration_seconds: 134,
+      }),
+      expect.objectContaining({
+        id: "session-running",
+        stopped_at: null,
+        duration_seconds: null,
+      }),
+    ]);
+    expect(bundle.jsonl).toContain('"type":"time_session"');
+    expect(bundle.csv.split("\n")[0]).toContain("tracked_duration_seconds");
+    expect(bundle.markdownSummary).toContain("## Time tracking");
+    expect(bundle.markdownSummary).toContain("2m 14s average tracked time");
+    expect(
+      bundle.behaviorLog.files.find(
+        (file) => file.path === "raw/cadence/occurrence_time_sessions.jsonl",
+      )?.content,
+    ).toContain("session-running");
+  });
+
+  it("round-trips the enabled time-session CSV JSON column through CSV escaping", () => {
+    const bundle = resolve({
+      includeTimeTracking: true,
+      timeSessions: [
+        timeSession({ id: "session,quoted\"id" }),
+        timeSession({
+          id: "session-running",
+          startedAt: "2026-06-08T14:00:00Z",
+          stoppedAt: null,
+        }),
+      ],
+    });
+    const [row] = parseCsv(bundle.csv);
+
+    expect(bundle.csv).toContain('""id""');
+    expect(row.tracked_duration_seconds).toBe("134");
+    expect(row.time_session_count).toBe("2");
+    expect(JSON.parse(row.time_sessions)).toEqual([
+      expect.objectContaining({ id: 'session,quoted"id', duration_seconds: 134 }),
+      expect.objectContaining({ id: "session-running", duration_seconds: null }),
+    ]);
+  });
+
+  it("excludes sessions outside the selected date and archived-behavior scope", () => {
+    const archivedBehavior = behavior({
+      id: "behavior-archived",
+      active: false,
+      archivedAt: "2026-06-01T00:00:00Z",
+    });
+    const bundle = resolve({
+      includeTimeTracking: true,
+      behaviors: [behavior({ id: "behavior-brush" }), archivedBehavior],
+      occurrences: [
+        occurrence({ id: "occurrence-included" }),
+        occurrence({
+          id: "occurrence-out-of-range",
+          localDate: "2026-04-01",
+          scheduledFor: "2026-04-01T13:00:00Z",
+        }),
+        occurrence({
+          id: "occurrence-archived",
+          behaviorId: "behavior-archived",
+        }),
+      ],
+      timeSessions: [
+        timeSession({ id: "session-included", occurrenceId: "occurrence-included" }),
+        timeSession({
+          id: "session-out-of-range",
+          occurrenceId: "occurrence-out-of-range",
+        }),
+        timeSession({
+          id: "session-archived",
+          occurrenceId: "occurrence-archived",
+          behaviorId: "behavior-archived",
+        }),
+      ],
+    });
+
+    expect(bundle.jsonBackup.time_sessions).toEqual([
+      expect.objectContaining({ id: "session-included" }),
+    ]);
+  });
+
+  it("averages summed stopped sessions by timed occurrence in Markdown", () => {
+    const bundle = resolve({
+      includeTimeTracking: true,
+      occurrences: [
+        occurrence({ id: "occurrence-1" }),
+        occurrence({ id: "occurrence-2" }),
+      ],
+      timeSessions: [
+        timeSession({ id: "session-1", occurrenceId: "occurrence-1" }),
+        timeSession({
+          id: "session-2",
+          occurrenceId: "occurrence-1",
+          startedAt: "2026-06-08T13:05:00Z",
+          stoppedAt: "2026-06-08T13:06:00Z",
+        }),
+        timeSession({
+          id: "session-3",
+          occurrenceId: "occurrence-2",
+          startedAt: "2026-06-08T14:00:00Z",
+          stoppedAt: "2026-06-08T14:01:00Z",
+        }),
+      ],
+    });
+
+    expect(bundle.markdownSummary).toContain(
+      "3 stopped sessions, 4m 14s recorded, 2m 7s average tracked time",
+    );
+  });
+
+  it("labels a running-only Markdown export without inventing a stopped session", () => {
+    const bundle = resolve({
+      includeTimeTracking: true,
+      timeSessions: [
+        timeSession({ id: "session-running", stoppedAt: null }),
+      ],
+    });
+
+    expect(bundle.markdownSummary).toContain(
+      "No stopped timing sessions in this export range.",
+    );
+  });
+
   it("emits valid JSONL with one category, behavior, or occurrence per line", () => {
     const bundle = resolve();
     const records = bundle.jsonl.split("\n").map((line) => JSON.parse(line));

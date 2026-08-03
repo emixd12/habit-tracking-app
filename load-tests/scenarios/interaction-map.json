@@ -1,0 +1,845 @@
+{
+  "schema_version": "1.0.0",
+  "registry_id": "cadence.user-interactions",
+  "registry_schema_version": "1.1.0",
+  "entries": [
+    {
+      "id": "INT-AUTH-001",
+      "classification": "external_provider",
+      "reason": "Google OAuth traffic belongs to the provider-owned authentication layer."
+    },
+    {
+      "id": "INT-AUTH-002",
+      "classification": "not_load_bearing",
+      "reason": "Temporary login is fixture setup outside timed route capacity."
+    },
+    {
+      "id": "INT-AUTH-003",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-AUTH-003 GET /login public-document",
+          "route": "/login",
+          "method": "GET",
+          "expected_result": "public_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["none"],
+          "cleanup_owner": "none",
+          "profiles": ["public_read"]
+        },
+        {
+          "name": "INT-AUTH-003 GET /terms public-document",
+          "route": "/terms",
+          "method": "GET",
+          "expected_result": "public_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["none"],
+          "cleanup_owner": "none",
+          "profiles": ["protocol_smoke", "public_read"]
+        },
+        {
+          "name": "INT-AUTH-003 GET /privacy public-document",
+          "route": "/privacy",
+          "method": "GET",
+          "expected_result": "public_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["none"],
+          "cleanup_owner": "none",
+          "profiles": ["public_read"]
+        },
+        {
+          "name": "INT-AUTH-003 GET /trust public-document",
+          "route": "/trust",
+          "method": "GET",
+          "expected_result": "public_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["none"],
+          "cleanup_owner": "none",
+          "profiles": ["public_read"]
+        }
+      ]
+    },
+    {
+      "id": "INT-LEGAL-001",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-LEGAL-001 GET /terms public-document",
+          "route": "/terms",
+          "method": "GET",
+          "expected_result": "public_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["none"],
+          "cleanup_owner": "none",
+          "profiles": ["public_read"]
+        },
+        {
+          "name": "INT-LEGAL-001 GET /privacy public-document",
+          "route": "/privacy",
+          "method": "GET",
+          "expected_result": "public_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["none"],
+          "cleanup_owner": "none",
+          "profiles": ["public_read"]
+        },
+        {
+          "name": "INT-LEGAL-001 GET /trust public-document",
+          "route": "/trust",
+          "method": "GET",
+          "expected_result": "public_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["none"],
+          "cleanup_owner": "none",
+          "profiles": ["public_read"]
+        }
+      ]
+    },
+    {
+      "id": "INT-LEGAL-002",
+      "classification": "not_load_bearing",
+      "reason": "Its internal and external destinations are already represented by their owning document requests."
+    },
+    {
+      "id": "INT-MKT-001",
+      "classification": "browser_only",
+      "reason": "Moving focus to marketing content requires a rendered document."
+    },
+    {
+      "id": "INT-MKT-002",
+      "classification": "not_load_bearing",
+      "reason": "The static marketing deployment has a separate capacity and release boundary."
+    },
+    {
+      "id": "INT-MKT-003",
+      "classification": "not_load_bearing",
+      "reason": "The static marketing deployment has a separate capacity and release boundary."
+    },
+    {
+      "id": "INT-MKT-004",
+      "classification": "external_provider",
+      "reason": "This crosses from the separate marketing hostname to the app hostname."
+    },
+    {
+      "id": "INT-MKT-005",
+      "classification": "not_load_bearing",
+      "reason": "Footer destinations span separate static and third-party systems."
+    },
+    {
+      "id": "INT-MKT-006",
+      "classification": "external_provider",
+      "reason": "This crosses from the separate marketing hostname to the app hostname."
+    },
+    {
+      "id": "INT-MKT-007",
+      "classification": "not_load_bearing",
+      "reason": "The static BehaviorLog page is outside the authenticated app capacity target."
+    },
+    {
+      "id": "INT-MKT-008",
+      "classification": "external_provider",
+      "reason": "Repository traffic belongs to GitHub."
+    },
+    {
+      "id": "INT-MKT-009",
+      "classification": "not_load_bearing",
+      "reason": "The build-generated example belongs to the separate static marketing artifact."
+    },
+    {
+      "id": "INT-MKT-010",
+      "classification": "not_load_bearing",
+      "reason": "Machine-readable marketing files belong to the separate static deployment."
+    },
+    {
+      "id": "INT-MKT-011",
+      "classification": "not_load_bearing",
+      "reason": "Static in-page and related links do not exercise the authenticated application stack."
+    },
+    {
+      "id": "INT-SHELL-001",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-SHELL-001 GET /timeline protected-document",
+          "route": "/timeline",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read", "read_baseline", "read_ramp"]
+        },
+        {
+          "name": "INT-SHELL-001 GET /behaviors protected-document",
+          "route": "/behaviors",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read", "read_baseline", "read_ramp"]
+        },
+        {
+          "name": "INT-SHELL-001 GET /export protected-document",
+          "route": "/export",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read", "read_baseline", "read_ramp"]
+        },
+        {
+          "name": "INT-SHELL-001 GET /settings protected-document",
+          "route": "/settings",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read", "read_baseline", "read_ramp"]
+        }
+      ]
+    },
+    {
+      "id": "INT-SHELL-002",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-SHELL-002 GET /timeline protected-document",
+          "route": "/timeline",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read"]
+        }
+      ]
+    },
+    {
+      "id": "INT-SHELL-003",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-SHELL-003 GET /settings protected-document",
+          "route": "/settings",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read"]
+        }
+      ]
+    },
+    {
+      "id": "INT-SHELL-004",
+      "classification": "browser_only",
+      "reason": "Rail expansion and persistence require client JavaScript and browser storage."
+    },
+    {
+      "id": "INT-SHELL-005",
+      "classification": "browser_only",
+      "reason": "Drawer state and focus management require a rendered mobile interface."
+    },
+    {
+      "id": "INT-SHELL-006",
+      "classification": "browser_only",
+      "reason": "Drawer closure, gestures, and focus return require a rendered mobile interface."
+    },
+    {
+      "id": "INT-SHELL-007",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-SHELL-007 GET /login preview-document",
+          "route": "/login?preview=1",
+          "method": "GET",
+          "expected_result": "public_document",
+          "environments": ["local"],
+          "data_preconditions": ["authenticated synthetic account", "non-production app runtime"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read"]
+        }
+      ]
+    },
+    {
+      "id": "INT-SHELL-008",
+      "classification": "not_load_bearing",
+      "reason": "Normal route-capacity profiles preserve prepared sessions instead of timing sign-out."
+    },
+    {
+      "id": "INT-ONBOARD-001",
+      "classification": "browser_only",
+      "reason": "Dismissal changes client-only browser storage."
+    },
+    {
+      "id": "INT-ONBOARD-002",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-ONBOARD-002 GET /behaviors setup-destination",
+          "route": "/behaviors#create-behavior",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated empty synthetic account"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read"]
+        },
+        {
+          "name": "INT-ONBOARD-002 GET /settings setup-destination",
+          "route": "/settings#timezone",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated empty synthetic account"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read"]
+        },
+        {
+          "name": "INT-ONBOARD-002 GET /export setup-destination",
+          "route": "/export#behaviorlog-import",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated empty synthetic account"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read"]
+        }
+      ]
+    },
+    {
+      "id": "INT-TIMELINE-001",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-TIMELINE-001 GET /timeline future-query",
+          "route": "/timeline?days=30",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "fresh occurrence horizon"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read", "read_baseline", "read_ramp"]
+        }
+      ]
+    },
+    {
+      "id": "INT-TIMELINE-002",
+      "classification": "browser_only",
+      "reason": "Opening the modal changes client UI and focus state only."
+    },
+    {
+      "id": "INT-TIMELINE-003",
+      "classification": "browser_only",
+      "reason": "Closing the modal changes client UI and focus state only."
+    },
+    {
+      "id": "INT-TIMELINE-004",
+      "classification": "browser_only",
+      "reason": "Native disclosure state has no application HTTP request."
+    },
+    {
+      "id": "INT-TIMELINE-005",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-TIMELINE-005 POST /timeline server-action",
+          "route": "/timeline",
+          "method": "POST",
+          "expected_result": "server_action_success",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "owned unresolved occurrence", "dynamically discovered action fields"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["protocol_smoke", "daily_tracker", "mixed_baseline", "mixed_ramp", "contention"]
+        }
+      ]
+    },
+    {
+      "id": "INT-TIMELINE-006",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-TIMELINE-006 POST /timeline server-action",
+          "route": "/timeline",
+          "method": "POST",
+          "expected_result": "server_action_success",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "owned unresolved occurrence", "dynamically discovered action fields"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["daily_tracker", "mixed_baseline", "mixed_ramp", "contention"]
+        }
+      ]
+    },
+    {
+      "id": "INT-TIMELINE-007",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-TIMELINE-007 POST /timeline server-action",
+          "route": "/timeline",
+          "method": "POST",
+          "expected_result": "server_action_success",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "owned resolved occurrence", "dynamically discovered action fields"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["daily_tracker", "mixed_baseline", "mixed_ramp", "contention"]
+        }
+      ]
+    },
+    {
+      "id": "INT-TIMELINE-008",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-TIMELINE-008 POST /timeline server-action",
+          "route": "/timeline",
+          "method": "POST",
+          "expected_result": "server_action_success",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "owned occurrence", "bounded synthetic note", "dynamically discovered action fields"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["daily_tracker", "mixed_baseline", "mixed_ramp"]
+        }
+      ]
+    },
+    {
+      "id": "INT-BEHAVIOR-001",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-BEHAVIOR-001 GET /behaviors range-query",
+          "route": "/behaviors?range=30",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "review history cohort"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read", "read_baseline", "read_ramp", "review_read"]
+        }
+      ]
+    },
+    {
+      "id": "INT-BEHAVIOR-002",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-BEHAVIOR-002 GET /behaviors selected-day-query",
+          "route": "/behaviors?range=30&behavior=:behavior_id&day=:local_date",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "owned behavior and non-empty local date"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["review_read", "read_baseline", "read_ramp", "contention"]
+        }
+      ]
+    },
+    {
+      "id": "INT-BEHAVIOR-003",
+      "classification": "browser_only",
+      "reason": "Correction disclosure state is client-side."
+    },
+    {
+      "id": "INT-BEHAVIOR-004",
+      "classification": "browser_only",
+      "reason": "Create-form disclosure state is client-side."
+    },
+    {
+      "id": "INT-BEHAVIOR-005",
+      "classification": "browser_only",
+      "reason": "Behavior detail disclosure state is client-side."
+    },
+    {
+      "id": "INT-BEHAVIOR-006",
+      "classification": "browser_only",
+      "reason": "Archived-list disclosure state is client-side."
+    },
+    {
+      "id": "INT-BEHAVIOR-007",
+      "classification": "browser_only",
+      "reason": "Editing identity fields is an unsaved form draft."
+    },
+    {
+      "id": "INT-BEHAVIOR-008",
+      "classification": "browser_only",
+      "reason": "Recurrence selection is an unsaved form draft."
+    },
+    {
+      "id": "INT-BEHAVIOR-009",
+      "classification": "browser_only",
+      "reason": "Recurrence details are an unsaved form draft."
+    },
+    {
+      "id": "INT-BEHAVIOR-010",
+      "classification": "browser_only",
+      "reason": "Adding a schedule changes an unsaved form draft."
+    },
+    {
+      "id": "INT-BEHAVIOR-011",
+      "classification": "browser_only",
+      "reason": "Removing a schedule changes an unsaved form draft."
+    },
+    {
+      "id": "INT-BEHAVIOR-012",
+      "classification": "browser_only",
+      "reason": "Time-mode selection is an unsaved form draft."
+    },
+    {
+      "id": "INT-BEHAVIOR-013",
+      "classification": "browser_only",
+      "reason": "Schedule-time editing is an unsaved form draft."
+    },
+    {
+      "id": "INT-BEHAVIOR-014",
+      "classification": "browser_only",
+      "reason": "Adding a time changes an unsaved form draft."
+    },
+    {
+      "id": "INT-BEHAVIOR-015",
+      "classification": "browser_only",
+      "reason": "Removing a time changes an unsaved form draft."
+    },
+    {
+      "id": "INT-BEHAVIOR-016",
+      "classification": "browser_only",
+      "reason": "Browser-reminder intent is an unsaved form choice."
+    },
+    {
+      "id": "INT-BEHAVIOR-017",
+      "classification": "browser_only",
+      "reason": "Email-reminder intent is an unsaved form choice."
+    },
+    {
+      "id": "INT-BEHAVIOR-018",
+      "classification": "browser_only",
+      "reason": "Reminder offset is an unsaved form choice."
+    },
+    {
+      "id": "INT-BEHAVIOR-019",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-BEHAVIOR-019 POST /behaviors server-action",
+          "route": "/behaviors",
+          "method": "POST",
+          "expected_result": "server_action_success",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "valid bounded behavior draft", "dynamically discovered action fields"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["behavior_maintainer", "mixed_baseline", "mixed_ramp"]
+        }
+      ]
+    },
+    {
+      "id": "INT-BEHAVIOR-020",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-BEHAVIOR-020 POST /behaviors server-action",
+          "route": "/behaviors",
+          "method": "POST",
+          "expected_result": "server_action_success",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "owned run-created behavior", "dynamically discovered action fields"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["behavior_maintainer", "mixed_baseline", "mixed_ramp"]
+        }
+      ]
+    },
+    {
+      "id": "INT-BEHAVIOR-021",
+      "classification": "browser_only",
+      "reason": "Resetting a draft changes only client form state."
+    },
+    {
+      "id": "INT-BEHAVIOR-022",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-BEHAVIOR-022 POST /behaviors server-action",
+          "route": "/behaviors",
+          "method": "POST",
+          "expected_result": "server_action_success",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "owned run-created active behavior", "dynamically discovered action fields"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["behavior_maintainer", "mixed_baseline", "mixed_ramp"]
+        }
+      ]
+    },
+    {
+      "id": "INT-BEHAVIOR-023",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-BEHAVIOR-023 POST /behaviors server-action",
+          "route": "/behaviors",
+          "method": "POST",
+          "expected_result": "server_action_success",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "owned run-created archived behavior", "dynamically discovered action fields"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["behavior_maintainer", "mixed_baseline", "mixed_ramp"]
+        }
+      ]
+    },
+    {
+      "id": "INT-EXPORT-001",
+      "classification": "browser_only",
+      "reason": "Range selection is an unsaved export-option draft."
+    },
+    {
+      "id": "INT-EXPORT-002",
+      "classification": "browser_only",
+      "reason": "Archived inclusion is an unsaved export-option draft."
+    },
+    {
+      "id": "INT-EXPORT-003",
+      "classification": "browser_only",
+      "reason": "Note inclusion is an unsaved sensitive-data scope choice."
+    },
+    {
+      "id": "INT-EXPORT-019",
+      "classification": "browser_only",
+      "reason": "Time-tracking inclusion is an unsaved sensitive-data scope choice."
+    },
+    {
+      "id": "INT-EXPORT-004",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-EXPORT-004 GET /export options-query",
+          "route": "/export?range=30&include_archived=0&include_notes=0",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read", "read_baseline", "read_ramp"]
+        }
+      ]
+    },
+    {
+      "id": "INT-EXPORT-005",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-EXPORT-005 GET /api/export/jsonl structured-export",
+          "route": "/api/export/jsonl?range=30&include_archived=0&include_notes=0",
+          "method": "GET",
+          "expected_result": "structured_export",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "synthetic export cohort"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["protocol_smoke", "structured_export", "read_baseline", "read_ramp"]
+        },
+        {
+          "name": "INT-EXPORT-005 GET /api/export/csv structured-export",
+          "route": "/api/export/csv?range=30&include_archived=0&include_notes=0",
+          "method": "GET",
+          "expected_result": "structured_export",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "synthetic export cohort"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["structured_export", "read_baseline", "read_ramp"]
+        },
+        {
+          "name": "INT-EXPORT-005 GET /api/export/json structured-export",
+          "route": "/api/export/json?range=30&include_archived=0&include_notes=0",
+          "method": "GET",
+          "expected_result": "structured_export",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "synthetic export cohort"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["structured_export", "read_baseline", "read_ramp"]
+        },
+        {
+          "name": "INT-EXPORT-005 GET /api/export/behaviorlog structured-export",
+          "route": "/api/export/behaviorlog?range=30&include_archived=0&include_notes=0",
+          "method": "GET",
+          "expected_result": "structured_export",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "synthetic export cohort"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["structured_export", "read_baseline", "read_ramp"]
+        }
+      ]
+    },
+    {
+      "id": "INT-EXPORT-006",
+      "classification": "browser_only",
+      "reason": "Clipboard writes require browser permission and client JavaScript."
+    },
+    {
+      "id": "INT-EXPORT-007",
+      "classification": "browser_only",
+      "reason": "The Markdown file is assembled and downloaded by client JavaScript."
+    },
+    {
+      "id": "INT-EXPORT-008",
+      "classification": "browser_only",
+      "reason": "Prompt disclosure state is client-only."
+    },
+    {
+      "id": "INT-EXPORT-009",
+      "classification": "browser_only",
+      "reason": "Clipboard writes require a rendered browser."
+    },
+    {
+      "id": "INT-EXPORT-010",
+      "classification": "not_load_bearing",
+      "reason": "Archive parsing and preview audit writes are excluded from ordinary capacity profiles."
+    },
+    {
+      "id": "INT-EXPORT-011",
+      "classification": "browser_only",
+      "reason": "Accepted-preview acknowledgement changes only gated form state."
+    },
+    {
+      "id": "INT-EXPORT-012",
+      "classification": "browser_only",
+      "reason": "Sensitivity acknowledgement changes only gated form state."
+    },
+    {
+      "id": "INT-EXPORT-013",
+      "classification": "destructive_serial_only",
+      "reason": "Import apply is excluded from swarms and may run only as an isolated reviewed operation."
+    },
+    {
+      "id": "INT-EXPORT-014",
+      "classification": "destructive_serial_only",
+      "reason": "Restore preview belongs to the isolated destructive-restore workflow."
+    },
+    {
+      "id": "INT-EXPORT-015",
+      "classification": "destructive_serial_only",
+      "reason": "Backup acknowledgement belongs to the isolated destructive-restore workflow."
+    },
+    {
+      "id": "INT-EXPORT-016",
+      "classification": "destructive_serial_only",
+      "reason": "Sensitivity acknowledgement belongs to the isolated destructive-restore workflow."
+    },
+    {
+      "id": "INT-EXPORT-017",
+      "classification": "destructive_serial_only",
+      "reason": "Typed confirmation belongs to the isolated destructive-restore workflow."
+    },
+    {
+      "id": "INT-EXPORT-018",
+      "classification": "destructive_serial_only",
+      "reason": "Restore apply is never admitted to a concurrent load profile."
+    },
+    {
+      "id": "INT-SETTINGS-001",
+      "classification": "browser_only",
+      "reason": "Timezone selection is an unsaved form draft."
+    },
+    {
+      "id": "INT-SETTINGS-002",
+      "classification": "browser_only",
+      "reason": "Browser timezone detection requires client platform APIs."
+    },
+    {
+      "id": "INT-SETTINGS-003",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-SETTINGS-003 POST /settings server-action",
+          "route": "/settings",
+          "method": "POST",
+          "expected_result": "server_action_success",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account", "valid IANA timezone", "dynamically discovered action fields"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["timezone_unchanged", "timezone_changed", "mixed_baseline", "mixed_ramp"]
+        }
+      ]
+    },
+    {
+      "id": "INT-SETTINGS-004",
+      "classification": "browser_only",
+      "reason": "Notification permission and push subscription APIs require a browser and provider."
+    },
+    {
+      "id": "INT-SETTINGS-005",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-SETTINGS-005 GET /terms public-document",
+          "route": "/terms",
+          "method": "GET",
+          "expected_result": "public_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["none"],
+          "cleanup_owner": "none",
+          "profiles": ["public_read"]
+        },
+        {
+          "name": "INT-SETTINGS-005 GET /privacy public-document",
+          "route": "/privacy",
+          "method": "GET",
+          "expected_result": "public_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["none"],
+          "cleanup_owner": "none",
+          "profiles": ["public_read"]
+        },
+        {
+          "name": "INT-SETTINGS-005 GET /trust public-document",
+          "route": "/trust",
+          "method": "GET",
+          "expected_result": "public_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["none"],
+          "cleanup_owner": "none",
+          "profiles": ["public_read"]
+        }
+      ]
+    },
+    {
+      "id": "INT-SETTINGS-006",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-SETTINGS-006 GET /export protected-document",
+          "route": "/export",
+          "method": "GET",
+          "expected_result": "protected_document",
+          "environments": ["local", "hosted_staging"],
+          "data_preconditions": ["authenticated synthetic account"],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": ["authenticated_read"]
+        }
+      ]
+    },
+    {
+      "id": "INT-SETTINGS-007",
+      "classification": "destructive_serial_only",
+      "reason": "Deletion acknowledgement belongs to the isolated account-deletion workflow."
+    },
+    {
+      "id": "INT-SETTINGS-008",
+      "classification": "destructive_serial_only",
+      "reason": "Typed deletion confirmation belongs to the isolated account-deletion workflow."
+    },
+    {
+      "id": "INT-SETTINGS-009",
+      "classification": "destructive_serial_only",
+      "reason": "Account deletion is never admitted to a concurrent load profile."
+    },
+    {
+      "id": "INT-NOTIFICATION-001",
+      "classification": "browser_only",
+      "reason": "Notification clicks, same-origin tab focus, and navigation require a service worker and browser."
+    },
+    {
+      "id": "INT-TIMELINE-009",
+      "classification": "not_load_bearing",
+      "reason": "Elapsed-time capture and review reset are user-paced and duration-dependent; ordinary Timeline and Behaviors document reads cover their shared route capacity."
+    }
+  ]
+}

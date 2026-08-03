@@ -34,6 +34,8 @@ import type { OccurrenceStatus } from "@/lib/types/database";
 const BEHAVIORLOG_FORMAT = "behaviorlog.bundle";
 const BEHAVIORLOG_SUPPORTED_SCHEMA_VERSIONS = ["0.1.0-draft"] as const;
 const BEHAVIORLOG_EXTENSION_NAMESPACE = "app.cadence";
+const CADENCE_TIME_SESSIONS_PATH =
+  "raw/cadence/occurrence_time_sessions.jsonl";
 const TIMEZONE_VALIDATION_INSTANT = Temporal.Instant.from(
   "2000-01-01T00:00:00Z",
 );
@@ -249,6 +251,12 @@ export function resolveBehaviorLogImportPreview(
     warnings,
     supportedSchemaVersions:
       input.supportedSchemaVersions ?? BEHAVIORLOG_SUPPORTED_SCHEMA_VERSIONS,
+  });
+  validateCadenceTimeSessions({
+    manifest,
+    fileMap,
+    errors,
+    warnings,
   });
   parseJsonFile("schema.json", fileMap, errors);
 
@@ -582,6 +590,185 @@ function validateManifest(input: {
       });
     }
   }
+}
+
+function validateCadenceTimeSessions(input: {
+  manifest: JsonRecord | null;
+  fileMap: Map<string, BehaviorLogImportFile>;
+  errors: BehaviorLogImportIssue[];
+  warnings: BehaviorLogImportIssue[];
+}): void {
+  const cadence = isRecord(input.manifest?.extensions)
+    ? input.manifest.extensions[BEHAVIORLOG_EXTENSION_NAMESPACE]
+    : null;
+  const declaration = isRecord(cadence)
+    ? cadence.occurrence_time_sessions
+    : null;
+  const file = input.fileMap.get(CADENCE_TIME_SESSIONS_PATH);
+  const isManifestListed = Array.isArray(input.manifest?.files)
+    ? input.manifest.files.some(
+        (entry) =>
+          isRecord(entry) && entry.path === CADENCE_TIME_SESSIONS_PATH,
+      )
+    : false;
+
+  if (!declaration && !file) {
+    return;
+  }
+
+  if (file && !isManifestListed) {
+    input.errors.push({
+      severity: "error",
+      code: "cadence_time_sessions_not_listed",
+      message:
+        "Cadence time-session export files must be listed in manifest.json so their SHA-256 hash is verified.",
+      file: "manifest.json",
+      path: CADENCE_TIME_SESSIONS_PATH,
+    });
+  }
+
+  if (!isRecord(declaration)) {
+    input.errors.push({
+      severity: "error",
+      code: "cadence_time_sessions_extension_invalid",
+      message:
+        "Cadence time-session exports must declare occurrence_time_sessions in manifest.extensions.app.cadence.",
+      file: "manifest.json",
+    });
+    return;
+  }
+
+  if (declaration.path !== CADENCE_TIME_SESSIONS_PATH || !file) {
+    input.errors.push({
+      severity: "error",
+      code: "cadence_time_sessions_file_invalid",
+      message:
+        "Cadence time-session export metadata must reference raw/cadence/occurrence_time_sessions.jsonl.",
+      file: "manifest.json",
+      path: CADENCE_TIME_SESSIONS_PATH,
+    });
+    return;
+  }
+
+  const rows = parseCadenceTimeSessionRows(file, input.errors);
+
+  const recordCount = declaration.record_count;
+
+  if (
+    typeof recordCount !== "number" ||
+    !Number.isInteger(recordCount) ||
+    recordCount < 0 ||
+    recordCount !== rows.length
+  ) {
+    input.errors.push({
+      severity: "error",
+      code: "cadence_time_sessions_count_invalid",
+      message:
+        "Cadence time-session export metadata must match the optional file record count.",
+      file: "manifest.json",
+      path: CADENCE_TIME_SESSIONS_PATH,
+    });
+  }
+
+  if (declaration.import_restore_support !== "export_only") {
+    input.errors.push({
+      severity: "error",
+      code: "cadence_time_sessions_support_invalid",
+      message:
+        "Cadence time-session exports must declare export_only import and restore support.",
+      file: "manifest.json",
+      path: CADENCE_TIME_SESSIONS_PATH,
+    });
+  }
+
+  if (
+    !Array.isArray(declaration.ordering) ||
+    declaration.ordering.length !== 2 ||
+    declaration.ordering[0] !== "started_at" ||
+    declaration.ordering[1] !== "session_id"
+  ) {
+    input.errors.push({
+      severity: "error",
+      code: "cadence_time_sessions_ordering_invalid",
+      message:
+        "Cadence time-session export metadata must declare started_at and session_id ordering.",
+      file: "manifest.json",
+      path: CADENCE_TIME_SESSIONS_PATH,
+    });
+  }
+
+  input.warnings.push({
+    severity: "warning",
+    code: "cadence_time_sessions_export_only",
+    message:
+      "Cadence validated the optional time-session export file, but import and restore do not replay timing sessions.",
+    file: CADENCE_TIME_SESSIONS_PATH,
+  });
+}
+
+function parseCadenceTimeSessionRows(
+  file: BehaviorLogImportFile,
+  errors: BehaviorLogImportIssue[],
+): JsonRecord[] {
+  const rows: JsonRecord[] = [];
+
+  for (const [index, line] of file.content.split(/\r?\n/).entries()) {
+    if (line.trim().length === 0) {
+      continue;
+    }
+
+    try {
+      const record = JSON.parse(line);
+
+      if (!isRecord(record) || record.record_type !== "occurrence_time_session") {
+        throw new Error("must be an occurrence_time_session record");
+      }
+      if (
+        typeof record.session_id !== "string" ||
+        typeof record.occurrence_id !== "string" ||
+        typeof record.behavior_id !== "string" ||
+        typeof record.started_at !== "string"
+      ) {
+        throw new Error("requires session_id, occurrence_id, behavior_id, and started_at strings");
+      }
+      const startedAt = Temporal.Instant.from(record.started_at);
+      const stoppedAt =
+        record.stopped_at === null
+          ? null
+          : typeof record.stopped_at === "string"
+            ? Temporal.Instant.from(record.stopped_at)
+            : null;
+
+      if (record.stopped_at !== null && stoppedAt === null) {
+        throw new Error("stopped_at must be an ISO instant or null");
+      }
+      if (
+        stoppedAt &&
+        Temporal.Instant.compare(stoppedAt, startedAt) < 0
+      ) {
+        throw new Error("stopped_at cannot be before started_at");
+      }
+      if (
+        (stoppedAt === null && record.duration_seconds !== null) ||
+        (stoppedAt !== null &&
+          (typeof record.duration_seconds !== "number" ||
+            record.duration_seconds < 0))
+      ) {
+        throw new Error("duration_seconds must be null for running sessions and nonnegative for stopped sessions");
+      }
+      rows.push(record);
+    } catch (error) {
+      errors.push({
+        severity: "error",
+        code: "cadence_time_session_invalid",
+        message: `${CADENCE_TIME_SESSIONS_PATH} row ${index + 1} ${errorMessage(error)}.`,
+        file: CADENCE_TIME_SESSIONS_PATH,
+        row: index + 1,
+      });
+    }
+  }
+
+  return rows;
 }
 
 function parseJsonFile(

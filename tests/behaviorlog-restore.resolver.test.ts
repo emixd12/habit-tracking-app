@@ -16,6 +16,7 @@ import type {
   ExportOccurrenceInput,
   ExportReminderDeliveryInput,
   ExportStatusEventInput,
+  ExportTimeSessionInput,
 } from "../lib/types/export";
 import { DEFAULT_TIMEZONE } from "../lib/types/recurrence";
 
@@ -436,6 +437,7 @@ function bundleFiles(
     occurrences?: ExportOccurrenceInput[];
     statusEvents?: ExportStatusEventInput[];
     reminderDeliveries?: ExportReminderDeliveryInput[];
+    timeSessions?: ExportTimeSessionInput[];
   } = {},
 ): BehaviorLogImportFile[] {
   return resolveExportBundle({
@@ -448,10 +450,12 @@ function bundleFiles(
     occurrences: input.occurrences ?? [occurrence()],
     statusEvents: input.statusEvents ?? statusEvents(),
     reminderDeliveries: input.reminderDeliveries ?? [reminderDelivery()],
+    timeSessions: input.timeSessions,
     now: NOW,
     timezone: DEFAULT_TIMEZONE,
     range: "30",
     includeNotes: true,
+    includeTimeTracking: Boolean(input.timeSessions),
   }).behaviorLog.files;
 }
 

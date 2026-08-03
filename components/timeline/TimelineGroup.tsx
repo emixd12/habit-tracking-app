@@ -1,5 +1,6 @@
 import type {
   OccurrenceFormAction,
+  TimeTrackingFormAction,
   TimelineDaySection,
 } from "@/lib/types/timeline";
 import { OccurrenceRow } from "@/components/timeline/OccurrenceRow";
@@ -8,6 +9,9 @@ type TimelineGroupProps = Readonly<{
   section: TimelineDaySection;
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
+  startTimeTrackingAction: TimeTrackingFormAction;
+  stopTimeTrackingAction: TimeTrackingFormAction;
+  resetTimeTrackingAction: TimeTrackingFormAction;
   variant?: "feed" | "needsDecisionDialog";
 }>;
 
@@ -21,6 +25,9 @@ export function TimelineGroup({
   section,
   statusAction,
   noteAction,
+  startTimeTrackingAction,
+  stopTimeTrackingAction,
+  resetTimeTrackingAction,
   variant = "feed",
 }: TimelineGroupProps) {
   const isEmpty = section.occurrenceGroups.length === 0;
@@ -79,6 +86,9 @@ export function TimelineGroup({
               group={group}
               statusAction={statusAction}
               noteAction={noteAction}
+              startTimeTrackingAction={startTimeTrackingAction}
+              stopTimeTrackingAction={stopTimeTrackingAction}
+              resetTimeTrackingAction={resetTimeTrackingAction}
             />
           ))}
         </div>
@@ -103,10 +113,16 @@ function OccurrenceStack({
   group,
   statusAction,
   noteAction,
+  startTimeTrackingAction,
+  stopTimeTrackingAction,
+  resetTimeTrackingAction,
 }: Readonly<{
   group: TimelineDaySection["occurrenceGroups"][number];
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
+  startTimeTrackingAction: TimeTrackingFormAction;
+  stopTimeTrackingAction: TimeTrackingFormAction;
+  resetTimeTrackingAction: TimeTrackingFormAction;
 }>) {
   if (!group.isGroupedStack) {
     const occurrence = group.occurrences[0];
@@ -120,6 +136,9 @@ function OccurrenceStack({
         occurrence={occurrence}
         statusAction={statusAction}
         noteAction={noteAction}
+        startTimeTrackingAction={startTimeTrackingAction}
+        stopTimeTrackingAction={stopTimeTrackingAction}
+        resetTimeTrackingAction={resetTimeTrackingAction}
       />
     );
   }
@@ -138,6 +157,9 @@ function OccurrenceStack({
           occurrence={occurrence}
           statusAction={statusAction}
           noteAction={noteAction}
+          startTimeTrackingAction={startTimeTrackingAction}
+          stopTimeTrackingAction={stopTimeTrackingAction}
+          resetTimeTrackingAction={resetTimeTrackingAction}
         />
       ))}
     </div>

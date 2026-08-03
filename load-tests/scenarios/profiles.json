@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0.0",
+  "assumption_basis": "initial_product_assumptions_not_observed_analytics",
+  "default_profile": "smoke",
+  "think_time_seconds": {
+    "minimum": 2,
+    "maximum": 6
+  },
+  "task_weights": {
+    "public_login": 6,
+    "public_terms": 3,
+    "public_privacy": 3,
+    "public_trust": 3,
+    "timeline": 28,
+    "timeline_future": 10,
+    "behaviors": 12,
+    "behaviors_range": 10,
+    "behaviors_selected_day": 7,
+    "export_page": 4,
+    "settings": 6,
+    "export_jsonl": 3,
+    "export_csv": 2,
+    "export_json": 2,
+    "export_behaviorlog": 1
+  },
+  "default_cohort_mix_percent": {
+    "empty": 10,
+    "typical_daily": 60,
+    "review_heavy": 20,
+    "export_heavy": 10,
+    "heavy_schedule": 0
+  },
+  "profiles": {
+    "smoke": {
+      "shape": "smoke",
+      "cohort_filter": null
+    },
+    "baseline": {
+      "shape": "baseline",
+      "cohort_filter": null
+    },
+    "ramp": {
+      "shape": "ramp",
+      "cohort_filter": null
+    },
+    "recovery": {
+      "shape": "recovery",
+      "cohort_filter": null
+    },
+    "heavy": {
+      "shape": "heavy",
+      "cohort_filter": "heavy_schedule"
+    }
+  },
+  "shapes": {
+    "smoke": {
+      "stages": [
+        {
+          "duration_seconds": 180,
+          "users": 1,
+          "spawn_rate": 1
+        }
+      ]
+    },
+    "baseline": {
+      "stages": [
+        {
+          "duration_seconds": 600,
+          "users": 5,
+          "spawn_rate": 1
+        },
+        {
+          "duration_seconds": 600,
+          "users": 10,
+          "spawn_rate": 1
+        }
+      ]
+    },
+    "ramp": {
+      "stages": [
+        {
+          "duration_seconds": 240,
+          "users": 10,
+          "spawn_rate": 2
+        },
+        {
+          "duration_seconds": 240,
+          "users": 25,
+          "spawn_rate": 3
+        },
+        {
+          "duration_seconds": 240,
+          "users": 50,
+          "spawn_rate": 5
+        },
+        {
+          "duration_seconds": 240,
+          "users": 100,
+          "spawn_rate": 10
+        }
+      ]
+    },
+    "recovery": {
+      "stages": [
+        {
+          "duration_seconds": 300,
+          "users": 10,
+          "spawn_rate": 2
+        },
+        {
+          "duration_seconds": 300,
+          "users": 50,
+          "spawn_rate": 5
+        },
+        {
+          "duration_seconds": 300,
+          "users": 10,
+          "spawn_rate": 5
+        }
+      ]
+    },
+    "heavy": {
+      "stages": [
+        {
+          "duration_seconds": 300,
+          "users": 5,
+          "spawn_rate": 1
+        }
+      ]
+    }
+  }
+}

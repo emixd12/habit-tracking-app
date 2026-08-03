@@ -20,6 +20,8 @@ describe("Prompt library UI", () => {
     expect(html).toContain("Copy prompt");
     expect(html).toContain('aria-label="Copy prompt: Notes-explained failures"');
     expect(html).toContain('aria-live="polite"');
+    expect(html).toContain("<details");
+    expect(html).toContain("<summary");
 
     const listClass = html.match(/<ul class="([^"]*)"/)?.[1];
     expect(listClass).toContain("divide-y divide-line");

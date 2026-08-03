@@ -16,6 +16,7 @@ import type {
   ExportJsonCategory,
   ExportJsonOccurrence,
   ExportJsonStatusEvent,
+  ExportJsonTimeSession,
   ExportOccurrenceInput,
   ExportProfileInput,
   ExportRangeKey,
@@ -23,14 +24,21 @@ import type {
   ExportReminderDeliveryInput,
   ExportStatusCounts,
   ExportStatusEventInput,
+  ExportTimeSessionInput,
 } from "@/lib/types/export";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
+import {
+  formatRecordedDuration,
+  resolveOccurrenceTimeTracking,
+} from "@/lib/resolvers/time-tracking.resolver";
 
 const BEHAVIORLOG_SCHEMA_VERSION = "0.1.0-draft";
 const BEHAVIORLOG_FORMAT = "behaviorlog.bundle";
 const BEHAVIORLOG_EXTENSION_NAMESPACE = "app.cadence";
 const BEHAVIORLOG_DEFINITION_HISTORY_PATH =
   "raw/cadence/behavior_definition_events.jsonl";
+const BEHAVIORLOG_TIME_SESSIONS_PATH =
+  "raw/cadence/occurrence_time_sessions.jsonl";
 const BEHAVIORLOG_GENERATION_RULE_ID = "rule_recurrence_calendar_simple_v1";
 const BEHAVIOR_DEFINITION_CHANGED_FIELDS = ["title", "description"] as const;
 const BEHAVIORLOG_BEHAVIOR_CSV_COLUMNS = [
@@ -120,6 +128,12 @@ const CSV_COLUMNS = [
   "status_marked_at",
   "note",
 ] as const;
+const TIME_TRACKING_CSV_COLUMNS = [
+  ...CSV_COLUMNS,
+  "tracked_duration_seconds",
+  "time_session_count",
+  "time_sessions",
+] as const;
 type AppCsvColumn = (typeof CSV_COLUMNS)[number];
 const APP_CSV_FORMULA_NEUTRALIZED_COLUMNS = new Set<AppCsvColumn>([
   "behavior_title",
@@ -147,12 +161,15 @@ export type ResolveExportInput = {
   range?: string | number | null;
   includeArchived?: boolean;
   includeNotes?: boolean;
+  includeTimeTracking?: boolean;
+  timeSessions?: ExportTimeSessionInput[];
 };
 
 export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
   const timezone = input.timezone || input.profile.timezone || DEFAULT_TIMEZONE;
   const includeArchived = input.includeArchived ?? false;
   const includeNotes = input.includeNotes ?? false;
+  const includeTimeTracking = input.includeTimeTracking ?? false;
   const range = resolveExportDateRange({
     now: input.now,
     timezone,
@@ -183,6 +200,12 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
       }),
     );
   const overallCounts = countOccurrences(occurrences);
+  const timeSessions = includeTimeTracking
+    ? toJsonTimeSessions({
+        timeSessions: input.timeSessions ?? [],
+        occurrences,
+      })
+    : [];
   const statusEvents = toJsonStatusEvents({
     statusEvents: input.statusEvents ?? [],
     occurrences,
@@ -192,6 +215,7 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     range.key === "all" ? "all-time" : `${range.key}-days`,
     range.endLocalDate,
     includeArchived ? "with-archived" : null,
+    includeTimeTracking ? "with-time-tracking" : null,
   ]
     .filter(Boolean)
     .join("-");
@@ -203,6 +227,7 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     occurrences,
     statusEvents,
     behaviorDefinitionEvents,
+    timeSessions: includeTimeTracking ? timeSessions : undefined,
   });
   const behaviorLog = toBehaviorLogBundle({
     exportedAtInstant: input.now,
@@ -213,6 +238,8 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     occurrences,
     statusEvents: input.statusEvents ?? [],
     reminderDeliveries: input.reminderDeliveries ?? [],
+    timeSessions,
+    includeTimeTracking,
   });
 
   return {
@@ -220,15 +247,17 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     exportedAt,
     includeArchived,
     includeNotes,
+    includeTimeTracking,
     range,
     rangeOptions: [...EXPORT_RANGE_OPTIONS],
     categoryCount: categories.length,
     behaviorCount: behaviors.length,
     occurrenceCount: occurrences.length,
+    ...(includeTimeTracking ? { timeSessionCount: timeSessions.length } : {}),
     overallCounts,
     overallAdherenceLabel: formatAdherenceValue(overallCounts),
-    jsonl: toJsonl({ categories, behaviors, occurrences }),
-    csv: toCsv(occurrences),
+    jsonl: toJsonl({ categories, behaviors, occurrences, timeSessions }),
+    csv: toCsv(occurrences, timeSessions, includeTimeTracking),
     jsonBackup,
     json: JSON.stringify(jsonBackup, null, 2),
     markdownSummary: toMarkdownSummary({
@@ -240,6 +269,8 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
       statusEvents,
       includeArchived,
       includeNotes,
+      includeTimeTracking,
+      timeSessions,
     }),
     fileBaseName,
     markdownFileName: `${fileBaseName}-summary.md`,
@@ -410,6 +441,7 @@ function toJsonBackup(input: {
   occurrences: ExportJsonOccurrence[];
   statusEvents: ExportJsonStatusEvent[];
   behaviorDefinitionEvents: ExportJsonBehaviorDefinitionEvent[];
+  timeSessions?: ExportJsonTimeSession[];
 }): ExportJsonBackup {
   return {
     exported_at: input.exportedAt,
@@ -421,7 +453,51 @@ function toJsonBackup(input: {
     occurrences: input.occurrences,
     status_events: input.statusEvents,
     behavior_definition_events: input.behaviorDefinitionEvents,
+    ...(input.timeSessions ? { time_sessions: input.timeSessions } : {}),
   };
+}
+
+function toJsonTimeSessions(input: {
+  timeSessions: ExportTimeSessionInput[];
+  occurrences: ExportJsonOccurrence[];
+}): ExportJsonTimeSession[] {
+  const occurrenceById = new Map(
+    input.occurrences.map((occurrence) => [occurrence.id, occurrence]),
+  );
+
+  return input.timeSessions
+    .filter((session) => {
+      const occurrence = occurrenceById.get(session.occurrenceId);
+
+      return occurrence?.behavior_id === session.behaviorId;
+    })
+    .sort((left, right) => {
+      const startedAt = Temporal.Instant.compare(
+        Temporal.Instant.from(left.startedAt),
+        Temporal.Instant.from(right.startedAt),
+      );
+
+      return startedAt !== 0 ? startedAt : left.id.localeCompare(right.id);
+    })
+    .map((session) => ({
+      id: session.id,
+      occurrence_id: session.occurrenceId,
+      behavior_id: session.behaviorId,
+      started_at: formatUtc(session.startedAt),
+      stopped_at: formatOptionalUtc(session.stoppedAt),
+      duration_seconds: session.stoppedAt
+        ? resolveOccurrenceTimeTracking([
+            {
+              id: session.id,
+              userId: "export",
+              occurrenceId: session.occurrenceId,
+              behaviorId: session.behaviorId,
+              startedAt: session.startedAt,
+              stoppedAt: session.stoppedAt,
+            },
+          ]).recordedSeconds
+        : null,
+    }));
 }
 
 function toJsonStatusEvents(input: {
@@ -459,6 +535,7 @@ function toJsonl(input: {
   categories: ExportJsonCategory[];
   behaviors: ExportJsonBehavior[];
   occurrences: ExportJsonOccurrence[];
+  timeSessions: ExportJsonTimeSession[];
 }): string {
   const lines = [
     ...input.categories.map((category) =>
@@ -508,16 +585,39 @@ function toJsonl(input: {
         note: occurrence.note,
       }),
     ),
+    ...input.timeSessions.map((session) =>
+      JSON.stringify({
+        type: "time_session",
+        id: session.id,
+        occurrence_id: session.occurrence_id,
+        behavior_id: session.behavior_id,
+        started_at: session.started_at,
+        stopped_at: session.stopped_at,
+        duration_seconds: session.duration_seconds,
+      }),
+    ),
   ];
 
   return lines.join("\n");
 }
 
-function toCsv(occurrences: ExportJsonOccurrence[]): string {
+function toCsv(
+  occurrences: ExportJsonOccurrence[],
+  timeSessions: ExportJsonTimeSession[],
+  includeTimeTracking: boolean,
+): string {
+  const sessionsByOccurrenceId = new Map<string, ExportJsonTimeSession[]>();
+
+  for (const session of timeSessions) {
+    const sessions = sessionsByOccurrenceId.get(session.occurrence_id) ?? [];
+    sessions.push(session);
+    sessionsByOccurrenceId.set(session.occurrence_id, sessions);
+  }
+  const columns = includeTimeTracking ? TIME_TRACKING_CSV_COLUMNS : CSV_COLUMNS;
   const rows = [
-    CSV_COLUMNS.join(","),
+    columns.join(","),
     ...occurrences.map((occurrence) => {
-      const record: Record<AppCsvColumn, string> = {
+      const record: Record<string, string> = {
         local_date: occurrence.local_date,
         scheduled_for: occurrence.scheduled_for,
         schedule: occurrence.schedule,
@@ -528,10 +628,21 @@ function toCsv(occurrences: ExportJsonOccurrence[]): string {
         note: occurrence.note ?? "",
       };
 
-      return CSV_COLUMNS.map((column) =>
+      if (includeTimeTracking) {
+        const sessions = sessionsByOccurrenceId.get(occurrence.id) ?? [];
+        const trackedDurationSeconds = sessions.reduce(
+          (total, session) => total + (session.duration_seconds ?? 0),
+          0,
+        );
+        record.tracked_duration_seconds = String(trackedDurationSeconds);
+        record.time_session_count = String(sessions.length);
+        record.time_sessions = JSON.stringify(sessions);
+      }
+
+      return columns.map((column) =>
         escapeCsvCell(
           record[column],
-          APP_CSV_FORMULA_NEUTRALIZED_COLUMNS.has(column),
+          APP_CSV_FORMULA_NEUTRALIZED_COLUMNS.has(column as AppCsvColumn),
         ),
       ).join(",");
     }),
@@ -568,6 +679,8 @@ function toBehaviorLogBundle(input: {
   occurrences: ExportJsonOccurrence[];
   statusEvents: ExportStatusEventInput[];
   reminderDeliveries: ExportReminderDeliveryInput[];
+  timeSessions: ExportJsonTimeSession[];
+  includeTimeTracking: boolean;
 }): BehaviorLogBundle {
   const schemaContent = JSON.stringify(createBehaviorLogSchema(), null, 2);
   const readmeContent = createBehaviorLogReadme();
@@ -649,6 +762,24 @@ function toBehaviorLogBundle(input: {
     content: toJsonlRecords(input.behaviorDefinitionEvents),
   });
 
+  if (input.includeTimeTracking) {
+    filesWithoutManifest.push({
+      path: BEHAVIORLOG_TIME_SESSIONS_PATH,
+      mediaType: "application/jsonl",
+      content: toJsonlRecords(
+        input.timeSessions.map((session) => ({
+          record_type: "occurrence_time_session",
+          session_id: session.id,
+          occurrence_id: session.occurrence_id,
+          behavior_id: session.behavior_id,
+          started_at: session.started_at,
+          stopped_at: session.stopped_at,
+          duration_seconds: session.duration_seconds,
+        })),
+      ),
+    });
+  }
+
   filesWithoutManifest.push(
     ...toBehaviorLogCsvFiles({
       behaviorRecords,
@@ -665,6 +796,9 @@ function toBehaviorLogBundle(input: {
       containsNotes: noteRecords.length > 0,
       containsInterventions: interventionRecords.length > 0,
       behaviorDefinitionEventCount: input.behaviorDefinitionEvents.length,
+      timeSessionCount: input.includeTimeTracking
+        ? input.timeSessions.length
+        : undefined,
       files: filesWithoutManifest,
     }),
     null,
@@ -690,6 +824,7 @@ function createBehaviorLogManifest(input: {
   containsNotes: boolean;
   containsInterventions: boolean;
   behaviorDefinitionEventCount: number;
+  timeSessionCount?: number;
   files: BehaviorLogFile[];
 }) {
   return {
@@ -728,6 +863,16 @@ function createBehaviorLogManifest(input: {
           ordering: ["recorded_at", "id"],
           import_restore_support: "export_only",
         },
+        ...(input.timeSessionCount !== undefined
+          ? {
+              occurrence_time_sessions: {
+                path: BEHAVIORLOG_TIME_SESSIONS_PATH,
+                record_count: input.timeSessionCount,
+                ordering: ["started_at", "session_id"],
+                import_restore_support: "export_only",
+              },
+            }
+          : {}),
       },
     },
     rules: {
@@ -1989,11 +2134,16 @@ function toMarkdownSummary(input: {
   occurrences: ExportJsonOccurrence[];
   includeArchived: boolean;
   includeNotes: boolean;
+  includeTimeTracking: boolean;
+  timeSessions: ExportJsonTimeSession[];
   statusEvents: ExportJsonStatusEvent[];
 }): string {
   const behaviorLines = summarizeByBehavior(input.occurrences);
   const categoryLines = summarizeByCategory(input.occurrences);
   const noteLines = summarizeOccurrenceNotes(input.occurrences);
+  const timeTrackingLines = input.includeTimeTracking
+    ? summarizeTimeTracking(input.timeSessions, input.behaviors)
+    : [];
 
   return [
     `# Behavior adherence summary, ${input.range.summaryLabel}`,
@@ -2027,8 +2177,64 @@ function toMarkdownSummary(input: {
     "- Occurrence rows are current snapshots. Use `status_events` for corrections and decision chronology.",
     "- `recorded_at` is when Cadence logged the decision; `effective_at` is its stated effective time when present; `revises_event_id` links a correction to the prior event.",
     "- For late-log and adherence-timing analysis, compare `recorded_at` with `effective_at` and the occurrence schedule. This context does not change Cadence's stored status or default adherence calculation.",
+    ...(timeTrackingLines.length > 0
+      ? ["", "## Time tracking", ...timeTrackingLines]
+      : input.includeTimeTracking
+        ? [
+            "",
+            "## Time tracking",
+            "- No stopped timing sessions in this export range.",
+          ]
+        : []),
     ...(noteLines.length > 0 ? ["", "## Notes", ...noteLines] : []),
   ].join("\n");
+}
+
+function summarizeTimeTracking(
+  sessions: ExportJsonTimeSession[],
+  behaviors: ExportJsonBehavior[],
+): string[] {
+  const titleByBehaviorId = new Map(
+    behaviors.map((behavior) => [behavior.id, behavior.title]),
+  );
+  const totalsByBehaviorId = new Map<
+    string,
+    {
+      stoppedSessionCount: number;
+      recordedSeconds: number;
+      occurrenceTotals: Map<string, number>;
+    }
+  >();
+
+  for (const session of sessions) {
+    if (session.duration_seconds === null) {
+      continue;
+    }
+
+    const totals = totalsByBehaviorId.get(session.behavior_id) ?? {
+      stoppedSessionCount: 0,
+      recordedSeconds: 0,
+      occurrenceTotals: new Map(),
+    };
+    totals.stoppedSessionCount += 1;
+    totals.recordedSeconds += session.duration_seconds;
+    totals.occurrenceTotals.set(
+      session.occurrence_id,
+      (totals.occurrenceTotals.get(session.occurrence_id) ?? 0) +
+        session.duration_seconds,
+    );
+    totalsByBehaviorId.set(session.behavior_id, totals);
+  }
+
+  return Array.from(totalsByBehaviorId.entries())
+    .map(([behaviorId, totals]) => {
+      const title = titleByBehaviorId.get(behaviorId) ?? "Unknown behavior";
+      const averageSeconds =
+        totals.recordedSeconds / totals.occurrenceTotals.size;
+
+      return `- ${title}: ${totals.stoppedSessionCount} stopped ${totals.stoppedSessionCount === 1 ? "session" : "sessions"}, ${formatRecordedDuration(totals.recordedSeconds)} recorded, ${formatRecordedDuration(averageSeconds)} average tracked time`;
+    })
+    .sort((left, right) => left.localeCompare(right));
 }
 
 function summarizeByBehavior(occurrences: ExportJsonOccurrence[]): string[] {

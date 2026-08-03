@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   listBehaviorDefinitionEvents: vi.fn(),
   readExportPageBundle: vi.fn(),
   ensureUserOccurrencesFresh: vi.fn(),
+  listTimeSessionsByOccurrenceIds: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -37,6 +38,10 @@ vi.mock("@/lib/db/exportPageRead.repo", () => ({
 
 vi.mock("@/lib/services/occurrence.service", () => ({
   ensureUserOccurrencesFresh: mocks.ensureUserOccurrencesFresh,
+}));
+
+vi.mock("@/lib/db/timeSessions.repo", () => ({
+  listTimeSessionsByOccurrenceIds: mocks.listTimeSessionsByOccurrenceIds,
 }));
 
 describe("getExportPageData", () => {
@@ -73,6 +78,7 @@ describe("getExportPageData", () => {
       reminderDeliveries: [],
     });
     mocks.ensureUserOccurrencesFresh.mockResolvedValue({ synced: false });
+    mocks.listTimeSessionsByOccurrenceIds.mockResolvedValue([]);
   });
 
   it("loads user-scoped definition events and maps them into every rich export", async () => {
@@ -106,6 +112,29 @@ describe("getExportPageData", () => {
         (file) => file.path === "raw/cadence/behavior_definition_events.jsonl",
       )?.content,
     ).toContain('"id":"definition-1"');
+  });
+
+  it("does not read timing rows unless the exact time-tracking option is enabled", async () => {
+    const { getExportPageData } =
+      await import("../lib/services/export.service");
+
+    await getExportPageData({
+      now: Temporal.Instant.from("2026-06-08T16:00:00Z"),
+      range: "all",
+    });
+
+    expect(mocks.listTimeSessionsByOccurrenceIds).not.toHaveBeenCalled();
+
+    await getExportPageData({
+      now: Temporal.Instant.from("2026-06-08T16:00:00Z"),
+      range: "all",
+      includeTimeTracking: true,
+    });
+
+    expect(mocks.listTimeSessionsByOccurrenceIds).toHaveBeenCalledWith(
+      expect.anything(),
+      { userId: USER_ID, occurrenceIds: [] },
+    );
   });
 });
 

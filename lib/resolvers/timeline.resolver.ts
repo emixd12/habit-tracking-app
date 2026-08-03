@@ -205,6 +205,8 @@ function toOccurrenceView(
     showDecisionActions,
     showCollapsedStatusLabel:
       occurrence.status !== "unresolved" && !showDecisionActions,
+    canStartTimeTracking:
+      occurrence.canStartTimeTracking && occurrence.localDate === todayLocalDate,
   };
 }
 

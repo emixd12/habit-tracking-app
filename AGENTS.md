@@ -300,9 +300,12 @@ The Timeline screen is the main screen.
 Primary screens:
 - Timeline: `/timeline`
 - Behaviors: `/behaviors`
-- Analytics: `/analytics`
 - Export: `/export`
 - Settings: `/settings`
+
+Behavior analytics and selected-day review live on `/behaviors`.
+`/analytics` is a protected compatibility redirect to `/behaviors`, not a
+primary screen.
 
 Do not create `/dashboard` in v1.
 

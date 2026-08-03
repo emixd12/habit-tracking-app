@@ -207,6 +207,132 @@ titles, notes, email addresses, push endpoints, request bodies, uploaded
 bundles, or reminder message bodies unless a later ticket defines a privacy
 model and consent posture.
 
+## Hosted load testing
+
+Ticket 066 may target only a dedicated, synthetic-only staging deployment.
+It must never use the current public production hostname as a fallback.
+
+Vercel's current load-testing policy permits load testing only on Enterprise
+plans and requires approval before traffic starts. The approval request must
+state the exact start and end time, maximum requests per second, target
+hostname, source geography, source IPs, distributed or localized posture, and
+Fluid Compute posture. Record the Vercel approval reference in private task
+notes. Confirm the cost ceiling and available request, function duration,
+invocation, memory, CPU, and cost evidence before the first request. Configure
+the required log drains before the approved window when the plan needs them.
+
+Run the repository's static gate only after the owner supplies those facts:
+
+```bash
+chmod 600 load-tests/.hosted/ticket-066-stage.json
+npm run load:hosted:preflight -- --manifest load-tests/.hosted/ticket-066-stage.json
+```
+
+The manifest directory is ignored. The command prints only a sanitized
+single-stage limit summary. It does not contact Vercel or start Locust. A
+passing result is not provider approval and does not authorize automatic stage
+advance. Review current policy again when the recorded review is more than 30
+days old.
+
+Policy reference:
+<https://vercel.com/kb/guide/what-s-vercel-s-policy-regarding-load-testing-deployments>
+
+## Launch spend and traffic controls
+
+Vercel's Spend Management, Firewall, DDoS, and WAF pricing documentation was
+rechecked on 2026-08-01. The current team plan, Spend Management setting,
+threshold, notification recipients, webhook, and pause posture remain
+unverified. Read-only project discovery found 14 projects in the team,
+including the Cadence app and marketing projects. Store project identifiers and
+the unrelated project inventory only in private operator notes.
+
+Spend Management is currently documented for Pro teams. It applies one spend
+amount per billing cycle across the team. Web and email notifications can fire
+at 50%, 75%, and 100%; SMS can fire at 100%. Vercel checks spend every few
+minutes, so alerts and pauses cannot prevent already-incurred usage. The spend
+amount covers metered usage beyond included allocations. It does not include
+seats, Marketplace integrations, or separate add-ons.
+
+The optional hard limit pauses production deployments for every project on the
+team. It returns a Vercel `503 DEPLOYMENT_PAUSED` response. Raising the amount
+does not resume projects automatically; an operator must resume each project.
+Because the current team has non-Cadence projects, the owner must approve this
+team-wide blast radius explicitly. Do not enable a hard limit, webhook, project
+pause, or resume action as part of repository implementation.
+
+Automatic DDoS mitigation remains available on all plans. Vercel does not bill
+traffic it classifies and blocks as DDoS. Successfully served traffic before
+mitigation, or abusive traffic not classified as DDoS, can still incur usage.
+Current May 2026 Vercel guidance says WAF-denied, challenged, or rate-limited
+traffic has CDN request and transfer charges waived. Recheck the current plan
+and dashboard before relying on any WAF price or feature.
+
+### Route-control inventory
+
+| Traffic class | Current application control | Provider-edge posture |
+|---|---|---|
+| Static public and legal documents | Static rendering and crawl policy | Observe bursts. Do not challenge ordinary readers or verified crawlers without evidence. |
+| Google OAuth start and callback | Server route, sanitized local return path, Supabase provider controls | Observe start-route bursts. Do not apply one broad IP limit to the callback. Test Google completion before enforcement. |
+| Protected app reads | Supabase Auth and RLS | Observe aggregate request, error, and latency signals. Do not broad-limit shared networks. |
+| Structured export downloads | Auth, RLS, atomic six-per-minute account limit, export breaker | Log path volume only. Account-aware enforcement remains in the application. |
+| Push subscription writes | Auth, validation, RLS, supplemental in-memory failed-auth limit | Edge enforcement requires measured abuse and a rule that preserves shared-network access. |
+| Next.js Server Actions | Auth, validation, action-specific services, RLS | Use server-action-aware observation. Do not group every action under one IP limit. |
+| Reminder and occurrence process routes | Constant-time secret checks, failed-auth limit, batch ceiling, independent breakers | Do not rate-limit Vercel Cron until its bypass is proven. |
+
+The in-memory failed-auth limits remain defense in depth for one runtime. They
+are not distributed enforcement. Provider-edge controls own anonymous abusive
+traffic when the current plan supports them. The Supabase-backed export limit
+owns authenticated export amplification across application instances.
+
+### Candidate log-only rules
+
+These commands are templates. They stage provider settings. Do not run them
+without authorization for the exact project. Do not publish them until a human
+reviews the draft, production log evidence, preview enforcement, OAuth, Cron,
+ordinary tracking, accessibility, and shared-network behavior.
+
+```bash
+vercel firewall rules add "Cadence observe OAuth start bursts" \
+  --condition '{"type":"path","op":"eq","value":"/auth/google"}' \
+  --condition '{"type":"method","op":"eq","value":"GET"}' \
+  --action log --yes
+
+vercel firewall rules add "Cadence observe export bursts" \
+  --condition '{"type":"path","op":"pre","value":"/api/export/"}' \
+  --condition '{"type":"method","op":"eq","value":"GET"}' \
+  --action log --yes
+
+vercel firewall rules add "Cadence observe process-route traffic" \
+  --condition '{"type":"path","op":"inc","value":["/api/reminders/process","/api/occurrences/sync"]}' \
+  --action log --yes
+```
+
+After staging, inspect every rule and the complete draft:
+
+```bash
+vercel firewall rules inspect "<exact rule name>" --json
+vercel firewall diff --json
+```
+
+The owner publishes a reviewed draft. Agents must not publish production
+firewall rules. Start with log-only production evidence, enforce in Preview,
+return to production log-only observation, then request a separate human
+production publish decision. Roll back a false positive by returning the exact
+rule to `log` or disabling it, reviewing the diff, and having the owner publish
+that rollback.
+
+Never pause system mitigations during a cost incident. That action removes
+automatic protection and can make the owner responsible for usage that Vercel
+would otherwise block.
+
+References:
+
+- <https://vercel.com/docs/spend-management>
+- <https://vercel.com/docs/vercel-firewall>
+- <https://vercel.com/docs/vercel-firewall/ddos-mitigation>
+- <https://vercel.com/docs/vercel-firewall/vercel-waf/usage-and-pricing>
+- <https://vercel.com/changelog/web-application-firewall-mitigated-traffic-is-free-on-vercel>
+
 ## Rollback
 
 Rollback through Vercel by promoting or rolling back to a previous ready

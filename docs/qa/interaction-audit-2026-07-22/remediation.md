@@ -6,7 +6,10 @@ immutable finding set in `issues-before-fixes.md` was frozen.
 ## Rules
 
 - Do not rewrite or remove findings from `issues-before-fixes.md`.
-- Fix P0 through P2 findings only. P3 findings remain documented.
+- The original remediation pass fixed P0 through P2 findings only and left P3
+  findings documented. Ticket 062 later closes the locally actionable
+  IA-025 through IA-028 items while leaving product-decision-gated IA-024
+  unchanged.
 - Record approval-dependent work as blocked rather than silently changing
   product direction, deploying schema, changing provider configuration, or
   mutating non-disposable hosted data.
@@ -18,7 +21,7 @@ immutable finding set in `issues-before-fixes.md` was frozen.
 | Batch | Findings | Owner | State | Focused verification |
 | --- | --- | --- | --- | --- |
 | Reminder and timezone consistency | IA-001, IA-006, IA-007 | `p1_reminder_timezone` | Implemented and twice reviewed | 51 focused tests, `resolvers:check`, lint, and typecheck pass |
-| Push endpoint ownership | IA-002 | `p1_push_ownership` | Application fix implemented; schema deployment approval-blocked | 4 focused files / 22 tests pass; local reset was attempted but Docker was unavailable; hosted migration was not deployed |
+| Push endpoint ownership | IA-002 | `p1_push_ownership` | Complete; schema and compatible app deployed | 4 focused files / 22 tests pass; hosted migration history includes `20260722213732`; app commit `635cdb8` is READY in Vercel; local reset remains Docker-blocked |
 | Import and restore safety | IA-003, IA-004, IA-005 | `p1_import_security` | Implemented | IA-003 follow-up covers the >750 KiB regression, exact raw-archive fingerprint binding, 2 MB refusal, and a 1,230,362-byte worst-case export; prior IA-004/IA-005 verification remains recorded below |
 
 ### IA-001, IA-006, and IA-007 implementation
@@ -44,7 +47,7 @@ past-reminder revival risk; both were corrected. The independent second review
 then found the missing Clear-decision trigger and bounded-batch starvation;
 both were corrected and covered before this batch was accepted.
 
-### IA-002 deployment dependency
+### IA-002 deployment completion
 
 The browser now verifies the exact endpoint and key material against an active
 row owned by the current account. Stale browser state is unsubscribed before a
@@ -53,11 +56,13 @@ browser subscription back. A local migration deactivates older duplicate
 active endpoint rows under a table lock and adds a partial unique index so one
 active endpoint cannot belong to multiple accounts.
 
-The application fix is not production-complete until the migration is applied.
-`npm run supabase -- db reset` could not run because the local Docker engine was
-unavailable. Hosted `db push` is a separate schema-deployment approval and was
-not performed. Deploy the migration before application code; otherwise existing
-duplicate rows can still produce a false enabled state.
+The migration was applied to hosted Supabase before the compatible application
+code landed. Read-only hosted migration history includes
+`20260722213732_enforce_single_active_push_endpoint_owner`, and Vercel shows
+application commit `635cdb8d283b514b523cfbc4fc4b5bcf03394ed0` READY in
+production. `npm run supabase -- db reset` remains locally blocked because the
+Docker engine is unavailable; that environment limitation does not make the
+hosted migration pending.
 
 ### IA-003 implemented direction
 
@@ -177,7 +182,7 @@ and re-reviewed against their real outcome branches.
 The independent review found that the first CSV fix also prefixed legitimate
 negative structured values. Column-scoped protection and signed-offset
 regressions corrected that before this batch was accepted. P3 IA-026 was left
-unchanged as required.
+unchanged during this P2 batch and was addressed later by Ticket 062.
 
 ### P2 follow-up decisions
 
@@ -194,13 +199,28 @@ unchanged as required.
   title matches the audited baseline, `/examples/cadence-demo.behaviorlog.zip`
   serves the expected artifact, and `/llms.txt` responds.
 
-## P3 research backlog
+## P3 disposition
 
-IA-024 through IA-027 remain exactly as frozen: onboarding dismissal is
-origin-global, several registry labels drift from visible control text,
-BaseLayout source ownership omits the footer trigger for `INT-MKT-010`, and
-multiple direct-coverage declarations remain overstated. No P3 implementation
-or registry-coverage cleanup was performed in this audit.
+At the original audit cutoff, IA-024 through IA-027 remained exactly as frozen:
+onboarding dismissal was origin-global, several registry labels drifted from
+visible control text, BaseLayout source ownership omitted the footer trigger
+for `INT-MKT-010`, and multiple direct-coverage declarations were overstated.
+No P3 implementation or registry-coverage cleanup occurred during that original
+remediation pass.
+
+Ticket 062 later closed the locally actionable follow-up:
+
+- IA-025: registered triggers and grouped variants now use the exact visible
+  control labels.
+- IA-026: `BaseLayout.astro` now owns its `INT-MKT-010` footer interaction in
+  the source inventory.
+- IA-027: coverage levels and evidence references now distinguish direct
+  interaction tests from adjacent automated checks, and the registry validator
+  rejects production implementation files as coverage evidence.
+- IA-028: Settings now constrains its panel and timezone-control grid tracks,
+  and long account identifiers wrap within the Profile panel.
+- IA-024 remains unchanged. Moving onboarding dismissal from origin-global
+  browser storage to account-specific storage requires a product decision.
 
 ### IA-028 — Settings can overflow slightly at 320px with a long account email
 
@@ -224,8 +244,18 @@ rewriting the pre-remediation report.
   `app/(app)/settings/page.tsx` Profile email rendering.
 - Source of truth: `AGENTS.md` completion criterion 9 and the mobile
   single-column layout rules in `DESIGN.md`.
-- Disposition: documented only, consistent with the rule not to remediate P3
-  findings in this audit.
+- Original disposition: documented only under the original audit's P3 cutoff.
+
+Ticket 062 resolution:
+
+- The Settings panel grid uses a zero-minimum single-column track.
+- Profile identifiers use `overflow-wrap: anywhere`.
+- Both the timezone select and the no-supported-list text fallback use
+  zero-minimum, full-width controls.
+- Authenticated browser QA with a 65-character disposable account identifier
+  measured equal document client and scroll widths at both 320px and 390px,
+  with no overflowing descendants. The disposable account was deleted and the
+  temporary viewport and browser tab were restored.
 
 ## Persona guidance and registry integration
 
@@ -233,26 +263,33 @@ The task-based manuals under `docs/user-guide/` cover all current interactions
 without creating product routes. Registry schema 1.1 adds required
 `user_guidance` metadata. Eighty-three interactions use the user-facing guides;
 only `INT-AUTH-002` and `INT-SHELL-007` point to the internal QA appendix. The
-checker validates audience, path, file existence, and GitHub-style Markdown
-heading anchors.
+checker validates audience, path, file existence, GitHub-style Markdown
+heading anchors, and automated coverage-evidence file types.
 
 ## Full-matrix retest
 
 Complete with documented approval and environment blocks. The immutable
 baseline remains 83 interactions, 97 triggers, 55 variants, and 152 cases with
-126 pass, 22 fail, and 4 blocked terminal results. The current registry matrix
-contains 85 interactions, 101 triggers, 55 variants, and 156 cases. Its final
-case results are 144 pass, 0 fail, and 12 blocked; every case has current guide
-references and preserves its separate frozen baseline evidence where one
-existed.
+126 pass, 22 fail, and 4 blocked terminal results. At the original remediation
+retest cutoff, the expanded registry matrix contained 85 interactions, 101
+triggers, 55 variants, and 156 cases. That dated matrix recorded 144 pass,
+0 fail, and 12 blocked; every case had current guide references and preserved
+its separate frozen baseline evidence where one existed.
+
+Ticket 062 did not rewrite the frozen reports or invent browser outcomes for
+newly split structural cases. The live registry now contains 85 interactions,
+105 trigger entries, and 57 variants. `interaction-registry.json` is the
+canonical current inventory; `results.json` remains the dated original
+remediation-retest snapshot.
 
 Affected browser paths were retested at 1440×900 and 390×844, with targeted
 320×844 checks. Cancel reset, immediate Archive/Restore placement and live
 announcements, Export browser-Back range reconciliation, notification recovery,
 focused account-deletion confirmation, and the marketing skip target all
 matched the remediated contracts. App and marketing console checks reported no
-interaction-specific errors or warnings. IA-028 records the separate 320px
-Settings overflow and remains unfixed as a P3 finding.
+interaction-specific errors or warnings. IA-028 recorded the separate 320px
+Settings overflow at that cutoff; Ticket 062 later fixed and rechecked it as
+described above.
 
 Provider-boundary outcomes are explicit rather than substituted with personal
 state. At freeze, all three were blocked: Google OAuth (no approved disposable
@@ -261,7 +298,7 @@ permission), and Sequenzy delivery (task-scoped AgentMail credential
 unavailable). Read-only Sequenzy identity and template checks passed. The
 unscoped hosted reminder queue was never invoked.
 
-Owner-authorized follow-up on 2026-07-23 resolved two of the three:
+Owner-authorized follow-up on 2026-07-23 resolved all three:
 
 - Google OAuth end-to-end passed on production using the owner's designated
   spare Google identity only: /login CTA, account chooser (redirect host
@@ -292,8 +329,8 @@ Repository verification passed `agents:check` (106), `interactions:check`
 `design-system:check` (0 errors and 0 warnings), `marketing:check` (0 errors,
 warnings, or hints), lint, typecheck, 523 tests in 78 files, build, and
 `git diff --check`. The Supabase reset was attempted separately and blocked by
-an unavailable Docker engine; the IA-002 migration remains undeployed pending
-schema-deployment approval.
+an unavailable Docker engine. Later read-only hosted migration history confirms
+the IA-002 migration is deployed.
 
 All task-created disposable accounts were deleted, task downloads and isolated
 browser tabs were cleared, temporary viewport changes were reset, and no

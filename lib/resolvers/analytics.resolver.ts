@@ -2,6 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 
 import type {
   AnalyticsAdherence,
+  AnalyticsAverageTrackedTime,
   AnalyticsBehaviorDayCell,
   AnalyticsBehaviorDayState,
   AnalyticsBehaviorSummary,
@@ -14,9 +15,15 @@ import type {
   AnalyticsStatus,
   AnalyticsStatusCounts,
   AnalyticsSummary,
+  AnalyticsTimeSessionInput,
+  AnalyticsTrackedTime,
   AnalyticsView,
 } from "@/lib/types/analytics";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
+import {
+  formatRecordedDuration,
+  resolveOccurrenceTimeTracking,
+} from "@/lib/resolvers/time-tracking.resolver";
 
 export const ANALYTICS_RANGE_OPTIONS: AnalyticsRangeDays[] = [7, 30, 90];
 export const ANALYTICS_DEFAULT_RANGE_DAYS: AnalyticsRangeDays = 30;
@@ -31,6 +38,7 @@ export type AnalyticsDateRange = {
 export type ResolveAnalyticsInput = {
   occurrences: AnalyticsOccurrenceInput[];
   needsDecisionOccurrences?: AnalyticsOccurrenceInput[];
+  timeSessions?: AnalyticsTimeSessionInput[];
   now: Temporal.Instant;
   timezone?: string;
   rangeDays?: number;
@@ -63,6 +71,9 @@ export function resolveAnalytics(input: ResolveAnalyticsInput): AnalyticsView {
       todayLocalDate: dateRange.endLocalDate,
     }),
   );
+  const trackedTimeByOccurrenceId = resolveTrackedTimeByOccurrenceId(
+    input.timeSessions ?? [],
+  );
 
   return {
     timezone: dateRange.timezone,
@@ -79,6 +90,7 @@ export function resolveAnalytics(input: ResolveAnalyticsInput): AnalyticsView {
     behaviorSummaries: resolveBehaviorSummaries({
       dates,
       occurrences: rangeOccurrences,
+      trackedTimeByOccurrenceId,
       selectedBehaviorId: input.selectedBehaviorId ?? null,
       selectedDayLocalDate: selectedBehaviorDayLocalDate,
     }),
@@ -87,6 +99,7 @@ export function resolveAnalytics(input: ResolveAnalyticsInput): AnalyticsView {
       selectedBehaviorId: input.selectedBehaviorId ?? null,
       selectedDayLocalDate: selectedBehaviorDayLocalDate,
       occurrences: rangeOccurrences,
+      trackedTimeByOccurrenceId,
     }),
   };
 }
@@ -156,6 +169,7 @@ function resolveOverallHeatmap(input: {
 function resolveBehaviorSummaries(input: {
   dates: Temporal.PlainDate[];
   occurrences: AnalyticsOccurrenceInput[];
+  trackedTimeByOccurrenceId: Map<string, AnalyticsTrackedTime>;
   selectedBehaviorId: string | null;
   selectedDayLocalDate: string | null;
 }): AnalyticsBehaviorSummary[] {
@@ -173,6 +187,10 @@ function resolveBehaviorSummaries(input: {
       const counts = countOccurrences(occurrences);
       const adherence = calculateAdherence(counts);
       const trackingStart = resolveBehaviorTrackingStart(occurrences);
+      const averageTrackedTime = calculateAverageTrackedTime(
+        occurrences,
+        input.trackedTimeByOccurrenceId,
+      );
 
       return {
         behaviorId,
@@ -180,6 +198,7 @@ function resolveBehaviorSummaries(input: {
         categoryName: firstOccurrence?.categoryName ?? "No category",
         trackingStartLocalDate: trackingStart.localDate,
         trackingStartLabel: trackingStart.label,
+        averageTrackedTime,
         ...counts,
         ...adherence,
         dailyCells: input.dates.map((date) =>
@@ -295,6 +314,7 @@ function resolveSelectedBehaviorDay(input: {
   selectedBehaviorId: string | null;
   selectedDayLocalDate: string | null;
   occurrences: AnalyticsOccurrenceInput[];
+  trackedTimeByOccurrenceId: Map<string, AnalyticsTrackedTime>;
 }): AnalyticsSelectedBehaviorDay | null {
   if (!input.selectedBehaviorId || !input.selectedDayLocalDate) {
     return null;
@@ -318,6 +338,7 @@ function resolveSelectedBehaviorDay(input: {
       status: occurrence.status,
       statusLabel: statusLabel(occurrence.status),
       note: occurrence.note,
+      trackedTime: input.trackedTimeByOccurrenceId.get(occurrence.id) ?? null,
     }));
 
   if (occurrences.length === 0) {
@@ -330,6 +351,66 @@ function resolveSelectedBehaviorDay(input: {
     localDate: input.selectedDayLocalDate,
     label: formatDateLabel(date),
     occurrences,
+  };
+}
+
+function resolveTrackedTimeByOccurrenceId(
+  timeSessions: AnalyticsTimeSessionInput[],
+): Map<string, AnalyticsTrackedTime> {
+  const sessionsByOccurrenceId = new Map<
+    string,
+    AnalyticsTimeSessionInput[]
+  >();
+
+  for (const session of timeSessions) {
+    const sessions = sessionsByOccurrenceId.get(session.occurrenceId) ?? [];
+    sessions.push(session);
+    sessionsByOccurrenceId.set(session.occurrenceId, sessions);
+  }
+
+  return new Map(
+    Array.from(sessionsByOccurrenceId, ([occurrenceId, sessions]) => {
+      const tracking = resolveOccurrenceTimeTracking(sessions);
+      const hasRecordedTime = sessions.some((session) => session.stoppedAt !== null);
+
+      return [
+        occurrenceId,
+        {
+          recordedSeconds: tracking.recordedSeconds,
+          durationLabel: formatRecordedDuration(tracking.recordedSeconds),
+          hasRecordedTime,
+          isInProgress: tracking.runningSession !== null,
+        },
+      ];
+    }),
+  );
+}
+
+function calculateAverageTrackedTime(
+  occurrences: AnalyticsOccurrenceInput[],
+  trackedTimeByOccurrenceId: Map<string, AnalyticsTrackedTime>,
+): AnalyticsAverageTrackedTime | null {
+  const timedOccurrenceTotals = occurrences
+    .map((occurrence) => trackedTimeByOccurrenceId.get(occurrence.id))
+    .filter(
+      (trackedTime): trackedTime is AnalyticsTrackedTime =>
+        Boolean(trackedTime?.hasRecordedTime),
+    );
+
+  if (timedOccurrenceTotals.length === 0) {
+    return null;
+  }
+
+  const averageSeconds =
+    timedOccurrenceTotals.reduce(
+      (total, trackedTime) => total + trackedTime.recordedSeconds,
+      0,
+    ) / timedOccurrenceTotals.length;
+
+  return {
+    averageSeconds,
+    durationLabel: formatRecordedDuration(averageSeconds),
+    timedOccurrenceCount: timedOccurrenceTotals.length,
   };
 }
 

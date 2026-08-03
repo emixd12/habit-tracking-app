@@ -15,6 +15,71 @@ import { EXPORT_PROMPT_TEMPLATES } from "../lib/export-prompts";
 import type { ExportBundle } from "../lib/types/export";
 
 describe("Export panel UI", () => {
+  it("renders export options and every structured download interaction", () => {
+    const html = renderToStaticMarkup(
+      <ExportPanel
+        exportData={exportBundle()}
+        importData={{ recentRuns: [] }}
+        restoreData={{ recentRuns: [] }}
+      />,
+    );
+
+    for (const range of ["7", "30", "90", "all"]) {
+      expect(html).toMatch(
+        new RegExp(`name="range"[^>]*value="${range}"`),
+      );
+    }
+    expect(html).toContain('name="include_archived"');
+    expect(html).toContain('name="include_notes"');
+    expect(html).toContain('name="include_time_tracking"');
+    expect(html).toContain("Exact timing-session timestamps can reveal");
+    expect(html).toContain(">Apply export options</button>");
+
+    for (const format of ["JSONL", "CSV", "App JSON backup", "BehaviorLog bundle"]) {
+      expect(html).toContain(`aria-label="Download ${format}`);
+    }
+    expect(html).toContain('href="/api/export/jsonl?range=30"');
+    expect(html).toContain('href="/api/export/csv?range=30"');
+    expect(html).toContain('href="/api/export/json?range=30"');
+    expect(html).toContain('href="/api/export/behaviorlog?range=30"');
+  });
+
+  it("keeps the time-tracking option and download parameter off by default", () => {
+    const html = renderToStaticMarkup(
+      <ExportPanel
+        exportData={exportBundle()}
+        importData={{ recentRuns: [] }}
+        restoreData={{ recentRuns: [] }}
+      />,
+    );
+
+    expect(html).not.toContain("Timing sessions");
+    expect(html).not.toContain("include_time_tracking=1");
+  });
+
+  it("preserves enabled time tracking in the checkbox, summary, and every download link", () => {
+    const bundle = exportBundle();
+    bundle.includeTimeTracking = true;
+    bundle.timeSessionCount = 2;
+    const html = renderToStaticMarkup(
+      <ExportPanel
+        exportData={bundle}
+        importData={{ recentRuns: [] }}
+        restoreData={{ recentRuns: [] }}
+      />,
+    );
+
+    expect(html).toMatch(
+      /name="include_time_tracking"[^>]*checked=""/,
+    );
+    expect(html).toContain("Timing sessions");
+    for (const format of ["jsonl", "csv", "json", "behaviorlog"]) {
+      expect(html).toContain(
+        `/api/export/${format}?range=30&amp;include_time_tracking=1`,
+      );
+    }
+  });
+
   it("explains task-based export formats without overstating app JSON", () => {
     const html = renderToStaticMarkup(
       <ExportPanel
@@ -153,6 +218,7 @@ function exportBundle(): ExportBundle {
     exportedAt: "2026-06-08T16:00:00Z",
     includeArchived: false,
     includeNotes: false,
+    includeTimeTracking: false,
     range: {
       key: "30",
       label: "30 days",

@@ -28,6 +28,9 @@ Export options should include:
 - Include archived behaviors
 - Include occurrence notes, off by default. Download API routes use
   `include_notes=1` to opt in.
+- Include time tracking, off by default. Exact session timestamps can reveal
+  activity patterns. Only `include_time_tracking=1` opts in; disabled exports
+  do not read timing rows or expose timing fields, files, counts, or filenames.
 
 Behavior definition history has a separate privacy posture from occurrence
 notes. Full JSON and BehaviorLog exports include full prior and next title and
@@ -56,6 +59,13 @@ mark on that snapshot, not the complete decision trail.
 App-native JSONL remains a compact snapshot format and does not include
 behavior definition events. Use Full JSON or BehaviorLog when definition
 history is needed.
+
+When time tracking is selected, JSONL appends ordered `time_session` records
+with session, occurrence, and behavior IDs, start/stop instants, and nullable
+`duration_seconds`. Running sessions retain a null stop and duration.
+Markdown reports stopped-session count and recorded total per behavior, then
+averages the summed stopped-session total for each timed occurrence. It never
+lists exact session timestamps.
 
 Behavior event:
 
@@ -91,6 +101,11 @@ complete status history.
 
 CSV does not include behavior definition events. Use Full JSON or BehaviorLog
 when definition history is needed.
+
+When time tracking is selected, CSV adds `tracked_duration_seconds`,
+`time_session_count`, and `time_sessions`. The latter is one escaped JSON array
+of included raw sessions per occurrence. Stopped sessions alone contribute to
+the derived total.
 
 Cadence neutralizes spreadsheet formula prefixes in CSV columns that can carry
 user-controlled free text. Before normal CSV quoting, a protected cell whose
@@ -137,6 +152,11 @@ remains the interoperable and restore-oriented export format; its
 `behavior_definition_events` is the append-only history for behavior title and
 description definitions. Each record includes:
 
+When time tracking is selected, Full JSON also adds the optional root
+`time_sessions`. Each raw session includes a nullable derived
+`duration_seconds`; running sessions remain null. The root is omitted entirely
+when time tracking is not selected.
+
 - `id` and `behavior_id`
 - full `previous_title` and `next_title` values
 - full `previous_description` and `next_description` values
@@ -173,6 +193,8 @@ The BehaviorLog bundle is the interoperability export. It is downloaded as
   contain notes
 - `data/interventions.jsonl` when exported occurrences have reminder deliveries
 - `raw/cadence/behavior_definition_events.jsonl`
+- `raw/cadence/occurrence_time_sessions.jsonl` only when time tracking is
+  selected
 - `csv/behaviors.csv`
 - `csv/schedules.csv`
 - `csv/occurrences.csv`
@@ -195,6 +217,12 @@ Core alignment rules:
 - `manifest.json.extensions.app.cadence.behavior_definition_history` declares
   the file path, record count, `recorded_at`/`id` ordering, and current
   `export_only` import/restore support.
+- `raw/cadence/occurrence_time_sessions.jsonl` is an optional, hashed
+  Cadence-specific JSONL file. Its records include `session_id`, occurrence and
+  behavior IDs, start/stop instants, and nullable derived duration. The manifest
+  declares its path, record count, `started_at`/`session_id` ordering, and
+  `export_only` support. It includes only sessions attached to occurrences in
+  the selected range and archived-behavior scope.
 
 The upstream standard lives at:
 `https://github.com/emixd12/BehaviorLog-Bundle`
@@ -252,6 +280,10 @@ locally generated events do not reconstruct the bundle's earlier revision
 trail. Full JSON has no import or restore path. Users should retain the original
 Full JSON or BehaviorLog export when they need to preserve the complete
 revision trail outside Cadence.
+
+`raw/cadence/occurrence_time_sessions.jsonl` follows the same hash validation.
+Cadence validates its record shape and export-only declaration, but import,
+merge, restore preview, and restore apply never replay timing sessions.
 
 Import validation rules:
 

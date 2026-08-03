@@ -24,6 +24,14 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Local load testing
+/load-tests/.venv/
+/load-tests/.hosted/
+/load-tests/.runs/
+/load-tests/**/__pycache__/
+/load-tests/**/*.py[cod]
+/.launch-safety/
+
 # OS/editor
 .DS_Store
 .idea/
@@ -37,3 +45,5 @@ pnpm-debug.log*
 
 # Claude Code local state (codex-bridge runs, launch config)
 .claude/
+.vercel
+.env*

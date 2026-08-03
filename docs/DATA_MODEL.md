@@ -290,6 +290,37 @@ create table occurrences (
 app-native export reads. Status history is stored separately in
 `occurrence_status_events`.
 
+### `occurrence_time_sessions`
+
+```sql
+create table occurrence_time_sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  occurrence_id uuid not null,
+  behavior_id uuid not null,
+  started_at timestamptz not null,
+  stopped_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (stopped_at is null or stopped_at >= started_at),
+  foreign key (user_id, occurrence_id, behavior_id)
+    references occurrences(user_id, id, behavior_id) on delete cascade
+);
+```
+
+One partial unique index permits at most one running session per
+`(user_id, occurrence_id)`. Users may retain multiple stopped sessions. Owner
+RLS grants select, insert, update, and delete only to the authenticated owner.
+The table cascades on occurrence or account deletion. Duration is derived from
+`stopped_at - started_at`; no mutable duration column exists. Ticket 068 adds
+no backfill and does not change occurrence, status-event, note, reminder,
+import, or export rows.
+
+Exports read these rows only when `include_time_tracking=1`. The export service
+scopes the owner query to occurrences already included by range and archived
+filters. Stopped rows receive derived duration output; running rows keep null
+duration. Import and restore validate optional export data but never write it.
+
 ### `occurrence_sync_state`
 
 ```sql
@@ -411,8 +442,10 @@ a newly resolved snapshot in the same statement transaction. Corrections use
 the locked latest event as `revises_event_id` when one exists. A repeated tap
 of an already-current resolved status is an idempotent no-op; an ABA-stale or
 otherwise competing plan is rejected instead of creating a broken correction
-chain. Note-only writes do not use this function and do not alter status
-timestamps or history.
+chain. The stale-plan branches use a non-retryable application SQLSTATE.
+They must not use `40001`, because that code means serialization failure and
+can make PostgREST retry a deterministic stale plan until timeout. Note-only
+writes do not use this function and do not alter status timestamps or history.
 
 Do not backfill an absent internal event for a legacy resolved snapshot because
 the snapshot cannot prove a manual action or high-confidence provenance. The
@@ -852,6 +885,30 @@ must still satisfy the normal idempotence key
 `(occurrence_id, channel, scheduled_send_at)`, so promotion cannot create a
 second operational delivery for the same occurrence/channel/send time.
 
+### `launch_rate_limits`
+
+```sql
+create table launch_rate_limits (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  action text not null check (action in ('export_download')),
+  window_started_at timestamptz not null,
+  attempt_count integer not null check (attempt_count > 0),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, action)
+);
+```
+
+`launch_rate_limits` is operational account data. It stores no behavior text,
+Note, request body, export content, IP address, recipient, endpoint, or billing
+data. Authenticated clients may read only their own counter through RLS. They
+cannot insert, update, or delete counters directly. The fixed, authenticated
+`consume_launch_rate_limit` function owns atomic counter changes.
+
+Ticket 067 defines `export_download` as six attempts in one 60-second window
+per account across application instances and export formats. A denied attempt
+does not start export reads or return a partial artifact. Account deletion
+removes the counter through the Auth user cascade.
+
 ### `push_subscriptions`
 
 ```sql
@@ -950,6 +1007,11 @@ owned rows, but do not expose authenticated update or delete policies.
 Database-level cascades may still remove events when their owning occurrence or
 behavior is removed.
 
+`launch_rate_limits` allows authenticated owner-scoped select only. Its
+`SECURITY DEFINER` consume function checks `auth.uid()`, accepts only the fixed
+`export_download` action, pins an empty `search_path`, and is executable by
+`authenticated` only. `public` and `anon` execute privileges are revoked.
+
 For `profiles`, use `id = auth.uid()` because the primary key is the authenticated user's id.
 
 Normal app code should use the authenticated user context.
@@ -1006,6 +1068,17 @@ The `(user_id, id, behavior_id)` uniqueness constraint exists so status events
 can enforce same-user ownership for their occurrence and behavior snapshot.
 
 ## Database functions
+
+### `public.consume_launch_rate_limit(p_action text)`
+
+Ticket 067 adds one atomic distributed counter for authenticated structured
+exports. The function rejects anonymous callers and unsupported actions. It
+returns `allowed`, `limit_count`, `remaining`, `reset_at`, and
+`retry_after_seconds`. The caller cannot choose its limit or window.
+
+The function does not bypass product-row RLS, read exports, or mutate user
+content. It writes only the caller's `launch_rate_limits` row. The export
+service consumes the decision after authentication and before export reads.
 
 ### `public.get_export_page_read_bundle(range_start_local_date date, range_end_local_date date)`
 

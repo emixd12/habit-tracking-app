@@ -127,6 +127,8 @@ function unresolvedOccurrence(): TimelineOccurrenceView {
     categoryName: "Personal",
     scheduleSummary: "Daily",
     note: "",
+    timeTracking: { recordedSeconds: 0, runningStartedAt: null },
+    canStartTimeTracking: true,
   };
 }
 

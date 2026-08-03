@@ -27,6 +27,8 @@ import { TimelineGroup } from "../components/timeline/TimelineGroup";
 import type {
   OccurrenceActionState,
   OccurrenceFormAction,
+  TimeTrackingActionState,
+  TimeTrackingFormAction,
   TimelineDaySection,
 } from "../lib/types/timeline";
 import type { TimezoneActionState } from "../lib/types/settings";
@@ -42,6 +44,9 @@ const deleteAccountAction: DeleteAccountAction = async () => ({
 
 const occurrenceAction: OccurrenceFormAction = async (
   state: OccurrenceActionState,
+) => state;
+const timeTrackingAction: TimeTrackingFormAction = async (
+  state: TimeTrackingActionState,
 ) => state;
 
 describe("UX Tickets 049-052 UI regressions", () => {
@@ -312,6 +317,9 @@ describe("UX Tickets 049-052 UI regressions", () => {
         })}
         statusAction={occurrenceAction}
         noteAction={occurrenceAction}
+        startTimeTrackingAction={timeTrackingAction}
+        stopTimeTrackingAction={timeTrackingAction}
+        resetTimeTrackingAction={timeTrackingAction}
         variant="needsDecisionDialog"
       />,
     );

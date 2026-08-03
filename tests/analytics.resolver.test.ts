@@ -10,6 +10,7 @@ import {
 import { planOccurrenceGeneration } from "../lib/resolvers/occurrence.resolver";
 import type { AnalyticsOccurrenceInput } from "../lib/types/analytics";
 import { DEFAULT_TIMEZONE } from "../lib/types/recurrence";
+import type { TimeSession } from "../lib/types/time-tracking";
 
 const NOW = Temporal.Instant.from("2026-06-08T16:00:00Z");
 
@@ -58,6 +59,159 @@ describe("resolveAnalyticsDateRange", () => {
 });
 
 describe("resolveAnalytics", () => {
+  it("averages stopped timing totals once per occurrence and exposes selected-day timing", () => {
+    const analytics = resolveAnalytics({
+      now: NOW,
+      timezone: DEFAULT_TIMEZONE,
+      rangeDays: 7,
+      selectedBehaviorId: "brush",
+      selectedDayLocalDate: "2026-06-08",
+      occurrences: [
+        occurrence({
+          id: "brush-timed-one",
+          behaviorId: "brush",
+          localDate: "2026-06-08",
+          scheduledFor: "2026-06-08T13:00:00Z",
+        }),
+        occurrence({
+          id: "brush-timed-two",
+          behaviorId: "brush",
+          localDate: "2026-06-07",
+          scheduledFor: "2026-06-07T13:00:00Z",
+        }),
+        occurrence({
+          id: "brush-running-only",
+          behaviorId: "brush",
+          localDate: "2026-06-06",
+          scheduledFor: "2026-06-06T13:00:00Z",
+        }),
+        occurrence({
+          id: "brush-outside-range",
+          behaviorId: "brush",
+          localDate: "2026-06-01",
+          scheduledFor: "2026-06-01T13:00:00Z",
+        }),
+      ],
+      timeSessions: [
+        timeSession({
+          id: "one-a",
+          occurrenceId: "brush-timed-one",
+          startedAt: "2026-06-08T13:00:00Z",
+          stoppedAt: "2026-06-08T13:01:00Z",
+        }),
+        timeSession({
+          id: "one-b",
+          occurrenceId: "brush-timed-one",
+          startedAt: "2026-06-08T13:02:00Z",
+          stoppedAt: "2026-06-08T13:04:00Z",
+        }),
+        timeSession({
+          id: "one-running",
+          occurrenceId: "brush-timed-one",
+          startedAt: "2026-06-08T13:05:00Z",
+          stoppedAt: null,
+        }),
+        timeSession({
+          id: "two-a",
+          occurrenceId: "brush-timed-two",
+          startedAt: "2026-06-07T13:00:00Z",
+          stoppedAt: "2026-06-07T13:02:00Z",
+        }),
+        timeSession({
+          id: "running-only",
+          occurrenceId: "brush-running-only",
+          startedAt: "2026-06-06T13:00:00Z",
+          stoppedAt: null,
+        }),
+        timeSession({
+          id: "outside-range",
+          occurrenceId: "brush-outside-range",
+          startedAt: "2026-06-01T13:00:00Z",
+          stoppedAt: "2026-06-01T14:00:00Z",
+        }),
+      ],
+    });
+
+    expect(
+      analytics.behaviorSummaries.find((summary) => summary.behaviorId === "brush")
+        ?.averageTrackedTime,
+    ).toEqual({
+      averageSeconds: 150,
+      durationLabel: "2m 30s",
+      timedOccurrenceCount: 2,
+    });
+    expect(analytics.selectedBehaviorDay?.occurrences).toMatchObject([
+      {
+        id: "brush-timed-one",
+        trackedTime: {
+          recordedSeconds: 180,
+          durationLabel: "3m 0s",
+          hasRecordedTime: true,
+          isInProgress: true,
+        },
+      },
+    ]);
+  });
+
+  it("keeps timing empty when sessions are reset or only running, and rounds display durations deterministically", () => {
+    const analytics = resolveAnalytics({
+      now: NOW,
+      timezone: DEFAULT_TIMEZONE,
+      rangeDays: 7,
+      selectedBehaviorId: "brush",
+      selectedDayLocalDate: "2026-06-08",
+      occurrences: [
+        occurrence({ id: "reset-empty", behaviorId: "brush" }),
+        occurrence({
+          id: "running-only",
+          behaviorId: "brush",
+          localDate: "2026-06-07",
+          scheduledFor: "2026-06-07T13:00:00Z",
+        }),
+        occurrence({
+          id: "one-second",
+          behaviorId: "brush",
+          localDate: "2026-06-06",
+          scheduledFor: "2026-06-06T13:00:00Z",
+        }),
+        occurrence({
+          id: "two-seconds",
+          behaviorId: "brush",
+          localDate: "2026-06-05",
+          scheduledFor: "2026-06-05T13:00:00Z",
+        }),
+      ],
+      timeSessions: [
+        timeSession({
+          occurrenceId: "running-only",
+          stoppedAt: null,
+        }),
+        timeSession({
+          id: "one-second-session",
+          occurrenceId: "one-second",
+          startedAt: "2026-06-06T13:00:00Z",
+          stoppedAt: "2026-06-06T13:00:01Z",
+        }),
+        timeSession({
+          id: "two-seconds-session",
+          occurrenceId: "two-seconds",
+          startedAt: "2026-06-05T13:00:00Z",
+          stoppedAt: "2026-06-05T13:00:02Z",
+        }),
+      ],
+    });
+
+    expect(
+      analytics.behaviorSummaries.find((summary) => summary.behaviorId === "brush")
+        ?.averageTrackedTime,
+    ).toEqual({
+      averageSeconds: 1.5,
+      durationLabel: "2s",
+      timedOccurrenceCount: 2,
+    });
+    expect(analytics.selectedBehaviorDay?.occurrences[0]?.trackedTime).toBeNull();
+  });
+
   it("matches the Timeline Needs decision count in the summary unresolved count", () => {
     const analytics = resolveAnalytics({
       now: NOW,
@@ -620,3 +774,15 @@ describe("resolveAnalytics", () => {
     expect(emptyBehaviorDay.selectedBehaviorDay).toBeNull();
   });
 });
+
+function timeSession(overrides: Partial<TimeSession> = {}): TimeSession {
+  return {
+    id: "time-session-1",
+    userId: "user-1",
+    occurrenceId: "occurrence-1",
+    behaviorId: "brush",
+    startedAt: "2026-06-08T13:00:00Z",
+    stoppedAt: "2026-06-08T13:01:00Z",
+    ...overrides,
+  };
+}

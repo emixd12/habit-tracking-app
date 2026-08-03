@@ -150,6 +150,70 @@ describe("applyOccurrenceStatusTransitionRpc", () => {
     ).rejects.toThrow(failure);
   });
 
+  it.each([
+    "Occurrence status changed concurrently. Review the latest status and try again.",
+    "Occurrence status history changed concurrently. Review the latest status and try again.",
+  ])(
+    "normalizes the nonretryable stale RPC error: %s",
+    async (message) => {
+      rpc.mockResolvedValue({
+        data: null,
+        error: {
+          code: "P0001",
+          details: null,
+          hint: null,
+          message,
+        },
+      });
+
+      await expect(
+        applyOccurrenceStatusTransitionRpc(SUPABASE, {
+          occurrenceId: "occurrence-1",
+          expectedStatus: "unresolved",
+          expectedLatestEventId: null,
+          status: "completed",
+          completedAt: NOW,
+          statusMarkedAt: NOW,
+          cancelPendingReminders: true,
+          event: {
+            statusSemantics: "explicit_user_mark",
+            recordedAt: NOW,
+            effectiveAt: NOW,
+            sourceCaptureMethod: "manual_tap",
+            sourceConfidence: "high",
+          },
+        }),
+      ).rejects.toThrow(
+        "Occurrence status changed. Review the latest status and try again.",
+      );
+    },
+  );
+
+  it("does not expose an unknown structured RPC error", async () => {
+    rpc.mockResolvedValue({
+      data: null,
+      error: {
+        code: "P0001",
+        details: null,
+        hint: null,
+        message: "private database failure",
+      },
+    });
+
+    await expect(
+      applyOccurrenceStatusTransitionRpc(SUPABASE, {
+        occurrenceId: "occurrence-1",
+        expectedStatus: "unresolved",
+        expectedLatestEventId: null,
+        status: "completed",
+        completedAt: NOW,
+        statusMarkedAt: NOW,
+        cancelPendingReminders: true,
+        event: null,
+      }),
+    ).rejects.toThrow("Unable to update this occurrence.");
+  });
+
   it("rejects malformed RPC success payloads", async () => {
     rpc.mockResolvedValue({
       data: {

@@ -11,6 +11,10 @@ import {
   reportMonitoringEvent,
 } from "@/lib/monitoring/privacy-safe-events";
 import type { RateLimitResult } from "@/lib/security/rate-limiter";
+import {
+  assertLaunchCircuitBreakerClosed,
+  LaunchCircuitBreakerOpenError,
+} from "@/lib/security/launch-circuit-breakers";
 import { processDueReminders } from "@/lib/services/reminder.service";
 
 export const runtime = "nodejs";
@@ -77,6 +81,20 @@ async function processReminderRequest(request: NextRequest) {
   }
 
   reminderProcessAuthFailureLimiter.reset(rateLimitKey);
+
+  try {
+    assertLaunchCircuitBreakerClosed("reminder_batches");
+  } catch (error) {
+    if (error instanceof LaunchCircuitBreakerOpenError) {
+      return jsonError(
+        "Reminder processing is temporarily unavailable.",
+        503,
+        error.state.retryAfterSeconds,
+      );
+    }
+
+    throw error;
+  }
 
   try {
     const result = await processDueReminders({
@@ -162,13 +180,22 @@ function parseLimit(value: string | null): number | undefined {
   return Math.min(parsed, MAX_REMINDER_PROCESS_LIMIT);
 }
 
-function jsonError(message: string, status: number) {
+function jsonError(
+  message: string,
+  status: number,
+  retryAfterSeconds?: number,
+) {
   return NextResponse.json(
     {
       ok: false,
       error: message,
     },
-    { status },
+    {
+      status,
+      headers: retryAfterSeconds
+        ? { "Retry-After": String(retryAfterSeconds) }
+        : undefined,
+    },
   );
 }
 

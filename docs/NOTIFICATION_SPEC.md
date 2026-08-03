@@ -283,6 +283,19 @@ The process route must be protected by `REMINDER_PROCESS_SECRET`,
 are rate-limited, and manual `limit` query values are bounded so a valid secret
 cannot request an unbounded batch.
 
+Ticket 067 adds server-only launch circuit breakers for reminder batches,
+Sequenzy email sends, and browser-push sends. Every breaker defaults to normal
+behavior. A batch breaker returns before the service reads or claims due rows.
+A channel breaker skips only that provider channel before due rows are read or
+claimed, so pending delivery idempotency remains intact and the other channel
+can continue. Breakers do not change reminder planning, stored status, RLS,
+provider credentials, or user reminder preferences.
+
+The only accepted reason codes are `abuse`, `application_regression`,
+`cost_surge`, `operator_drill`, and `provider_incident`. Monitoring records the
+breaker name, open state, reason code, and aggregate blocked invocation count.
+It does not record account, occurrence, recipient, endpoint, or message data.
+
 ## Resolver contract
 
 Reminder logic belongs in:

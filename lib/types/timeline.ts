@@ -13,7 +13,14 @@ export type TimelineOccurrenceInput = {
   status: TimelineStatus;
   statusMarkedAt: string | null;
   note: string;
+  timeTracking: TimelineTimeTrackingView;
+  canStartTimeTracking: boolean;
 };
+
+export type TimelineTimeTrackingView = Readonly<{
+  recordedSeconds: number;
+  runningStartedAt: string | null;
+}>;
 
 export type TimelineVisualTone =
   | "default"
@@ -42,6 +49,8 @@ export type TimelineOccurrenceView = {
   categoryName: string;
   scheduleSummary: string;
   note: string;
+  timeTracking: TimelineTimeTrackingView;
+  canStartTimeTracking: boolean;
 };
 
 export type TimelineDaySectionKind = "today" | "future" | "needs_decision_day";
@@ -96,3 +105,15 @@ export type OccurrenceFormAction = (
   previousState: OccurrenceActionState,
   formData: FormData,
 ) => Promise<OccurrenceActionState>;
+
+export type TimeTrackingActionState = Readonly<{
+  status: "idle" | "success" | "error";
+  message: string;
+  tracking?: TimelineTimeTrackingView;
+  requestId?: string;
+}>;
+
+export type TimeTrackingFormAction = (
+  previousState: TimeTrackingActionState,
+  formData: FormData,
+) => Promise<TimeTrackingActionState>;

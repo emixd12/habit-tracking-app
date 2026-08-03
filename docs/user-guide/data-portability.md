@@ -15,8 +15,11 @@ therefore has stronger gates.
    the output.
 3. Select **Include occurrence notes** only when the output should contain Note
    text. It is off by default.
-4. Choose **Apply export options**.
-5. Confirm the **Selected range**, timezone, Behavior count, Occurrence count,
+4. Select **Include time tracking** only when the export should contain exact
+   session timestamps. It is off by default because timestamps can reveal
+   activity patterns.
+5. Choose **Apply export options**.
+6. Confirm the **Selected range**, timezone, Behavior count, Occurrence count,
    and default adherence before downloading or copying anything.
 
 **Result and persistence:** The applied options become the normalized URL query
@@ -33,6 +36,9 @@ unless explicitly included. Full JSON and BehaviorLog include complete prior
 and next Behavior title and Description values by default for included
 Behaviors, regardless of the Note option. Historical definitions can contain
 sensitive text.
+Time tracking stays omitted unless selected. When selected, sensitive filenames
+include `with-time-tracking`; import and restore validate the optional Cadence
+file but do not replay time sessions.
 
 **Keyboard and mobile:** Export ranges are labeled radio choices. Use arrow
 keys or Tab/Space as supported by the browser, Space on checkboxes, and Enter
@@ -68,8 +74,11 @@ settings. Export does not change hosted tracker records.
 
 **Recovery or undo:** If authentication expired or generation fails, no partial
 artifact is intentionally returned. Sign in again, reload Export & Import,
-reapply options, and retry. Delete an unwanted local copy through the operating
-system.
+reapply options, and retry. Cadence allows six structured downloads per account
+in one minute. A limited request returns retry guidance instead of a partial
+file. Wait for that interval before retrying. During a scoped launch incident,
+downloads may be temporarily unavailable while ordinary tracking remains
+available. Delete an unwanted local copy through the operating system.
 
 **Privacy and safety:** JSONL and CSV are snapshots; their latest status fields
 are not complete decision history. Use Full JSON `status_events` or BehaviorLog

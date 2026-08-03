@@ -145,6 +145,180 @@ account's rows.
 Do not print Supabase keys, temporary user ids, emails, or auth responses in
 handoff notes. The command summary intentionally reports only counts.
 
+## Synthetic many-account load fixtures
+
+Ticket 064's read baseline uses the project-local Supabase stack only. The
+target classification must be exactly `local`, and the resolved Supabase and
+Cadence URLs must both be loopback. Do not infer safety from `.env.local`: it
+may intentionally contain hosted credentials for another workflow. A hosted
+URL, linked project, or valid hosted key is a preflight failure for Ticket 064.
+
+The privilege boundary is strict:
+
+- A server-side lifecycle process may receive the local service-role key for
+  exact run-scoped Auth provisioning, cohort seeding, and cleanup, including
+  their pre/post aggregate boundary checks.
+- Account creation, password sign-in, and cookie preparation finish before
+  timed route statistics.
+- Each active virtual user receives one unique ordinary signed-in identity and
+  cookie jar, including while it selects a public-document task. Identity
+  exhaustion fails the user or run; it does not permit sharing.
+- Timed product reads use ordinary sessions and normal RLS.
+- The service-role key must not be written to the session file, exposed through
+  a worker environment or command line, copied to a report, or made available
+  to Locust.
+- `npm run smoke:rls` must pass against the local target after the load run.
+
+Disposable users must match the exact run-scoped
+`cadence-load-...@example.invalid` convention. Provisioning is idempotent for
+one exact run ID. Cleanup must reject blank, malformed, wildcard-bearing,
+path-like, or overly broad selectors; use only the captured exact run and Auth
+users; remove their owned rows and private session material; verify zero
+residual fixtures; and be safe to retry. Never delete users by the
+`example.invalid` domain alone or by a broad `cadence-load-` prefix.
+
+Session artifacts are run-specific, ignored, outside tracked source, and
+owner-only. They contain ordinary cookies plus the minimum cohort and owned
+fixture selectors required by the reader. Do not log cookies, passwords,
+tokens, keys, user IDs, emails, selectors, behavior titles, notes, response
+bodies, or export contents. Retained results contain only aggregate cohort
+counts and sanitized statistics.
+
+The five data cohorts are `empty`, `typical_daily`, `review_heavy`,
+`export_heavy`, and `heavy_schedule`. The heavy-schedule cohort is opt-in and
+must not enter the default mix. A full default 100-user fixture may reserve five
+additional inactive heavy-schedule identities for a separately tagged stage.
+Default fixtures disable email reminders, omit push subscriptions, and do not
+contact any provider or invoke reminder or occurrence processing.
+
+Ticket 064 does not authorize:
+
+- a hosted Supabase target, even for synthetic data;
+- schema changes or hosted migration deployment;
+- Auth-capacity measurement;
+- product mutations, import, restore, account deletion, or other destructive
+  load;
+- Google OAuth automation, real email, Web Push, provider calls, or process
+  routes;
+- direct Dashboard SQL or Table Editor setup/cleanup.
+
+Hosted synthetic load requires a later ticket's isolated staging target,
+explicit user authorization, provider/platform coordination, cost and traffic
+ceilings, monitoring, and its own cleanup proof. Missing authorization blocks
+the run; it does not authorize production or a linked hosted project as a
+fallback.
+
+### Ticket 066 hosted staging load
+
+Supabase's current production checklist recommends load testing in staging.
+Use a dedicated synthetic-only Supabase staging project. Do not copy production
+users, behaviors, notes, subscriptions, or recipients. Match the production-
+relevant region, compute tier, migrations, RLS, indexes, and environment shape
+without reusing the production project ref.
+
+Before traffic, compare hosted migration history with git. Run the hosted RLS
+smoke, Supabase advisors, a one-user product smoke, monitoring collection test,
+and the exact-cleanup dry run. Record the project ref only in private task
+notes. Locust receives ordinary sessions only. It never receives a service-role
+key.
+
+The current read-only discovery found the existing Supabase organization on
+Pro and found no separate Cadence staging project. That discovery does not
+authorize creating a project or running load. If the selected target uses Team
+or Enterprise and the workload is heavy or prolonged, coordinate with
+Supabase support at least two weeks ahead. Record the support reference in the
+private stage manifest. Under the current production checklist, a Pro target
+records coordination as not required, but every other isolation and safety
+gate still applies.
+
+References:
+
+- <https://supabase.com/docs/guides/deployment/going-into-prod>
+- <https://supabase.com/docs/guides/deployment/managing-environments>
+- <https://supabase.com/changelog?types=breaking-change>
+
+The end-to-end local procedure and failure recovery are documented in
+`docs/LOAD_TESTING_RUNBOOK.md`. The canonical commands are
+`npm run load:read:smoke`, `npm run load:read:baseline`,
+`npm run load:read:ramp`, and `npm run load:read:full`; each owns setup through
+verified cleanup for one independent exact run. The supervisor reads the
+project-local values from `npm run supabase -- status -o env`, validates
+loopback endpoints, and does not trust `.env.local`. Do not invoke raw Locust
+in a way that bypasses local-target validation, identity allocation, integrity
+checks, or exact cleanup.
+
+Ticket 064 changes no schema. It requires a healthy local stack with the
+current migrations, but it does not require `npm run supabase -- db reset`.
+Use a reset for independent clean-migration verification after schema work,
+never as load-fixture cleanup or failed-run recovery.
+
+## Launch cost controls
+
+Supabase's cost-control documentation and billing changelog were rechecked on
+2026-08-01. Read-only Ticket 066 discovery identified the current organization
+as Pro. It did not verify the Spend Cap setting, compute size, add-ons, current
+usage, invoice estimate, billing contact, or notification delivery.
+
+On Pro, the Spend Cap covers these current usage items:
+
+- Disk Size
+- Egress
+- Edge Function Invocations
+- Logs Ingest and Logs Query
+- Monthly Active Users, SSO Users, and Third Party Users
+- Realtime Messages and Realtime Peak Connections
+- Storage Image Transformations and Storage Size
+
+The Spend Cap does not currently cover:
+
+- Compute, Branching Compute, or Read Replica Compute
+- Custom Domain
+- additionally provisioned Disk IOPS or Disk Throughput
+- IPv4 address
+- Log Drain Hours or Log Drain Events
+- Multi-Factor Authentication Phone
+- Point-in-Time Recovery
+
+The Spend Cap is not a fine-grained budget and does not provide per-item
+threshold notifications. Covered usage can be restricted after quota, but
+already-incurred usage remains. Compute is billed independently while a
+project runs. Provider restrictions may affect availability across an
+organization. Recheck the current dashboard and documentation before every
+setting change.
+
+Before broad launch, an organization Owner must privately record:
+
+1. the current billing cycle, plan, project count, compute size, disk posture,
+   add-ons, included quotas, overage rates, and current baseline;
+2. whether the Spend Cap is enabled;
+3. the accepted availability tradeoff for every covered item;
+4. the owner and backup who receive and have tested billing notifications;
+5. compute and add-on exposure that remains when the cap is enabled.
+
+Changing the Spend Cap, pausing a project, resizing compute, adding resources,
+or changing a plan is a provider mutation. Each action requires exact owner
+authorization. Ticket 067 never toggles these controls automatically.
+
+Recovery after a restriction:
+
+1. Capture aggregate usage, affected item, current restriction, project health,
+   and migration state without identifiers or user data.
+2. Stop the proven application source with the narrow Ticket 067 circuit
+   breaker when possible.
+3. Do not disable the Spend Cap or resize compute until the owner accepts the
+   resulting cost.
+4. Before resumption, verify migration congruence, advisors, RLS smoke,
+   application integrity, queue state, and one ordinary authenticated flow.
+5. Record the owner go decision. Provider restrictions may take time to clear
+   after a billing-cycle reset.
+
+References:
+
+- <https://supabase.com/docs/guides/platform/cost-control>
+- <https://supabase.com/docs/guides/platform/billing-on-supabase>
+- <https://supabase.com/docs/guides/platform/manage-your-usage/compute>
+- <https://supabase.com/changelog.md>
+
 ## Local and hosted congruence
 
 The desired invariant is: git migrations define schema, local can reset from git, and hosted migration history matches git.

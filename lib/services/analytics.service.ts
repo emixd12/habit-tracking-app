@@ -8,6 +8,7 @@ import {
   listOccurrencesBetweenLocalDates,
   listUnresolvedOccurrencesBeforeLocalDate,
 } from "@/lib/db/occurrences.repo";
+import { listTimeSessionsByOccurrenceIds } from "@/lib/db/timeSessions.repo";
 import {
   resolveAnalytics,
   resolveAnalyticsDateRange,
@@ -21,7 +22,11 @@ import {
   readCachedProfileTimezone,
   readCachedUserBehaviors,
 } from "@/lib/cache/stable-user-data.cache";
-import type { AnalyticsOccurrenceInput, AnalyticsView } from "@/lib/types/analytics";
+import type {
+  AnalyticsOccurrenceInput,
+  AnalyticsTimeSessionInput,
+  AnalyticsView,
+} from "@/lib/types/analytics";
 import type { Occurrence, OccurrenceStatus } from "@/lib/types/database";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 
@@ -74,6 +79,10 @@ export async function getAnalyticsPageData(
   const behaviorById = new Map(
     behaviors.map((behavior) => [behavior.id, behavior]),
   );
+  const timeSessions = await listTimeSessionsByOccurrenceIds(supabase, {
+    userId,
+    occurrenceIds: occurrences.map((occurrence) => occurrence.id),
+  });
 
   return resolveAnalytics({
     occurrences: occurrences
@@ -86,12 +95,33 @@ export async function getAnalyticsPageData(
       .filter((occurrence): occurrence is AnalyticsOccurrenceInput =>
         Boolean(occurrence),
       ),
+    timeSessions: timeSessions.map(toAnalyticsTimeSessionInput),
     now,
     timezone,
     rangeDays: dateRange.rangeDays,
     selectedBehaviorId: options.selectedBehaviorId,
     selectedDayLocalDate: options.selectedDayLocalDate,
   });
+}
+
+function toAnalyticsTimeSessionInput(
+  session: {
+    id: string;
+    user_id: string;
+    occurrence_id: string;
+    behavior_id: string;
+    started_at: string;
+    stopped_at: string | null;
+  },
+): AnalyticsTimeSessionInput {
+  return {
+    id: session.id,
+    userId: session.user_id,
+    occurrenceId: session.occurrence_id,
+    behaviorId: session.behavior_id,
+    startedAt: session.started_at,
+    stoppedAt: session.stopped_at,
+  };
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {

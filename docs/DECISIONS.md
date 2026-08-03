@@ -62,6 +62,14 @@ Use:
 - Behavior description
 - Occurrence note
 
+### Occurrence elapsed time exception
+
+Ticket 068 permits one duration-only exception. An occurrence can own persisted
+start/stop time sessions. Cadence derives recorded duration from each stopped
+interval and keeps timing separate from statuses, adherence, notes, and reminder
+eligibility. This does not authorize templates, targets, manual duration entry,
+or other structured measurements.
+
 ## Recurrence anchor
 
 Use scheduled date/time.

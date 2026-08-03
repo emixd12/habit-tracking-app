@@ -22,6 +22,13 @@ type TimezonePanelProps = Readonly<{
   updateTimezoneAction: TimezoneUpdateAction;
 }>;
 
+type TimezoneControlProps = Readonly<{
+  onValueChange: (value: string) => void;
+  options: string[];
+  useTextInput: boolean;
+  value: string;
+}>;
+
 export function TimezonePanel({
   currentTimezone,
   updateTimezoneAction,
@@ -75,42 +82,19 @@ export function TimezonePanel({
       <form
         key={savedTimezone}
         action={formAction}
-        className="mt-4 grid max-w-md gap-3"
+        className="mt-4 grid min-w-0 max-w-md grid-cols-1 gap-3"
       >
         <label htmlFor="timezone-select" className="sr-only">
           Timezone
         </label>
-        {hasReadTimezoneOptions && timezoneOptions.length === 0 ? (
-          <input
-            id="timezone-select"
-            name="timezone"
-            type="text"
-            required
-            autoComplete="off"
-            value={selectedTimezone}
-            onChange={(event) =>
-              setSelectedTimezone(event.currentTarget.value)
-            }
-            className="min-h-11 border border-line bg-background px-3 py-2 text-base"
-          />
-        ) : (
-          <select
-            id="timezone-select"
-            name="timezone"
-            required
-            value={selectedTimezone}
-            onChange={(event) =>
-              setSelectedTimezone(event.currentTarget.value)
-            }
-            className="product-select min-h-11 border border-line bg-background pl-3 py-2 text-base"
-          >
-            {selectOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        )}
+        <TimezoneControl
+          onValueChange={setSelectedTimezone}
+          options={selectOptions}
+          useTextInput={
+            hasReadTimezoneOptions && timezoneOptions.length === 0
+          }
+          value={selectedTimezone}
+        />
         {showDetectedHint ? (
           <p className="text-sm leading-6 text-muted-readable">
             Detected {browserTimezone.value}.{" "}
@@ -147,6 +131,45 @@ export function TimezonePanel({
         ) : null}
       </form>
     </section>
+  );
+}
+
+export function TimezoneControl({
+  onValueChange,
+  options,
+  useTextInput,
+  value,
+}: TimezoneControlProps) {
+  if (useTextInput) {
+    return (
+      <input
+        id="timezone-select"
+        name="timezone"
+        type="text"
+        required
+        autoComplete="off"
+        value={value}
+        onChange={(event) => onValueChange(event.currentTarget.value)}
+        className="min-h-11 min-w-0 w-full border border-line bg-background px-3 py-2 text-base"
+      />
+    );
+  }
+
+  return (
+    <select
+      id="timezone-select"
+      name="timezone"
+      required
+      value={value}
+      onChange={(event) => onValueChange(event.currentTarget.value)}
+      className="product-select min-h-11 min-w-0 w-full border border-line bg-background pl-3 py-2 text-base"
+    >
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
   );
 }
 

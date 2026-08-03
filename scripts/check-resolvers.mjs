@@ -71,6 +71,12 @@ const resolverRegistry = [
     source: "docs/UI_SPEC.md",
   },
   {
+    domain: "occurrence time tracking",
+    resolver: "lib/resolvers/time-tracking.resolver.ts",
+    test: "tests/time-tracking.resolver.test.ts",
+    source: "docs/DATA_MODEL.md",
+  },
+  {
     domain: "status",
     resolver: "lib/resolvers/status.resolver.ts",
     test: "tests/status.resolver.test.ts",

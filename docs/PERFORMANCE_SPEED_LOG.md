@@ -1282,3 +1282,713 @@ Verification:
 - Pass: `npm run test` (55 files, 339 tests).
 - Pass: `npm run build`.
 - Pass: pixel-level desktop and mobile screenshot comparison with `sharp`.
+
+## 2026-07-29 Ticket 064 local many-account read baseline
+
+Scope:
+
+- Run the bounded local-only Locust read suite against a production-mode
+  persistent Next.js process and the project-local Docker Supabase stack.
+- Use one disposable ordinary authenticated session per active virtual user.
+- Keep account creation, sign-in, session refresh, fixture writes, route
+  prewarm, and deterministic route assertions outside timed statistics.
+- Exercise public documents, protected Timeline/Behaviors/Export/Settings
+  documents, query states, and JSONL/CSV/full JSON/BehaviorLog downloads.
+
+Environment:
+
+- Run ID: `20260729t091314z-911e90cdbcf7`
+- Command: `npm run load:read:full`
+- Hardware: Apple M5, 10 logical CPUs, 32 GiB memory, macOS arm64
+- Runtime: Node `v22.22.3`, Next.js `16.2.7`, Python `3.14.6`, Locust
+  `2.46.2`, Docker `29.4.3`, Supabase CLI `2.105.0`
+- Application: local production build under a persistent Node process
+- Data target: project-local Supabase CLI Docker stack
+- Shared-machine caveat: 44 containers and four local Supabase stacks were
+  running; measurements include that contention.
+- Warm/cold caveat: the app and all ordinary sessions were prewarmed; this run
+  does not measure cold starts.
+- Workload weights are initial product assumptions, not observed analytics.
+
+Fixture and safety evidence:
+
+- 105 independent accounts: 10 Empty, 60 Typical daily, 20 Review-heavy, 10
+  Export-heavy, and five reserved Heavy schedule.
+- Pre- and post-load integrity each checked 70,010 owned rows with zero
+  violations.
+- Deterministic preflight covered all 15 required route/request contracts,
+  including all four full-scope export formats with archived behaviors and
+  notes.
+- Every 5/10/25/50/100-user default stage excluded Heavy schedule identities.
+  Only `heavy-5` selected the five reserved Heavy schedule accounts.
+- No provider calls were enabled. Locust received no service-role, Sequenzy,
+  Web Push, reminder-process, or cron secret.
+
+Results:
+
+| Stage | Users | Achieved duration | Requests | Failures | RPS | p50 | p75 | p95 | p99 | Response bytes |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Smoke | 1 | 181.0s | 46 | 0 | 0.26 | 43ms | 50ms | 64ms | 81ms | 15,545,448 |
+| Warm calibration | 1 | 121.5s | 27 | 0 | 0.23 | 43ms | 49ms | 63ms | 66ms | 9,803,760 |
+| Baseline | 5 | 601.4s | 755 | 0 | 1.26 | 38ms | 45ms | 64ms | 71ms | 219,989,048 |
+| Baseline | 10 | 601.5s | 1,491 | 0 | 2.48 | 37ms | 45ms | 64ms | 80ms | 458,508,550 |
+| Ramp | 10 | 240.9s | 598 | 0 | 2.49 | 37ms | 47ms | 66ms | 92ms | 191,587,088 |
+| Ramp | 25 | 240.6s | 1,479 | 0 | 6.17 | 33ms | 46ms | 65ms | 98ms | 457,967,698 |
+| Ramp | 50 | 241.2s | 2,956 | 1 (0.034%) | 12.28 | 29ms | 43ms | 69ms | 120ms | 913,592,539 |
+| Ramp | 100 | 240.9s | 5,896 | 4 (0.068%) | 24.53 | 28ms | 43ms | 96ms | 160ms | 1,824,469,086 |
+| Recovery | 10 | 301.4s | 741 | 0 | 2.47 | 38ms | 46ms | 63ms | 79ms | 228,929,152 |
+| Heavy schedule | 5 | 301.2s | 365 | 0 | 1.21 | 61ms | 71ms | 110ms | 140ms | 323,693,008 |
+
+Interpretation:
+
+- All 10 stage gates passed. The warm p95 was 63ms, so the provisional
+  two-times ceiling was 126ms; the highest stage p95 was 110ms in the
+  separately tagged Heavy schedule stage.
+- The 10-user recovery p95 was 63ms versus the pre-ramp 64ms baseline, within
+  the required 10% recovery bound. Both stages recorded zero failures.
+- Ramp-50 recorded one and Ramp-100 recorded four transport-level status `0`
+  failures. Their aggregate failure ratios were 0.034% and 0.068%,
+  respectively, below the provisional 0.5% gate. There were zero unexpected
+  `5xx` responses, Locust exceptions, cross-account markers, and resource
+  breaches.
+- Across all stages, 14,354 requests transferred 4,644,085,377 response bytes.
+  Peak measured throughput was 24.53 requests/second at 100 users.
+- Maximum observed host load was 1.053 per logical CPU. Minimum available
+  memory was 8,961,687,552 bytes. Maximum app and Locust RSS were 720,076,800
+  and 117,686,272 bytes.
+- These results establish a local persistent-Node baseline only. They do not
+  establish Vercel, hosted Supabase, cold-start, regional-network, or
+  production capacity.
+
+Post-run verification:
+
+- Pass: timed coverage observed every one of the 15 normalized request names.
+- Pass: post-load local two-user RLS smoke.
+- Pass: exact cleanup deleted all 105 run users and left zero product rows.
+- Pass: independent local database count found zero remaining
+  `cadence-load-...@example.invalid` Auth users.
+- Pass: private session material was removed; retained aggregate reports were
+  sanitized under owner-only permissions.
+
+## 2026-07-29 Ticket 065 provisional local mutation evidence
+
+Status: exploratory evidence only; no final Ticket 065 capacity result.
+
+Scope and interpretation:
+
+- These runs exercised the local production-mode Next.js process, the
+  project-local Supabase Docker stack, ordinary authenticated sessions, and
+  synthetic mutation fixtures.
+- Provider isolation was local and deterministic. Non-operator stages required
+  zero fake-provider requests; operator-capable fixtures could target only the
+  supervisor-owned loopback fake Sequenzy service. Bounded loopback fake sends
+  are expected operator evidence, while zero real-provider sends are permitted.
+  No active push subscription, real Sequenzy endpoint, Web Push credential,
+  Google OAuth flow, or hosted target was part of this evidence.
+- Every run owned an exact set of synthetic accounts and cleanup selectors.
+  Cleanup used the exact run ID and Auth users, not a database reset or broad
+  data selector.
+
+Calibration caveat:
+
+- The representative mutation calibration is one composite user for three
+  minutes. Its declared task selection reproduces the ordinary 100-point mixed
+  role weights, but the measured p95 comes from one synthetic identity and
+  roughly 80-90 HTTP requests. The empirical tail is consequently coarse and
+  does not represent every cohort or guarantee every low-frequency request
+  name appears in that stage.
+- The representative calibration and mixed workload declare a 2–5-second think
+  time. Current evidence retains that pacing assumption in both declaration
+  and summary artifacts.
+- Twice the same-run aggregate calibration p95 is a provisional local stop/go
+  gate. It is not a stable regression threshold, service-level objective,
+  hosted-capacity estimate, or production claim. Full-run request-name,
+  cohort, integrity, recovery, soak, contention, operator, and cleanup evidence
+  remains independently required.
+
+Completed exploratory artifacts:
+
+| Run | Calibration | Observed outcome | Integrity and cleanup | Use |
+|---|---|---|---|---|
+| `20260729t143431z-30c2e8280cdf` | 91 requests; p95 110ms; provisional ceiling 220ms | Ramp passed at 10, 25, and 50 users, then ramp-100 reached p95 950ms. This artifact predates the final rule that all four ramps continue after p95-only breaches. | Post-failure inspection found 30 `reminder_count_below_baseline` violations. RLS passed; exact cleanup deleted 100 of 100 users with zero residual product rows. | Rejected as capacity evidence because correctness inspection failed. It identified the need for canonical active-state restoration and mandatory integrity after a performance boundary. |
+| `20260729t155300z-8eb75380068e` | 82 requests; p95 90ms; provisional ceiling 180ms | Under the earlier supervisor, ramp-25 recorded a p95-only terminal at 350ms and ramp-50/ramp-100 were skipped. The independent spike baseline later failed at p95 200ms. Current semantics would retain the breach and execute both later ramp plateaus. | The forced checkpoint immediately after ramp-25 had zero violations. Final post-failure integrity and RLS passed; exact cleanup deleted 100 of 100 users with zero residual product rows. | Useful historical control-flow and integrity evidence, but not a capacity result because the selected suite did not complete and did not execute the current ramp contract. |
+
+Shared-host caveat and retry policy:
+
+- The second artifact showed a broad slowdown rather than one isolated route.
+  Compared with the earlier exploratory run, ramp-25 had nearly equal
+  throughput and read/write mix but aggregate p95 increased from 99ms to
+  350ms. All 17 observed stable request names were slower, while maximum
+  one-minute host load rose from 0.637 to 1.775 per logical CPU.
+- That pattern is consistent with shared-host contention, but the retained
+  aggregate samples do not attribute CPU work to a specific competing process.
+  Both artifacts also recorded a dirty working tree rather than an exact patch
+  fingerprint. The evidence supports a controlled retry, not a claim that
+  contamination was proven.
+- A retry must use a new exact run on an otherwise quiet machine without
+  changing source, workload weights, calibration rules, or gates. Evidence
+  from different run IDs must not be merged. A repeated boundary under quiet
+  conditions is treated as real local product or stack evidence.
+
+Durable boundary and soak rules:
+
+- A p95-only ramp breach is retained as
+  `recorded_ramp_latency_breach: true` with a non-passing plateau, forces an
+  integrity checkpoint, and does not stop the later declared ramps. All four
+  10/25/50/100-user ramp plateaus execute. An unexpected request-failure ratio
+  or any safety, semantic, integrity, real-provider, resource, ceiling, `5xx`,
+  or exception failure still aborts.
+- Breakpoint may retain its first nominal performance failure as a terminal
+  non-passing boundary and skip later breakpoint plateaus. Recorded ramp
+  breaches, breakpoint terminals, and expected spike-stress outcomes require
+  an immediate integrity checkpoint before subsequent traffic.
+- The reported capacity point is the highest executed `plateau_passed` user
+  count and achieved requests per second, never a breached or terminal stage.
+- A soak requires all four same-run ramp plateaus and a passing ramp-25. It
+  must be strictly below the lowest integrity-clean recorded ramp latency
+  boundary; when no ramp boundary was observed, a passing plateau strictly
+  above 25 users supplies the boundary. The standalone soak profile includes
+  calibration, those four ramps, and the 60-minute soak. Full-run evidence
+  also reconciles the completed soak against the later breakpoint.
+
+Interrupted and rejected evidence:
+
+- Run `20260729t181001z-24f992ad9c46` was interrupted during the selected
+  lifecycle and never passed. It has no `completion.json` or final
+  `summary.json`; retained progress and individual stage artifacts are
+  incomplete evidence and provide no capacity result.
+- Manual cleanup was performed with the exact run ID after interruption. That
+  recovery does not convert the run into a passing lifecycle. The run remains
+  rejected permanently; do not add a capacity, terminal, or acceptance value
+  from it.
+- Run `20260729t201355z-db87da10d00c` failed closed on the first smoke request
+  because the harness attempted to discover a prior-day action inside the
+  client-mounted Needs decision dialog from raw server HTML. RLS passed; exact
+  cleanup deleted 100 of 100 users with zero residual product rows. Its failed
+  completion sentinel retained zero completed stages and correctly classified
+  all six partial smoke artifacts as orphans. The repaired harness uses the
+  existing selected behavior/day server-rendered action surface.
+- Run `20260729t204734z-18013736cbff` passed smoke, calibration, and both mixed
+  baselines, then failed closed during `ramp-10`. One Export-heavy identity's
+  second-latest due/past occurrence was 34 days old, outside the selected
+  30-day review window, so its setup GET lacked the selected-day marker.
+  Baseline-5 recorded 1,477 requests at p95 100ms and baseline-10 recorded
+  2,898 requests at p95 120ms, both with zero failures, but the artifact is not
+  capacity evidence because the ramp did not complete. RLS passed; exact
+  cleanup deleted 100 of 100 users with zero residual product rows. The
+  corrected fixture bounds the selected occurrence to 90 days, uses the
+  90-day review surface, and prewarms that surface for every identity.
+- Run `20260729t213920z-1e245694539d` passed smoke, calibration, both mixed
+  baselines, and all four ramp plateaus with zero request failures. The
+  representative calibration p95 was 94ms; ramp p95 values were 88ms at 10
+  users, 100ms at 25, 200ms at 50, and 2,300ms at 100. The 50- and 100-user
+  plateaus were nominal latency boundaries, while ramp-25 remained the highest
+  passing plateau. The run then failed closed because Locust's asynchronous
+  CSV sampler retained 152 successful `INT-BEHAVIOR-023` requests while its
+  final HTML, console summary, and one-use semantic receipt ledger all retained
+  154 successful submissions with 154 completed readbacks. The final
+  in-memory request snapshot now atomically replaces only the existing
+  `_stats.csv` during Locust shutdown, preserving the exact six-artifact
+  contract without tolerating mismatches. The run also exposed an unreachable
+  soak boundary branch: soak-25 now requires all four ramps, a passing
+  ramp-25, and either an integrity-clean recorded boundary or a passing
+  plateau strictly above 25. RLS passed; all 48 completed-stage artifacts
+  reconciled with no orphans; exact cleanup deleted 100 of 100 users with zero
+  residual product rows. This rejected run remains diagnostic evidence only.
+- Run `20260729t225646z-3a40ecd7daf3` passed smoke, calibration, both mixed
+  baselines, and ramp-10/ramp-25. Calibration p95 was 110ms; ramp p95 values
+  were 100ms at 10 users, 170ms at 25, 580ms at 50, and 2,700ms at 100.
+  Ramp-50 was an integrity-clean latency boundary. Ramp-100 recorded 7,161
+  requests, two ordinary GET connection-reset failures, zero `5xx`, and no
+  resource breach before stopping at 232.976 of 240 seconds. Final in-memory
+  request accounting matched successful Server Action submissions, proving
+  the prior CSV correction, but 16 successful submissions were still awaiting
+  readback when shutdown began. The runtime guard had misclassified generic
+  loopback HTTP resets as database refusals; an unrecorded third reset invoked
+  inline reentrant shutdown before Locust's statistics listener could retain
+  the triggering request or reason. The classifier now requires explicit
+  database context or an unambiguous database-capacity refusal, and guarded
+  abort is one-shot, reason-retaining, and deferred until request accounting
+  completes. Post-failure integrity and RLS passed, the exact 100 of 100 users
+  were deleted with zero residual product rows, and all 48 artifacts
+  reconciled with no orphans. This run is rejected diagnostic evidence, not a
+  capacity result.
+- Run `20260730t014631z-063151d6e33e` completed its calibration and all four
+  ramp stages, but its completion status is failed and it remains rejected.
+  Exact retained stage metrics were:
+  - calibration: 181.241s, 103 requests, zero failures, 0.5796 RPS, and
+    p50/p75/p95/p99 of 45/73/100/120ms;
+  - ramp-10: 240.766s, 1,244 requests, zero failures, 5.1848 RPS, and
+    37/52/86/130ms;
+  - ramp-25: 241.294s, 2,927 requests, zero failures, 12.1572 RPS, and
+    33/50/92/130ms;
+  - ramp-50: 241.375s, 5,875 requests, zero failures, 24.3908 RPS, and
+    42/75/150/220ms; and
+  - ramp-100: 243.158s, 8,924 requests, one non-`5xx` failure (0.0112%),
+    36.7814 RPS, and 560/910/1,800/2,600ms.
+  The 100-user plateau was an integrity-clean latency boundary against the
+  200ms calibrated gate. The run then failed the aggregate due/past reminder
+  gate even though its final retained counters showed 100 tracked
+  occurrences, 100 tracked deliveries, 102 clear events, 100 Unresolved
+  occurrences, 71 cancelled deliveries, and zero reactivated deliveries.
+  That was a false gate diagnosis: repeated clear actions can exercise the
+  same due/past occurrence more than once, so clear-event count cannot stand
+  in for unique exercised occurrences. This older artifact did not retain a
+  unique exercised-occurrence count and therefore cannot be retrospectively
+  proven or promoted as passing evidence. Its integrity checkpoints otherwise
+  recorded zero violations, RLS passed, all 30 expected stage artifacts were
+  retained with no orphans, and exact cleanup deleted 100 of 100 users with
+  zero residual product rows.
+
+## 2026-07-30 Ticket 065 authoritative local mutation ramp evidence
+
+Status: authoritative ramp slice passed. Ticket 065 remains incomplete pending
+an authoritative passing full suite.
+
+Scope:
+
+- Run ID: `20260730t023443z-b35dca7c46da`
+- Command: `npm run load:mutation:ramp`
+- Workload: one three-minute representative mixed calibration followed by
+  bounded 10-, 25-, 50-, and 100-user mixed mutation plateaus.
+- Fixtures: 100 independent accounts allocated as 70 Typical daily, 20
+  Review-heavy, and 10 Export-heavy accounts. The declaration also reserved
+  eight same-account contention pairs, although this ramp slice did not run
+  the contention profile.
+- Pacing and mix: declared 2–5-second think time and read-dominant 65/35 task
+  weights. The representative completed ramp stages achieved 78.85% reads and
+  21.15% mutations.
+
+Results:
+
+| Stage | Users | Achieved duration | Requests | Failures | RPS | p50 | p75 | p95 | p99 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Mixed calibration | 1 | 181.119s | 92 | 0 | 0.5115 | 46ms | 67ms | 87ms | 120ms |
+| Ramp | 10 | 241.743s | 1,199 | 0 | 4.9761 | 34ms | 46ms | 84ms | 110ms |
+| Ramp | 25 | 241.539s | 3,044 | 0 | 12.6291 | 34ms | 52ms | 94ms | 150ms |
+| Ramp | 50 | 241.270s | 5,819 | 0 | 24.1705 | 41ms | 73ms | 160ms | 280ms |
+| Ramp | 100 | 242.269s | 8,907 | 0 | 36.8510 | 550ms | 920ms | 1,600ms | 2,400ms |
+
+Capacity interpretation:
+
+- The calibrated nominal p95 gate was 200ms. Ramp-10, ramp-25, and ramp-50
+  were passing plateaus.
+- The highest sustainable local plateau was 50 users at
+  24.170549938063317 achieved requests per second.
+- Ramp-100 recorded zero request failures, zero unexpected `5xx`, and zero
+  Locust exceptions, but its 1,600ms p95 was an integrity-clean latency
+  boundary and the plateau was not selected as sustainable.
+- The five stages recorded 19,061 requests with zero failures. No stage reached
+  the 60-RPS, 200,000-request, runtime, or local resource ceiling. Ramp-100
+  reached the authorized 100-user maximum without exceeding it.
+
+Correctness and lifecycle evidence:
+
+- The final seven-field due/past reminder proof was:
+  `tracked_occurrences=100`, `tracked_deliveries=100`,
+  `exercised_occurrences=71`, `clear_events=102`,
+  `unresolved_occurrences=100`, `cancelled_deliveries=71`, and
+  `reactivated_deliveries=0`. The unique exercised count proves that every
+  exercised due/past delivery remained cancelled even when one occurrence was
+  cleared repeatedly.
+- The before, post-calibration, and post-ramp integrity checkpoints each
+  recorded zero violations. The final checkpoint checked all 100 accounts and
+  85,696 product rows, including zero cross-owner rows, unexpected duplicate
+  occurrences or deliveries, invalid status/definition chains, false-fresh
+  horizons, stuck processing claims, forbidden rows, or orphan rows.
+- The local two-user RLS smoke passed.
+- Artifact inspection passed with exactly 30 expected and 30 retained stage
+  artifacts, matching digests, and zero orphan artifacts. The terminal
+  completion record passed.
+- Exact cleanup matched and deleted all 100 synthetic users and found zero
+  residual product rows.
+- The independent final verifier passed:
+  `npm run load:mutation:evidence:check -- --run-id
+  20260730t023443z-b35dca7c46da`.
+
+Runtime and caveats:
+
+- Hardware: Apple M5, 10 logical CPUs, 32 GiB memory, macOS `25.5.0` arm64.
+- Runtime: Node `v22.22.3`, Next.js `16.2.7`, Python `3.14.6`, Locust
+  `2.46.2`, Docker `29.4.3`, and Supabase CLI `2.105.0`.
+- Maximum observed host load was 0.924 per logical CPU. Minimum available
+  memory was 5,863,047,168 bytes. Maximum app and Locust RSS were
+  2,212,757,504 and 224,083,968 bytes; no resource breach was recorded.
+- The source record identifies commit
+  `c8c92b3bcd18522eaa1e2d5859a3b3469f5c34d7` with a dirty working tree, so the
+  retained runtime record, not the commit alone, defines this measurement.
+- This is warm, local-only evidence from a persistent production-mode Next.js
+  process and the project-local Supabase Docker stack. Provider mode was the
+  loopback fake Sequenzy service and Web Push was disabled. It is not hosted,
+  Vercel, production, cold-start, or customer-capacity evidence.
+- This ramp slice does not satisfy the full Ticket 065 acceptance surface.
+  Authoritative full-suite evidence must still pass mixed baseline,
+  spike/recovery, soak, breakpoint, changed-timezone, contention, operator and
+  fake-provider reconciliation, full timed mutation coverage, final integrity,
+  RLS, artifacts, and exact cleanup before Ticket 065 can complete or Ticket
+  066 can begin.
+
+## 2026-07-30 Ticket 065 rejected soak and RSS-evidence correction
+
+Status: diagnostic only; the run remains rejected and is not capacity evidence.
+
+Standalone soak run `20260730t083919z-a5462699b1c1` completed its calibration,
+all four same-run ramp plateaus, and the full 3,600.646-second 25-user soak.
+The soak served 43,204 requests at 12.0007 RPS with zero failures, zero
+unexpected `5xx`, zero Locust exceptions, p50 33ms, p75 49ms, p95 85ms, and
+p99 130ms. Authenticated structured exports crossed the local one-hour JWT
+boundary without the export-only `401` that rejected the preceding full run.
+All successful mutations had exact semantic readbacks; final integrity,
+due/past reminder, RLS, 36/36 artifact, and 100/100 exact-cleanup checks passed.
+Database connections fell from 22 to 16.
+
+The post-run bounded-growth gate nevertheless rejected the run. Its former
+definition compared the first and final single app-RSS samples. The first
+sample was a 65.859 MiB idle/garbage-collection trough taken before the 25
+users warmed, after a paced session-renewal gap; the final hot sample was
+312.563 MiB. The recorded peak was 554.375 MiB, so the process had already
+reclaimed 241.813 MiB before the final observation. The prior independent soak
+showed the same cold-trough pattern. Because the supervisor discarded the
+intermediate 721 observations, neither run can prove a steady-state trend and
+neither may be retroactively promoted.
+
+Mutation run-evidence schema `1.1.0` corrects the evidence method without
+raising a ceiling. It retains secret-free monotonic five-second resource
+samples and compares the median app RSS in `[5 minutes, 10 minutes)` with the
+median in the final five minutes. Each window requires at least 50 valid
+samples, boundary coverage within 15 seconds, and no gap over 15 seconds. The
+existing larger-of-128-MiB-or-25% growth allowance and 4 GiB instantaneous app
+and Locust ceilings remain unchanged. The exact-run checker recomputes the
+sample aggregates, window medians, coverage, and verdict. This establishes a
+declared bounded-growth result; it is not a general proof for or against a
+memory leak.
+
+## 2026-07-30 Ticket 065 authoritative schema 1.1 local soak
+
+Status: authoritative standalone soak passed; Ticket 065 remains incomplete
+pending the full suite.
+
+Standalone soak run `20260730t154126z-1f1a904f9ca5` passed all six declared
+stages and `npm run load:mutation:evidence:check`. Its 3,601.427-second,
+25-user soak served 42,856 requests at 11.9020 RPS with zero failures, zero
+unexpected `5xx`, zero Locust exceptions, p50 36ms, p75 56ms, p95 110ms, and
+p99 200ms. The achieved mix remained read-dominant at 79.6341% reads and
+20.3659% mutations. Every successful mutation had its exact semantic readback.
+
+The soak retained 722 monotonic five-second resource samples. The warmed
+`[5 minutes, 10 minutes)` window contained 60 valid samples with median app RSS
+of 252,502,016 bytes. The final five-minute window contained 60 valid samples
+with median app RSS of 256,139,264 bytes. Both windows contained zero invalid
+samples; their maximum gaps were 5,002.373ms and 5,002.917ms. Growth was
+3,637,248 bytes, or 1.4405%, against the unchanged 134,217,728-byte allowance.
+Peak app RSS was 1,646,804,992 bytes, peak Locust RSS was 106,938,368 bytes,
+and neither crossed its 4 GiB ceiling. Database connections fell from 22 to
+17.
+
+Post-run integrity reported zero violations across 88,992 rows. Due/past
+evidence reconciled 100 tracked occurrences and deliveries, 71 exercised
+occurrences, 116 Clear events, 100 final Unresolved occurrences, 71 cancelled
+deliveries, and zero reactivations. RLS passed six ownership checks. Artifact
+inspection retained the exact 36/36 files with zero orphans. Exact cleanup
+deleted all 100 run users and left zero product rows.
+
+The same run retained 25 users as the highest sustainable local plateau at
+12.2319 RPS. The 50-user and 100-user ramps remained zero-failure latency
+boundaries at 23.36 RPS/p95 420ms and 32.17 RPS/p95 2,600ms. These results are
+local persistent-Node evidence, not hosted or production capacity. A fresh
+authoritative full suite remains required.
+
+## 2026-07-30 Ticket 065 rejected full run and reminder-integrity correction
+
+Status: diagnostic only; the run remains rejected and is not final capacity
+evidence.
+
+Full run `20260730t172728z-69ee594dc997` completed 17 stages through
+`timezone-changed-5`. Breakpoint reached a zero-failure p95 boundary at 75
+users, so the supervisor skipped the remaining 100-user breakpoint as
+declared. The changed-timezone stage completed 20 exact Settings submissions
+with zero request failures and preserved all 27,150 dynamically captured past
+or resolved occurrences.
+
+The following integrity checkpoint rejected two
+`reminder_count_below_baseline` rows. This was a harness invariant conflict.
+Timezone resync may replace a future Unresolved occurrence after its reminder
+became due. The reminder planner intentionally does not recreate missing
+due/past deliveries. A monotonic total reminder count therefore contradicts
+the documented planning contract even when every current strictly future
+eligible reminder exists.
+
+Integrity now checks current future reminder eligibility, duplicate and
+unexpected pending rows, and immutable reminder identity for every baseline
+past or resolved occurrence. It retains the upper growth limit but removes the
+invalid total-count lower bound. Focused lifecycle, suite, and independent
+evidence tests pass with 111 checks.
+
+The rejected run passed its post-run RLS smoke, retained the exact 102/102
+completed-stage artifacts with zero orphans, deleted all 100 synthetic users,
+and left zero product rows. Contention and operator overlap did not run. A
+fresh authoritative full suite remains required.
+
+## 2026-07-30 Ticket 065 rejected strict spike retry
+
+Status: diagnostic only; the strict failure gate rejected the run.
+
+Full retry `20260730t203346z-c8186c148525` passed smoke, calibration, both
+mixed baselines, and all four ramp plateaus. The 100-user spike then completed
+7,682 requests with 41 loopback connection resets. Its 0.53% failure ratio
+exceeded the declared less-than-0.5% gate, while p95 reached 5,400ms against a
+110ms calibration. The supervisor rejected the run before recovery or later
+groups.
+
+Post-run RLS passed. Artifact inspection retained the exact 60/60
+completed-stage files with zero orphans. Exact cleanup deleted all 100 run
+users and left zero product rows. The run is not promotable, and the strict
+gate remains unchanged.
+
+## 2026-07-30 Ticket 065 rejected contention-selector retry
+
+Status: diagnostic only; contention rejected the run.
+
+Full retry `20260730t220333z-43601180a45b` passed smoke, calibration,
+baselines, ramp, spike/recovery, soak, breakpoint, and changed-timezone load.
+The 60-minute soak served 43,038 requests with zero failures at 11.95 RPS and
+p95 100ms. Breakpoint 50 passed with zero failures and p95 140ms. Breakpoint 75
+set the first zero-failure latency boundary at p95 380ms, so breakpoint 100 was
+skipped as declared.
+
+The subsequent contention stage stopped after its first request. The exact
+seed-time current-day occurrence selector no longer rendered because the
+preceding timezone resync legitimately replaced current and future Unresolved
+occurrences. The failure was fixture selector drift, not a contention,
+integrity, or capacity result.
+
+Contention fixtures now select the most recent prior-day Unresolved occurrence
+on the reserved maintainer behavior. Prior-day occurrence identity survives
+timezone resync and remains available in Needs decision. The strict contention
+semantics remain unchanged: two independent sessions must produce one winner,
+one stale loser, and a converged stored status.
+
+Post-run RLS passed. Exact cleanup deleted all 100 run users and left zero
+product rows. The run remains rejected, and a fresh authoritative full suite
+is required.
+
+## 2026-07-31 Ticket 065 rejected stable-date contention retry
+
+Status: diagnostic only; contention rejected the run.
+
+Full retry `20260731t005526z-b2e8cca38514` passed smoke, calibration, both
+baselines, ramp, spike/recovery, the full 60-minute soak, breakpoint, and
+changed-timezone load. The soak served 42,943 requests with zero failures at
+11.93 RPS and p95 86ms. Breakpoint 50 passed with zero failures and p95 140ms.
+Breakpoint 75 set the first zero-failure latency boundary at p95 390ms, so
+breakpoint 100 was skipped as declared.
+
+The prior-day contention selector survived timezone resync, but Timeline does
+not server-render Needs decision rows while its client-controlled dialog is
+closed. The first archive-state hypothesis was insufficient. Standalone
+contention run `20260731t040008z-e71b7359d3fb` used an active, untouched
+fresh-horizon Behavior and reproduced the same first-request failure. Its
+zero-write integrity checkpoint passed, RLS passed, all 6/6 artifacts
+reconciled, exact cleanup deleted its one user, and zero product rows remained.
+
+Contention now selects a prior-day Unresolved occurrence on the reserved active
+fresh-horizon Behavior and discovers its forms through the existing
+server-rendered selected behavior/day review. The private paired-session
+artifact binds the exact Behavior, local date, occurrence, owner, and expected
+status. Focused fixture tests cover all three mutation cohorts. The strict
+contention result still requires one winner, one stale loser, and two sessions
+converged on the stored result.
+
+Post-run RLS passed. Artifact inspection retained the exact 108/108 completed
+stage artifacts with zero orphans. Exact cleanup deleted all 100 run users and
+left zero product rows. The run remains rejected, and a fresh authoritative
+full suite is required.
+
+## 2026-07-31 Ticket 065 contention retry and error-code correction
+
+Status: the authoritative focused contention slice passed. Ticket 065 remains
+incomplete pending one uninterrupted authoritative full suite.
+
+Standalone run `20260731t040440z-c8b2da9f2887` proved that selected behavior/day
+review exposes the exact stable prior-day occurrence to both ordinary sessions.
+The winning status action returned in 56ms. The stale loser did not return for
+64.249 seconds because the transactional RPC used SQLSTATE `40001` for its
+deliberate stale-plan exceptions. PostgreSQL defines `40001` as a retryable
+serialization failure, so PostgREST retried the semantic rejection until the
+request timed out. The database still appended exactly one status event. The
+run passed integrity, RLS, all 6/6 artifact checks, one-user cleanup, and zero
+residual-row checks, but its semantic gate rejected the delayed ambiguous
+loser.
+
+Migration `20260731041500_use_nonretryable_occurrence_contention_errors.sql`
+changes only the RPC's two stale-plan error markers from `40001` to `P0001`.
+That error code is a nonretryable PL/pgSQL raised exception. A clean local
+Supabase reset applied the full migration chain, and inspection of the live
+function found two `P0001` markers and no `40001` markers.
+
+Post-migration diagnostic run `20260731t041025z-4d0b1c472a84` returned the
+stale loser in 59ms. The harness still rejected it because Supabase returned a
+plain structured error object, while the action mapper exposes only `Error`
+instances. The repository now translates only the two exact known `P0001`
+messages to the documented stale-status `Error`. It converts unknown
+structured database errors to a generic action error.
+
+Authoritative focused run `20260731t041227z-eeff1bbf9832` then passed the
+unchanged five-minute contention profile and the independent exact-run checker.
+It completed 726 requests with zero failures at 2.43 RPS and p95 50ms. All 242
+status-action submissions had exact semantic readbacks. Integrity found zero
+violations after 161 appended status events. RLS passed, artifact inspection
+retained the exact 6/6 files, cleanup deleted the one synthetic user, and zero
+product rows remained.
+
+This focused result proves the same-account collision semantics only. It does
+not replace the required full suite or establish hosted capacity.
+
+## 2026-07-31 Ticket 065 rejected operator-handoff full run
+
+Status: diagnostic only; the final operator-overlap stage rejected the run.
+
+Full run `20260731t041910z-685ce0119003` passed 18 stages through the corrected
+contention profile. Its 60-minute soak completed 43,368 requests with zero
+failures at 12.05 RPS and p95 88ms. Breakpoint 50 passed with zero failures at
+23.91 RPS and p95 160ms. Breakpoint 75 established the first zero-failure
+latency boundary at 35.25 RPS and p95 430ms, so breakpoint 100 skipped as
+declared. Changed-timezone preservation verified all 27,319 dynamically
+captured past or resolved occurrences. Contention then completed 744 requests
+with zero failures and p95 52ms.
+
+The final operator-overlap stage rejected one Timeline read after eight
+seconds because its exact future occurrence form was absent. The prior
+changed-timezone stage leased the first five accounts. A timezone resync may
+legitimately replace a future Unresolved occurrence, including the fixed row
+used by the Daily tracker. Operator overlap then leased the first ten accounts,
+so one changed account entered the mixed stage with an invalidated selector.
+The protected occurrence-sync operator and 100 fake-provider reminder sends
+completed successfully before the strict request gate stopped Locust.
+
+Combined full suites now refresh and lease changed-timezone users from the
+final five identities. Operator overlap continues to lease the first ten
+identities and marks the eleventh, non-leased account stale for its causal
+repair proof. The windows are disjoint while cohort distribution, user counts,
+routes, preservation gates, and operator behavior remain unchanged.
+
+The rejected run passed its post-failure integrity checkpoint with zero
+violations, RLS, the exact 114/114 artifact inventory, cleanup of all 100
+synthetic users, and zero residual product rows. A focused operator run and a
+fresh authoritative full suite remain required.
+
+## 2026-07-31 Ticket 065 operator readiness correction
+
+Status: authoritative focused operator evidence passed. Ticket 065 remains
+incomplete pending one uninterrupted authoritative full suite.
+
+Focused operator run `20260731t071641z-dcfe303bd59e` completed calibration and
+the five-minute operator-overlap traffic stage with zero Locust request
+failures. Final integrity still rejected five
+`due_past_clear_reminder_reactivated` rows. The supervisor started its first
+protected process loop immediately. That loop could claim and send due
+reminders before five Daily tracker users completed their startup
+resolve-and-Clear transitions.
+
+The first protected operator loop now waits one bounded 20-second readiness
+interval. Daily startup transitions therefore cancel the exact due/past
+reminders before global reminder processing begins. Later protected loops
+retain the declared 20-second cadence and remain concurrent with ordinary
+mixed traffic.
+
+Replacement run `20260731t072654z-27ed797933e3` passed both stages and
+`npm run load:mutation:evidence:check` for the exact run. Operator overlap
+completed 1,464 Locust requests with zero failures at 4.87 RPS and p95 79ms.
+The supervisor completed 29 protected requests, proved one spare-account
+causal occurrence repair, and accepted 16 unique fake-provider sends with zero
+rejections or duplicate fingerprints. Six due/past occurrences were exercised
+across the run; all six deliveries remained cancelled and zero reactivated.
+Integrity and RLS passed, artifact inspection retained the exact 12/12 files,
+cleanup deleted all 11 synthetic users, and zero product rows remained.
+
+This result proves the operator profile and readiness ordering in isolation.
+The disjoint changed-timezone-to-operator identity handoff still requires the
+fresh full-suite proof.
+
+## 2026-07-31 Ticket 065 authoritative full local mutation suite
+
+Status: authoritative full suite passed. Ticket 065 is complete.
+
+Full run `20260731t073716z-8108c309ba98` completed all 19 executed stages with
+zero Locust request failures. Breakpoint 100 skipped after the first declared
+bounded breakpoint failure. The exact-run evidence checker independently
+accepted the unchanged run after a checker-only identity-offset correction.
+The run recorded 101,534 Locust requests plus 27 protected operator requests,
+well below the 4,000,000-request ceiling.
+
+The calibrated mixed warm baseline had p95 99ms, producing a strict nominal
+gate of 198ms. Ramp 50 was the highest sustainable local plateau at 24.6114
+RPS and p95 150ms. Ramp 100 remained zero-failure but reached p95 1,500ms.
+Breakpoint 50 passed at 24.0038 RPS and p95 160ms. Breakpoint 75 established
+the first zero-failure latency boundary at 35.0443 RPS and p95 450ms.
+Breakpoint 100 therefore skipped as declared. The 100-user spike served 11,184
+requests with zero failures at 37.0258 RPS and p95 1,900ms. Recovery returned
+to p95 84ms, matching its pre-spike baseline.
+
+The 3,601.496-second, 25-user soak served 42,794 requests at 11.8848 RPS with
+zero failures and p95 86ms. Reads remained dominant at 79.7121%. Every one of
+the 8,682 successful mutations had its exact semantic readback. The soak
+retained 722 resource samples. Its warmed `[5 minutes, 10 minutes)` median app
+RSS was 494,731,264 bytes. Its final-five-minute median was 481,533,952 bytes.
+Growth was -13,197,312 bytes against the unchanged 134,217,728-byte allowance.
+Both windows retained 60 valid samples, zero invalid samples, and maximum gaps
+under 5,004ms. Database connections declined from 22 to 21.
+
+Changed-timezone traffic used identities 95-99 and preserved all 27,312
+captured past or resolved occurrences. Same-account contention completed 762
+requests with zero failures and p95 49ms. Operator overlap used the first ten
+identities plus its non-leased eleventh repair account. It completed 1,434
+Locust requests with zero failures and p95 79ms. The supervisor completed 27
+protected requests, proved one causal occurrence repair, and accepted 191
+unique loopback fake-provider sends with zero rejections, duplicate
+fingerprints, or Web Push attempts. Its final reminder replay claimed nothing.
+
+Final integrity reported zero violations across 94,375 rows. The run appended
+9,053 owner-consistent status events. It exercised 91 due/past reminders; all
+91 remained cancelled and zero reactivated. RLS passed six ownership checks.
+Artifact inspection retained the exact 114/114 stage files with zero orphans.
+Exact cleanup deleted all 100 synthetic users and left zero product rows.
+
+The independent checker initially compared the changed-timezone cohort with
+the first five deterministic accounts, ignoring the stage's declared identity
+offset. The producer evidence was correct. The checker and its test fixture
+now slice from each stage's exact offset. A full-suite regression test locks
+the final-five timezone allocation. The unchanged run then passed
+`npm run load:mutation:evidence:check`.
+
+These results are local persistent-Node evidence on a shared machine. They do
+not establish hosted or production capacity.
+
+Final repository verification passed 99 Vitest files and 757 tests with
+loopback permission for the local fake-provider server. Agent, interaction,
+resolver, load-manifest, Python, lint, TypeScript, build, database-reset, and
+whitespace gates also passed.
+
+## 2026-07-31 Ticket 066 hosted readiness
+
+Status: blocked before traffic. No hosted Locust request ran, so this entry
+contains no hosted capacity claim.
+
+The repository now has a fail-closed, static, single-stage hosted preflight.
+It validates the owner and provider approvals, dedicated staging isolation,
+synthetic-only data, provider stub, source IPs, traffic and cost ceilings,
+monitoring retention, clean deployed commit, RLS, migration, advisor, smoke,
+and cleanup-dry-run evidence. It stores no approval or target details and
+prints only sanitized limits. It cannot contact a hosted target or start
+Locust.
+
+Read-only provider discovery found no dedicated Cadence Vercel staging project
+and no separate Cadence Supabase staging project. The Supabase organization
+reports Pro. Vercel Enterprise status and approval, the exact staging
+hostname, owner authorization, traffic window and sources, cost ceiling, and
+monitoring evidence remain missing.
+
+The sanitized readiness report is
+`docs/qa/load-testing/2026-07-31-hosted-readiness.md`. The authoritative local
+Ticket 065 result remains local evidence only and cannot be extrapolated into
+a hosted capacity value.

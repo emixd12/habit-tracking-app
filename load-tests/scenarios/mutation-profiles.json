@@ -1,0 +1,233 @@
+{
+  "schema_version": "1.0.0",
+  "assumption_basis": "initial_product_assumptions_not_observed_analytics",
+  "default_profile": "smoke",
+  "think_time_seconds": {
+    "minimum": 2,
+    "maximum": 5
+  },
+  "task_weights": {
+    "timeline_read": 30,
+    "timeline_future_read": 7,
+    "status_completed": 6,
+    "status_not_completed": 4,
+    "status_clear": 4,
+    "timeline_note": 4,
+    "behaviors_read": 14,
+    "behaviors_selected_read": 6,
+    "behavior_create": 1,
+    "behavior_update": 3,
+    "behavior_archive": 2,
+    "behavior_restore": 2,
+    "review_status": 3,
+    "review_note": 3,
+    "timezone_unchanged": 3,
+    "export_jsonl": 3,
+    "export_json": 3,
+    "export_behaviorlog": 2
+  },
+  "read_task_keys": [
+    "timeline_read",
+    "timeline_future_read",
+    "behaviors_read",
+    "behaviors_selected_read",
+    "export_jsonl",
+    "export_json",
+    "export_behaviorlog"
+  ],
+  "ceilings": {
+    "maximum_users": 100,
+    "maximum_profile_runtime_seconds": 3600,
+    "maximum_soak_runtime_seconds": 3900,
+    "maximum_suite_runtime_seconds": 10800,
+    "maximum_requests": 200000,
+    "maximum_requests_per_second": 60,
+    "unexpected_5xx_ratio": 0.005,
+    "unexpected_5xx_window_seconds": 30,
+    "unexpected_5xx_consecutive_windows": 3
+  },
+  "profiles": {
+    "smoke": {
+      "shape": "smoke",
+      "workload": "mixed"
+    },
+    "mixed_calibration": {
+      "shape": "mixed_calibration",
+      "workload": "mixed"
+    },
+    "mixed_baseline": {
+      "shape": "mixed_baseline",
+      "workload": "mixed"
+    },
+    "ramp": {
+      "shape": "ramp",
+      "workload": "mixed"
+    },
+    "spike": {
+      "shape": "spike",
+      "workload": "mixed"
+    },
+    "soak": {
+      "shape": "soak",
+      "workload": "mixed"
+    },
+    "breakpoint": {
+      "shape": "breakpoint",
+      "workload": "mixed"
+    },
+    "timezone_changed": {
+      "shape": "timezone_changed",
+      "workload": "timezone_changed"
+    },
+    "contention": {
+      "shape": "contention",
+      "workload": "contention"
+    },
+    "operator_overlap": {
+      "shape": "operator_overlap",
+      "workload": "mixed"
+    }
+  },
+  "shapes": {
+    "smoke": {
+      "stages": [
+        {
+          "duration_seconds": 180,
+          "users": 1,
+          "spawn_rate": 1
+        }
+      ]
+    },
+    "mixed_calibration": {
+      "stages": [
+        {
+          "duration_seconds": 180,
+          "users": 1,
+          "spawn_rate": 1
+        }
+      ]
+    },
+    "mixed_baseline": {
+      "stages": [
+        {
+          "duration_seconds": 600,
+          "users": 5,
+          "spawn_rate": 1
+        },
+        {
+          "duration_seconds": 600,
+          "users": 10,
+          "spawn_rate": 1
+        }
+      ]
+    },
+    "ramp": {
+      "stages": [
+        {
+          "duration_seconds": 240,
+          "users": 10,
+          "spawn_rate": 2
+        },
+        {
+          "duration_seconds": 240,
+          "users": 25,
+          "spawn_rate": 3
+        },
+        {
+          "duration_seconds": 240,
+          "users": 50,
+          "spawn_rate": 5
+        },
+        {
+          "duration_seconds": 240,
+          "users": 100,
+          "spawn_rate": 10
+        }
+      ]
+    },
+    "spike": {
+      "stages": [
+        {
+          "duration_seconds": 300,
+          "users": 10,
+          "spawn_rate": 2
+        },
+        {
+          "duration_seconds": 300,
+          "users": 100,
+          "spawn_rate": 100
+        },
+        {
+          "duration_seconds": 300,
+          "users": 10,
+          "spawn_rate": 10
+        }
+      ]
+    },
+    "soak": {
+      "stages": [
+        {
+          "duration_seconds": 3600,
+          "users": 25,
+          "spawn_rate": 5
+        }
+      ]
+    },
+    "breakpoint": {
+      "stages": [
+        {
+          "duration_seconds": 240,
+          "users": 10,
+          "spawn_rate": 2
+        },
+        {
+          "duration_seconds": 240,
+          "users": 25,
+          "spawn_rate": 3
+        },
+        {
+          "duration_seconds": 240,
+          "users": 50,
+          "spawn_rate": 5
+        },
+        {
+          "duration_seconds": 240,
+          "users": 75,
+          "spawn_rate": 8
+        },
+        {
+          "duration_seconds": 240,
+          "users": 100,
+          "spawn_rate": 10
+        }
+      ]
+    },
+    "timezone_changed": {
+      "stages": [
+        {
+          "duration_seconds": 300,
+          "users": 5,
+          "spawn_rate": 1
+        }
+      ]
+    },
+    "contention": {
+      "stages": [
+        {
+          "duration_seconds": 300,
+          "users": 1,
+          "spawn_rate": 1
+        }
+      ]
+    },
+    "operator_overlap": {
+      "stages": [
+        {
+          "duration_seconds": 300,
+          "users": 10,
+          "spawn_rate": 2
+        }
+      ]
+    }
+  }
+}

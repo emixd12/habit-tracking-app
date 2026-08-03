@@ -224,3 +224,51 @@ This working-tree redaction does not remove the prior recipient value from Git
 history or existing clones. If that history has been published or distributed,
 the repository owner should separately assess whether a coordinated history
 rewrite is appropriate; do not copy the recipient into new QA records.
+
+## Launch cost and send containment
+
+Sequenzy's public pricing was rechecked on 2026-08-01. Pricing is based on
+monthly email volume. The public page advertises a 2,500-email free allowance,
+paid volume tiers, no daily email limit, and per-API-key rate limiting based on
+the subscription tier. Those public facts do not establish Cadence's current
+account plan, remaining allowance, overage behavior, alert delivery, or an
+account hard stop.
+
+Before broad launch, the owner must privately record the current plan, billing
+cycle, included email count, paid overage or upgrade path, current-cycle send
+baseline, API rate limit, and any account alert or limit. Use read-only
+`account`, `stats`, and transactional-template inspection only after loading
+the authenticated CLI environment. Do not copy account identifiers, billing
+contacts, recipients, or raw provider output into git.
+
+If Sequenzy exposes no tested account alert or hard send cap, record manual
+daily usage review as the control and missing automatic containment as residual
+risk. Do not assume an API rate limit protects the monthly bill.
+
+Ticket 067 adds a server-only provider breaker:
+
+```bash
+CADENCE_DISABLE_EMAIL_SENDS=1
+CADENCE_LAUNCH_BREAKER_REASON_CODE=provider_incident
+```
+
+The breaker acts before Cadence reads or claims due email rows. Pending rows
+remain pending. Browser push and ordinary tracking continue. Enabling or
+clearing this production environment setting and deploying the resulting
+configuration requires the owner's exact authorization.
+
+Emergency sequence:
+
+1. Confirm aggregate email-send growth owns the incident.
+2. Record the current Sequenzy usage count and Cadence pending/failed counts
+   without recipients or message data.
+3. Authorize and enable only the email breaker.
+4. Deploy and verify that the reminder process reports zero email claims while
+   browser-push behavior remains understood.
+5. Investigate provider status, account quota, and the Cadence queue. Do not
+   increase a plan or limit automatically.
+6. After spend stops accelerating, clear the breaker, deploy, run a one-item
+   approved process check, and observe the pending queue before normal batch
+   size resumes.
+
+Provider reference: <https://www.sequenzy.com/pricing>

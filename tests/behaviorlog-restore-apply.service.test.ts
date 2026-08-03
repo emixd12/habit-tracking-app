@@ -19,6 +19,7 @@ import type {
   ExportCategoryInput,
   ExportOccurrenceInput,
   ExportStatusEventInput,
+  ExportTimeSessionInput,
 } from "../lib/types/export";
 import { DEFAULT_TIMEZONE } from "../lib/types/recurrence";
 
@@ -403,7 +404,7 @@ describe("BehaviorLog restore apply service", () => {
     expect(preview.valid).toBe(true);
     expect(preview.statusHistoryPolicy.applySupportedInThisTicket).toBe(false);
     mocks.getBehaviorLogImportRunById.mockResolvedValue(
-      restorePreviewRun(preview),
+      restorePreviewRun(preview, zip),
     );
 
     await expect(
@@ -413,6 +414,72 @@ describe("BehaviorLog restore apply service", () => {
     ).rejects.toThrow("status-history policy is preview-only");
     expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
     expect(mocks.bindBehaviorLogRestoreApplyPayload).not.toHaveBeenCalled();
+  });
+
+  it("accepts a valid timing extension but excludes it from restore writes", async () => {
+    const zip = createStoredZip(
+      bundleFiles({
+        timeSessions: [
+          {
+            id: "session-1",
+            occurrenceId: "occurrence-1",
+            behaviorId: "behavior-brush",
+            startedAt: "2026-06-08T13:00:00Z",
+            stoppedAt: null,
+          },
+        ],
+      }),
+    );
+    const preview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: emptyExisting(),
+    });
+    const rpc = vi.fn(
+      async (
+        _functionName: string,
+        _args: { restore_payload: RestorePayloadForTest },
+      ) => {
+        void _functionName;
+        void _args;
+
+        return {
+          data: { behaviors: 1, schedules: 1, occurrences: 1, status_events: 1 },
+          error: null,
+        };
+      },
+    );
+    mocks.createClient.mockResolvedValue({
+      auth: {
+        getClaims: vi.fn(async () => ({
+          data: { claims: { sub: USER_ID } },
+          error: null,
+        })),
+      },
+      rpc,
+    });
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(
+      restorePreviewRun(preview, zip),
+    );
+    mocks.createBehaviorLogImportRun.mockResolvedValue({
+      ...restoreAppliedRun(preview),
+      status: "previewed",
+      completed_at: null,
+    });
+
+    expect(preview.valid).toBe(true);
+    expect(preview.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "cadence_time_sessions_export_only" }),
+      ]),
+    );
+
+    await applyBehaviorLogRestoreUploadFromFormData(
+      restoreApplyFormData(zip, preview),
+    );
+
+    const restorePayload = rpc.mock.calls[0]?.[1]?.restore_payload;
+    expect(JSON.stringify(restorePayload)).not.toContain("time_session");
+    expect(restorePayload).not.toHaveProperty("time_sessions");
   });
 
   it("returns the applied result for an exact accepted preview before recomputing changed local data", async () => {
@@ -962,7 +1029,9 @@ function existingRecordsFromRestorePayload(payload: RestorePayloadForTest) {
   };
 }
 
-function bundleFiles() {
+function bundleFiles(
+  input: { timeSessions?: ExportTimeSessionInput[] } = {},
+) {
   const categories: ExportCategoryInput[] = [
     {
       id: "category-grooming",
@@ -1048,9 +1117,11 @@ function bundleFiles() {
     occurrences: [occurrence],
     statusEvents: [statusEvent],
     reminderDeliveries: [],
+    timeSessions: input.timeSessions,
     now: NOW,
     timezone: DEFAULT_TIMEZONE,
     range: "30",
+    includeTimeTracking: Boolean(input.timeSessions),
   }).behaviorLog.files;
 }
 

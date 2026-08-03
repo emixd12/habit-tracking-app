@@ -17,6 +17,7 @@ import type {
   ExportOccurrenceInput,
   ExportReminderDeliveryInput,
   ExportStatusEventInput,
+  ExportTimeSessionInput,
 } from "../lib/types/export";
 import { DEFAULT_TIMEZONE } from "../lib/types/recurrence";
 
@@ -157,6 +158,7 @@ function bundleFiles(input: {
   occurrences?: ExportOccurrenceInput[];
   statusEvents?: ExportStatusEventInput[];
   reminderDeliveries?: ExportReminderDeliveryInput[];
+  timeSessions?: ExportTimeSessionInput[];
 } = {}): BehaviorLogFile[] {
   return resolveExportBundle({
     profile: {
@@ -168,14 +170,93 @@ function bundleFiles(input: {
     occurrences: input.occurrences ?? [occurrence()],
     statusEvents: input.statusEvents ?? statusEvents(),
     reminderDeliveries: input.reminderDeliveries,
+    timeSessions: input.timeSessions,
     now: NOW,
     timezone: DEFAULT_TIMEZONE,
     range: "30",
     includeNotes: true,
+    includeTimeTracking: Boolean(input.timeSessions),
   }).behaviorLog.files;
 }
 
 describe("resolveBehaviorLogImportPreview", () => {
+  it("validates Cadence timing files without importing timing sessions", () => {
+    const preview = resolveBehaviorLogImportPreview({
+      files: bundleFiles({
+        timeSessions: [
+          {
+            id: "session-1",
+            occurrenceId: "occurrence-1",
+            behaviorId: "behavior-brush",
+            startedAt: "2026-06-08T13:00:00Z",
+            stoppedAt: null,
+          },
+        ],
+      }),
+    });
+
+    expect(preview.valid).toBe(true);
+    expect(preview.plan).not.toHaveProperty("timeSessions");
+    expect(preview.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "cadence_time_sessions_export_only" }),
+      ]),
+    );
+  });
+
+  it("rejects an altered optional Cadence timing file through its manifest hash", () => {
+    const files = replaceFileContent(
+      bundleFiles({
+        timeSessions: [
+          {
+            id: "session-1",
+            occurrenceId: "occurrence-1",
+            behaviorId: "behavior-brush",
+            startedAt: "2026-06-08T13:00:00Z",
+            stoppedAt: null,
+          },
+        ],
+      }),
+      "raw/cadence/occurrence_time_sessions.jsonl",
+      '{"record_type":"occurrence_time_session"}',
+      { updateManifestHash: false },
+    );
+    const preview = resolveBehaviorLogImportPreview({ files });
+
+    expect(preview.valid).toBe(false);
+    expect(preview.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "manifest_hash_mismatch" }),
+        expect.objectContaining({ code: "cadence_time_session_invalid" }),
+      ]),
+    );
+  });
+
+  it("rejects an optional Cadence timing file that is absent from the manifest", () => {
+    const files = removeManifestEntry(
+      bundleFiles({
+        timeSessions: [
+          {
+            id: "session-1",
+            occurrenceId: "occurrence-1",
+            behaviorId: "behavior-brush",
+            startedAt: "2026-06-08T13:00:00Z",
+            stoppedAt: null,
+          },
+        ],
+      }),
+      "raw/cadence/occurrence_time_sessions.jsonl",
+    );
+    const preview = resolveBehaviorLogImportPreview({ files });
+
+    expect(preview.valid).toBe(false);
+    expect(preview.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "cadence_time_sessions_not_listed" }),
+      ]),
+    );
+  });
+
   it("validates and plans a dry-run from an exported BehaviorLog zip", () => {
     const zip = createStoredZip(bundleFiles());
     const preview = previewBehaviorLogImportFromZip({ zip });
@@ -518,6 +599,24 @@ function replaceFileContent(
   manifestFile.content = JSON.stringify(manifest, null, 2);
 
   return cloned;
+}
+
+function removeManifestEntry(
+  files: BehaviorLogFile[],
+  path: string,
+): BehaviorLogFile[] {
+  return files.map((file) => {
+    if (file.path !== "manifest.json") {
+      return { ...file };
+    }
+
+    const manifest = JSON.parse(file.content);
+    manifest.files = manifest.files.filter(
+      (entry: Record<string, unknown>) => entry.path !== path,
+    );
+
+    return { ...file, content: JSON.stringify(manifest, null, 2) };
+  });
 }
 
 function parseJsonl(content: string): Array<Record<string, unknown>> {

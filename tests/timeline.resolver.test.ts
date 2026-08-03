@@ -29,6 +29,8 @@ function occurrence(
     status: "unresolved",
     statusMarkedAt: null,
     note: "",
+    timeTracking: { recordedSeconds: 0, runningStartedAt: null },
+    canStartTimeTracking: true,
     ...overrides,
   };
 }

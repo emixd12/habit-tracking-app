@@ -15,11 +15,14 @@ import {
   type ExportPageSyncStateRow,
 } from "@/lib/db/exportPageRead.repo";
 import { listBehaviorDefinitionEvents } from "@/lib/db/behaviorDefinitionEvents.repo";
+import { consumeExportDownloadRateLimit } from "@/lib/db/launchRateLimits.repo";
+import { listTimeSessionsByOccurrenceIds } from "@/lib/db/timeSessions.repo";
 import {
   resolveExportBundle,
   resolveExportDateRange,
 } from "@/lib/resolvers/export.resolver";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
+import { assertLaunchCircuitBreakerClosed } from "@/lib/security/launch-circuit-breakers";
 import {
   normalizeRecurrenceRule,
   recurrenceDefaultsFromRule,
@@ -50,6 +53,7 @@ import type {
   ExportReminderDeliveryInput,
   ExportReminderDeliveryStatus,
   ExportStatusEventInput,
+  ExportTimeSessionInput,
 } from "@/lib/types/export";
 import type {
   BehaviorDefinitionEvent,
@@ -71,6 +75,7 @@ export type ExportOptions = {
   range?: string | number | null;
   includeArchived?: boolean;
   includeNotes?: boolean;
+  includeTimeTracking?: boolean;
 };
 
 export type ExportDownloadFormat = "jsonl" | "csv" | "json" | "behaviorlog";
@@ -88,17 +93,37 @@ export class ExportAuthError extends Error {
   }
 }
 
+export class ExportRateLimitError extends Error {
+  readonly limit: number;
+  readonly remaining: number;
+  readonly retryAfterSeconds: number;
+
+  constructor(input: {
+    limit: number;
+    remaining: number;
+    retryAfterSeconds: number;
+  }) {
+    super("Too many export downloads. Try again later.");
+    this.name = "ExportRateLimitError";
+    this.limit = input.limit;
+    this.remaining = input.remaining;
+    this.retryAfterSeconds = input.retryAfterSeconds;
+  }
+}
+
 export async function getExportPageData(
   options: ExportOptions = {},
 ): Promise<ExportBundle> {
-  return getUserExportBundle(options);
+  return getUserExportBundle(options, { enforceDownloadGuardrails: false });
 }
 
 export async function getExportDownload(
   format: ExportDownloadFormat,
   options: ExportOptions = {},
 ): Promise<ExportDownload> {
-  const bundle = await getUserExportBundle(options);
+  const bundle = await getUserExportBundle(options, {
+    enforceDownloadGuardrails: true,
+  });
 
   switch (format) {
     case "jsonl":
@@ -135,9 +160,20 @@ export async function getExportDownload(
 
 async function getUserExportBundle(
   options: ExportOptions,
+  guardrails: { enforceDownloadGuardrails: boolean },
 ): Promise<ExportBundle> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
+
+  if (guardrails.enforceDownloadGuardrails) {
+    assertLaunchCircuitBreakerClosed("export_downloads");
+    const rateLimit = await consumeExportDownloadRateLimit(supabase);
+
+    if (!rateLimit.allowed) {
+      throw new ExportRateLimitError(rateLimit);
+    }
+  }
+
   const now = options.now ?? Temporal.Now.instant();
   const [profileTimezone, cachedBehaviors, behaviorDefinitionEvents] =
     await Promise.all([
@@ -169,6 +205,20 @@ async function getUserExportBundle(
         endLocalDate: range.endLocalDate,
       })
     : initialRead;
+  const includedBehaviorIds = new Set(
+    cachedBehaviors
+      .filter((behavior) => options.includeArchived || behavior.active)
+      .map((behavior) => behavior.id),
+  );
+  const includedOccurrenceIds = exportRead.occurrences
+    .filter((occurrence) => includedBehaviorIds.has(occurrence.behavior_id))
+    .map((occurrence) => occurrence.id);
+  const timeSessions = options.includeTimeTracking
+    ? await listTimeSessionsByOccurrenceIds(supabase, {
+        userId,
+        occurrenceIds: includedOccurrenceIds,
+      })
+    : [];
 
   return resolveExportBundle({
     profile: {
@@ -188,12 +238,26 @@ async function getUserExportBundle(
     reminderDeliveries: exportRead.reminderDeliveries.map(
       toExportReminderDeliveryInput,
     ),
+    timeSessions: timeSessions.map(toExportTimeSessionInput),
     now,
     timezone,
     range: range.key,
     includeArchived: options.includeArchived,
     includeNotes: options.includeNotes,
+    includeTimeTracking: options.includeTimeTracking,
   });
+}
+
+function toExportTimeSessionInput(
+  session: Awaited<ReturnType<typeof listTimeSessionsByOccurrenceIds>>[number],
+): ExportTimeSessionInput {
+  return {
+    id: session.id,
+    occurrenceId: session.occurrence_id,
+    behaviorId: session.behavior_id,
+    startedAt: session.started_at,
+    stoppedAt: session.stopped_at,
+  };
 }
 
 function toExportBehaviorDefinitionEventInput(

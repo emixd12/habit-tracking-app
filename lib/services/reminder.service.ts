@@ -39,6 +39,10 @@ import {
 import { formatOccurrenceScheduleLabel } from "@/lib/services/schedule";
 import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import {
+  readLaunchCircuitBreaker,
+  reportOpenLaunchCircuitBreaker,
+} from "@/lib/security/launch-circuit-breakers";
+import {
   createSequenzyReminderEmailSender,
   type SequenzyReminderEmailInput,
 } from "@/lib/services/sequenzy.service";
@@ -70,6 +74,9 @@ export type ProcessDueEmailRemindersOptions = {
   limit?: number;
   supabase?: AppSupabaseClient;
   sendEmail?: ReminderEmailSender;
+  circuitBreakerEnvironment?: Readonly<
+    Record<string, string | undefined>
+  >;
 };
 
 export type ProcessDueRemindersOptions = ProcessDueEmailRemindersOptions & {
@@ -245,6 +252,16 @@ export async function processDueReminders(
 export async function processDueEmailReminders(
   options: ProcessDueEmailRemindersOptions = {},
 ): Promise<ProcessDueEmailRemindersResult> {
+  const breaker = readLaunchCircuitBreaker(
+    "email_sends",
+    options.circuitBreakerEnvironment,
+  );
+
+  if (breaker.open) {
+    reportOpenLaunchCircuitBreaker(breaker);
+    return emptyProcessResult();
+  }
+
   const now = options.now ?? Temporal.Now.instant();
   const dueAt = now.toString();
   const processingStartedAt = dueAt;
@@ -295,6 +312,16 @@ export async function processDueEmailReminders(
 export async function processDueBrowserPushReminders(
   options: ProcessDueRemindersOptions = {},
 ): Promise<ProcessDueRemindersResult> {
+  const breaker = readLaunchCircuitBreaker(
+    "browser_push_sends",
+    options.circuitBreakerEnvironment,
+  );
+
+  if (breaker.open) {
+    reportOpenLaunchCircuitBreaker(breaker);
+    return emptyProcessResult();
+  }
+
   const now = options.now ?? Temporal.Now.instant();
   const dueAt = now.toString();
   const processingStartedAt = dueAt;
@@ -578,6 +605,17 @@ function sameInstant(first: string, second: string): boolean {
   } catch {
     return first === second;
   }
+}
+
+function emptyProcessResult(): ProcessDueRemindersResult {
+  return {
+    checked: 0,
+    claimed: 0,
+    skipped: 0,
+    sent: 0,
+    failed: 0,
+    cancelled: 0,
+  };
 }
 
 async function sendBrowserPushToSubscriptions(input: {

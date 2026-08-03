@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { LegalPageContent } from "../components/settings/LegalContent";
+import { TrustAndLegalPanel } from "../components/settings/SettingsPanels";
 
 describe("trust and legal UI content", () => {
   it("renders sparse public legal routes without adding product drift language", () => {
@@ -27,5 +28,13 @@ describe("trust and legal UI content", () => {
     expect(html).toContain("href=\"https://cadence-marketing-two.vercel.app/cadence\"");
     expect(html).toContain("Cadence overview");
     expect(html).toContain("Settings screen provides account deletion");
+  });
+
+  it("renders each public account-information destination from Settings", () => {
+    const html = renderToStaticMarkup(<TrustAndLegalPanel />);
+
+    expect(html).toContain('href="/trust"');
+    expect(html).toContain('href="/privacy"');
+    expect(html).toContain('href="/terms"');
   });
 });

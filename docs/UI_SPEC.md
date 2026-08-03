@@ -313,8 +313,16 @@ Expanded card details should stay inside the native disclosure element and show:
 - Description if present
 - Category
 - Behavior schedule
+- Track time after the schedule. A current-day active occurrence shows **Track
+  Time**. A running session shows a tabular `HH:MM:SS` counter and **Stop**. A
+  stopped total shows **Track Time** and **Reset tracked time**. Reset removes
+  all sessions for that occurrence without a confirmation modal.
 - Note field
 - Option to change a Completed or Not Completed status.
+
+The timer counter does not use a live region for every second. Start, Stop,
+Reset, and errors announce one result. Each timing action keeps a 44px mobile
+target. Timing controls do not add a card, route, modal, column, or status cue.
 
 Categories should only be visible in the expanded card details.
 
@@ -535,6 +543,9 @@ Show:
 - Top summary Unresolved count when the count is greater than zero
 - Optional compact resolved counts by category
 - Default adherence rate
+- Conditional `Average tracked time` inside existing per-behavior outcome
+  metadata when the selected range contains one or more stopped-session
+  occurrence totals
 
 The Behaviors screen's review area should read as one sparse report surface. Avoid boxed
 section panels around Overall adherence, the calendar, Behavior counts, and
@@ -553,7 +564,7 @@ row. Its heading should be explicit, such as Review selected day, rather than a
 generic Review label. The behavior date review should list only that behavior's
 occurrences for the selected local date when rows exist, including Completed,
 Not Completed, and Unresolved rows. It should use plain text labels for Time of
-behavior, Status, and Note rather than chips, and empty notes should read as
+behavior, conditional Tracked time, Status, and Note rather than chips, and empty notes should read as
 italic No note. Correction controls stay hidden behind a per-occurrence Review
 disclosure until the user chooses to review that occurrence. Inside the
 disclosure, Change status and the Completed / Not Completed actions should sit
@@ -562,7 +573,9 @@ in this behavior-date context, returning it to Unresolved. An expanded,
 just-decided Timeline occurrence exposes the same correction as Unmark; Needs
 decision does not expose it as a global action. Both labels use the same status
 service and restore only still-future reminders. The inline Note form follows
-the status controls. Do not use
+the status controls. `Reset tracked time` appears in this same disclosure only
+when the occurrence has stopped or running timing data. It deletes timing
+sessions and refreshes the review without changing Status or Note. Do not use
 internal divider lines that visually compete with the behavior-row separators.
 Do not add bulk edit, all-time search, automatic suggestions, AI coaching, or
 gamified language. Do not render an empty review panel when the selected
@@ -618,6 +631,8 @@ Export options:
 - All time
 - Include archived behaviors
 - Include occurrence notes, off by default
+- Include time tracking, off by default, with factual copy that exact session
+  timestamps can reveal activity patterns and remain omitted unless selected
 - Selected range scope: behavior count, occurrence count, and default adherence
 
 Export outputs:
@@ -641,6 +656,10 @@ Exports should support both download and copy where practical.
 The AI summary is an export artifact, not an in-app coaching feature. It should
 state whether notes are included and should show notes only when the user opts
 into occurrence notes.
+
+Only an applied time-tracking option may show a Timing sessions count in the
+selected-range scope. Enabled download filenames identify the sensitive choice
+with `with-time-tracking`.
 
 Analysis prompts appears after the AI summary inside the Export section. It is
 a static, single-column library of native disclosure rows. Collapsed rows show

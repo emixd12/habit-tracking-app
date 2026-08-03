@@ -25,6 +25,7 @@ type ExportPageProps = Readonly<{
     range?: string | string[];
     include_archived?: string | string[];
     include_notes?: string | string[];
+    include_time_tracking?: string | string[];
   }>;
 }>;
 
@@ -33,6 +34,7 @@ export default async function ExportPage({ searchParams }: ExportPageProps) {
   const range = parseStringParam(params?.range);
   const includeArchived = parseBooleanParam(params?.include_archived);
   const includeNotes = parseBooleanParam(params?.include_notes);
+  const includeTimeTracking = parseExactOneParam(params?.include_time_tracking);
 
   return (
     <ScreenFrame title="Export & Import">
@@ -41,6 +43,7 @@ export default async function ExportPage({ searchParams }: ExportPageProps) {
           range={range}
           includeArchived={includeArchived}
           includeNotes={includeNotes}
+          includeTimeTracking={includeTimeTracking}
         />
       </Suspense>
     </ScreenFrame>
@@ -51,10 +54,12 @@ async function ExportContent({
   range,
   includeArchived,
   includeNotes,
+  includeTimeTracking,
 }: Readonly<{
   range?: string;
   includeArchived: boolean;
   includeNotes: boolean;
+  includeTimeTracking: boolean;
 }>) {
   const [exportData, recentBehaviorLogRuns] = await withPerformanceRoute(
     "/export",
@@ -65,6 +70,7 @@ async function ExportContent({
           range,
           includeArchived,
           includeNotes,
+          includeTimeTracking,
         }),
         listCurrentUserBehaviorLogImportRuns(12),
       ]),
@@ -109,4 +115,8 @@ function parseBooleanParam(value: string | string[] | undefined): boolean {
   const rawValue = parseStringParam(value);
 
   return rawValue === "1" || rawValue === "true" || rawValue === "on";
+}
+
+function parseExactOneParam(value: string | string[] | undefined): boolean {
+  return parseStringParam(value) === "1";
 }

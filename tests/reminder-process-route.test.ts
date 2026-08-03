@@ -11,6 +11,7 @@ vi.mock("@/lib/services/reminder.service", () => ({
 
 const ORIGINAL_SECRET = process.env.REMINDER_PROCESS_SECRET;
 const ORIGINAL_CRON_SECRET = process.env.CRON_SECRET;
+const ORIGINAL_BATCH_BREAKER = process.env.CADENCE_DISABLE_REMINDER_BATCHES;
 
 describe("reminder process route", () => {
   beforeEach(() => {
@@ -18,6 +19,7 @@ describe("reminder process route", () => {
     resetAuthFailureRateLimitersForTests();
     process.env.REMINDER_PROCESS_SECRET = "process-secret";
     process.env.CRON_SECRET = "";
+    restoreEnv("CADENCE_DISABLE_REMINDER_BATCHES", ORIGINAL_BATCH_BREAKER);
     vi.mocked(processDueReminders).mockResolvedValue({
       checked: 1,
       claimed: 1,
@@ -31,6 +33,7 @@ describe("reminder process route", () => {
   afterAll(() => {
     restoreEnv("REMINDER_PROCESS_SECRET", ORIGINAL_SECRET);
     restoreEnv("CRON_SECRET", ORIGINAL_CRON_SECRET);
+    restoreEnv("CADENCE_DISABLE_REMINDER_BATCHES", ORIGINAL_BATCH_BREAKER);
   });
 
   it("does no work when the process secret is not configured", async () => {
@@ -111,6 +114,27 @@ describe("reminder process route", () => {
     expect(processDueReminders).toHaveBeenCalledWith({
       limit: 100,
     });
+  });
+
+  it("stops only reminder batches when the launch breaker is open", async () => {
+    process.env.CADENCE_DISABLE_REMINDER_BATCHES = "1";
+
+    const response = await POST(
+      new NextRequest("http://localhost:3000/api/reminders/process", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer process-secret",
+        },
+      }),
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "Reminder processing is temporarily unavailable.",
+    });
+    expect(response.status).toBe(503);
+    expect(response.headers.get("retry-after")).toBe("300");
+    expect(processDueReminders).not.toHaveBeenCalled();
   });
 
   it("rate limits repeated unauthorized processing attempts", async () => {

@@ -575,6 +575,30 @@ export type Database = {
           },
         ]
       }
+      launch_rate_limits: {
+        Row: {
+          action: string
+          attempt_count: number
+          updated_at: string
+          user_id: string
+          window_started_at: string
+        }
+        Insert: {
+          action: string
+          attempt_count: number
+          updated_at?: string
+          user_id: string
+          window_started_at: string
+        }
+        Update: {
+          action?: string
+          attempt_count?: number
+          updated_at?: string
+          user_id?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
       occurrence_status_events: {
         Row: {
           behavior_id: string
@@ -697,6 +721,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      occurrence_time_sessions: {
+        Row: {
+          behavior_id: string
+          created_at: string
+          id: string
+          occurrence_id: string
+          started_at: string
+          stopped_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          behavior_id: string
+          created_at?: string
+          id?: string
+          occurrence_id: string
+          started_at: string
+          stopped_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          behavior_id?: string
+          created_at?: string
+          id?: string
+          occurrence_id?: string
+          started_at?: string
+          stopped_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "occurrence_time_sessions_occurrence_owner_fkey"
+            columns: ["user_id", "occurrence_id", "behavior_id"]
+            isOneToOne: false
+            referencedRelation: "occurrences"
+            referencedColumns: ["user_id", "id", "behavior_id"]
+          },
+        ]
       }
       occurrences: {
         Row: {
@@ -950,6 +1015,16 @@ export type Database = {
       bind_behaviorlog_restore_apply_payload: {
         Args: { restore_payload: Json }
         Returns: string
+      }
+      consume_launch_rate_limit: {
+        Args: { p_action: string }
+        Returns: {
+          allowed: boolean
+          limit_count: number
+          remaining: number
+          reset_at: string
+          retry_after_seconds: number
+        }[]
       }
       create_behavior_with_definition_event: {
         Args: { behavior_payload: Json; definition_event_plan: Json }

@@ -10,6 +10,18 @@ import {
 import type { BehaviorLogRestorePreview } from "../lib/types/behaviorlog-restore";
 
 describe("BehaviorLog restore UI", () => {
+  it("renders the trusted bundle upload and Preview restore interactions", () => {
+    const html = renderToStaticMarkup(
+      <BehaviorLogRestorePanel recentRuns={[]} />,
+    );
+
+    expect(html).toContain('name="restore_behaviorlog_file"');
+    expect(html).toContain(
+      'accept=".behaviorlog.zip,application/zip"',
+    );
+    expect(html).toContain(">Preview restore</button>");
+  });
+
   it("renders destructive actions, fingerprints, non-restorable fields, and warnings", () => {
     const html = renderToStaticMarkup(
       <BehaviorLogRestorePreviewDetails preview={restorePreview()} />,
@@ -137,6 +149,15 @@ describe("BehaviorLog restore UI", () => {
       /<input[^>]*name="confirm_restore_text"[^>]*>/,
     )?.[0];
 
+    expect(html).toContain('name="confirm_backup"');
+    expect(html).toContain(
+      "I created or downloaded a fresh backup before restoring.",
+    );
+    expect(html).toContain('name="confirm_sensitive_notes"');
+    expect(html).toContain(
+      "I reviewed high or restricted note sensitivity warnings.",
+    );
+    expect(html).toContain(">Apply restore</button>");
     expect(confirmationInput).toContain('required=""');
   });
 });

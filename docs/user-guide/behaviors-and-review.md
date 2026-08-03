@@ -18,6 +18,12 @@ the overall summary, heatmaps, category counts, and per-Behavior rows. A valid
 selected Behavior day remains selected. This is a view change, not a data
 write.
 
+When a Behavior has recorded timing in the selected range, its outcome metadata
+also shows **Average tracked time**. Cadence sums stopped sessions for each
+Occurrence, then averages only Occurrences with recorded totals. Untimed and
+running-only Occurrences do not affect the average. Cadence hides the line when
+the range has no recorded total.
+
 **Recovery or undo:** Choose another range. Unsupported URL range values return
 to the default range.
 
@@ -38,25 +44,32 @@ Behavior calendar.
    accessible label ends with **open day review**. The overall calendar is
    passive and cannot open this review.
 2. In **Review selected day**, read **Date of behavior**,
-   **Time of behavior**, **Status**, and **Note** for each Occurrence.
+   **Time of behavior**, conditional **Tracked time**, **Status**, and **Note**
+   for each Occurrence. A running-only session shows **In progress**. A stopped
+   total shows its recorded duration. Both labels appear when both states exist.
 3. Choose **Review** on the Occurrence you want to inspect.
 4. Under **Change status**, choose **Completed** or **Not Completed**. For an
    already resolved Occurrence, choose **Clear decision** to return it to
    Unresolved.
 5. To edit the Occurrence Note, change **Note** and choose **Save note**.
+6. When timing data exists, choose **Reset tracked time** inside the same
+   **Review** disclosure to delete every timing session for that Occurrence.
 
 **Result and persistence:** Selecting the day changes the `behavior` and `day`
 query values and renders the review in the owning Behavior row. Opening
 **Review** changes only disclosure state. A status choice atomically updates
 the snapshot and status history, then refreshes metrics. **Clear decision**
 records a correction back to Unresolved and permits reminder planning through
-normal service rules. **Save note** changes only the Note.
+normal service rules. **Save note** changes only the Note. **Reset tracked
+time** deletes only timing sessions, then refreshes Behaviors and Timeline. It
+does not change Status or Note.
 
 **Recovery or undo:** Empty calendar cells are passive. Invalid URL selections
 do not render an empty review panel. Correct a status with another explicit
 status choice. After **Clear decision**, choose **Completed** or
 **Not Completed** if you cleared it accidentally. If a save fails, Cadence
-shows an error and preserves the stored record.
+shows an error and preserves the stored record. Resetting removes the recorded
+timing sessions. Start a new Timeline timer if the reset was accidental.
 
 **Privacy and safety:** Clearing a prior-day decision may make the Occurrence
 eligible for **Needs decision** and may allow a future reminder to be planned

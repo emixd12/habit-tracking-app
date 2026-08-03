@@ -8,6 +8,7 @@ export type BehaviorSchedule = Tables<"behavior_schedules">;
 export type BehaviorScheduleSlot = Tables<"behavior_schedule_slots">;
 export type Occurrence = Tables<"occurrences">;
 export type OccurrenceSyncState = Tables<"occurrence_sync_state">;
+export type OccurrenceTimeSession = Tables<"occurrence_time_sessions">;
 export type OccurrenceStatusEvent = Tables<"occurrence_status_events">;
 export type BehaviorLogImportRun = Tables<"behaviorlog_import_runs">;
 export type BehaviorLogImportRecordMapping =
@@ -16,6 +17,7 @@ export type ImportedIntervention = Tables<"imported_interventions">;
 export type ImportedNote = Tables<"imported_notes">;
 export type ReminderDelivery = Tables<"reminder_deliveries">;
 export type PushSubscription = Tables<"push_subscriptions">;
+export type LaunchRateLimit = Tables<"launch_rate_limits">;
 
 export type NewCategory = TablesInsert<"categories">;
 export type NewBehavior = TablesInsert<"behaviors">;
@@ -25,6 +27,8 @@ export type NewBehaviorSchedule = TablesInsert<"behavior_schedules">;
 export type NewBehaviorScheduleSlot = TablesInsert<"behavior_schedule_slots">;
 export type NewOccurrence = TablesInsert<"occurrences">;
 export type NewOccurrenceSyncState = TablesInsert<"occurrence_sync_state">;
+export type NewOccurrenceTimeSession =
+  TablesInsert<"occurrence_time_sessions">;
 export type NewOccurrenceStatusEvent = TablesInsert<"occurrence_status_events">;
 export type NewBehaviorLogImportRun =
   TablesInsert<"behaviorlog_import_runs">;
@@ -43,6 +47,8 @@ export type BehaviorScheduleUpdate = TablesUpdate<"behavior_schedules">;
 export type BehaviorScheduleSlotUpdate = TablesUpdate<"behavior_schedule_slots">;
 export type OccurrenceUpdate = TablesUpdate<"occurrences">;
 export type OccurrenceSyncStateUpdate = TablesUpdate<"occurrence_sync_state">;
+export type OccurrenceTimeSessionUpdate =
+  TablesUpdate<"occurrence_time_sessions">;
 export type OccurrenceStatusEventUpdate = TablesUpdate<"occurrence_status_events">;
 export type BehaviorLogImportRunUpdate =
   TablesUpdate<"behaviorlog_import_runs">;

@@ -14,6 +14,7 @@ import {
   archiveBehaviorAction,
   createBehaviorAction,
   markBehaviorReviewOccurrenceStatusAction,
+  resetBehaviorReviewOccurrenceTimeTrackingAction,
   restoreBehaviorAction,
   updateBehaviorAction,
   updateBehaviorReviewOccurrenceNoteAction,
@@ -109,6 +110,7 @@ async function BehaviorsContent({
         restoreAction={restoreBehaviorAction}
         statusAction={markBehaviorReviewOccurrenceStatusAction}
         noteAction={updateBehaviorReviewOccurrenceNoteAction}
+        resetTimeTrackingAction={resetBehaviorReviewOccurrenceTimeTrackingAction}
       />
     </>
   );
