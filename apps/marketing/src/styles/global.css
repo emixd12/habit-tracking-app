@@ -176,10 +176,27 @@ pre code {
   position: sticky;
   top: 0;
   z-index: 5;
-  border-block-end: 1px solid var(--line);
   background: color-mix(in oklab, var(--background) 82%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+.site-header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--line);
+  opacity: var(--site-header-border-opacity, 1);
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header::after {
+    transition: none;
+  }
 }
 
 .site-header__inner,
@@ -1051,7 +1068,7 @@ html.js-reveal [data-reveal].is-visible {
 
 @media (width < 820px) {
   .site-header {
-    position: static;
+    position: relative;
   }
 
   .site-header__inner {

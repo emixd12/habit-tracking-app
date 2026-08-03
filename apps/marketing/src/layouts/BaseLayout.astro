@@ -72,6 +72,31 @@ const headerRoutes = [
           </div>
         </div>
       </header>
+      <script is:inline>
+        (() => {
+          const FADE_DISTANCE = 48;
+          const root = document.documentElement;
+          let frameId = null;
+
+          const update = () => {
+            frameId = null;
+            const y = window.scrollY || document.documentElement.scrollTop || 0;
+            root.style.setProperty(
+              "--site-header-border-opacity",
+              Math.min(y / FADE_DISTANCE, 1).toFixed(3),
+            );
+          };
+
+          const schedule = () => {
+            if (frameId !== null) return;
+            frameId = window.requestAnimationFrame(update);
+          };
+
+          update();
+          window.addEventListener("scroll", schedule, { passive: true });
+          window.addEventListener("resize", schedule);
+        })();
+      </script>
       <main id="main" tabindex="-1">
         <slot />
       </main>
