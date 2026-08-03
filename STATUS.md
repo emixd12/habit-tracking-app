@@ -4997,6 +4997,12 @@ Verification:
 - Pass: `npm run lint`, `npm run typecheck`, `npm run test` (106 files, 802
   tests), and `npm run build` (Next.js 16.2.7).
 - Pass: `git diff --check`.
+- Pass: owner-authorized hosted migration deployment and migration-history
+  verification on 2026-08-02 for
+  `20260801051601_add_launch_export_rate_limit.sql`.
+- Pass: compatible application commit `97ac6247e93eb8029a418266539754baf440bde0`
+  reached Vercel production as deployment
+  `dpl_4bDCCb3VSq5veZ7GjENt5UgWWecf` with the canonical alias assigned.
 
 Blocking acceptance gates:
 
@@ -5013,21 +5019,19 @@ Blocking acceptance gates:
   remain unverified.
 - The non-production human tabletop, false-positive review, OAuth/Cron bypass
   proof, and firewall preview require owner participants and exact targets.
-- The new migration is local only. Do not deploy the application guardrail
-  before the owner authorizes `db push` and the migration reaches hosted
-  Supabase. Provider settings and production environment variables also require
-  exact owner authorization.
+- Provider settings, production breaker environment variables, and firewall
+  rules still require exact owner authorization.
 
-No provider setting changed. No hosted migration ran. No firewall rule was
-published. No project paused. No plan, compute size, add-on, budget, or limit
-changed. No provider message was sent.
+The application guardrail and database migration are deployed. No provider
+setting changed. No firewall rule was published. No project paused. No plan,
+compute size, add-on, budget, or limit changed. No provider message was sent.
 
 Next action:
 
 - The owner supplies the private risk policy and exact provider authorizations.
-  Run the private preflight, deploy the migration before compatible application
-  code, configure only approved controls, test alert delivery and log-only
-  rules, then complete the human drill and sanitized acceptance report.
+  Run the private preflight, configure only approved controls, test alert
+  delivery and log-only rules, then complete the human drill and sanitized
+  acceptance report.
 
 ## Occurrence stopwatch capture, reset, and persistence (Ticket 068)
 
@@ -5045,15 +5049,10 @@ Scope:
 - Update product, data, UI, user-flow, decision, route, resolver, interaction,
   load-manifest, and user-guide contracts during implementation.
 
-Dependencies and next action:
+Dependencies:
 
-- Ticket 068 is not blocked by Tickets 066-067 and may be implemented and
-  verified against local Supabase.
-- Before coding, mark the ticket `in_progress`, run the project-local
-  impeccable context workflow before UI edits, and write the failing resolver,
-  migration, service, RLS, and Timeline UI tests.
-- Hosted migration deployment requires separate authorization for the exact
-  linked Supabase project.
+- Ticket 068 is independent of Tickets 066-067. Its implementation and hosted
+  migration deployment are complete.
 
 Verification:
 
@@ -5074,13 +5073,14 @@ Verification:
 
 Hosted migration state:
 
-- Local only. No hosted Supabase migration, application deployment, provider
-  operation, or production data change ran.
+- Migration `20260802000000_add_occurrence_time_sessions.sql` reached the
+  linked hosted Supabase project on 2026-08-02 after owner authorization.
+- Authenticated production Timeline QA loaded the new table and exposed Track
+  Time on an active current-day occurrence without creating a timing session.
 
 Remaining risk:
 
-- A separate owner authorization is required before deploying the new migration
-  to the exact linked Supabase project.
+- No Ticket 068 schema deployment risk remains.
 
 ## Behavior timing averages and selected-day review (Ticket 069)
 
@@ -5097,12 +5097,9 @@ Scope:
 - Add no history disclosure, chart, table, pop-up, modal, route, or empty
   placeholder.
 
-Dependencies and next action:
+Dependencies:
 
-- Ticket 068 must be complete before Ticket 069 starts.
-- When starting, mark the ticket `in_progress`, add failing analytics and UI
-  tests first, and keep all duration aggregation in resolvers rather than
-  components.
+- Ticket 068 is complete and its hosted migration is deployed.
 
 Verification:
 
@@ -5127,8 +5124,8 @@ Implementation notes:
 
 Remaining risk:
 
-- The Ticket 068 migration remains local only. Hosted deployment still needs
-  separate owner authorization.
+- Authenticated production Behaviors QA loaded the timing-aware analytics path
+  successfully. No Ticket 069 deployment blocker remains.
 
 ## Privacy-gated time-tracking exports (Ticket 070)
 
@@ -5164,6 +5161,12 @@ Verification:
   `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
   `npm run test` (111 files, 838 tests), `npm run build`, and
   `git diff --check`.
+- Pass: authenticated production Export QA confirmed the option is unchecked by
+  default, default download links omit timing, and the exact opt-in URL adds
+  `include_time_tracking=1` to all four download links plus the timing count.
+- Pass: Vercel deployment `dpl_4bDCCb3VSq5veZ7GjENt5UgWWecf` is `READY` for
+  commit `97ac6247e93eb8029a418266539754baf440bde0`, owns the canonical alias,
+  and showed no runtime error logs or `5xx` responses in the post-deploy scan.
 
 Implementation notes:
 
@@ -5178,6 +5181,9 @@ Remaining limitation:
 
 - Time-session history remains export-only. Import and restore validate the
   optional Cadence file and hash but do not replay timing sessions.
+- Authenticated Chrome QA reproduced a React hydration warning on both the
+  prior and current deployments. It did not block Timeline, Behaviors, Export,
+  or the option flow; its root cause remains unverified.
 
 ## Handoff notes
 
