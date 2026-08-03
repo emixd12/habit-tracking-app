@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-30T06:34:00.000000+00:00",
+  "generatedAt": "2026-08-03T03:57:19Z",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "components": [
     {
@@ -352,6 +352,20 @@
       "trackUsages": "required",
       "status": "active",
       "notes": ""
+    },
+    {
+      "id": "module.time-tracker",
+      "name": "TimeTracker",
+      "kind": "module",
+      "source": "components/timeline/TimeTracker.tsx",
+      "exportName": "TimeTracker",
+      "usageNames": [
+        "TimeTracker"
+      ],
+      "benchAnchor": "design-system#ds-module-time-tracker",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Timeline timing controls inherit contrast-aware text roles from each occurrence row tone."
     },
     {
       "id": "module.timeline",

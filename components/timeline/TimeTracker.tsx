@@ -99,9 +99,11 @@ export function TimeTracker({
 
   return (
     <section className="grid gap-1.5" aria-label="Track time">
-      <h4 className="font-bold leading-5 text-foreground">Track time</h4>
+      <h4 className="timeline-time-tracker-strong font-bold leading-5">
+        Track time
+      </h4>
       {running || effectiveTracking.recordedSeconds > 0 ? (
-        <p className="tabular-nums leading-5 text-foreground">
+        <p className="timeline-time-tracker-strong tabular-nums leading-5">
           {formatTrackedDuration(displayedSeconds)}
         </p>
       ) : null}
@@ -134,7 +136,11 @@ export function TimeTracker({
         ) : null}
       </div>
       {actionState ? (
-        <p role="status" className={actionState.status === "error" ? "text-accent" : "text-muted-readable"}>
+        <p
+          role="status"
+          data-status={actionState.status}
+          className="timeline-time-tracker-feedback"
+        >
           {actionState.message}
         </p>
       ) : null}
@@ -171,7 +177,7 @@ function TimeActionForm({
       <input type="hidden" name="client_action_id" value="" />
       <button
         type="submit"
-        className="product-action min-h-11 py-2 text-sm font-bold"
+        className="timeline-time-tracker-action product-action min-h-11 py-2 text-sm font-bold"
         disabled={disabled}
       >
         {label}

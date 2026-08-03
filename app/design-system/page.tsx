@@ -48,6 +48,7 @@ import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
 import { OccurrenceRow } from "@/components/timeline/OccurrenceRow";
 import { StatusButtons } from "@/components/timeline/StatusButtons";
+import { TimeTracker } from "@/components/timeline/TimeTracker";
 import { Timeline } from "@/components/timeline/Timeline";
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
 import { GoogleLoginButton } from "@/app/(auth)/login/GoogleLoginButton";
@@ -225,6 +226,30 @@ async function benchOccurrenceAction(
     status: "success",
     message: "Bench action only. No occurrence was changed.",
     ...(nextStatus ? { nextStatus } : {}),
+  };
+}
+
+async function benchTimeTrackingAction(
+  previousState: TimeTrackingActionState,
+  formData: FormData,
+): Promise<TimeTrackingActionState> {
+  "use server";
+
+  void previousState;
+
+  const requestId = String(formData.get("client_action_id") ?? "");
+  const didReset = requestId.startsWith("reset-");
+
+  return {
+    status: "success",
+    message: didReset
+      ? "Tracked time reset."
+      : "Bench action only. No tracked time changed.",
+    requestId,
+    tracking: {
+      recordedSeconds: didReset ? 0 : 65,
+      runningStartedAt: null,
+    },
   };
 }
 
@@ -1221,9 +1246,7 @@ function buildPreviews(
 
 const behaviorAction: BehaviorFormAction = benchBehaviorAction;
 const occurrenceAction: OccurrenceFormAction = benchOccurrenceAction;
-const timeTrackingAction: TimeTrackingFormAction = async (
-  state: TimeTrackingActionState,
-) => state;
+const timeTrackingAction: TimeTrackingFormAction = benchTimeTrackingAction;
 const timezoneAction: TimezoneUpdateAction = benchTimezoneAction;
 const deleteAccountAction: DeleteAccountAction = benchDeleteAccountAction;
 const behaviorLogImportAction: BehaviorLogImportFormAction =
@@ -1580,6 +1603,51 @@ const previewFactories: Record<
           currentStatus="unresolved"
           action={occurrenceAction}
         />
+      </ProductPreview>
+    ),
+  "module.time-tracker": () => (
+      <ProductPreview>
+        <div className="grid gap-3">
+          <div
+            className="timeline-occurrence-row bg-timeline-row-hover p-4"
+            data-visual-tone="default"
+          >
+            <TimeTracker
+              occurrenceId="bench-time-default"
+              tracking={{ recordedSeconds: 65, runningStartedAt: null }}
+              canStart
+              startAction={timeTrackingAction}
+              stopAction={timeTrackingAction}
+              resetAction={timeTrackingAction}
+            />
+          </div>
+          <div
+            className="timeline-occurrence-row bg-timeline-completed-hover p-4"
+            data-visual-tone="completed"
+          >
+            <TimeTracker
+              occurrenceId="bench-time-completed"
+              tracking={{ recordedSeconds: 65, runningStartedAt: null }}
+              canStart
+              startAction={timeTrackingAction}
+              stopAction={timeTrackingAction}
+              resetAction={timeTrackingAction}
+            />
+          </div>
+          <div
+            className="timeline-occurrence-row bg-accent p-4"
+            data-visual-tone="not_completed"
+          >
+            <TimeTracker
+              occurrenceId="bench-time-not-completed"
+              tracking={{ recordedSeconds: 65, runningStartedAt: null }}
+              canStart
+              startAction={timeTrackingAction}
+              stopAction={timeTrackingAction}
+              resetAction={timeTrackingAction}
+            />
+          </div>
+        </div>
       </ProductPreview>
     ),
   "composite.occurrence-note-form": () => (

@@ -324,6 +324,49 @@ details[open] > .product-disclosure-trigger .product-disclosure-indicator {
   }
 }
 
+.timeline-occurrence-row {
+  --timeline-detail-strong: var(--foreground);
+  --timeline-detail-muted: var(--muted-readable);
+  --timeline-detail-error: var(--accent);
+}
+
+.timeline-occurrence-row[data-visual-tone="completed"] {
+  --timeline-detail-strong: var(--primary-foreground);
+  --timeline-detail-muted: color-mix(
+    in srgb,
+    var(--primary-foreground) 82%,
+    var(--timeline-completed-hover)
+  );
+  --timeline-detail-error: var(--primary-foreground);
+}
+
+.timeline-occurrence-row[data-visual-tone="not_completed"] {
+  --timeline-detail-strong: var(--primary-foreground);
+  --timeline-detail-muted: color-mix(
+    in srgb,
+    var(--primary-foreground) 85%,
+    var(--accent)
+  );
+  --timeline-detail-error: var(--primary-foreground);
+}
+
+.timeline-time-tracker-strong,
+.timeline-time-tracker-action {
+  color: var(--timeline-detail-strong);
+}
+
+.timeline-time-tracker-action:disabled {
+  color: var(--timeline-detail-muted);
+}
+
+.timeline-time-tracker-feedback {
+  color: var(--timeline-detail-muted);
+}
+
+.timeline-time-tracker-feedback[data-status="error"] {
+  color: var(--timeline-detail-error);
+}
+
 .timeline-occurrence-details {
   display: none;
 }

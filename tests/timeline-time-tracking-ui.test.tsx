@@ -52,6 +52,9 @@ describe("Timeline time tracking", () => {
     expect(stopped).toContain("00:01:05");
     expect(stopped).toContain(">Track Time</button>");
     expect(stopped).toContain(">Reset tracked time</button>");
+    expect(idle).toContain("timeline-time-tracker-strong");
+    expect(idle).toContain("timeline-time-tracker-action");
+    expect(stopped).toContain("timeline-time-tracker-strong");
   });
 
   it("accepts only the latest response across start, stop, reset, then start", () => {

@@ -115,9 +115,9 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["app/globals.css"],
-          "implementationIds": ["module.status-buttons", "composite.occurrence-note-form"],
-          "notes": "Implemented through product-action, product-action-primary, product-action-secondary, product-action-danger, and timeline-status-action classes plus component-level status actions."
+          "sources": ["app/globals.css", "components/timeline/TimeTracker.tsx"],
+          "implementationIds": ["module.status-buttons", "module.time-tracker", "composite.occurrence-note-form"],
+          "notes": "Implemented through product-action variants, timeline-status-action, and contrast-aware Timeline timing actions."
         },
         {
           "surfaceId": "marketing",
@@ -392,8 +392,8 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/timeline/Timeline.tsx", "components/timeline/TimelineGroup.tsx", "components/timeline/OccurrenceRow.tsx"],
-          "implementationIds": ["module.timeline", "module.timeline-group", "composite.occurrence-row"],
+          "sources": ["components/timeline/Timeline.tsx", "components/timeline/TimelineGroup.tsx", "components/timeline/OccurrenceRow.tsx", "components/timeline/TimeTracker.tsx"],
+          "implementationIds": ["module.timeline", "module.timeline-group", "composite.occurrence-row", "module.time-tracker"],
           "notes": "Live fixture-backed timeline module is rendered in the current bench."
         },
         {
