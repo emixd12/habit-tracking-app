@@ -68,7 +68,8 @@ Ticket 068 permits one duration-only exception. An occurrence can own persisted
 start/stop time sessions. Cadence derives recorded duration from each stopped
 interval and keeps timing separate from statuses, adherence, notes, and reminder
 eligibility. This does not authorize templates, targets, manual duration entry,
-or other structured measurements.
+or other structured measurements. Start is available on an active behavior's
+current-day occurrence and on occurrences still visible in Needs decision.
 
 ## Recurrence anchor
 

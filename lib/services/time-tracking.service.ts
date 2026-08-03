@@ -10,13 +10,17 @@ import {
   stopRunningTimeSession,
 } from "@/lib/db/timeSessions.repo";
 import {
+  canStartOccurrenceTimeTracking,
   resolveOccurrenceTimeTracking,
   resolveResetTimeTracking,
   resolveStartTimeTracking,
   resolveStopTimeTracking,
 } from "@/lib/resolvers/time-tracking.resolver";
 import { createClient } from "@/lib/supabase/server";
-import type { OccurrenceTimeSession } from "@/lib/types/database";
+import type {
+  OccurrenceStatus,
+  OccurrenceTimeSession,
+} from "@/lib/types/database";
 import type {
   OccurrenceTimeTracking,
   TimeSession,
@@ -25,7 +29,7 @@ import type {
 const SIGN_IN_MESSAGE = "Sign in again before tracking time.";
 const MISSING_OCCURRENCE_MESSAGE = "This occurrence is no longer available.";
 const INELIGIBLE_START_MESSAGE =
-  "Time tracking is available for active behaviors scheduled today.";
+  "Time tracking is available for active behaviors on today's Timeline or in Needs decision.";
 
 export type TimeTrackingActionResult = Readonly<{
   tracking: OccurrenceTimeTracking;
@@ -146,16 +150,30 @@ async function requireStartEligibility(input: Readonly<{
     throw new Error(MISSING_OCCURRENCE_MESSAGE);
   }
 
-  const todayLocalDate = input.now
-    .toZonedDateTimeISO(behavior.timezone)
-    .toPlainDate()
-    .toString();
-
-  if (!behavior.active || occurrence.local_date !== todayLocalDate) {
+  if (!canStartOccurrenceTimeTracking({
+    behaviorActive: behavior.active,
+    occurrenceLocalDate: occurrence.local_date,
+    occurrenceStatus: normalizeOccurrenceStatus(occurrence.status),
+    statusMarkedAt: occurrence.status_marked_at,
+    now: input.now,
+    timezone: behavior.timezone,
+  })) {
     throw new Error(INELIGIBLE_START_MESSAGE);
   }
 
   return { occurrence, behavior };
+}
+
+function normalizeOccurrenceStatus(value: string): OccurrenceStatus {
+  if (
+    value === "unresolved" ||
+    value === "completed" ||
+    value === "not_completed"
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported occurrence status: ${value}`);
 }
 
 async function requireOwnedOccurrence(

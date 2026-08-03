@@ -1267,7 +1267,7 @@
         { "kind": "submit", "control": "Stop" },
         { "kind": "submit", "control": "Reset tracked time" }
       ],
-      "availability": "Track Time is available only for a current-local-day occurrence of an active behavior. Stop and Reset tracked time remain available for a persisted running or recorded session. Behaviors exposes Reset tracked time only inside Review for an occurrence with timing data.",
+      "availability": "Track Time is available for an active behavior's current-local-day occurrence or an occurrence still visible in Needs decision. Future occurrences, archived behaviors, and prior resolved occurrences outside the Needs decision retention window cannot start. Stop and Reset tracked time remain available for a persisted running or recorded session. Behaviors exposes Reset tracked time only inside Review for an occurrence with timing data.",
       "success_result": "Persists one start or stop interval, or deletes every interval for the occurrence. Timeline and Behaviors refresh without changing occurrence status or reminders.",
       "failure_result": "Shows a factual inline error and preserves the saved timing sessions.",
       "effects": ["database_write", "ui_state"],
@@ -1281,7 +1281,7 @@
         "app/(app)/timeline/actions.ts#resetTimeTrackingAction",
         "app/(app)/behaviors/actions.ts#resetBehaviorReviewOccurrenceTimeTrackingAction"
       ],
-      "test_coverage": { "level": "direct", "references": ["tests/timeline-time-tracking-ui.test.tsx", "tests/behavior-review-ui.test.tsx"], "notes": "Timeline and Behaviors UI tests render their timing controls. Timing service tests cover idempotent reset persistence." }
+      "test_coverage": { "level": "direct", "references": ["tests/timeline-time-tracking-ui.test.tsx", "tests/behavior-review-ui.test.tsx"], "notes": "Timeline UI coverage renders idle, running, stopped, and Needs decision timing controls. Behaviors UI coverage renders its reset control. Timing resolver and service tests cover eligibility and idempotent persistence." }
     },
     {
       "id": "INT-BEHAVIOR-001",

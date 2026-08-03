@@ -313,10 +313,14 @@ Expanded card details should stay inside the native disclosure element and show:
 - Description if present
 - Category
 - Behavior schedule
-- Track time after the schedule. A current-day active occurrence shows **Track
-  Time**. A running session shows a tabular `HH:MM:SS` counter and **Stop**. A
-  stopped total shows **Track Time** and **Reset tracked time**. Reset removes
-  all sessions for that occurrence without a confirmation modal.
+- Track time after the schedule. An active behavior's current-day occurrence or
+  visible Needs decision occurrence shows **Track Time**. The idle and stopped
+  states use that one underlined action without a duplicate Track time heading.
+  A running session changes the first line to a static, non-underlined **Track
+  time** label, then shows a tabular `HH:MM:SS` counter, **Stop**, and **Reset
+  tracked time** below it. A stopped total remains visible with **Track Time**
+  and **Reset tracked time**. Reset removes all sessions for that occurrence
+  without a confirmation modal.
 - Note field
 - Option to change a Completed or Not Completed status.
 

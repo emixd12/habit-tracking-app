@@ -117,7 +117,7 @@
           "parity": "canonical",
           "sources": ["app/globals.css", "components/timeline/TimeTracker.tsx"],
           "implementationIds": ["module.status-buttons", "module.time-tracker", "composite.occurrence-note-form"],
-          "notes": "Implemented through product-action variants, timeline-status-action, and contrast-aware Timeline timing actions."
+          "notes": "Implemented through product-action variants, timeline-status-action, and contrast-aware Timeline timing actions. The timing action becomes a static label only while running."
         },
         {
           "surfaceId": "marketing",

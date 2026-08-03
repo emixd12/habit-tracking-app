@@ -5082,6 +5082,51 @@ Remaining risk:
 
 - No Ticket 068 schema deployment risk remains.
 
+## Needs decision timing and timer-label refinement
+
+Status: complete.
+
+Scope:
+
+- Expose Track Time for active-behavior occurrences still visible in Needs
+  decision while preserving server-side rejection for future, archived, and
+  expired resolved occurrences.
+- Remove the duplicate static Track time heading from idle and stopped timer
+  states. Keep the static, non-underlined label only while a session runs.
+- Update resolver-owned eligibility, Timeline UI, design-system previews,
+  product contracts, guidance, and regression coverage.
+
+Implementation notes:
+
+- `time-tracking.resolver.ts` now owns start eligibility for current-day and
+  visible Needs decision occurrences. Timeline rendering and the timing service
+  consume the same rule.
+- Idle and stopped timer states render one Track Time action. Running state
+  renders a static Track time label above the counter, Stop, and Reset tracked
+  time.
+- The design-system bench now demonstrates idle, running, and stopped states
+  across unresolved, Completed, and Not Completed row tones.
+
+Verification:
+
+- Pass: focused time-tracking resolver, service, Timeline resolver, and Timeline
+  UI coverage (4 files, 26 tests).
+- Pass: `npm run agents:check`, `npm run interactions:check`,
+  `npm run load:manifest:check`, `npm run resolvers:check`,
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test` (111 files, 842 tests), and `npm run build`.
+- Pass: desktop 1280px and mobile 390px design-system QA verified one idle
+  Track Time action, a non-underlined running label, contrast-aware row tones,
+  and no horizontal overflow. The prior Needs decision row rendered Track Time
+  on both viewports.
+
+Remaining risk:
+
+- The fixed Needs decision launcher remains clipped inside its contained bench
+  trace preview, so browser QA inspected the same `needs_decision` occurrence
+  through the OccurrenceRow preview. Direct UI coverage renders the
+  `needsDecisionDialog` TimelineGroup variant with Track Time.
+
 ## Behavior timing averages and selected-day review (Ticket 069)
 
 Status: complete.

@@ -2,6 +2,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { describe, expect, it } from "vitest";
 
 import {
+  canStartOccurrenceTimeTracking,
   formatTrackedDuration,
   resolveOccurrenceTimeTracking,
   resolveResetTimeTracking,
@@ -13,6 +14,69 @@ import type { TimeSession } from "@/lib/types/time-tracking";
 const NOW = Temporal.Instant.from("2026-08-02T14:30:45Z");
 
 describe("time tracking resolver", () => {
+  it("allows starts on today and visible Needs decision occurrences", () => {
+    const now = Temporal.Instant.from("2026-08-03T14:30:00Z");
+    const base = {
+      behaviorActive: true,
+      occurrenceStatus: "unresolved" as const,
+      statusMarkedAt: null,
+      now,
+      timezone: "America/New_York",
+    };
+
+    expect(
+      canStartOccurrenceTimeTracking({
+        ...base,
+        occurrenceLocalDate: "2026-08-03",
+      }),
+    ).toBe(true);
+    expect(
+      canStartOccurrenceTimeTracking({
+        ...base,
+        occurrenceLocalDate: "2026-08-02",
+      }),
+    ).toBe(true);
+    expect(
+      canStartOccurrenceTimeTracking({
+        ...base,
+        occurrenceLocalDate: "2026-08-02",
+        occurrenceStatus: "completed",
+        statusMarkedAt: "2026-08-03T13:00:00Z",
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects future, archived, and past resolved occurrences outside Needs decision", () => {
+    const now = Temporal.Instant.from("2026-08-03T14:30:00Z");
+    const base = {
+      behaviorActive: true,
+      occurrenceLocalDate: "2026-08-02",
+      occurrenceStatus: "completed" as const,
+      statusMarkedAt: "2026-08-02T20:00:00Z",
+      now,
+      timezone: "America/New_York",
+    };
+
+    expect(canStartOccurrenceTimeTracking(base)).toBe(false);
+    expect(
+      canStartOccurrenceTimeTracking({
+        ...base,
+        occurrenceLocalDate: "2026-08-04",
+        occurrenceStatus: "unresolved",
+        statusMarkedAt: null,
+      }),
+    ).toBe(false);
+    expect(
+      canStartOccurrenceTimeTracking({
+        ...base,
+        behaviorActive: false,
+        occurrenceLocalDate: "2026-08-03",
+        occurrenceStatus: "unresolved",
+        statusMarkedAt: null,
+      }),
+    ).toBe(false);
+  });
+
   it("plans one start and is idempotent while an occurrence already runs", () => {
     expect(resolveStartTimeTracking({ sessions: [], now: NOW })).toEqual({
       kind: "start",

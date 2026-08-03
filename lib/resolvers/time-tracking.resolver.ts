@@ -23,6 +23,40 @@ export type ResetTimeTrackingPlan = Readonly<{
   hasSessions: boolean;
 }>;
 
+export function canStartOccurrenceTimeTracking(input: Readonly<{
+  behaviorActive: boolean;
+  occurrenceLocalDate: string;
+  occurrenceStatus: "unresolved" | "completed" | "not_completed";
+  statusMarkedAt: string | null;
+  now: Temporal.Instant;
+  timezone: string;
+}>): boolean {
+  if (!input.behaviorActive) {
+    return false;
+  }
+
+  const today = input.now.toZonedDateTimeISO(input.timezone).toPlainDate();
+  const occurrenceDate = Temporal.PlainDate.from(input.occurrenceLocalDate);
+  const dateComparison = Temporal.PlainDate.compare(occurrenceDate, today);
+
+  if (dateComparison > 0) {
+    return false;
+  }
+
+  if (dateComparison === 0 || input.occurrenceStatus === "unresolved") {
+    return true;
+  }
+
+  if (!input.statusMarkedAt) {
+    return false;
+  }
+
+  return Temporal.Instant.from(input.statusMarkedAt)
+    .toZonedDateTimeISO(input.timezone)
+    .toPlainDate()
+    .equals(today);
+}
+
 export function resolveStartTimeTracking(input: Readonly<{
   sessions: TimeSession[];
   now: Temporal.Instant;

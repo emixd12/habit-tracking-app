@@ -140,7 +140,8 @@ function timeTrackingActionErrorMessage(error: unknown): string {
 
   return error.message === "Sign in again before tracking time." ||
     error.message === "This occurrence is no longer available." ||
-    error.message === "Time tracking is available for active behaviors scheduled today."
+    error.message ===
+      "Time tracking is available for active behaviors on today's Timeline or in Needs decision."
     ? error.message
     : "Unable to update tracked time.";
 }

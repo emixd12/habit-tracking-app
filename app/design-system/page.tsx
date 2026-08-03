@@ -1614,7 +1614,7 @@ const previewFactories: Record<
           >
             <TimeTracker
               occurrenceId="bench-time-default"
-              tracking={{ recordedSeconds: 65, runningStartedAt: null }}
+              tracking={{ recordedSeconds: 0, runningStartedAt: null }}
               canStart
               startAction={timeTrackingAction}
               stopAction={timeTrackingAction}
@@ -1627,7 +1627,10 @@ const previewFactories: Record<
           >
             <TimeTracker
               occurrenceId="bench-time-completed"
-              tracking={{ recordedSeconds: 65, runningStartedAt: null }}
+              tracking={{
+                recordedSeconds: 65,
+                runningStartedAt: "2099-01-01T00:00:00Z",
+              }}
               canStart
               startAction={timeTrackingAction}
               stopAction={timeTrackingAction}
@@ -1961,7 +1964,7 @@ const needsDecisionOccurrence: TimelineOccurrenceView = {
   scheduleSummary: activeBehavior.recurrenceSummary,
   note: "",
   timeTracking: { recordedSeconds: 0, runningStartedAt: null },
-  canStartTimeTracking: false,
+  canStartTimeTracking: true,
 };
 
 const currentOccurrence: TimelineOccurrenceView = {

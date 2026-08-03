@@ -48,7 +48,7 @@ describe("time tracking service", () => {
     vi.mocked(deleteTimeSessionsForOccurrence).mockResolvedValue([]);
   });
 
-  it("starts only a current-local-day occurrence for an active behavior", async () => {
+  it("starts a current-local-day occurrence for an active behavior", async () => {
     await expect(
       startOccurrenceTimeTracking("occurrence-1", { now: NOW }),
     ).resolves.toMatchObject({ changed: true, tracking: { recordedSeconds: 0 } });
@@ -61,24 +61,51 @@ describe("time tracking service", () => {
     });
   });
 
-  it("rejects prior, future, archived, and missing occurrences before inserting", async () => {
+  it("starts prior unresolved and same-day retained Needs decision occurrences", async () => {
     vi.mocked(getOccurrenceById).mockResolvedValueOnce(
       occurrence({ local_date: "2026-08-01" }),
     );
-    await expect(startOccurrenceTimeTracking("occurrence-1", { now: NOW })).rejects.toThrow(
-      "Time tracking is available for active behaviors scheduled today.",
+    await expect(
+      startOccurrenceTimeTracking("occurrence-1", { now: NOW }),
+    ).resolves.toMatchObject({ changed: true });
+
+    vi.mocked(getOccurrenceById).mockResolvedValueOnce(
+      occurrence({
+        local_date: "2026-08-01",
+        status: "completed",
+        status_marked_at: "2026-08-02T14:00:00Z",
+      }),
     );
+    await expect(
+      startOccurrenceTimeTracking("occurrence-1", { now: NOW }),
+    ).resolves.toMatchObject({ changed: true });
+  });
+
+  it("rejects future, archived, expired resolved, and missing occurrences before inserting", async () => {
+    const ineligibleMessage =
+      "Time tracking is available for active behaviors on today's Timeline or in Needs decision.";
 
     vi.mocked(getOccurrenceById).mockResolvedValueOnce(
       occurrence({ local_date: "2026-08-03" }),
     );
     await expect(startOccurrenceTimeTracking("occurrence-1", { now: NOW })).rejects.toThrow(
-      "Time tracking is available for active behaviors scheduled today.",
+      ineligibleMessage,
+    );
+
+    vi.mocked(getOccurrenceById).mockResolvedValueOnce(
+      occurrence({
+        local_date: "2026-08-01",
+        status: "completed",
+        status_marked_at: "2026-08-01T14:00:00Z",
+      }),
+    );
+    await expect(startOccurrenceTimeTracking("occurrence-1", { now: NOW })).rejects.toThrow(
+      ineligibleMessage,
     );
 
     vi.mocked(getBehaviorById).mockResolvedValueOnce(behavior({ active: false }));
     await expect(startOccurrenceTimeTracking("occurrence-1", { now: NOW })).rejects.toThrow(
-      "Time tracking is available for active behaviors scheduled today.",
+      ineligibleMessage,
     );
 
     vi.mocked(getOccurrenceById).mockResolvedValueOnce(null);

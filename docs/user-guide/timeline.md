@@ -137,7 +137,8 @@ horizontal pointer gesture.
 
 ## Track occurrence time
 
-**Prerequisites:** Expand a current-local-day Occurrence for an active Behavior.
+**Prerequisites:** Expand an active Behavior's current-day Occurrence or an
+Occurrence visible in **Needs decision**.
 
 1. Choose **Track Time**. Cadence saves the start before showing the counter.
 2. Choose **Stop** when finished. The row shows the combined saved time.
@@ -148,6 +149,8 @@ horizontal pointer gesture.
 **Result and persistence:** Refreshing restores a running counter from the
 saved start instant. A final total sums stopped intervals only. Start does not
 mark an Occurrence Completed or Not Completed and does not change reminders.
+An idle or stopped timer shows one underlined **Track Time** action. While the
+timer runs, **Track time** is a static label above the counter and actions.
 
 **Recovery or undo:** Stop or Reset remains available after local midnight for
 an earlier valid start. Reset is an immediate correction and cannot restore

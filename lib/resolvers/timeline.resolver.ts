@@ -1,5 +1,7 @@
 import { Temporal } from "@js-temporal/polyfill";
 
+import { canStartOccurrenceTimeTracking } from "@/lib/resolvers/time-tracking.resolver";
+import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import type {
   TimelineDaySection,
   TimelineOccurrenceGroup,
@@ -9,7 +11,6 @@ import type {
   TimelineView,
   TimelineVisualTone,
 } from "@/lib/types/timeline";
-import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 
 export const TIMELINE_DEFAULT_FUTURE_DAYS = 7;
 export const TIMELINE_MAX_FUTURE_DAYS = 30;
@@ -29,7 +30,7 @@ export function resolveTimeline(input: ResolveTimelineInput): TimelineView {
   const todayLocalDate = today.toString();
   const visibleFutureDays = normalizeFutureDays(input.futureDays);
   const occurrences = input.occurrences.map((occurrence) =>
-    toOccurrenceView(occurrence, todayLocalDate, timezone),
+    toOccurrenceView(occurrence, todayLocalDate, timezone, input.now),
   );
 
   return {
@@ -181,6 +182,7 @@ function toOccurrenceView(
   occurrence: TimelineOccurrenceInput,
   todayLocalDate: string,
   timezone: string,
+  now: Temporal.Instant,
 ): TimelineOccurrenceView {
   const isPriorUnresolved =
     occurrence.status === "unresolved" &&
@@ -205,8 +207,14 @@ function toOccurrenceView(
     showDecisionActions,
     showCollapsedStatusLabel:
       occurrence.status !== "unresolved" && !showDecisionActions,
-    canStartTimeTracking:
-      occurrence.canStartTimeTracking && occurrence.localDate === todayLocalDate,
+    canStartTimeTracking: canStartOccurrenceTimeTracking({
+      behaviorActive: occurrence.canStartTimeTracking,
+      occurrenceLocalDate: occurrence.localDate,
+      occurrenceStatus: occurrence.status,
+      statusMarkedAt: occurrence.statusMarkedAt,
+      now,
+      timezone,
+    }),
   };
 }
 

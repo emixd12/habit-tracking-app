@@ -245,18 +245,24 @@ history.
 
 ### Track occurrence time
 
-For a current-local-day occurrence of an active behavior, expand the row and
-choose **Track Time**. Cadence persists a session before the counter begins, so
-a refresh restores a running session. Choose **Stop** to persist its end. The
-shown total includes all stopped sessions for that occurrence. A later **Track
-Time** creates another session. **Reset tracked time** removes every session,
-including a running one, with no confirmation.
+For a current-local-day occurrence or a visible Needs decision occurrence of an
+active behavior, expand the row and choose **Track Time**. Cadence persists a
+session before the counter begins, so a refresh restores a running session.
+Choose **Stop** to persist its end. The shown total includes all stopped sessions
+for that occurrence. A later **Track Time** creates another session. **Reset
+tracked time** removes every session, including a running one, with no
+confirmation.
 
-Start is unavailable for prior or future local dates and archived behaviors.
-Stop and reset remain available after midnight for an earlier valid start. None
-of these controls marks a status, changes a note, affects adherence, or changes
-reminder eligibility. The counter is display-only; saved duration always uses
-server-side persisted instants.
+The idle and stopped states show one underlined **Track Time** action without a
+duplicate heading. While a session runs, **Track time** becomes a static,
+non-underlined label above the counter, Stop, and Reset tracked time controls.
+
+Start is unavailable for future local dates, archived behaviors, and prior
+resolved occurrences no longer retained in Needs decision. Stop and reset remain
+available after midnight for an earlier valid start. None of these controls
+marks a status, changes a note, affects adherence, or changes reminder
+eligibility. The counter is display-only; saved duration always uses server-side
+persisted instants.
 
 BehaviorLog imports may fill this occurrence Note field only when an accepted
 import plan identifies the target occurrence safely, the imported note is not

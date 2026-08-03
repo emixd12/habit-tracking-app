@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-03T04:11:15.148960+00:00",
+  "generatedAt": "2026-08-03T04:32:34.459778+00:00",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
@@ -502,7 +502,7 @@
     {
       "componentId": "module.time-tracker",
       "file": "tests/timeline-time-tracking-ui.test.tsx",
-      "line": 19,
+      "line": 32,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -510,7 +510,7 @@
     {
       "componentId": "module.time-tracker",
       "file": "tests/timeline-time-tracking-ui.test.tsx",
-      "line": 29,
+      "line": 42,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -518,7 +518,7 @@
     {
       "componentId": "module.time-tracker",
       "file": "tests/timeline-time-tracking-ui.test.tsx",
-      "line": 39,
+      "line": 52,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -551,6 +551,14 @@
       "componentId": "module.timeline-group",
       "file": "components/timeline/Timeline.tsx",
       "line": 63,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.timeline-group",
+      "file": "tests/timeline-time-tracking-ui.test.tsx",
+      "line": 120,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -621,7 +629,7 @@
     }
   ],
   "summary": {
-    "productUsages": 77,
+    "productUsages": 78,
     "benchPreviews": 0
   }
 }

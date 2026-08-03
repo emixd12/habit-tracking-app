@@ -365,7 +365,7 @@
       "benchAnchor": "design-system#ds-module-time-tracker",
       "trackUsages": "required",
       "status": "active",
-      "notes": "Timeline timing controls inherit contrast-aware text roles from each occurrence row tone."
+      "notes": "Timeline timing controls inherit contrast-aware text roles from each occurrence row tone. Idle and stopped states use one Track Time action without a duplicate heading; running state uses a static Track time label above its counter and actions."
     },
     {
       "id": "module.timeline",

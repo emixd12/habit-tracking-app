@@ -76,6 +76,7 @@ describe("resolveTimeline", () => {
       isVisibleInNeedsDecision: true,
       showDecisionActions: true,
       showCollapsedStatusLabel: false,
+      canStartTimeTracking: true,
     });
     expect(timeline.daySections[0]?.occurrences[0]).toMatchObject({
       id: "current-unresolved",
@@ -129,6 +130,7 @@ describe("resolveTimeline", () => {
           isVisibleInNeedsDecision: item.isVisibleInNeedsDecision,
           showDecisionActions: item.showDecisionActions,
           showCollapsedStatusLabel: item.showCollapsedStatusLabel,
+          canStartTimeTracking: item.canStartTimeTracking,
         })),
       ),
     ).toEqual([
@@ -139,6 +141,7 @@ describe("resolveTimeline", () => {
         isVisibleInNeedsDecision: true,
         showDecisionActions: true,
         showCollapsedStatusLabel: false,
+        canStartTimeTracking: true,
       },
       {
         id: "retained-completed",
@@ -147,6 +150,7 @@ describe("resolveTimeline", () => {
         isVisibleInNeedsDecision: true,
         showDecisionActions: false,
         showCollapsedStatusLabel: true,
+        canStartTimeTracking: true,
       },
       {
         id: "retained-not-completed",
@@ -155,6 +159,7 @@ describe("resolveTimeline", () => {
         isVisibleInNeedsDecision: true,
         showDecisionActions: false,
         showCollapsedStatusLabel: true,
+        canStartTimeTracking: true,
       },
     ]);
   });

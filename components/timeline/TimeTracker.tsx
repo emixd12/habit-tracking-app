@@ -92,6 +92,7 @@ export function TimeTracker({
   const isPending = isStarting || isStopping || isResetting;
   const canReset = running || effectiveTracking.recordedSeconds > 0;
   const showTracker = running || canStart || canReset;
+  const showStaticLabel = running || !canStart;
 
   if (!showTracker) {
     return null;
@@ -99,42 +100,46 @@ export function TimeTracker({
 
   return (
     <section className="grid gap-1.5" aria-label="Track time">
-      <h4 className="timeline-time-tracker-strong font-bold leading-5">
-        Track time
-      </h4>
+      {showStaticLabel ? (
+        <h4 className="timeline-time-tracker-strong font-bold leading-5">
+          Track time
+        </h4>
+      ) : (
+        <TimeActionForm
+          occurrenceId={occurrenceId}
+          action={submitStart}
+          disabled={isPending}
+          label={isStarting ? "Starting..." : "Track Time"}
+          onSubmit={() => beginAction("start", requestCounter, setActiveRequestId)}
+        />
+      )}
       {running || effectiveTracking.recordedSeconds > 0 ? (
         <p className="timeline-time-tracker-strong tabular-nums leading-5">
           {formatTrackedDuration(displayedSeconds)}
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        {running ? (
-          <TimeActionForm
-            occurrenceId={occurrenceId}
-            action={submitStop}
-            disabled={isPending}
-            label={isStopping ? "Stopping..." : "Stop"}
-            onSubmit={() => beginAction("stop", requestCounter, setActiveRequestId)}
-          />
-        ) : canStart ? (
-          <TimeActionForm
-            occurrenceId={occurrenceId}
-            action={submitStart}
-            disabled={isPending}
-            label={isStarting ? "Starting..." : "Track Time"}
-            onSubmit={() => beginAction("start", requestCounter, setActiveRequestId)}
-          />
-        ) : null}
-        {canReset ? (
-          <TimeActionForm
-            occurrenceId={occurrenceId}
-            action={submitReset}
-            disabled={isPending}
-            label={isResetting ? "Resetting..." : "Reset tracked time"}
-            onSubmit={() => beginAction("reset", requestCounter, setActiveRequestId)}
-          />
-        ) : null}
-      </div>
+      {running || canReset ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          {running ? (
+            <TimeActionForm
+              occurrenceId={occurrenceId}
+              action={submitStop}
+              disabled={isPending}
+              label={isStopping ? "Stopping..." : "Stop"}
+              onSubmit={() => beginAction("stop", requestCounter, setActiveRequestId)}
+            />
+          ) : null}
+          {canReset ? (
+            <TimeActionForm
+              occurrenceId={occurrenceId}
+              action={submitReset}
+              disabled={isPending}
+              label={isResetting ? "Resetting..." : "Reset tracked time"}
+              onSubmit={() => beginAction("reset", requestCounter, setActiveRequestId)}
+            />
+          ) : null}
+        </div>
+      ) : null}
       {actionState ? (
         <p
           role="status"

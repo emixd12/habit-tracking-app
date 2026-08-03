@@ -162,6 +162,16 @@ than turning Timeline into a past-history browser. Inside that review only, a
 resolved occurrence can use Clear decision to return to Unresolved. Clear
 decision does not appear as a global Timeline or Needs decision control.
 
+### Occurrence time tracking
+
+An active behavior can start elapsed-time tracking from its current-day
+Timeline occurrence or from an occurrence that remains visible in Needs
+decision. Needs decision eligibility includes prior unresolved occurrences and
+prior decisions retained through the current local day. Future occurrences,
+archived behaviors, and prior resolved occurrences outside that retention
+window cannot start a new timing session. Stop and reset remain available for
+persisted timing data.
+
 ## Day boundary
 
 The day resets at local midnight.

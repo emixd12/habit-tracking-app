@@ -4700,9 +4700,9 @@ Settled product decisions:
   mutable database column.
 - Stop records time only. It does not mark the occurrence Completed, Not
   Completed, or Unresolved and does not change reminder eligibility.
-- Start is available only for current-local-day occurrences belonging to an
-  active behavior. A previously started session may still be stopped or reset
-  after the local day changes.
+- Start is available for active-behavior occurrences on the current local day
+  or still visible in Needs decision. A previously started session may still be
+  stopped or reset after the occurrence leaves Needs decision.
 - Reset tracked time deletes every timing session for that occurrence,
   including a running session. It returns the row to the idle Track Time state.
 - Reset uses a clearly named inline text action without a confirmation modal.
@@ -4780,9 +4780,10 @@ Resolver, repository, and service requirements:
 - Reset must delete all current-user sessions for the occurrence atomically
   from the application's perspective. A repeated reset must be an idempotent
   success.
-- Server-side eligibility must reject a start for a future or prior local date,
-  an archived behavior, a missing occurrence, or another user's occurrence.
-  Crafted form submissions must not bypass the UI gate.
+- Server-side eligibility must reject a start for a future local date, an
+  archived behavior, a prior resolved occurrence outside the Needs decision
+  retention window, a missing occurrence, or another user's occurrence. Crafted
+  form submissions must not bypass the UI gate.
 - Stop and reset must not reject only because midnight passed after a valid
   start.
 - Time tracking must not mutate occurrence status, `completed_at`,
@@ -4793,9 +4794,10 @@ Timeline UI requirements:
   details and before status/note correction content.
 - Reuse an isolated `TimeTracker` component if it keeps action state and the
   one-second visual counter out of `OccurrenceRow`.
-- Idle state shows the exact action label `Track Time`.
-- Running state shows an elapsed `HH:MM:SS` value and the exact action label
-  `Stop`.
+- Idle state shows only the exact underlined action label `Track Time`, without
+  a duplicate static heading.
+- Running state shows a static, non-underlined `Track time` label, an elapsed
+  `HH:MM:SS` value, and the exact action label `Stop`.
 - After stopping, show the combined recorded time for the occurrence plus
   `Track Time` and `Reset tracked time` actions.
 - Reset immediately returns the component to its idle state after confirmed
@@ -4811,8 +4813,9 @@ Timeline UI requirements:
   card border, or permanent Timeline column.
 
 Acceptance criteria:
-- A signed-in user can open a current-day occurrence, select Track Time, see a
-  running counter, select Stop, and see the persisted combined duration.
+- A signed-in user can open a current-day or visible Needs decision occurrence,
+  select Track Time, see a running counter, select Stop, and see the persisted
+  combined duration.
 - Refreshing during a running session restores the running state and elapsed
   value from the persisted `started_at` instant.
 - Starting again after a stop creates a second session and the occurrence total
