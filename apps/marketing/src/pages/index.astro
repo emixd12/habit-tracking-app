@@ -138,10 +138,12 @@ const route = getRouteById("home");
     max-width: 16ch;
   }
 
+  /* 110.4% ≈ 1 / 0.906: the timeline card ends at 90.6% of the hg canvas
+     (left 34.6% + width 56%), so this overhang puts its right edge exactly
+     on the container's right edge — matching the text's left inset. */
   .hero-visual-col {
-    position: relative;
     min-width: 0;
-    left: -4.5rem;
+    width: 110.4%;
   }
 
   .cta-row { gap: 2rem; }
@@ -226,7 +228,6 @@ const route = getRouteById("home");
   }
 
   @media (width < 820px) {
-    .hero-visual-col { left: 0; }
     .feature-ledger { grid-template-columns: 1fr; }
     .record-grid { grid-template-columns: 1fr; }
   }
