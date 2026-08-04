@@ -27,14 +27,12 @@ for (const warning of warnings) console.warn(`warning: ${warning}`);
 function checkBuiltOutput() {
   const requiredFiles = [
     "index.html",
-    "standard/index.html",
-    "cadence/index.html",
+    "faq/index.html",
     "examples/index.html",
     "docs/index.html",
     "about/index.html",
     "index.md",
-    "standard.md",
-    "cadence.md",
+    "faq.md",
     "examples.md",
     "docs.md",
     "about.md",
@@ -57,7 +55,7 @@ function checkBuiltOutput() {
 
   const manifest = JSON.parse(read("data/route-manifest.json"));
   assert(Array.isArray(manifest.routes), "Route manifest must contain routes array.");
-  assert(manifest.routes.length === 6, "Route manifest should expose 6 public routes.");
+  assert(manifest.routes.length === 5, "Route manifest should expose 5 public routes.");
 
   for (const route of manifest.routes) {
     assert(route.is_public === true, `Route ${route.route_id} must be public.`);
@@ -73,7 +71,7 @@ function checkBuiltOutput() {
   assert(llmsSize > 0, "llms.txt must not be empty.");
   assert(llmsSize < 50_000, "llms.txt must stay under 50 KB.");
 
-  for (const markdownFile of ["index.md", "standard.md", "cadence.md", "examples.md", "docs.md", "about.md"]) {
+  for (const markdownFile of ["index.md", "examples.md", "docs.md", "about.md", "faq.md"]) {
     const size = statSync(join(dist, markdownFile)).size;
     assert(size <= 100_000, `${markdownFile} must stay at or below 100 KB.`);
     const content = read(markdownFile);
@@ -94,11 +92,10 @@ function checkBuiltOutput() {
 
   for (const htmlFile of [
     "index.html",
-    "standard/index.html",
-    "cadence/index.html",
     "examples/index.html",
     "docs/index.html",
     "about/index.html",
+    "faq/index.html",
   ]) {
     const html = read(htmlFile);
     assert(hasMainLandmark(html), `${htmlFile} missing main landmark.`);

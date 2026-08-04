@@ -6,4 +6,8 @@ const site =
 export default defineConfig({
   site,
   output: "static",
+  redirects: {
+    "/cadence": "/",
+    "/standard": "/",
+  },
 });

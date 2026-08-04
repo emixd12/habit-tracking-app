@@ -1,0 +1,113 @@
+---
+import { faqItems } from "../data/faq";
+import { getRouteById } from "../data/routes";
+import { primaryCtas, siteConfig } from "../data/site";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const route = getRouteById("faq");
+const repositoryPhrase = "its own repository";
+const repositorySuffix = ` (${siteConfig.standardUrl})`;
+const faqPageItems = faqItems.map((item) => {
+  const repositoryReference = `${repositoryPhrase}${repositorySuffix}`;
+  const repositoryIndex = item.answer.indexOf(repositoryReference);
+
+  if (repositoryIndex === -1) {
+    return {
+      ...item,
+      answerBefore: item.answer,
+      answerAfter: "",
+      linkRepository: false,
+    };
+  }
+
+  return {
+    ...item,
+    answerBefore: item.answer.slice(0, repositoryIndex),
+    answerAfter: item.answer.slice(repositoryIndex + repositoryReference.length),
+    linkRepository: true,
+  };
+});
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqItems.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.answer,
+    },
+  })),
+};
+---
+
+<BaseLayout route={route}>
+  <script is:inline type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />
+
+  <section class="page-section faq-page" aria-labelledby="faq-title">
+    <div class="page-section__inner faq-page__inner">
+      <div class="section-heading">
+        <h1 id="faq-title">Frequently asked questions</h1>
+        <p>Short, factual answers. If something is missing, the codebase and docs are public.</p>
+      </div>
+
+      <div class="faq-list">
+        {
+          faqPageItems.map((item) => (
+            <article class="faq-item">
+              <h2>{item.question}</h2>
+              <p>
+                {item.linkRepository ? (
+                  <>
+                    {item.answerBefore}<a class="inline-link" href={siteConfig.standardUrl}>{repositoryPhrase}</a>{item.answerAfter}
+                  </>
+                ) : (
+                  item.answer
+                )}
+              </p>
+            </article>
+          ))
+        }
+      </div>
+
+      <div class="cta-row">
+        <a class="text-action text-action--primary" href={primaryCtas.tryCadence.href}>Try Cadence →</a>
+        <a class="text-action text-action--secondary" href={siteConfig.githubUrl}>View on GitHub</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .faq-page__inner {
+    display: grid;
+    gap: clamp(2rem, 5vw, 3.5rem);
+  }
+
+  .faq-page .section-heading { margin-block-end: 0; }
+  .faq-page .section-heading > p { max-width: 65ch; }
+
+  .faq-list { display: grid; }
+  .faq-item {
+    display: grid;
+    gap: 0.75rem;
+    padding-block: 1.75rem;
+    border-block-start: 1px solid var(--line);
+  }
+  .faq-item h2 { font-size: 1.2rem; line-height: 1.25; }
+  .faq-item p { max-width: 65ch; }
+
+  .faq-page .cta-row { gap: 2rem; }
+  .text-action {
+    font-size: 1.1rem;
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    white-space: nowrap;
+    transition: color 160ms ease-out, text-shadow 160ms ease-out;
+  }
+  .text-action:hover { text-shadow: 0.02em 0 currentColor; }
+  .text-action--primary { color: var(--primary); }
+  .text-action--secondary { color: var(--muted-readable); }
+  .text-action--secondary:hover { color: var(--foreground); }
+</style>

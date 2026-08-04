@@ -58,7 +58,7 @@
           <div class="hw-occ">
             <span class="hw-occ__time">Evening</span>
             <span class="hw-occ__title">Evening reset</span>
-            <span class="hw-occ__actions"><span>✓ <u>Completed</u></span><span>✕ <u>Not Completed</u></span></span>
+            <span class="hw-occ__actions"><span class="status-action"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg><u>Completed</u></span><span class="status-action"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg><u>Not Completed</u></span></span>
           </div>
           <div class="hw-timeline__group">
             <span class="hw-quiet">Needs decision</span>
@@ -66,7 +66,7 @@
           <div class="hw-occ hw-occ--needs">
             <span class="hw-occ__time hw-occ__time--strong">Yesterday</span>
             <span class="hw-occ__title">Morning walk</span>
-            <span class="hw-occ__actions"><span>✓ <u>Completed</u></span><span>✕ <u>Not Completed</u></span></span>
+            <span class="hw-occ__actions"><span class="status-action"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg><u>Completed</u></span><span class="status-action"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg><u>Not Completed</u></span></span>
           </div>
         </div>
       </article>
@@ -83,7 +83,7 @@
           <div class="hw-occ">
             <span class="hw-occ__time">Morning</span>
             <span class="hw-occ__title">Morning walk</span>
-            <span class="hw-occ__actions"><span>✓ <u>Completed</u></span><span>✕ <u>Not Completed</u></span></span>
+            <span class="hw-occ__actions"><span class="status-action"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg><u>Completed</u></span><span class="status-action"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg><u>Not Completed</u></span></span>
           </div>
           <div class="hw-occ hw-occ--completed">
             <span class="hw-occ__time">12:30 PM</span>
@@ -246,7 +246,14 @@
     white-space: nowrap;
   }
   .hw-occ__actions { display: flex; gap: 0.875rem; font-size: 0.75rem; }
-  .hw-occ__actions > span { white-space: nowrap; }
+  .status-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--foreground);
+    white-space: nowrap;
+  }
+  .status-action svg { flex-shrink: 0; }
   .hw-occ__actions u { text-underline-offset: 4px; text-decoration-thickness: 1px; }
   .hw-occ__status { font-size: 0.75rem; white-space: nowrap; }
 
@@ -311,6 +318,10 @@
 
   @media (width < 820px) {
     .hw-step { grid-template-columns: 1fr; gap: 1.5rem; }
+    .hw-copy {
+      grid-template-columns: 1fr;
+      gap: 0.4rem;
+    }
     .hw-review__grid { grid-template-columns: 1fr; }
   }
 </style>

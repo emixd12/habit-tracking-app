@@ -11,7 +11,7 @@ export const siteConfig = {
   standardUrl: "https://github.com/emixd12/BehaviorLog-Bundle",
   githubUrl: "https://github.com/emixd12/habit-tracking-app",
   exampleBundlePath: "/examples/cadence-demo.behaviorlog.zip",
-  lastModified: "2026-08-03",
+  lastModified: "2026-08-04",
 } as const;
 
 export const primaryCtas = {
@@ -25,7 +25,7 @@ export const primaryCtas = {
   },
   readStandard: {
     label: "Read BehaviorLog",
-    href: "/standard",
+    href: siteConfig.standardUrl,
   },
   viewStandardRepository: {
     label: "View BehaviorLog repository",

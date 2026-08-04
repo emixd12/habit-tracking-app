@@ -4,7 +4,7 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import BrandMarks from "../components/BrandMarks.astro";
 import RouteJsonLd from "../components/RouteJsonLd.astro";
-import { getCanonicalUrl, getRouteById, type MarketingRoute } from "../data/routes";
+import { getCanonicalUrl, type MarketingRoute } from "../data/routes";
 import { primaryCtas, siteConfig } from "../data/site";
 import "../styles/global.css";
 
@@ -17,10 +17,6 @@ const canonicalUrl = getCanonicalUrl(route.path);
 const markdownUrl = getCanonicalUrl(route.markdownPath);
 const pageTitle = route.path === "/" ? "Cadence · Decide your days, own every record" : `${route.title} | Cadence`;
 const ogImageUrl = getCanonicalUrl("/brand/cadence-logo-512.png");
-const headerRoutes = [
-  getRouteById("cadence"),
-  getRouteById("standard"),
-];
 ---
 
 <!doctype html>
@@ -54,18 +50,6 @@ const headerRoutes = [
             <BrandMarks />
           </a>
           <div class="site-header__nav-area">
-            <nav class="site-nav" aria-label="Marketing">
-              {
-                headerRoutes.map((item) => (
-                  <a
-                    href={item.path}
-                    aria-current={item.path === route.path ? "page" : undefined}
-                  >
-                    {item.navLabel}
-                  </a>
-                ))
-              }
-            </nav>
             <a class="site-header__login" href={primaryCtas.logIn.href}>
               {primaryCtas.logIn.label}
             </a>
@@ -106,8 +90,7 @@ const headerRoutes = [
             Cadence is the tracker. BehaviorLog is the open standard behind portable records.
           </p>
           <div class="cta-row" aria-label="Project links">
-            <a class="inline-link" href="/cadence">Product</a>
-            <a class="inline-link" href="/standard">BehaviorLog</a>
+            <a class="inline-link" href="/faq">FAQ</a>
             <a class="inline-link" href="/about">About</a>
             <a class="inline-link" href={primaryCtas.viewGithub.href}>GitHub</a>
             <a class="inline-link" href="/llms.txt">llms.txt</a>

@@ -1,10 +1,11 @@
+import { buildFaqMarkdown } from "./faq";
 import { siteConfig } from "./site";
 
 export type MarketingRoute = {
   routeId: string;
   path: `/${string}` | "/";
   markdownPath: `/${string}.md`;
-  type: "landing" | "product" | "standard" | "documentation" | "example" | "about";
+  type: "landing" | "product" | "standard" | "documentation" | "example" | "about" | "faq";
   title: string;
   navLabel: string;
   description: string;
@@ -40,6 +41,16 @@ Cadence is an open-source personal behavior tracker. You define behaviors with s
 3. Mark each occurrence Completed or Not Completed, with an optional note. Undecided occurrences stay Unresolved; every decision writes an append-only status event.
 4. Review adherence across 7, 30, or 90 days on a calendar heatmap, then export the full history anytime.
 
+## Philosophy
+
+Cadence deliberately has no streaks, badges, points, or guilt mechanics. Streaks collapse effort into one number that resets on one bad day; Cadence shows adherence across 7, 30, or 90 days instead. An undecided occurrence stays Unresolved — silence is never converted into failure. The product records facts about behavioral adherence and leaves motivation to the user.
+
+Interfaces are no longer fixed: in the agentic era, an AI tool can read a personal history and build whatever view or coaching layer its owner prefers. Cadence therefore invests in the data backbone — a factual, portable record — rather than a prescribed interface.
+
+## Time Tracking
+
+Any current-day occurrence (or one visible in Needs decision) can carry an elapsed-time timer with start, stop, and reset. Reviews show per-occurrence totals and range averages alongside adherence. Exports omit time-tracking data unless the user explicitly opts in, because exact session timestamps can reveal activity patterns.
+
 ## Read First
 
 - Use Cadence to track recurring behaviors one account at a time.
@@ -49,75 +60,19 @@ Cadence is an open-source personal behavior tracker. You define behaviors with s
 `,
   },
   {
-    routeId: "cadence",
-    path: "/cadence",
-    markdownPath: "/cadence.md",
-    type: "product",
-    title: "Cadence Tracker",
-    navLabel: "Product",
+    routeId: "faq",
+    path: "/faq",
+    markdownPath: "/faq.md",
+    type: "faq",
+    title: "Frequently Asked Questions",
+    navLabel: "FAQ",
     description:
-      "Track recurring behaviors, decide each occurrence manually, and export portable BehaviorLog records.",
+      "Answers on Cadence's no-gamification philosophy, missed days, time tracking, privacy, and portable BehaviorLog exports.",
     lastModified: siteConfig.lastModified,
     includeInSitemap: true,
     includeInLlms: true,
     includeInMarkdownMirror: true,
-    markdown: `# Cadence Tracker
-
-Cadence is a public, open-source personal behavior tracker for one account at a time. It supports many independent users through Google login, but each account stays private and single-player.
-
-## Product Model
-
-- Behaviors are recurring things the user wants to track.
-- Occurrences are scheduled instances of a behavior.
-- Each occurrence stays unresolved until the user marks it Completed or Not Completed.
-- Prior-day unresolved occurrences appear in Needs decision.
-- Notes attach to occurrences.
-- Browser reminders are available when permission is granted, and email reminders are optional per behavior.
-
-## Portability
-
-Cadence exports JSONL, CSV, full JSON backup, Markdown summary, and BehaviorLog bundles. BehaviorLog is the open record format behind Cadence portability, not a separate consumer app.
-
-## Product Boundaries
-
-Cadence is not a social habit tracker, a collaboration product, a medical dosing system, a payment product, an admin console, or an AI coaching surface in v1.
-`,
-  },
-  {
-    routeId: "standard",
-    path: "/standard",
-    markdownPath: "/standard.md",
-    type: "standard",
-    title: "BehaviorLog Bundle",
-    navLabel: "BehaviorLog",
-    description:
-      "The open bundle standard Cadence uses to keep behavior histories portable and inspectable.",
-    lastModified: siteConfig.lastModified,
-    includeInSitemap: true,
-    includeInLlms: true,
-    includeInMarkdownMirror: true,
-    markdown: `# BehaviorLog Bundle
-
-BehaviorLog is an open bundle format for personal behavior records. Cadence uses it as the portability layer for exports, imports, examples, and agent-readable inspection.
-
-## Relationship to Cadence
-
-Cadence is the product people use. BehaviorLog is the record contract underneath portable Cadence history. A tracker can produce a bundle, another tool can read it, and agents can inspect the files without needing access to the original account.
-
-## Core Files
-
-- manifest.json lists files, media types, requirement flags, schema references, and SHA-256 hashes.
-- schema.json describes the bundle draft schema.
-- data/behaviors.jsonl stores behavior definitions.
-- data/schedules.jsonl stores recurrence and schedule slots.
-- data/occurrences.jsonl stores scheduled instances and current status snapshots.
-- data/status_events.jsonl stores append-only status history and should be used for analysis.
-- data/notes.jsonl and data/interventions.jsonl are optional profile files.
-
-## Status Model
-
-BehaviorLog keeps three core statuses: unresolved, completed, and not_completed. Unresolved is a real state and should not be converted into missed or failed. Current status snapshots help readers load a bundle quickly, while status_events.jsonl remains the history authority.
-`,
+    markdown: buildFaqMarkdown(),
   },
   {
     routeId: "examples",
@@ -169,7 +124,7 @@ This route is optimized for coding agents, retrieval tools, and developers evalu
 - /llms.txt is the curated agent index.
 - /llms-full.txt contains scoped page text for this small marketing site.
 - /data/route-manifest.json is the source route manifest exposed as JSON.
-- /cadence.md, /standard.md, /examples.md, /docs.md, /about.md, and /index.md are clean Markdown mirrors.
+- /faq.md, /examples.md, /docs.md, /about.md, and /index.md are clean Markdown mirrors.
 - /sitemap.xml lists canonical HTML routes.
 - /robots.txt advertises the sitemap.
 

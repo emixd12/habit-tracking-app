@@ -42,8 +42,8 @@ const route = getRouteById("home");
           <h3>You make every call</h3>
           <p>Completed, Not Completed, or left Unresolved until you settle it. Silence is never turned into failure.</p>
           <div class="status-row">
-            <span>✓ <u>Completed</u></span>
-            <span class="status--nc">✕ <u>Not Completed</u></span>
+            <span class="status-action"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg><u>Completed</u></span>
+            <span class="status-action"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg><u>Not Completed</u></span>
             <span class="status--muted">Unresolved</span>
           </div>
         </article>
@@ -60,14 +60,64 @@ const route = getRouteById("home");
 
   <HowItWorks />
 
+  <section class="page-section" aria-labelledby="time-title">
+    <div class="page-section__inner record-grid" data-reveal>
+      <div class="stack time-tracking-copy">
+        <h2 id="time-title">Track the minutes, when they matter.</h2>
+        <p>Some behaviors are about showing up. Others are about how long you stay. Any of today's occurrences can carry a timer — start it when you begin, stop it when you're done. Totals and averages appear in review, next to adherence.</p>
+        <p class="time-tracking-privacy">Tracked time stays out of your exports unless you explicitly include it. Exact session timestamps can reveal your daily patterns, so the default is off.</p>
+      </div>
+      <div class="time-tracker-visual" aria-label="Occurrence time tracking, as in the app">
+        <div class="time-tracker-occurrence">
+          <span class="time-tracker-occurrence__time">Evening</span>
+          <span class="time-tracker-occurrence__title">Read for twenty minutes</span>
+        </div>
+        <div class="time-tracker-body">
+          <span class="time-tracker-label">Track time</span>
+          <span class="time-tracker-duration">00:23:41</span>
+          <div class="time-tracker-actions">
+            <span class="time-tracker-action">Stop</span>
+            <span class="time-tracker-action time-tracker-action--secondary">Reset tracked time</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page-section" aria-labelledby="philosophy-title">
+    <div class="page-section__inner">
+      <div class="section-heading">
+        <h2 id="philosophy-title">No streaks. No badges. On purpose.</h2>
+        <p>Most habit apps are built to keep you engaged: chains you must not break, points, freezes, a mascot that worries about you. Cadence is built to keep an honest record instead.</p>
+      </div>
+      <div class="feature-ledger" data-reveal>
+        <article>
+          <h3>A broken streak teaches nothing</h3>
+          <p>Streaks collapse a month of effort into one number that resets to zero on one bad day. Cadence shows adherence across 7, 30, or 90 days — a picture of how you are actually doing, not a scoreboard to protect.</p>
+        </article>
+        <article>
+          <h3>Silence is never failure</h3>
+          <p>An occurrence you have not decided stays Unresolved — a fact, not a verdict. Guilt mechanics push you to log something, anything. A plain record waits for the truth.</p>
+        </article>
+        <article>
+          <h3>Facts first, then change</h3>
+          <p>Cadence records what you decided and when, and gets out of the way. If the record shows a behavior slipping, you will see it — and an honest record outlasts any nudge you learn to swipe away.</p>
+        </article>
+        <article class="feature-ledger__wide">
+          <h3>Built for the agentic era</h3>
+          <p>Interfaces stopped being fixed. Point an AI agent at your history and it can build the dashboard, the review, or the coach that fits how you think — no waiting for us to ship it. That only works when the data underneath is factual and portable, so that is what Cadence builds first: a data backbone that transfers.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
   <section class="page-section page-section--ink" aria-labelledby="behaviorlog-title">
     <div class="page-section__inner record-grid" data-reveal>
       <div class="stack">
-        <span class="quiet-label quiet-label--ink">The record layer</span>
         <h2 id="behaviorlog-title">Every export opens without Cadence.</h2>
         <p>A BehaviorLog bundle is plain JSONL files with a manifest and checksums. If this app disappeared tomorrow, your record would still open.</p>
         <div class="cta-row">
-          <a class="text-action text-action--ink" href="/standard">Read the BehaviorLog spec →</a>
+          <a class="text-action text-action--ink" href={siteConfig.standardUrl}>Read the BehaviorLog spec →</a>
           <a class="text-action text-action--ink-muted" href={primaryCtas.downloadExample.href}>Download the example bundle</a>
         </div>
       </div>
@@ -208,6 +258,8 @@ const route = getRouteById("home");
   }
   .feature-ledger h3 { font-size: 1.2rem; line-height: 1.25; }
   .feature-ledger p { font-size: 0.95rem; }
+  .feature-ledger__wide { grid-column: 1 / -1; }
+  .feature-ledger__wide p { max-width: 62ch; }
 
   .chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
   .chip-row > span {
@@ -232,9 +284,15 @@ const route = getRouteById("home");
     align-items: baseline;
     font-size: 0.85rem;
   }
-  .status-row > span { white-space: nowrap; }
+  .status-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--foreground);
+    white-space: nowrap;
+  }
+  .status-action svg { flex-shrink: 0; }
   .status-row u { text-underline-offset: 4px; text-decoration-thickness: 1px; }
-  .status--nc { color: var(--accent); }
   .status--muted { color: var(--muted-readable); }
 
   .record-grid {
@@ -243,6 +301,57 @@ const route = getRouteById("home");
     gap: 3.5rem;
     align-items: center;
   }
+
+  .time-tracking-copy > p:first-of-type { color: var(--foreground); }
+  .time-tracking-privacy { font-size: 0.875rem; }
+
+  .time-tracker-visual {
+    min-width: 0;
+    border: 1px solid var(--line);
+    background: var(--background);
+  }
+  .time-tracker-occurrence {
+    display: grid;
+    grid-template-columns: 5.75rem minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: center;
+    min-height: 3rem;
+    padding: 0.375rem 1rem;
+  }
+  .time-tracker-occurrence__time {
+    color: var(--muted-readable);
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  .time-tracker-occurrence__title {
+    overflow: hidden;
+    font-size: 1rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .time-tracker-body {
+    display: grid;
+    gap: 0.8rem;
+    border-block-start: 1px solid var(--line);
+    padding: 1.25rem 1.4rem;
+  }
+  .time-tracker-label { font-size: 0.875rem; font-weight: 600; }
+  .time-tracker-duration {
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+  .time-tracker-actions { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+  .time-tracker-action {
+    color: var(--foreground);
+    font-size: 0.75rem;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    white-space: nowrap;
+  }
+  .time-tracker-action--secondary { color: var(--muted-readable); }
 
   @media (width < 820px) {
     .hero-visual-col {

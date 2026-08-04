@@ -20,12 +20,11 @@ const machineFiles = [
   ["/data/route-manifest.json", "Public route manifest used by generators."],
   ["/sitemap.xml", "Canonical HTML route sitemap."],
   ["/robots.txt", "Max-visibility crawl policy and sitemap pointer."],
-  ["/index.md", "Markdown mirror for the homepage."],
-  ["/cadence.md", "Markdown mirror for the Cadence route."],
-  ["/standard.md", "Markdown mirror for the BehaviorLog route."],
+  ["/faq.md", "Markdown mirror for the frequently asked questions route."],
   ["/examples.md", "Markdown mirror for the examples route."],
   ["/docs.md", "Markdown mirror for this docs route."],
   ["/about.md", "Markdown mirror for the launch about route."],
+  ["/index.md", "Markdown mirror for the homepage."],
 ] as const;
 const docsRoadmap = [
   ["Guides", "Cadence setup, behavior modeling, exports, imports, and account portability."],
@@ -63,8 +62,8 @@ const docsRoadmap = [
         <div class="ledger-row">
           <h2 id="quick-start-title">Quick start</h2>
           <ul class="text-list">
-            <li>Open <a class="inline-link" href="/cadence">Cadence</a> for product scope and user-facing behavior.</li>
-            <li>Open <a class="inline-link" href="/standard">BehaviorLog</a> for bundle structure and status semantics.</li>
+            <li>Open <a class="inline-link" href="/">Cadence</a> for product scope and user-facing behavior.</li>
+            <li>Open <a class="inline-link" href={siteConfig.standardUrl}>BehaviorLog</a> for bundle structure and status semantics.</li>
             <li>Download the <a class="inline-link" href={primaryCtas.downloadExample.href}>example bundle</a> for parser tests.</li>
           </ul>
         </div>

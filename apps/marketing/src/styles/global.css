@@ -1191,7 +1191,7 @@ html.js-reveal [data-reveal].is-visible {
   }
 
   .cta-row {
-    gap: 0.35rem 1rem;
+    gap: 0.5rem 1.5rem;
   }
 
   .hero-copy .cta-row {
@@ -1202,15 +1202,6 @@ html.js-reveal [data-reveal].is-visible {
     flex: 0 0 auto;
     min-height: 2.6rem;
     width: auto;
-  }
-
-  .hero-copy > .cta-row {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .hero-copy > .cta-row .button {
-    width: 100%;
   }
 
   .hero-media__screen--behavior {
@@ -1231,16 +1222,6 @@ html.js-reveal [data-reveal].is-visible {
     grid-template-columns: 4.75rem minmax(0, 1fr);
     gap: 0.65rem;
     padding-inline: 0.85rem;
-  }
-
-  .closing-cta .cta-row {
-    align-items: stretch;
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .closing-cta .button {
-    width: 100%;
   }
 
   .route-table,
