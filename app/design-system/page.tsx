@@ -44,6 +44,7 @@ import {
   type TimezoneUpdateAction,
 } from "@/components/settings/TimezonePanel";
 import { TrustAndLegalPanel } from "@/components/settings/SettingsPanels";
+import { MobileTimelinePullToRefresh } from "@/components/timeline/MobileTimelinePullToRefresh";
 import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
 import { OccurrenceRow } from "@/components/timeline/OccurrenceRow";
@@ -1563,6 +1564,20 @@ const previewFactories: Record<
           stopTimeTrackingAction={timeTrackingAction}
           resetTimeTrackingAction={timeTrackingAction}
         />
+      </ProductPreview>
+    ),
+  "module.mobile-timeline-pull-to-refresh": () => (
+      <ProductPreview maxHeight="32rem">
+        <MobileTimelinePullToRefresh>
+          <TimelineGroup
+            section={todaySection}
+            statusAction={occurrenceAction}
+            noteAction={occurrenceAction}
+            startTimeTrackingAction={timeTrackingAction}
+            stopTimeTrackingAction={timeTrackingAction}
+            resetTimeTrackingAction={timeTrackingAction}
+          />
+        </MobileTimelinePullToRefresh>
       </ProductPreview>
     ),
   "module.timeline-group": () => (

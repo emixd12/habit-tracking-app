@@ -447,6 +447,13 @@ details[open] > .timeline-occurrence-details {
   color: color-mix(in srgb, var(--primary-foreground) 85%, var(--accent));
 }
 
+@media (width <= 39.9375rem) {
+  html:has([data-timeline-pull-to-refresh]) {
+    /* The custom Timeline gesture owns top-edge refresh on mobile. */
+    overscroll-behavior-y: contain;
+  }
+}
+
 @media (width >= 40rem) {
   .timeline-occurrence-details {
     padding-block-start: 0.25rem;

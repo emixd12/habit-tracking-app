@@ -231,7 +231,7 @@ export function OccurrenceRow({
 
         {optimisticView.showPrimaryStatusActions ? (
           <div
-            className="timeline-occurrence-status pointer-events-none col-start-2 row-start-1 z-10 mr-3 self-center justify-self-end sm:mr-4"
+            className="timeline-occurrence-status pointer-events-none col-start-2 row-start-1 z-10 mr-3 flex min-h-12 items-center self-start justify-self-end sm:mr-4"
             data-status-region="actions"
           >
             <StatusButtons
@@ -249,7 +249,7 @@ export function OccurrenceRow({
         ) : visibleOccurrence.showCollapsedStatusLabel ? (
           <p
             className={[
-              "timeline-occurrence-status pointer-events-none col-start-2 row-start-1 z-10 mr-3 self-center justify-self-end whitespace-nowrap text-xs font-bold leading-5 sm:mr-4 sm:text-sm",
+              "timeline-occurrence-status pointer-events-none col-start-2 row-start-1 z-10 mr-3 flex min-h-12 items-center self-start justify-self-end whitespace-nowrap text-xs font-bold leading-5 sm:mr-4 sm:text-sm",
               RESOLVED_LABEL_CLASSES[visibleOccurrence.visualTone],
             ].join(" ")}
             data-status-region="label"

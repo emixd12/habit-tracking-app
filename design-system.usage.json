@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-03T04:32:34.459778+00:00",
+  "generatedAt": "2026-08-04T06:48:47Z",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
@@ -540,9 +540,9 @@
       "confidence": "exact"
     },
     {
-      "componentId": "module.timeline-group",
+      "componentId": "module.mobile-timeline-pull-to-refresh",
       "file": "components/timeline/Timeline.tsx",
-      "line": 46,
+      "line": 31,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -550,7 +550,15 @@
     {
       "componentId": "module.timeline-group",
       "file": "components/timeline/Timeline.tsx",
-      "line": 63,
+      "line": 48,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.timeline-group",
+      "file": "components/timeline/Timeline.tsx",
+      "line": 65,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -629,7 +637,7 @@
     }
   ],
   "summary": {
-    "productUsages": 78,
+    "productUsages": 79,
     "benchPreviews": 0
   }
 }

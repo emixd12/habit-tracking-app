@@ -65,6 +65,14 @@ browser storage to account-specific storage. Workspace restructuring,
 desktop/mobile, PWA/offline, billing, and AI/speech work remain deferred or
 unticketed.
 
+Ticket 071 is complete. Mobile Timeline now supports a guarded pull-to-refresh,
+one confirmed transition to Completed makes one completion-chime playback
+attempt, and expanded resolved labels remain parallel to the behavior title.
+The owner explicitly approved adding the source screenshots to the repository
+on 2026-08-04. Chromium touch QA passed. Mobile WebKit and an authenticated
+physical-device pass remain unverified because those browser surfaces were not
+available in this environment.
+
 The completed sequence includes the Ticket 001 Next.js scaffold, Ticket 002
 Supabase Auth setup, Ticket 003 database schema, Tickets 004-012 core behavior
 tracking and export, Ticket 013 Vercel deployment, BehaviorLog interoperability
@@ -5229,6 +5237,70 @@ Remaining limitation:
 - Authenticated Chrome QA reproduced a React hydration warning on both the
   prior and current deployments. It did not block Timeline, Behaviors, Export,
   or the option flow; its root cause remains unverified.
+
+## Mobile Timeline refresh and completion-feedback regressions (Ticket 071)
+
+Status: complete.
+
+Implemented:
+
+- Wrapped the current-day and future Timeline feed in a mobile-only gesture
+  controller. It starts only at the document top, ignores interactive controls,
+  locks to downward movement, uses a 72px threshold, prevents native overscroll
+  after the lock, and allows one route refresh while a refresh is in flight.
+- Added restrained `Pull to refresh`, `Release to refresh`, and
+  `Refreshing timeline` live feedback. The gesture adds no mutation, route,
+  service worker, offline cache, or permanent toolbar.
+- Added the duplicate-chime harness before the playback fix. The corrected
+  pre-fix harness failed because one guarded mobile activation created two
+  `HTMLAudioElement.play()` paths: the muted gesture primer and the confirmed
+  post-success playback. One status submission still occurred.
+- Removed the separate media-element primer. Gesture preparation now resumes
+  and primes Web Audio only. The confirmed success path owns the single media
+  playback attempt and keeps the existing Web Audio and synth fallbacks.
+- Anchored resolved labels and unresolved action controls to the 48px summary
+  line. Expanded details no longer enlarge the alignment row and push the
+  Completed or Not Completed label downward.
+- Added the supplied evidence at
+  `docs/qa/ticket-071/timeline-collapsed.png` and
+  `docs/qa/ticket-071/timeline-expanded-status-misalignment.png`.
+- Updated product specs, user flows, route ownership, user guidance,
+  interaction traceability, load classification, the design-system contract,
+  Timeline fixtures, and design-system inventories.
+
+Verification:
+
+- The focused regression set passed 31 tests across pull gestures, Timeline
+  wiring, expanded-row alignment, status submission, and completion feedback.
+- Connected Chromium touch emulation at 390px showed the below-threshold and
+  ready feedback states. Releasing after 92px showed `Refreshing timeline` and
+  issued one Timeline React Server Component request.
+- The Chromium status fixture recorded one `HTMLMediaElement.play()` attempt
+  and one `cadence:completion-chime-played media` event for one Completed click.
+- Expanded Completed rows measured zero status/title center drift at 390px and
+  desktop. The 320px measurement differed by 0.004px from subpixel rounding.
+- `npm run agents:check` passed 178 invariants.
+- `npm run interactions:check` passed 4,498 invariants across 88 interactions
+  and 37 interaction sources.
+- `npm run load:manifest:check` passed 1,665 invariants across 88 interactions
+  and 23 loadable interactions.
+- `npm run resolvers:check`, `npm run design-system:check`, `npm run lint`,
+  `npm run typecheck`, and `git diff --check` passed.
+- `npm run test` passed 856 tests across 114 files. The first sandboxed run
+  failed only because the fake Sequenzy tests could not bind a loopback port;
+  the authorized rerun passed.
+- `npm run build` passed.
+
+Remaining limitations:
+
+- Physical audibility on the reported phone is not verified. The automated
+  evidence proves the removed duplicate media playback attempt and the
+  exact-once playback-start event.
+- Mobile WebKit was unavailable. The connected browser supplied Chromium only.
+- The authenticated `/timeline` route redirected to Login because the guarded
+  local test-login environment was not enabled. Browser QA used the
+  fixture-backed design-system route that renders the production components and
+  the real server-action success path without changing product data.
 
 ## Handoff notes
 

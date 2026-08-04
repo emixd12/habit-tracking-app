@@ -3,7 +3,7 @@
   "schema_version": "1.1.0",
   "registry_id": "cadence.user-interactions",
   "product": "Cadence",
-  "updated": "2026-08-02",
+  "updated": "2026-08-04",
   "scope": {
     "unit": "One entry per meaningful user intent; equivalent controls with the same effect are represented as variants or multiple triggers.",
     "includes": [
@@ -318,6 +318,12 @@
       "interaction_ids": ["INT-SETTINGS-001", "INT-SETTINGS-002", "INT-SETTINGS-003"]
     },
     {
+      "path": "components/timeline/MobileTimelinePullToRefresh.tsx",
+      "classification": "cataloged",
+      "interaction_marker_count": 2,
+      "interaction_ids": ["INT-TIMELINE-010"]
+    },
+    {
       "path": "components/timeline/NeedsDecisionDialog.tsx",
       "classification": "cataloged",
       "interaction_marker_count": 5,
@@ -338,7 +344,7 @@
     {
       "path": "components/timeline/StatusButtons.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 8,
+      "interaction_marker_count": 10,
       "interaction_ids": ["INT-TIMELINE-005", "INT-TIMELINE-006", "INT-TIMELINE-007"]
     },
     {
@@ -1148,7 +1154,7 @@
       "intent": "Record or correct the occurrence status as Completed.",
       "triggers": [{ "kind": "submit", "control": "Completed" }],
       "availability": "Available on unresolved rows and inside expanded correction controls; behavior date review also exposes it.",
-      "success_result": "Atomically updates the occurrence snapshot, appends the status event when the choice changes, cancels pending reminders as planned, refreshes the view, and may play the completion chime for a new Completed transition.",
+      "success_result": "Atomically updates the occurrence snapshot, appends the status event when the choice changes, cancels pending reminders as planned, refreshes the view, and attempts the completion chime at most once for a new Completed transition.",
       "failure_result": "Rolls back optimistic presentation and shows a factual error; no partial status write is retained.",
       "effects": ["database_write", "reminder_cancellation", "ui_state", "optional_audio"],
       "risk": "moderate",
@@ -1158,7 +1164,7 @@
         "app/(app)/timeline/actions.ts#markOccurrenceStatusAction",
         "app/(app)/behaviors/actions.ts#markBehaviorReviewOccurrenceStatusAction"
       ],
-      "test_coverage": { "level": "direct", "references": ["tests/timeline-interactions-ui.test.tsx"], "notes": "The Timeline UI test renders the Completed submission control; transition and persistence behavior are covered separately." }
+      "test_coverage": { "level": "direct", "references": ["tests/timeline-interactions-ui.test.tsx", "tests/status-buttons-completion-chime.test.ts"], "notes": "Timeline UI coverage renders the Completed control. The mobile activation harness preserves one submission, one guarded preparation, one media playback attempt, and one playback-start event; transition and persistence behavior are covered separately." }
     },
     {
       "id": "INT-TIMELINE-006",
@@ -1282,6 +1288,32 @@
         "app/(app)/behaviors/actions.ts#resetBehaviorReviewOccurrenceTimeTrackingAction"
       ],
       "test_coverage": { "level": "direct", "references": ["tests/timeline-time-tracking-ui.test.tsx", "tests/behavior-review-ui.test.tsx"], "notes": "Timeline UI coverage renders idle, running, stopped, and Needs decision timing controls. Behaviors UI coverage renders its reset control. Timing resolver and service tests cover eligibility and idempotent persistence." }
+    },
+    {
+      "id": "INT-TIMELINE-010",
+      "name": "Refresh Timeline on mobile",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/timeline.md#refresh-timeline-on-mobile"]
+      },
+      "status": "implemented",
+      "surfaces": ["timeline"],
+      "routes": ["/timeline"],
+      "journeys": ["J07"],
+      "intent": "Request current Timeline data with one deliberate mobile pull gesture.",
+      "triggers": [{ "kind": "gesture", "control": "Downward pull from the top of Timeline followed by release" }],
+      "availability": "Available at mobile widths while the document is at its scroll top, the gesture starts outside a status, Note, timing, navigation, or Needs decision control, and no refresh is already in flight.",
+      "success_result": "Shows bounded pull feedback and requests current Timeline data exactly once without mutating an occurrence.",
+      "failure_result": "Short, horizontal, cancelled, below-the-top, desktop, control-started, or duplicate in-flight gestures preserve the current view without refreshing.",
+      "effects": ["navigation", "ui_state"],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/timeline/MobileTimelinePullToRefresh.tsx",
+        "components/timeline/mobile-pull-to-refresh.ts",
+        "components/timeline/Timeline.tsx"
+      ],
+      "test_coverage": { "level": "indirect", "references": ["tests/mobile-pull-to-refresh.test.ts", "tests/timeline-interactions-ui.test.tsx"], "notes": "Automated coverage proves threshold, direction lock, control exclusion, cancellation, one in-flight refresh claim, native-refresh suppression, and wrapper rendering. Physical touch dispatch and router completion remain browser QA." }
     },
     {
       "id": "INT-BEHAVIOR-001",

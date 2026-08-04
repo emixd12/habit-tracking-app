@@ -24,7 +24,6 @@ let completionChimeContext: AudioContext | null = null;
 let completionChimeArrayBufferPromise: Promise<ArrayBuffer | null> | null = null;
 let completionChimeBufferPromise: Promise<AudioBuffer | null> | null = null;
 let completionChimePlaybackAudio: HTMLAudioElement | null = null;
-let completionChimePrimerAudio: HTMLAudioElement | null = null;
 let completionChimePreloadStarted = false;
 const activeCompletionChimeSources = new Set<AudioBufferSourceNode>();
 
@@ -73,8 +72,6 @@ export function prepareCompletionChimeForUserGesture(): void {
     void context.resume().catch(() => undefined);
     void loadCompletionChimeBuffer();
   }
-
-  primeCompletionChimeAudioFallback();
 }
 
 export async function playCompletionChime(): Promise<void> {
@@ -331,12 +328,6 @@ function getCompletionChimePlaybackAudio(): HTMLAudioElement | null {
   return completionChimePlaybackAudio;
 }
 
-function getCompletionChimePrimerAudio(): HTMLAudioElement | null {
-  completionChimePrimerAudio ??= createCompletionChimeAudio();
-
-  return completionChimePrimerAudio;
-}
-
 function createCompletionChimeAudio(): HTMLAudioElement | null {
   if (typeof window === "undefined") {
     return null;
@@ -351,31 +342,6 @@ function createCompletionChimeAudio(): HTMLAudioElement | null {
   audio.volume = COMPLETION_CHIME_VOLUME;
 
   return audio;
-}
-
-function primeCompletionChimeAudioFallback(): void {
-  const audio = getCompletionChimePrimerAudio();
-
-  if (!audio) {
-    return;
-  }
-
-  audio.load();
-  audio.muted = true;
-  audio.volume = 0;
-  audio.currentTime = 0;
-
-  void audio
-    .play()
-    .then(() => {
-      audio.pause();
-      audio.currentTime = 0;
-    })
-    .catch(() => undefined)
-    .finally(() => {
-      audio.muted = false;
-      audio.volume = COMPLETION_CHIME_VOLUME;
-    });
 }
 
 function reportCompletionChimePlayback(source: ChimePlaybackSource): void {

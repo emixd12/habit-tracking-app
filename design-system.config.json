@@ -11,7 +11,10 @@
     "support": "none",
     "requiredWhenDetected": false
   },
-  "excludeFromInventory": ["lib/ui/**"],
+  "excludeFromInventory": [
+    "lib/ui/**",
+    "components/timeline/mobile-pull-to-refresh.ts"
+  ],
   "manualMappings": [
     {
       "componentId": "navigation.primary-app-nav",

@@ -165,6 +165,11 @@ Ticket 070 registers `INT-EXPORT-019` for the default-off time-tracking export
 choice. It is `browser_only` because it changes an unsaved sensitive-data scope
 draft before the existing export-options request.
 
+Ticket 071 registers `INT-TIMELINE-010` for mobile Timeline pull-to-refresh.
+It is `browser_only` because threshold, direction locking, native-refresh
+suppression, and touch feedback require a rendered browser. Existing Timeline
+read profiles remain the route-capacity proof.
+
 ## Useful queries
 
 List all IDs and names:

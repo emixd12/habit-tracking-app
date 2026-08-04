@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-03T03:57:19Z",
+  "generatedAt": "2026-08-04T06:48:47Z",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "components": [
     {
@@ -270,6 +270,20 @@
       "notes": ""
     },
     {
+      "id": "module.mobile-timeline-pull-to-refresh",
+      "name": "MobileTimelinePullToRefresh",
+      "kind": "module",
+      "source": "components/timeline/MobileTimelinePullToRefresh.tsx",
+      "exportName": "MobileTimelinePullToRefresh",
+      "usageNames": [
+        "MobileTimelinePullToRefresh"
+      ],
+      "benchAnchor": "design-system#ds-module-mobile-timeline-pull-to-refresh",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Mobile Timeline gesture wrapper with threshold feedback, native-refresh suppression, control exclusion, and one in-flight route refresh."
+    },
+    {
       "id": "module.needs-decision-dialog",
       "name": "NeedsDecisionDialog",
       "kind": "module",
@@ -351,7 +365,7 @@
       "benchAnchor": "design-system#ds-module-status-buttons",
       "trackUsages": "required",
       "status": "active",
-      "notes": ""
+      "notes": "A confirmed transition to Completed makes one media playback attempt; Web Audio and synthesized fallbacks preserve browser compatibility without a second media primer."
     },
     {
       "id": "module.time-tracker",
@@ -379,7 +393,7 @@
       "benchAnchor": "design-system#ds-module-timeline",
       "trackUsages": "required",
       "status": "active",
-      "notes": ""
+      "notes": "Includes the mobile pull-to-refresh wrapper around the current-day and future Timeline feed."
     },
     {
       "id": "module.timeline-group",

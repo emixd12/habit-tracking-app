@@ -185,7 +185,7 @@ describe("completion feedback", () => {
     );
   });
 
-  it("prefers an unlocked media element when available", async () => {
+  it("starts one media element after a prepared successful completion", async () => {
     const { dispatchEvent, MockAudio } = installMediaMocks();
     const { prepareCompletionChimeForUserGesture, playCompletionChime } =
       await import("../lib/ui/completion-feedback");
@@ -194,12 +194,9 @@ describe("completion feedback", () => {
     await flushPromises();
     await playCompletionChime();
 
-    const primerAudio = MockAudio.instances[0];
-    const playbackAudio = MockAudio.instances[1];
+    const playbackAudio = MockAudio.instances[0];
 
-    expect(primerAudio).not.toBe(playbackAudio);
-    expect(primerAudio.play).toHaveBeenCalledTimes(1);
-    expect(primerAudio.pause).toHaveBeenCalledTimes(1);
+    expect(MockAudio.instances).toHaveLength(1);
     expect(playbackAudio.play).toHaveBeenCalledTimes(1);
     expect(playbackAudio.pause).toHaveBeenCalledTimes(1);
     expect(playbackAudio.muted).toBe(false);
@@ -214,7 +211,7 @@ describe("completion feedback", () => {
     );
   });
 
-  it("keeps delayed primer cleanup from muting or resetting active media playback", async () => {
+  it("does not start media playback while preparing the user gesture", async () => {
     const { dispatchEvent, MockAudio, playCalls } = installMediaMocks({
       deferPlay: true,
     });
@@ -223,37 +220,27 @@ describe("completion feedback", () => {
 
     prepareCompletionChimeForUserGesture();
 
-    const primerAudio = MockAudio.instances[0];
-
-    expect(primerAudio.muted).toBe(true);
-    expect(primerAudio.volume).toBe(0);
-    expect(playCalls).toHaveLength(1);
-    expect(playCalls[0]?.audio).toBe(primerAudio);
+    expect(MockAudio.instances).toHaveLength(0);
+    expect(playCalls).toHaveLength(0);
 
     const playbackPromise = playCompletionChime();
-    const playbackAudio = MockAudio.instances[1];
+    const playbackAudio = MockAudio.instances[0];
 
     expect(playbackAudio).toBeDefined();
-    expect(playbackAudio).not.toBe(primerAudio);
     expect(playbackAudio.muted).toBe(false);
     expect(playbackAudio.volume).toBe(1);
-    expect(playCalls).toHaveLength(2);
-    expect(playCalls[1]?.audio).toBe(playbackAudio);
+    expect(playCalls).toHaveLength(1);
+    expect(playCalls[0]?.audio).toBe(playbackAudio);
 
-    playCalls[1]?.resolve();
+    playCalls[0]?.resolve();
     await playbackPromise;
 
     playbackAudio.currentTime = 0.42;
     playbackAudio.muted = false;
     playbackAudio.volume = 1;
 
-    playCalls[0]?.resolve();
     await flushPromises();
 
-    expect(primerAudio.pause).toHaveBeenCalledTimes(1);
-    expect(primerAudio.currentTime).toBe(0);
-    expect(primerAudio.muted).toBe(false);
-    expect(primerAudio.volume).toBe(1);
     expect(playbackAudio.pause).toHaveBeenCalledTimes(1);
     expect(playbackAudio.currentTime).toBe(0.42);
     expect(playbackAudio.muted).toBe(false);

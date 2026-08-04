@@ -142,6 +142,13 @@ section.
 Optional first-run setup appears as a dismissible pop-up so it does not push the
 feed down while required launch setup items remain incomplete.
 
+On mobile, a downward pull that starts while the Timeline is already at its
+top should refresh the current Timeline data after the user crosses and
+releases a clear pull threshold. One completed pull should cause one refresh.
+Short, horizontal, or below-the-top drags should preserve normal scrolling and
+must not refresh or mutate an occurrence. This is an online refresh interaction,
+not offline/PWA caching or an offline mutation queue.
+
 ### First-run setup
 
 The first-run prompt is a fixed, non-modal pop-up shown on Timeline only while
@@ -306,7 +313,7 @@ Status text-link actions should be underlined by default with the same thin unde
 
 Occurrence rows should read as compact unboxed list rows. Do not draw a perimeter border around each Timeline behavior row. Row content should keep a compact horizontal inset on both desktop and mobile so filled row states do not press text or status labels against the row edges.
 
-In collapsed rows, the scheduled time, behavior title, and collapsed status/action text should be vertically centered within the row. Expanded rows may pin the status controls to the top-right so the details panel can span the row below.
+In collapsed rows, the scheduled time, behavior title, and collapsed status/action text should be vertically centered within the row. Opening a resolved row must keep its Completed or Not Completed label in that same summary row, horizontally parallel to the behavior title. The expanded details panel should span the row below and must not push the resolved status label into the details area.
 On mobile, scheduled time, behavior title, Completed, and Not Completed should share one horizontal row when unresolved status actions are visible. Completed and Not Completed keep at least a 44px tap target and same-line labels while still looking like underlined text actions; the scheduled time and behavior title may compact and truncate before the status targets shrink. Do not add a chevron or separate disclosure icon.
 
 Expanded card details should stay inside the native disclosure element and show:
@@ -362,7 +369,10 @@ visually attached to the behavior.
 Status action behavior:
 - Completed changes status to `completed`
 - Not Completed changes status to `not_completed`
-- A successful user-initiated change into Completed may play a short completion chime.
+- When browser audio is available, one successful user-initiated change into
+  Completed should play the short completion chime exactly once. Touch,
+  pointer, click, submit, refresh, and React lifecycle handling must not create
+  a second playback for the same confirmed status transition.
 - Do not play a sound for Not Completed, note saves, page refreshes, or re-saving an already Completed occurrence.
 - Note opens an inline edit field or compact modal in the expanded card state
 

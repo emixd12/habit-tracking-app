@@ -4,6 +4,32 @@ Timeline begins with the current local day and is the primary daily screen. It
 shows the next seven days by default. Prior-day Unresolved Occurrences are kept
 out of the forward feed and appear in **Needs decision**.
 
+## Refresh Timeline on mobile
+
+**Prerequisites:** Open Timeline on a mobile-width browser and scroll to the
+top of the page.
+
+1. Drag downward on the Timeline. Start outside a status, Note, timing,
+   navigation, or Needs decision control.
+2. Continue until the feedback changes from **Pull to refresh** to
+   **Release to refresh**.
+3. Release the gesture.
+
+**Result and persistence:** Cadence requests current Timeline data once and
+briefly shows **Refreshing timeline**. The refresh does not mark, unmark, edit,
+start, stop, reset, create, or reschedule an Occurrence.
+
+**Recovery or undo:** No undo is required because the gesture changes no
+product data. A short, horizontal, cancelled, below-the-top, or control-started
+drag continues normal interaction without refreshing.
+
+**Privacy and safety:** Refresh reads the signed-in account's current Timeline
+through the existing protected route and RLS boundaries. It adds no offline
+cache or pending mutation queue.
+
+**Keyboard and desktop:** The custom gesture is mobile-only. Desktop and
+keyboard users can use the browser's ordinary reload command.
+
 ## Reveal more future days
 
 **Prerequisites:** The generated future horizon contains days beyond the ones
@@ -69,9 +95,9 @@ session.
 **Result and persistence:** Cadence atomically updates the Occurrence snapshot,
 appends a status-history event when the choice actually changes, cancels
 eligible pending reminders, and refreshes the view. A new transition to
-**Completed** may play a short completion sound. **Not Completed** does not
-play it. Repeating the already-current resolved choice does not add duplicate
-history.
+**Completed** plays at most one short completion sound when browser audio is
+available. **Not Completed** does not play it. Repeating the already-current
+resolved choice does not add duplicate history or replay the sound.
 
 **Recovery or undo:** If saving fails, Cadence rolls back the optimistic row
 state, shows an error, and keeps the last stored status. Change an incorrect

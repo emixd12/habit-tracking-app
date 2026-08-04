@@ -53,6 +53,8 @@ describe("Timeline interaction controls", () => {
     expect(html).toContain('href="/timeline?days=14"');
     expect(html).toContain(">Show more days</span>");
     expect(html).toContain('aria-label="Open Needs decision');
+    expect(html).toContain('data-timeline-pull-to-refresh="true"');
+    expect(html).toContain('data-pull-state="idle"');
     expect(html).toContain("<details");
     expect(html).toContain("<summary");
     expect(html).toContain('name="status" value="completed"');

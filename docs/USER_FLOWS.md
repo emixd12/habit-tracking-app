@@ -198,6 +198,11 @@ Status text-link actions are underlined by default. All status action underlines
 Collapsed occurrence rows are compact and unboxed. They should not draw a perimeter border around each behavior row. Rows keep a compact horizontal inset on both desktop and mobile.
 On mobile, scheduled time, behavior title, and unresolved status actions share one horizontal row when the status actions are visible. Completed and Not Completed keep at least a 44px tap target and same-line labels; the scheduled time and behavior title may compact and truncate before those action targets shrink. Do not add a chevron or separate disclosure icon.
 
+On mobile, pulling downward from the top of Timeline and releasing after a
+clear threshold refreshes Timeline data once. A short pull, horizontal drag,
+or drag that begins below the top continues normal scrolling and causes no
+refresh or occurrence mutation.
+
 Collapsed Completed cards show:
 - Scheduled time
 - Behavior title
@@ -216,6 +221,10 @@ stored status remains `not_completed` on that occurrence instance, and the UI
 must not call it missed or failed.
 
 Clicking a card outside the status actions expands it.
+
+Opening a resolved card keeps its Completed or Not Completed label in the
+summary row, horizontally parallel to the behavior title. Expanded details
+flow below that row and do not move the resolved status label downward.
 
 Expanded cards keep their detail content inside the native disclosure element
 and show:
@@ -242,6 +251,11 @@ occurrence snapshot and appends one status-history event atomically. Repeating
 the already-current resolved choice does not create a duplicate event. Saving a
 Note without a status change preserves both status timestamps and status
 history.
+
+When browser audio is available, one successful user-initiated transition to
+Completed plays one completion chime. The mobile touch sequence and the later
+Timeline refresh must not repeat it. Not Completed, note saves, refreshes, and
+re-saving an already Completed occurrence remain silent.
 
 ### Track occurrence time
 

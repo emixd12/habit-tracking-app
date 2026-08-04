@@ -840,6 +840,11 @@
       "id": "INT-TIMELINE-009",
       "classification": "not_load_bearing",
       "reason": "Elapsed-time capture and review reset are user-paced and duration-dependent; ordinary Timeline and Behaviors document reads cover their shared route capacity."
+    },
+    {
+      "id": "INT-TIMELINE-010",
+      "classification": "browser_only",
+      "reason": "Threshold, direction locking, native-refresh suppression, and feedback require a rendered touch interface; existing Timeline reads cover route capacity."
     }
   ]
 }

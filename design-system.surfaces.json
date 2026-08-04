@@ -385,16 +385,17 @@
         "Current day leads the logged-in experience",
         "Rows remain compact and unboxed",
         "Completed, Not Completed, and Unresolved language stays exact",
-        "Occurrence notes attach to the occurrence, not the behavior"
+        "Occurrence notes attach to the occurrence, not the behavior",
+        "Mobile pull-to-refresh reads current Timeline data once without mutating an occurrence"
       ],
       "surfaceImplementations": [
         {
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/timeline/Timeline.tsx", "components/timeline/TimelineGroup.tsx", "components/timeline/OccurrenceRow.tsx", "components/timeline/TimeTracker.tsx"],
-          "implementationIds": ["module.timeline", "module.timeline-group", "composite.occurrence-row", "module.time-tracker"],
-          "notes": "Live fixture-backed timeline module is rendered in the current bench."
+          "sources": ["components/timeline/Timeline.tsx", "components/timeline/MobileTimelinePullToRefresh.tsx", "components/timeline/TimelineGroup.tsx", "components/timeline/OccurrenceRow.tsx", "components/timeline/TimeTracker.tsx"],
+          "implementationIds": ["module.timeline", "module.mobile-timeline-pull-to-refresh", "module.timeline-group", "composite.occurrence-row", "module.time-tracker"],
+          "notes": "Live fixture-backed Timeline modules are rendered in the current bench. The mobile wrapper owns threshold feedback, native-refresh suppression, and one in-flight route refresh."
         },
         {
           "surfaceId": "marketing",

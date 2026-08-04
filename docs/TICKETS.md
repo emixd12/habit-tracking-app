@@ -5186,6 +5186,148 @@ Out of scope:
 
 ---
 
+## Ticket 071: Mobile Timeline refresh and completion-feedback regressions
+
+Add pull-to-refresh to the mobile Timeline and fix two reported mobile
+regressions: duplicate completion-chime playback and the Completed label moving
+out of the summary row when an occurrence opens.
+
+Report context:
+- The owner reported all three items on 2026-08-04 with two screenshots of an
+  expanded and collapsed Timeline state.
+- The screenshots contain personal Behavior content. The owner explicitly
+  approved adding them to the repository on 2026-08-04 as Ticket 071 evidence.
+- Evidence: [collapsed Timeline](qa/ticket-071/timeline-collapsed.png) and
+  [expanded status misalignment](qa/ticket-071/timeline-expanded-status-misalignment.png).
+- The prior UI contract allowed expanded rows to pin status at the top-right.
+  The owner intentionally replaced that rule: the resolved status label stays
+  horizontally parallel to the behavior title while details open below it.
+
+Dependencies:
+- Preserve the existing resolver-owned Timeline groups, status persistence,
+  optimistic state, completion feedback, timing controls, Notes, and Needs
+  decision behavior.
+- Run the project-local impeccable context workflow before editing Timeline UI.
+- Do not treat pull-to-refresh as permission to add PWA caching, offline reads,
+  offline writes, or a pending mutation queue.
+
+Required investigation order for the duplicate chime:
+1. Add a focused regression harness before changing playback code. It must
+   represent one mobile activation sequence and one successful status action.
+2. Make the harness observe both status submissions and completion-chime
+   playback attempts or the existing playback-start event. It must fail if one
+   confirmed transition produces two playback attempts.
+3. Reproduce the report in a real mobile browser path. Prefer the reported
+   browser when known; otherwise cover mobile WebKit and mobile Chromium.
+4. Use the failing test and browser instrumentation to identify the duplicate
+   trigger. Record the verified cause in `STATUS.md`.
+5. Fix that cause. Do not add an arbitrary timeout or broad debounce unless the
+   test proves it represents the duplicate event source.
+6. Keep regression cases for touch/pointer/click/submit ordering, React
+   remounts, route refresh, and an already-Completed occurrence where relevant
+   to the verified cause.
+
+Pull-to-refresh requirements:
+- Enable the gesture only on the mobile Timeline surface when its scroll
+  container is already at the top.
+- A downward pull that crosses a clear threshold and is then released refreshes
+  the current Timeline data exactly once.
+- Show restrained pull and refreshing feedback without adding a permanent
+  toolbar, card, modal, route, or design token.
+- Short pulls, horizontal gestures, cancelled gestures, and pulls started below
+  the top must preserve normal scrolling and must not refresh.
+- Status buttons, occurrence disclosures, Notes, timing controls, the mobile
+  navigation drawer, and Needs decision controls must keep their existing
+  touch behavior.
+- Refresh must not mark, unmark, edit, start, stop, reset, or otherwise mutate
+  an occurrence. It only requests fresh Timeline data.
+- One gesture must not combine a custom refresh with a second native refresh.
+  The implementation should define and test how browser overscroll is handled.
+
+Completion-chime requirements:
+- One successful user-initiated transition from a non-Completed state to
+  Completed produces at most one playback attempt and one playback-start event.
+- One mobile tap must submit one status mutation. A duplicated playback must
+  not be hidden while two mutations still occur.
+- Not Completed, Note saves, pull-to-refresh, ordinary route refreshes, failed
+  status actions, and re-saving an already Completed occurrence remain silent.
+- Browsers that block audio should preserve the existing factual blocked path.
+  The fix must not fake a successful playback signal.
+
+Expanded-row alignment requirements:
+- Opening a Completed occurrence keeps its Completed label in the summary row,
+  horizontally parallel to the behavior title.
+- Expanded Description, Category, Schedule, Track Time, Change status, and Note
+  content flows below the complete summary row and cannot push the label down.
+- The alignment must hold at the supported mobile widths, with long behavior
+  titles, and while timing or Note content is present.
+- Preserve the corresponding Not Completed row structure and collapsed-row
+  alignment. Do not change stored status semantics or row colors.
+
+Acceptance criteria:
+- A mobile pull from the top crosses the threshold, releases, shows bounded
+  refresh feedback, and refreshes Timeline data once.
+- Gesture tests prove that non-qualifying pulls do not refresh or mutate data.
+- A test added before the sound fix reproduces the duplicate chime path or
+  isolates the exact duplicate trigger observed through browser
+  instrumentation.
+- One successful mobile Completed action produces one status submission and
+  one chime playback attempt. The regression test fails if playback occurs
+  twice.
+- Opening Completed rows at 320px and 390px keeps the status label parallel to
+  the behavior title. A long-title fixture and an expanded-detail fixture both
+  pass without horizontal overflow.
+- Browser QA covers mobile WebKit and Chromium when available. Any unavailable
+  browser or device remains explicitly unverified.
+- Product docs, interaction traceability, design-system Timeline fixtures, and
+  user guidance match the implemented behavior.
+
+Documentation and traceability required during implementation:
+- `docs/UI_SPEC.md` and `docs/USER_FLOWS.md`: reconcile the recorded target
+  behavior with the final gesture, exact-once sound, and summary-row details.
+- `docs/INTERACTION_REGISTRY.md`, `interaction-registry.json`, and
+  `load-tests/scenarios/interaction-map.json`: register pull-to-refresh and
+  update any affected status-action coverage after implementation.
+- `DESIGN.md` and the design-system bench: preserve the expanded resolved-row
+  alignment and mobile gesture feedback pattern.
+- `docs/user-guide/timeline.md`: explain mobile pull-to-refresh only if the
+  gesture needs user-facing guidance.
+- `STATUS.md`: mark the ticket in progress before implementation and record the
+  sound root cause, verification, and any device gaps at completion.
+
+Suggested files:
+- `components/timeline/Timeline.tsx`
+- `components/timeline/TimelineGroup.tsx`
+- `components/timeline/OccurrenceRow.tsx`
+- `components/timeline/StatusButtons.tsx`
+- a focused mobile pull-to-refresh client component or hook
+- focused Timeline interaction, status-button audio, and expanded-row UI tests
+- design-system Timeline fixtures and the docs listed above
+- `docs/qa/ticket-071/timeline-collapsed.png`
+- `docs/qa/ticket-071/timeline-expanded-status-misalignment.png`
+- `STATUS.md`
+
+Verification:
+- Run the new focused sound regression test before and after the fix, retaining
+  evidence that it failed for the reproduced cause and passed after correction.
+- Run focused pull gesture, Timeline UI, status action, and completion-feedback
+  tests.
+- Run `node .agents/skills/impeccable/scripts/context.mjs` before UI edits and
+  verify the result against `.agents/skills/impeccable/reference/product.md`.
+- Run `npm run agents:check`, `npm run interactions:check`,
+  `npm run load:manifest:check`, `npm run resolvers:check`,
+  `npm run design-system:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test`, and `npm run build`.
+- Run authenticated mobile browser QA at 320px and 390px, plus real touch
+  browser QA when available.
+
+Out of scope:
+- Offline/PWA caching, offline mutation, background sync, service-worker data
+  caching, native mobile apps, haptics, new sounds, sound settings, changes to
+  status semantics, Timeline routes, or broad Timeline redesign.
+
+---
+
 ## Future ticket: Workspace restructuring
 
 Move toward the target composable architecture only when needed by marketing,

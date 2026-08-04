@@ -37,6 +37,73 @@ type StatusButtonsProps = Readonly<{
 type StatusButtonValue = TimelineStatusActionStatus;
 type StatusFormAction = (formData: FormData) => void;
 
+export type StatusSubmissionEventHandlers = Readonly<{
+  onPointerDown: () => void;
+  onClick: () => void;
+  onSubmit: () => void;
+}>;
+
+export function createStatusSubmissionEventHandlers({
+  onStatusIntent,
+  onStatusSubmit,
+}: Readonly<{
+  onStatusIntent: () => void;
+  onStatusSubmit?: () => void;
+}>): StatusSubmissionEventHandlers {
+  return {
+    onPointerDown: onStatusIntent,
+    onClick: onStatusIntent,
+    onSubmit: () => {
+      onStatusIntent();
+      onStatusSubmit?.();
+    },
+  };
+}
+
+type MutableRef<Value> = {
+  current: Value;
+};
+
+export function captureCompletionChimeIntent({
+  currentStatus,
+  submittedStatus,
+  completionChimeIntentRef,
+  preparedChimeForSubmitRef,
+  prepareChime,
+}: Readonly<{
+  currentStatus: TimelineStatus;
+  submittedStatus: StatusButtonValue | null;
+  completionChimeIntentRef: MutableRef<CompletionChimeIntent | null>;
+  preparedChimeForSubmitRef: MutableRef<boolean>;
+  prepareChime: () => void;
+}>): void {
+  if (!submittedStatus) {
+    completionChimeIntentRef.current = null;
+    preparedChimeForSubmitRef.current = false;
+    return;
+  }
+
+  const intent: CompletionChimeIntent = {
+    currentStatus,
+    submittedStatus,
+  };
+  const shouldChimeAfterSuccess = shouldPlayCompletionChime({
+    currentStatus: intent.currentStatus,
+    nextStatus: intent.submittedStatus,
+  });
+
+  if (shouldChimeAfterSuccess && !preparedChimeForSubmitRef.current) {
+    prepareChime();
+    preparedChimeForSubmitRef.current = true;
+  }
+
+  if (!shouldChimeAfterSuccess) {
+    preparedChimeForSubmitRef.current = false;
+  }
+
+  completionChimeIntentRef.current = intent;
+}
+
 const EMPTY_ACTION_STATE: OccurrenceActionState = {
   status: "idle",
   message: "",
@@ -95,31 +162,13 @@ export function StatusButtons({
   }, [onStatusError, onStatusSuccess, router, state]);
 
   function prepareForSubmittedStatus(submittedStatus: StatusButtonValue | null) {
-    if (!submittedStatus) {
-      completionChimeIntentRef.current = null;
-      preparedChimeForSubmitRef.current = false;
-      return;
-    }
-
-    const intent: CompletionChimeIntent = {
+    captureCompletionChimeIntent({
       currentStatus,
       submittedStatus,
-    };
-    const shouldChimeAfterSuccess = shouldPlayCompletionChime({
-      currentStatus: intent.currentStatus,
-      nextStatus: intent.submittedStatus,
+      completionChimeIntentRef,
+      preparedChimeForSubmitRef,
+      prepareChime: prepareCompletionChimeForUserGesture,
     });
-
-    if (shouldChimeAfterSuccess && !preparedChimeForSubmitRef.current) {
-      prepareCompletionChimeForUserGesture();
-      preparedChimeForSubmitRef.current = true;
-    }
-
-    if (!shouldChimeAfterSuccess) {
-      preparedChimeForSubmitRef.current = false;
-    }
-
-    completionChimeIntentRef.current = intent;
   }
 
   return (
@@ -208,13 +257,19 @@ function StatusSubmitForm({
   pendingStatus: StatusButtonValue | null;
   singleLine: boolean;
 }>) {
+  const submissionEventHandlers = createStatusSubmissionEventHandlers({
+    onStatusIntent: () => {
+      onStatusIntent(status);
+    },
+    onStatusSubmit: () => {
+      onStatusSubmit?.(status);
+    },
+  });
+
   return (
     <form
       action={action}
-      onSubmit={() => {
-        onStatusIntent(status);
-        onStatusSubmit?.(status);
-      }}
+      onSubmit={submissionEventHandlers.onSubmit}
       className="contents"
     >
       <input type="hidden" name="occurrence_id" value={occurrenceId} />
@@ -223,7 +278,8 @@ function StatusSubmitForm({
       <StatusSubmitButton
         status={status}
         label={label}
-        onStatusIntent={onStatusIntent}
+        onPointerDown={submissionEventHandlers.onPointerDown}
+        onClick={submissionEventHandlers.onClick}
         disabled={disabled}
         pendingStatus={pendingStatus}
         singleLine={singleLine}
@@ -235,14 +291,16 @@ function StatusSubmitForm({
 function StatusSubmitButton({
   status,
   label,
-  onStatusIntent,
+  onPointerDown,
+  onClick,
   disabled,
   pendingStatus,
   singleLine,
 }: Readonly<{
   status: StatusButtonValue;
   label: string;
-  onStatusIntent: (status: StatusButtonValue) => void;
+  onPointerDown?: () => void;
+  onClick?: () => void;
   disabled: boolean;
   pendingStatus: StatusButtonValue | null;
   singleLine: boolean;
@@ -262,12 +320,8 @@ function StatusSubmitButton({
       disabled={pending || disabled}
       aria-disabled={pending || disabled ? "true" : undefined}
       data-single-line={singleLine ? "true" : undefined}
-      onClick={() => {
-        onStatusIntent(status);
-      }}
-      onPointerDown={() => {
-        onStatusIntent(status);
-      }}
+      onClick={onClick}
+      onPointerDown={onPointerDown}
       className={[
         "timeline-status-action product-action product-action-primary pointer-events-auto min-h-11 gap-1.5 whitespace-nowrap py-1 font-bold",
         singleLine
