@@ -133,6 +133,14 @@ const route = getRouteById("home");
 
   .hero--home {
     border-block-end: none;
+    min-height: auto;
+  }
+
+  /* Drop the 640px min-height floor and tighten padding so the feature
+     ledger peeks above the fold on short (~768px) viewports. */
+  .hero--home .page-section__inner {
+    min-height: auto;
+    padding-block: 2rem 1rem;
   }
 
   .hero--home h1 {
