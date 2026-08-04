@@ -140,10 +140,13 @@ const route = getRouteById("home");
 
   /* 110.4% ≈ 1 / 0.906: the timeline card ends at 90.6% of the hg canvas
      (left 34.6% + width 56%), so this overhang puts its right edge exactly
-     on the container's right edge — matching the text's left inset. */
+     on the container's right edge — matching the text's left inset.
+     Desktop grows to 125% with a -13.25% pull (13.25 = 90.6 × 1.25 − 100)
+     so the group scales up-left while that right edge stays pinned. */
   .hero-visual-col {
     min-width: 0;
-    width: 110.4%;
+    width: 125%;
+    margin-left: -13.25%;
   }
 
   .cta-row { gap: 2rem; }
@@ -228,6 +231,11 @@ const route = getRouteById("home");
   }
 
   @media (width < 820px) {
+    .hero-visual-col {
+      width: 110.4%;
+      margin-left: 0;
+    }
+
     .feature-ledger { grid-template-columns: 1fr; }
     .record-grid { grid-template-columns: 1fr; }
   }
