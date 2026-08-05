@@ -493,7 +493,7 @@
           "surfaceId": "marketing",
           "status": "not-applicable",
           "parity": "not-applicable",
-          "sources": ["apps/marketing/src/pages/cadence.astro"],
+          "sources": [],
           "implementationIds": [],
           "notes": "Marketing may describe analytics but does not render the live module."
         },
@@ -586,7 +586,7 @@
           "surfaceId": "marketing",
           "status": "not-applicable",
           "parity": "not-applicable",
-          "sources": ["apps/marketing/src/pages/cadence.astro"],
+          "sources": [],
           "implementationIds": [],
           "notes": "Marketing explains behavior management but does not provide editing controls."
         },

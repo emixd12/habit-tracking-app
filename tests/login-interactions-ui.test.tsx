@@ -23,6 +23,7 @@ describe("login interaction controls", () => {
     expect(html).toContain('href="/terms"');
     expect(html).toContain('href="/privacy"');
     expect(html).toContain('href="/trust"');
+    expect(html).toContain("How Cadence works →");
   });
 
   it("renders the temporary-user interaction only when its local QA gate is enabled", async () => {

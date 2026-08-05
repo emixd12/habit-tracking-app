@@ -94,7 +94,7 @@
     {
       "path": "app/(auth)/login/page.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 4,
+      "interaction_marker_count": 5,
       "interaction_ids": ["INT-AUTH-002", "INT-AUTH-003"]
     },
     {
@@ -107,7 +107,7 @@
     {
       "path": "apps/marketing/src/layouts/BaseLayout.astro",
       "classification": "cataloged",
-      "interaction_marker_count": 12,
+      "interaction_marker_count": 10,
       "interaction_ids": [
         "INT-MKT-001",
         "INT-MKT-002",
@@ -124,12 +124,6 @@
       "interaction_ids": ["INT-MKT-007", "INT-MKT-008"]
     },
     {
-      "path": "apps/marketing/src/pages/cadence.astro",
-      "classification": "cataloged",
-      "interaction_marker_count": 4,
-      "interaction_ids": ["INT-MKT-006", "INT-MKT-007", "INT-MKT-008", "INT-MKT-011"]
-    },
-    {
       "path": "apps/marketing/src/pages/docs.astro",
       "classification": "cataloged",
       "interaction_marker_count": 9,
@@ -142,16 +136,16 @@
       "interaction_ids": ["INT-MKT-009", "INT-MKT-011"]
     },
     {
+      "path": "apps/marketing/src/pages/faq.astro",
+      "classification": "cataloged",
+      "interaction_marker_count": 3,
+      "interaction_ids": ["INT-MKT-006", "INT-MKT-008"]
+    },
+    {
       "path": "apps/marketing/src/pages/index.astro",
       "classification": "cataloged",
       "interaction_marker_count": 6,
       "interaction_ids": ["INT-MKT-006", "INT-MKT-007", "INT-MKT-008", "INT-MKT-009", "INT-MKT-011"]
-    },
-    {
-      "path": "apps/marketing/src/pages/standard.astro",
-      "classification": "cataloged",
-      "interaction_marker_count": 3,
-      "interaction_ids": ["INT-MKT-008", "INT-MKT-009", "INT-MKT-011"]
     },
     {
       "path": "components/behaviors/BehaviorCreateSection.tsx",
@@ -425,7 +419,7 @@
     },
     {
       "id": "INT-AUTH-003",
-      "name": "Open account information before sign-in",
+      "name": "Open public information before sign-in",
       "user_guidance": {
         "audience": "user",
         "references": ["docs/user-guide/public-and-sign-in.md#read-account-information"]
@@ -434,24 +428,25 @@
       "surfaces": ["login", "public_legal"],
       "routes": ["/login", "/terms", "/privacy", "/trust"],
       "journeys": ["J02"],
-      "intent": "Review Terms, Privacy, or Trust before authenticating.",
-      "triggers": [{ "kind": "activate", "control": "Terms, Privacy, or Trust link" }],
+      "intent": "Review Terms, Privacy, Trust, or the Cadence overview before authenticating.",
+      "triggers": [{ "kind": "activate", "control": "Terms, Privacy, Trust, or How Cadence works link" }],
       "variants": [
         { "id": "terms", "label": "Terms", "result": "Navigate to /terms." },
         { "id": "privacy", "label": "Privacy", "result": "Navigate to /privacy." },
-        { "id": "trust", "label": "Trust", "result": "Navigate to /trust." }
+        { "id": "trust", "label": "Trust", "result": "Navigate to /trust." },
+        { "id": "how_cadence_works", "label": "How Cadence works", "result": "Open the Cadence marketing site." }
       ],
       "availability": "Always available on the public login page.",
-      "success_result": "Opens the selected public account-information page.",
+      "success_result": "Opens the selected public information destination.",
       "failure_result": "Normal navigation failure behavior applies.",
-      "effects": ["navigation"],
+      "effects": ["navigation", "external_navigation"],
       "risk": "low",
       "confirmation": "none",
       "implementation": ["app/(auth)/login/page.tsx"],
       "test_coverage": {
         "level": "direct",
         "references": ["tests/login-interactions-ui.test.tsx"],
-        "notes": "The login test renders and asserts all three public account-information links."
+        "notes": "The login test renders and asserts all four public information links."
       }
     },
     {
@@ -649,17 +644,17 @@
       },
       "status": "implemented",
       "surfaces": ["marketing", "login"],
-      "routes": ["/", "/cadence", "/login"],
+      "routes": ["/", "/faq", "/login"],
       "journeys": ["J01", "J03"],
       "intent": "Open the Cadence product from a marketing call to action.",
       "triggers": [{ "kind": "activate", "control": "Try Cadence" }],
-      "availability": "Available on the marketing homepage and Cadence product page.",
+      "availability": "Available on the marketing homepage and FAQ page.",
       "success_result": "Opens the deployed Cadence product entry route.",
       "failure_result": "External navigation failure leaves the marketing page unchanged.",
       "effects": ["external_navigation"],
       "risk": "low",
       "confirmation": "none",
-      "implementation": ["apps/marketing/src/pages/index.astro", "apps/marketing/src/pages/cadence.astro"],
+      "implementation": ["apps/marketing/src/pages/index.astro", "apps/marketing/src/pages/faq.astro"],
       "test_coverage": { "level": "manual", "references": [], "notes": "Verified in public discovery walkthroughs." }
     },
     {
@@ -671,19 +666,18 @@
       },
       "status": "implemented",
       "surfaces": ["marketing"],
-      "routes": ["/standard"],
+      "routes": ["/", "/docs", "/about"],
       "journeys": ["J01", "J22"],
-      "intent": "Read the BehaviorLog overview from another marketing page.",
+      "intent": "Open the BehaviorLog specification from a marketing page.",
       "triggers": [{ "kind": "activate", "control": "Read BehaviorLog or BehaviorLog content link" }],
       "availability": "Available from relevant marketing calls to action and content links.",
-      "success_result": "Navigates to /standard.",
-      "failure_result": "Normal navigation failure behavior applies.",
-      "effects": ["navigation"],
+      "success_result": "Opens the external BehaviorLog GitHub repository.",
+      "failure_result": "External navigation failure leaves the current marketing page unchanged.",
+      "effects": ["external_navigation"],
       "risk": "low",
       "confirmation": "none",
       "implementation": [
         "apps/marketing/src/pages/index.astro",
-        "apps/marketing/src/pages/cadence.astro",
         "apps/marketing/src/pages/docs.astro",
         "apps/marketing/src/pages/about.astro"
       ],
@@ -698,7 +692,7 @@
       },
       "status": "implemented",
       "surfaces": ["marketing"],
-      "routes": ["/", "/cadence", "/standard", "/about"],
+      "routes": ["/", "/faq", "/about"],
       "journeys": ["J01", "J22"],
       "intent": "Open the Cadence or BehaviorLog source repository.",
       "triggers": [{ "kind": "activate", "control": "View on GitHub or repository link" }],
@@ -714,8 +708,7 @@
       "confirmation": "none",
       "implementation": [
         "apps/marketing/src/pages/index.astro",
-        "apps/marketing/src/pages/cadence.astro",
-        "apps/marketing/src/pages/standard.astro",
+        "apps/marketing/src/pages/faq.astro",
         "apps/marketing/src/pages/about.astro"
       ],
       "test_coverage": { "level": "manual", "references": [], "notes": "External destinations are checked during marketing QA." }
@@ -729,7 +722,7 @@
       },
       "status": "implemented",
       "surfaces": ["marketing"],
-      "routes": ["/", "/standard", "/docs", "/examples", "/examples/cadence-demo.behaviorlog.zip"],
+      "routes": ["/", "/docs", "/examples", "/examples/cadence-demo.behaviorlog.zip"],
       "journeys": ["J01", "J22"],
       "intent": "Download the sanitized example bundle for inspection or parser testing.",
       "triggers": [{ "kind": "activate", "control": "Download Example Bundle or direct download link" }],
@@ -741,7 +734,6 @@
       "confirmation": "none",
       "implementation": [
         "apps/marketing/src/pages/index.astro",
-        "apps/marketing/src/pages/standard.astro",
         "apps/marketing/src/pages/docs.astro",
         "apps/marketing/src/pages/examples.astro"
       ],
@@ -778,7 +770,7 @@
       },
       "status": "implemented",
       "surfaces": ["marketing"],
-      "routes": ["/", "/cadence", "/standard", "/docs", "/examples", "/about"],
+      "routes": ["/", "/docs", "/examples", "/about"],
       "journeys": ["J01", "J22"],
       "intent": "Move to an in-page section or a related marketing route from page content.",
       "triggers": [{ "kind": "activate", "control": "See how it works, read docs, inspect examples, or related content link" }],
@@ -790,8 +782,6 @@
       "confirmation": "none",
       "implementation": [
         "apps/marketing/src/pages/index.astro",
-        "apps/marketing/src/pages/cadence.astro",
-        "apps/marketing/src/pages/standard.astro",
         "apps/marketing/src/pages/docs.astro",
         "apps/marketing/src/pages/examples.astro"
       ],

@@ -4,6 +4,7 @@ import {
   getAuthErrorMessage,
   normalizeRedirectPath,
 } from "@/lib/auth/redirects";
+import { MARKETING_SITE_URL } from "@/lib/marketing-site";
 import { DEFAULT_APP_ROUTE } from "@/lib/navigation";
 import { readSupabaseRuntimeConfig } from "@/lib/supabase/env";
 import { shouldShowTestLogin } from "@/lib/auth/test-login";
@@ -34,37 +35,29 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const testLoginEnabled = shouldShowTestLogin();
 
   return (
-    <main className="min-h-dvh overflow-hidden bg-background text-foreground">
-      <section className="relative mx-auto min-h-dvh w-full max-w-[1505px] overflow-hidden px-10 py-20 sm:px-14 min-[900px]:px-0 min-[900px]:py-0">
-        <Image
-          src="/brand/cadence-login-horse-composition-blue.png"
-          alt=""
-          aria-hidden="true"
-          width={855}
-          height={1045}
-          sizes="(min-width: 1024px) 82dvh, 62dvh"
-          className="pointer-events-none absolute bottom-[-6dvh] left-1/2 h-[58dvh] w-auto max-w-none -translate-x-[56%] opacity-[0.72] min-[900px]:bottom-auto min-[900px]:left-auto min-[900px]:right-0 min-[900px]:top-0 min-[900px]:h-full min-[900px]:translate-x-0 min-[900px]:opacity-100"
-          priority
-        />
+    <main className="min-h-dvh bg-background px-6 pb-16 pt-[22dvh] text-foreground">
+      <section className="mx-auto w-full max-w-[22rem]">
+        <h1 className="flex items-center gap-3 text-5xl leading-none">
+          <Image
+            src="/brand/cadence-logo.png"
+            alt=""
+            aria-hidden="true"
+            width={48}
+            height={48}
+            className="h-12 w-12 shrink-0 object-contain"
+            priority
+          />
+          <span>Cadence</span>
+        </h1>
 
-        <div className="relative z-10 mx-auto mt-[5dvh] flex w-full max-w-[20rem] flex-col items-center min-[900px]:absolute min-[900px]:left-[clamp(7rem,15.5vw,18rem)] min-[900px]:top-[27%] min-[900px]:mx-0 min-[900px]:mt-0 min-[900px]:w-fit min-[900px]:max-w-none">
-          <h1 className="flex w-fit items-center gap-4 text-5xl leading-none min-[900px]:gap-5 min-[900px]:text-7xl">
-            <Image
-              src="/brand/cadence-logo.png"
-              alt=""
-              aria-hidden="true"
-              width={80}
-              height={80}
-              sizes="(min-width: 900px) 80px, (min-width: 640px) 56px, 48px"
-              className="h-12 w-12 shrink-0 object-contain min-[900px]:h-20 min-[900px]:w-20"
-              priority
-            />
-            <span>Cadence</span>
-          </h1>
+        <p className="mt-3 text-lg leading-6 text-muted-readable">
+          Decide your days. Own every record.
+        </p>
 
-          <div className="mt-14 grid w-full gap-4 min-[900px]:mt-12 min-[900px]:w-fit">
+        {authErrorMessage || accountDeleted || signedOut || !isConfigured ? (
+          <div className="mt-6 grid gap-4 [&>p]:max-w-none">
             {authErrorMessage ? (
-              <p className="max-w-[18rem] text-sm leading-6 text-accent">
+              <p className="text-sm leading-6 text-accent">
                 {authErrorMessage}
               </p>
             ) : null}
@@ -73,50 +66,75 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             {signedOut ? <SignedOutNotice /> : null}
 
             {!isConfigured ? (
-              <p className="max-w-[18rem] text-sm leading-6 text-accent">
+              <p className="text-sm leading-6 text-accent">
                 Add Supabase runtime values before signing in locally.
               </p>
             ) : null}
-
-            <GoogleLoginButton disabled={!isConfigured} nextPath={nextPath} />
-
-            {testLoginEnabled ? (
-              <div className="mt-4 grid gap-1 text-sm leading-6 text-foreground min-[900px]:mt-5">
-                <p>Local QA only.</p>
-                <a
-                  href={`/auth/test-login?next=${encodeURIComponent(nextPath)}`}
-                  className="product-action product-action-primary min-h-10 justify-self-start py-2"
-                >
-                  Continue as temporary test user
-                </a>
-              </div>
-            ) : null}
-
-            <nav
-              aria-label="Public product information"
-              className="mt-8 flex w-fit flex-wrap justify-center justify-self-center gap-x-8 gap-y-2 text-base leading-6 text-foreground min-[900px]:mt-8 min-[900px]:gap-x-6 min-[900px]:text-sm min-[900px]:leading-5"
-            >
-              <a
-                className="inline-flex min-h-10 items-center py-1 underline-offset-4 hover:underline"
-                href="/terms"
-              >
-                Terms
-              </a>
-              <a
-                className="inline-flex min-h-10 items-center py-1 underline-offset-4 hover:underline"
-                href="/privacy"
-              >
-                Privacy
-              </a>
-              <a
-                className="inline-flex min-h-10 items-center py-1 underline-offset-4 hover:underline"
-                href="/trust"
-              >
-                Trust
-              </a>
-            </nav>
           </div>
+        ) : null}
+
+        <div className="mt-6">
+          <GoogleLoginButton disabled={!isConfigured} nextPath={nextPath} />
         </div>
+
+        <p className="mt-6 text-[0.8rem] leading-5 text-muted-readable">
+          By continuing you agree to the{" "}
+          <a className="text-link" href="/terms">
+            Terms
+          </a>{" "}
+          and acknowledge the{" "}
+          <a className="text-link" href="/privacy">
+            Privacy Policy
+          </a>
+          .
+        </p>
+
+        <div className="mt-10 border-t border-line pt-6">
+          <ul className="grid list-none gap-2 text-sm leading-6 text-muted-readable">
+            <li>
+              <span className="text-foreground">Single-player and private.</span>{" "}
+              No feed, no sharing, no coaching layer.
+            </li>
+            <li>
+              <span className="text-foreground">Google sign-in only.</span>{" "}
+              Cadence never sees or stores a password.
+            </li>
+            <li>
+              <span className="text-foreground">Yours to take.</span> Export
+              everything as plain files, anytime.
+            </li>
+          </ul>
+        </div>
+
+        <nav
+          aria-label="Public product information"
+          className="mt-8 flex flex-wrap items-center gap-x-6 text-sm leading-5 text-foreground"
+        >
+          <a
+            className="text-link inline-flex min-h-10 items-center py-1"
+            href="/trust"
+          >
+            Trust
+          </a>
+          <a
+            className="text-link inline-flex min-h-10 items-center py-1"
+            href={MARKETING_SITE_URL}
+          >
+            How Cadence works →
+          </a>
+        </nav>
+
+        {testLoginEnabled ? (
+          <div className="mt-4 grid gap-1 text-sm leading-6 text-foreground">
+            <p>Local QA only.</p>
+            <a
+              href={`/auth/test-login?next=${encodeURIComponent(nextPath)}`}
+              className="product-action product-action-primary min-h-10 justify-self-start py-2"
+            >
+              Continue as temporary test user
+            </a>
+          </div>
+        ) : null}
       </section>
     </main>
   );
