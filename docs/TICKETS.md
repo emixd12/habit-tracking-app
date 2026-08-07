@@ -5457,6 +5457,8 @@ Settled decisions:
   rule.
 - `manifest.profiles` adds `definition_history` and `time_tracking` exactly
   when the corresponding files are present.
+- The manifest declares `rules.definition_history_policy: "event_sourced"`,
+  since Cadence records every title/description change as a definition event.
 - Reminder flags stay duplicated under `extensions.app.cadence` for one
   release for backward compatibility, then may be dropped by a later ticket.
 
