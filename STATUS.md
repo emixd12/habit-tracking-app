@@ -73,6 +73,27 @@ on 2026-08-04. Chromium touch QA passed. Mobile WebKit and an authenticated
 physical-device pass remain unverified because those browser surfaces were not
 available in this environment.
 
+Tickets 078-093 are `not_started`. They were defined on 2026-08-06 from a
+repository-wide read-only audit across five independent passes (domain
+resolvers/services/repos, routes/auth/API, import/restore/export,
+UI/interaction, schema/marketing/ops). No fix was applied during the audit and
+no product scope changed. Scope and acceptance criteria live in
+`docs/TICKETS.md`; the suggested order is 078, 079, 080, 081, 082, 083 first.
+
+Two of those findings are live in production and should be treated as
+defects, not backlog:
+
+- Ticket 078: editing a behavior deletes unresolved occurrences scheduled
+  earlier the same day, cascading their notes and tracked time sessions. The
+  deletion planner has no guard for instants before `now`, which contradicts
+  `docs/DATA_MODEL.md`. This is silent, unrecoverable user data loss in an
+  ordinary edit flow.
+- Ticket 079: `profiles.email` is writable by its owner through the Data API
+  because the base schema grants table-wide DML, and the reminder processor
+  uses that column as the outbound email recipient. An account can direct
+  Cadence's transactional email at a third party from the project's sending
+  domain.
+
 The completed sequence includes the Ticket 001 Next.js scaffold, Ticket 002
 Supabase Auth setup, Ticket 003 database schema, Tickets 004-012 core behavior
 tracking and export, Ticket 013 Vercel deployment, BehaviorLog interoperability

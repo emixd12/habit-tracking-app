@@ -5359,6 +5359,1373 @@ Acceptance criteria should include:
 
 ---
 
+## Ticket 072: BehaviorLog 0.2.0-draft conformance — intervention repair and schema unfork
+
+Align the BehaviorLog export with upstream `0.2.0-draft` and remove every
+divergence between Cadence's emitted records and the canonical schema. The
+2026-08 parity audit found Cadence interventions fail canonical validation on
+three counts and that the embedded `schema.json` is a fork that legitimizes
+them.
+
+Dependencies:
+- Upstream BehaviorLog-Bundle repo at `0.2.0-draft` (Intervention
+  `failure_reason`, canonical profile identifiers, hardened reference
+  validator).
+
+Settled decisions:
+- Intervention records emit `planned_for_utc` (was `scheduled_send_at_utc`)
+  and map Cadence delivery status `pending` to `planned`. `sent`, `failed`,
+  and `cancelled` map unchanged. `pending` never appears in a bundle.
+- `failure_reason` stays top-level and keeps the existing sanitization; the
+  upstream field now exists, so this becomes conformant rather than divergent.
+- The embedded `schema.json` is a byte-exact copy of the upstream
+  `0.2.0-draft` canonical schema, not a Cadence-generated variant. Delete the
+  local schema-generation divergence.
+- `manifest.profiles` uses canonical identifiers only: `core`, `intervention`,
+  and later `definition_history` and `time_tracking`. Drop `notes` (notes are
+  optional core surface, not a profile) and the plural `interventions`.
+- `manifest.schema_version` becomes `0.2.0-draft`. Import continues to accept
+  `0.1.0-draft` and adds `0.2.0-draft`.
+- Re-pin `tests/fixtures/behaviorlog-reference/` to the upstream `0.2.0-draft`
+  validator snapshot and record the new commit in `SNAPSHOT.md`. The hardened
+  validator now errors on unknown intervention fields and `pending`, which is
+  the regression net this ticket needs.
+
+Implementation order:
+1. Re-pin the reference-validator snapshot and watch the conformance test fail
+   against current output.
+2. Fix the intervention record mapping and manifest profile identifiers in the
+   export resolver.
+3. Replace the generated embedded schema with the canonical copy.
+4. Update import validation to accept both schema versions and the renamed
+   intervention field from newer bundles while still reading `0.1.0-draft`
+   bundles produced before this ticket.
+5. Update `docs/EXPORT_FORMATS.md` and conformance tests.
+
+Acceptance criteria:
+- `npm run behaviorlog:conformance` passes against the pinned `0.2.0-draft`
+  validator with zero errors and zero warnings for a resolver-generated bundle
+  containing interventions.
+- An exported intervention round-trips through Cadence import preview without
+  `unsupportedFields` entries.
+- A fixture bundle with `delivery_status: "pending"` fails import validation
+  with a clear error.
+- Existing `0.1.0-draft` bundles (pre-repair fixtures) still import, with the
+  legacy field and status names normalized on read.
+
+Suggested files:
+- `lib/resolvers/export.resolver.ts`
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `tests/fixtures/behaviorlog-reference/*`
+- `tests/behaviorlog-conformance.test.ts`
+- `tests/export.resolver.test.ts`
+- `docs/EXPORT_FORMATS.md`
+
+---
+
+## Ticket 073: Export Definition History, Time Tracking, and Intervention Rules profiles
+
+Replace the `raw/cadence/` export-only files with the first-class `0.2.0-draft`
+profiles so definition history, time sessions, and reminder configuration
+become portable to any BehaviorLog reader.
+
+Dependencies:
+- Ticket 072.
+
+Settled decisions:
+- Behavior definition events export as `data/behavior_definition_events.jsonl`
+  with `record_type: "behavior_definition_event"`. Cadence's first row per
+  behavior maps to `event_kind: "baseline"` with `previous: null`; later rows
+  map to `revision` with full previous/next title and description objects and
+  `changed_fields` limited to `title`/`description`. `reason` maps to
+  `reason_code`; source `manual`/`import`/`system` maps to capture methods
+  `manual_text`/`imported`/`system_generated`.
+- The `raw/cadence/behavior_definition_events.jsonl` file and its manifest
+  extension declaration are removed. Full JSON keeps the app-native shape.
+- Time sessions export as `data/time_sessions.jsonl` with
+  `record_type: "time_session"`, still gated by `include_time_tracking=1`.
+  The standard records carry start/stop instants and NO duration field;
+  running sessions keep `stopped_at_utc: null`. App-native formats keep
+  `duration_seconds`. The manifest sets
+  `privacy.contains_time_tracking: true` when the file is present, and the
+  `raw/cadence/occurrence_time_sessions.jsonl` file is removed.
+- Per-behavior reminder settings export as `data/intervention_rules.jsonl`:
+  one enabled rule per enabled channel with deterministic
+  `rule_id` (`rule_reminder_<behaviorId>_<channel>`),
+  `offset_minutes = -reminder_offset_minutes`, and `enabled: true`. Disabled
+  channels emit no rule. Intervention records set `rule_id` to the matching
+  rule.
+- `manifest.profiles` adds `definition_history` and `time_tracking` exactly
+  when the corresponding files are present.
+- Reminder flags stay duplicated under `extensions.app.cadence` for one
+  release for backward compatibility, then may be dropped by a later ticket.
+
+Acceptance criteria:
+- Conformance passes with the three new files present and zero warnings,
+  including the upstream validator's new privacy-flag, rule-reference, and
+  definition-consistency checks.
+- Definition-history and time-session content matches Full JSON for the same
+  export options, minus app-only fields.
+- No `raw/cadence/` files remain in the bundle export.
+- Export & Import screen copy reflects that definition history and timing now
+  travel in standard files.
+
+Suggested files:
+- `lib/resolvers/export.resolver.ts`
+- `lib/services/export.service.ts`
+- `tests/export.resolver.test.ts`
+- `tests/behaviorlog-conformance.test.ts`
+- `docs/EXPORT_FORMATS.md`
+
+---
+
+## Ticket 074: Import and restore replay for definition history and time sessions
+
+Close the portability chain the audit flagged: imported bundles carrying the
+new profiles should reconstruct revision history and timing sessions instead
+of validating and discarding them.
+
+Dependencies:
+- Tickets 072 and 073.
+
+Settled decisions:
+- Create-mode and approved-merge imports replay
+  `data/behavior_definition_events.jsonl` for behaviors they create: baseline
+  and revision rows insert into `behavior_definition_events` with
+  `source = 'import'`, preserving imported `recorded_at` ordering and full
+  previous/next text. The locally generated import baseline is emitted only
+  when the bundle carries no baseline for that behavior.
+- Restore replays the imported revision trail for restored behaviors under
+  the same rules instead of recording only a snapshot transition.
+- `data/time_sessions.jsonl` rows import into `occurrence_time_sessions` for
+  safely mapped occurrences. A running imported session (null stop) imports
+  as stopped-at-null only if the occurrence has no other running session;
+  otherwise it is skipped with a warning.
+- Both replays are idempotent through `behaviorlog_import_record_mappings`
+  with new record types `behavior_definition_event` and `time_session`.
+- Unmappable events and sessions become skip actions with warnings, never
+  hard failures of the whole import.
+
+Acceptance criteria:
+- Export → wipe → restore reproduces the full definition-event trail
+  (baselines, revisions, reasons, timestamps) and all stopped time sessions.
+- Re-applying the same accepted import creates zero duplicate events or
+  sessions.
+- Merge preview shows planned definition-event and time-session actions with
+  counts before apply.
+- The mappings table check constraint covers the two new record types.
+
+Suggested files:
+- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/services/behaviorlog-restore.service.ts`
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `supabase/migrations/*_extend_import_mapping_record_types.sql`
+- `tests/behaviorlog-import-write.service.test.ts`
+- `tests/behaviorlog-restore-apply.service.test.ts`
+
+---
+
+## Ticket 075: Re-export imported passive data with provenance
+
+Data imported from another app currently dies inside Cadence: `imported_notes`
+and `imported_interventions` never re-export, and import parsing drops most
+source provenance. Fix both so Cadence can sit in the middle of a portability
+chain.
+
+Dependencies:
+- Ticket 072.
+
+Settled decisions:
+- The BehaviorLog export includes `imported_notes` rows as `note` records
+  (`note_role: "imported"`, original attachment type and mapped local target,
+  preserved sensitivity, `source.imported_from` and `source.original_id`
+  from stored metadata) when the include-notes option is selected and the
+  attachment target is inside the export scope.
+- `imported_interventions` rows export as additional intervention records
+  with `source.capture_method: "imported"` and preserved external provenance,
+  alongside the operational reminder-delivery interventions.
+- Import parsing retains `source.producer`, `producer_version`,
+  `imported_from`, and `transformation_notes` into the existing `metadata`
+  jsonb on `imported_notes` and `imported_interventions`. No migration.
+- `manifest.privacy.contains_notes` accounts for imported notes.
+- Promotion-created reminder deliveries do not double-export: an operational
+  delivery with `imported_intervention_id` set suppresses the passive row's
+  separate intervention record.
+
+Acceptance criteria:
+- Bundle A imported into Cadence and re-exported yields A's notes and
+  intervention history with `imported` provenance and stable original IDs.
+- No duplicate intervention records for promoted reminders.
+- Conformance passes with mixed operational and imported intervention records.
+
+Suggested files:
+- `lib/services/export.service.ts`
+- `lib/resolvers/export.resolver.ts`
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `lib/db/importedInterventions.repo.ts`
+- `lib/db/behaviorLogImports.repo.ts`
+- `tests/export.service.test.ts`
+- `tests/behaviorlog-import-notes.test.ts`
+
+---
+
+## Ticket 076: Export honesty fixes — health flag, synthetic semantics, synthesis notes
+
+Three small truthfulness fixes in the BehaviorLog export surfaced by the
+audit.
+
+Dependencies:
+- Ticket 072.
+
+Settled decisions:
+- `manifest.privacy.contains_health_data` is `true` when any included
+  behavior maps to canonical `health_wellness` or `medication_non_dose`, or
+  carries the Medical or Measurements display category. It stays `false`
+  otherwise.
+- Synthesized status events for legacy resolved snapshots use
+  `status_semantics: "system_rule_declared"` (not `explicit_user_mark`),
+  keeping `capture_method: "derived"` and `confidence: "medium"`. The
+  manifest `rules.status_semantics` map documents the synthesis rule.
+- Behavior records whose `success_definition` is producer boilerplate carry
+  `source.transformation_notes` stating the synthesis, per the updated
+  MAPPING.md guidance, so agents do not read it as user intent.
+- Schedule records add `behavior_schedule_id` under `extensions.app.cadence`
+  so the parent grouping survives for readers that care.
+
+Acceptance criteria:
+- A bundle with a Medical-category behavior reports
+  `contains_health_data: true`; one without health-adjacent behaviors reports
+  `false`.
+- Synthesized events are distinguishable from explicit user marks in the
+  exported status-event stream.
+- Conformance and existing import tests pass unchanged otherwise.
+
+Suggested files:
+- `lib/resolvers/export.resolver.ts`
+- `tests/export.resolver.test.ts`
+- `docs/EXPORT_FORMATS.md`
+
+---
+
+## Ticket 077: Import and restore fidelity — custom ranges, categories, reminder config, archival pairing
+
+Round-trip fixes for data Cadence itself supports but currently drops or
+mangles on the way back in.
+
+Dependencies:
+- Tickets 072 and 073.
+
+Settled decisions:
+- Import accepts arbitrary `window_start_local`/`window_end_local` ranges as
+  custom range slots (`kind: 'range'`, `preset: null`) instead of rejecting
+  non-preset ranges. Preset labels in extensions still map to presets.
+- Restore reassigns behavior categories: match existing categories by
+  normalized display name from `extensions.app.cadence.category_name`
+  (fallback: canonical category), create the category when absent, and link
+  `category_id`. Create-mode import keeps its existing no-create matching.
+- Create-mode import and restore apply reminder configuration from
+  `data/intervention_rules.jsonl` when present (enabled channels and negated
+  `offset_minutes`), falling back to `extensions.app.cadence` reminder flags
+  from older bundles.
+- `active` derives strictly from `archived_at_utc`: null means active. A
+  contradictory `extensions.app.cadence.active: false` with a null archive
+  timestamp is ignored and reported as an import warning, eliminating the
+  `active=false, archived_at=null` state the audit found.
+- When multiple imported schedules share a `behavior_schedule_id` extension
+  value, import reconstructs one `behavior_schedules` parent with multiple
+  slots instead of parentless flat slots.
+
+Acceptance criteria:
+- A Cadence export with a custom 07:15–09:40 range slot round-trips to an
+  identical slot.
+- Export → wipe → restore reproduces category assignments, reminder settings,
+  and schedule-parent grouping.
+- No import path can produce `active = false` with `archived_at = null`.
+- RLS and schedule-integrity tests still pass.
+
+Suggested files:
+- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/services/behaviorlog-restore.service.ts`
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `tests/behaviorlog-import-merge-preview.test.ts`
+- `tests/behaviorlog-restore-apply.service.test.ts`
+- `docs/EXPORT_FORMATS.md`
+- `docs/DATA_MODEL.md`
+
+---
+
+## Audit-derived tickets (078-093)
+
+Tickets 078 through 093 come from a repository-wide read-only audit run on
+2026-08-06 across five independent passes: domain resolvers/services/repos,
+routes/auth/API, import/restore/export, UI/interaction, and
+schema/marketing/ops. Every finding cited below was verified against the
+source; no fix was applied during the audit.
+
+Suggested order: 078, 079, 080, 081, 082, 083 first. Those cover silent data
+loss, an outbound-email abuse vector, permanently stuck reminder state,
+truncated exports, unbounded push fan-out, and an account-deletion lockout.
+The rest may be scheduled normally.
+
+---
+
+## Ticket 078: Preserve unresolved occurrences earlier in the current day
+
+Stop behavior edits from deleting unresolved occurrences that were already
+scheduled earlier today, along with their notes and tracked time.
+
+Context:
+- `resolveGenerationWindow` starts the window at local midnight of the current
+  day (`lib/resolvers/occurrence.resolver.ts:469-474`).
+- `deleteUnresolvedIds` removes every unresolved occurrence inside that window
+  that the new schedule no longer generates
+  (`lib/resolvers/occurrence.resolver.ts:293-303`). It has no guard for
+  scheduled instants earlier than `now`.
+- `docs/DATA_MODEL.md:1047` states only "Future unresolved occurrences may be
+  regenerated." The implementation contradicts the contract.
+- The occurrence row owns its `note` column, and `occurrence_time_sessions`
+  cascades on occurrence delete
+  (`supabase/migrations/20260802000000_add_occurrence_time_sessions.sql:13`).
+  Both are destroyed with no warning and no undo.
+- Reproduction: at 14:00 local, a behavior has an unresolved 08:00 occurrence
+  today carrying a note and two stopped time sessions. Editing the behavior so
+  its schedule starts at 09:00 deletes the 08:00 row, its note, and its
+  sessions.
+
+Settled decisions:
+- Deletion eligibility narrows to occurrences whose scheduled instant is
+  strictly after `now`. The generation window itself is unchanged, so
+  regeneration behavior for the rest of today is unaffected.
+- Independently of timing, an occurrence is never deleted when it has a
+  non-empty note or any `occurrence_time_sessions` row. This is a second,
+  independent guard, not a replacement for the time rule.
+- Preserved occurrences that the new schedule no longer produces remain stored
+  as unresolved on their original date. The user still owes them a decision;
+  they are not rewritten, retimed, or auto-resolved.
+- `now` continues to be injected into the resolver. Do not read the clock
+  inside `lib/resolvers`.
+
+Implementation order:
+1. Add failing resolver tests for: an unresolved past-instant occurrence today,
+   an unresolved future occurrence today, an unresolved past occurrence with a
+   note, and one with a stopped time session.
+2. Narrow `deleteUnresolvedIds` in `lib/resolvers/occurrence.resolver.ts`.
+3. Thread note and time-session presence into the deletion planner input so the
+   resolver can apply the second guard without querying anything itself.
+4. Update `docs/DATA_MODEL.md` if the wording needs to state the note and
+   time-session guard explicitly.
+
+Acceptance criteria:
+- Editing a behavior at 14:00 preserves an unresolved 08:00 occurrence from the
+  same day, including its note and time sessions.
+- Editing a behavior still removes unresolved occurrences scheduled later today
+  and on future days when the new schedule no longer produces them.
+- An unresolved occurrence carrying a note or a time session is never deleted
+  by a schedule edit, regardless of its scheduled instant.
+- Resolved occurrences and past-day occurrences remain preserved as before.
+- `npm run resolvers:check` and the full test suite pass.
+
+Suggested files:
+- `lib/resolvers/occurrence.resolver.ts`
+- `lib/services/occurrence.service.ts`
+- `tests/occurrence.resolver.test.ts`
+- `docs/DATA_MODEL.md`
+
+---
+
+## Ticket 079: Profile email integrity and reminder recipient trust
+
+Stop an authenticated account from redirecting Cadence's transactional email to
+an arbitrary address.
+
+Context:
+- `profiles.email` is directly writable by its owner. The base schema grants
+  table-wide DML (`supabase/migrations/20260607204951_create_database_schema.sql:292`)
+  and the RLS policy is scoped only by `id = auth.uid()` (`:166-180`). There is
+  no column-level restriction, and the only trigger on the table is
+  `set_profiles_updated_at`.
+- `handle_new_user` seeds the email at signup and nothing re-syncs it
+  afterward.
+- The reminder processor reads that value as the recipient
+  (`lib/services/reminder.service.ts:455`) and passes it to Sequenzy as `to`
+  (`lib/services/sequenzy.service.ts:78-95`). The behavior title flows into the
+  template variables, so the message body is partly attacker-controlled.
+- Attack: sign up, set `profiles.email` to a victim's address through the Data
+  API, create a behavior with email reminders and a chosen title, then
+  repeatedly reset sent `reminder_deliveries` rows to
+  `status='pending', processing_started_at=null` — the same table-wide grant
+  permits it (`:296`). Result is repeated mail to a third party from the
+  project's sending domain and reputation.
+- Verified safe to narrow: `lib/db/profiles.repo.ts` only ever issues
+  `.update({ timezone })`. No user-scoped app code writes `email` or
+  `display_name`.
+- Verified NOT safe to blanket-revoke: `reminder_deliveries` is written by the
+  user-scoped client during interactive sync
+  (`lib/services/occurrence.service.ts:646`, `:775` create a user client and
+  reach `syncCoveredReminderDeliveries`). Revoking DML there would break the
+  app.
+
+Settled decisions:
+- Replace the table-wide profiles grant with a column grant:
+  `grant update (timezone) on public.profiles to authenticated`. `email`,
+  `display_name`, `id`, and the timestamps become non-writable by the
+  `authenticated` role.
+- Keep `profiles.email` correct by syncing it from `auth.users` on update,
+  mirroring the existing `handle_new_user` insert path, so a provider-side
+  email change still propagates.
+- Add a `before update` trigger on `reminder_deliveries` that rejects, for any
+  role other than `service_role`, a transition out of a terminal status
+  (`sent`, `failed`) back to `pending`, and rejects clearing a non-null
+  `processing_started_at`. This kills the recycle vector while leaving the
+  app's legitimate pending-plan and cancel writes working.
+- The reminder recipient continues to read from `profiles.email`, which is
+  trustworthy once the column is locked. Do not add a second identity lookup.
+
+Acceptance criteria:
+- An authenticated Data API client cannot change its own `profiles.email` or
+  `display_name`; a timezone update from Settings still succeeds.
+- An authenticated client cannot move a `sent` or `failed` reminder delivery
+  back to `pending`, nor clear `processing_started_at`.
+- An email change at the identity provider propagates to `profiles.email`.
+- Reminder planning, cancellation, and interactive occurrence sync all still
+  work through the user-scoped client.
+- `npm run smoke:rls` is extended to cover both new restrictions and passes.
+
+Suggested files:
+- new migration via `npm run supabase -- migration new <descriptive_name>`
+- `scripts/supabase-rls-smoke.mjs`
+- `lib/db/profiles.repo.ts`
+- `docs/DATA_MODEL.md`
+- `tests/supabase-function-permissions-migration.test.ts`
+
+---
+
+## Ticket 080: Reminder pipeline reliability — claim recovery, cancel race, channel isolation
+
+Three defects in one surface: reminders can be stranded forever, can send after
+the user resolves the occurrence, and can be blocked entirely by unrelated
+email configuration.
+
+Context:
+- Claim stranding: claiming sets `processing_started_at`
+  (`lib/db/reminderDeliveries.repo.ts:236`), and every due query requires
+  `.is("processing_started_at", null)` (`:154`, `:178`). Reconciliation also
+  excludes claimed pending rows (`:266`). No path expires or reclaims an
+  abandoned claim, and neither provider call has a bounded timeout. A killed
+  serverless invocation therefore leaves a row `pending` and claimed forever:
+  never sent, never logged as failed. Found independently by three audit
+  passes.
+- Cancel race: occurrence validation happens before the provider call
+  (`lib/services/reminder.service.ts:424-484`). A status transition in that
+  window cancels the delivery via the status RPC
+  (`supabase/migrations/20260709203117_add_transactional_occurrence_status_change.sql:298`),
+  but the post-send update filters only on delivery and user id
+  (`lib/db/reminderDeliveries.repo.ts:336`), flipping the cancelled row to
+  `sent`. Violates `docs/NOTIFICATION_SPEC.md:242`.
+- Channel coupling: `processDueReminders` awaits email before push
+  (`lib/services/reminder.service.ts:238-247`), and email processing builds the
+  Sequenzy sender before checking whether any email delivery is due (`:269`).
+  A deployment with VAPID configured and Sequenzy absent gets no browser
+  reminders at all.
+
+Settled decisions:
+- A claim older than 15 minutes is reclaimable. Due queries select rows where
+  `processing_started_at is null or processing_started_at < now() - interval
+  '15 minutes'`, and the claim update carries the same predicate so two workers
+  cannot both win a reclaim.
+- Reclaiming an abandoned row counts as a retry, not a failure. Emit a
+  monitoring event when a reclaim occurs so stranding becomes visible.
+- Provider calls get a bounded timeout via `AbortSignal.timeout` at 10 seconds.
+  A timeout records a delivery failure through the existing failure path.
+- The terminal `sent` update adds `status = 'pending'` to its filter. If it
+  updates zero rows the delivery was cancelled mid-flight: log it and do not
+  resurrect the row. Report it in the result counters as cancelled, not sent.
+- The Sequenzy sender is constructed lazily, only after the due-email query
+  returns at least one row. Each channel is isolated so one channel's
+  configuration or provider failure cannot abort the other.
+- Do not move reminder orchestration out of `lib/services`. Resolvers stay
+  pure.
+
+Acceptance criteria:
+- A delivery claimed more than 15 minutes ago and never completed is picked up
+  by the next run and sent exactly once.
+- Two concurrent workers cannot both claim the same reclaimable row.
+- A status change that cancels a delivery mid-send leaves the row `cancelled`,
+  never `sent`.
+- With Sequenzy env vars absent and no email deliveries due, browser push
+  reminders still process normally.
+- With Sequenzy env vars absent and email deliveries due, those deliveries
+  record a failure and push still processes.
+- A hung provider call fails the delivery within the timeout instead of
+  stranding it.
+
+Suggested files:
+- `lib/services/reminder.service.ts`
+- `lib/db/reminderDeliveries.repo.ts`
+- `lib/services/sequenzy.service.ts`
+- `lib/services/web-push.service.ts`
+- `tests/reminder.service.test.ts`
+- `docs/NOTIFICATION_SPEC.md`
+
+---
+
+## Ticket 081: Complete reads for export and restore
+
+Stop exports and restores from silently truncating at the PostgREST row cap.
+
+Context:
+- `listTimeSessionsByOccurrenceIds` (`lib/db/timeSessions.repo.ts:15-27`) and
+  `listBehaviorDefinitionEvents`
+  (`lib/db/behaviorDefinitionEvents.repo.ts:181-205`) are plain unpaginated
+  selects — no `.range()`, no `.limit()`, no loop. They are bounded by the
+  configured row cap (`supabase/config.toml:18` sets `max_rows = 1000`
+  locally; the hosted value was not verified during the audit and must be
+  confirmed first).
+- The exporter writes the truncated array length into the BehaviorLog manifest
+  as the authoritative `record_count`
+  (`lib/services/export.service.ts:216-241`), so a consumer cannot detect the
+  loss.
+- The restore and fingerprint path has the same shape for occurrences, status
+  events, notes, and mappings
+  (`lib/services/behaviorlog-import.service.ts:680-701`,
+  `lib/db/occurrences.repo.ts:160-175`,
+  `lib/db/occurrenceStatusEvents.repo.ts:138-170`, `lib/db/notes.repo.ts:44-59`).
+  A restore can therefore commit while silently retaining rows it should have
+  removed, because the planner never saw them.
+- The main export bundle is unaffected: `readExportPageBundle` calls an RPC
+  returning a single JSON row (`lib/db/exportPageRead.repo.ts:153`).
+- This lands on the stated "Portable by default" product principle
+  (`PRODUCT.md:50`).
+
+Settled decisions:
+- Confirm the hosted `max_rows` value before implementing, and record it in
+  `docs/SUPABASE_WORKFLOW.md`.
+- Add one shared paginated-read helper in `lib/db` that loops with `.range()`
+  at a fixed page size until a short page returns. Every user-scoped list read
+  that can grow without bound uses it.
+- Pagination is not a silent best effort. The helper carries an absolute
+  ceiling; reaching it throws rather than returning a partial array, so a
+  future unbounded growth case fails loudly instead of truncating.
+- Manifest and summary counts derive from the materialized arrays after
+  pagination completes, never from a separate count query.
+
+Acceptance criteria:
+- An account with more rows than the row cap exports every time session and
+  every definition event, and the manifest count equals the true count.
+- A restore preview for an account above the cap sees the full local graph, so
+  its fingerprint and planned actions cover every row.
+- A read that would exceed the absolute ceiling throws a clear error instead of
+  truncating.
+- Existing export shape, ordering, and hashing tests pass unchanged.
+
+Suggested files:
+- new `lib/db/paginated-read.ts`
+- `lib/db/timeSessions.repo.ts`
+- `lib/db/behaviorDefinitionEvents.repo.ts`
+- `lib/db/occurrences.repo.ts`
+- `lib/db/occurrenceStatusEvents.repo.ts`
+- `lib/db/notes.repo.ts`
+- `lib/services/export.service.ts`
+- `tests/export.service.test.ts`
+- `docs/SUPABASE_WORKFLOW.md`
+
+---
+
+## Ticket 082: Push subscription bounds and account-switch recovery
+
+Cap how much outbound work one account can create, and let a shared browser
+switch accounts without stranding notification setup.
+
+Context:
+- Registration accepts any syntactically valid HTTPS endpoint with no
+  per-account quota (`lib/services/push-subscription.service.ts:108-122`,
+  `lib/db/pushSubscriptions.repo.ts:12`), and a successful request resets the
+  route's auth-failure limiter (`app/api/push/subscribe/route.ts:142`), so that
+  limiter never bites on success.
+- Reminder processing loads every active subscription for the user and sends
+  sequentially (`lib/services/reminder.service.ts:621-631`). The batch limit
+  bounds deliveries, not subscriptions.
+- One account can therefore register thousands of endpoints pointing at hosts
+  of its choosing and create one due reminder, turning the cron into a blind
+  sequential request generator and blowing the function time budget — which
+  then strands the claimed delivery unless Ticket 080 has landed.
+- Account switching: sign-out leaves the previous account's active push row
+  intact (`app/auth/sign-out/route.ts:8`). If the provider reissues the same
+  endpoint for the next account, the single-active-owner constraint
+  (`supabase/migrations/20260722213732_enforce_single_active_push_endpoint_owner.sql:21`)
+  rejects it, and the client unsubscribes the fresh subscription and reports a
+  generic failure (`lib/push/browser.ts:120-173`). The repository's own test
+  models this (`tests/push-browser.test.ts:399`).
+
+Settled decisions:
+- Cap active push subscriptions per account at 20. Registering past the cap
+  evicts the least recently used active row rather than rejecting the new
+  device, so a legitimate multi-device user is never locked out.
+- Bound per-delivery fan-out: a single reminder delivery sends to at most the
+  capped set, and the send loop runs with bounded concurrency rather than an
+  unbounded sequential walk.
+- Successful registration no longer resets the auth-failure limiter; add a
+  separate, low-rate registration limiter keyed per account.
+- Sign-out deactivates the current device's push subscription row for the
+  departing account before clearing the session, so an endpoint reissued to the
+  next account is free to claim.
+- Endpoint host allowlisting is explicitly out of scope. The quota and the
+  bounded fan-out are the fix; an allowlist would break self-hosted and future
+  providers.
+
+Acceptance criteria:
+- An account cannot hold more than 20 active subscriptions; the 21st evicts the
+  least recently used.
+- One due browser reminder produces at most 20 outbound sends.
+- Repeated successful registrations are rate limited per account.
+- Signing out and signing in as a second account in the same browser results in
+  a working subscription for the second account.
+- Existing push registration, status, and delivery tests pass.
+
+Suggested files:
+- `lib/services/push-subscription.service.ts`
+- `lib/db/pushSubscriptions.repo.ts`
+- `lib/services/reminder.service.ts`
+- `lib/push/browser.ts`
+- `app/auth/sign-out/route.ts`
+- `app/api/push/subscribe/route.ts`
+- `tests/push-subscription.service.test.ts`
+- `tests/push-browser.test.ts`
+- `docs/NOTIFICATION_SPEC.md`
+
+---
+
+## Ticket 083: Settings write atomicity and account-deletion ordering
+
+Make the two destructive Settings paths either fully succeed or leave state
+unchanged, as their interaction contracts already promise.
+
+Context:
+- Account deletion runs `signOut({ scope: "global" })` first and only then
+  constructs the service-role client and deletes the auth user
+  (`lib/services/account.service.ts:33-46`). If deletion fails — missing
+  `SUPABASE_SERVICE_ROLE_KEY`, transient provider error — the account still
+  exists but every session is gone, and the error renders into a Settings page
+  the user can no longer reach. Contradicts `INT-SETTINGS-009`
+  (`interaction-registry.json:2497`), which describes a recoverable failure.
+- Timezone save performs the stale marker, profile update, behavior update, and
+  occurrence sync as four independent calls
+  (`lib/services/settings.service.ts:74-92`). A failure after the profile write
+  leaves the profile on the new zone and behaviors on the old, and background
+  sync then expands behaviors in the old zone while recording coverage fresh
+  under the new one. Contradicts `INT-SETTINGS-003`
+  (`interaction-registry.json:2357`), which promises unchanged stored timezone
+  and schedule graph on failure. Found by three audit passes.
+
+Settled decisions:
+- Account deletion reorders to: validate confirmation, construct the
+  service-role client and verify it is usable, delete the auth user, then sign
+  out. A failure before deletion leaves the session intact so the user can read
+  the error and retry.
+- The timezone save moves behind one owner-scoped atomic database function that
+  updates the profile, updates active behaviors, and marks sync state stale in a
+  single transaction, following the pattern already established by
+  `update_behavior_with_schedule_graph`. Occurrence sync stays outside the
+  transaction; it is idempotent and re-runnable.
+- On failure, both actions report the specific failure and guarantee no partial
+  commit. Do not add a repair path for a partial state that can no longer occur.
+
+Acceptance criteria:
+- A simulated `admin.deleteUser` failure leaves the user signed in, on
+  Settings, reading a specific error, with the account intact.
+- A successful deletion still revokes every session.
+- A simulated failure of the behavior timezone update leaves the profile
+  timezone unchanged.
+- A successful timezone save updates profile and behaviors together and marks
+  sync stale exactly once.
+- `INT-SETTINGS-003` and `INT-SETTINGS-009` descriptions match observed
+  behavior; update `interaction-registry.json` only if the settled behavior
+  differs from the recorded contract.
+
+Suggested files:
+- `lib/services/account.service.ts`
+- `lib/services/settings.service.ts`
+- `app/(app)/settings/actions.ts`
+- new migration via `npm run supabase -- migration new <descriptive_name>`
+- `tests/settings.service.test.ts`
+- `tests/account.service.test.ts`
+- `docs/USER_FLOWS.md`
+
+---
+
+## Ticket 084: Import apply concurrency fence and partial-failure recovery
+
+Make applying an accepted import run exactly once, even under a double-click or
+two tabs.
+
+Context:
+- The server does re-verify all four accepted fingerprints before writing, so
+  Ticket 055's binding works
+  (`lib/services/behaviorlog-import.service.ts:257-301`).
+- But nothing locks local state between the check and the writes, every request
+  creates its own apply run, and only *restore* has a unique accepted-preview
+  fence (`supabase/migrations/20260709191905_bind_import_apply_to_accepted_preview.sql:18-29`
+  versus `supabase/migrations/20260709203154_make_behaviorlog_restore_atomic_and_idempotent.sql:18-27`).
+- Behavior titles carry no unique constraint
+  (`supabase/migrations/20260607204951_create_database_schema.sql:23-39`), and
+  writes span multiple transactions
+  (`lib/services/behaviorlog-import-write.service.ts:329-511`), so a
+  mid-sequence failure marks the ledger failed while leaving created rows
+  behind (`:1391-1418`).
+- Two tabs applying the same accepted preview both pass the fingerprint check
+  before either writes, and both create the behavior with duplicated schedule
+  and history. Found by two audit passes.
+
+Settled decisions:
+- Give import apply the same unique accepted-preview fence restore already has:
+  at most one successful apply per accepted preview run id, enforced by a
+  database constraint rather than by application checks.
+- A second concurrent apply loses the fence and returns the first run's result
+  as an idempotent success, not an error. The user clicked once conceptually.
+- Product-row creation and its import mapping insert move into the same
+  transaction, so a mapping conflict cannot leave an orphaned behavior.
+- A run that fails partway is recorded as failed and its created rows are rolled
+  back with it. Do not add a compensating cleanup pass; make the write
+  transactional instead.
+
+Acceptance criteria:
+- Two concurrent applies of the same accepted preview produce one set of rows;
+  the second returns the first's result.
+- A forced failure midway through an apply leaves no product rows behind and
+  the ledger marked failed.
+- Retrying a failed apply from a fresh preview succeeds.
+- Existing fingerprint-binding and merge-preview tests pass unchanged.
+
+Suggested files:
+- `lib/services/behaviorlog-import.service.ts`
+- `lib/services/behaviorlog-import-write.service.ts`
+- `lib/db/behaviorLogImports.repo.ts`
+- new migration via `npm run supabase -- migration new <descriptive_name>`
+- `tests/behaviorlog-import-apply.service.test.ts`
+- `docs/EXPORT_FORMATS.md`
+
+---
+
+## Ticket 085: Occurrence identity for overlapping schedule time entries
+
+Let an exact-time entry and a range entry that share a start time coexist on the
+same behavior and day, as the recurrence contract already specifies.
+
+Context:
+- `docs/RECURRENCE_RULES.md:70-73` defines occurrence identity as behavior +
+  local date + start time + end-time/range identity.
+- The resolver honors that and plans both occurrences
+  (`lib/resolvers/occurrence.resolver.ts:436-457`).
+- The database key does not include range identity:
+  `unique (behavior_id, scheduled_for)`
+  (`supabase/migrations/20260607204951_create_database_schema.sql:63`), and the
+  upsert conflict target matches it
+  (`lib/db/occurrences.repo.ts:271`). Only one row survives.
+- Form validation permits creating exactly this shape, because duplicate start
+  times are rejected only *within* a single schedule
+  (`lib/services/behavior-form.ts:459-475`: "Use each start time only once
+  within a schedule").
+- Result: a Daily exact 09:00 schedule plus a Monday 09:00-12:00 range schedule
+  silently loses one occurrence every Monday, in Timeline, reminders, and
+  analytics alike.
+
+Settled decisions:
+- Occurrence identity in the database becomes behavior + local date + start
+  time + range identity, matching the documented rule.
+- Implement it as a stored generated column on `occurrences` holding the range
+  identity, with the unique key over
+  `(behavior_id, local_date, schedule_start_time, <generated column>)`, so the
+  PostgREST upsert can name real columns as its conflict target. Do not rely on
+  a partial or expression index that `onConflict` cannot reference.
+- Detect and report existing duplicate-suppressed rows before swapping the
+  constraint. If any account already lost occurrences to this key, backfill the
+  missing rows in the same migration from the owning schedule, as unresolved,
+  preserving everything already stored.
+- Form validation stays as-is. Two schedules sharing a start time is a
+  legitimate shape once the key is fixed; do not add a cross-schedule
+  uniqueness rule.
+
+Acceptance criteria:
+- A behavior with Daily exact 09:00 and Monday 09:00-12:00 produces two
+  distinct occurrences every Monday, in Timeline, reminders, and analytics.
+- The migration is idempotent and does not hardcode any account, behavior, or
+  occurrence id.
+- No existing occurrence row, status, note, or time session is modified or lost
+  by the constraint swap.
+- Occurrence sync remains idempotent: a second run creates no duplicates.
+- `npm run smoke:schedule-integrity:local` passes.
+
+Suggested files:
+- new migration via `npm run supabase -- migration new <descriptive_name>`
+- `lib/db/occurrences.repo.ts`
+- `lib/db/database.types.ts`
+- `lib/resolvers/occurrence.resolver.ts`
+- `tests/occurrence.resolver.test.ts`
+- `tests/sql/ticket-060-schedule-integrity-smoke.sql`
+- `docs/DATA_MODEL.md`
+
+---
+
+## Ticket 086: Import validation and dedup gaps
+
+Four validation holes that let a hash-valid bundle write inconsistent or
+duplicated history.
+
+Dependencies:
+- Ticket 084 for the transactional apply path.
+
+Context:
+- Date/instant disagreement: `local_date`, `scheduled_for_utc`, and `timezone`
+  are validated separately and never cross-checked
+  (`lib/resolvers/behaviorlog-import.resolver.ts:1004-1044`), then persisted
+  unchanged (`lib/services/behaviorlog-import-write.service.ts:2539-2553`). A
+  bundle declaring `2026-11-01T05:30:00Z` in `America/New_York` with
+  `local_date: 2026-10-31` is accepted, and the occurrence groups under the
+  wrong day permanently. DST boundaries make this easy to hit by accident.
+  Contradicts `docs/DATETIME_STRATEGY.md:66-75`.
+- Cross-behavior schedule references: validation checks that the occurrence's
+  behavior and schedule ids exist, never that the schedule belongs to that
+  behavior (`lib/resolvers/behaviorlog-import.resolver.ts:1437-1457`). The FK
+  enforces account ownership only
+  (`supabase/migrations/20260609202707_add_behavior_schedule_slots.sql:136-139`).
+  The same inconsistent shape is reachable in the live schema, since a slot's
+  `behavior_id` and its schedule parent are independently constrained.
+- Duplicate intervention ids: duplicate detection covers behaviors, schedules,
+  occurrences, status events, and notes, but omits interventions
+  (`lib/resolvers/behaviorlog-import.resolver.ts:354-370`). Apply collapses
+  them by external id while keeping both actions
+  (`lib/services/behaviorlog-import-write.service.ts:814-821`), so the first
+  write stores the last plan and the second no-ops. Preview shows no conflict.
+- Note reimport: merge preview maps a matching external note id to the existing
+  imported-note row without comparing content or attachment
+  (`lib/resolvers/behaviorlog-import.resolver.ts:2663-2725`), then apply treats
+  that note row's id as the note's parent `targetLocalId` while its dedup query
+  is scoped to the current run
+  (`lib/services/behaviorlog-import-write.service.ts:2032-2129`). Reimporting
+  the same note creates a duplicate parented to the first note.
+
+Settled decisions:
+- Validation derives the local date from the instant and timezone and compares
+  it to the declared `local_date`. A mismatch is a blocking error, not a
+  warning: the record is wrong, and accepting it corrupts day grouping.
+- Occurrence cross-reference validation additionally requires that the
+  referenced schedule's behavior equals the occurrence's behavior. Mismatch is
+  a blocking error.
+- Add a composite foreign key so the database enforces the same rule for
+  schedule slots, closing the shape at both layers.
+- Interventions join the duplicate-id detection set with the same
+  blocking-error treatment as the other record types.
+- Note mapping compares the note's attachment target as well as its external
+  id, and the apply dedup query is scoped to the account rather than the run.
+
+Acceptance criteria:
+- A bundle whose `local_date` disagrees with its instant and timezone is
+  rejected at preview with a clear per-record error.
+- A bundle attaching behavior B's schedule to behavior A's occurrence is
+  rejected at preview.
+- A bundle with two intervention rows sharing an id is rejected at preview
+  rather than silently keeping one.
+- Importing the same note-bearing bundle twice produces one note, correctly
+  parented to its behavior.
+- A valid Cadence export still imports cleanly with no new errors or warnings.
+
+Suggested files:
+- `lib/resolvers/behaviorlog-import.resolver.ts`
+- `lib/services/behaviorlog-import-write.service.ts`
+- new migration via `npm run supabase -- migration new <descriptive_name>`
+- `tests/behaviorlog-import-merge-preview.test.ts`
+- `tests/behaviorlog-import.resolver.test.ts`
+- `docs/EXPORT_FORMATS.md`
+
+---
+
+## Ticket 087: Multi-tab concurrency for behavior edits, statuses, notes, and cache
+
+Stop a second tab from silently reverting work, and stop a stale cache write
+from resurrecting deleted state.
+
+Context:
+- Stale behavior form: the edit form submits the full draft with no client
+  revision or `updated_at`
+  (`components/behaviors/BehaviorForm.tsx:204-206`). The service reads the
+  latest record *after* submission and uses that as the RPC precondition
+  (`lib/services/behavior.service.ts:141-193`), so the RPC guards server-side
+  interleaving but accepts an arbitrarily old browser draft. Tab A saves a
+  schedule change; Tab B saves a title change from its older draft and reverts
+  A's schedule with no warning.
+- Status conflict UI: the server correctly rejects a stale `expected_status`
+  (`lib/services/occurrence.service.ts:680-684`), but the client error branch
+  only clears optimistic state
+  (`components/timeline/StatusButtons.tsx:140-157`), rolling back to the stale
+  prop. The user is told "status changed" and then shown the old status.
+- Behavior review submissions: review rows do not pass the shared optimistic
+  `disabled` state, and `useFormStatus` disables only the submitted form
+  (`components/behaviors/BehaviorList.tsx:680-684`), so a sibling status button
+  stays live during an in-flight request.
+- Note last-write-wins: the note update filters only on user and occurrence id
+  with no expected prior value
+  (`lib/services/occurrence.service.ts:783-794`,
+  `lib/db/occurrences.repo.ts:280-289`).
+- Cache write-back: a miss loads asynchronously and writes back unconditionally
+  (`lib/cache/user-read-cache.ts:39-64`), so a mutation that invalidates the key
+  mid-load is overwritten when the older load resolves — an archived behavior
+  can render as active for up to the 60s TTL. The map is also process-local, so
+  invalidation does not cross Vercel instances.
+
+Settled decisions:
+- The behavior edit form carries the loaded record's `updated_at` as a hidden
+  precondition, and the update RPC rejects a mismatch. The failure is a
+  first-class conflict state, not a generic error: tell the user the behavior
+  changed elsewhere and offer to reload, without discarding their draft.
+- A status conflict refreshes the route on the error path as well as the
+  success path, so the UI lands on server truth rather than the state that
+  caused the conflict.
+- Behavior review status controls share the same optimistic disabled state
+  Timeline rows use, so only one status submission per occurrence can be in
+  flight.
+- Note saves carry an expected prior value and surface a conflict rather than
+  overwriting. Notes are user-authored prose; silent loss is worse than a
+  prompt.
+- Cache entries carry a generation counter incremented by invalidation. A load
+  that started before an invalidation does not write back.
+- Cross-instance cache coherence stays out of scope; the 60s TTL remains the
+  bound. Document that explicitly rather than implying global correctness.
+
+Acceptance criteria:
+- Two tabs editing one behavior: the second save reports a conflict and does not
+  revert the first tab's schedule change.
+- A status conflict leaves the row showing the server's current status.
+- Rapidly clicking Completed then Not Completed in behavior review issues one
+  submission.
+- A note conflict is reported rather than silently overwritten.
+- A behavior archived during an in-flight cached read does not reappear as
+  active.
+
+Suggested files:
+- `components/behaviors/BehaviorForm.tsx`
+- `components/behaviors/BehaviorList.tsx`
+- `components/timeline/StatusButtons.tsx`
+- `lib/services/behavior.service.ts`
+- `lib/services/occurrence.service.ts`
+- `lib/cache/user-read-cache.ts`
+- `tests/user-read-cache.test.ts`
+- `docs/USER_FLOWS.md`
+- `interaction-registry.json`
+
+---
+
+## Ticket 088: Background sync freshness and timezone propagation
+
+Stop background synchronization from certifying stale schedules as fresh, and
+stop new behaviors from inheriting an obsolete timezone.
+
+Dependencies:
+- Ticket 083 for the atomic timezone write.
+
+Context:
+- The sync processor loads behaviors *before* reading sync state
+  (`lib/services/occurrence.service.ts:404-445`), and the final upsert clears
+  `stale` with no generation number or expected-state check (`:538-540`,
+  `lib/db/occurrenceSyncState.repo.ts:78`). A behavior edit committed in that
+  window is written over: the processor generates from its stale snapshot and
+  then marks the user fresh, so the edit is never picked up.
+- Behavior creation prefers the hidden form timezone over the current profile
+  timezone (`components/behaviors/BehaviorForm.tsx:209-210`,
+  `lib/services/behavior.service.ts:85-92`), while generation uses the
+  behavior's stored zone and sync state records the profile zone as fresh
+  (`lib/services/occurrence.service.ts:167`, `:337`). Later synchronization
+  never repairs the mismatch. Found by two audit passes.
+
+Settled decisions:
+- Sync state carries a generation counter. Behavior writes increment it; the
+  processor captures it before loading behaviors and the final freshness upsert
+  applies only when the counter is unchanged. A bumped counter means the run's
+  snapshot is obsolete: leave the account stale for the next run.
+- Behavior creation uses the server's current profile timezone as the source of
+  truth. The hidden form field is removed rather than merely deprioritized, so
+  the stale value cannot be submitted at all.
+- Freshness is never recorded for a timezone other than the one actually used
+  to expand the behaviors in that run.
+
+Acceptance criteria:
+- A behavior edit committed while a sync run is in flight leaves the account
+  stale and is applied by the next run.
+- A behavior created from a tab loaded before a timezone change is stored in
+  the current profile timezone.
+- Sync state never records a timezone that differs from the expansion timezone.
+- Repeated sync runs remain idempotent.
+
+Suggested files:
+- `lib/services/occurrence.service.ts`
+- `lib/db/occurrenceSyncState.repo.ts`
+- `lib/services/behavior.service.ts`
+- `components/behaviors/BehaviorForm.tsx`
+- new migration via `npm run supabase -- migration new <descriptive_name>`
+- `tests/occurrence-sync-state.service.test.ts`
+- `docs/DATETIME_STRATEGY.md`
+
+---
+
+## Ticket 089: Timeline and Export interaction correctness
+
+Five interaction defects across Timeline and Export that strand, discard, or
+mislead.
+
+Context:
+- Note remount discards typing: a successful save starts `router.refresh()`
+  while leaving the textarea editable
+  (`components/timeline/OccurrenceNoteForm.tsx:33-52`), and both hosts key the
+  form on the stored note value (`components/timeline/OccurrenceRow.tsx:222`,
+  `components/behaviors/BehaviorList.tsx:690`). When refreshed data changes the
+  key, React remounts and drops any newer draft.
+- Stale preview stays actionable: selecting another import or restore file
+  replaces the payload without invalidating the rendered preview or its
+  confirmation controls
+  (`components/export/BehaviorLogImportPanel.tsx:59-66`, `:194`, `:521`,
+  `components/export/BehaviorLogRestorePanel.tsx:57-64`, `:183`). Server
+  fingerprint checks prevent corruption, so the user is walked to the end of a
+  destructive confirm flow for a guaranteed failure.
+- Timer loses Stop at midnight: a timer may start on a current-day resolved
+  occurrence (`lib/resolvers/time-tracking.resolver.ts:46`), but after midnight
+  the retention rule drops that row from Timeline
+  (`lib/resolvers/timeline.resolver.ts:190-205`) and behavior review exposes
+  only Reset (`components/behaviors/BehaviorReviewTimeReset.tsx:25-32`). The
+  user can discard the elapsed time but not keep it, contrary to
+  `docs/USER_FLOWS.md:274`.
+- Chime blocks reconciliation: a Completed transition awaits the full audio
+  fallback chain before `router.refresh()` and `onStatusSuccess`
+  (`components/timeline/StatusButtons.tsx:145-146`,
+  `lib/ui/completion-feedback.ts:77`, `:106`, `:253`), with no timeout on media
+  playback, context resume, or asset fetch. A stalled asset leaves a committed
+  row stuck in optimistic "Saving" with controls disabled.
+- Pull-to-refresh captures modal gestures: the wrapper contains the modal,
+  checks *document* scroll position rather than the modal's scroll container,
+  and its interactive-target selector omits `<summary>`
+  (`components/timeline/MobileTimelinePullToRefresh.tsx:24`, `:90`, `:128`,
+  `components/timeline/Timeline.tsx:31-33`). Scrolling a long modal at 390px can
+  lock into a Timeline refresh and `preventDefault` the modal's own scroll,
+  contradicting `INT-TIMELINE-010` (`interaction-registry.json:1295`).
+
+Settled decisions:
+- The note form is no longer keyed on the stored value. It reconciles on
+  successful save and preserves any draft typed after the save started.
+- Selecting a new file clears the previous preview and disables its
+  confirmation controls immediately. The user re-previews; no destructive
+  control is ever live against a payload it does not describe.
+- Stop remains available wherever a running timer is reachable, including
+  behavior review after the Timeline row ages out. Reset is not an acceptable
+  substitute, because it discards the duration.
+- Completion feedback is fire-and-forget: audio never gates `router.refresh()`
+  or `onStatusSuccess`. Keep the existing exactly-once playback guarantee from
+  Ticket 071 — it is a sequencing change, not a removal.
+- The pull gesture checks the scroll position of the nearest scrollable
+  ancestor, treats `<summary>` as interactive, and does not arm while a modal is
+  open.
+
+Acceptance criteria:
+- Typing immediately after a successful note save is preserved.
+- Selecting a second file leaves no actionable preview from the first.
+- A timer running on an aged-out resolved occurrence can still be stopped with
+  its duration preserved.
+- A stalled chime asset does not leave a committed row disabled.
+- Scrolling and swiping inside an open Needs decision modal never triggers a
+  Timeline refresh.
+- Ticket 071's single-playback and 48px alignment regressions still pass.
+
+Suggested files:
+- `components/timeline/OccurrenceNoteForm.tsx`
+- `components/timeline/OccurrenceRow.tsx`
+- `components/timeline/StatusButtons.tsx`
+- `components/timeline/MobileTimelinePullToRefresh.tsx`
+- `components/timeline/mobile-pull-to-refresh.ts`
+- `components/behaviors/BehaviorReviewTimeReset.tsx`
+- `components/export/BehaviorLogImportPanel.tsx`
+- `components/export/BehaviorLogRestorePanel.tsx`
+- `lib/ui/completion-feedback.ts`
+- `tests/timeline-interactions-ui.test.tsx`
+- `interaction-registry.json`
+
+---
+
+## Ticket 090: Accessibility, form errors, and hydration determinism
+
+Three defects that break the documented WCAG 2.2 AA baseline or leave the user
+without feedback.
+
+Context:
+- Focus trap: the Needs decision dialog's focusable selector omits native
+  `<summary>` elements while collecting controls inside *closed* `<details>`,
+  because it never tests visibility
+  (`components/timeline/NeedsDecisionDialog.tsx:13`, `:65`, `:83`, `:185`).
+  Focus can escape the `aria-modal` dialog after the last summary, and
+  Shift+Tab can target a hidden control. `PRODUCT.md:55` commits to WCAG 2.2 AA.
+- Invisible recurrence errors: the server writes incomplete-recurrence errors
+  to `fieldErrors.recurrence` (`lib/services/behavior-form.ts:112`, `:670`) but
+  the form renders only `fieldErrors.schedule`
+  (`components/behaviors/BehaviorForm.tsx:438-447`, `:832`). Selecting Weekly,
+  clearing every weekday, and saving yields "Check the highlighted fields" with
+  nothing highlighted.
+- Hydration mismatch: both Export client panels format run timestamps during
+  render with no explicit timezone
+  (`components/export/BehaviorLogImportPanel.tsx:704`, `:1114`,
+  `components/export/BehaviorLogRestorePanel.tsx:550`, `:683`), so the server
+  renders in the server's zone and hydration in the browser's. A run at
+  `2026-08-06T00:30:00Z` renders "August 6" on a UTC server and "August 5" in an
+  America/New_York browser. STATUS.md records an unexplained production
+  hydration warning on Timeline, Behaviors, and Export from Ticket 070; this is
+  a confirmed mismatch source on Export but is not yet proven to be that
+  warning.
+
+Settled decisions:
+- The dialog's focusable set includes `<summary>` and excludes anything not
+  currently rendered, tested by visibility rather than by tag list.
+- Every `fieldErrors` key the server can produce has a rendered surface. Add a
+  check so a new key cannot be introduced without one.
+- All user-facing timestamp formatting takes the resolved profile timezone
+  explicitly. No locale formatting runs against an implicit ambient zone.
+- Sweep Timeline and Behaviors for the same pattern in this ticket. If the
+  production warning persists after the sweep, record that in STATUS.md rather
+  than closing the item as fixed — do not claim a root cause that was not
+  demonstrated.
+
+Acceptance criteria:
+- Tab and Shift+Tab remain inside the Needs decision dialog with all rows
+  collapsed, and never focus a hidden control.
+- Saving a Weekly behavior with no weekday selected shows a message on the
+  recurrence field.
+- Server and client render identical timestamp text for a fixed instant with
+  the server and browser in different zones.
+- No new hydration warning appears in a production-mode render of Timeline,
+  Behaviors, and Export.
+
+Suggested files:
+- `components/timeline/NeedsDecisionDialog.tsx`
+- `components/behaviors/BehaviorForm.tsx`
+- `components/export/BehaviorLogImportPanel.tsx`
+- `components/export/BehaviorLogRestorePanel.tsx`
+- `lib/services/behavior-form.ts`
+- `tests/ux-ticket-049-052-ui.test.tsx`
+- `docs/UI_SPEC.md`
+
+---
+
+## Ticket 091: Reminder delivery cadence and export cost guardrails
+
+Close the gap between the reminder granularity the product offers and the
+granularity it delivers, and stop the Export page from doing unbounded work on
+load.
+
+Dependencies:
+- Ticket 080 for claim recovery, and Ticket 081 for paginated reads.
+
+Context:
+- `vercel.json:5-6` runs reminder processing at `0 * * * *`. The product offers
+  "at scheduled start" and "15 minutes before"
+  (`docs/NOTIFICATION_SPEC.md:97-99`, `docs/UI_SPEC.md:448-449`), and the
+  processor only sends already-due rows. An at-start reminder due at 09:01
+  arrives at 10:00 — the offered granularity and the delivered granularity are
+  two orders of magnitude apart.
+- Merely *opening* the Export page builds the entire bundle with
+  `enforceDownloadGuardrails: false`
+  (`app/(app)/export/page.tsx:64`, `lib/services/export.service.ts:114-117`),
+  so no rate limit or circuit breaker applies. The resolver simultaneously
+  materializes JSONL, CSV, JSON, Markdown, and BehaviorLog structures
+  (`lib/resolvers/export.resolver.ts:222-259`) with ZIP buffers on top
+  (`lib/services/zip.ts:41`). Time-tracking exports also put every included
+  occurrence id into a single `.in(...)`, which becomes an oversized URI.
+
+Settled decisions:
+- Reminder processing runs every 5 minutes. Worst-case lateness drops to about
+  5 minutes, which is defensible against a 15-minute-before offset. Confirm the
+  cron frequency available on the current Vercel plan before implementing; if
+  5 minutes is unavailable, record the achievable frequency and narrow the
+  offsets the UI offers to match rather than shipping a promise the platform
+  cannot keep.
+- The Export page renders from a summary read — counts, range, and available
+  formats — and does not build downloadable artifacts. Artifacts are built only
+  on the download request, where guardrails already apply.
+- Time-session reads are chunked by occurrence id rather than sent as one
+  `.in(...)`.
+- No hard cap on export size in this ticket. Streaming or chunked download is
+  future work; the fix here is to stop paying the cost on page load.
+
+Acceptance criteria:
+- A reminder due at 09:01 is delivered within about 5 minutes.
+- The offsets offered in the UI are all deliverable at the configured cron
+  frequency.
+- Opening the Export page issues no artifact serialization and no rate-limit
+  consumption.
+- An all-time export with time tracking on a large account completes without an
+  oversized query URI.
+- Existing export artifact content and filenames are unchanged.
+
+Suggested files:
+- `vercel.json`
+- `app/(app)/export/page.tsx`
+- `lib/services/export.service.ts`
+- `lib/db/timeSessions.repo.ts`
+- `docs/NOTIFICATION_SPEC.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `tests/export.service.test.ts`
+
+---
+
+## Ticket 092: Marketing example bundle and agent-readability parity
+
+Make the advertised example bundle actually import, and make the markdown
+mirrors say what the HTML says.
+
+Context:
+- The generated example emits `recurrence: { frequency: "daily", interval: 1 }`
+  (`apps/marketing/scripts/build-example-bundle.mjs:46-49`), but
+  `isSupportedRecurrence` switches on `recurrence.type`
+  (`lib/resolvers/behaviorlog-import.resolver.ts:4354-4377`) and the exporter
+  emits `type` (`lib/resolvers/export.resolver.ts:1781-1800`). The example
+  schedule is skipped as `unsupported_recurrence` and its behavior is skipped
+  for having no supported schedule. The marketing check only asserts the archive
+  is non-empty (`apps/marketing/scripts/check-agent-readability.mjs:110-111`).
+  This is the adoption surface for the BehaviorLog standard: the one file a
+  prospective user downloads to try the flow fails the flow.
+- `/cadence` and `/standard` are documented as dedicated pages
+  (`docs/ROUTE_MAP.md:35-42`,
+  `docs/PUBLIC_PRODUCT_ARCHITECTURE.md:111-120`) but redirect to the homepage
+  (`apps/marketing/astro.config.mjs:6-12`) and appear in no manifest, sitemap,
+  markdown mirror, or `llms-full.txt`. The real `/faq` page is missing from the
+  route map. The header also lacks the documented Cadence and BehaviorLog links.
+- The HTML About page states there is no third-party analytics or behavioral
+  tracking (`apps/marketing/src/pages/about.astro:64-76`); its markdown source
+  omits the claim (`apps/marketing/src/data/routes.ts:141-172`). The Examples
+  page's "no real account or reminder-provider data" statement is likewise
+  weakened in its mirror. `llms-full.txt` and the `.md` routes consume the
+  divergent copy, so an agent and a human read different privacy postures.
+
+Settled decisions:
+- The example generator emits the same recurrence shape the exporter produces.
+  The generator stops hand-authoring bundle records where it can reuse export
+  serialization instead.
+- The marketing readability check gains a real conformance assertion: the
+  generated example must pass Cadence's own import preview with zero errors and
+  zero skipped behaviors. A non-empty archive is not evidence.
+- Documentation follows implementation for routes: `/cadence` and `/standard`
+  remain redirects and the docs stop describing them as pages, and `/faq` is
+  added to the route map. Revisit dedicated pages only under a scoped ticket.
+- Markdown mirrors must carry every substantive claim the HTML page makes,
+  especially privacy and data-handling statements. Add a parity check rather
+  than relying on review.
+
+Acceptance criteria:
+- The published example bundle imports into Cadence with zero errors and its
+  behavior and schedule created.
+- `npm run marketing:check` fails if the example stops importing cleanly.
+- Route documentation matches the shipped routes in both directions.
+- Every privacy and data-handling claim in an HTML page appears in its markdown
+  mirror, enforced by a check.
+- `npm run marketing:build` and the agent-readability gate pass.
+
+Suggested files:
+- `apps/marketing/scripts/build-example-bundle.mjs`
+- `apps/marketing/scripts/check-agent-readability.mjs`
+- `apps/marketing/src/data/routes.ts`
+- `apps/marketing/src/pages/about.astro`
+- `apps/marketing/src/pages/examples.astro`
+- `docs/ROUTE_MAP.md`
+- `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+
+---
+
+## Ticket 093: Governance checks, environment contract, and database operations
+
+Close the gaps that let the repository's own guardrails report success while
+invariants drift.
+
+Context:
+- The interaction checker compares marker counts and implementation substrings
+  (`scripts/check-interactions.mjs:136-141`, `:325-333`, `:435-442`), so an
+  existing control whose side effect changes — a note update becoming an
+  occurrence delete — passes with a stale registry. The resolver checker's
+  "nontrivial API logic" regex omits direct `.rpc(` and `.upsert(` calls
+  (`scripts/check-resolvers.mjs:182-205`), so a route can reach Supabase
+  directly without tripping the bypass rule. Both report large invariant counts
+  (4,498 interaction invariants at Ticket 071), which reads as stronger coverage
+  than it is.
+- `NEXT_PUBLIC_MARKETING_SITE_URL`, `MARKETING_SITE_URL`, and
+  `PUBLIC_CADENCE_APP_URL` are read but documented nowhere and all fall back to
+  production domains (`lib/marketing-site.ts:1-3`,
+  `apps/marketing/src/data/site.ts:5-10`). The env checker uses a fixed list
+  that omits all three (`scripts/check-agents.mjs:186-208`). A preview marketing
+  deploy without `PUBLIC_CADENCE_APP_URL` sends testers into the production app.
+  `CADENCE_PERF_LOG` and `DESIGN_SYSTEM_BENCH_SKILL_DIR` are also unlisted.
+- The daily sync batch orders all accounts by stale state, horizon, update time,
+  and user id (`lib/services/occurrence.service.ts:510-518`), but the only index
+  starts with `user_id`
+  (`supabase/migrations/20260625204148_add_occurrence_sync_state.sql:33-34`), so
+  each 25-row batch scans and sorts the whole ledger as accounts grow.
+- Two large migrations combine table creation, backfills, `SET NOT NULL`, and FK
+  creation without explicit transaction boundaries
+  (`supabase/migrations/20260609202707_add_behavior_schedule_slots.sql:1-139`,
+  `supabase/migrations/20260626140000_add_behavior_schedules.sql:1-142`). Under
+  hosted push semantics an intermediate failure leaves earlier statements
+  committed, so the retry fails at `CREATE TABLE`.
+- `vercel.json:8-10` schedules occurrence sync, but
+  `docs/VERCEL_WORKFLOW.md:108-131` documents only reminder processing while
+  claiming to own scheduled triggers.
+- `INT-SETTINGS-004` says the notification action appears only when permission
+  is not denied (`interaction-registry.json:2378`); the panel shows "Refresh
+  this device" whenever push is supported
+  (`components/settings/NotificationPermissionPanel.tsx:110`, `:148`, `:311`).
+- Test-login gating is sound, but once enabled every successful GET creates
+  another confirmed auth user and only a *failed* sign-in deletes one
+  (`app/auth/test-login/route.ts:41-70`); cleanup is operator-run only.
+
+Settled decisions:
+- The interaction check verifies each registry entry's recorded side effect
+  against the handler it names, not just marker presence and counts. Where that
+  cannot be mechanically verified, the entry is flagged for human review rather
+  than counted as passing.
+- Invariant counts stop being reported as a headline number, since they invite
+  false confidence. Report checked entries and unverifiable entries separately.
+- The resolver bypass pattern includes `.rpc(` and `.upsert(`.
+- `.env.example` documents every variable the app reads, and the env checker
+  derives its list from the source rather than a hardcoded array. Any variable
+  whose absence changes behavior gets an explicit default and a comment naming
+  the consequence.
+- Add the composite index matching the sync batch's ordering.
+- Both historical migrations are left as-is — rewriting applied migrations is
+  more dangerous than the defect. Instead, document the transaction requirement
+  in `docs/SUPABASE_WORKFLOW.md` and add a check that new migrations containing
+  a backfill or `SET NOT NULL` carry explicit `begin`/`commit`.
+- Resolve the notification-panel drift by deciding which behavior is intended
+  and correcting the other side. Denied permission should still show the
+  refresh action, since a user who re-grants permission in browser settings
+  needs a way to re-register; update the registry entry to match.
+- Test-login gains a creation quota per process and a documented cleanup
+  cadence in `docs/OPERATIONS.md`.
+- `docs/VERCEL_WORKFLOW.md` documents both crons.
+
+Acceptance criteria:
+- A deliberately altered interaction side effect fails `npm run
+  interactions:check`.
+- A route added with a direct `.rpc(` call fails `npm run resolvers:check`.
+- `npm run agents:check` fails when the source reads a variable absent from
+  `.env.example`.
+- The sync batch query uses the new index.
+- A new migration with a backfill and no explicit transaction fails the check.
+- `docs/VERCEL_WORKFLOW.md` lists both scheduled jobs.
+- `INT-SETTINGS-004` matches the shipped panel.
+
+Suggested files:
+- `scripts/check-interactions.mjs`
+- `scripts/check-resolvers.mjs`
+- `scripts/check-agents.mjs`
+- `.env.example`
+- new migration via `npm run supabase -- migration new <descriptive_name>`
+- `docs/SUPABASE_WORKFLOW.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `docs/OPERATIONS.md`
+- `interaction-registry.json`
+
+---
+
 ## Deferred work
 
 PWA caching, offline timeline access, local pending status changes, and sync conflict handling are not part of the v1 ticket sequence.
