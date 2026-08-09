@@ -218,7 +218,7 @@ describe("Supabase proxy session update", () => {
     );
   });
 
-  it("lets authenticated local development login preview requests continue", async () => {
+  it("lets authenticated login preview requests continue", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
     const getClaims = vi.fn().mockResolvedValue({
@@ -246,7 +246,7 @@ describe("Supabase proxy session update", () => {
     expect(response.headers.get("location")).toBeNull();
   });
 
-  it("redirects authenticated login preview requests in production", async () => {
+  it("lets authenticated production login preview requests continue", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
@@ -266,12 +266,37 @@ describe("Supabase proxy session update", () => {
 
     const response = await updateSession(
       requestWithAuthCookie(
-        "http://localhost:3000/login?preview=1&next=%2Fsettings",
+        "https://cadence-blush-three.vercel.app/login?preview=1&next=%2Fsettings",
       ),
     );
 
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("still redirects ordinary authenticated login requests in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+
+    vi.mocked(createServerClient).mockReturnValue({
+      auth: {
+        getClaims: vi.fn().mockResolvedValue({
+          data: {
+            claims: {
+              sub: "user-1",
+            },
+          },
+          error: null,
+        }),
+      },
+    } as never);
+
+    const response = await updateSession(
+      requestWithAuthCookie("https://cadence.example/login?next=%2Fsettings"),
+    );
+
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3000/settings",
+      "https://cadence.example/settings",
     );
   });
 

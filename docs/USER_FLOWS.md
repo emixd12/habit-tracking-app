@@ -118,6 +118,12 @@ and redirects to `/login?signedout=1`. Login announces the focused polite status
 **Signed out.** Only the exact `signedout=1` query value enables that notice;
 GET does not sign out.
 
+Authenticated internal QA can open `/login?preview=1` in any environment to
+inspect the login screen without ending the current session. The app shell
+exposes **Preview login** only outside production. A normal `/login` request
+continues to redirect an authenticated user to the safe `next` route or
+`/timeline`.
+
 Categories should not appear in navigation or timeline filtering.
 
 ## Timeline flow

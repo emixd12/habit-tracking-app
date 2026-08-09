@@ -700,9 +700,11 @@ label reads should use verified Supabase Auth claims through the shared current
 user helper; RLS-backed database access still runs through the ordinary
 authenticated Supabase client.
 
-During local development, authenticated sessions can preview the login screen at
-`/login?preview=1`. This bypass is limited to local non-production hosts and is
-also linked from the development app shell.
+Authenticated sessions can preview the login screen without ending the session
+at `/login?preview=1`. The explicit preview URL works in every environment. The
+app shell links to it only outside production, so it does not become a normal
+production navigation destination. Requests to `/login` without `preview=1`
+keep the standard authenticated redirect behavior.
 
 ## Source-of-truth order
 

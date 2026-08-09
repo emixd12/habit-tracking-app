@@ -11,7 +11,7 @@ marketing routes are implemented separately in the sibling Astro app under
 | Route | Status | Purpose | Notes |
 |---|---|---|---|
 | `/` | implemented | Auth-aware entry route | Redirects authenticated users to `/timeline` and unauthenticated users to `/login`. |
-| `/login` | implemented | Google sign-in screen | Uses Supabase OAuth and returns through `/auth/callback`; links to Terms, Privacy, and Trust. During local non-production development, authenticated users can view it with `/login?preview=1`; `/login?signedout=1` shows the focused signed-out status. |
+| `/login` | implemented | Google sign-in screen | Uses Supabase OAuth and returns through `/auth/callback`; links to Terms, Privacy, and Trust. Authenticated users can inspect it in any environment with the explicit `/login?preview=1` URL without ending their session; the app shell exposes that link only outside production. `/login?signedout=1` shows the focused signed-out status. |
 | `/auth/google` | implemented | Supabase Google OAuth start route | Starts Google OAuth from the server and redirects back through `/auth/callback`; redirects to `/login` with an error when provider setup cannot start. |
 | `/auth/callback` | implemented | Supabase OAuth code exchange route | Exchanges the OAuth code for a cookie-backed Supabase session and redirects to a sanitized local `next` path. |
 | `/auth/sign-out` | implemented, POST-only | End the current authenticated session | Signs out server-side, clears session cookies through the Supabase server client, and redirects to `/login?signedout=1`; non-POST methods return 405. |

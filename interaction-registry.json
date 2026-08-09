@@ -952,16 +952,16 @@
       "surfaces": ["app_shell", "login"],
       "routes": ["/login?preview=1"],
       "journeys": ["J02", "J03"],
-      "intent": "Inspect the login screen during local development without ending the current session.",
+      "intent": "Inspect the login screen without ending the current authenticated session.",
       "triggers": [{ "kind": "activate", "control": "Preview login" }],
-      "availability": "Visible in the app shell only outside production.",
-      "success_result": "Navigates to the login preview with the current protected path preserved as next.",
-      "failure_result": "Production or unsupported preview requests follow normal authenticated redirect behavior.",
+      "availability": "The explicit preview URL works in every environment. The app shell control is visible only outside production.",
+      "success_result": "Navigates to the login preview while preserving the authenticated session and any safe next path.",
+      "failure_result": "A login request without preview=1 follows normal authenticated redirect behavior.",
       "effects": ["navigation"],
       "risk": "low",
       "confirmation": "none",
-      "implementation": ["components/layout/AppShell.tsx", "app/(auth)/login/page.tsx"],
-      "test_coverage": { "level": "indirect", "references": ["tests/supabase-proxy.test.ts"], "notes": "Local preview routing is partly covered by proxy tests and browser QA." }
+      "implementation": ["components/layout/AppShell.tsx", "app/(auth)/login/page.tsx", "lib/supabase/proxy.ts"],
+      "test_coverage": { "level": "direct", "references": ["tests/supabase-proxy.test.ts"], "notes": "Proxy tests cover authenticated preview routing in development and production plus ordinary production login redirects." }
     },
     {
       "id": "INT-SHELL-008",

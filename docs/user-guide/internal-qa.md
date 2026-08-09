@@ -42,11 +42,12 @@ Enter at desktop and mobile widths.
 
 ## INT-SHELL-007: Preview the login screen while authenticated
 
-**Prerequisites:** Be authenticated in a non-production build. The app shell
-does not render this interaction in production.
+**Prerequisites:** Be authenticated. The app shell exposes **Preview login**
+only outside production. In production, open `/login?preview=1` directly.
 
-1. From the desktop rail or mobile drawer, activate **Preview login**. Its
-   accessible name is **Preview login screen**.
+1. Outside production, activate **Preview login** from the desktop rail or
+   mobile drawer. Its accessible name is **Preview login screen**. In
+   production, open `/login?preview=1` directly.
 2. Confirm that `/login?preview=1` renders while the current protected path is
    retained as the safe `next` value.
 3. Inspect the login screen without completing an unnecessary provider flow.
@@ -54,18 +55,17 @@ does not render this interaction in production.
    app.
 
 **Result and persistence:** Only navigation changes. The authenticated session
-and product records remain unchanged. In production or when preview is not
-supported, normal authenticated redirect behavior applies.
+and product records remain unchanged. A `/login` request without `preview=1`
+keeps the normal authenticated redirect behavior.
 
 **Recovery:** Use browser Back. If an environment unexpectedly loses the
 session, sign in through the normal test identity and record the environment,
 route, and cookie behavior as a QA issue.
 
-**Safety:** Login preview is for visual and interaction QA, not a production
-account switcher. Do not start Google OAuth with an unintended account merely
-to leave the preview.
+**Safety:** Login preview is for visual and interaction QA, not an account
+switcher. Do not start Google OAuth with an unintended account merely to leave
+the preview.
 
 **Keyboard and viewport:** In the mobile drawer, focus remains trapped until
 the link navigates. The link works with Tab plus Enter in expanded and
 collapsed desktop navigation and at mobile widths.
-
