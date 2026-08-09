@@ -14,7 +14,12 @@ export function GoogleLoginButton({
   if (disabled) {
     return (
       <button type="button" disabled className={className}>
-        <LogIn aria-hidden="true" size={18} strokeWidth={2.5} />
+        <LogIn
+          aria-hidden="true"
+          className="shrink-0"
+          size="1em"
+          strokeWidth={1.5}
+        />
         Continue with Google
       </button>
     );
@@ -22,7 +27,12 @@ export function GoogleLoginButton({
 
   return (
     <a href={href} className={className}>
-      <LogIn aria-hidden="true" size={18} strokeWidth={2.5} />
+      <LogIn
+        aria-hidden="true"
+        className="shrink-0"
+        size="1em"
+        strokeWidth={1.5}
+      />
       Continue with Google
     </a>
   );

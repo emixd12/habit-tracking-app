@@ -20,6 +20,11 @@ describe("login interaction controls", () => {
 
     expect(html).toContain("Continue with Google");
     expect(html).toContain('href="/auth/google?next=%2Fsettings"');
+    expect(html).toContain('width="1em"');
+    expect(html).toContain('height="1em"');
+    expect(html).toContain('stroke-width="1.5"');
+    expect(html).not.toContain("Google sign-in only.");
+    expect(html).not.toContain("Cadence never sees or stores a password.");
     expect(html).toContain('href="/terms"');
     expect(html).toContain('href="/privacy"');
     expect(html).toContain('href="/trust"');

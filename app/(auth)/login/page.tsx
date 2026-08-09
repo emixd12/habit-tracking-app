@@ -96,10 +96,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               No feed, no sharing, no coaching layer.
             </li>
             <li>
-              <span className="text-foreground">Google sign-in only.</span>{" "}
-              Cadence never sees or stores a password.
-            </li>
-            <li>
               <span className="text-foreground">Yours to take.</span> Export
               everything as plain files, anytime.
             </li>
