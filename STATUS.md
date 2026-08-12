@@ -73,14 +73,18 @@ on 2026-08-04. Chromium touch QA passed. Mobile WebKit and an authenticated
 physical-device pass remain unverified because those browser surfaces were not
 available in this environment.
 
-Tickets 078-093 are `not_started`. They were defined on 2026-08-06 from a
-repository-wide read-only audit across five independent passes (domain
+Tickets 078-094 are `not_started`. Tickets 078-093 were defined on 2026-08-06
+from a repository-wide read-only audit across five independent passes (domain
 resolvers/services/repos, routes/auth/API, import/restore/export,
 UI/interaction, schema/marketing/ops). No fix was applied during the audit and
 no product scope changed. Scope and acceptance criteria live in
 `docs/TICKETS.md`; the suggested order is 078, 079, 080, 081, 082, 083 first.
+Ticket 094 was added on 2026-08-12 after the live 90-day Behaviors range
+produced an oversized Supabase Data API URL. It replaces Ticket 091's earlier
+chunked-table-query decision with one bounded owner-scoped RPC for normal reads
+and sequential bounded RPC batches only above the database-enforced limit.
 
-Two of those findings are live in production and should be treated as
+Three of those findings are live in production and should be treated as
 defects, not backlog:
 
 - Ticket 078: editing a behavior deletes unresolved occurrences scheduled
@@ -93,6 +97,12 @@ defects, not backlog:
   uses that column as the outbound email recipient. An account can direct
   Cadence's transactional email at a third party from the project's sending
   domain.
+- Ticket 094: `/behaviors?range=90` crashes in production after loading 666
+  occurrences because the subsequent time-session read encodes every UUID into
+  one URL. Vercel recorded `Bad Request` with digest `2953342693@E394`. The
+  chosen repair is a bounded authenticated `SECURITY INVOKER` RPC with existing
+  owner RLS, narrow execute grants, and a sequential bounded fallback for
+  unusually large exports.
 
 The completed sequence includes the Ticket 001 Next.js scaffold, Ticket 002
 Supabase Auth setup, Ticket 003 database schema, Tickets 004-012 core behavior

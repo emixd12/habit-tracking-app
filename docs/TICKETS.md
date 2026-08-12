@@ -6519,6 +6519,8 @@ load.
 
 Dependencies:
 - Ticket 080 for claim recovery, and Ticket 081 for paginated reads.
+- Ticket 094 for the bounded owner-scoped time-session RPC. Ticket 091 must
+  reuse that repository path instead of adding a competing table query.
 
 Context:
 - `vercel.json:5-6` runs reminder processing at `0 * * * *`. The product offers
@@ -6546,8 +6548,10 @@ Settled decisions:
 - The Export page renders from a summary read — counts, range, and available
   formats — and does not build downloadable artifacts. Artifacts are built only
   on the download request, where guardrails already apply.
-- Time-session reads are chunked by occurrence id rather than sent as one
-  `.in(...)`.
+- Ticket 094 owns time-session read transport. Normal reads use one bounded
+  owner-scoped RPC, while inputs above the RPC limit use sequential bounded RPC
+  batches. Ticket 091 must not restore the oversized `.in(...)` query or add a
+  second chunking policy.
 - No hard cap on export size in this ticket. Streaming or chunked download is
   future work; the fix here is to stop paying the cost on page load.
 
@@ -6725,6 +6729,194 @@ Suggested files:
 - `docs/VERCEL_WORKFLOW.md`
 - `docs/OPERATIONS.md`
 - `interaction-registry.json`
+
+---
+
+## Ticket 094: Bounded owner-scoped time-session RPC
+
+Replace the oversized time-session ID filter with one secure database function
+for normal reads and bounded RPC batches for unusually large reads.
+
+Dependencies:
+- Ticket 068 is complete and owns the persisted time-session model, RLS, and
+  composite owner/occurrence index.
+- This ticket should land before Ticket 091. It does not depend on Ticket 081
+  because the live Behaviors failure needs an independent repair.
+
+Production defect evidence:
+- On 2026-08-12, authenticated production navigation to
+  `/behaviors?range=90` crashed with Next.js digest `2953342693@E394`.
+- Vercel runtime logs showed successful reads of 666 occurrences followed by
+  `Error: {"message":"Bad Request"}` inside the Behaviors page data load.
+- The next repository call placed every occurrence UUID into one
+  `occurrence_id=in.(...)` Data API URL. A no-network URL-generation spike
+  measured approximately 13,740 bytes for 348 IDs and 26,142 bytes for 666
+  IDs. The smaller 30-day request succeeded; the 90-day request exceeded
+  Supabase's documented 16 KB URL/header boundary.
+- The database stored and returned the 666 occurrences successfully. This is a
+  transport-shape defect, not evidence of database capacity loss or corrupt
+  occurrence data.
+- The same repository path is shared by Behaviors analytics, Timeline timing,
+  and time-tracking exports. Timeline has not produced the same hosted error,
+  while all-time exports retain the latent risk.
+
+Cost and architecture decisions:
+- Use a Postgres database function called through `supabase.rpc(...)`. This is
+  a Data API database call, not a Supabase Edge Function invocation.
+- Normal page loads send one POST request, execute one database statement, and
+  observe one statement snapshot. Do not split a normal 90-day read across
+  several table requests.
+- Supabase currently bills no per-request Database API fee. The RPC decision is
+  based on lower request, authentication, planning, connection, and sorting
+  overhead rather than a claimed per-call dollar saving.
+- Database egress remains determined primarily by returned time-session rows.
+  Return only the columns used by Timeline, Analytics, and Export instead of
+  `select *` so future table columns cannot silently expand the API surface.
+- Preserve the repository method as the single shared read boundary. Services,
+  pages, API routes, and resolvers must not call the RPC directly.
+- Inputs above the database-enforced RPC limit use sequential bounded RPC
+  batches in the repository, followed by one deterministic global sort. This
+  fallback exists for all-time export and resource safety; it is not the normal
+  90-day page path.
+
+RPC contract and security decisions:
+- Add a migration-generated function with one non-overloaded name, preferably
+  `public.list_my_occurrence_time_sessions(uuid[])`. Use the exact generated
+  signature consistently in grants, tests, generated types, and repository
+  calls.
+- The function accepts only an occurrence UUID array. It must not accept a
+  `user_id`, role, email, JWT payload, or arbitrary SQL/filter text.
+- Declare the function `STABLE`, `SECURITY INVOKER`, and with a hardened empty
+  `search_path`. Fully qualify every referenced table, type, and function.
+- Never use `SECURITY DEFINER` for this read. The function needs no RLS bypass
+  or creator privilege.
+- Require a non-null `auth.uid()` and explicitly filter
+  `occurrence_time_sessions.user_id = (select auth.uid())`. Existing table RLS
+  remains enabled and authoritative as defense in depth.
+- Keep the existing authenticated owner SELECT policy unchanged unless a test
+  proves a defect. Do not use the service-role client for the RPC.
+- Revoke function execution from `PUBLIC`, `anon`, `authenticated`, and
+  `service_role`, then grant only the exact function signature to
+  `authenticated`. This removes any inherited or automatic execute grant before
+  adding the intended grant.
+- Accept a maximum of 2,000 occurrence IDs per database call. Enforce this limit
+  inside PostgreSQL, not only in TypeScript, because an authenticated caller can
+  invoke an exposed RPC directly.
+- Treat a null or empty UUID array as an empty result. Duplicate UUIDs must not
+  duplicate returned sessions. Reject an over-limit array with a stable,
+  non-sensitive error.
+- Use typed `uuid[]` input and fixed SQL only. Do not construct dynamic SQL.
+- Return only `id`, `user_id`, `occurrence_id`, `behavior_id`, `started_at`, and
+  `stopped_at`, ordered globally by `started_at ASC, id ASC`.
+- The repository may make additional RPC calls only when the normalized unique
+  input contains more than 2,000 IDs. Process fallback batches sequentially,
+  merge them, and restore the same global stable order.
+- Emit privacy-safe performance timing for requested ID count, RPC batch count,
+  returned session count, duration, and success/error. Never log user IDs,
+  occurrence IDs, behavior IDs, session IDs, notes, titles, or request bodies.
+
+Implementation sequence:
+1. Add failing migration-contract tests for invoker mode, hardened search path,
+   explicit ownership, the 2,000-ID cap, minimal columns, fixed ordering, and
+   authenticated-only execution.
+2. Create the migration with
+   `npm run supabase -- migration new <descriptive_name>` and implement the
+   smallest function satisfying those tests.
+3. Run a clean local database reset and regenerate `lib/db/database.types.ts`
+   from the local schema.
+4. Add failing repository tests proving 666 unique IDs use one RPC, 2,001 IDs
+   use two sequential RPCs, duplicate IDs are normalized, empty input performs
+   no network call, RPC errors propagate, and merged results are globally
+   ordered.
+5. Replace the direct `.in("occurrence_id", ...)` read in
+   `lib/db/timeSessions.repo.ts` with the typed RPC boundary. Keep
+   `listTimeSessionsForOccurrence` on the same repository path.
+6. Extend the two-user Supabase RLS smoke to create owned time sessions and
+   prove own-only, foreign-only, and mixed-owner RPC behavior through ordinary
+   authenticated clients. The service role remains restricted to exact
+   temporary-user setup and cleanup.
+7. Run focused Analytics, Timeline, Export, migration, repository, and RLS tests
+   before the full repository gates.
+8. Update `docs/DATA_MODEL.md`, `docs/SUPABASE_WORKFLOW.md`, and generated types
+   with the implemented function contract, deployment order, privileges, and
+   bounded fallback.
+
+Acceptance criteria:
+- A 666-ID repository read makes exactly one RPC call and constructs no
+  oversized Data API URL.
+- A read above 2,000 unique IDs uses sequential RPC batches of at most 2,000,
+  returns every permitted row once, and preserves global `started_at`, `id`
+  ordering.
+- An anonymous caller cannot execute the function.
+- User A can retrieve User A's requested sessions.
+- User A receives no User B sessions when supplying only User B occurrence IDs.
+- A mixed User A/User B array returns only User A rows.
+- The function is verifiably `SECURITY INVOKER`; no security-definer variant is
+  present.
+- Only `authenticated` has execute permission on the exact function signature.
+- Null and empty input return zero rows. Duplicate IDs do not duplicate rows.
+- An input above 2,000 IDs is rejected inside PostgreSQL without leaking IDs or
+  account information.
+- Existing Timeline timing, Behaviors averages and selected-day timing, and
+  privacy-gated export contents remain unchanged.
+- `/behaviors?range=7`, `30`, and `90` render successfully for the production
+  account shape that previously returned 666 occurrences.
+- An all-time time-tracking export completes through bounded RPC batches and
+  does not recreate an oversized URI.
+- Privacy-safe runtime logs contain no recurrence, behavior, occurrence,
+  session, note, account, or request-body data.
+
+Deployment and rollback:
+- Hosted schema deployment requires explicit user authorization and follows
+  `docs/SUPABASE_WORKFLOW.md`. Never create or edit the hosted function through
+  Dashboard SQL.
+- Deploy the additive migration before the application code. The old
+  application ignores the new function, while the new application requires it.
+- After hosted migration deployment, verify grants and cross-account behavior
+  through ordinary authenticated clients before deploying the application.
+- After application deployment, smoke `/behaviors?range=7`, `30`, and `90`, a
+  normal Timeline read, and a time-tracking export. Inspect Vercel and Supabase
+  logs for `Bad Request`, permission, timeout, and cross-account anomalies.
+- If the application rollout fails, roll back the application first. The
+  unused additive function may remain until a later migration removes it; do
+  not edit an applied migration or drop it manually from hosted Supabase.
+
+Required verification:
+- `npm run supabase -- db reset`
+- `npm run smoke:rls` against the local project
+- focused migration, repository, Analytics, Timeline, Export, and smoke-script
+  tests
+- `npm run agents:check`
+- `npm run interactions:check`
+- `npm run resolvers:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
+
+Suggested files:
+- new migration via
+  `npm run supabase -- migration new list_my_occurrence_time_sessions`
+- `lib/db/timeSessions.repo.ts`
+- `lib/db/database.types.ts`
+- `scripts/supabase-rls-smoke.mjs`
+- `tests/time-sessions-rpc-migration.test.ts`
+- `tests/time-sessions.repo.test.ts`
+- `tests/rls-smoke-script.test.ts`
+- `tests/analytics.resolver.test.ts`
+- `tests/export.service.test.ts`
+- relevant Timeline service tests added or extended by the implementation
+- `docs/DATA_MODEL.md`
+- `docs/SUPABASE_WORKFLOW.md`
+- `STATUS.md`
+
+Out of scope:
+- Changing adherence, status, reminder, duration, or export semantics.
+- Adding a new route, Edge Function, service-role path, or UI interaction.
+- Replacing the existing time-session table or RLS ownership model.
+- Streaming exports, changing export filenames, or adding a product-level
+  export-size cap.
+- Hosted migration deployment without explicit authorization.
 
 ---
 
