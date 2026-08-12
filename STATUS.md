@@ -84,11 +84,11 @@ produced an oversized Supabase Data API URL. It replaces Ticket 091's earlier
 chunked-table-query decision with two owner-scoped query contracts: a bounded
 arbitrary-ID RPC with automatic batching, and a joined date-range/keyset-cursor
 RPC for historical Analytics and Export reads. Local implementation and
-verification completed on 2026-08-12. The owner authorized migration-first
-hosted rollout on 2026-08-12. Deployment is in progress, so the production
-defect remains live.
+verification completed on 2026-08-12. The owner authorized and completed the
+migration-first hosted rollout on 2026-08-12. Authenticated production QA
+passed for every required caller, so the production defect is resolved.
 
-Three of those findings are live in production and should be treated as
+Two of those findings are live in production and should be treated as
 defects, not backlog:
 
 - Ticket 078: editing a behavior deletes unresolved occurrences scheduled
@@ -101,13 +101,6 @@ defects, not backlog:
   uses that column as the outbound email recipient. An account can direct
   Cadence's transactional email at a third party from the project's sending
   domain.
-- Ticket 094: `/behaviors?range=90` crashes in production after loading 666
-  occurrences because the subsequent time-session read encodes every UUID into
-  one URL. Vercel recorded `Bad Request` with digest `2953342693@E394`. The
-  chosen repair keeps a bounded authenticated `SECURITY INVOKER` ID RPC for
-  arbitrary sets with invisible batching, while historical callers use a
-  joined date-range/keyset-cursor RPC. Both retain existing owner RLS and narrow
-  execute grants.
 
 The completed sequence includes the Ticket 001 Next.js scaffold, Ticket 002
 Supabase Auth setup, Ticket 003 database schema, Tickets 004-012 core behavior
@@ -5386,9 +5379,32 @@ Rollout status:
 
 - The owner authorized hosted migration and application deployment on
   2026-08-12. Preflight found only Ticket 094 pending in hosted migration
-  history. Migration-first deployment is in progress.
-- The production `/behaviors?range=90` defect remains live until hosted schema
-  deployment, application deployment, and authenticated smoke QA complete.
+  history. `npm run supabase -- db push --linked --yes` applied migration
+  `20260812172823_add_time_session_query_rpcs.sql`. A final dry run reported the
+  hosted database up to date.
+- Hosted inspection confirmed both exact signatures, `STABLE` invoker mode,
+  empty search paths, the new index, and execute permission for
+  `authenticated` only. Hosted migration history matches git through
+  `20260812172823`.
+- Hosted `npm run smoke:rls` passed all 23 ownership, archive, high-water,
+  cursor, validation, and anonymous-denial checks through ordinary clients.
+  Both hosted smoke runs cleaned their two temporary users.
+- A disposable 1,001-session hosted fixture confirmed `max_rows = 1000`. The
+  unpaged arbitrary-ID RPC returned 1,000 rows. Arbitrary-ID response ranges
+  and history keyset pages both returned `[1000, 1]` without gaps or
+  duplicates. Cleanup removed the temporary user, and an aggregate auth query
+  confirmed zero matching users remained.
+- Commit `a0fd750e3a936067c2142de350f43f9cfca559cb` reached production through
+  Vercel deployment `dpl_H2S7N2td7K62iAQ35S7ABQFXrs1q`. The deployment is
+  `READY` and serves the canonical `cadence-blush-three.vercel.app` alias.
+- Authenticated production QA passed Behaviors ranges 7, 30, and 90. The
+  90-day range rendered 666 occurrences and timing analytics without the prior
+  `Bad Request`. Timeline rendered its Track Time control. Export rendered six
+  timing sessions with `include_time_tracking=1` across every download link.
+- Vercel reported no post-deployment runtime error clusters, 5xx responses, or
+  recurrence of digest `2953342693@E394`. Chrome still reported the pre-existing
+  React hydration warning documented under Ticket 070; it did not block any
+  Ticket 094 route.
 - One verification attempt inherited the hosted `.env.local` target before the
   loopback-only command existed. It created two temporary smoke users, stopped
   at the missing RPC, and ran cleanup. A read-only follow-up confirmed zero

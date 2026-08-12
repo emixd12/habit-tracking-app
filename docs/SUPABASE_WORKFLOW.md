@@ -162,16 +162,22 @@ The migration revokes each exact signature from `PUBLIC`, `anon`,
 `authenticated`, and `service_role`. It then grants execute only to
 `authenticated`. Do not replace either read with a service-role client.
 
-The local Data API sets `max_rows = 1000`. This response cap is independent of
-the arbitrary-ID function's 2,000-ID input guard. The repository normalizes
-IDs, sends sequential batches of at most 2,000, and follows each batch through
-1,000-row PostgREST response ranges. A typical 666-ID input returning fewer
-than 1,000 sessions uses one request. An exact 1,000-row response requires a
-continuation request. The repository deduplicates sessions by ID and restores
-global `started_at ASC, id ASC` order across response pages and ID batches.
-Do not remove response-range continuation because the current production input
-usually returns fewer rows than IDs. The hosted row cap is not verified by the
-local implementation. Confirm it before application deployment.
+The local Data API sets `max_rows = 1000`. The hosted Data API cap was also
+verified as 1,000 on 2026-08-12 with one disposable 1,001-session owner
+fixture. The unpaged arbitrary-ID RPC returned 1,000 rows. Its explicit
+response ranges returned `[1000, 1]`, and the history RPC returned `[1000, 1]`
+keyset pages. Cleanup removed the temporary user, and an aggregate auth query
+confirmed zero matching users remained. Reconfirm the cap after any hosted
+Data API configuration change.
+
+This response cap is independent of the arbitrary-ID function's 2,000-ID input
+guard. The repository normalizes IDs, sends sequential batches of at most
+2,000, and follows each batch through 1,000-row PostgREST response ranges. A
+typical 666-ID input returning fewer than 1,000 sessions uses one request. An
+exact 1,000-row response requires a continuation request. The repository
+deduplicates sessions by ID and restores global `started_at ASC, id ASC` order
+across response pages and ID batches. Do not remove response-range continuation
+because the current production input usually returns fewer rows than IDs.
 
 Historical reads do not send ID arrays. They join Occurrences and Time Sessions
 inside PostgreSQL, filter by Occurrence `local_date`, and use 1,000-row
