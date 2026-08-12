@@ -127,18 +127,24 @@ Use the Supabase CLI as the standard pathway for database and hosted project ope
 - Do not change the hosted database directly outside migrations.
 - Use `docs/SUPABASE_WORKFLOW.md` for command details.
 
-## Large owner-scoped time-session reads
+## Owner-scoped time-session query APIs
 
-Use a bounded, authenticated, `SECURITY INVOKER` database RPC for time-session
-reads selected by many occurrence IDs. Normal Behaviors, Timeline, and Export
-reads use one RPC call. Inputs above the database-enforced limit use sequential
-bounded RPC batches inside the repository and one deterministic global sort.
+Keep a bounded, authenticated, `SECURITY INVOKER` RPC for genuinely arbitrary
+Occurrence ID sets. The repository batches automatically above 2,000 unique
+IDs, merges the results, and restores deterministic global order. Callers and
+users do not encounter that implementation limit.
+
+Do not use the ID RPC as the primary historical-data API. Analytics,
+behavior-date review, and Export use a joined date-range/keyset-cursor RPC.
+PostgreSQL joins Occurrences to Time Sessions directly, filters on stored
+Occurrence `local_date`, and returns bounded pages that the repository follows
+automatically.
 
 Do not place an unbounded UUID list in a Data API URL. Do not use
 `SECURITY DEFINER`, accept a caller-supplied user ID, expose execution to
 anonymous roles, or use the service-role client. Existing owner RLS remains
-authoritative, and the RPC explicitly scopes rows to `auth.uid()` as defense in
-depth. Ticket 094 owns the full contract and verification requirements.
+authoritative, and both RPCs explicitly scope rows to `auth.uid()` as defense
+in depth. Ticket 094 owns the full contracts and verification requirements.
 
 ## Email provider
 

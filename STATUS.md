@@ -81,8 +81,9 @@ no product scope changed. Scope and acceptance criteria live in
 `docs/TICKETS.md`; the suggested order is 078, 079, 080, 081, 082, 083 first.
 Ticket 094 was added on 2026-08-12 after the live 90-day Behaviors range
 produced an oversized Supabase Data API URL. It replaces Ticket 091's earlier
-chunked-table-query decision with one bounded owner-scoped RPC for normal reads
-and sequential bounded RPC batches only above the database-enforced limit.
+chunked-table-query decision with two owner-scoped query contracts: a bounded
+arbitrary-ID RPC with automatic batching, and a joined date-range/keyset-cursor
+RPC for historical Analytics and Export reads.
 
 Three of those findings are live in production and should be treated as
 defects, not backlog:
@@ -100,9 +101,10 @@ defects, not backlog:
 - Ticket 094: `/behaviors?range=90` crashes in production after loading 666
   occurrences because the subsequent time-session read encodes every UUID into
   one URL. Vercel recorded `Bad Request` with digest `2953342693@E394`. The
-  chosen repair is a bounded authenticated `SECURITY INVOKER` RPC with existing
-  owner RLS, narrow execute grants, and a sequential bounded fallback for
-  unusually large exports.
+  chosen repair keeps a bounded authenticated `SECURITY INVOKER` ID RPC for
+  arbitrary sets with invisible batching, while historical callers use a
+  joined date-range/keyset-cursor RPC. Both retain existing owner RLS and narrow
+  execute grants.
 
 The completed sequence includes the Ticket 001 Next.js scaffold, Ticket 002
 Supabase Auth setup, Ticket 003 database schema, Tickets 004-012 core behavior

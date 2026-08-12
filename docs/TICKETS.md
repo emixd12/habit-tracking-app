@@ -6519,8 +6519,9 @@ load.
 
 Dependencies:
 - Ticket 080 for claim recovery, and Ticket 081 for paginated reads.
-- Ticket 094 for the bounded owner-scoped time-session RPC. Ticket 091 must
-  reuse that repository path instead of adding a competing table query.
+- Ticket 094 for the owner-scoped time-session query RPCs. Ticket 091 must
+  reuse the joined historical repository path instead of adding a competing
+  table query.
 
 Context:
 - `vercel.json:5-6` runs reminder processing at `0 * * * *`. The product offers
@@ -6548,10 +6549,10 @@ Settled decisions:
 - The Export page renders from a summary read — counts, range, and available
   formats — and does not build downloadable artifacts. Artifacts are built only
   on the download request, where guardrails already apply.
-- Ticket 094 owns time-session read transport. Normal reads use one bounded
-  owner-scoped RPC, while inputs above the RPC limit use sequential bounded RPC
-  batches. Ticket 091 must not restore the oversized `.in(...)` query or add a
-  second chunking policy.
+- Ticket 094 owns time-session read transport. Historical export reads use the
+  joined date-range/cursor RPC. Arbitrary-ID reads retain automatic bounded RPC
+  batching. Ticket 091 must not restore the oversized `.in(...)` query or add a
+  second batching or pagination policy.
 - No hard cap on export size in this ticket. Streaming or chunked download is
   future work; the fix here is to stop paying the cost on page load.
 
@@ -6732,10 +6733,11 @@ Suggested files:
 
 ---
 
-## Ticket 094: Bounded owner-scoped time-session RPC
+## Ticket 094: Owner-scoped time-session query RPCs
 
-Replace the oversized time-session ID filter with one secure database function
-for normal reads and bounded RPC batches for unusually large reads.
+Replace the oversized time-session ID filter with two secure database query
+contracts: a bounded arbitrary-ID RPC with invisible repository batching, and
+a joined date-range/cursor RPC for historical Analytics and Export reads.
 
 Dependencies:
 - Ticket 068 is complete and owns the persisted time-session model, RLS, and
@@ -6761,25 +6763,35 @@ Production defect evidence:
   while all-time exports retain the latent risk.
 
 Cost and architecture decisions:
-- Use a Postgres database function called through `supabase.rpc(...)`. This is
-  a Data API database call, not a Supabase Edge Function invocation.
-- Normal page loads send one POST request, execute one database statement, and
-  observe one statement snapshot. Do not split a normal 90-day read across
-  several table requests.
+- Use Postgres database functions called through `supabase.rpc(...)`. These are
+  Data API database calls, not Supabase Edge Function invocations.
+- Keep the 2,000-ID RPC only for callers that genuinely hold an arbitrary,
+  non-contiguous set of Occurrences. Timeline is the current example because it
+  combines prior Unresolved, recently decided prior, and forward Occurrences.
+- Make arbitrary-ID batching automatic above 2,000 unique IDs. The repository
+  owns batching, merging, deduplication, error propagation, and global sorting.
+  No UI, service, or export caller may surface the 2,000-ID limit to a user.
+- Do not use the ID RPC as the primary historical-data API. Analytics,
+  behavior-date review, and Export know their local-date bounds. They must use
+  a historical RPC that joins `occurrences` to `occurrence_time_sessions`
+  inside PostgreSQL.
+- Historical reads use keyset pagination, not offset pagination. The repository
+  follows the cursor automatically until the final page so callers receive a
+  complete result without knowing the database page size.
+- Bind every historical read to an explicit `through_started_at` high-water
+  instant supplied by the service. Sessions started after that instant do not
+  enter later pages during the same logical read.
 - Supabase currently bills no per-request Database API fee. The RPC decision is
   based on lower request, authentication, planning, connection, and sorting
   overhead rather than a claimed per-call dollar saving.
 - Database egress remains determined primarily by returned time-session rows.
   Return only the columns used by Timeline, Analytics, and Export instead of
   `select *` so future table columns cannot silently expand the API surface.
-- Preserve the repository method as the single shared read boundary. Services,
-  pages, API routes, and resolvers must not call the RPC directly.
-- Inputs above the database-enforced RPC limit use sequential bounded RPC
-  batches in the repository, followed by one deterministic global sort. This
-  fallback exists for all-time export and resource safety; it is not the normal
-  90-day page path.
+- Preserve repositories as the only RPC callers. Services select the correct
+  repository contract. Pages, API routes, components, and resolvers must not
+  call either RPC directly.
 
-RPC contract and security decisions:
+Arbitrary-ID RPC contract:
 - Add a migration-generated function with one non-overloaded name, preferably
   `public.list_my_occurrence_time_sessions(uuid[])`. Use the exact generated
   signature consistently in grants, tests, generated types, and repository
@@ -6804,65 +6816,156 @@ RPC contract and security decisions:
   invoke an exposed RPC directly.
 - Treat a null or empty UUID array as an empty result. Duplicate UUIDs must not
   duplicate returned sessions. Reject an over-limit array with a stable,
-  non-sensitive error.
+  non-sensitive error when the RPC is invoked directly. Application repository
+  callers must never reach that error because they batch automatically.
 - Use typed `uuid[]` input and fixed SQL only. Do not construct dynamic SQL.
 - Return only `id`, `user_id`, `occurrence_id`, `behavior_id`, `started_at`, and
   `stopped_at`, ordered globally by `started_at ASC, id ASC`.
-- The repository may make additional RPC calls only when the normalized unique
-  input contains more than 2,000 IDs. Process fallback batches sequentially,
-  merge them, and restore the same global stable order.
-- Emit privacy-safe performance timing for requested ID count, RPC batch count,
-  returned session count, duration, and success/error. Never log user IDs,
-  occurrence IDs, behavior IDs, session IDs, notes, titles, or request bodies.
+- The repository splits every normalized unique input above 2,000 IDs into
+  sequential batches of at most 2,000, merges the pages, and restores the same
+  global stable order. This is normal supported behavior, not a fallback or
+  exceptional user path.
+
+Historical RPC contract:
+- Add one separately named, non-overloaded function, preferably
+  `public.list_my_occurrence_time_session_history`. Its exact signature is
+  `(date, date, boolean, timestamptz, timestamptz, uuid, integer)`. The
+  parameters are start local date, end local date, include archived Behaviors,
+  high-water start instant, cursor start instant, cursor session ID, and page
+  size.
+- Filter by `occurrences.local_date`, not by converting `started_at` into a
+  calendar date. The Occurrence local date remains the product's historical
+  range authority.
+- Join `public.occurrences` to `public.occurrence_time_sessions` on the complete
+  owner/Occurrence/Behavior identity. Join `public.behaviors` only to enforce
+  the current include-archived choice. Do not send Occurrence IDs from
+  Analytics or Export to this function.
+- Require non-null start date, end date, include-archived flag, and
+  `through_started_at`. Reject start dates after end dates.
+- Use a `(started_at, id)` keyset cursor. Both cursor fields must be null for
+  the first page or both must be supplied for a later page. Reject a partial
+  cursor.
+- Accept page sizes from 1 through 1,000. Reject values outside that range
+  inside PostgreSQL. The repository uses 1,000 and automatically follows full
+  pages until a shorter final page.
+- Filter `session.started_at <= through_started_at` on every page. Use strict
+  tuple comparison after the cursor so a session appears at most once.
+- Return the same six minimal columns as the arbitrary-ID RPC, ordered by
+  `started_at ASC, id ASC`. The last returned row supplies the next cursor.
+- Use the existing `(user_id, local_date, scheduled_for)` Occurrence index for
+  the date window. Add a migration index for the session history cursor if
+  `EXPLAIN (ANALYZE, BUFFERS)` shows the current indexes do not support the
+  joined keyset plan. Do not add an index from assumption alone.
+
+Shared RPC security decisions:
+- Declare both functions `STABLE`, `SECURITY INVOKER`, and with a hardened empty
+  `search_path`. Fully qualify every referenced table, type, and function.
+- Never use `SECURITY DEFINER` for either read. Neither function needs an RLS
+  bypass or creator privilege.
+- Require a non-null `auth.uid()`. Explicitly scope every joined table to that
+  user where applicable. Existing table RLS remains enabled and authoritative
+  as defense in depth.
+- Keep the existing authenticated owner SELECT policies unchanged unless a test
+  proves a defect. Do not use the service-role client for either RPC.
+- Revoke each exact signature from `PUBLIC`, `anon`, `authenticated`, and
+  `service_role`, then grant only that exact signature to `authenticated`.
+- Use typed parameters and fixed SQL only. Do not accept a `user_id`, role,
+  email, JWT payload, arbitrary filter, sort expression, or SQL text.
+- Emit separate privacy-safe performance timing for arbitrary-ID batch count
+  and historical page count, plus returned session count, duration, and
+  success/error. Never log user IDs, occurrence IDs, behavior IDs, session IDs,
+  notes, titles, cursors, local dates, or request bodies.
+
+Caller routing decisions:
+- `lib/services/timeline.service.ts` and single-Occurrence timing reads use the
+  arbitrary-ID repository method.
+- `lib/services/analytics.service.ts` uses the joined historical repository
+  method with its resolved local-date range, `includeArchived: true`, and its
+  injected `now` as the high-water instant.
+- `lib/services/export.service.ts` uses the joined historical repository method
+  only when `include_time_tracking=1`, with the resolved export dates, the
+  requested include-archived choice, and the export's injected `now` as the
+  high-water instant.
+- Selected-day and Behavior history continue consuming Analytics service data.
+  They do not add an ID-based historical query.
 
 Implementation sequence:
-1. Add failing migration-contract tests for invoker mode, hardened search path,
-   explicit ownership, the 2,000-ID cap, minimal columns, fixed ordering, and
-   authenticated-only execution.
+1. Add failing migration-contract tests for both non-overloaded signatures,
+   invoker mode, hardened search path, explicit ownership, narrow grants,
+   minimal columns, fixed ordering, and the absence of dynamic SQL.
 2. Create the migration with
    `npm run supabase -- migration new <descriptive_name>` and implement the
-   smallest function satisfying those tests.
-3. Run a clean local database reset and regenerate `lib/db/database.types.ts`
+   bounded ID function, including its 2,000-ID database guard.
+3. Add historical-function contract tests for the direct join, local-date
+   filter, archived behavior filter, high-water bound, cursor-pair validation,
+   strict keyset predicate, and 1–1,000 page-size guard.
+4. Implement the joined historical function in the same additive migration.
+5. Run representative local `EXPLAIN (ANALYZE, BUFFERS)` checks for 90-day and
+   all-time history shapes. Add a cursor-supporting index only if the plans
+   demonstrate the need, and record the plan evidence in the ticket handoff.
+6. Run a clean local database reset and regenerate `lib/db/database.types.ts`
    from the local schema.
-4. Add failing repository tests proving 666 unique IDs use one RPC, 2,001 IDs
-   use two sequential RPCs, duplicate IDs are normalized, empty input performs
-   no network call, RPC errors propagate, and merged results are globally
-   ordered.
-5. Replace the direct `.in("occurrence_id", ...)` read in
-   `lib/db/timeSessions.repo.ts` with the typed RPC boundary. Keep
+7. Add failing arbitrary-ID repository tests proving 666 unique IDs use one
+   RPC, 2,001 IDs use two sequential RPCs without a caller-visible limit error,
+   duplicate IDs are normalized, empty input performs no network call, RPC
+   errors propagate, and merged results are globally ordered.
+8. Replace the direct `.in("occurrence_id", ...)` read in
+   `lib/db/timeSessions.repo.ts` with the typed arbitrary-ID RPC boundary. Keep
    `listTimeSessionsForOccurrence` on the same repository path.
-6. Extend the two-user Supabase RLS smoke to create owned time sessions and
-   prove own-only, foreign-only, and mixed-owner RPC behavior through ordinary
-   authenticated clients. The service role remains restricted to exact
-   temporary-user setup and cleanup.
-7. Run focused Analytics, Timeline, Export, migration, repository, and RLS tests
-   before the full repository gates.
-8. Update `docs/DATA_MODEL.md`, `docs/SUPABASE_WORKFLOW.md`, and generated types
-   with the implemented function contract, deployment order, privileges, and
-   bounded fallback.
+9. Add failing history-repository tests for first-page parameters, automatic
+   keyset pagination, fixed high-water reuse, cursor advancement, exact-page
+   continuation, short-page termination, partial-page errors, non-advancing
+   cursor rejection, and stable complete results.
+10. Add the historical repository method and privacy-safe timing spans.
+11. Add failing Analytics and Export service tests proving they use the
+   historical repository contract and never materialize or transmit an
+   Occurrence ID list for time-session history.
+12. Route Analytics and Export through joined historical reads. Preserve
+   Timeline on the arbitrary-ID method.
+13. Extend the two-user Supabase RLS smoke to create owned time sessions and
+   prove own-only, foreign-only, and mixed-owner behavior through both RPCs and
+   ordinary authenticated clients. The service role remains restricted to
+   exact temporary-user setup and cleanup.
+14. Run focused Analytics, Timeline, Export, migration, repository, and RLS
+   tests before the full repository gates.
+15. Update `docs/DATA_MODEL.md`, `docs/SUPABASE_WORKFLOW.md`, and generated types
+   with both function contracts, caller routing, automatic pagination,
+   deployment order, and privileges.
 
 Acceptance criteria:
 - A 666-ID repository read makes exactly one RPC call and constructs no
   oversized Data API URL.
 - A read above 2,000 unique IDs uses sequential RPC batches of at most 2,000,
   returns every permitted row once, and preserves global `started_at`, `id`
-  ordering.
-- An anonymous caller cannot execute the function.
-- User A can retrieve User A's requested sessions.
-- User A receives no User B sessions when supplying only User B occurrence IDs.
-- A mixed User A/User B array returns only User A rows.
-- The function is verifiably `SECURITY INVOKER`; no security-definer variant is
-  present.
-- Only `authenticated` has execute permission on the exact function signature.
+  ordering without exposing the batching limit to the caller or user.
+- Analytics, behavior-date review, and Export transmit date, archive, high-water,
+  cursor, and page-size parameters. They transmit no Occurrence ID array for
+  historical time-session reads.
+- The historical RPC performs the Occurrence → Time Session join directly and
+  filters on `occurrences.local_date`.
+- A history result larger than 1,000 rows is fetched completely through
+  automatic keyset pagination with no duplicates, gaps, offset pagination, or
+  user-visible page limit.
+- Sessions started after the fixed high-water instant do not enter later pages.
+- Anonymous callers cannot execute either function.
+- User A can retrieve User A's requested sessions through both functions.
+- User A receives no User B sessions through foreign-only or mixed-owner ID,
+  date-range, cursor, or archive inputs.
+- Both functions are verifiably `SECURITY INVOKER`; no security-definer variant
+  is present.
+- Only `authenticated` has execute permission on each exact function signature.
 - Null and empty input return zero rows. Duplicate IDs do not duplicate rows.
 - An input above 2,000 IDs is rejected inside PostgreSQL without leaking IDs or
-  account information.
+  account information when the RPC is called directly; the application handles
+  the same input automatically through batches.
+- Invalid historical ranges, partial cursors, and page sizes outside 1–1,000
+  are rejected without leaking account or record information.
 - Existing Timeline timing, Behaviors averages and selected-day timing, and
   privacy-gated export contents remain unchanged.
 - `/behaviors?range=7`, `30`, and `90` render successfully for the production
   account shape that previously returned 666 occurrences.
-- An all-time time-tracking export completes through bounded RPC batches and
-  does not recreate an oversized URI.
+- An all-time time-tracking export completes through joined cursor pages and
+  does not create any Occurrence-ID URI or payload.
 - Privacy-safe runtime logs contain no recurrence, behavior, occurrence,
   session, note, account, or request-body data.
 
@@ -6873,7 +6976,8 @@ Deployment and rollback:
 - Deploy the additive migration before the application code. The old
   application ignores the new function, while the new application requires it.
 - After hosted migration deployment, verify grants and cross-account behavior
-  through ordinary authenticated clients before deploying the application.
+  for both RPCs through ordinary authenticated clients before deploying the
+  application.
 - After application deployment, smoke `/behaviors?range=7`, `30`, and `90`, a
   normal Timeline read, and a time-tracking export. Inspect Vercel and Supabase
   logs for `Bad Request`, permission, timeout, and cross-account anomalies.
@@ -6896,14 +7000,17 @@ Required verification:
 
 Suggested files:
 - new migration via
-  `npm run supabase -- migration new list_my_occurrence_time_sessions`
+  `npm run supabase -- migration new add_time_session_query_rpcs`
 - `lib/db/timeSessions.repo.ts`
 - `lib/db/database.types.ts`
+- `lib/services/analytics.service.ts`
+- `lib/services/export.service.ts`
+- `lib/services/timeline.service.ts`
 - `scripts/supabase-rls-smoke.mjs`
 - `tests/time-sessions-rpc-migration.test.ts`
 - `tests/time-sessions.repo.test.ts`
 - `tests/rls-smoke-script.test.ts`
-- `tests/analytics.resolver.test.ts`
+- Analytics service tests added or extended by the implementation
 - `tests/export.service.test.ts`
 - relevant Timeline service tests added or extended by the implementation
 - `docs/DATA_MODEL.md`
@@ -6916,6 +7023,8 @@ Out of scope:
 - Replacing the existing time-session table or RLS ownership model.
 - Streaming exports, changing export filenames, or adding a product-level
   export-size cap.
+- Moving Analytics or export calculations into PostgreSQL. The historical RPC
+  owns joined data retrieval only; resolver semantics remain unchanged.
 - Hosted migration deployment without explicit authorization.
 
 ---
