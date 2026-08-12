@@ -8,6 +8,7 @@ import {
   deleteTimeSessionsForOccurrence,
   listTimeSessionsForOccurrence,
   stopRunningTimeSession,
+  type OccurrenceTimeSessionReadRow,
 } from "@/lib/db/timeSessions.repo";
 import {
   canStartOccurrenceTimeTracking,
@@ -17,10 +18,7 @@ import {
   resolveStopTimeTracking,
 } from "@/lib/resolvers/time-tracking.resolver";
 import { createClient } from "@/lib/supabase/server";
-import type {
-  OccurrenceStatus,
-  OccurrenceTimeSession,
-} from "@/lib/types/database";
+import type { OccurrenceStatus } from "@/lib/types/database";
 import type {
   OccurrenceTimeTracking,
   TimeSession,
@@ -203,7 +201,7 @@ async function listSessions(
   return sessions.map(toTimeSession);
 }
 
-export function toTimeSession(session: OccurrenceTimeSession): TimeSession {
+export function toTimeSession(session: OccurrenceTimeSessionReadRow): TimeSession {
   return {
     id: session.id,
     userId: session.user_id,

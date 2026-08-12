@@ -9,7 +9,10 @@ import {
   listResolvedOccurrencesBeforeLocalDateMarkedBetween,
   listUnresolvedOccurrencesBeforeLocalDate,
 } from "@/lib/db/occurrences.repo";
-import { listTimeSessionsByOccurrenceIds } from "@/lib/db/timeSessions.repo";
+import {
+  listTimeSessionsByOccurrenceIds,
+  type OccurrenceTimeSessionReadRow,
+} from "@/lib/db/timeSessions.repo";
 import { resolveGenerationWindow } from "@/lib/resolvers/occurrence.resolver";
 import {
   TIMELINE_MAX_FUTURE_DAYS,
@@ -33,7 +36,6 @@ import {
   readCachedUserBehaviors,
 } from "@/lib/cache/stable-user-data.cache";
 import type { Occurrence } from "@/lib/types/database";
-import type { OccurrenceTimeSession } from "@/lib/types/database";
 import type { TimeSession } from "@/lib/types/time-tracking";
 import type { FirstRunOnboardingState } from "@/lib/types/onboarding";
 import type {
@@ -246,7 +248,7 @@ function toTimelineOccurrenceInput(
 }
 
 function groupTimeSessionsByOccurrenceId(
-  sessions: OccurrenceTimeSession[],
+  sessions: OccurrenceTimeSessionReadRow[],
 ): Map<string, TimeSession[]> {
   const byOccurrenceId = new Map<string, TimeSession[]>();
 

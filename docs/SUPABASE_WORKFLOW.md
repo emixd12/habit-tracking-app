@@ -131,7 +131,8 @@ Use the project smoke command when a ticket calls for hosted or local
 many-independent-user RLS verification:
 
 ```bash
-npm run smoke:rls
+npm run smoke:rls:local # local stack; ignores .env.local and requires loopback
+npm run smoke:rls       # selected environment; hosted use requires authorization
 ```
 
 The command reads `NEXT_PUBLIC_SUPABASE_URL`,
@@ -139,11 +140,87 @@ The command reads `NEXT_PUBLIC_SUPABASE_URL`,
 `SUPABASE_SERVICE_ROLE_KEY` from the environment or `.env.local`. It uses the
 service-role key only to create and delete two temporary auth users. It signs
 those users in through ordinary publishable-key clients, creates one behavior
-per user, and verifies one account cannot read, insert, or update another
-account's rows.
+and owned time-session fixture per user, and verifies one account cannot read,
+insert, or update another account's rows. It also verifies own-only,
+foreign-only, and mixed-owner reads through both Ticket 094 time-session RPCs.
 
 Do not print Supabase keys, temporary user ids, emails, or auth responses in
 handoff notes. The command summary intentionally reports only counts.
+
+## Ticket 094 time-session RPC workflow
+
+Migration `20260812172823_add_time_session_query_rpcs.sql` adds two
+authenticated owner-scoped reads and the evidence-backed
+`occurrence_time_sessions_user_started_id_idx` index. Both functions are
+`STABLE`, `SECURITY INVOKER`, use an empty `search_path`, require
+`auth.uid()`, and retain owner RLS. Their exact signatures are:
+
+- `public.list_my_occurrence_time_sessions(uuid[])`
+- `public.list_my_occurrence_time_session_history(date, date, boolean, timestamptz, timestamptz, uuid, integer)`
+
+The migration revokes each exact signature from `PUBLIC`, `anon`,
+`authenticated`, and `service_role`. It then grants execute only to
+`authenticated`. Do not replace either read with a service-role client.
+
+The local Data API sets `max_rows = 1000`. This response cap is independent of
+the arbitrary-ID function's 2,000-ID input guard. The repository normalizes
+IDs, sends sequential batches of at most 2,000, and follows each batch through
+1,000-row PostgREST response ranges. A typical 666-ID input returning fewer
+than 1,000 sessions uses one request. An exact 1,000-row response requires a
+continuation request. The repository deduplicates sessions by ID and restores
+global `started_at ASC, id ASC` order across response pages and ID batches.
+Do not remove response-range continuation because the current production input
+usually returns fewer rows than IDs. The hosted row cap is not verified by the
+local implementation. Confirm it before application deployment.
+
+Historical reads do not send ID arrays. They join Occurrences and Time Sessions
+inside PostgreSQL, filter by Occurrence `local_date`, and use 1,000-row
+`(started_at, id)` keyset pages. The archive predicate is
+`include_archived OR behavior.active`, preserving current Export semantics.
+The service supplies one
+`through_started_at` high-water value for the entire read. All-time reads send
+`0001-01-01` as the required start-date sentinel. Analytics supplies its
+resolved range, `includeArchived: true`, and injected `now`. Export uses this
+path only when time tracking is requested and supplies its resolved dates,
+archive choice, and injected `now`. Timeline and single-Occurrence reads stay
+on the arbitrary-ID path. Repositories are the only RPC callers.
+
+Verify this migration locally before any hosted rollout:
+
+```bash
+npm run supabase -- db reset
+npm run --silent supabase -- gen types typescript --local > lib/db/database.types.ts
+npm run test -- tests/time-sessions-rpc-migration.test.ts tests/time-sessions.repo.test.ts tests/analytics.service.test.ts tests/timeline.service.test.ts tests/export.service.test.ts tests/rls-smoke-script.test.ts
+npm run smoke:rls:local
+```
+
+Also run the repository-wide completion checks from `AGENTS.md`. The RLS smoke
+must use ordinary authenticated clients for both RPC reads. The service role
+remains limited to exact temporary-user setup and cleanup.
+
+Ticket 094's index decision used `EXPLAIN (ANALYZE, BUFFERS)` against a
+rollback-only local fixture with 3,650 daily Occurrences and 7,300 stopped
+sessions for one owner. The 90-day plan kept the existing Occurrence date
+index. The all-time first page and a later cursor page changed from sequential
+scan and sort plans to
+`occurrence_time_sessions_user_started_id_idx`, improving those local runs from
+2.801 ms to 0.798 ms and from 1.516 ms to 0.876 ms. Treat this as planning
+evidence, not a hosted capacity benchmark.
+
+Hosted rollout is migration-first and requires explicit authorization:
+
+1. Confirm the linked target and compare hosted migration history with git.
+2. Confirm the hosted Data API row cap is 1,000 before application deployment.
+3. Push the additive migration with `npm run supabase -- db push`.
+4. Verify both exact signatures, invoker mode, empty search path, grants, and
+   two-account isolation through ordinary authenticated clients.
+5. Deploy the compatible application only after the schema checks pass.
+6. Smoke Behaviors ranges 7, 30, and 90, Timeline timing, and a time-tracking
+   export. Check logs for request, permission, timeout, and isolation errors.
+
+If application rollout fails, roll back the application first. Leave the
+unused additive functions in place until a later migration removes them. Never
+edit an applied migration or drop a hosted function manually.
 
 ## Synthetic many-account load fixtures
 

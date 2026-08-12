@@ -6769,8 +6769,10 @@ Cost and architecture decisions:
   non-contiguous set of Occurrences. Timeline is the current example because it
   combines prior Unresolved, recently decided prior, and forward Occurrences.
 - Make arbitrary-ID batching automatic above 2,000 unique IDs. The repository
-  owns batching, merging, deduplication, error propagation, and global sorting.
-  No UI, service, or export caller may surface the 2,000-ID limit to a user.
+  owns batching, PostgREST response-range continuation, merging,
+  deduplication, error propagation, and global sorting. No UI, service, or
+  export caller may surface the 2,000-ID or 1,000-row transport limit to a
+  user.
 - Do not use the ID RPC as the primary historical-data API. Analytics,
   behavior-date review, and Export know their local-date bounds. They must use
   a historical RPC that joins `occurrences` to `occurrence_time_sessions`
@@ -6792,10 +6794,9 @@ Cost and architecture decisions:
   call either RPC directly.
 
 Arbitrary-ID RPC contract:
-- Add a migration-generated function with one non-overloaded name, preferably
-  `public.list_my_occurrence_time_sessions(uuid[])`. Use the exact generated
-  signature consistently in grants, tests, generated types, and repository
-  calls.
+- Add the non-overloaded migration function
+  `public.list_my_occurrence_time_sessions(uuid[])`. Use this exact signature
+  consistently in grants, tests, generated types, and repository calls.
 - The function accepts only an occurrence UUID array. It must not accept a
   `user_id`, role, email, JWT payload, or arbitrary SQL/filter text.
 - Declare the function `STABLE`, `SECURITY INVOKER`, and with a hardened empty
@@ -6822,12 +6823,16 @@ Arbitrary-ID RPC contract:
 - Return only `id`, `user_id`, `occurrence_id`, `behavior_id`, `started_at`, and
   `stopped_at`, ordered globally by `started_at ASC, id ASC`.
 - The repository splits every normalized unique input above 2,000 IDs into
-  sequential batches of at most 2,000, merges the pages, and restores the same
-  global stable order. This is normal supported behavior, not a fallback or
+  sequential batches of at most 2,000. It follows every batch through
+  PostgREST response ranges of 1,000 rows until a short page returns. A typical
+  666-ID input returning fewer than 1,000 sessions uses one request; an exact
+  1,000-row response triggers a continuation request. The repository
+  deduplicates sessions by ID, merges all pages, and restores the same global
+  stable order. This is normal supported behavior, not a fallback or
   exceptional user path.
 
 Historical RPC contract:
-- Add one separately named, non-overloaded function, preferably
+- Add the separately named, non-overloaded function
   `public.list_my_occurrence_time_session_history`. Its exact signature is
   `(date, date, boolean, timestamptz, timestamptz, uuid, integer)`. The
   parameters are start local date, end local date, include archived Behaviors,
@@ -6838,7 +6843,8 @@ Historical RPC contract:
   range authority.
 - Join `public.occurrences` to `public.occurrence_time_sessions` on the complete
   owner/Occurrence/Behavior identity. Join `public.behaviors` only to enforce
-  the current include-archived choice. Do not send Occurrence IDs from
+  the current include-archived choice with
+  `(include_archived OR behavior.active)`. Do not send Occurrence IDs from
   Analytics or Export to this function.
 - Require non-null start date, end date, include-archived flag, and
   `through_started_at`. Reject start dates after end dates.
@@ -6853,9 +6859,13 @@ Historical RPC contract:
 - Return the same six minimal columns as the arbitrary-ID RPC, ordered by
   `started_at ASC, id ASC`. The last returned row supplies the next cursor.
 - Use the existing `(user_id, local_date, scheduled_for)` Occurrence index for
-  the date window. Add a migration index for the session history cursor if
-  `EXPLAIN (ANALYZE, BUFFERS)` shows the current indexes do not support the
-  joined keyset plan. Do not add an index from assumption alone.
+  the date window. A rollback-only local `EXPLAIN (ANALYZE, BUFFERS)` fixture
+  with 3,650 Occurrences and 7,300 sessions showed sequential scans for
+  all-time cursor pages. Add the evidenced
+  `(user_id, started_at, id)` session index. The new index served the all-time
+  first and later cursor pages while the 90-day plan retained the Occurrence
+  date index. Treat these synthetic plans as index evidence, not a capacity
+  benchmark.
 
 Shared RPC security decisions:
 - Declare both functions `STABLE`, `SECURITY INVOKER`, and with a hardened empty
@@ -6905,10 +6915,12 @@ Implementation sequence:
    demonstrate the need, and record the plan evidence in the ticket handoff.
 6. Run a clean local database reset and regenerate `lib/db/database.types.ts`
    from the local schema.
-7. Add failing arbitrary-ID repository tests proving 666 unique IDs use one
-   RPC, 2,001 IDs use two sequential RPCs without a caller-visible limit error,
-   duplicate IDs are normalized, empty input performs no network call, RPC
-   errors propagate, and merged results are globally ordered.
+7. Add failing arbitrary-ID repository tests proving 666 unique IDs with fewer
+   than 1,000 returned sessions use one RPC request, an exact 1,000-row response
+   continues through response ranges, and 2,001 IDs use sequential batches
+   without a caller-visible limit error. Prove duplicate IDs are normalized,
+   empty input performs no network call, page errors propagate, page results
+   are deduplicated, and merged results are globally ordered.
 8. Replace the direct `.in("occurrence_id", ...)` read in
    `lib/db/timeSessions.repo.ts` with the typed arbitrary-ID RPC boundary. Keep
    `listTimeSessionsForOccurrence` on the same repository path.
@@ -6933,8 +6945,10 @@ Implementation sequence:
    deployment order, and privileges.
 
 Acceptance criteria:
-- A 666-ID repository read makes exactly one RPC call and constructs no
-  oversized Data API URL.
+- A 666-ID repository read returning fewer than 1,000 sessions makes exactly
+  one RPC request and constructs no oversized Data API URL. An exact 1,000-row
+  response continues through PostgREST response ranges without truncation or
+  duplication.
 - A read above 2,000 unique IDs uses sequential RPC batches of at most 2,000,
   returns every permitted row once, and preserves global `started_at`, `id`
   ordering without exposing the batching limit to the caller or user.

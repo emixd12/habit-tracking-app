@@ -49,6 +49,7 @@
     "launch:cost:preflight": "node scripts/launch-cost-preflight.mjs",
     "launch:surge:drill": "node scripts/launch-surge-drill.mjs",
     "smoke:rls": "node scripts/supabase-rls-smoke.mjs",
+    "smoke:rls:local": "node scripts/supabase-rls-smoke.mjs --local",
     "smoke:launch-rate-limit:local": "psql postgresql://postgres:postgres@127.0.0.1:55322/postgres -v ON_ERROR_STOP=1 -f tests/sql/ticket-067-launch-rate-limit-smoke.sql",
     "smoke:schedule-integrity:local": "psql postgresql://postgres:postgres@127.0.0.1:55322/postgres -v ON_ERROR_STOP=1 -f tests/sql/ticket-060-schedule-integrity-smoke.sql",
     "test-login:cleanup": "node scripts/supabase-test-login-cleanup.mjs",

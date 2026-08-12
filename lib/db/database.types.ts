@@ -1042,6 +1042,36 @@ export type Database = {
         Args: { range_end_local_date: string; range_start_local_date: string }
         Returns: Json
       }
+      list_my_occurrence_time_session_history: {
+        Args: {
+          cursor_session_id: string
+          cursor_started_at: string
+          include_archived: boolean
+          page_size: number
+          range_end_local_date: string
+          range_start_local_date: string
+          through_started_at: string
+        }
+        Returns: {
+          behavior_id: string
+          id: string
+          occurrence_id: string
+          started_at: string
+          stopped_at: string
+          user_id: string
+        }[]
+      }
+      list_my_occurrence_time_sessions: {
+        Args: { occurrence_ids: string[] }
+        Returns: {
+          behavior_id: string
+          id: string
+          occurrence_id: string
+          started_at: string
+          stopped_at: string
+          user_id: string
+        }[]
+      }
       update_behavior_with_definition_event: {
         Args: {
           behavior_payload: Json

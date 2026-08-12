@@ -16,7 +16,7 @@ import {
 } from "@/lib/db/exportPageRead.repo";
 import { listBehaviorDefinitionEvents } from "@/lib/db/behaviorDefinitionEvents.repo";
 import { consumeExportDownloadRateLimit } from "@/lib/db/launchRateLimits.repo";
-import { listTimeSessionsByOccurrenceIds } from "@/lib/db/timeSessions.repo";
+import { listTimeSessionHistory } from "@/lib/db/timeSessions.repo";
 import {
   resolveExportBundle,
   resolveExportDateRange,
@@ -205,18 +205,13 @@ async function getUserExportBundle(
         endLocalDate: range.endLocalDate,
       })
     : initialRead;
-  const includedBehaviorIds = new Set(
-    cachedBehaviors
-      .filter((behavior) => options.includeArchived || behavior.active)
-      .map((behavior) => behavior.id),
-  );
-  const includedOccurrenceIds = exportRead.occurrences
-    .filter((occurrence) => includedBehaviorIds.has(occurrence.behavior_id))
-    .map((occurrence) => occurrence.id);
   const timeSessions = options.includeTimeTracking
-    ? await listTimeSessionsByOccurrenceIds(supabase, {
+    ? await listTimeSessionHistory(supabase, {
         userId,
-        occurrenceIds: includedOccurrenceIds,
+        startLocalDate: range.startLocalDate,
+        endLocalDate: range.endLocalDate,
+        includeArchived: options.includeArchived ?? false,
+        throughStartedAt: now.toString(),
       })
     : [];
 
@@ -249,7 +244,7 @@ async function getUserExportBundle(
 }
 
 function toExportTimeSessionInput(
-  session: Awaited<ReturnType<typeof listTimeSessionsByOccurrenceIds>>[number],
+  session: Awaited<ReturnType<typeof listTimeSessionHistory>>[number],
 ): ExportTimeSessionInput {
   return {
     id: session.id,

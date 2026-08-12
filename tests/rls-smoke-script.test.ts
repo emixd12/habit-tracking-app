@@ -11,11 +11,24 @@ type SmokeScriptModule = {
     publishableKey: string;
     serviceRoleKey: string;
   };
+  parseLocalSmokeConfig: (output: string) => {
+    url: string;
+    publishableKey: string;
+    serviceRoleKey: string;
+  };
   summarizeSmokeResult: (result: {
     runId: string;
     createdUsers: number;
     checkedAssertions: number;
   }) => string;
+  assertSuccessfulSessionRows: (
+    response: {
+      data: Array<{ id: string }> | null;
+      error: { message: string } | null;
+    },
+    expectedIds: string[],
+    action: string,
+  ) => void;
 };
 
 let smokeScript: SmokeScriptModule;
@@ -57,6 +70,32 @@ describe("Supabase RLS smoke script helpers", () => {
     ).toBe("anon");
   });
 
+  it("parses CLI-reported local config and rejects hosted URLs", () => {
+    expect(
+      smokeScript.parseLocalSmokeConfig(
+        [
+          'API_URL="http://127.0.0.1:55321"',
+          'PUBLISHABLE_KEY="publishable"',
+          'SERVICE_ROLE_KEY="service"',
+        ].join("\n"),
+      ),
+    ).toEqual({
+      url: "http://127.0.0.1:55321",
+      publishableKey: "publishable",
+      serviceRoleKey: "service",
+    });
+
+    expect(() =>
+      smokeScript.parseLocalSmokeConfig(
+        [
+          'API_URL="https://project.supabase.co"',
+          'PUBLISHABLE_KEY="publishable"',
+          'SERVICE_ROLE_KEY="service"',
+        ].join("\n"),
+      ),
+    ).toThrow("loopback API URL");
+  });
+
   it("reports missing config without printing secret values", () => {
     expect(() => smokeScript.readSmokeConfig({}, "missing-env-file")).toThrow(
       "Missing Supabase RLS smoke config",
@@ -80,5 +119,34 @@ describe("Supabase RLS smoke script helpers", () => {
     expect(summary).toContain("RLS smoke passed");
     expect(summary).toContain("6 ownership checks");
     expect(summary).not.toContain("@");
+  });
+
+  it("fails closed when an RPC returns a foreign, duplicate, or errored session", () => {
+    expect(() =>
+      smokeScript.assertSuccessfulSessionRows(
+        { data: [{ id: "session-own" }], error: null },
+        ["session-own"],
+        "own read",
+      ),
+    ).not.toThrow();
+
+    expect(() =>
+      smokeScript.assertSuccessfulSessionRows(
+        { data: [{ id: "session-foreign" }], error: null },
+        ["session-own"],
+        "mixed read",
+      ),
+    ).toThrow("unexpected time-session scope");
+
+    expect(() =>
+      smokeScript.assertSuccessfulSessionRows(
+        {
+          data: null,
+          error: { message: "permission denied" },
+        },
+        [],
+        "owner read",
+      ),
+    ).toThrow("Unexpected error during owner read");
   });
 });

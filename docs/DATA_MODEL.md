@@ -316,10 +316,23 @@ The table cascades on occurrence or account deletion. Duration is derived from
 no backfill and does not change occurrence, status-event, note, reminder,
 import, or export rows.
 
-Exports read these rows only when `include_time_tracking=1`. The export service
-scopes the owner query to occurrences already included by range and archived
-filters. Stopped rows receive derived duration output; running rows keep null
-duration. Import and restore validate optional export data but never write it.
+Ticket 094 adds
+`occurrence_time_sessions_user_started_id_idx (user_id, started_at, id)` for
+owner-scoped history cursors. A rollback-only local fixture used 3,650 daily
+Occurrences and 7,300 stopped sessions for one owner. Before the index, the
+all-time first page sorted a 7,300-row sequential scan in 2.801 ms. A later
+cursor page scanned 7,300 rows, removed 5,114, and ran in 1.516 ms. After the
+index, both pages used the new index and returned 1,000 rows in 0.798 ms and
+0.876 ms. The 90-day plan kept the existing Occurrence local-date index and
+remained similar at 0.783 ms before and 0.863 ms after. These local synthetic
+plans justify the index shape. They are not capacity benchmarks.
+
+Timeline and single-Occurrence timing reads use the bounded arbitrary-ID RPC
+documented below. Analytics, selected-day review, and time-tracking exports use
+the joined historical RPC. Exports read sessions only when
+`include_time_tracking=1`. Stopped rows receive derived duration output;
+running rows keep null duration. Import and restore validate optional export
+data but never write it.
 
 ### `occurrence_sync_state`
 
@@ -1101,6 +1114,74 @@ Export range resolution, occurrence freshness decisions, export formatting,
 BehaviorLog bundle creation, and adherence math remain in TypeScript
 services/resolvers. The RPC is a page-specific read bundle, not a generic data
 access layer.
+
+### `public.list_my_occurrence_time_sessions(occurrence_ids uuid[])`
+
+Ticket 094 adds this non-overloaded arbitrary-ID read. The input contains only
+Occurrence IDs. It never accepts an account identifier, role, JWT payload,
+filter expression, or SQL text.
+
+The function is `STABLE` and `SECURITY INVOKER`, with `search_path = ''` and
+fully qualified references. It requires a non-null `auth.uid()`, explicitly
+filters `occurrence_time_sessions.user_id` to that owner, and retains table RLS
+as defense in depth. The migration revokes the exact signature from `PUBLIC`,
+`anon`, `authenticated`, and `service_role`, then grants execute only to
+`authenticated`. Normal callers use an authenticated Supabase client.
+
+The function returns only `id`, `user_id`, `occurrence_id`, `behavior_id`,
+`started_at`, and `stopped_at`. It orders rows by `started_at ASC, id ASC`.
+Null and empty arrays return no rows. Duplicate input IDs do not duplicate
+sessions. A direct call above 2,000 IDs fails with a non-sensitive validation
+error.
+
+`listTimeSessionsByOccurrenceIds` is the only application boundary for this
+RPC. It normalizes duplicate IDs and makes sequential calls with at most 2,000
+IDs each. Each call also follows PostgREST response ranges in 1,000-row pages.
+A typical 666-ID input returning fewer than 1,000 sessions therefore uses one
+request. An exact 1,000-row response triggers a continuation request. The
+repository propagates any page error, deduplicates returned sessions by session
+ID, and globally sorts all pages and ID batches by `started_at ASC, id ASC`.
+Callers never receive a batching or response-page limit.
+
+Timeline and single-Occurrence timing reads use this repository method.
+Analytics and Export do not use it for historical ranges.
+
+### `public.list_my_occurrence_time_session_history(date, date, boolean, timestamptz, timestamptz, uuid, integer)`
+
+Ticket 094 adds this separately named historical read. Its parameters are
+`range_start_local_date`, `range_end_local_date`, `include_archived`,
+`through_started_at`, `cursor_started_at`, `cursor_session_id`, and
+`page_size`, in that order.
+
+The function joins `occurrences` to `occurrence_time_sessions` on owner,
+Occurrence, and Behavior identity. It joins `behaviors` to apply the current
+archive choice with `(include_archived OR behavior.active)`. The requested
+history window uses `occurrences.local_date`. The function never derives the
+product date from `started_at` and never accepts an Occurrence-ID array.
+
+The start date, end date, archive choice, and high-water instant are required.
+The start date must not follow the end date. First-page cursor fields are both
+null. Later pages supply both fields. Page size must be from 1 through 1,000.
+The query applies `session.started_at <= through_started_at` on every page and
+uses strict `(started_at, id)` tuple comparison after the cursor. It returns
+the same six minimal columns in `started_at ASC, id ASC` order.
+
+`listTimeSessionHistory` uses a page size of 1,000 and follows keyset pages
+until a shorter page returns. An exact 1,000-row page therefore triggers a
+continuation call. The repository reuses one service-supplied high-water value
+for every page and rejects a non-advancing cursor. An all-time request maps its
+null application start to the explicit `0001-01-01` database sentinel.
+
+This function has the same `STABLE`, `SECURITY INVOKER`, empty `search_path`,
+explicit `auth.uid()` ownership, owner RLS, and authenticated-only exact
+signature grant as the arbitrary-ID function.
+
+`analytics.service.ts` supplies its resolved dates, `includeArchived: true`,
+and injected `now` as the high-water value. Selected-day and Behavior history
+consume that Analytics data. `export.service.ts` calls the historical method
+only when `include_time_tracking=1`; it supplies the resolved export dates,
+requested archive choice, and injected `now`. Repositories remain the only RPC
+callers. Pages, routes, components, and resolvers do not call either function.
 
 ## Authenticated read cache
 

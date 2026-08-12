@@ -73,7 +73,7 @@ on 2026-08-04. Chromium touch QA passed. Mobile WebKit and an authenticated
 physical-device pass remain unverified because those browser surfaces were not
 available in this environment.
 
-Tickets 078-094 are `not_started`. Tickets 078-093 were defined on 2026-08-06
+Tickets 078-093 are `not_started`. Ticket 094 is `complete`. Tickets 078-093 were defined on 2026-08-06
 from a repository-wide read-only audit across five independent passes (domain
 resolvers/services/repos, routes/auth/API, import/restore/export,
 UI/interaction, schema/marketing/ops). No fix was applied during the audit and
@@ -83,7 +83,10 @@ Ticket 094 was added on 2026-08-12 after the live 90-day Behaviors range
 produced an oversized Supabase Data API URL. It replaces Ticket 091's earlier
 chunked-table-query decision with two owner-scoped query contracts: a bounded
 arbitrary-ID RPC with automatic batching, and a joined date-range/keyset-cursor
-RPC for historical Analytics and Export reads.
+RPC for historical Analytics and Export reads. Local implementation and
+verification completed on 2026-08-12. The owner authorized migration-first
+hosted rollout on 2026-08-12. Deployment is in progress, so the production
+defect remains live.
 
 Three of those findings are live in production and should be treated as
 defects, not backlog:
@@ -5334,6 +5337,62 @@ Remaining limitations:
   local test-login environment was not enabled. Browser QA used the
   fixture-backed design-system route that renders the production components and
   the real server-action success path without changing product data.
+
+## Owner-scoped time-session query transport (Ticket 094)
+
+Status: complete.
+
+Implemented:
+
+- Added authenticated-only, owner-scoped arbitrary-ID and historical
+  time-session RPCs. Both are `STABLE`, `SECURITY INVOKER`, use an empty
+  `search_path`, retain RLS, and return six minimal columns.
+- Added the EXPLAIN-backed `(user_id, started_at, id)` time-session index.
+- Replaced the oversized direct table read with sequential 2,000-ID batches,
+  1,000-row response continuation, deduplication, stable global ordering, and
+  non-advancing-page rejection.
+- Added 1,000-row keyset history paging with one fixed high-water instant and
+  non-advancing or regressing cursor rejection.
+- Routed Analytics and optional time-tracking Export reads through joined
+  local-date history. Timeline and single-Occurrence reads remain on the
+  arbitrary-ID path.
+- Regenerated database types and added migration, repository, Analytics,
+  Timeline, Export, and RLS smoke coverage.
+- Added `npm run smoke:rls:local`. It reads CLI-reported local credentials,
+  requires a loopback URL, and cannot inherit a hosted URL from `.env.local`.
+
+Verification:
+
+- Pass: clean `npm run supabase -- db reset` through migration
+  `20260812172823_add_time_session_query_rpcs.sql`.
+- Pass: regenerated local database types match `lib/db/database.types.ts`
+  apart from a trailing blank line.
+- Pass: loopback `npm run smoke:rls:local` created and cleaned two temporary
+  users and verified 23 table, RPC ownership, archive, high-water, cursor,
+  validation, and anonymous-denial checks.
+- Pass: a local Data API spike returned 1,001 unique rows through `[1000, 1]`
+  pages for both RPCs.
+- Pass: local Supabase security advisors at warning level and performance
+  advisors at error level reported no issues.
+- Pass: `npm run agents:check` (178 invariants),
+  `npm run interactions:check` (4,484 invariants), and
+  `npm run resolvers:check` (169 invariants).
+- Pass: `npm run lint`, `npm run typecheck`, `npm run test` (117 files, 882
+  tests), `npm run build`, and `git diff --check`. The first sandboxed full-test
+  run failed only because fake-provider tests could not bind loopback; the
+  authorized rerun passed.
+
+Rollout status:
+
+- The owner authorized hosted migration and application deployment on
+  2026-08-12. Preflight found only Ticket 094 pending in hosted migration
+  history. Migration-first deployment is in progress.
+- The production `/behaviors?range=90` defect remains live until hosted schema
+  deployment, application deployment, and authenticated smoke QA complete.
+- One verification attempt inherited the hosted `.env.local` target before the
+  loopback-only command existed. It created two temporary smoke users, stopped
+  at the missing RPC, and ran cleanup. A read-only follow-up confirmed zero
+  `cadence-rls-smoke-*` users remained. No hosted schema changed.
 
 ## Handoff notes
 

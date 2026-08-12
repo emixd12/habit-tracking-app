@@ -8,7 +8,7 @@ import {
   listOccurrencesBetweenLocalDates,
   listUnresolvedOccurrencesBeforeLocalDate,
 } from "@/lib/db/occurrences.repo";
-import { listTimeSessionsByOccurrenceIds } from "@/lib/db/timeSessions.repo";
+import { listTimeSessionHistory } from "@/lib/db/timeSessions.repo";
 import {
   resolveAnalytics,
   resolveAnalyticsDateRange,
@@ -79,9 +79,12 @@ export async function getAnalyticsPageData(
   const behaviorById = new Map(
     behaviors.map((behavior) => [behavior.id, behavior]),
   );
-  const timeSessions = await listTimeSessionsByOccurrenceIds(supabase, {
+  const timeSessions = await listTimeSessionHistory(supabase, {
     userId,
-    occurrenceIds: occurrences.map((occurrence) => occurrence.id),
+    startLocalDate: dateRange.startLocalDate,
+    endLocalDate: dateRange.endLocalDate,
+    includeArchived: true,
+    throughStartedAt: now.toString(),
   });
 
   return resolveAnalytics({

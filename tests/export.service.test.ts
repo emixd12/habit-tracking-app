@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   listBehaviorDefinitionEvents: vi.fn(),
   readExportPageBundle: vi.fn(),
   ensureUserOccurrencesFresh: vi.fn(),
+  listTimeSessionHistory: vi.fn(),
   listTimeSessionsByOccurrenceIds: vi.fn(),
 }));
 
@@ -41,6 +42,7 @@ vi.mock("@/lib/services/occurrence.service", () => ({
 }));
 
 vi.mock("@/lib/db/timeSessions.repo", () => ({
+  listTimeSessionHistory: mocks.listTimeSessionHistory,
   listTimeSessionsByOccurrenceIds: mocks.listTimeSessionsByOccurrenceIds,
 }));
 
@@ -78,7 +80,7 @@ describe("getExportPageData", () => {
       reminderDeliveries: [],
     });
     mocks.ensureUserOccurrencesFresh.mockResolvedValue({ synced: false });
-    mocks.listTimeSessionsByOccurrenceIds.mockResolvedValue([]);
+    mocks.listTimeSessionHistory.mockResolvedValue([]);
   });
 
   it("loads user-scoped definition events and maps them into every rich export", async () => {
@@ -123,7 +125,7 @@ describe("getExportPageData", () => {
       range: "all",
     });
 
-    expect(mocks.listTimeSessionsByOccurrenceIds).not.toHaveBeenCalled();
+    expect(mocks.listTimeSessionHistory).not.toHaveBeenCalled();
 
     await getExportPageData({
       now: Temporal.Instant.from("2026-06-08T16:00:00Z"),
@@ -131,10 +133,17 @@ describe("getExportPageData", () => {
       includeTimeTracking: true,
     });
 
-    expect(mocks.listTimeSessionsByOccurrenceIds).toHaveBeenCalledWith(
+    expect(mocks.listTimeSessionHistory).toHaveBeenCalledWith(
       expect.anything(),
-      { userId: USER_ID, occurrenceIds: [] },
+      {
+        userId: USER_ID,
+        startLocalDate: null,
+        endLocalDate: "2026-06-08",
+        includeArchived: false,
+        throughStartedAt: "2026-06-08T16:00:00Z",
+      },
     );
+    expect(mocks.listTimeSessionsByOccurrenceIds).not.toHaveBeenCalled();
   });
 });
 
