@@ -140,8 +140,9 @@ filtered folders or maintaining appropriate allowlisting remains required.
 Ticket 100 is `not_started`. They define the public repository security gate,
 open-source license and private disclosure contract, and authorized GitHub
 publication sequence. Ticket 098 cannot pass until Tickets 079-083 and 093 are
-complete and deployed. Ticket 100 remains blocked on passing Ticket 098 and
-explicit authorization for every repository or production mutation.
+deployed and verified. The authorized private `main` history rewrite is
+complete. Ticket 100 remains blocked on passing Ticket 098 and explicit
+authorization for every repository or production mutation.
 
 Tickets 101-103 are `not_started`. They complete the public Trust evidence
 pipeline: Ticket 101 defines the versioned evidence and freshness contract,
@@ -5786,9 +5787,12 @@ Rollout status:
 Status: complete locally. The audited release decision is FAIL.
 
 Ticket 098 resumed after Ticket 099 for safe local dependency and privacy
-remediation. The resumed audit removes two local blockers but does not change
-the release decision because deployment, remote-history, and fresh
-hosted-metadata gates remain open.
+remediation. The owner later authorized one exact force-with-lease update of
+private GitHub `main`, seven hosted migrations, and one exact marketing
+production deployment. Those actions clear the remote-history and hosted-
+migration blockers. The release decision remains `FAIL` because the marketing
+deployment did not consume the audited root lockfile and the final Next route
+correction is not committed or deployed.
 
 Implemented:
 
@@ -5808,9 +5812,9 @@ Implemented:
 - Rewrote local `main` after explicit owner approval. The isolated rewrite
   replaces the two audited private history values without changing commit
   topology, messages, timestamps, names, or unrelated blobs and metadata.
-- Recorded the exact audited worktree, last documented production version,
-  hosted migration mismatch, sanitized GitHub inventory, privileged callers,
-  dependency findings, open risks, and explicit FAIL in
+- Recorded the exact audited worktree, fresh production source identities,
+  hosted migration alignment, sanitized GitHub inventory, privileged callers,
+  dependency provenance, open risks, and explicit `FAIL` in
   `docs/PUBLIC_REPOSITORY_RELEASE.md`.
 
 Verification complete:
@@ -5818,15 +5822,17 @@ Verification complete:
 - Pass: post-rewrite Gitleaks 8.30.1 scans covered rewritten local `main`, all
   15 preserved local refs, and a private copy of every tracked and unignored
   worktree path. All three returned no finding. The all-ref graph contains 164
-  unique reachable commits; rewritten local `main` retains 137 commits.
+  unique reachable commits; rewritten base `main` retained 137 commits before
+  the release-candidate commit.
 - Pass: authenticated read-only GitHub inventory covered branches, tags,
   issues, pull requests, comments, reviews, releases/assets, Actions
   runs/logs/artifacts, wiki, Discussions, and Pages where those surfaces
   existed. The GitHub CLI token was invalid, so the connector supplied this
-  coverage. No GitHub mutation occurred.
-- Pass: fresh Next and Astro synthetic-canary builds. Six public canaries had
-  intended placements only. Ten server-only canaries were absent from both
-  complete artifact roots. `npm run marketing:check` passed.
+  coverage. The inventory itself made no GitHub mutation.
+- Pass: fresh Astro and Next webpack synthetic-canary builds. Six public
+  canaries had intended placements only. Ten server-only canaries were absent
+  from both complete artifact roots. The proof found 27 Next and 7 marketing
+  artifact-file placements. `npm run marketing:check` passed.
 - Pass: final `npm run public-source:check` reviewed 571 tracked and unignored
   text files plus all-ref patch history. It found no credential pattern or
   client environment violation.
@@ -5836,11 +5842,11 @@ Verification complete:
   branch blobs, patches, or author/committer metadata. Intended replacements
   are present. One path changed across 27 commit trees, and rewritten HEAD
   changes that path only.
-- Pass: local `main` now points to
-  `c02514851b30987c432bfdfc9067ccb1245a20c8`. `origin/main`, the remote URL,
-  and both detached Codex worktrees remain unchanged. The primary worktree
-  checksum audit covered 157 concrete dirty or untracked paths with zero byte
-  mismatch. Its 150-entry status snapshot is unchanged, and staging is empty.
+- Pass: the immutable release-candidate commit is
+  `ae3dae1c554ac389db715891abef1704ab648a8c`, with rewritten base parent
+  `c02514851b30987c432bfdfc9067ccb1245a20c8`. It records the verified 150-entry
+  worktree as one commit. Local `main`, private GitHub `main`, and `origin/main`
+  now identify this candidate. Both detached Codex worktrees remain unchanged.
 - Pass: the mode-700 recovery directory is
   `/private/tmp/cadence-ticket098-history-rewrite-XTnslg`. Its mode-600
   all-refs bundle, dirty patch, untracked archive, snapshots, and checksum
@@ -5865,10 +5871,11 @@ Verification complete:
 - Pass: the root Node engine now requires 22.12.0 or newer without an
   unsupported upper bound. Public setup, Operations, and Vercel guidance
   recommend Node 24 to match both deployed projects.
-- Pass: `npm run agents:check`, `npm run interactions:check`,
-  `npm run resolvers:check`, `npm run lint`, `npm run typecheck`,
-  `npm run test` (130 files passed, 1 skipped; 1,008 tests passed, 1 skipped),
-  `npm run build`, `npm run marketing:build`, `npm run marketing:check`, and
+- Pass after the final source correction: `npm run agents:check`,
+  `npm run interactions:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test` (130 files passed, 1 skipped; 1,008 tests
+  passed, 1 skipped), the focused settings test, the Next webpack production
+  build, `npm run marketing:build`, `npm run marketing:check`, and
   `git diff --check`. The first full-test run failed only because the sandbox
   denied a loopback fake-provider listener. The authorized rerun passed.
 - Pass: one final approved plain `npm ci` reproduced Next 16.3.3, Astro 7.2.6,
@@ -5877,22 +5884,72 @@ Verification complete:
   pre-install SHA-256 values.
 - Pass: the final status inventory contains no added screenshot or temporary
   path.
-- Pass: this containing commit records all 150 previously dirty or untracked
-  status entries as the immutable local release candidate. Its hash is reported
-  externally because a commit cannot contain its own hash. The candidate does
-  not change the `FAIL` decision while remote history and production remain at
-  older versions.
+- Pass: the force-with-lease used the approved prior remote commit as its exact
+  lease. Pre-push and post-push reads matched the expected commits. Remote ref
+  inventory shows only `main` and no tags. No other branch or recovery ref was
+  created remotely.
+- Pass: a fresh private clone resolves to the immutable candidate with 138
+  commits. Exact scans found zero prior-target occurrence across 2,366
+  reachable blobs, patches, or author/committer metadata. Intended
+  replacements are present. Fresh-clone Gitleaks and public-source checks
+  returned zero finding, and seven required license, security, notice, README,
+  and release-policy files are present.
+- Pass: authenticated read-only GitHub inspection confirms that the repository
+  remains private and unarchived with `main` as its only branch and default
+  branch. The authorized push changed no tag, other ref, visibility, setting,
+  deployment, release, issue, pull request, or other hosted surface.
+- Pass: a fresh read-only GitHub snapshot after deployment confirms private,
+  unarchived visibility, exact remote `main`, one branch, no tags, no issues,
+  no pull requests, no releases, and no Actions runs. Wiki, Discussions, and
+  Pages remain disabled based on the authenticated repository inventory.
+- Pass: the seven tracked migrations were applied in order to the linked
+  hosted Supabase project. The remote boundary now ends at
+  `20260825080815_add_occurrence_sync_batch_order_index.sql`, and a final dry
+  run reports the remote database up to date.
+- Pass: hosted RLS smoke passed 92 ownership checks and cleaned three temporary
+  users. Hosted catalog evidence reports 18 RLS-enabled public relations, no
+  views, no anonymous policy or executable function, 12 authenticated
+  functions, and no unpinned security-definer function. Hosted advisors report
+  no error-level finding; 9 security and 31 performance warnings remain
+  documented.
+- Pass for source identity and public content: marketing deployment
+  `dpl_8aYoaAbPQ3rVE6tS3v2SWJBvCBQU` is `READY`, reports the exact candidate
+  commit and `apps/marketing` root, retains the canonical
+  `cadence-marketing-two.vercel.app` alias, and serves all 19 audited public
+  endpoints successfully.
+- Observation: the canonical and project domains remain. Vercel automatically
+  removed the prior per-user branch alias during the production deployment.
+  Ticket 098 made no domain or project-setting request.
+- Fail for marketing dependency provenance: the CLI upload contained only the
+  marketing subtree. Vercel did not receive the committed root lockfile or
+  root overrides, ran an unlocked install, and resolved a different sharp
+  version from the audited tree. The deployed dependency graph therefore does
+  not reproduce the candidate despite matching Git source metadata.
+- Read-only Vercel project metadata confirms that the marketing Root Directory
+  is unset, outside-root source inclusion is already enabled, and no Git
+  repository is linked. The durable correction is to set Root Directory to
+  `apps/marketing` and deploy from the monorepo root so the build consumes the
+  committed workspace lockfile and overrides.
+- Pass for the minimal Next correction: moved `SettingsPanelGrid` and
+  `SettingsProfile` from the App Router page into the existing settings
+  component module. The page now exports only allowed route symbols. The
+  focused test, typecheck, lint, webpack production build, and synthetic-
+  canary artifact proof pass. The correction is intentionally uncommitted and
+  undeployed.
+- Managed-environment limitation: exact `npm run build` cannot pass locally
+  because Turbopack receives `EPERM` while binding its internal loopback port.
+  The same command failed for both Ticket 098 agents after escalation. The
+  passing webpack build proves the corrected source compiles and typechecks;
+  the next Vercel web deployment must prove the default build.
 
 Publication blockers:
 
-- Tickets 079-083 and 093 remain undeployed or incompletely verified in
-  production.
-- The last documented deployed application commit and hosted migration
-  boundary predate the audited local state. Ticket 098 did not mutate or
-  freshly verify production.
-- GitHub and `origin/main` retain the pre-rewrite history. Publishing the local
-  rewrite requires separate authorization, a fresh remote check, and a
-  force-with-lease update against the recorded remote commit.
+- The marketing production build must consume the committed root lockfile and
+  overrides, then pass fresh dependency and source verification.
+- The minimal Next settings correction must be committed, pushed, and deployed
+  through a successful default Vercel build.
+- The complete gate must be rerun against that new immutable commit. The two
+  evidence documents and three source/test files are currently uncommitted.
 
 Ticket 098 cannot pass until the blockers are resolved and every evidence step
 is rerun against the exact proposed commit and fresh repository metadata.
@@ -5978,8 +6035,9 @@ Verification:
   credential, user data, or behavioral content was recorded.
 
 Publication remains blocked independently by Ticket 098's `FAIL`. The one
-authorized synthetic route-test email was the only recipient mutation. No
-GitHub, deployment, publication, commit, or push mutation occurred.
+authorized synthetic route-test email was Ticket 099's only recipient mutation.
+Ticket 099 made no GitHub, deployment, publication, commit, or push mutation.
+Ticket 098 later performed the separately authorized private `main` rewrite.
 
 ## Handoff notes
 

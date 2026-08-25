@@ -32,6 +32,29 @@ export function SettingsPanel({
   );
 }
 
+export function SettingsPanelGrid({
+  children,
+}: Readonly<{ children: ReactNode }>) {
+  return (
+    <div className="grid min-w-0 grid-cols-1 divide-y divide-line">
+      {children}
+    </div>
+  );
+}
+
+export function SettingsProfile({ email }: Readonly<{ email: string }>) {
+  return (
+    <SettingsPanel title="Profile">
+      <dl className="grid min-w-0 gap-2 text-sm leading-6 text-muted-readable">
+        <div className="min-w-0">
+          <dt className="font-bold text-foreground">Email</dt>
+          <dd className="min-w-0 [overflow-wrap:anywhere]">{email}</dd>
+        </div>
+      </dl>
+    </SettingsPanel>
+  );
+}
+
 export function TrustAndLegalPanel() {
   return (
     <SettingsPanel

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   SettingsPanelGrid,
   SettingsProfile,
-} from "../app/(app)/settings/page";
+} from "@/components/settings/SettingsPanels";
 
 describe("Settings page responsive profile", () => {
   it("uses a zero-minimum single-column track for the Settings panels", () => {

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
 import { Suspense } from "react";
 
 import {
@@ -10,7 +9,8 @@ import { AccountDeletionPanel } from "@/components/settings/AccountDeletionPanel
 import { NotificationPermissionPanel } from "@/components/settings/NotificationPermissionPanel";
 import { TimezonePanel } from "@/components/settings/TimezonePanel";
 import {
-  SettingsPanel,
+  SettingsPanelGrid,
+  SettingsProfile,
   TrustAndLegalPanel,
 } from "@/components/settings/SettingsPanels";
 import { getSettingsPageData } from "@/lib/services/settings.service";
@@ -58,28 +58,5 @@ async function SettingsContent() {
         deleteAccountAction={deleteAccountAction}
       />
     </SettingsPanelGrid>
-  );
-}
-
-export function SettingsPanelGrid({
-  children,
-}: Readonly<{ children: ReactNode }>) {
-  return (
-    <div className="grid min-w-0 grid-cols-1 divide-y divide-line">
-      {children}
-    </div>
-  );
-}
-
-export function SettingsProfile({ email }: Readonly<{ email: string }>) {
-  return (
-    <SettingsPanel title="Profile">
-      <dl className="grid min-w-0 gap-2 text-sm leading-6 text-muted-readable">
-        <div className="min-w-0">
-          <dt className="font-bold text-foreground">Email</dt>
-          <dd className="min-w-0 [overflow-wrap:anywhere]">{email}</dd>
-        </div>
-      </dl>
-    </SettingsPanel>
   );
 }

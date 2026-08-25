@@ -4,46 +4,53 @@
 
 Status: **FAIL**.
 
-Reviewed on 2026-08-25. This decision blocks Ticket 100. Cadence must remain
-private until every fail condition below is remediated and the complete gate is
-rerun against one clean, deployable commit and a fresh GitHub metadata snapshot.
+Reviewed on 2026-08-25. This decision blocks Ticket 100. Cadence remains
+private after the authorized history rewrite. It must remain private until the
+remaining fail conditions are remediated and the complete gate is rerun against
+one reproducible deployed commit and a fresh GitHub metadata snapshot.
 
 ## Audited basis
 
 - Local branch: `main`.
 - Local rewritten base commit:
   `c02514851b30987c432bfdfc9067ccb1245a20c8`.
-- Preserved remote-tracking base commit:
-  `e8d3ec79bf56c6e7e762ed1a229c7f99bdb2ffb9`. Local `main` and
-  `origin/main` intentionally diverge until a separately authorized,
-  force-with-lease publication step replaces the private GitHub history.
-- Local release candidate: this containing commit records the 150 previously
-  changed or untracked status entries containing the locally completed Ticket
-  078-083, 093, and 095-099 work. It is the immutable local release candidate.
-  Its commit hash is reported externally because a commit cannot contain its
-  own hash. The candidate is not yet the GitHub or production release.
-- Rewritten local `main` retains 137 commits. Commit topology, messages,
+- Replaced private remote base commit:
+  `e8d3ec79bf56c6e7e762ed1a229c7f99bdb2ffb9`. The owner authorized one exact
+  force-with-lease update after a fresh remote read matched this value.
+- Immutable release candidate:
+  `ae3dae1c554ac389db715891abef1704ab648a8c`. This commit records the 150
+  previously changed or untracked status entries containing the locally
+  completed Ticket 078-083, 093, and 095-099 work. Local `main`, private GitHub
+  `main`, and `origin/main` now identify this candidate. Both Vercel projects
+  report it as their Git source commit.
+- Rewritten `main` retains 138 commits. Commit topology, messages,
   timestamps, and author/committer names are unchanged. All non-targeted blob
-  contents and metadata are unchanged. Preserved remote-tracking, Codex, and
-  reflog references keep the pre-rewrite objects recoverable locally. No local
-  tag exists.
+  contents and metadata are unchanged. Local Codex worktrees, reflogs, and the
+  recovery bundle keep the pre-rewrite objects recoverable locally. No local or
+  remote tag exists.
 - Recovery directory:
   `/private/tmp/cadence-ticket098-history-rewrite-XTnslg`. The directory is
   mode 700. Its all-refs bundle, dirty patch, untracked archive, status/refs
   snapshots, and checksum manifest are mode 600. The verified bundle SHA-256
   is `e67ebb4d621226f1f611f8bbee1e2a8dd488067c7a14ed27e8a0fda228ef2fc3`.
-- Last documented production application commit:
-  `a0fd750e3a936067c2142de350f43f9cfca559cb`. This value comes from the prior
-  Ticket 094 record. Ticket 098 did not independently verify the current
-  deployed version.
-- Last documented hosted migration boundary:
-  `20260812172823_add_time_session_query_rpcs.sql`. The clean local database
-  reset applies through `20260825080815_add_occurrence_sync_batch_order_index.sql`.
-- Tickets 079-083 and 093 are complete locally but their security-relevant
-  application and migration changes are not fully deployed and verified.
+- The authenticated web application and marketing deployment both report the
+  immutable candidate as their Git source commit. The marketing deployment is
+  `dpl_8aYoaAbPQ3rVE6tS3v2SWJBvCBQU`.
+- The marketing canonical and project domains remain. Vercel automatically
+  removed the prior per-user branch alias during the production deployment;
+  Ticket 098 made no domain or project-setting request.
+- The hosted Supabase migration boundary now ends at
+  `20260825080815_add_occurrence_sync_batch_order_index.sql`. It matches a
+  clean local reset and the tracked migration directory.
+- Five worktree paths now differ from the candidate: these two evidence files,
+  the Settings App Router page, the existing settings component module, and
+  the focused settings test. The three source/test changes are the minimal
+  correction for a Next 16.3.3 route-export failure discovered during the
+  fresh gate. They are not committed, pushed, or deployed.
 
-The deployed application, hosted migration history, and immutable local release
-candidate therefore do not identify one shared releasable version.
+The Git source and hosted schema identify the candidate. The marketing build's
+installed dependency graph does not. The uncommitted Next correction also
+means the candidate is no longer the proposed releasable source tree.
 
 ## Source and history evidence
 
@@ -51,7 +58,8 @@ candidate therefore do not identify one shared releasable version.
   `main`, all 15 preserved local refs, and a private temporary copy of every
   tracked and unignored worktree file. All three scans returned exit code 0
   with no finding. The all-ref graph contains 164 unique reachable commits;
-  rewritten local `main` retains 137 commits.
+  rewritten base `main` retained 137 commits before the release-candidate
+  commit.
 - The Cadence source check reviewed 571 text files and the all-ref patch
   history for Supabase, Sequenzy, VAPID, Google OAuth, AgentMail, Vercel,
   cron/process, database, session, and private-key patterns. It found no
@@ -68,9 +76,21 @@ candidate therefore do not identify one shared releasable version.
   compared 157 concrete dirty or untracked file paths with zero mismatch. The
   150-entry status snapshot remained identical, and the refreshed index has
   zero staged changes.
-- GitHub and `origin/main` remain unchanged at the pre-rewrite history. Old
-  objects and reflogs were not pruned. The local rewrite therefore reduces the
-  future publication risk but does not clear the remote-history gate.
+- The exact force-with-lease update changed only private GitHub `main`. A
+  post-push remote read and explicit fetch confirmed both remote `main` and
+  `origin/main` at the immutable release candidate. Remote ref inventory found
+  one branch named `main` and no tags, so no old branch, tag, or recovery ref
+  was created remotely.
+- A fresh private single-branch clone resolved to the exact candidate with 138
+  commits. It contained zero prior-target occurrences across 2,366 reachable
+  history blobs, full patches, and author/committer metadata. Intended
+  replacements were present. Gitleaks returned exit code 0 with no finding.
+  The public-source check reviewed 571 text files with zero worktree, history,
+  or client-environment finding. `LICENSE`, `SECURITY.md`,
+  `THIRD_PARTY_NOTICES.md`, `README.md`, and the required release-policy files
+  were present.
+- Old objects and reflogs were not pruned. The mode-700 recovery directory and
+  detached Codex worktrees remain unchanged.
 - Raw scanner reports remained outside the repository. No matched value,
   fingerprint, private identifier, or user record appears in this document.
 
@@ -81,7 +101,9 @@ no undiscovered vulnerability or credential exists.
 
 The GitHub CLI installation was present, but its configured authentication was
 invalid. An authenticated read-only GitHub connector completed the repository
-inventory instead. The connector reported:
+inventory instead. A fresh post-deployment connector read confirmed that the
+repository remains private, unarchived, and configured with `main` as its
+default branch. The connector and authenticated Git transport reported:
 
 - one branch and no tags;
 - no issues or pull requests;
@@ -94,8 +116,10 @@ and run artifacts had no parent object to inspect. A generic repository-artifact
 request was unavailable, but the zero-run inventory makes per-run logs and
 artifacts inapplicable for this snapshot. The reviewed issue, pull-request,
 release, Actions, wiki, Discussions, and Pages metadata contained no sensitive
-content. Remote-history risk is recorded separately above. No GitHub mutation
-occurred.
+content. The only GitHub mutation was the separately authorized
+force-with-lease update of `refs/heads/main` to the immutable release candidate.
+No tag, other branch, repository setting, visibility setting, release, issue,
+pull request, Actions, Pages, Discussions, or wiki state changed.
 
 ## Browser artifact boundary
 
@@ -109,9 +133,16 @@ server-only canaries. The complete `.next` tree and
 - no public canary crossed application surfaces; and
 - no server-only canary appeared in either build.
 
-The proof found 20 Next artifact-file placements and 21 Astro artifact-file
+The fresh proof found 27 Next artifact-file placements and 7 Astro artifact-file
 placements. The test suite also proves that an absent declared public canary,
 a cross-surface public canary, or any server canary fails the check.
+
+The fresh Astro build used the ordinary workspace command. The managed local
+environment denied Turbopack's internal loopback bind before compilation, even
+after escalation. A clean Next webpack production build compiled, typechecked,
+generated all routes, and supplied the audited artifacts after the route-export
+correction. The next Vercel web deployment must pass the exact default
+`npm run build`; the local webpack proof does not replace that hosted gate.
 
 ## Public database and authorization evidence
 
@@ -138,6 +169,21 @@ checks. It attempted cross-account reads and mutations through Data API paths.
 Exact cleanup removed all three temporary accounts. Local Supabase advisors
 reported no error-level finding. Existing RLS initialization-plan performance
 warnings remain outside this security gate.
+
+After explicit owner authorization, the seven pending tracked migrations were
+applied to the linked hosted project in exact order. A fresh remote migration
+list and dry run report no pending migration through
+`20260825080815_add_occurrence_sync_batch_order_index.sql`. Hosted RLS smoke
+again passed 92 ownership checks and cleaned three temporary users. A cleanup
+query found no remaining run user or behavior.
+
+The hosted catalog reports the same 18 RLS-enabled public relations, no public
+view, no anonymous policy or executable function, 12 authenticated executable
+functions, and no unpinned security-definer function. Migration-specific
+checks confirm the new configuration lineage, protected profile/reminder
+state, push cap, timezone grant, protected function grants, and sync-batch
+index. Hosted advisors returned no error. They retain 9 security warnings and
+31 performance warnings already recorded for follow-up.
 
 ## Privileged caller inventory
 
@@ -182,6 +228,30 @@ The root Node engine requires 22.12.0 or newer. The public setup and operations
 guidance recommends Node 24 to match both Vercel projects without asserting an
 unsupported upper bound.
 
+The production marketing deployment does not reproduce this audited dependency
+graph. The CLI command ran from `apps/marketing` and uploaded 37 marketing
+files. It omitted the committed root `package-lock.json` and root `overrides`.
+Vercel therefore ran `npm install`, reported a generated lockfile change, and
+installed sharp 0.34.5 instead of the audited sharp 0.35.3. The deployment
+reports the exact Git commit, but its installed dependency provenance is not
+the candidate's locked graph.
+
+The smallest durable remediation is to set the Vercel Root Directory to
+`apps/marketing` and invoke Vercel CLI from the monorepo root. An authenticated
+read-only project query confirms that the Root Directory is currently unset,
+**Include source files outside of the Root Directory in the Build Step** is
+already enabled, and no Git repository is linked to this project. Vercel's
+monorepo guidance says CLI deployment should start at the repository root. The
+existing outside-source setting then permits the build to read the root npm
+workspace manifest and lockfile.
+
+A committed `apps/marketing/package-lock.json` is the fallback, not the
+preferred fix. It would make subtree-only uploads reproducible, but it would
+duplicate dependency state. The root overrides would not govern a standalone
+marketing install, so equivalent marketing-local overrides and separate audit
+maintenance would also be required. The root-source option preserves one lock,
+one override policy, and the existing npm workspace contract.
+
 ## Ticket 099 post-audit policy artifacts
 
 Ticket 099 added local policy artifacts after this release gate's audited
@@ -200,30 +270,25 @@ monitoring or appropriate allowlisting remains an operational requirement.
 `THIRD_PARTY_NOTICES.md` preserves the pinned BehaviorLog validator's exact
 upstream MIT notice.
 
-These additions do not change this document's `FAIL`. The original GitHub
-inventory predates Ticket 099, but the resumed local source, worktree,
-dependency, build, and artifact checks include its files. Ticket 099 does not
-remediate the deployment or remote-history blockers and does not authorize
-publication. Rerun Ticket 098 against the containing local release candidate
-after remote and production reconciliation, using a fresh GitHub metadata
-snapshot. Ticket 099's monitor assignment and route-test gate are complete.
-Neither changes this release decision.
+These additions do not change this document's `FAIL`. The resumed local source,
+worktree, dependency, build, and artifact checks include Ticket 099's files.
+The authorized private `main` rewrite clears the remote-history blocker but
+does not authorize public visibility. Rerun Ticket 098 against a new immutable
+candidate after the dependency-provenance and Next route-export fixes share one
+commit, using a fresh GitHub metadata snapshot. Ticket 099's monitor assignment
+and route-test gate are complete. Neither changes this release decision.
 
 ## Open risks and pass conditions
 
-The gate fails for three independent reasons:
+The gate fails for two independent reasons:
 
-1. Tickets 079-083 and 093 are not fully deployed and verified in production.
-2. The deployed application and hosted migration boundary do not match the
-   audited local state.
-3. GitHub and `origin/main` retain the pre-rewrite history. Local `main` cannot
-   become the public history until the owner authorizes a fresh remote check
-   and a force-with-lease update against the recorded remote commit.
+1. Marketing production omitted the committed root lockfile and overrides, so
+   its installed dependency graph differs from the audited candidate.
+2. The minimal Next route-export correction is uncommitted and undeployed. The
+   next web deployment must pass its default `npm run build`.
 
-A future rerun may pass only after deployment verification, an authorized
-force-with-lease history update, a fresh clone of the resulting GitHub branch,
-and an authenticated refresh of every GitHub surface. It must verify the clone
-matches this immutable local release candidate. It also requires a fresh
-dependency audit, history and source scans, clean canary builds, and repeated
-database/RLS evidence. Ticket 100 must not publish this repository before that
-pass record exists.
+A future rerun may pass only after both fixes share one new immutable commit
+and reproducible production deployments. It also requires another fresh GitHub
+snapshot, both dependency audits, history and source scans, clean canary
+builds, and repeated database/RLS evidence. Ticket 100 must not make this
+repository public before that pass record exists.
