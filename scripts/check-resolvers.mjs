@@ -4,10 +4,8 @@ import path from "node:path";
 const root = process.cwd();
 const failures = [];
 const notes = [];
-let assertions = 0;
 
 function assert(condition, message) {
-  assertions += 1;
   if (!condition) failures.push(message);
 }
 
@@ -179,6 +177,24 @@ assert(!read("lib/navigation.ts").includes("/dashboard"), "Navigation must not i
 const uiAndRouteFiles = [...walk("app"), ...walk("components")].filter(
   (file) => file.endsWith(".ts") || file.endsWith(".tsx"),
 );
+const directSupabaseWritePattern = /\.(?:rpc|upsert)\s*\(/;
+
+for (const file of uiAndRouteFiles) {
+  assert(
+    !directSupabaseWritePattern.test(read(file)),
+    `${file} calls Supabase .rpc() or .upsert() directly; UI and route callers must use a service/repository boundary.`,
+  );
+}
+
+for (const fixture of [
+  "tests/fixtures/governance/resolver-direct-rpc.txt",
+  "tests/fixtures/governance/resolver-direct-upsert.txt",
+]) {
+  assert(
+    directSupabaseWritePattern.test(read(fixture)),
+    `${fixture} must remain a negative fixture for direct Supabase caller bypasses.`,
+  );
+}
 const suspiciousBusinessTerms = [
   "intervalDays",
   "dayOfMonth",
@@ -199,7 +215,7 @@ if (exists("app/api")) {
   for (const file of walk("app/api")) {
     if (!file.endsWith("route.ts") && !file.endsWith("route.tsx")) continue;
     const content = read(file);
-    const doesNontrivialWork = /insert\(|update\(|delete\(|select\(|transactional\.send|webpush|for \(|while \(/.test(content);
+    const doesNontrivialWork = /insert\(|update\(|delete\(|select\(|\.rpc\s*\(|\.upsert\s*\(|transactional\.send|webpush|for \(|while \(/.test(content);
     if (doesNontrivialWork) {
       assert(/from ["']@?\/?lib\/services|from ["']@\/lib\/services/.test(content), `${file} appears to perform orchestration; API routes must call services.`);
     }
@@ -221,5 +237,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`resolvers:check passed (${assertions} invariants).`);
+console.log("resolvers:check passed (resolver modules and caller boundaries checked).");
 for (const note of notes) console.log(`note: ${note}`);

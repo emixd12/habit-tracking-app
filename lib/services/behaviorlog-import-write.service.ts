@@ -4,13 +4,15 @@ import { Temporal } from "@js-temporal/polyfill";
 
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import {
-  createBehaviorScheduleSlot,
   getBehaviorById,
   getBehaviorScheduleSlotById,
-  getBehaviorScheduleSlotByStartTime,
   listBehaviorCategories,
 } from "@/lib/db/behaviors.repo";
-import { createBehaviorWithDefinitionEvent } from "@/lib/db/behaviorDefinitionEvents.repo";
+import {
+  createBehaviorWithAtomicScheduleGraph,
+  updateBehaviorWithAtomicScheduleGraph,
+  type BehaviorScheduleGraphMutation,
+} from "@/lib/db/behaviorDefinitionEvents.repo";
 import {
   createBehaviorLogImportRecordMappings as insertBehaviorLogImportRecordMappings,
   createBehaviorLogImportRun as insertBehaviorLogImportRun,
@@ -43,6 +45,12 @@ import {
   resolveBehaviorLogImportMergePreview,
 } from "@/lib/resolvers/behaviorlog-import.resolver";
 import { planInitialBehaviorDefinitionEvent } from "@/lib/resolvers/behavior-definition.resolver";
+import {
+  normalizeBehaviorConfiguration,
+  planBehaviorConfigurationChangeEvent,
+  planInitialBehaviorConfigurationEvent,
+} from "@/lib/resolvers/behavior-configuration.resolver";
+import { normalizeBehaviorDefinition } from "@/lib/resolvers/behavior-definition.resolver";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import { repairUserOccurrenceReminderGraphBestEffort } from "@/lib/services/occurrence-reminder-repair.service";
 import {
@@ -75,7 +83,6 @@ import type {
   BehaviorLogImportRun,
   Category,
   NewBehavior,
-  NewBehaviorScheduleSlot,
   NewImportedIntervention,
   NewImportedNote,
   NewOccurrence,
@@ -373,12 +380,17 @@ export async function applyCreateMissingBehaviorLogImportPlan(
       input.preview.plan.schedules,
       result,
     );
+    const occurrenceScheduleSnapshots = collectOccurrenceScheduleSnapshots(
+      input.preview.plan.schedules,
+      result,
+    );
     const schedulesByBehavior = groupBy(
       [...supportedSchedules.values()],
       (schedule) => schedule.plan.behaviorExternalId,
     );
     const behaviorIds = new Map<string, string>();
     const scheduleIds = new Map<string, string>();
+    const atomicScheduleIds = new Map<string, string>();
     const occurrenceIds = new Map<string, string>();
     const statusEventIds = new Map<string, string>();
 
@@ -412,6 +424,8 @@ export async function applyCreateMissingBehaviorLogImportPlan(
       const createdBehavior = await createImportedBehaviorWithDefinitionEvent(
         supabase,
         behavior,
+        behaviorSchedules,
+        completedAt,
         {
           user_id: input.userId,
           category_id: resolveCategoryId(categories, behavior),
@@ -434,6 +448,14 @@ export async function applyCreateMissingBehaviorLogImportPlan(
       );
 
       behaviorIds.set(behavior.externalId, createdBehavior.id);
+      await recordImportedScheduleIdentities({
+        supabase,
+        userId: input.userId,
+        behaviorId: createdBehavior.id,
+        schedules: behaviorSchedules,
+        startingSortOrder: 0,
+        scheduleIds: atomicScheduleIds,
+      });
       result.created.behaviors += 1;
       await persistMapping(supabase, result, {
         userId: input.userId,
@@ -472,42 +494,22 @@ export async function applyCreateMissingBehaviorLogImportPlan(
         continue;
       }
 
-      const existingSlot = await getBehaviorScheduleSlotByStartTime(supabase, {
-        userId: input.userId,
-        behaviorId,
-        startTime: supportedSchedule.slot.startTime,
-      });
-      const localSlot =
-        existingSlot ??
-        (await createBehaviorScheduleSlot(
-          supabase,
-          toNewScheduleSlot({
-            userId: input.userId,
-            behaviorId,
-            supportedSchedule,
-            sortOrder: scheduleSortOrder(
-              schedulesByBehavior.get(schedule.behaviorExternalId) ?? [],
-              schedule.externalId,
-            ),
-          }),
-        ));
+      const localSlotId =
+        atomicScheduleIds.get(schedule.externalId) ??
+        failMissingAtomicImportSchedule(schedule.externalId);
 
-      scheduleIds.set(schedule.externalId, localSlot.id);
+      scheduleIds.set(schedule.externalId, localSlotId);
 
-      if (!existingSlot) {
-        result.created.schedules += 1;
-      } else {
-        result.skipped.schedules += 1;
-      }
+      result.created.schedules += 1;
 
       await persistMapping(supabase, result, {
         userId: input.userId,
         importRunId: input.importRunId,
         recordType: "schedule",
         externalId: schedule.externalId,
-        localId: localSlot.id,
+        localId: localSlotId,
       });
-      mappings.set(mappingKey("schedule", schedule.externalId), localSlot.id);
+      mappings.set(mappingKey("schedule", schedule.externalId), localSlotId);
     }
 
     for (const occurrence of input.preview.plan.occurrences) {
@@ -527,12 +529,18 @@ export async function applyCreateMissingBehaviorLogImportPlan(
       }
 
       const behaviorId = behaviorIds.get(occurrence.behaviorExternalId);
-      const scheduleId = scheduleIds.get(occurrence.scheduleExternalId);
-      const supportedSchedule = supportedSchedules.get(
+      const scheduleId = occurrence.importWithDetachedScheduleSnapshot
+        ? null
+        : (scheduleIds.get(occurrence.scheduleExternalId) ?? null);
+      const supportedSchedule = occurrenceScheduleSnapshots.get(
         occurrence.scheduleExternalId,
       );
 
-      if (!behaviorId || !scheduleId || !supportedSchedule) {
+      if (
+        !behaviorId ||
+        (!occurrence.importWithDetachedScheduleSnapshot && !scheduleId) ||
+        !supportedSchedule
+      ) {
         addApplyWarning(
           result,
           "occurrence_parent_missing",
@@ -800,14 +808,20 @@ export async function applyApprovedBehaviorLogMergePlan(
       input.preview.plan.schedules,
       result,
     );
+    const occurrenceScheduleSnapshots = collectOccurrenceScheduleSnapshots(
+      input.preview.plan.schedules,
+      result,
+    );
     const schedulesByBehavior = groupBy(
       [...supportedSchedules.values()],
       (schedule) => schedule.plan.behaviorExternalId,
     );
     const behaviorIds = new Map<string, string>();
     const scheduleIds = new Map<string, string>();
+    const atomicScheduleIds = new Map<string, string>();
     const occurrenceIds = new Map<string, string>();
     const statusEventIds = new Map<string, string>();
+    const createdBehaviorIds = new Set<string>();
     const notePlansByExternalId = new Map<string, BehaviorLogImportNotePlan>(
       input.preview.plan.notes.map((note) => [note.externalId, note]),
     );
@@ -914,6 +928,8 @@ export async function applyApprovedBehaviorLogMergePlan(
       const createdBehavior = await createImportedBehaviorWithDefinitionEvent(
         supabase,
         behavior,
+        behaviorSchedules,
+        completedAt,
         {
           user_id: input.userId,
           category_id: resolveCategoryId(categories, behavior),
@@ -936,6 +952,15 @@ export async function applyApprovedBehaviorLogMergePlan(
       );
 
       behaviorIds.set(behavior.externalId, createdBehavior.id);
+      createdBehaviorIds.add(createdBehavior.id);
+      await recordImportedScheduleIdentities({
+        supabase,
+        userId: input.userId,
+        behaviorId: createdBehavior.id,
+        schedules: behaviorSchedules,
+        startingSortOrder: 0,
+        scheduleIds: atomicScheduleIds,
+      });
       result.created.behaviors += 1;
       await persistMapping(supabase, result, {
         userId: input.userId,
@@ -946,6 +971,19 @@ export async function applyApprovedBehaviorLogMergePlan(
       });
       mappings.set(mappingKey("behavior", behavior.externalId), createdBehavior.id);
     }
+
+    await applyImportedScheduleChangesToExistingBehaviors({
+      supabase,
+      userId: input.userId,
+      completedAt,
+      supportedSchedules,
+      schedulesByBehavior,
+      actionIndex,
+      behaviorIds,
+      createdBehaviorIds,
+      atomicScheduleIds,
+      existingScheduleIds: scheduleIds,
+    });
 
     for (const supportedSchedule of supportedSchedules.values()) {
       const schedule = supportedSchedule.plan;
@@ -1025,42 +1063,22 @@ export async function applyApprovedBehaviorLogMergePlan(
         continue;
       }
 
-      const existingSlot = await getBehaviorScheduleSlotByStartTime(supabase, {
-        userId: input.userId,
-        behaviorId,
-        startTime: supportedSchedule.slot.startTime,
-      });
-      const localSlot =
-        existingSlot ??
-        (await createBehaviorScheduleSlot(
-          supabase,
-          toNewScheduleSlot({
-            userId: input.userId,
-            behaviorId,
-            supportedSchedule,
-            sortOrder: scheduleSortOrder(
-              schedulesByBehavior.get(schedule.behaviorExternalId) ?? [],
-              schedule.externalId,
-            ),
-          }),
-        ));
+      const localSlotId =
+        atomicScheduleIds.get(schedule.externalId) ??
+        failMissingAtomicImportSchedule(schedule.externalId);
 
-      scheduleIds.set(schedule.externalId, localSlot.id);
+      scheduleIds.set(schedule.externalId, localSlotId);
 
-      if (!existingSlot) {
-        result.created.schedules += 1;
-      } else {
-        result.skipped.schedules += 1;
-      }
+      result.created.schedules += 1;
 
       await persistMapping(supabase, result, {
         userId: input.userId,
         importRunId: input.importRunId,
         recordType: "schedule",
         externalId: schedule.externalId,
-        localId: localSlot.id,
+        localId: localSlotId,
       });
-      mappings.set(mappingKey("schedule", schedule.externalId), localSlot.id);
+      mappings.set(mappingKey("schedule", schedule.externalId), localSlotId);
     }
 
     for (const occurrence of input.preview.plan.occurrences) {
@@ -1136,12 +1154,18 @@ export async function applyApprovedBehaviorLogMergePlan(
       }
 
       const behaviorId = behaviorIds.get(occurrence.behaviorExternalId);
-      const scheduleId = scheduleIds.get(occurrence.scheduleExternalId);
-      const supportedSchedule = supportedSchedules.get(
+      const scheduleId = occurrence.importWithDetachedScheduleSnapshot
+        ? null
+        : (scheduleIds.get(occurrence.scheduleExternalId) ?? null);
+      const supportedSchedule = occurrenceScheduleSnapshots.get(
         occurrence.scheduleExternalId,
       );
 
-      if (!behaviorId || !scheduleId || !supportedSchedule) {
+      if (
+        !behaviorId ||
+        (!occurrence.importWithDetachedScheduleSnapshot && !scheduleId) ||
+        !supportedSchedule
+      ) {
         addApplyWarning(
           result,
           "occurrence_parent_missing",
@@ -1678,6 +1702,30 @@ function collectSupportedSchedules(
   return supported;
 }
 
+function collectOccurrenceScheduleSnapshots(
+  schedules: BehaviorLogImportSchedulePlan[],
+  result: ScheduleImportResult,
+): Map<string, SupportedScheduleImport> {
+  const supported = new Map<string, SupportedScheduleImport>();
+
+  for (const schedule of schedules) {
+    if (
+      schedule.action !== "create" &&
+      !schedule.skipReasons.includes("cadence_historical_schedule_export_only")
+    ) {
+      continue;
+    }
+
+    const supportedSchedule = toSupportedSchedule(schedule, result);
+
+    if (supportedSchedule) {
+      supported.set(schedule.externalId, supportedSchedule);
+    }
+  }
+
+  return supported;
+}
+
 function toSupportedSchedule(
   schedule: BehaviorLogImportSchedulePlan,
   result: ScheduleImportResult,
@@ -1814,6 +1862,8 @@ function toScheduleSlot(
 async function createImportedBehaviorWithDefinitionEvent(
   supabase: AppSupabaseClient,
   behaviorPlan: BehaviorLogImportBehaviorPlan,
+  schedules: SupportedScheduleImport[],
+  appliedAt: string,
   behavior: NewBehavior,
 ) {
   const recordedAt = behaviorPlan.createdAtUtc ?? new Date().toISOString();
@@ -1827,7 +1877,19 @@ async function createImportedBehaviorWithDefinitionEvent(
     reason: "behaviorlog_import",
   });
 
-  return createBehaviorWithDefinitionEvent(supabase, {
+  const scheduleGraph = toImportedBehaviorScheduleGraph(schedules);
+  const configurationEventPlan = planInitialBehaviorConfigurationEvent({
+    configuration: toImportedBehaviorConfiguration(
+      behavior,
+      scheduleGraph,
+    ),
+    recordedAt: appliedAt,
+    effectiveAt: appliedAt,
+    source: "import",
+    reasonCode: "behaviorlog_import",
+  });
+
+  return createBehaviorWithAtomicScheduleGraph(supabase, {
     behavior: {
       ...behavior,
       title: definitionEventPlan.nextTitle,
@@ -1835,7 +1897,273 @@ async function createImportedBehaviorWithDefinitionEvent(
       created_at: recordedAt,
     },
     definitionEventPlan,
+    configurationEventPlan,
+    schedules: scheduleGraph,
   });
+}
+
+async function applyImportedScheduleChangesToExistingBehaviors(input: {
+  supabase: AppSupabaseClient;
+  userId: string;
+  completedAt: string;
+  supportedSchedules: Map<string, SupportedScheduleImport>;
+  schedulesByBehavior: Map<string, SupportedScheduleImport[]>;
+  actionIndex: Map<string, BehaviorLogImportMergeRecordAction>;
+  behaviorIds: Map<string, string>;
+  createdBehaviorIds: Set<string>;
+  atomicScheduleIds: Map<string, string>;
+  existingScheduleIds: Map<string, string>;
+}): Promise<void> {
+  for (const [behaviorExternalId, importedSchedules] of input.schedulesByBehavior) {
+    const behaviorId = input.behaviorIds.get(behaviorExternalId);
+
+    if (!behaviorId || input.createdBehaviorIds.has(behaviorId)) {
+      continue;
+    }
+
+    const schedulesToCreate = importedSchedules.filter((schedule) => {
+      const action = requireMergeAction(
+        input.actionIndex,
+        "schedule",
+        schedule.plan.externalId,
+      );
+
+      return (
+        action.action === "create_new" &&
+        !input.existingScheduleIds.has(schedule.plan.externalId)
+      );
+    });
+
+    if (schedulesToCreate.length === 0) {
+      continue;
+    }
+
+    const existingBehavior = await getBehaviorById(
+      input.supabase,
+      input.userId,
+      behaviorId,
+    );
+
+    if (!existingBehavior) {
+      throw new Error(
+        `Imported schedule target behavior ${behaviorId} is unavailable.`,
+      );
+    }
+
+    const expectedScheduleGraph = toStoredImportScheduleGraph(existingBehavior);
+    const appendStartingSortOrder =
+      expectedScheduleGraph.reduce(
+        (maximum, schedule) => Math.max(maximum, schedule.sort_order),
+        -1,
+      ) + 1;
+    const appendedSchedules = toImportedBehaviorScheduleGraph(
+      schedulesToCreate,
+      appendStartingSortOrder,
+    );
+    const nextScheduleGraph = [...expectedScheduleGraph, ...appendedSchedules];
+    const previousConfiguration = toImportedBehaviorConfiguration(
+      existingBehavior,
+      expectedScheduleGraph,
+    );
+    const nextConfiguration = toImportedBehaviorConfiguration(
+      existingBehavior,
+      nextScheduleGraph,
+    );
+    const configurationEventPlan = planBehaviorConfigurationChangeEvent({
+      previousConfiguration,
+      nextConfiguration,
+      recordedAt: input.completedAt,
+      effectiveAt: input.completedAt,
+      source: "import",
+      reasonCode: "behaviorlog_import",
+    });
+
+    if (!configurationEventPlan) {
+      continue;
+    }
+
+    const updatedBehavior = await updateBehaviorWithAtomicScheduleGraph(input.supabase, {
+      behaviorId,
+      behavior: {
+        category_id: existingBehavior.category_id,
+        title: existingBehavior.title,
+        description: existingBehavior.description,
+        recurrence_rule: existingBehavior.recurrence_rule,
+        scheduled_time: existingBehavior.scheduled_time,
+        timezone: existingBehavior.timezone,
+        browser_reminder_enabled: existingBehavior.browser_reminder_enabled,
+        email_reminder_enabled: existingBehavior.email_reminder_enabled,
+        reminder_offset_minutes: existingBehavior.reminder_offset_minutes,
+        active: existingBehavior.active,
+        archived_at: existingBehavior.archived_at,
+      },
+      expectedDefinition: {
+        title: existingBehavior.title,
+        description: existingBehavior.description,
+      },
+      expectedNormalizedDefinition: normalizeBehaviorDefinition({
+        title: existingBehavior.title,
+        description: existingBehavior.description,
+      }),
+      expectedScheduleGraph,
+      expectedUpdatedAt: existingBehavior.updated_at,
+      definitionEventPlan: null,
+      configurationEventPlan,
+      schedules: nextScheduleGraph,
+    });
+
+    if (!updatedBehavior) {
+      throw new Error(
+        `Imported schedule target behavior ${behaviorId} changed before its schedule update.`,
+      );
+    }
+
+    await recordImportedScheduleIdentities({
+      supabase: input.supabase,
+      userId: input.userId,
+      behaviorId,
+      schedules: schedulesToCreate,
+      startingSortOrder: appendStartingSortOrder,
+      scheduleIds: input.atomicScheduleIds,
+    });
+  }
+}
+
+function toImportedBehaviorScheduleGraph(
+  schedules: SupportedScheduleImport[],
+  startingSortOrder = 0,
+): BehaviorScheduleGraphMutation[] {
+  return schedules.map((schedule, index) => ({
+    recurrence_rule: schedule.recurrenceRule,
+    sort_order: startingSortOrder + index,
+    slots: [
+      {
+        kind: schedule.slot.kind,
+        preset: schedule.slot.preset,
+        start_time: schedule.slot.startTime,
+        end_time: schedule.slot.endTime,
+        sort_order: 0,
+      },
+    ],
+  }));
+}
+
+function toStoredImportScheduleGraph(
+  behavior: Awaited<ReturnType<typeof getBehaviorById>> & {},
+): BehaviorScheduleGraphMutation[] {
+  return (behavior.schedules ?? []).map((schedule) => ({
+    id: schedule.id,
+    recurrence_rule: schedule.recurrence_rule,
+    sort_order: schedule.sort_order,
+    slots: schedule.schedule_slots.map((slot) => ({
+      id: slot.id,
+      kind: slot.kind,
+      preset: slot.preset,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      sort_order: slot.sort_order,
+    })),
+  }));
+}
+
+function toImportedBehaviorConfiguration(
+  behavior: Pick<
+    NewBehavior,
+    | "category_id"
+    | "browser_reminder_enabled"
+    | "email_reminder_enabled"
+    | "reminder_offset_minutes"
+    | "active"
+    | "timezone"
+  >,
+  schedules: BehaviorScheduleGraphMutation[],
+) {
+  return normalizeBehaviorConfiguration({
+    categoryId: behavior.category_id ?? null,
+    scheduleGraph: schedules.map((schedule) => ({
+      recurrenceRule: schedule.recurrence_rule,
+      sortOrder: schedule.sort_order,
+      timeEntries: schedule.slots.map((slot) => ({
+        kind: slot.kind,
+        preset: slot.preset,
+        startTime: slot.start_time,
+        endTime: slot.end_time,
+        sortOrder: slot.sort_order,
+      })),
+    })),
+    browserReminderEnabled: behavior.browser_reminder_enabled ?? true,
+    emailReminderEnabled: behavior.email_reminder_enabled ?? false,
+    reminderOffsetMinutes: behavior.reminder_offset_minutes ?? 0,
+    active: behavior.active ?? true,
+    timezone: behavior.timezone ?? "America/New_York",
+  });
+}
+
+function failMissingAtomicImportSchedule(externalId: string): never {
+  throw new Error(
+    `Imported schedule ${externalId} was not created at its atomic behavior boundary.`,
+  );
+}
+
+async function recordImportedScheduleIdentities(input: {
+  supabase: AppSupabaseClient;
+  userId: string;
+  behaviorId: string;
+  schedules: SupportedScheduleImport[];
+  startingSortOrder: number;
+  scheduleIds: Map<string, string>;
+}): Promise<void> {
+  const storedBehavior = await getBehaviorById(
+    input.supabase,
+    input.userId,
+    input.behaviorId,
+  );
+
+  if (!storedBehavior) {
+    throw new Error(
+      `Imported behavior ${input.behaviorId} is unavailable after its atomic schedule write.`,
+    );
+  }
+
+  for (const [index, importedSchedule] of input.schedules.entries()) {
+    const expectedSortOrder = input.startingSortOrder + index;
+    const candidates = (storedBehavior.schedules ?? []).flatMap((schedule) => {
+      if (
+        schedule.sort_order !== expectedSortOrder ||
+        stableStringify(schedule.recurrence_rule) !==
+          stableStringify(importedSchedule.recurrenceRule)
+      ) {
+        return [];
+      }
+
+      return schedule.schedule_slots.filter(
+        (slot) =>
+          slot.kind === importedSchedule.slot.kind &&
+          slot.preset === importedSchedule.slot.preset &&
+          normalizeDatabaseTime(slot.start_time) ===
+            normalizeDatabaseTime(importedSchedule.slot.startTime) &&
+          normalizeNullableDatabaseTime(slot.end_time) ===
+            normalizeNullableDatabaseTime(importedSchedule.slot.endTime) &&
+          slot.sort_order === 0,
+      );
+    });
+
+    if (candidates.length !== 1) {
+      throw new Error(
+        `Imported schedule ${importedSchedule.plan.externalId} could not be matched to one atomic schedule slot.`,
+      );
+    }
+
+    input.scheduleIds.set(importedSchedule.plan.externalId, candidates[0].id);
+  }
+}
+
+function normalizeDatabaseTime(value: string): string {
+  return value.length === 5 ? `${value}:00` : value;
+}
+
+function normalizeNullableDatabaseTime(value: string | null): string | null {
+  return value === null ? null : normalizeDatabaseTime(value);
 }
 
 function resolveCategoryId(
@@ -2498,41 +2826,10 @@ function toNewImportedIntervention(input: {
   } satisfies NewImportedIntervention;
 }
 
-function toNewScheduleSlot(input: {
-  userId: string;
-  behaviorId: string;
-  supportedSchedule: SupportedScheduleImport;
-  sortOrder: number;
-}): NewBehaviorScheduleSlot {
-  return {
-    user_id: input.userId,
-    behavior_id: input.behaviorId,
-    kind: input.supportedSchedule.slot.kind,
-    preset: input.supportedSchedule.slot.preset,
-    start_time: input.supportedSchedule.slot.startTime,
-    end_time: input.supportedSchedule.slot.endTime,
-    sort_order: input.sortOrder,
-  };
-}
-
-function scheduleSortOrder(
-  schedules: SupportedScheduleImport[],
-  externalId: string,
-): number {
-  return Math.max(
-    schedules
-      .sort((left, right) =>
-        left.slot.startTime.localeCompare(right.slot.startTime),
-      )
-      .findIndex((schedule) => schedule.plan.externalId === externalId),
-    0,
-  );
-}
-
 function toNewOccurrence(input: {
   userId: string;
   behaviorId: string;
-  scheduleId: string;
+  scheduleId: string | null;
   occurrence: BehaviorLogImportOccurrencePlan;
   supportedSchedule: SupportedScheduleImport;
 }): NewOccurrence {

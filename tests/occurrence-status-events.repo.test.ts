@@ -252,6 +252,7 @@ function buildOccurrence(input: {
     user_id: "user-1",
     behavior_id: "behavior-1",
     behavior_schedule_slot_id: "slot-1",
+    behavior_configuration_event_id: null,
     scheduled_for: "2026-06-08T14:00:00Z",
     local_date: "2026-06-08",
     schedule_kind: "exact",

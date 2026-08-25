@@ -30,13 +30,13 @@ const DOWNLOAD_ACTIONS = [
     format: "json",
     label: "App JSON backup (.json)",
     description:
-      "App-native categories, behaviors, occurrence snapshots, status-event history, and behavior definition history.",
+      "App-native categories, behaviors, occurrence snapshots, status-event history, and complete behavior definition, schedule, and reminder history.",
   },
   {
     format: "behaviorlog",
     label: "BehaviorLog bundle (.behaviorlog.zip)",
     description:
-      "BehaviorLog core records plus Cadence definition history, status history, manifest, and CSV views.",
+      "BehaviorLog core records plus Cadence definition, schedule, reminder, and status history, manifest, and CSV views.",
   },
 ] as const;
 
@@ -182,8 +182,9 @@ export function ExportPanel({
 
           <p className="max-w-3xl text-sm text-muted-readable">
             Full JSON and BehaviorLog include complete prior and next behavior
-            titles and descriptions by default. Historical definitions can
-            contain sensitive text.
+            titles and descriptions, plus schedule and reminder history, by
+            default. Historical definitions and configuration can contain
+            sensitive context.
           </p>
 
           <ul className="grid gap-2">
@@ -257,9 +258,11 @@ export function ExportPanel({
             confirmation.
           </p>
           <p className="mt-3 max-w-3xl text-sm text-muted-readable">
-            Exported behavior definition revisions are not replayed on import or
-            restore. Cadence uses the current title and description snapshot and
-            records a new local import baseline or transition.
+            Exported behavior definition and configuration revisions are not
+            replayed on import or restore. Cadence uses the current title,
+            description, schedule, and reminder snapshot and records a new local
+            import baseline or transition. Historical Occurrence snapshots stay
+            portable without activating prior schedules.
           </p>
           <p className="mt-3 max-w-3xl text-sm text-muted-readable">
             Cadence validates optional time-tracking export files and their

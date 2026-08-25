@@ -119,7 +119,11 @@ describe("UX Tickets 049-052 UI regressions", () => {
       <AccountDeletionPanel
         confirmationLabel="DELETE"
         deleteAccountAction={deleteAccountAction}
-        initialState={{ status: "error", message: "Unable to delete this account." }}
+        initialState={{
+          status: "error",
+          message:
+            "Unable to delete this account. Your account and session are unchanged. Try again.",
+        }}
       />,
     );
 
@@ -128,7 +132,9 @@ describe("UX Tickets 049-052 UI regressions", () => {
     expect(failureHtml.match(/role="alert"/g)).toHaveLength(1);
     expect(failureHtml).toContain('aria-live="assertive"');
     expect(deletionHtml.match(/role="alert"/g)).toHaveLength(1);
-    expect(deletionHtml).toContain("Unable to delete this account.");
+    expect(deletionHtml).toContain(
+      "Unable to delete this account. Your account and session are unchanged. Try again.",
+    );
   });
 
   it("focuses and announces the real account-deletion success target", async () => {

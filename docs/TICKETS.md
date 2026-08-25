@@ -7043,6 +7043,815 @@ Out of scope:
 
 ---
 
+## Ticket 095: Behavior configuration event contract and capture
+
+Add append-only owner-scoped history for Behavior schedule graphs, reminder
+settings, category, active state, and timezone.
+
+Dependencies:
+- Ticket 078 must complete first so a configuration change cannot erase
+  earlier same-day Occurrence history.
+
+Settled decisions:
+- Preserve current `behaviors`, `behavior_schedules`, and
+  `behavior_schedule_slots` as operational snapshots.
+- Add `behavior_configuration_events` with complete normalized previous and
+  next configuration snapshots, changed fields, exact recorded/effective
+  instants, effective local date, timezone, source, and reason code.
+- New Behaviors receive a baseline. Existing Behaviors receive a truthful
+  `history_capture_started` baseline at rollout time. Do not backdate current
+  configuration to Behavior creation.
+- Definition title/description history remains in
+  `behavior_definition_events`; do not duplicate that text in configuration
+  snapshots.
+- Capture manual Behavior form, archive/restore, Settings timezone,
+  import-create/merge, and destructive restore configuration writes at their
+  atomic mutation boundaries.
+- A normalized no-op creates no event. One save that changes several
+  configuration fields creates one revision.
+- The history is append-only personal data, not a tamper-evident compliance
+  ledger.
+
+Acceptance criteria:
+- A daily-to-weekly edit stores one revision with complete previous and next
+  schedule graphs and exact effective time.
+- Reminder-only, category, archive/restore, and timezone changes are recorded.
+- A title plus schedule edit writes the definition event, configuration event,
+  Behavior snapshot, schedule graph, and stale marker atomically.
+- Failed writes leave no partial event or graph mutation.
+- No-op saves create no configuration event.
+- Owner RLS permits no cross-account reads or writes, and authenticated clients
+  have no update or delete path for event rows.
+- Existing accounts receive no invented pre-rollout schedule history.
+
+Suggested files:
+- new migration via `npm run supabase -- migration new add_behavior_configuration_events`
+- `lib/types/behavior-configuration-event.ts`
+- `lib/resolvers/behavior-configuration.resolver.ts`
+- `lib/db/behaviorConfigurationEvents.repo.ts`
+- `lib/db/behaviorDefinitionEvents.repo.ts`
+- `lib/services/behavior.service.ts`
+- `lib/services/settings.service.ts`
+- import and restore services/RPC migrations
+- `lib/db/database.types.ts`
+- `tests/behavior-configuration.resolver.test.ts`
+- migration, repository, service, import, restore, and RLS tests
+- `docs/AGENT_RESOLVERS.md`
+- `docs/DATA_MODEL.md`
+
+Out of scope:
+- Dose, quantity, supply, refill, or clinical semantics.
+- User-entered change reasons or a revision-browser UI.
+- Hosted migration deployment without explicit authorization.
+
+---
+
+## Ticket 096: Occurrence configuration lineage
+
+Link each newly generated Occurrence to the configuration event that governed
+its schedule without inventing lineage for legacy Occurrences.
+
+Dependencies:
+- Tickets 078 and 095.
+
+Settled decisions:
+- Add a nullable owner-and-Behavior-scoped configuration-event reference to
+  `occurrences`.
+- New generated Occurrences receive the governing event ID.
+- Past, resolved, and protected Occurrences keep their original event.
+- A retained future unresolved Occurrence moves to the new event only when the
+  new schedule still generates the same Occurrence.
+- Pre-rollout Occurrences remain unlinked unless the governing revision is
+  known from an actual captured event.
+
+Acceptance criteria:
+- New Occurrences identify their governing configuration event.
+- Daily-to-weekly changes preserve old lineage and assign new weekly
+  Occurrences to the new revision.
+- Same-instant Occurrences retained by the new graph receive new lineage only
+  when the new graph still produces them.
+- Ticket 078-protected, past, and resolved rows keep their original lineage.
+- Duplicate schedule-time merging remains deterministic.
+- Cross-owner event references fail at the database boundary.
+
+Suggested files:
+- new migration via
+  `npm run supabase -- migration new link_occurrences_to_behavior_configuration_events`
+- `lib/resolvers/occurrence.resolver.ts`
+- `lib/services/occurrence.service.ts`
+- `lib/db/occurrences.repo.ts`
+- `lib/db/database.types.ts`
+- `tests/occurrence.resolver.test.ts`
+- `tests/occurrence.service.test.ts`
+- migration and RLS tests
+- `docs/DATA_MODEL.md`
+- `docs/RECURRENCE_RULES.md`
+
+Out of scope:
+- Reconstructing unknown pre-rollout configuration history.
+- Rewriting resolved or historical Occurrence schedule snapshots.
+
+---
+
+## Ticket 097: Configuration history export and BehaviorLog schedule periods
+
+Expose complete app-native configuration history and historically correct
+BehaviorLog schedule periods.
+
+Dependencies:
+- Tickets 095 and 096.
+
+Settled decisions:
+- Full JSON adds sorted `behavior_configuration_events` for every included
+  Behavior, regardless of the selected Occurrence range.
+- JSONL and CSV remain current-snapshot formats.
+- BehaviorLog ends old schedule periods, creates new schedule periods, and
+  maps known Occurrences to the correct revision schedule.
+- Exact effective instants and Cadence lineage IDs live under the Cadence
+  extension when BehaviorLog core exposes only local-date bounds.
+- Legacy unlinked Occurrences use an explicit medium-confidence fallback. Do
+  not present current recurrence as verified historical truth.
+- Markdown reports history counts and tells agents to segment analysis around
+  changes. It must not infer causality or provide clinical guidance.
+- Export disclosure copy names schedule and reminder history without adding a
+  new export option.
+
+Acceptance criteria:
+- A daily-to-weekly account exports both schedule periods and exact change
+  timing.
+- Known Occurrences reference the schedule revision that governed them.
+- Full JSON includes complete previous and next configuration snapshots.
+- Archive filtering and deterministic ordering match definition-history rules.
+- Reads above the Data API row cap are complete or fail loudly at a documented
+  absolute ceiling.
+- Manifest counts and hashes match emitted records.
+- BehaviorLog conformance, Full JSON, Markdown, and Export UI tests pass.
+
+Suggested files:
+- `lib/db/behaviorConfigurationEvents.repo.ts`
+- `lib/services/export.service.ts`
+- `lib/resolvers/export.resolver.ts`
+- `lib/types/export.ts`
+- `lib/export-prompts.ts`
+- `components/export/ExportPanel.tsx`
+- `tests/export.service.test.ts`
+- `tests/export.resolver.test.ts`
+- `tests/behaviorlog-conformance.test.ts`
+- `tests/export-panel-ui.test.tsx`
+- `docs/PRODUCT_SPEC.md`
+- `docs/EXPORT_FORMATS.md`
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+
+Out of scope:
+- Import or restore replay of exported configuration-event history.
+- A new BehaviorLog standard profile for non-schedule configuration changes.
+- A configuration-history browser in the Cadence UI.
+- Hosted deployment without explicit authorization.
+
+---
+
+## Ticket 098: Public repository security release gate
+
+Produce auditable evidence that publishing the Cadence source and repository
+history will not expose credentials, private account data, or an authorization
+model that depends on hidden implementation details.
+
+Context:
+- The repository currently describes Cadence as public and open-source, but the
+  connected GitHub remote is not accessible to an unauthenticated visitor as of
+  2026-08-25.
+- Ticket 079 documents a live production email-recipient authorization defect.
+  Ticket 082 documents an account-controlled push fan-out abuse path. Public
+  visibility must not precede their deployed fixes.
+- `.gitignore` excludes local environment files, but ignore rules do not prove
+  that no secret existed in an earlier commit, branch, tag, issue, pull request,
+  release asset, workflow log, or other GitHub-hosted repository surface.
+- GitHub requires a leaked credential to be revoked or rotated before history
+  cleanup. Rewriting history cannot remove the credential from existing clones
+  or forks:
+  `https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository`.
+- Supabase Data API safety depends on both least-privilege grants and RLS. Secret
+  and service-role keys bypass RLS and must remain server-only:
+  `https://supabase.com/docs/guides/database/postgres/row-level-security`.
+
+Dependencies:
+- Tickets 079-083 and 093 must complete.
+- Every security-relevant application and migration change from those tickets
+  must be deployed and verified before this gate can pass. Read-only audit work
+  may start earlier.
+
+Settled decisions:
+- Prefer publishing the existing repository and preserving its history only if
+  every scan and metadata review passes.
+- Use at least one history-aware secret scanner across all local Git refs. Add
+  manual project-specific patterns for Supabase, Sequenzy, VAPID, Google OAuth,
+  AgentMail, Vercel, cron, reminder-process, database, and session credentials.
+- Inventory GitHub-hosted surfaces through authenticated read-only API or CLI
+  access. Include branches, tags, issues, pull requests, comments, reviews,
+  releases, assets, Actions logs and artifacts, wiki content, discussions, and
+  Pages content when those surfaces exist.
+- Treat a real credential finding as compromised. Revoke or rotate it first,
+  update every authorized deployment, verify the old value fails, and only then
+  decide whether history cleanup remains necessary.
+- Never commit raw scanner output, matched values, credential fingerprints,
+  private GitHub metadata, production identifiers, or user data. Keep only a
+  sanitized aggregate record of tools, versions, scopes, dates, and outcomes.
+- Build the Next.js and Astro browser artifacts with unique synthetic canary
+  values. Prove that every server-only canary is absent from browser-delivered
+  files. Public configuration canaries may appear only where documented.
+- Review every exposed table, view, function, grant, and policy. Extend the
+  existing ordinary-user RLS smoke rather than creating a parallel ownership
+  harness. The smoke must attempt cross-account read and mutation through the
+  same Data API paths available to a signed-in browser.
+- Inventory every service-role or secret-key caller. Confirm that no client
+  component, browser bundle, user-facing data path, log, error response, or
+  exported artifact can receive a privileged credential.
+- Record every unresolved security-relevant ticket and its publication impact.
+  The gate fails for a known path that can expose another account's data, abuse
+  a provider, bypass authorization, or reveal a live credential.
+- This ticket produces evidence only. It does not change repository visibility,
+  rewrite Git history, rotate credentials, or deploy provider changes without
+  separate owner authorization.
+
+Acceptance criteria:
+- A full tracked-tree and all-ref Git-history scan reports no active credential,
+  private key, database URI, session material, or real account data.
+- A GitHub metadata inventory reports no sensitive content on every existing
+  repository surface, or each finding has a documented private remediation.
+- Every confirmed credential finding is revoked or rotated before the gate can
+  pass. The old credential is verified unusable without printing either value.
+- Synthetic server-only canaries are absent from all browser-delivered Next.js
+  and Astro artifacts.
+- Static grant/policy coverage and the authenticated many-account RLS smoke
+  cover every exposed table, view, and function. Cross-account reads and writes
+  fail.
+- The browser and marketing applications use only documented public Supabase
+  and VAPID values. No service-role, provider, OAuth secret, process secret, or
+  database credential enters a client path.
+- `npm audit --omit=dev` reports no unresolved high or critical production
+  vulnerability. Any exception names the package, exposure, mitigation, owner,
+  and expiry date without copying sensitive advisory material.
+- `docs/PUBLIC_REPOSITORY_RELEASE.md` records the sanitized evidence, the exact
+  tested commit, deployed application version, hosted migration boundary, open
+  risks, and a clear pass or fail decision.
+- A fail decision blocks Ticket 100. A pass decision remains valid only for the
+  exact reviewed Git commit and repository metadata snapshot.
+
+Suggested files:
+- `scripts/check-public-source-boundary.mjs`
+- `scripts/check-agents.mjs`
+- `scripts/supabase-rls-smoke.mjs`
+- `tests/public-source-boundary.test.ts`
+- `tests/rls-policy-registry.test.ts`
+- `tests/rls-smoke-script.test.ts`
+- `.gitignore`
+- `.env.example`
+- `docs/PUBLIC_REPOSITORY_RELEASE.md`
+- `docs/OPERATIONS.md`
+- `docs/SUPABASE_WORKFLOW.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `STATUS.md`
+
+Required verification:
+- Run the selected history-aware scanner against all refs and record its exact
+  version and scope in the sanitized release document.
+- Build both applications with synthetic public and server-only canaries, then
+  run `npm run build`, `npm run marketing:build`, and
+  `npm run marketing:check`.
+- Run `npm run smoke:rls` against local Supabase after a clean
+  `npm run supabase -- db reset`.
+- Run `npm audit --omit=dev`.
+- Run `npm run agents:check`, `npm run interactions:check`,
+  `npm run resolvers:check`, `npm run lint`, `npm run typecheck`, and
+  `npm run test`.
+
+Out of scope:
+- Claiming that source publication or an automated scan proves the absence of
+  every vulnerability.
+- Publishing exploit reproduction steps for an unpatched production defect.
+- Rewriting Git history, changing repository visibility, rotating production
+  credentials, or changing hosted providers without explicit owner approval.
+- Adding an admin or support path that can read user behavioral data.
+
+---
+
+## Ticket 099: Open-source license and security disclosure contract
+
+Give public users clear legal permission to use the source and a private route
+for reporting security defects before the repository becomes public.
+
+Context:
+- The repository calls Cadence open-source but has no root `LICENSE` file.
+  Public visibility alone does not grant an open-source license.
+- The repository has no root `SECURITY.md`, supported-version statement, or
+  documented private vulnerability-reporting route.
+- The code license, Cadence name and marks, third-party assets, hosted service
+  terms, privacy terms, and user-owned behavioral data are separate concerns.
+
+Dependencies:
+- None for drafting and owner decisions.
+- Ticket 098 must pass before this ticket's final documents authorize public
+  publication.
+
+Owner decisions required:
+- Select the code license. Use an OSI-approved license if Cadence will continue
+  to claim that it is open-source. Do not infer or choose the license from the
+  current product copy.
+- Select the private security-reporting mechanism and monitored recipient.
+- Decide whether the Cadence name, logo, illustrations, sample content, and
+  other non-code assets share the code license or carry explicit exclusions.
+
+Settled decisions:
+- Add one root license with an explicit scope. Identify excluded marks, assets,
+  or third-party material without inventing ownership claims.
+- Inventory direct dependencies, copied code, fonts, icons, images, sample
+  bundles, and BehaviorLog materials for license compatibility and attribution
+  requirements. Add a notice file only when the selected license or inventory
+  requires it.
+- Keep hosted-service Terms, Privacy, and Trust documents distinct from the
+  source license. The source license grants no rights to user behavioral data.
+- Add `SECURITY.md` with supported versions, private reporting instructions,
+  requested report details, coordinated-disclosure expectations, and safe
+  research boundaries. Do not promise a response deadline the owner cannot
+  operate.
+- Tell reporters not to include credentials, real user data, or behavioral
+  content in a public issue.
+- Update the README with the selected license, security-policy link, local
+  setup boundary, and the distinction between public browser configuration and
+  server-only secrets.
+- Keep a contributor license agreement, copyright assignment, bug-bounty
+  program, and paid support promise out of scope unless the owner requests one.
+- This ticket is documentation and policy work. It does not constitute legal
+  advice. The owner may request legal review before approving the license.
+
+Acceptance criteria:
+- The owner has recorded the three required decisions.
+- A root `LICENSE` contains the approved license text and correct copyright
+  information.
+- Any excluded marks, assets, or third-party materials are named in README or a
+  required notice file. No file receives ambiguous or contradictory licensing.
+- `SECURITY.md` provides a tested private reporting route and explains which
+  versions receive security fixes.
+- README links to `LICENSE` and `SECURITY.md`, explains self-hosting secret
+  responsibilities, and never implies that source visibility grants access to
+  the hosted service or user data.
+- Public Terms, Privacy, and Trust copy remains consistent with the selected
+  license and disclosure policy.
+- Marketing "View on GitHub" copy names the repository only after Ticket 100
+  makes the destination public.
+
+Suggested files:
+- `LICENSE`
+- `SECURITY.md`
+- `README.md`
+- `NOTICE` only if required
+- `apps/marketing/src/data/routes.ts`
+- `apps/marketing/src/pages/about.astro`
+- `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+- `docs/OPERATIONS.md`
+- `docs/DECISIONS.md`
+- `STATUS.md`
+
+Required verification:
+- Test the private reporting route without sending real vulnerability or user
+  data.
+- Run the repository's license or notice checks if the implementation adds
+  them.
+- Run `npm run agents:check`, `npm run marketing:check`, and
+  `npm run marketing:build`.
+
+Out of scope:
+- Selecting the license without owner approval.
+- Licensing user data, production credentials, or third-party material Cadence
+  does not own.
+- Creating a contributor license agreement, foundation, bug bounty, paid
+  support contract, or trademark registration.
+
+---
+
+## Ticket 100: Public repository publication and GitHub security controls
+
+Publish the reviewed Cadence repository in a controlled, verified sequence and
+enable the repository controls needed for ongoing public development.
+
+Dependencies:
+- Tickets 098 and 099 must complete with a passing security gate and approved
+  license.
+- The exact reviewed application and migration version must already be deployed
+  and verified in production.
+
+Settled decisions:
+- Prefer changing the existing `emixd12/habit-tracking-app` repository to
+  public when Ticket 098 approves its history and metadata. Do not create a
+  second repository merely to avoid completing the review.
+- If Ticket 098 requires a history rewrite or replacement repository, stop for
+  explicit owner approval. Record lost commit, issue, pull request, release,
+  deployment, and contributor provenance before choosing that path.
+- Inventory repository collaborators, deploy keys, webhooks, environments,
+  Actions secrets, branch rules, GitHub Apps, Pages settings, releases, issues,
+  pull requests, discussions, and wiki state before changing visibility. Do not
+  print or copy secret values.
+- Add pull-request CI for repository checks, lint, typecheck, tests, and builds.
+  Protect `main` from force pushes and deletion. Require the checks that the
+  repository can run reliably before requiring pull requests.
+- Enable GitHub secret scanning, repository push protection, Dependabot alerts,
+  dependency security updates, private vulnerability reporting, and CodeQL
+  default setup. GitHub documents secret scanning as automatic and free for
+  public repositories and recommends CodeQL default setup for eligible public
+  repositories:
+  `https://docs.github.com/en/code-security/how-tos/secure-your-secrets/detect-secret-leaks/enable-secret-scanning`
+  and
+  `https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/configure-code-scanning/configure-code-scanning`.
+- Review every initial secret, dependency, and CodeQL alert. Close only false
+  positives with a concrete reason. A high or critical alert blocks completion
+  unless the owner accepts a documented, time-bounded exception.
+- Publish the source only after the production deployment contains the fixes.
+  Never expose a patch in public source while the matching known production
+  weakness remains exploitable.
+- Treat repository visibility, branch protection, GitHub security settings,
+  and production deployment as external mutations. Ticket creation does not
+  authorize those actions. Obtain explicit owner approval during execution.
+- Keep the repository public after verification. Roll back visibility only for
+  an incident, and assume clones already retain everything published.
+
+Acceptance criteria:
+- Pull-request CI passes from a fresh unauthenticated clone using documented
+  setup and no production credentials.
+- `main` branch protection blocks force pushes and deletion and requires the
+  selected stable checks.
+- Secret scanning, repository push protection, Dependabot alerts, dependency
+  security updates, private vulnerability reporting, and CodeQL default setup
+  are enabled and have completed their first scans where applicable.
+- No untriaged high or critical security alert remains. Every lower-severity
+  alert has an owner and disposition.
+- The owner explicitly authorizes the visibility change after reviewing the
+  Ticket 098 pass record and Ticket 099 license.
+- An unauthenticated visitor can view and clone the canonical repository, read
+  `LICENSE` and `SECURITY.md`, and complete the documented non-provider checks.
+- The marketing "View on GitHub" destination resolves to the canonical public
+  repository.
+- Production Google login, cross-account RLS smoke, Timeline read and status
+  mutation, Export, account deletion failure recovery, reminder processing,
+  and bounded browser-push delivery pass after publication.
+- `docs/PUBLIC_REPOSITORY_RELEASE.md`, `docs/OPERATIONS.md`,
+  `docs/VERCEL_WORKFLOW.md`, and `STATUS.md` record the public repository URL,
+  release commit, GitHub controls, production deployment, verification date,
+  remaining risks, and incident rollback owner.
+
+Suggested files:
+- `.github/workflows/ci.yml`
+- `.github/dependabot.yml`
+- `README.md`
+- `SECURITY.md`
+- `docs/PUBLIC_REPOSITORY_RELEASE.md`
+- `docs/OPERATIONS.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `apps/marketing/src/data/site.ts`
+- `STATUS.md`
+
+Required verification:
+- Run the pull-request workflow from a non-default branch before protecting
+  `main`.
+- Run `npm run agents:check`, `npm run interactions:check`,
+  `npm run resolvers:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test`, `npm run build`, `npm run marketing:check`, and
+  `npm run marketing:build`.
+- Run the authenticated production checks named in the acceptance criteria
+  without copying account data or credentials into the release record.
+- Verify the public clone and marketing link from an unauthenticated browser
+  session.
+
+Out of scope:
+- Publishing before Ticket 098 passes or before the reviewed fixes reach
+  production.
+- Weakening Auth, RLS, grants, route protection, secret ownership, or provider
+  controls to make a public clone easier to run.
+- Publishing private operational evidence, user data, provider payloads,
+  scanner matches, Actions secrets, or deployment credentials.
+- Assuming that switching the repository back to private removes published
+  history from clones or forks.
+
+---
+
+## Ticket 101: Public trust evidence contract and freshness rules
+
+Define one versioned, sanitized evidence contract for every check Cadence shows
+on its public Trust surface.
+
+Context:
+- Tickets 098 and 100 create release records and GitHub security controls, but
+  they do not produce one machine-readable record the Trust page can consume.
+- Ticket 092 checks source manifests and generated marketing files during a
+  build. It does not prove that the declared routes are live.
+- The current Trust page contains durable product claims. It has no status
+  vocabulary, freshness rules, immutable evidence links, or safe missing-data
+  behavior.
+- Without a contract, a failed collector can disappear from the page or leave
+  an old green result looking current.
+
+Dependencies:
+- Ticket 092 owns the corrected marketing route manifest and parity checks.
+- Tickets 098 and 100 own the initial public-source gate and GitHub security
+  controls. This ticket may define and test the contract earlier, but it cannot
+  mark their checks Passed before those tickets complete.
+
+Settled decisions:
+- Add a JSON Schema for `cadence.public-trust-evidence` with an integer schema
+  version. Reject unknown status values and malformed timestamps.
+- Every snapshot names the exact source commit, application deployment,
+  marketing deployment, workflow run, build time, verification time, and
+  freshness deadline it covers. Use sanitized public identifiers only.
+- Required checks are source-to-deployment provenance, production dependency
+  vulnerabilities, code scanning, secret scanning, public artifact integrity,
+  application live-route comparison, marketing live-route comparison, hosted
+  migration boundary, and cross-account RLS isolation.
+- Use exactly five public statuses: `passed`, `failed`, `stale`, `not_run`, and
+  `unavailable`. Display them as Passed, Failed, Stale, Not run, and
+  Unavailable.
+- `not_run` means Cadence supports the check but has no completed result for the
+  named deployment. `unavailable` means the platform cannot perform or expose
+  that check. It requires a concrete reason and scope limit.
+- A stored Passed result becomes Stale after its check-specific freshness
+  deadline or when its named deployment no longer matches the current
+  deployment. A consumer derives Stale; a publisher cannot extend freshness by
+  copying an old result into a new snapshot.
+- Every check records its identifier, status, scope, tool and version,
+  completion time, freshness deadline, summary, and immutable evidence URL.
+  Failed, Not run, and Unavailable checks remain present in the snapshot.
+- Evidence summaries may contain counts, digests, public dependency names,
+  public route paths, and sanitized deployment identifiers. They must not
+  contain secrets, scanner matches, private repository metadata, provider
+  tokens, raw headers, user identifiers, behavioral data, notes, or private
+  hostnames.
+- Implement schema validation and freshness calculation as pure code. The UI,
+  workflow scripts, and route handlers consume that code instead of inventing
+  status rules independently.
+- Keep immutable snapshots. A separate `latest.json` pointer may identify the
+  newest valid snapshot, but it never replaces or mutates an older snapshot.
+- The contract states what each check proves and does not prove. It must not use
+  certification, audit, tamper-proof, or vulnerability-free language.
+
+Acceptance criteria:
+- Valid fixtures cover every status and required check.
+- Validation rejects missing required checks, unknown status values, invalid
+  timestamps, mutable evidence URLs, deployment mismatches, and prohibited
+  sensitive fields.
+- Freshness tests show that an unexpired matching result stays Passed, an
+  expired result becomes Stale, and a prior-deployment result becomes Stale.
+- Failed, Not run, and Unavailable checks survive normalization and remain
+  visible to consumers.
+- The schema defines the public meaning and scope limit of every required
+  check.
+- `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`, `docs/OPERATIONS.md`, and
+  `docs/VERCEL_WORKFLOW.md` identify the contract, ownership, retention, and
+  freshness policy.
+
+Suggested files:
+- `schemas/public-trust-evidence.schema.json`
+- `lib/resolvers/public-trust-evidence.resolver.ts`
+- `lib/trust/public-trust-evidence.ts`
+- `scripts/check-public-trust-evidence.mjs`
+- `tests/public-trust-evidence.resolver.test.ts`
+- `tests/public-trust-evidence-script.test.ts`
+- `docs/AGENT_RESOLVERS.md`
+- `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+- `docs/OPERATIONS.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `STATUS.md`
+
+Required verification:
+- Validate passing, failing, expired, missing, and malformed fixtures.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, and `npm run test`.
+
+Out of scope:
+- Running production scans, changing repository visibility, enabling GitHub
+  Pages, or modifying Vercel deployments.
+- Treating absence of a scanner finding as proof that no vulnerability exists.
+- Publishing raw operational evidence or any user-owned data.
+
+---
+
+## Ticket 102: Post-deployment trust verification and public evidence feed
+
+Run the public Trust checks against a named production release and publish
+sanitized, immutable evidence for human and machine consumers.
+
+Dependencies:
+- Tickets 092, 098, 100, and 101 must complete.
+- The exact application and marketing commits under test must be deployed and
+  report Ready before collection starts.
+
+Settled decisions:
+- Add one least-privilege GitHub Actions workflow. It runs manually, after an
+  authorized production release, and on a daily schedule for freshness.
+- Keep the existing Vercel Git deployment model. Provenance verifies that each
+  Ready deployment names the expected Git commit. It does not claim that
+  Cadence controls or signs Vercel's private function bundles.
+- Generate a production dependency SBOM from the lockfile. Run
+  `npm audit --omit=dev`, record the scanner version and aggregate severity
+  counts, and publish the SBOM digest. Do not publish private advisory notes.
+- Collect the public status of CodeQL, Dependabot, secret scanning, and push
+  protection configured by Ticket 100. If GitHub cannot expose a result safely,
+  publish Unavailable with the precise limitation instead of inferring Passed.
+- Build an integrity manifest for publicly retrievable application and
+  marketing assets. Record SHA-256 digests, byte lengths, content types, final
+  URLs, and verification times. Do not publish or claim integrity coverage for
+  private server bundles.
+- Compare the generated marketing route manifest with the live marketing
+  origin. Compare a separate explicit registry of public application routes
+  with the live application origin. Check the expected status or redirect,
+  canonical URL, content type, stable page marker, and machine-readable mirror
+  where applicable.
+- Bound route checks by an allowlisted origin, route count, response size,
+  redirect count, and timeout. Never crawl arbitrary URLs from a response.
+- Record the hosted Supabase migration boundary without publishing database
+  credentials or connection details. Reuse the authenticated many-account RLS
+  smoke from Ticket 098 at its documented cadence; mark it Stale when its
+  freshness window expires.
+- Publish one immutable snapshot before updating `latest.json`. Use a GitHub
+  Pages deployment built from a workflow artifact, not generated commits on
+  `main`. Keep snapshots addressable by workflow run and deployment identifiers.
+- A check failure still publishes a valid Failed snapshot, then fails the
+  workflow gate. A schema or sanitization failure publishes nothing and leaves
+  the previous `latest.json` unchanged.
+- If one application deployed and the other did not, publish the mismatch and
+  mark affected provenance and route checks Failed or Stale. Never combine
+  evidence from unrelated deployments into a Passed release.
+- Log only sanitized summaries. Store secrets in protected Actions
+  environments. Grant the workflow only the repository, Pages, Vercel, and
+  Supabase permissions it needs.
+- Enabling GitHub Pages, adding secrets, dispatching production verification,
+  or changing provider settings requires explicit owner authorization during
+  implementation. This ticket definition grants none of those mutations.
+
+Acceptance criteria:
+- A manual workflow run against the named production deployments publishes a
+  schema-valid immutable snapshot and updates `latest.json` atomically.
+- The snapshot maps both Ready Vercel deployments to the expected source commit
+  and describes the limits of that provenance.
+- Dependency evidence contains an SBOM digest, scanner version, aggregate
+  result, and immutable workflow evidence link.
+- Integrity evidence detects a changed response body, missing public asset,
+  unexpected redirect, content-type change, and digest mismatch.
+- Live-route comparison detects a manifest route missing in production, an
+  undeclared live public route in the allowlisted surface, a wrong canonical,
+  and a divergent Markdown mirror.
+- A simulated Failed check remains public and causes the workflow to fail after
+  publication.
+- A simulated schema or sanitization failure does not replace the last valid
+  `latest.json`.
+- Scheduled verification makes an expired result Stale even when no new
+  application deployment occurred.
+- Public evidence contains no secret, raw scanner match, private provider
+  metadata, user identifier, behavioral content, or production response body.
+- Operations documentation covers dispatch, expected cadence, failure triage,
+  evidence retention, secret rotation, Pages rollback, and provider outage
+  behavior.
+
+Suggested files:
+- `.github/workflows/public-trust-evidence.yml`
+- `scripts/collect-public-trust-evidence.mjs`
+- `scripts/compare-public-routes.mjs`
+- `scripts/build-public-integrity-manifest.mjs`
+- `scripts/publish-public-trust-evidence.mjs`
+- `config/public-app-routes.json`
+- `apps/marketing/src/data/routes.ts`
+- `tests/public-trust-collector.test.ts`
+- `tests/public-route-comparison.test.ts`
+- `tests/public-integrity-manifest.test.ts`
+- `docs/OPERATIONS.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `docs/CRAWL_POLICY.md`
+- `docs/PUBLIC_REPOSITORY_RELEASE.md`
+- `STATUS.md`
+
+Required verification:
+- Run all collectors against deterministic local fixtures with no provider
+  credentials.
+- Run a manual authorized workflow against Preview before Production. Confirm
+  the allowlists prevent access to non-Cadence origins.
+- Inspect the public snapshot from an unauthenticated browser and scan the
+  output for prohibited fields and synthetic secret canaries.
+- Run `npm audit --omit=dev`, `npm run agents:check`,
+  `npm run interactions:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, `npm run build`,
+  `npm run marketing:check`, and `npm run marketing:build`.
+
+Out of scope:
+- Replacing Vercel Git deployments with a custom artifact deployment system.
+- Claiming integrity coverage for Vercel's private runtime or function bundles.
+- Exposing private GitHub security alerts, raw scan results, repository
+  administration metadata, provider credentials, or production user data.
+- Broad crawling, authenticated user-flow monitoring, penetration testing, or
+  load testing.
+
+---
+
+## Ticket 103: Evidence-backed public Trust page and machine-readable route
+
+Render the public Trust checks without overstating their result, and expose the
+same normalized result to agents.
+
+Dependencies:
+- Tickets 101 and 102 must complete.
+- Ticket 100 must make the canonical source repository public before the page
+  links to repository evidence.
+
+Settled decisions:
+- Keep the authenticated application's public `/trust` route as the canonical
+  human Trust page. Do not create a second marketing Trust page.
+- Add a same-origin public machine route for the normalized current result.
+  The route validates the upstream evidence contract and applies freshness and
+  deployment-match rules before responding.
+- Always render rows for source provenance, dependency scanning, code scanning,
+  secret scanning, artifact integrity, application routes, marketing routes,
+  migration boundary, and RLS isolation.
+- A check appears Passed only when a valid snapshot names the current
+  deployment and remains inside its freshness window. An expired or superseded
+  result appears Stale.
+- If no valid snapshot exists, supported checks appear Not run. If the platform
+  cannot supply a check, it appears Unavailable with its reason. Network,
+  parsing, or schema failures never produce Passed.
+- Show the covered commit and deployments, last verified time, next freshness
+  deadline, scope summary, limitation, and immutable evidence link. Do not show
+  raw response bodies, scanner findings, credentials, or user data.
+- Preserve the current durable Trust content about manual status truth,
+  single-account isolation, portability, reminders, and BehaviorLog. Separate
+  those product commitments from time-bound verification results.
+- Use text and icons in addition to color. Status rows, timestamps, evidence
+  links, failure explanations, and stale notices must work at 390px and with
+  keyboard and screen-reader navigation.
+- Keep the last valid snapshot visible as Stale during an evidence-host outage
+  when the runtime has a validated cached copy. If no validated copy is
+  available, show Unavailable and identify the feed failure.
+- Link the marketing footer, Docs page, Markdown mirrors, `llms.txt`, and
+  `llms-full.txt` to the canonical Trust page and machine route with absolute
+  cross-origin URLs where required.
+- Update the interaction registry for every new evidence link, disclosure, or
+  refresh action. Do not add a manual refresh control unless cached evidence
+  cannot meet the freshness contract.
+- The page may say Verified only for a named check and time. It must not call
+  Cadence audited, certified, secure, tamper-proof, or vulnerability-free.
+
+Acceptance criteria:
+- `/trust` renders every required check for Passed, Failed, Stale, Not run, and
+  Unavailable fixtures.
+- The machine route returns the same normalized statuses, timestamps, scope,
+  and immutable evidence URLs shown on `/trust`.
+- Missing, malformed, expired, mismatched-deployment, and unreachable evidence
+  never render as Passed.
+- The page distinguishes source-to-deployment provenance from public asset
+  integrity and states the limit of each.
+- A user can reach the immutable evidence for each completed check without
+  authentication.
+- Marketing HTML, Markdown, and agent outputs point to the canonical routes and
+  do not duplicate or contradict status text.
+- Mobile, keyboard, screen-reader, reduced-motion, and no-color checks pass.
+- Public responses contain no user data, secrets, raw scanner findings, private
+  provider metadata, or unsafe HTML from evidence summaries.
+
+Suggested files:
+- `app/(legal)/trust/page.tsx`
+- `app/(legal)/trust/loading.tsx`
+- `app/api/public/trust-evidence/route.ts`
+- `components/settings/LegalContent.tsx`
+- `components/trust/TrustEvidencePanel.tsx`
+- `lib/services/public-trust-evidence.service.ts`
+- `lib/trust/public-trust-evidence.ts`
+- `apps/marketing/src/data/routes.ts`
+- `apps/marketing/src/data/agent-output.ts`
+- `apps/marketing/src/pages/docs.astro`
+- `docs/ROUTE_MAP.md`
+- `docs/UI_SPEC.md`
+- `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+- `docs/CRAWL_POLICY.md`
+- `interaction-registry.json`
+- `tests/public-trust-page.test.tsx`
+- `tests/public-trust-route.test.ts`
+- `STATUS.md`
+
+Required verification:
+- Run the public Trust page and machine route against fixtures for all five
+  statuses and every failure mode in the acceptance criteria.
+- Run the project-local impeccable context workflow before editing the UI, then
+  run `npm run design-system:check` and `npm run interactions:check`.
+- Run `npm run agents:check`, `npm run resolvers:check`, `npm run lint`,
+  `npm run typecheck`, `npm run test`, `npm run build`,
+  `npm run marketing:check`, and `npm run marketing:build`.
+- Verify `/trust` at desktop and 390px viewports. Verify the machine route and
+  cross-origin links from an unauthenticated browser session.
+
+Out of scope:
+- Authenticated monitoring, synthetic user accounts, production write probes,
+  penetration testing, or an admin dashboard.
+- Exposing raw security reports or adding claims that exceed the published
+  evidence.
+- Replacing the existing Terms, Privacy, or durable Trust commitments.
+
+---
+
 ## Deferred work
 
 PWA caching, offline timeline access, local pending status changes, and sync conflict handling are not part of the v1 ticket sequence.

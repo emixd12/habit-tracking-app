@@ -71,13 +71,31 @@ export async function listActivePushSubscriptionsForUser(
     .select("*")
     .eq("user_id", userId)
     .eq("active", true)
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(20);
 
   if (error) {
     throw error;
   }
 
   return data ?? [];
+}
+
+export async function deactivateCurrentUserPushSubscriptionByEndpoint(
+  supabase: AppSupabaseClient,
+  endpoint: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .update({ active: false })
+    .eq("endpoint", endpoint)
+    .eq("active", true);
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function deactivatePushSubscriptionById(

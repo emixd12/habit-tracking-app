@@ -23,3 +23,22 @@ export async function createClient() {
     },
   });
 }
+
+export async function clearSupabaseAuthCookies(): Promise<void> {
+  const cookieStore = await cookies();
+
+  for (const cookie of cookieStore.getAll()) {
+    if (!isSupabaseAuthCookie(cookie.name)) {
+      continue;
+    }
+
+    cookieStore.set(cookie.name, "", {
+      maxAge: 0,
+      path: "/",
+    });
+  }
+}
+
+function isSupabaseAuthCookie(name: string): boolean {
+  return name.startsWith("sb-") && name.includes("auth-token");
+}

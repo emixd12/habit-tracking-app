@@ -106,7 +106,7 @@ describe("updateBehaviorFromFormData definition history", () => {
 
     expect(mocks.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
       expect.anything(),
-      {
+      expect.objectContaining({
         behaviorId: BEHAVIOR_ID,
         behavior: expect.objectContaining({
           title: "Brush and floss",
@@ -132,8 +132,13 @@ describe("updateBehaviorFromFormData definition history", () => {
         },
         expectedScheduleGraph: [],
         expectedUpdatedAt: "2026-06-26T12:00:00Z",
+        configurationEventPlan: expect.objectContaining({
+          changedFields: ["schedule_graph"],
+          reasonCode: "behavior_edited",
+          source: "manual",
+        }),
         schedules: expect.any(Array),
-      },
+      }),
     );
     expect(mocks.updateBehavior).not.toHaveBeenCalled();
     expect(mocks.syncUserOccurrencesAndReminders).toHaveBeenCalledWith(

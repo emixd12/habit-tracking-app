@@ -2,10 +2,15 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET, POST } from "../app/auth/sign-out/route";
+import { deactivateCurrentUserPushSubscriptionByEndpoint } from "@/lib/db/pushSubscriptions.repo";
 import { createClient } from "@/lib/supabase/server";
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(),
+}));
+
+vi.mock("@/lib/db/pushSubscriptions.repo", () => ({
+  deactivateCurrentUserPushSubscriptionByEndpoint: vi.fn(),
 }));
 
 describe("sign-out route", () => {
@@ -31,6 +36,33 @@ describe("sign-out route", () => {
     expect(response.headers.get("location")).toBe(
       "http://localhost:3000/login?signedout=1",
     );
+    expect(deactivateCurrentUserPushSubscriptionByEndpoint).not.toHaveBeenCalled();
+  });
+
+  it("deactivates the current browser endpoint before clearing the session", async () => {
+    const response = await POST(signOutRequest("https://push.example.com/device-1"));
+
+    expect(deactivateCurrentUserPushSubscriptionByEndpoint).toHaveBeenCalledWith(
+      await createClient(),
+      "https://push.example.com/device-1",
+    );
+    expect(
+      vi.mocked(deactivateCurrentUserPushSubscriptionByEndpoint).mock
+        .invocationCallOrder[0],
+    ).toBeLessThan(signOut.mock.invocationCallOrder[0]!);
+    expect(response.status).toBe(303);
+  });
+
+  it("keeps the session when current-device deactivation fails", async () => {
+    vi.mocked(deactivateCurrentUserPushSubscriptionByEndpoint).mockRejectedValueOnce(
+      new Error("database unavailable"),
+    );
+
+    const response = await POST(signOutRequest("https://push.example.com/device-1"));
+
+    expect(response.status).toBe(500);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toBeNull();
   });
 
   it("rejects GET without changing the session", async () => {
@@ -60,3 +92,10 @@ describe("sign-out route", () => {
     expect(response.headers.get("location")).toBeNull();
   });
 });
+
+function signOutRequest(pushEndpoint: string) {
+  return new NextRequest("http://localhost:3000/auth/sign-out", {
+    method: "POST",
+    body: new URLSearchParams({ pushEndpoint }),
+  });
+}

@@ -8,18 +8,17 @@ import {
   listUserBehaviors,
 } from "@/lib/db/behaviors.repo";
 import {
-  createMissingOccurrences,
-  deleteUnresolvedOccurrencesById,
+  applyOccurrenceGenerationPlan,
   getOccurrenceWithBehaviorTimezoneById,
   listBehaviorOccurrencesFrom,
   updateOccurrenceById,
-  updateUnresolvedOccurrenceScheduleById,
 } from "@/lib/db/occurrences.repo";
 import {
   applyOccurrenceStatusTransitionRpc,
   getLatestOccurrenceStatusEventForOccurrence,
 } from "@/lib/db/occurrenceStatusEvents.repo";
 import { listProfileOccurrenceSyncTargets } from "@/lib/db/profiles.repo";
+import { listOccurrenceIdsWithTimeSessions } from "@/lib/db/timeSessions.repo";
 import { reportMonitoringError } from "@/lib/monitoring/privacy-safe-events";
 import {
   markOccurrenceSyncFreshForPlans,
@@ -72,14 +71,16 @@ vi.mock("@/lib/db/profiles.repo", () => ({
   listProfileOccurrenceSyncTargets: vi.fn(),
 }));
 
+vi.mock("@/lib/db/timeSessions.repo", () => ({
+  listOccurrenceIdsWithTimeSessions: vi.fn(),
+}));
+
 vi.mock("@/lib/db/occurrences.repo", () => ({
-  createMissingOccurrences: vi.fn(),
-  deleteUnresolvedOccurrencesById: vi.fn(),
+  applyOccurrenceGenerationPlan: vi.fn(),
   getOccurrenceById: vi.fn(),
   getOccurrenceWithBehaviorTimezoneById: vi.fn(),
   listBehaviorOccurrencesFrom: vi.fn(),
   updateOccurrenceById: vi.fn(),
-  updateUnresolvedOccurrenceScheduleById: vi.fn(),
 }));
 
 vi.mock("@/lib/db/occurrenceStatusEvents.repo", () => ({
@@ -121,11 +122,18 @@ const CATEGORY: Pick<Category, "id" | "name"> = {
 };
 const FORM_OCCURRENCE_ID = "11111111-1111-4111-8111-111111111111";
 
+beforeEach(() => {
+  vi.mocked(listOccurrenceIdsWithTimeSessions).mockResolvedValue([]);
+});
+
 describe("syncUserOccurrences", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(createMissingOccurrences).mockResolvedValue();
-    vi.mocked(deleteUnresolvedOccurrencesById).mockResolvedValue();
+    vi.mocked(applyOccurrenceGenerationPlan).mockResolvedValue({
+      insertedCount: 0,
+      updatedCount: 0,
+      deletedCount: 0,
+    });
     vi.mocked(markOccurrenceSyncFreshForPlans).mockResolvedValue({} as never);
     vi.mocked(markOccurrenceSyncStale).mockResolvedValue({} as never);
     vi.mocked(readOccurrenceSyncState).mockResolvedValue(null);
@@ -186,12 +194,16 @@ describe("syncUserOccurrences", () => {
       "2026-06-08T04:00:00Z",
     );
     expect(listBehaviorScheduleSlots).not.toHaveBeenCalled();
-    expect(createMissingOccurrences).toHaveBeenCalledWith(SUPABASE, []);
-    expect(updateUnresolvedOccurrenceScheduleById).not.toHaveBeenCalled();
-    expect(deleteUnresolvedOccurrencesById).toHaveBeenCalledWith(
+    expect(applyOccurrenceGenerationPlan).toHaveBeenCalledTimes(2);
+    expect(applyOccurrenceGenerationPlan).toHaveBeenNthCalledWith(
+      1,
       SUPABASE,
-      "user-1",
-      [],
+      expect.objectContaining({
+        userId: "user-1",
+        behaviorId: "behavior-1",
+        expectedConfigurationEventId: "behavior-1-configuration-event",
+        now: NOW.toString(),
+      }),
     );
     expect(syncReminderDeliveriesForBehaviors).toHaveBeenCalledOnce();
     expect(syncReminderDeliveriesForBehaviors).toHaveBeenCalledWith(
@@ -213,7 +225,76 @@ describe("syncUserOccurrences", () => {
       }),
       syncedAt: NOW.toString(),
       timezone: "America/New_York",
+      expectedBehaviorConfigurationEvents: [
+        {
+          behaviorId: "behavior-1",
+          configurationEventId: "behavior-1-configuration-event",
+        },
+        {
+          behaviorId: "behavior-2",
+          configurationEventId: "behavior-2-configuration-event",
+        },
+      ],
+      expectedSyncState: null,
     });
+  });
+
+  it("threads occurrence notes and time-session presence into deletion planning", async () => {
+    const behavior = buildBehavior({
+      id: "behavior-1",
+      title: "Morning behavior",
+      scheduledTime: "10:00:00",
+    });
+    const desired = buildOccurrence({
+      id: "desired-occurrence",
+      behaviorId: behavior.id,
+      scheduledFor: "2026-06-08T14:00:00Z",
+      startTime: "10:00:00",
+    });
+    const deletable = buildOccurrence({
+      id: "deletable-occurrence",
+      behaviorId: behavior.id,
+      scheduledFor: "2026-06-08T18:00:00Z",
+      startTime: "14:00:00",
+    });
+    const noted = {
+      ...buildOccurrence({
+        id: "noted-occurrence",
+        behaviorId: behavior.id,
+        scheduledFor: "2026-06-08T19:00:00Z",
+        startTime: "15:00:00",
+      }),
+      note: "Taken after breakfast",
+    };
+    const timed = buildOccurrence({
+      id: "timed-occurrence",
+      behaviorId: behavior.id,
+      scheduledFor: "2026-06-08T20:00:00Z",
+      startTime: "16:00:00",
+    });
+
+    vi.mocked(listBehaviorOccurrencesFrom).mockResolvedValue([
+      desired,
+      deletable,
+      noted,
+      timed,
+    ]);
+    vi.mocked(listOccurrenceIdsWithTimeSessions).mockResolvedValue([timed.id]);
+
+    await syncUserOccurrences(SUPABASE, "user-1", {
+      behaviors: [behavior],
+      now: NOW,
+      horizonDays: 0,
+    });
+
+    expect(listOccurrenceIdsWithTimeSessions).toHaveBeenCalledWith(SUPABASE, {
+      userId: "user-1",
+      occurrenceIds: [desired.id, deletable.id, noted.id, timed.id],
+    });
+    expect(
+      vi.mocked(applyOccurrenceGenerationPlan).mock.calls[0]?.[1].plan
+        .deleteUnresolved.map((occurrence) => occurrence.id),
+    ).toEqual([deletable.id]);
   });
 
   it("fails an ambiguous schedule graph before occurrence writes and keeps sync stale", async () => {
@@ -247,7 +328,7 @@ describe("syncUserOccurrences", () => {
     ).rejects.toThrow("schedule needs repair");
 
     expect(listBehaviorOccurrencesFrom).not.toHaveBeenCalled();
-    expect(createMissingOccurrences).not.toHaveBeenCalled();
+    expect(applyOccurrenceGenerationPlan).not.toHaveBeenCalled();
     expect(markOccurrenceSyncFreshForPlans).not.toHaveBeenCalled();
     expect(markOccurrenceSyncStale).toHaveBeenCalledWith(SUPABASE, {
       userId: "user-1",
@@ -260,8 +341,11 @@ describe("syncUserOccurrences", () => {
 describe("ensureUserOccurrencesFresh", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(createMissingOccurrences).mockResolvedValue();
-    vi.mocked(deleteUnresolvedOccurrencesById).mockResolvedValue();
+    vi.mocked(applyOccurrenceGenerationPlan).mockResolvedValue({
+      insertedCount: 0,
+      updatedCount: 0,
+      deletedCount: 0,
+    });
     vi.mocked(markOccurrenceSyncFreshForPlans).mockResolvedValue({} as never);
     vi.mocked(markOccurrenceSyncStale).mockResolvedValue({} as never);
     vi.mocked(syncReminderDeliveriesForBehaviors).mockResolvedValue();
@@ -427,7 +511,7 @@ describe("ensureUserOccurrencesFresh", () => {
 
     vi.mocked(readOccurrenceSyncState).mockResolvedValue(null);
     vi.mocked(listBehaviorOccurrencesFrom).mockResolvedValue([]);
-    vi.mocked(createMissingOccurrences).mockRejectedValue(failure);
+    vi.mocked(applyOccurrenceGenerationPlan).mockRejectedValue(failure);
 
     await expect(
       ensureUserOccurrencesFresh(SUPABASE, "user-1", {
@@ -455,8 +539,11 @@ describe("ensureUserOccurrencesFresh", () => {
 describe("processOccurrenceSyncHorizons", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(createMissingOccurrences).mockResolvedValue();
-    vi.mocked(deleteUnresolvedOccurrencesById).mockResolvedValue();
+    vi.mocked(applyOccurrenceGenerationPlan).mockResolvedValue({
+      insertedCount: 0,
+      updatedCount: 0,
+      deletedCount: 0,
+    });
     vi.mocked(markOccurrenceSyncFreshForPlans).mockResolvedValue({} as never);
     vi.mocked(markOccurrenceSyncStale).mockResolvedValue({} as never);
     vi.mocked(syncReminderDeliveriesForBehaviors).mockResolvedValue();
@@ -1205,6 +1292,7 @@ function buildBehavior(input: {
     reminder_offset_minutes: 0,
     active: true,
     archived_at: null,
+    current_configuration_event_id: `${input.id}-configuration-event`,
     created_at: "2026-06-01T00:00:00Z",
     updated_at: "2026-06-01T00:00:00Z",
     schedule_slots: [
@@ -1274,6 +1362,8 @@ function buildOccurrence(input: {
     user_id: "user-1",
     behavior_id: input.behaviorId,
     behavior_schedule_slot_id: `${input.behaviorId}-slot-1`,
+    behavior_configuration_event_id:
+      `${input.behaviorId}-configuration-event`,
     scheduled_for: input.scheduledFor,
     local_date: "2026-06-08",
     schedule_kind: "exact",
@@ -1328,6 +1418,7 @@ function buildSyncState(
     last_successful_sync_at: "2026-06-08T14:30:00Z",
     stale: false,
     stale_reason: null,
+    state_version: 0,
     last_sync_behavior_count: 1,
     last_sync_created_count: 0,
     last_sync_updated_count: 0,

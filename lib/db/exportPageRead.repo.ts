@@ -55,6 +55,7 @@ export type ExportPageBehaviorRow = Pick<
   | "reminder_offset_minutes"
   | "active"
   | "archived_at"
+  | "current_configuration_event_id"
   | "created_at"
   | "updated_at"
 > & {
@@ -67,6 +68,7 @@ export type ExportPageOccurrenceRow = Pick<
   | "id"
   | "behavior_id"
   | "behavior_schedule_slot_id"
+  | "behavior_configuration_event_id"
   | "scheduled_for"
   | "local_date"
   | "schedule_kind"

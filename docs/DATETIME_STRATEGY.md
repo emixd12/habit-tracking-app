@@ -7,6 +7,9 @@ This app is recurrence-heavy. Date/time drift is one of the highest-risk areas f
 - Default timezone: `America/New_York`.
 - User timezone is stored on `profiles.timezone` and copied to each behavior as `behaviors.timezone`.
 - Settings can update `profiles.timezone`. A user-approved timezone change also updates active behaviors to the new timezone and resyncs future unresolved occurrences. Past occurrences and resolved occurrences remain historical records.
+- Settings commits the profile timezone, every active Behavior timezone,
+  configuration history, and one stale sync marker in one owner-scoped
+  transaction. Occurrence sync runs afterward and remains safe to retry.
 - Browser timezone detection uses `Intl.DateTimeFormat().resolvedOptions().timeZone`; it does not use geolocation or request location permission.
 - Day boundary is local midnight in the behavior/user timezone.
 - Needs decision is derived from `status === "unresolved"` and `local_date` before today's local date.

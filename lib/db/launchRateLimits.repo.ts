@@ -11,8 +11,21 @@ export type LaunchRateLimitResult = {
 export async function consumeExportDownloadRateLimit(
   supabase: AppSupabaseClient,
 ): Promise<LaunchRateLimitResult> {
+  return consumeLaunchRateLimit(supabase, "export_download");
+}
+
+export async function consumePushSubscriptionRegistrationRateLimit(
+  supabase: AppSupabaseClient,
+): Promise<LaunchRateLimitResult> {
+  return consumeLaunchRateLimit(supabase, "push_subscription_registration");
+}
+
+async function consumeLaunchRateLimit(
+  supabase: AppSupabaseClient,
+  action: "export_download" | "push_subscription_registration",
+): Promise<LaunchRateLimitResult> {
   const { data, error } = await supabase.rpc("consume_launch_rate_limit", {
-    p_action: "export_download",
+    p_action: action,
   });
 
   if (error) {

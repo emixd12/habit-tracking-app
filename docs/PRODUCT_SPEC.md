@@ -339,19 +339,25 @@ Exports should include:
 - Status event history in Full JSON and the BehaviorLog bundle
 - Append-only behavior title and description definition history in Full JSON
   and as an optional Cadence file in BehaviorLog
+- Append-only behavior schedule, reminder, category, timezone, and active-state
+  configuration history in Full JSON and as an optional Cadence file in
+  BehaviorLog
+- Nullable Occurrence configuration-event lineage in Full JSON and BehaviorLog
 - Notes
 
-Behavior definition history is export and agent context, not an in-app revision
-browser. Full JSON and BehaviorLog include full previous and next definition
-text by default for included behaviors, including events older than the selected
-occurrence range. The Markdown summary reports that history and tells agents to
-account for renames and description changes without repeating the historical
-text. JSONL and CSV remain current snapshot formats.
+Behavior definition and configuration history is export and agent context, not
+an in-app revision browser. Full JSON and BehaviorLog include full previous and
+next snapshots by default for included Behaviors, including events older than
+the selected Occurrence range. Archived filtering applies to both histories.
+The Markdown summary reports counts and supports schedule-period segmentation
+without causal or clinical claims. JSONL and CSV remain unchanged current
+snapshot formats.
 
-Historical titles and descriptions can be sensitive. The Export & Import screen
-must disclose their default inclusion. Current BehaviorLog import and restore
-use the current behavior snapshot and do not apply definition revision events;
-the revision trail remains export-only until a later scoped import ticket.
+Historical definitions and configuration can be sensitive. The Export & Import
+screen must disclose their default inclusion. Current BehaviorLog import and
+restore do not replay revision trails. They create the current schedule graph
+only and preserve historical Occurrences as detached schedule snapshots, so old
+and current recurrence graphs never become simultaneously active.
 
 Time tracking is excluded from exports by default because exact timestamps can
 reveal activity patterns. The Export & Import option uses
@@ -364,8 +370,11 @@ consistent with the BehaviorLog portability posture.
 
 The Settings screen implements account deletion for the signed-in account. The
 user must acknowledge the export reminder and type the account email, or
-`DELETE` when no email is available. The server signs out the account globally
-and deletes the Supabase auth user through a server-only service-role client.
+`DELETE` when no email is available. The server verifies a server-only
+service-role client, hard-deletes the Supabase auth user, then attempts global
+sign-out for current-browser cleanup. Any failure before deletion leaves the
+account and session unchanged. Auth deletion removes server session rows and
+refresh capability; issued access-token JWTs remain valid only until expiry.
 
 Public launch monitoring is limited to privacy-safe operational events in
 server/runtime logs. It may report route names, coarse failure categories,

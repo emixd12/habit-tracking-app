@@ -4,6 +4,10 @@ import type {
   BehaviorDefinitionEventSource,
 } from "@/lib/types/behavior-definition-event";
 import type {
+  BehaviorConfigurationChangedField,
+  BehaviorConfigurationEventSource,
+} from "@/lib/types/behavior-configuration-event";
+import type {
   BehaviorScheduleView,
   ScheduleKind,
   ScheduleSlotView,
@@ -79,10 +83,51 @@ export type ExportBehaviorDefinitionEventInput = {
   updatedAt?: string | null;
 };
 
+export type ExportBehaviorConfigurationTimeEntry = {
+  kind: ScheduleKind;
+  preset: TimeRangePreset | null;
+  startTime: string;
+  endTime: string | null;
+  sortOrder: number;
+};
+
+export type ExportBehaviorConfigurationSchedule = {
+  recurrenceRule: RecurrenceRule;
+  sortOrder: number;
+  timeEntries: ExportBehaviorConfigurationTimeEntry[];
+};
+
+export type ExportBehaviorConfigurationSnapshot = {
+  categoryId: string | null;
+  scheduleGraph: ExportBehaviorConfigurationSchedule[];
+  browserReminderEnabled: boolean;
+  emailReminderEnabled: boolean;
+  reminderOffsetMinutes: number;
+  active: boolean;
+  timezone: string;
+};
+
+export type ExportBehaviorConfigurationEventInput = {
+  id: string;
+  behaviorId: string;
+  eventKind: "baseline" | "revision";
+  previousConfiguration: ExportBehaviorConfigurationSnapshot | null;
+  nextConfiguration: ExportBehaviorConfigurationSnapshot;
+  changedFields: BehaviorConfigurationChangedField[];
+  recordedAt: string;
+  effectiveAt: string;
+  effectiveLocalDate: string;
+  timezone: string;
+  source: BehaviorConfigurationEventSource;
+  reasonCode: string;
+  createdAt?: string | null;
+};
+
 export type ExportOccurrenceInput = {
   id: string;
   behaviorId: string;
   behaviorScheduleSlotId: string | null;
+  behaviorConfigurationEventId?: string | null;
   scheduledFor: string;
   scheduledTimeLabel: string;
   scheduleKind: ScheduleKind;
@@ -186,6 +231,7 @@ export type ExportJsonBackup = {
   occurrences: ExportJsonOccurrence[];
   status_events: ExportJsonStatusEvent[];
   behavior_definition_events: ExportJsonBehaviorDefinitionEvent[];
+  behavior_configuration_events: ExportJsonBehaviorConfigurationEvent[];
   time_sessions?: ExportJsonTimeSession[];
 };
 
@@ -221,6 +267,7 @@ export type ExportJsonOccurrence = {
   id: string;
   behavior_id: string;
   behavior_schedule_slot_id: string | null;
+  behavior_configuration_event_id: string | null;
   behavior_title: string;
   category: string | null;
   scheduled_for: string;
@@ -273,6 +320,42 @@ export type ExportJsonBehaviorDefinitionEvent = {
   updated_at?: string | null;
 };
 
+export type ExportJsonBehaviorConfigurationSnapshot = {
+  category_id: string | null;
+  schedule_graph: Array<{
+    recurrence_rule: RecurrenceRule;
+    sort_order: number;
+    time_entries: Array<{
+      kind: ScheduleKind;
+      preset: TimeRangePreset | null;
+      start_time: string;
+      end_time: string | null;
+      sort_order: number;
+    }>;
+  }>;
+  browser_reminder_enabled: boolean;
+  email_reminder_enabled: boolean;
+  reminder_offset_minutes: number;
+  active: boolean;
+  timezone: string;
+};
+
+export type ExportJsonBehaviorConfigurationEvent = {
+  id: string;
+  behavior_id: string;
+  event_kind: "baseline" | "revision";
+  previous_configuration: ExportJsonBehaviorConfigurationSnapshot | null;
+  next_configuration: ExportJsonBehaviorConfigurationSnapshot;
+  changed_fields: BehaviorConfigurationChangedField[];
+  recorded_at: string;
+  effective_at: string;
+  effective_local_date: string;
+  timezone: string;
+  source: BehaviorConfigurationEventSource;
+  reason_code: string;
+  created_at?: string | null;
+};
+
 export type BehaviorLogFile = {
   path: string;
   mediaType: string;
@@ -295,6 +378,7 @@ export type ExportBundle = {
   categoryCount: number;
   behaviorCount: number;
   occurrenceCount: number;
+  behaviorConfigurationEventCount: number;
   timeSessionCount?: number;
   overallCounts: ExportStatusCounts;
   overallAdherenceLabel: string;

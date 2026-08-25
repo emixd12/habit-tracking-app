@@ -68,5 +68,9 @@ export function getAuthErrorMessage(value: RedirectParam) {
     return "Temporary test login could not be started. Check the local Supabase test login settings.";
   }
 
+  if (error === "test_login_quota_reached") {
+    return "Temporary test login reached this app process's 10-user creation limit. Clean up temporary users, then restart the local app.";
+  }
+
   return "Sign-in could not finish. Try again.";
 }

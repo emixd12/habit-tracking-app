@@ -34,6 +34,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      behavior_configuration_events: {
+        Row: {
+          behavior_id: string
+          changed_fields: string[]
+          created_at: string
+          effective_at: string
+          effective_local_date: string
+          event_kind: string
+          id: string
+          next_configuration: Json
+          previous_configuration: Json | null
+          reason_code: string
+          recorded_at: string
+          source: string
+          timezone: string
+          user_id: string
+        }
+        Insert: {
+          behavior_id: string
+          changed_fields: string[]
+          created_at?: string
+          effective_at: string
+          effective_local_date: string
+          event_kind: string
+          id?: string
+          next_configuration: Json
+          previous_configuration?: Json | null
+          reason_code: string
+          recorded_at: string
+          source: string
+          timezone: string
+          user_id: string
+        }
+        Update: {
+          behavior_id?: string
+          changed_fields?: string[]
+          created_at?: string
+          effective_at?: string
+          effective_local_date?: string
+          event_kind?: string
+          id?: string
+          next_configuration?: Json
+          previous_configuration?: Json | null
+          reason_code?: string
+          recorded_at?: string
+          source?: string
+          timezone?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "behavior_configuration_events_behavior_owner_fkey"
+            columns: ["user_id", "behavior_id"]
+            isOneToOne: false
+            referencedRelation: "behaviors"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
       behavior_definition_events: {
         Row: {
           behavior_id: string
@@ -321,6 +380,7 @@ export type Database = {
           browser_reminder_enabled: boolean
           category_id: string | null
           created_at: string
+          current_configuration_event_id: string | null
           description: string | null
           email_reminder_enabled: boolean
           id: string
@@ -338,6 +398,7 @@ export type Database = {
           browser_reminder_enabled?: boolean
           category_id?: string | null
           created_at?: string
+          current_configuration_event_id?: string | null
           description?: string | null
           email_reminder_enabled?: boolean
           id?: string
@@ -355,6 +416,7 @@ export type Database = {
           browser_reminder_enabled?: boolean
           category_id?: string | null
           created_at?: string
+          current_configuration_event_id?: string | null
           description?: string | null
           email_reminder_enabled?: boolean
           id?: string
@@ -380,6 +442,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "behaviors_current_configuration_event_owner_fkey"
+            columns: ["user_id", "id", "current_configuration_event_id"]
+            isOneToOne: false
+            referencedRelation: "behavior_configuration_events"
+            referencedColumns: ["user_id", "behavior_id", "id"]
           },
         ]
       }
@@ -685,6 +754,7 @@ export type Database = {
           last_synced_local_date: string | null
           stale: boolean
           stale_reason: string | null
+          state_version: number
           synced_through_local_date: string | null
           timezone: string
           updated_at: string
@@ -700,6 +770,7 @@ export type Database = {
           last_synced_local_date?: string | null
           stale?: boolean
           stale_reason?: string | null
+          state_version?: number
           synced_through_local_date?: string | null
           timezone?: string
           updated_at?: string
@@ -715,6 +786,7 @@ export type Database = {
           last_synced_local_date?: string | null
           stale?: boolean
           stale_reason?: string | null
+          state_version?: number
           synced_through_local_date?: string | null
           timezone?: string
           updated_at?: string
@@ -765,6 +837,7 @@ export type Database = {
       }
       occurrences: {
         Row: {
+          behavior_configuration_event_id: string | null
           behavior_id: string
           behavior_schedule_slot_id: string | null
           completed_at: string | null
@@ -783,6 +856,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          behavior_configuration_event_id?: string | null
           behavior_id: string
           behavior_schedule_slot_id?: string | null
           completed_at?: string | null
@@ -801,6 +875,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          behavior_configuration_event_id?: string | null
           behavior_id?: string
           behavior_schedule_slot_id?: string | null
           completed_at?: string | null
@@ -832,6 +907,17 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "behaviors"
             referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "occurrences_configuration_event_owner_fkey"
+            columns: [
+              "user_id",
+              "behavior_id",
+              "behavior_configuration_event_id",
+            ]
+            isOneToOne: false
+            referencedRelation: "behavior_configuration_events"
+            referencedColumns: ["user_id", "behavior_id", "id"]
           },
           {
             foreignKeyName: "occurrences_schedule_slot_owner_fkey"
@@ -995,6 +1081,22 @@ export type Database = {
         Args: { restore_payload: Json }
         Returns: Json
       }
+      apply_behaviorlog_restore_with_configuration_events: {
+        Args: { restore_payload: Json }
+        Returns: Json
+      }
+      apply_occurrence_generation_plan: {
+        Args: {
+          expected_configuration_event_id: string
+          occurrence_deletes: Json
+          occurrence_inserts: Json
+          occurrence_updates: Json
+          plan_now: string
+          target_behavior_id: string
+          target_user_id: string
+        }
+        Returns: Json
+      }
       apply_occurrence_status_transition: {
         Args: {
           expected_latest_event_id: string
@@ -1033,6 +1135,7 @@ export type Database = {
       create_behavior_with_schedule_graph: {
         Args: {
           behavior_payload: Json
+          configuration_event_plan: Json
           definition_event_plan: Json
           schedule_graph: Json
         }
@@ -1072,6 +1175,23 @@ export type Database = {
           user_id: string
         }[]
       }
+      mark_occurrence_sync_fresh_if_configuration_current: {
+        Args: {
+          expected_behavior_configuration_events: Json
+          expected_sync_state_exists: boolean
+          expected_sync_state_version: number
+          target_behavior_count: number
+          target_created_count: number
+          target_deleted_count: number
+          target_last_successful_sync_at: string
+          target_last_synced_local_date: string
+          target_synced_through_local_date: string
+          target_timezone: string
+          target_updated_count: number
+          target_user_id: string
+        }
+        Returns: Json
+      }
       update_behavior_with_definition_event: {
         Args: {
           behavior_payload: Json
@@ -1084,12 +1204,21 @@ export type Database = {
       update_behavior_with_schedule_graph: {
         Args: {
           behavior_payload: Json
+          configuration_event_plan: Json
           definition_event_plan: Json
           expected_definition: Json
           expected_schedule_graph: Json
           expected_updated_at: string
           schedule_graph: Json
           target_behavior_id: string
+        }
+        Returns: Json
+      }
+      update_profile_and_behavior_timezones_with_config_events: {
+        Args: {
+          behavior_changes: Json
+          expected_profile_timezone: string
+          target_timezone: string
         }
         Returns: Json
       }

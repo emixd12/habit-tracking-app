@@ -17,7 +17,7 @@
   ],
   "properties": {
     "$schema": { "type": "string" },
-    "schema_version": { "const": "1.1.0" },
+    "schema_version": { "const": "1.2.0" },
     "registry_id": { "const": "cadence.user-interactions" },
     "product": { "const": "Cadence" },
     "updated": { "type": "string", "format": "date" },
@@ -137,6 +137,16 @@
         "references": { "$ref": "#/$defs/nonEmptyStrings" }
       }
     },
+    "effectCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effect", "handler", "evidence"],
+      "properties": {
+        "effect": { "type": "string", "minLength": 1 },
+        "handler": { "type": "string", "minLength": 1 },
+        "evidence": { "$ref": "#/$defs/nonEmptyStrings" }
+      }
+    },
     "interaction": {
       "type": "object",
       "additionalProperties": false,
@@ -186,6 +196,11 @@
         "success_result": { "type": "string", "minLength": 1 },
         "failure_result": { "type": "string" },
         "effects": { "$ref": "#/$defs/nonEmptyStrings" },
+        "effect_checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/effectCheck" }
+        },
         "risk": { "enum": ["low", "moderate", "high", "destructive"] },
         "confirmation": {
           "enum": [

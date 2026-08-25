@@ -24,9 +24,13 @@ interaction IDs and implementation traceability.
 - `scripts/check-interactions.mjs`: structural, reference, coverage, and drift
   validation.
 
-The current additive schema version is `1.1.0`. Version 1.1 adds required
+The current additive schema version is `1.2.0`. Version 1.1 added required
 `user_guidance` metadata without changing the meaning of existing interaction
-fields.
+fields. Version 1.2 adds optional `effect_checks`. Each check binds one recorded
+effect to a named implementation handler and stable evidence inside that
+handler. `npm run interactions:check` fails when that evidence disappears. It
+reports entries without complete mechanical effect coverage for human review
+and never counts those entries as mechanically checked.
 
 Do not maintain a second hand-written list of interaction entries. Query or
 transform the JSON registry when another representation is needed.

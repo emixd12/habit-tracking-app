@@ -1,0 +1,12 @@
+{
+  "id": "INT-FIXTURE-001",
+  "effects": ["database_write"],
+  "implementation": ["tests/fixtures/governance/interaction-side-effect-altered.txt#updateOccurrenceNoteAction"],
+  "effect_checks": [
+    {
+      "effect": "database_write",
+      "handler": "tests/fixtures/governance/interaction-side-effect-altered.txt#updateOccurrenceNoteAction",
+      "evidence": ["updateOccurrenceNoteFromFormData(formData)"]
+    }
+  ]
+}

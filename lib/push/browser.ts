@@ -64,6 +64,25 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   return Notification.requestPermission();
 }
 
+export async function readCurrentBrowserPushEndpoint(): Promise<string | null> {
+  if (
+    typeof navigator === "undefined" ||
+    !("serviceWorker" in navigator)
+  ) {
+    return null;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = await registration?.pushManager.getSubscription();
+    const endpoint = subscription?.endpoint?.trim();
+
+    return endpoint || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function readBrowserPushSubscriptionStatus(
   vapidPublicKey: string,
 ): Promise<BrowserPushSubscriptionStatus> {

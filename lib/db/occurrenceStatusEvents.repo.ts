@@ -1,4 +1,8 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import {
+  readAllPostgrestRows,
+  USER_SCOPED_READ_ABSOLUTE_CEILING,
+} from "@/lib/db/paginated-read";
 import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   NewOccurrenceStatusEvent,
@@ -140,7 +144,9 @@ export async function listOccurrenceStatusEventsByOccurrenceIds(
   userId: string,
   occurrenceIds: string[],
 ): Promise<OccurrenceStatusEvent[]> {
-  if (occurrenceIds.length === 0) {
+  const uniqueOccurrenceIds = Array.from(new Set(occurrenceIds));
+
+  if (uniqueOccurrenceIds.length === 0) {
     return [];
   }
 
@@ -149,25 +155,60 @@ export async function listOccurrenceStatusEventsByOccurrenceIds(
       span: "db.list_occurrence_status_events_by_occurrence_ids",
       counts: (events) => ({
         status_events: events.length,
-        occurrences: occurrenceIds.length,
+        occurrences: uniqueOccurrenceIds.length,
       }),
     },
     async () => {
-      const { data, error } = await supabase
-        .from("occurrence_status_events")
-        .select("*")
-        .eq("user_id", userId)
-        .in("occurrence_id", occurrenceIds)
-        .order("recorded_at", { ascending: true })
-        .order("id", { ascending: true });
+      const events: OccurrenceStatusEvent[] = [];
 
-      if (error) {
-        throw error;
+      for (
+        let batchStart = 0;
+        batchStart < uniqueOccurrenceIds.length;
+        batchStart += OCCURRENCE_ID_FILTER_BATCH_SIZE
+      ) {
+        const occurrenceIdBatch = uniqueOccurrenceIds.slice(
+          batchStart,
+          batchStart + OCCURRENCE_ID_FILTER_BATCH_SIZE,
+        );
+        const pageEvents = await readAllPostgrestRows<OccurrenceStatusEvent>({
+          label: "Occurrence status events",
+          absoluteCeiling:
+            USER_SCOPED_READ_ABSOLUTE_CEILING - events.length,
+          absoluteCeilingError:
+            "Occurrence status events exceed Cadence's absolute read ceiling of 100,000 rows.",
+          getRowKey: (event) => event.id,
+          createQuery: () =>
+            supabase
+              .from("occurrence_status_events")
+              .select("*")
+              .eq("user_id", userId)
+              .in("occurrence_id", occurrenceIdBatch)
+              .order("recorded_at", { ascending: true })
+              .order("id", { ascending: true }),
+        });
+        events.push(...pageEvents);
       }
 
-      return data ?? [];
+      return events.sort(compareOccurrenceStatusEvents);
     },
   );
+}
+
+const OCCURRENCE_ID_FILTER_BATCH_SIZE = 500;
+
+function compareOccurrenceStatusEvents(
+  left: OccurrenceStatusEvent,
+  right: OccurrenceStatusEvent,
+): number {
+  if (left.recorded_at < right.recorded_at) {
+    return -1;
+  }
+
+  if (left.recorded_at > right.recorded_at) {
+    return 1;
+  }
+
+  return left.id.localeCompare(right.id);
 }
 
 export async function getLatestOccurrenceStatusEventForOccurrence(

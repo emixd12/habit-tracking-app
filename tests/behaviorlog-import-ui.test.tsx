@@ -264,6 +264,35 @@ describe("BehaviorLog import UI workflow", () => {
     });
   });
 
+  it("materializes the complete local occurrence graph above the Data API cap", async () => {
+    const occurrences = Array.from({ length: 1_001 }, (_, index) => ({
+      id: `occurrence-${String(index).padStart(4, "0")}`,
+      behavior_id: "local-behavior",
+      behavior_schedule_slot_id: null,
+      scheduled_for: "2026-06-08T12:00:00Z",
+      local_date: "2026-06-08",
+      status: "unresolved",
+      note: null,
+      updated_at: "2026-06-08T12:00:00Z",
+    }));
+    mocks.listUserOccurrences.mockResolvedValueOnce(occurrences);
+
+    const existing = await listBehaviorLogExistingRecords(
+      {} as never,
+      USER_ID,
+    );
+
+    expect(existing.occurrences).toHaveLength(1_001);
+    expect(existing.occurrences?.at(-1)?.id).toBe("occurrence-1000");
+    expect(
+      mocks.listOccurrenceStatusEventsByOccurrenceIds,
+    ).toHaveBeenCalledWith(
+      expect.anything(),
+      USER_ID,
+      occurrences.map((occurrence) => occurrence.id),
+    );
+  });
+
   it("renders invalid bundle errors", () => {
     const preview = resolveBehaviorLogImportMergePreview({ files: [] });
     const html = renderToStaticMarkup(

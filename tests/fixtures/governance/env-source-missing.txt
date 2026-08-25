@@ -1,0 +1,1 @@
+export const fixture = process.env.CADENCE_UNDOCUMENTED_NEGATIVE_FIXTURE;

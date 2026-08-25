@@ -1,6 +1,15 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { beforeAll, describe, expect, it } from "vitest";
 
 type SmokeScriptModule = {
+  PUBLIC_DATA_API_RELATIONS: Array<{
+    table: string;
+    ownerColumn: string;
+    selectColumn?: string;
+  }>;
+  PUBLIC_AUTHENTICATED_FUNCTIONS: string[];
   buildSmokePassword: (runId: string) => string;
   buildSmokeUserEmail: (runId: string, slot: string) => string;
   readSmokeConfig: (
@@ -39,6 +48,84 @@ beforeAll(async () => {
 });
 
 describe("Supabase RLS smoke script helpers", () => {
+  it("registers every public Data API relation and authenticated function", () => {
+    expect(smokeScript.PUBLIC_DATA_API_RELATIONS.map(({ table }) => table)).toEqual([
+      "profiles",
+      "categories",
+      "behaviors",
+      "behavior_definition_events",
+      "behavior_configuration_events",
+      "behavior_schedules",
+      "behavior_schedule_slots",
+      "occurrences",
+      "reminder_deliveries",
+      "push_subscriptions",
+      "occurrence_status_events",
+      "occurrence_sync_state",
+      "behaviorlog_import_runs",
+      "behaviorlog_import_record_mappings",
+      "imported_notes",
+      "imported_interventions",
+      "launch_rate_limits",
+      "occurrence_time_sessions",
+    ]);
+    expect(smokeScript.PUBLIC_AUTHENTICATED_FUNCTIONS).toHaveLength(12);
+  });
+
+  it("creates behaviors through the history-aware RPC and expects direct updates to fail", () => {
+    const source = readFileSync(
+      join(process.cwd(), "scripts", "supabase-rls-smoke.mjs"),
+      "utf8",
+    );
+
+    expect(source).toContain('"create_behavior_with_schedule_graph"');
+    expect(source).toContain("configuration_event_plan");
+    expect(source).toContain("Authenticated direct behavior update was not denied");
+    expect(source).toContain('.from("behavior_configuration_events")');
+    expect(source).toContain("configuration_event_insert_denied");
+    expect(source).toContain("configuration_event_update_denied");
+    expect(source).toContain("configuration_event_delete_denied");
+    expect(source).toContain('"apply_occurrence_generation_plan"');
+    expect(source).toContain(
+      '"mark_occurrence_sync_fresh_if_configuration_current"',
+    );
+    expect(source).toContain("occurrence_lineage_direct_update_denied");
+    expect(source).toContain("occurrence_lineage_cross_owner_fk");
+    expect(source).toContain("occurrence_lineage_wrong_behavior_fk");
+    expect(source).toContain("occurrence_generation_two_step_lineage");
+    expect(source).toContain("occurrence_status_note_lineage_preserved");
+    expect(source).toContain("occurrence_restore_snapshot_lineage_cleared");
+    expect(source).toContain("occurrence_freshness_stale_plan_rejected");
+    expect(source).toContain("occurrence_freshness_state_version_race");
+    expect(source).toContain(
+      "occurrence_freshness_zero_behavior_state_creation_race",
+    );
+    expect(source).toContain("profile_timezone_update");
+    expect(source).toContain("profile_email_update_denied");
+    expect(source).toContain("profile_display_name_update_denied");
+    expect(source).toContain("profile_delete_denied");
+    expect(source).toContain("profile_insert_denied");
+    expect(source).toContain("profile_identity_email_sync");
+    expect(source).toContain("reminder_pending_planning");
+    expect(source).toContain("reminder_pending_cancellation");
+    expect(source).toContain("reminder_cancelled_reactivation");
+    expect(source).toContain("reminder_sent_recycle_denied");
+    expect(source).toContain("reminder_failed_recycle_denied");
+    expect(source).toContain("reminder_processing_claim_clear_denied");
+    expect(source).toContain(
+      '"update_profile_and_behavior_timezones_with_config_events"',
+    );
+    expect(source).toContain("settings_timezone_behavior_failure_rollback");
+    expect(source).toContain(
+      "settings_timezone_profile_behavior_atomic_commit",
+    );
+    expect(source).toContain("settings_timezone_configuration_event_once");
+    expect(source).toContain("settings_timezone_stale_mark_once");
+    expect(source).toContain(
+      "settings_timezone_stale_profile_precondition",
+    );
+  });
+
   it("reads required Supabase config with publishable key preference", () => {
     expect(
       smokeScript.readSmokeConfig(

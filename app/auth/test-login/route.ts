@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { buildLoginPath, MISSING_CONFIG_ERROR } from "@/lib/auth/redirects";
 import {
   createTestLoginCredentials,
+  releaseTestLoginCreation,
+  reserveTestLoginCreation,
   resolveTestLoginGate,
 } from "@/lib/auth/test-login";
 import {
@@ -36,8 +38,27 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  if (!reserveTestLoginCreation()) {
+    return NextResponse.redirect(
+      new URL(
+        buildLoginPath(gate.nextPath, "test_login_quota_reached"),
+        request.url,
+      ),
+    );
+  }
+
   const credentials = createTestLoginCredentials();
-  const admin = createServiceRoleClient();
+  let admin: ReturnType<typeof createServiceRoleClient>;
+
+  try {
+    admin = createServiceRoleClient();
+  } catch {
+    releaseTestLoginCreation();
+    return NextResponse.redirect(
+      new URL(buildLoginPath(gate.nextPath, "test_login_failed"), request.url),
+    );
+  }
+
   const { data: createdUser, error: createError } =
     await admin.auth.admin.createUser({
       email: credentials.email,
@@ -49,19 +70,36 @@ export async function GET(request: NextRequest) {
     });
 
   if (createError || !createdUser.user) {
+    releaseTestLoginCreation();
     return NextResponse.redirect(
       new URL(buildLoginPath(gate.nextPath, "test_login_failed"), request.url),
     );
   }
 
-  const supabase = await createClient();
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email: credentials.email,
-    password: credentials.password,
-  });
+  let signInError: unknown;
+
+  try {
+    const supabase = await createClient();
+    const result = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password,
+    });
+    signInError = result.error;
+  } catch (error) {
+    signInError = error;
+  }
 
   if (signInError) {
-    await admin.auth.admin.deleteUser(createdUser.user.id);
+    try {
+      const { error: deleteError } = await admin.auth.admin.deleteUser(
+        createdUser.user.id,
+      );
+      if (!deleteError) {
+        releaseTestLoginCreation();
+      }
+    } catch {
+      // Retain the quota reservation because the temporary user may remain.
+    }
     return NextResponse.redirect(
       new URL(buildLoginPath(gate.nextPath, "test_login_failed"), request.url),
     );

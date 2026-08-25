@@ -52,6 +52,7 @@ describe("app-shell sign out control", () => {
 
     expect(html).toContain('action="/auth/sign-out"');
     expect(html).toContain('method="post"');
+    expect(html).toContain('name="pushEndpoint"');
     expect(html).toContain(">Sign out</span>");
     expect(html).not.toContain('aria-label="Sign out"');
   });

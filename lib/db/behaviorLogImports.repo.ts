@@ -1,5 +1,6 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import type { Json } from "@/lib/db/database.types";
+import { readAllPostgrestRows } from "@/lib/db/paginated-read";
 import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   BehaviorLogImportRecordMappingInput,
@@ -222,37 +223,38 @@ export async function listBehaviorLogImportRecordMappingsByRun(
   userId: string,
   importRunId: string,
 ): Promise<BehaviorLogImportRecordMapping[]> {
-  const { data, error } = await supabase
-    .from("behaviorlog_import_record_mappings")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("import_run_id", importRunId)
-    .order("record_type", { ascending: true })
-    .order("external_id", { ascending: true });
-
-  if (error) {
-    throw error;
-  }
-
-  return data ?? [];
+  return readAllPostgrestRows<BehaviorLogImportRecordMapping>({
+    label: "BehaviorLog import record mappings",
+    getRowKey: (mapping) => mapping.id,
+    createQuery: () =>
+      supabase
+        .from("behaviorlog_import_record_mappings")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("import_run_id", importRunId)
+        .order("record_type", { ascending: true })
+        .order("external_id", { ascending: true })
+        .order("id", { ascending: true }),
+  });
 }
 
 export async function listBehaviorLogImportRecordMappings(
   supabase: AppSupabaseClient,
   userId: string,
 ): Promise<BehaviorLogImportRecordMapping[]> {
-  const { data, error } = await supabase
-    .from("behaviorlog_import_record_mappings")
-    .select("*")
-    .eq("user_id", userId)
-    .order("record_type", { ascending: true })
-    .order("external_id", { ascending: true });
-
-  if (error) {
-    throw error;
-  }
-
-  return data ?? [];
+  return readAllPostgrestRows<BehaviorLogImportRecordMapping>({
+    label: "BehaviorLog import record mappings",
+    getRowKey: (mapping) => mapping.id,
+    createQuery: () =>
+      supabase
+        .from("behaviorlog_import_record_mappings")
+        .select("*")
+        .eq("user_id", userId)
+        .order("record_type", { ascending: true })
+        .order("external_id", { ascending: true })
+        .order("import_run_id", { ascending: true })
+        .order("id", { ascending: true }),
+  });
 }
 
 function toImportRunInsert(

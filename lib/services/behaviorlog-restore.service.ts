@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import type { Json } from "@/lib/db/database.types";
+
 import {
   bindBehaviorLogRestoreApplyPayload,
   createBehaviorLogImportRun,
@@ -16,6 +18,11 @@ import {
   planBehaviorDefinitionChangeEvent,
   planInitialBehaviorDefinitionEvent,
 } from "@/lib/resolvers/behavior-definition.resolver";
+import {
+  planBehaviorConfigurationChangeEvent,
+  planInitialBehaviorConfigurationEvent,
+} from "@/lib/resolvers/behavior-configuration.resolver";
+import { toBehaviorConfigurationEventPlanPayload } from "@/lib/db/behaviorConfigurationEvents.repo";
 import { resolveBehaviorLogRestorePreview } from "@/lib/resolvers/behaviorlog-restore.resolver";
 import {
   listBehaviorLogExistingRecords,
@@ -45,6 +52,7 @@ import type {
   BehaviorDefinition,
   BehaviorDefinitionEventPlan,
 } from "@/lib/types/behavior-definition-event";
+import type { BehaviorConfigurationSchedule } from "@/lib/types/behavior-configuration-event";
 import { DEFAULT_TIMEZONE, type Weekday } from "@/lib/types/recurrence";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_ZIP_READ_LIMITS } from "@/lib/services/zip";
@@ -75,7 +83,7 @@ type BehaviorLogRestoreUploadBundle = {
 
 type RestoreRpcClient = {
   rpc: (
-    fn: "apply_behaviorlog_restore",
+    fn: "apply_behaviorlog_restore_with_configuration_events",
     args: { restore_payload: RestorePayload },
   ) => Promise<{ data: unknown; error: Error | null }>;
 };
@@ -122,6 +130,7 @@ type RestoreProductPayload = {
   delete_imported_intervention_ids: string[];
   behaviors: Array<Record<string, unknown>>;
   behavior_definition_events: Array<Record<string, unknown>>;
+  behavior_configuration_events: Array<Record<string, unknown>>;
   schedules: Array<Record<string, unknown>>;
   occurrences: Array<Record<string, unknown>>;
   status_events: Array<Record<string, unknown>>;
@@ -469,7 +478,7 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
       },
     );
     const { data, error } = await (supabase as unknown as RestoreRpcClient).rpc(
-      "apply_behaviorlog_restore",
+      "apply_behaviorlog_restore_with_configuration_events",
       {
         restore_payload: {
           ...boundPayload,
@@ -789,6 +798,19 @@ function buildRestorePayload(input: {
     noteIdByExternal,
     interventionIdByExternal,
   });
+  const behaviorConfigurationPayloads =
+    buildRestoreBehaviorConfigurationPayloads({
+      behaviorPlans: input.importPreview.plan.behaviors,
+      schedulePlans: input.importPreview.plan.schedules,
+      behaviorActions: input.preview.actions.behaviors,
+      scheduleActions: input.preview.actions.schedules,
+      behaviorActionIndex: actionIndex.behavior,
+      scheduleActionIndex: actionIndex.schedule,
+      behaviorIdByExternal,
+      scheduleIdByExternal,
+      existingBehaviors: input.existing.behaviors ?? [],
+      restoreRecordedAt,
+    });
 
   return {
     payload: {
@@ -819,7 +841,9 @@ function buildRestorePayload(input: {
         )
         .map((behavior) => {
           const schedules = input.importPreview.plan.schedules.filter(
-            (schedule) => schedule.behaviorExternalId === behavior.externalId,
+            (schedule) =>
+              schedule.behaviorExternalId === behavior.externalId &&
+              shouldUpsert(actionIndex.schedule.get(schedule.externalId)),
           );
           const primarySchedule = schedules[0];
 
@@ -880,6 +904,7 @@ function buildRestorePayload(input: {
           };
         }),
       behavior_definition_events: behaviorDefinitionEvents,
+      behavior_configuration_events: behaviorConfigurationPayloads.events,
       schedules: input.importPreview.plan.schedules
         .filter((schedule) =>
           shouldUpsert(actionIndex.schedule.get(schedule.externalId)),
@@ -897,6 +922,18 @@ function buildRestorePayload(input: {
           start_time: schedule.localTime ?? schedule.windowStartLocal,
           end_time: schedule.windowEndLocal,
           sort_order: index,
+          configuration_sort_order: input.importPreview.plan.schedules
+            .filter(
+              (candidate) =>
+                candidate.behaviorExternalId === schedule.behaviorExternalId &&
+                shouldUpsert(
+                  actionIndex.schedule.get(candidate.externalId),
+                ),
+            )
+            .findIndex(
+              (candidate) => candidate.externalId === schedule.externalId,
+            ),
+          recurrence_rule: toCadenceRecurrenceRule(schedule),
         })),
       occurrences: input.importPreview.plan.occurrences
         .filter((occurrence) =>
@@ -930,11 +967,14 @@ function buildRestorePayload(input: {
               occurrence.behaviorExternalId,
               "occurrence behavior",
             ),
-            behavior_schedule_slot_id: requiredMapValue(
-              scheduleIdByExternal,
-              occurrence.scheduleExternalId,
-              "occurrence schedule",
-            ),
+            behavior_schedule_slot_id:
+              occurrence.importWithDetachedScheduleSnapshot
+                ? null
+                : requiredMapValue(
+                    scheduleIdByExternal,
+                    occurrence.scheduleExternalId,
+                    "occurrence schedule",
+                  ),
             scheduled_for: occurrence.scheduledForUtc,
             local_date: occurrence.localDate,
             schedule_kind: schedule.cadenceScheduleKind ?? "exact",
@@ -1156,6 +1196,10 @@ function buildRestoreRowPreconditions(input: {
       continue;
     }
 
+    if (action.action === "create" && action.localId === null) {
+      continue;
+    }
+
     const localId = requiredLocalId(action);
     const existing = (input.existing.occurrences ?? []).find(
       (row) => row.id === localId,
@@ -1302,6 +1346,235 @@ function buildRestoreBehaviorDefinitionEvents(input: {
   }
 
   return events;
+}
+
+function buildRestoreBehaviorConfigurationPayloads(input: {
+  behaviorPlans: BehaviorLogImportBehaviorPlan[];
+  schedulePlans: BehaviorLogImportSchedulePlan[];
+  behaviorActions: BehaviorLogRestoreAction[];
+  scheduleActions: BehaviorLogRestoreAction[];
+  behaviorActionIndex: Map<string, BehaviorLogRestoreAction>;
+  scheduleActionIndex: Map<string, BehaviorLogRestoreAction>;
+  behaviorIdByExternal: Map<string, string>;
+  scheduleIdByExternal: Map<string, string>;
+  existingBehaviors: NonNullable<BehaviorLogExistingRecords["behaviors"]>;
+  restoreRecordedAt: string;
+}): {
+  events: Array<Record<string, unknown>>;
+} {
+  const existingById = new Map(
+    input.existingBehaviors.map((behavior) => [behavior.id, behavior]),
+  );
+  const events: Array<Record<string, unknown>> = [];
+  const plannedBehaviorIds = new Set<string>();
+  const deletedScheduleIds = new Set(
+    input.scheduleActions
+      .filter((action) => action.action === "delete")
+      .map(requiredLocalId),
+  );
+
+  for (const behavior of input.behaviorPlans) {
+    const action = input.behaviorActionIndex.get(behavior.externalId);
+
+    if (!shouldUpsert(action)) {
+      continue;
+    }
+
+    const behaviorId = requiredMapValue(
+      input.behaviorIdByExternal,
+      behavior.externalId,
+      "configuration history behavior",
+    );
+    const schedules = input.schedulePlans.filter(
+      (schedule) =>
+        schedule.behaviorExternalId === behavior.externalId &&
+        shouldUpsert(input.scheduleActionIndex.get(schedule.externalId)),
+    );
+    const primarySchedule = schedules[0];
+
+    if (!primarySchedule) {
+      throw new BehaviorLogRestoreUserError(
+        `Behavior ${behavior.externalId} cannot restore configuration history without a schedule.`,
+      );
+    }
+
+    const graph = schedules.map((schedule, index) => ({
+      recurrenceRule: toCadenceRecurrenceRule(schedule),
+      sortOrder: index,
+      timeEntries: [
+        {
+          id: requiredMapValue(
+            input.scheduleIdByExternal,
+            schedule.externalId,
+            "configuration history schedule",
+          ),
+          kind: schedule.cadenceScheduleKind ?? "exact",
+          preset: schedule.cadenceSchedulePreset,
+          startTime: schedule.localTime ?? schedule.windowStartLocal ?? "",
+          endTime: schedule.windowEndLocal,
+          sortOrder: 0,
+        },
+      ],
+    }));
+    const nextConfiguration = {
+      categoryId: null,
+      scheduleGraph: graph,
+      browserReminderEnabled:
+        behavior.cadenceBrowserReminderEnabled ?? true,
+      emailReminderEnabled: behavior.cadenceEmailReminderEnabled ?? false,
+      reminderOffsetMinutes: behavior.cadenceReminderOffsetMinutes ?? 0,
+      active: behavior.archivedAtUtc
+        ? false
+        : behavior.cadenceActive ?? true,
+      timezone: primarySchedule.timezone || DEFAULT_TIMEZONE,
+    };
+    const previousConfiguration =
+      existingById.get(behaviorId)?.configurationSnapshot ?? null;
+    const eventPlan =
+      action?.action === "create"
+        ? planInitialBehaviorConfigurationEvent({
+            configuration: nextConfiguration,
+            recordedAt: input.restoreRecordedAt,
+            effectiveAt: input.restoreRecordedAt,
+            source: "import",
+            reasonCode: "behaviorlog_restore",
+          })
+        : previousConfiguration
+          ? planBehaviorConfigurationChangeEvent({
+              previousConfiguration,
+              nextConfiguration,
+              recordedAt: input.restoreRecordedAt,
+              effectiveAt: input.restoreRecordedAt,
+              source: "import",
+              reasonCode: "behaviorlog_restore",
+            })
+          : null;
+
+    if (action?.action !== "create" && !previousConfiguration) {
+      throw new BehaviorLogRestoreUserError(
+        `Behavior ${behavior.externalId} is missing its prior configuration snapshot.`,
+      );
+    }
+
+    if (eventPlan) {
+      events.push({
+        behavior_id: behaviorId,
+        ...(toBehaviorConfigurationEventPlanPayload(eventPlan) as Record<
+          string,
+          unknown
+        >),
+      });
+    }
+
+    plannedBehaviorIds.add(behaviorId);
+  }
+
+  for (const action of input.behaviorActions) {
+    if (action.action !== "archive") {
+      continue;
+    }
+
+    const behaviorId = requiredLocalId(action);
+
+    if (plannedBehaviorIds.has(behaviorId)) {
+      continue;
+    }
+
+    const previousConfiguration =
+      existingById.get(behaviorId)?.configurationSnapshot;
+
+    if (!previousConfiguration) {
+      throw new BehaviorLogRestoreUserError(
+        `Archived behavior ${behaviorId} is missing its prior configuration snapshot.`,
+      );
+    }
+
+    const eventPlan = planBehaviorConfigurationChangeEvent({
+      previousConfiguration,
+      nextConfiguration: {
+        ...previousConfiguration,
+        active: false,
+      },
+      recordedAt: input.restoreRecordedAt,
+      effectiveAt: input.restoreRecordedAt,
+      source: "import",
+      reasonCode: "behaviorlog_restore",
+    });
+
+    if (eventPlan) {
+      events.push({
+        behavior_id: behaviorId,
+        ...(toBehaviorConfigurationEventPlanPayload(eventPlan) as Record<
+          string,
+          unknown
+        >),
+      });
+    }
+
+    plannedBehaviorIds.add(behaviorId);
+  }
+
+  for (const existing of input.existingBehaviors) {
+    const previousConfiguration = existing.configurationSnapshot;
+
+    if (!previousConfiguration || plannedBehaviorIds.has(existing.id)) {
+      continue;
+    }
+
+    const nextScheduleGraph = removeDeletedScheduleEntries(
+      previousConfiguration.scheduleGraph,
+      deletedScheduleIds,
+    );
+
+    if (nextScheduleGraph.length === previousConfiguration.scheduleGraph.length &&
+      nextScheduleGraph.every(
+        (schedule, index) =>
+          schedule.timeEntries.length ===
+          previousConfiguration.scheduleGraph[index]?.timeEntries.length,
+      )) {
+      continue;
+    }
+
+    const eventPlan = planBehaviorConfigurationChangeEvent({
+      previousConfiguration,
+      nextConfiguration: {
+        ...previousConfiguration,
+        scheduleGraph: nextScheduleGraph,
+      },
+      recordedAt: input.restoreRecordedAt,
+      effectiveAt: input.restoreRecordedAt,
+      source: "import",
+      reasonCode: "behaviorlog_restore",
+    });
+
+    if (!eventPlan) {
+      continue;
+    }
+
+    events.push({
+      behavior_id: existing.id,
+      ...(toBehaviorConfigurationEventPlanPayload(eventPlan) as Record<
+        string,
+        unknown
+      >),
+    });
+    plannedBehaviorIds.add(existing.id);
+  }
+
+  return { events };
+}
+
+function removeDeletedScheduleEntries(
+  scheduleGraph: BehaviorConfigurationSchedule[],
+  deletedScheduleIds: Set<string>,
+): BehaviorConfigurationSchedule[] {
+  return scheduleGraph.flatMap((schedule) => {
+    const timeEntries = schedule.timeEntries.filter(
+      (entry) => !entry.id || !deletedScheduleIds.has(entry.id),
+    );
+
+    return timeEntries.length > 0 ? [{ ...schedule, timeEntries }] : [];
+  });
 }
 
 function toRestoreBehaviorDefinitionEventPayload(input: {
@@ -1474,7 +1747,7 @@ function localTargetIdForNote(input: {
 
 function toCadenceRecurrenceRule(
   schedule: BehaviorLogImportSchedulePlan,
-): Record<string, unknown> {
+): Json {
   const recurrence = schedule.recurrence;
 
   switch (recurrence.type) {

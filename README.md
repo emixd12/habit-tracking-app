@@ -14,6 +14,10 @@ Future agents should treat the docs as source-of-truth and use `STATUS.md` to un
 
 If these bootstrap files are copied into a new repository, copy the full project-definition layer, including `AGENTS.md`, `STATUS.md`, `docs/PRODUCT_SPEC.md`, `DESIGN.md`, `.env.example`, `.agents/`, and `docs/`.
 
+Cadence requires Node.js 22.12 or newer. Use Node.js 24 for local release
+verification so local builds match the Vercel runtime. Install the locked
+workspace with `npm ci`.
+
 ## Intended product
 
 A sparse personal behavior tracker product:
@@ -60,6 +64,44 @@ npm run marketing:build
 npm run marketing:check
 npm run marketing:preview
 ```
+
+## License and security
+
+Cadence source code, repository documentation, and synthetic sample content
+are licensed under the [MIT License](LICENSE). Third-party material retains its
+original license. Copied source notices are recorded in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The MIT grant does not cover tracked binary non-code assets pending provenance
+review. The excluded groups are:
+
+- `app/icon.png` and `app/apple-icon.png`;
+- `public/brand/**`, `public/icons/**`, and `public/sounds/**`;
+- `apps/marketing/public/brand/**`;
+- `docs/design-exploration/**`; and
+- image files under `docs/qa/**`.
+
+Those groups include Cadence logos, brand illustrations, product captures,
+custom notification icons, design exploration, QA screenshots, and audio. The
+Cadence name and logos remain reserved as trademarks. The MIT license grants no
+permission to use them as source-identifying marks. Rights available under
+applicable nominative-use doctrines are unaffected.
+
+Report suspected vulnerabilities through the private route in
+[SECURITY.md](SECURITY.md). Never include credentials, real user data,
+behavioral content, or private exports in a public issue.
+
+The source license grants no hosted Cadence service access and no rights to
+user-owned behavioral data. Hosted Terms, Privacy, and Trust pages govern the
+deployed service separately.
+
+Self-hosters own their deployment, provider accounts, access controls, secret
+storage, upgrades, backups, monitoring, and incident response. Values prefixed
+with `NEXT_PUBLIC_` and the VAPID public key are browser configuration and may
+appear in client artifacts. Supabase service-role keys, OAuth client secrets,
+Sequenzy keys, VAPID private keys, process secrets, database credentials,
+AgentMail keys, and provider tokens must remain server-only. Use
+`.env.example` as the configuration inventory and never commit real values.
 
 ## Supabase auth setup
 

@@ -17,6 +17,10 @@ Authoritative upstream docs used for this workflow:
 - Vercel environment variables: `https://vercel.com/docs/environment-variables`
 - Vercel Cron Jobs: `https://vercel.com/docs/cron-jobs`
 
+The root `package.json` supports Node.js 22.12 or newer. Keep local release
+verification and both Vercel projects on Node.js 24.x so Next.js and Astro
+build under the deployed runtime.
+
 ## Current Project
 
 Verified on 2026-06-08 with the Vercel plugin:
@@ -46,6 +50,7 @@ The public Astro marketing site is deployed separately:
 - Current production alias: `https://cadence-marketing-two.vercel.app`
 - Workspace root: `apps/marketing`
 - Build command: `npm run marketing:build`
+- Node runtime setting: `24.x`
 - Canonical URL source: `MARKETING_SITE_URL`
 
 Keep this project separate from the authenticated app unless a future scoped
@@ -69,7 +74,10 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 REMINDER_PROCESS_SECRET=
 CRON_SECRET=
+NEXT_PUBLIC_MARKETING_SITE_URL=
 MARKETING_SITE_URL=
+PUBLIC_CADENCE_APP_URL=
+CADENCE_PERF_LOG=0
 ```
 
 Rules:
@@ -85,8 +93,11 @@ Rules:
   `REMINDER_PROCESS_SECRET` unless there is a deliberate secret rotation plan.
 - `SEQUENZY_API_URL` can be omitted when using the default
   `https://api.sequenzy.com`.
-- `MARKETING_SITE_URL` belongs to the Astro marketing project and should point
-  at its canonical production URL.
+- `NEXT_PUBLIC_MARKETING_SITE_URL` belongs to the authenticated app project and
+  should point at the matching marketing deployment.
+- `MARKETING_SITE_URL` and `PUBLIC_CADENCE_APP_URL` belong to the Astro
+  marketing project. Preview values must point at the intended Preview targets;
+  omission falls back to Production domains.
 - `CADENCE_PERF_LOG=1` is an optional short-term Production sampling flag for
   privacy-safe server timing spans. It is not a secret, but it should be enabled
   deliberately and reviewed through sanitized Vercel runtime logs.
@@ -107,7 +118,7 @@ the Supabase project owner accepts that operational tradeoff.
 
 ## Cron Processing
 
-`vercel.json` owns the scheduled trigger:
+`vercel.json` owns both scheduled triggers:
 
 ```json
 {
@@ -115,6 +126,10 @@ the Supabase project owner accepts that operational tradeoff.
     {
       "path": "/api/reminders/process",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/occurrences/sync",
+      "schedule": "5 0 * * *"
     }
   ]
 }
@@ -125,10 +140,13 @@ manual `POST` calls. Both paths require an `Authorization: Bearer ...` header
 or the manual `x-reminder-process-secret` header. The accepted secret can be
 either `REMINDER_PROCESS_SECRET` or `CRON_SECRET`.
 
-Hourly processing keeps reminder sends reasonably close to their planned
-`scheduled_send_at`. If the Vercel plan cannot run hourly cron jobs, switch to a
-plan that supports hourly cron or document an external scheduler that calls the
-same route with the same bearer secret.
+Hourly reminder processing keeps sends reasonably close to their planned
+`scheduled_send_at`. Daily occurrence processing runs at 00:05 UTC and extends
+each bounded account batch's generated horizon using the account timezone.
+Both routes use the same protected GET/manual POST contract. If the Vercel plan
+cannot run the declared schedules, switch to a plan that supports them or
+document an external scheduler that calls the same routes with the same bearer
+secret.
 
 Production verification on 2026-06-19 found hourly production
 `GET /api/reminders/process` invocations returning 200 for the prior 24 hours,

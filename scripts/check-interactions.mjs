@@ -8,10 +8,10 @@ const journeyPath = "docs/UX_JOURNEY_INVENTORY.md";
 const userGuideDirectory = "docs/user-guide";
 const internalQaInteractionIds = new Set(["INT-AUTH-002", "INT-SHELL-007"]);
 const failures = [];
-let assertions = 0;
+const mechanicallyCheckedEntries = [];
+const humanReviewEntries = [];
 
 function assert(condition, message) {
-  assertions += 1;
   if (!condition) failures.push(message);
 }
 
@@ -62,6 +62,86 @@ function splitReference(reference) {
   return {
     file: reference.slice(0, separatorIndex),
     symbol: reference.slice(separatorIndex + 1),
+  };
+}
+
+function handlerSource(content, symbol) {
+  const escapedSymbol = symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const declaration = new RegExp(
+    `(?:export\\s+)?(?:async\\s+)?function\\s+${escapedSymbol}\\b`,
+  );
+  const start = content.search(declaration);
+
+  if (start === -1) return "";
+
+  const remaining = content.slice(start + symbol.length);
+  const nextDeclaration = remaining.search(
+    /\n(?:export\s+)?(?:async\s+)?function\s+[A-Za-z_$][\w$]*\b/,
+  );
+
+  return nextDeclaration === -1
+    ? content.slice(start)
+    : content.slice(start, start + symbol.length + nextDeclaration);
+}
+
+function inspectEffectChecks(interaction, sourceReader = read) {
+  const issues = [];
+  const checkedEffects = new Set();
+  const checks = Array.isArray(interaction.effect_checks)
+    ? interaction.effect_checks
+    : [];
+
+  for (const check of checks) {
+    const effect = check?.effect;
+    const handler = check?.handler;
+    const evidence = check?.evidence;
+    const { file, symbol } = splitReference(
+      typeof handler === "string" ? handler : "",
+    );
+
+    if (!interaction.effects?.includes(effect)) {
+      issues.push(`${interaction.id} effect check references undeclared effect ${String(effect)}.`);
+      continue;
+    }
+    if (!interaction.implementation?.includes(handler)) {
+      issues.push(`${interaction.id} effect check handler is not an implementation reference: ${String(handler)}.`);
+      continue;
+    }
+    if (!symbol) {
+      issues.push(`${interaction.id} effect check must name a handler symbol: ${String(handler)}.`);
+      continue;
+    }
+    if (!isNonEmptyStringArray(evidence)) {
+      issues.push(`${interaction.id} effect check for ${effect} needs unique evidence strings.`);
+      continue;
+    }
+
+    const namedHandlerSource = handlerSource(sourceReader(file), symbol);
+    if (!namedHandlerSource) {
+      issues.push(`${interaction.id} effect check cannot resolve handler ${handler}.`);
+      continue;
+    }
+
+    const missingEvidence = evidence.filter(
+      (snippet) => !namedHandlerSource.includes(snippet),
+    );
+    if (missingEvidence.length > 0) {
+      issues.push(
+        `${interaction.id} recorded ${effect} side effect no longer matches ${handler}; missing evidence: ${missingEvidence.join(
+          ", ",
+        )}.`,
+      );
+      continue;
+    }
+
+    checkedEffects.add(effect);
+  }
+
+  return {
+    issues,
+    uncheckedEffects: (interaction.effects ?? []).filter(
+      (effect) => !checkedEffects.has(effect),
+    ),
   };
 }
 
@@ -159,8 +239,8 @@ assert(
   `${registryPath} must reference ./interaction-registry.schema.json.`,
 );
 assert(
-  registry.schema_version === "1.1.0",
-  `${registryPath} schema_version must be 1.1.0.`,
+  registry.schema_version === "1.2.0",
+  `${registryPath} schema_version must be 1.2.0.`,
 );
 assert(
   registry.registry_id === "cadence.user-interactions",
@@ -331,6 +411,16 @@ for (const interaction of interactions) {
         `${label} implementation symbol ${symbol} is missing from ${file}.`,
       );
     }
+  }
+  const effectInspection = inspectEffectChecks(interaction);
+  failures.push(...effectInspection.issues);
+  if (effectInspection.uncheckedEffects.length === 0) {
+    mechanicallyCheckedEntries.push(label);
+  } else {
+    humanReviewEntries.push({
+      id: label,
+      effects: effectInspection.uncheckedEffects,
+    });
   }
   const guidance = interaction.user_guidance;
   assert(
@@ -510,6 +600,23 @@ for (const journeyId of journeyIds) {
   );
 }
 
+const positiveEffectFixture = readJson(
+  "tests/fixtures/governance/interaction-side-effect-positive.json",
+);
+const alteredEffectFixture = readJson(
+  "tests/fixtures/governance/interaction-side-effect-altered.json",
+);
+if (positiveEffectFixture && alteredEffectFixture) {
+  assert(
+    inspectEffectChecks(positiveEffectFixture).issues.length === 0,
+    "The positive interaction side-effect fixture must pass handler evidence checks.",
+  );
+  assert(
+    inspectEffectChecks(alteredEffectFixture).issues.length > 0,
+    "The deliberately altered interaction side-effect fixture must fail handler evidence checks.",
+  );
+}
+
 report();
 
 function report() {
@@ -520,7 +627,13 @@ function report() {
   }
 
   console.log(
-    `interactions:check passed (${assertions} invariants, ${interactions.length} interactions, ${sourceInventory.length} interaction sources).`,
+    `interactions:check passed (${mechanicallyCheckedEntries.length} mechanically checked entries; ${humanReviewEntries.length} entries require human side-effect review).`,
   );
+  if (humanReviewEntries.length > 0) {
+    console.log("human review:");
+    for (const entry of humanReviewEntries) {
+      console.log(`- ${entry.id}: ${entry.effects.join(", ")}`);
+    }
+  }
   process.exit(0);
 }

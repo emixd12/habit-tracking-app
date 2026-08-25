@@ -3,7 +3,11 @@ import { createHash } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { resolveBehaviorLogImportPreview } from "../lib/resolvers/behaviorlog-import.resolver";
+import {
+  resolveBehaviorLogImportMergePreview,
+  resolveBehaviorLogImportPreview,
+} from "../lib/resolvers/behaviorlog-import.resolver";
+import { resolveExportBundle } from "../lib/resolvers/export.resolver";
 import {
   applyApprovedBehaviorLogMergePlan,
   applyCreateMissingBehaviorLogImportPlan,
@@ -18,6 +22,13 @@ import type {
   BehaviorLogImportMergePreviewResult,
   BehaviorLogImportPreview,
 } from "../lib/types/behaviorlog-import";
+import type {
+  ExportBehaviorConfigurationEventInput,
+  ExportBehaviorInput,
+  ExportOccurrenceInput,
+  ExportStatusEventInput,
+} from "../lib/types/export";
+import { DEFAULT_TIMEZONE } from "../lib/types/recurrence";
 
 const STARTED_AT = "2026-06-12T10:00:00Z";
 const COMPLETED_AT = "2026-06-12T10:00:01Z";
@@ -294,6 +305,36 @@ describe("BehaviorLog import write service", () => {
         reason: "behaviorlog_import",
       }),
     ]);
+    expect(tables.behavior_configuration_events).toEqual([
+      expect.objectContaining({
+        behavior_id: tables.behaviors[0].id,
+        event_kind: "baseline",
+        previous_configuration: null,
+        changed_fields: [
+          "category_id",
+          "schedule_graph",
+          "browser_reminder_enabled",
+          "email_reminder_enabled",
+          "reminder_offset_minutes",
+          "active",
+          "timezone",
+        ],
+        recorded_at: COMPLETED_AT,
+        effective_at: COMPLETED_AT,
+        source: "import",
+        reason_code: "behaviorlog_import",
+        next_configuration: expect.objectContaining({
+          schedule_graph: [
+            expect.objectContaining({
+              recurrence_rule: { frequency: "daily", interval: 1 },
+              time_entries: [
+                expect.objectContaining({ start_time: "09:00:00" }),
+              ],
+            }),
+          ],
+        }),
+      }),
+    ]);
     expect(tables.behavior_schedule_slots).toEqual([
       expect.objectContaining({
         user_id: USER_ID,
@@ -359,6 +400,7 @@ describe("BehaviorLog import write service", () => {
     });
     expect(tables.behaviors).toHaveLength(1);
     expect(tables.behavior_definition_events).toHaveLength(1);
+    expect(tables.behavior_configuration_events).toHaveLength(1);
     expect(tables.behavior_schedule_slots).toHaveLength(1);
     expect(tables.occurrences).toHaveLength(1);
     expect(tables.occurrence_status_events).toHaveLength(1);
@@ -531,6 +573,7 @@ describe("BehaviorLog import write service", () => {
         reason: "behaviorlog_import",
       }),
     ]);
+    expect(tables.behavior_configuration_events).toHaveLength(1);
 
     const rerun = await applyApprovedBehaviorLogMergePlan(supabase, {
       userId: USER_ID,
@@ -548,6 +591,7 @@ describe("BehaviorLog import write service", () => {
     });
     expect(tables.behaviors).toHaveLength(1);
     expect(tables.behavior_definition_events).toHaveLength(1);
+    expect(tables.behavior_configuration_events).toHaveLength(1);
     expect(tables.behavior_schedule_slots).toHaveLength(1);
     expect(tables.occurrences).toHaveLength(1);
     expect(tables.occurrence_status_events).toHaveLength(2);
@@ -673,6 +717,107 @@ describe("BehaviorLog import write service", () => {
       ["occurrence", "occurrence-1", "local-occurrence"],
       ["status_event", "event-1", "occurrence_status_events-1"],
     ]);
+  });
+
+  it("appends a mapped behavior schedule by full graph identity and only once", async () => {
+    const preview = createMergeApplyPreview({
+      actionOverrides: {
+        behaviors: [
+          mergeAction({
+            recordType: "behavior",
+            externalId: "behavior-brush",
+            action: "map_to_existing",
+            localId: "local-behavior",
+          }),
+        ],
+      },
+    });
+    preview.plan.schedules[0].recurrence = {
+      type: "weekly_on_weekdays",
+      weekdays: ["monday"],
+    };
+    const existingSlot = {
+      id: "local-schedule",
+      user_id: USER_ID,
+      behavior_id: "local-behavior",
+      behavior_schedule_id: "local-parent",
+      kind: "exact",
+      preset: null,
+      start_time: "09:00",
+      end_time: null,
+      sort_order: 0,
+      created_at: "2026-06-01T00:00:00Z",
+      updated_at: "2026-06-01T00:00:00Z",
+    };
+    const existingParent = {
+      id: "local-parent",
+      user_id: USER_ID,
+      behavior_id: "local-behavior",
+      recurrence_rule: { frequency: "daily", interval: 1 },
+      sort_order: 2,
+      created_at: "2026-06-01T00:00:00Z",
+      updated_at: "2026-06-01T00:00:00Z",
+      schedule_slots: [existingSlot],
+    };
+    const { supabase, tables } = createApplyClient({
+      importMode: "merge_by_user_approved_plan",
+      dryRunSummary: acceptedMergeDryRunSummary(preview.mergePreview),
+      seed: {
+        behaviors: [
+          {
+            id: "local-behavior",
+            user_id: USER_ID,
+            category_id: null,
+            title: "Local Brush",
+            description: null,
+            recurrence_rule: { frequency: "daily", interval: 1 },
+            scheduled_time: "09:00",
+            timezone: "America/New_York",
+            browser_reminder_enabled: true,
+            email_reminder_enabled: false,
+            reminder_offset_minutes: 0,
+            active: true,
+            archived_at: null,
+            created_at: "2026-06-01T00:00:00Z",
+            updated_at: "2026-06-01T00:00:00Z",
+            category: null,
+            schedules: [existingParent],
+            schedule_slots: [existingSlot],
+          },
+        ],
+        behavior_schedule_slots: [existingSlot],
+      },
+    });
+
+    await applyApprovedBehaviorLogMergePlan(supabase, {
+      userId: USER_ID,
+      importRunId: IMPORT_RUN_ID,
+      preview,
+      completedAt: COMPLETED_AT,
+    });
+
+    const scheduleMapping = tables.behaviorlog_import_record_mappings.find(
+      (mapping) => mapping.record_type === "schedule",
+    );
+    expect(scheduleMapping?.local_id).not.toBe("local-schedule");
+    expect(tables.behavior_schedule_slots).toHaveLength(2);
+    expect(tables.behavior_configuration_events).toEqual([
+      expect.objectContaining({
+        event_kind: "revision",
+        changed_fields: ["schedule_graph"],
+        recorded_at: COMPLETED_AT,
+      }),
+    ]);
+
+    await applyApprovedBehaviorLogMergePlan(supabase, {
+      userId: USER_ID,
+      importRunId: IMPORT_RUN_ID,
+      preview,
+      completedAt: "2026-06-12T10:00:02Z",
+    });
+
+    expect(tables.behavior_schedule_slots).toHaveLength(2);
+    expect(tables.behavior_configuration_events).toHaveLength(1);
   });
 
   it("does not downgrade a high-confidence local explicit status snapshot with a lower-confidence import", async () => {
@@ -1095,6 +1240,165 @@ describe("BehaviorLog import write service", () => {
         "behavior_without_supported_schedule",
       ]),
     );
+  });
+
+  it("create-only imports historical Occurrences without activating historical schedules", async () => {
+    const files = dailyToWeeklyBehaviorLogFiles();
+    const preview = resolveBehaviorLogImportPreview({ files });
+    const { supabase, tables } = createApplyClient();
+
+    expect(preview.valid).toBe(true);
+    expect(preview.plan.schedules.map((schedule) => schedule.action)).toEqual([
+      "skip",
+      "create",
+    ]);
+    expect(preview.plan.occurrences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          externalId: "occurrence-daily",
+          action: "create",
+          importWithDetachedScheduleSnapshot: true,
+        }),
+      ]),
+    );
+
+    await applyCreateMissingBehaviorLogImportPlan(supabase, {
+      userId: USER_ID,
+      importRunId: IMPORT_RUN_ID,
+      preview,
+      completedAt: COMPLETED_AT,
+    });
+
+    expect(tables.behavior_schedules).toHaveLength(1);
+    expect(tables.behavior_schedules[0]?.recurrence_rule).toEqual({
+      frequency: "weekly",
+      interval: 1,
+      daysOfWeek: ["monday"],
+    });
+    expect(tables.occurrences).toHaveLength(2);
+    expect(
+      tables.occurrences.find(
+        (occurrence) => occurrence.scheduled_for === "2026-06-01T13:00:00Z",
+      ),
+    ).toMatchObject({
+      behavior_schedule_slot_id: null,
+      schedule_kind: "exact",
+      schedule_start_time: "09:00",
+      status: "completed",
+      note: "Daily-period note.",
+    });
+    expect(
+      tables.occurrences.find(
+        (occurrence) => occurrence.scheduled_for === "2026-06-08T13:00:00Z",
+      )?.behavior_schedule_slot_id,
+    ).toEqual(expect.any(String));
+    expect(tables.occurrence_status_events).toHaveLength(2);
+  });
+
+  it("merge imports historical Occurrences without activating historical schedules", async () => {
+    const files = dailyToWeeklyBehaviorLogFiles();
+    const preview = resolveBehaviorLogImportMergePreview({ files });
+    const { supabase, tables } = createApplyClient({
+      importMode: "merge_by_user_approved_plan",
+      dryRunSummary: acceptedMergeDryRunSummary(preview.mergePreview),
+    });
+
+    expect(
+      preview.mergePreview.actions.occurrences.find(
+        (action) => action.externalId === "occurrence-daily",
+      )?.action,
+    ).toBe("create_new");
+
+    await applyApprovedBehaviorLogMergePlan(supabase, {
+      userId: USER_ID,
+      importRunId: IMPORT_RUN_ID,
+      preview,
+      completedAt: COMPLETED_AT,
+    });
+
+    expect(tables.behavior_schedules).toHaveLength(1);
+    expect(tables.behavior_schedules[0]?.recurrence_rule).toEqual({
+      frequency: "weekly",
+      interval: 1,
+      daysOfWeek: ["monday"],
+    });
+    expect(tables.occurrences).toHaveLength(2);
+    expect(
+      tables.occurrences.find(
+        (occurrence) => occurrence.scheduled_for === "2026-06-01T13:00:00Z",
+      ),
+    ).toMatchObject({
+      behavior_schedule_slot_id: null,
+      schedule_start_time: "09:00",
+      status: "completed",
+      note: "Daily-period note.",
+    });
+    expect(tables.occurrence_status_events).toHaveLength(2);
+  });
+
+  it("create-only round-trips an archived false-baseline current graph", async () => {
+    const preview = resolveBehaviorLogImportPreview({
+      files: archivedBaselineBehaviorLogFiles(),
+    });
+    const { supabase, tables } = createApplyClient();
+
+    expect(preview.valid).toBe(true);
+    expect(preview.plan.schedules).toEqual([
+      expect.objectContaining({
+        action: "create",
+        cadenceImportRole: "current_configuration",
+      }),
+    ]);
+    await applyCreateMissingBehaviorLogImportPlan(supabase, {
+      userId: USER_ID,
+      importRunId: IMPORT_RUN_ID,
+      preview,
+      completedAt: COMPLETED_AT,
+    });
+
+    expect(tables.behaviors).toEqual([
+      expect.objectContaining({ active: false }),
+    ]);
+    expect(tables.behavior_schedules).toHaveLength(1);
+    expect(tables.occurrences).toEqual([
+      expect.objectContaining({
+        status: "completed",
+        note: "Archived baseline note.",
+      }),
+    ]);
+    expect(tables.occurrence_status_events).toHaveLength(1);
+  });
+
+  it("merge round-trips an archived false-baseline current graph", async () => {
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: archivedBaselineBehaviorLogFiles(),
+    });
+    const { supabase, tables } = createApplyClient({
+      importMode: "merge_by_user_approved_plan",
+      dryRunSummary: acceptedMergeDryRunSummary(preview.mergePreview),
+    });
+
+    await applyApprovedBehaviorLogMergePlan(supabase, {
+      userId: USER_ID,
+      importRunId: IMPORT_RUN_ID,
+      preview,
+      completedAt: COMPLETED_AT,
+    });
+
+    expect(tables.behaviors).toEqual([
+      expect.objectContaining({ active: false }),
+    ]);
+    expect(tables.behavior_schedules).toHaveLength(1);
+    expect(tables.occurrences).toEqual([
+      expect.objectContaining({
+        status: "completed",
+        note: "Archived baseline note.",
+      }),
+    ]);
+    expect(tables.occurrence_status_events).toHaveLength(1);
+    expect(preview.mergePreview.actions.schedules).toEqual([
+      expect.objectContaining({ action: "create_new" }),
+    ]);
   });
 });
 
@@ -1569,6 +1873,315 @@ function behaviorLogFiles(): BehaviorLogImportFile[] {
   ];
 }
 
+function dailyToWeeklyBehaviorLogFiles(): BehaviorLogImportFile[] {
+  const behaviorId = "behavior-history";
+  const dailyConfiguration = {
+    categoryId: null,
+    scheduleGraph: [
+      {
+        recurrenceRule: { frequency: "daily" as const, interval: 1 },
+        sortOrder: 0,
+        timeEntries: [
+          {
+            kind: "exact" as const,
+            preset: null,
+            startTime: "09:00",
+            endTime: null,
+            sortOrder: 0,
+          },
+        ],
+      },
+    ],
+    browserReminderEnabled: true,
+    emailReminderEnabled: false,
+    reminderOffsetMinutes: 0,
+    active: true,
+    timezone: DEFAULT_TIMEZONE,
+  };
+  const weeklyConfiguration = {
+    ...dailyConfiguration,
+    scheduleGraph: [
+      {
+        recurrenceRule: {
+          frequency: "weekly" as const,
+          interval: 1,
+          daysOfWeek: ["monday" as const],
+        },
+        sortOrder: 0,
+        timeEntries: dailyConfiguration.scheduleGraph[0].timeEntries,
+      },
+    ],
+  };
+  const behavior: ExportBehaviorInput = {
+    id: behaviorId,
+    categoryId: null,
+    categoryName: null,
+    title: "History behavior",
+    description: "Daily then weekly",
+    recurrenceRule: weeklyConfiguration.scheduleGraph[0].recurrenceRule,
+    scheduledTime: "09:00",
+    scheduleSlots: [
+      {
+        id: "slot-current",
+        kind: "exact",
+        preset: null,
+        startTime: "09:00",
+        endTime: null,
+        sortOrder: 0,
+        label: "9:00 AM",
+      },
+    ],
+    timezone: DEFAULT_TIMEZONE,
+    browserReminderEnabled: true,
+    emailReminderEnabled: false,
+    reminderOffsetMinutes: 0,
+    active: true,
+    archivedAt: null,
+    createdAt: "2026-05-01T12:00:00Z",
+    updatedAt: "2026-06-08T12:00:00Z",
+  };
+  const configurations: ExportBehaviorConfigurationEventInput[] = [
+    {
+      id: "config-daily",
+      behaviorId,
+      eventKind: "baseline",
+      previousConfiguration: null,
+      nextConfiguration: dailyConfiguration,
+      changedFields: [
+        "category_id",
+        "schedule_graph",
+        "browser_reminder_enabled",
+        "email_reminder_enabled",
+        "reminder_offset_minutes",
+        "active",
+        "timezone",
+      ],
+      recordedAt: "2026-05-01T12:00:00Z",
+      effectiveAt: "2026-05-01T12:00:00Z",
+      effectiveLocalDate: "2026-05-01",
+      timezone: DEFAULT_TIMEZONE,
+      source: "system",
+      reasonCode: "history_capture_started",
+    },
+    {
+      id: "config-weekly",
+      behaviorId,
+      eventKind: "revision",
+      previousConfiguration: dailyConfiguration,
+      nextConfiguration: weeklyConfiguration,
+      changedFields: ["schedule_graph"],
+      recordedAt: "2026-06-08T12:00:00Z",
+      effectiveAt: "2026-06-08T12:00:00Z",
+      effectiveLocalDate: "2026-06-08",
+      timezone: DEFAULT_TIMEZONE,
+      source: "manual",
+      reasonCode: "behavior_form_update",
+    },
+  ];
+  const occurrences: ExportOccurrenceInput[] = [
+    {
+      id: "occurrence-daily",
+      behaviorId,
+      behaviorScheduleSlotId: "slot-current",
+      behaviorConfigurationEventId: "config-daily",
+      scheduledFor: "2026-06-01T13:00:00Z",
+      scheduledTimeLabel: "9:00 AM",
+      scheduleKind: "exact",
+      schedulePreset: null,
+      scheduleStartTime: "09:00",
+      scheduleEndTime: null,
+      localDate: "2026-06-01",
+      status: "completed",
+      completedAt: "2026-06-01T13:05:00Z",
+      statusMarkedAt: "2026-06-01T13:05:00Z",
+      note: "Daily-period note.",
+      createdAt: "2026-06-01T12:00:00Z",
+      updatedAt: "2026-06-01T13:05:00Z",
+    },
+    {
+      id: "occurrence-weekly",
+      behaviorId,
+      behaviorScheduleSlotId: "slot-current",
+      behaviorConfigurationEventId: "config-weekly",
+      scheduledFor: "2026-06-08T13:00:00Z",
+      scheduledTimeLabel: "9:00 AM",
+      scheduleKind: "exact",
+      schedulePreset: null,
+      scheduleStartTime: "09:00",
+      scheduleEndTime: null,
+      localDate: "2026-06-08",
+      status: "not_completed",
+      completedAt: null,
+      statusMarkedAt: "2026-06-08T13:05:00Z",
+      note: null,
+      createdAt: "2026-06-08T12:00:00Z",
+      updatedAt: "2026-06-08T13:05:00Z",
+    },
+  ];
+  const statusEvents: ExportStatusEventInput[] = occurrences.map(
+    (occurrence, index) => ({
+      id: `event-${index + 1}`,
+      occurrenceId: occurrence.id,
+      behaviorId,
+      previousStatus: "unresolved",
+      status: occurrence.status,
+      statusSemantics: "explicit_user_mark",
+      recordedAt: occurrence.statusMarkedAt ?? occurrence.updatedAt ?? "",
+      effectiveAt: occurrence.completedAt ?? occurrence.statusMarkedAt,
+      localDate: occurrence.localDate,
+      timezone: DEFAULT_TIMEZONE,
+      sourceCaptureMethod: "manual_tap",
+      sourceConfidence: "high",
+      revisesEventId: null,
+      reasonCode: null,
+    }),
+  );
+
+  return resolveExportBundle({
+    profile: { timezone: DEFAULT_TIMEZONE, subjectId: "subject-history" },
+    categories: [],
+    behaviors: [behavior],
+    behaviorConfigurationEvents: configurations,
+    occurrences,
+    statusEvents,
+    reminderDeliveries: [],
+    now: Temporal.Instant.from("2026-06-09T12:00:00Z"),
+    timezone: DEFAULT_TIMEZONE,
+    range: "all",
+    includeNotes: true,
+  }).behaviorLog.files;
+}
+
+function archivedBaselineBehaviorLogFiles(): BehaviorLogImportFile[] {
+  const behaviorId = "behavior-archived-baseline";
+  const configuration = {
+    categoryId: null,
+    scheduleGraph: [
+      {
+        recurrenceRule: { frequency: "daily" as const, interval: 1 },
+        sortOrder: 0,
+        timeEntries: [
+          {
+            kind: "exact" as const,
+            preset: null,
+            startTime: "09:00",
+            endTime: null,
+            sortOrder: 0,
+          },
+        ],
+      },
+    ],
+    browserReminderEnabled: true,
+    emailReminderEnabled: false,
+    reminderOffsetMinutes: 0,
+    active: false,
+    timezone: DEFAULT_TIMEZONE,
+  };
+  const occurrence: ExportOccurrenceInput = {
+    id: "occurrence-archived-baseline",
+    behaviorId,
+    behaviorScheduleSlotId: "slot-archived",
+    behaviorConfigurationEventId: "config-archived-baseline",
+    scheduledFor: "2026-04-30T13:00:00Z",
+    scheduledTimeLabel: "9:00 AM",
+    scheduleKind: "exact",
+    schedulePreset: null,
+    scheduleStartTime: "09:00",
+    scheduleEndTime: null,
+    localDate: "2026-04-30",
+    status: "completed",
+    completedAt: "2026-04-30T13:05:00Z",
+    statusMarkedAt: "2026-04-30T13:05:00Z",
+    note: "Archived baseline note.",
+    createdAt: "2026-04-30T12:00:00Z",
+    updatedAt: "2026-04-30T13:05:00Z",
+  };
+
+  return resolveExportBundle({
+    profile: { timezone: DEFAULT_TIMEZONE, subjectId: "subject-archived" },
+    categories: [],
+    behaviors: [
+      {
+        id: behaviorId,
+        categoryId: null,
+        categoryName: null,
+        title: "Archived baseline",
+        description: null,
+        recurrenceRule: { frequency: "daily", interval: 1 },
+        scheduledTime: "09:00",
+        scheduleSlots: [
+          {
+            id: "slot-archived",
+            kind: "exact",
+            preset: null,
+            startTime: "09:00",
+            endTime: null,
+            sortOrder: 0,
+            label: "9:00 AM",
+          },
+        ],
+        timezone: DEFAULT_TIMEZONE,
+        browserReminderEnabled: true,
+        emailReminderEnabled: false,
+        reminderOffsetMinutes: 0,
+        active: false,
+        archivedAt: "2026-05-01T12:00:00Z",
+        createdAt: "2026-04-01T12:00:00Z",
+        updatedAt: "2026-05-01T12:00:00Z",
+      },
+    ],
+    behaviorConfigurationEvents: [
+      {
+        id: "config-archived-baseline",
+        behaviorId,
+        eventKind: "baseline",
+        previousConfiguration: null,
+        nextConfiguration: configuration,
+        changedFields: [
+          "category_id",
+          "schedule_graph",
+          "browser_reminder_enabled",
+          "email_reminder_enabled",
+          "reminder_offset_minutes",
+          "active",
+          "timezone",
+        ],
+        recordedAt: "2026-05-01T12:00:00Z",
+        effectiveAt: "2026-05-01T12:00:00Z",
+        effectiveLocalDate: "2026-05-01",
+        timezone: DEFAULT_TIMEZONE,
+        source: "system",
+        reasonCode: "history_capture_started",
+      },
+    ],
+    occurrences: [occurrence],
+    statusEvents: [
+      {
+        id: "event-archived-baseline",
+        occurrenceId: occurrence.id,
+        behaviorId,
+        previousStatus: "unresolved",
+        status: "completed",
+        statusSemantics: "explicit_user_mark",
+        recordedAt: "2026-04-30T13:05:00Z",
+        effectiveAt: "2026-04-30T13:05:00Z",
+        localDate: occurrence.localDate,
+        timezone: DEFAULT_TIMEZONE,
+        sourceCaptureMethod: "manual_tap",
+        sourceConfidence: "high",
+        revisesEventId: null,
+        reasonCode: null,
+      },
+    ],
+    reminderDeliveries: [],
+    now: Temporal.Instant.from("2026-06-09T12:00:00Z"),
+    timezone: DEFAULT_TIMEZONE,
+    range: "all",
+    includeArchived: true,
+    includeNotes: true,
+  }).behaviorLog.files;
+}
+
 function behaviorLogImportFiles(input: {
   schedule?: Partial<Record<string, unknown>>;
 } = {}): BehaviorLogImportFile[] {
@@ -1771,6 +2384,8 @@ function createApplyClient(input: {
     ],
     behaviors: input.seed?.behaviors ?? [],
     behavior_definition_events: input.seed?.behavior_definition_events ?? [],
+    behavior_configuration_events: [],
+    behavior_schedules: [],
     behavior_schedule_slots: input.seed?.behavior_schedule_slots ?? [],
     occurrences: input.seed?.occurrences ?? [],
     occurrence_status_events: input.seed?.occurrence_status_events ?? [],
@@ -1783,11 +2398,45 @@ function createApplyClient(input: {
     async (
       functionName: string,
       args: {
+        target_behavior_id?: string;
         behavior_payload?: Record<string, unknown>;
         definition_event_plan?: Record<string, unknown>;
+        configuration_event_plan?: Record<string, unknown> | null;
+        schedule_graph?: Array<Record<string, unknown>>;
       },
     ) => {
-      if (functionName !== "create_behavior_with_definition_event") {
+      if (functionName === "update_behavior_with_schedule_graph") {
+        const behavior = tables.behaviors.find(
+          (candidate) => candidate.id === args.target_behavior_id,
+        );
+
+        if (!behavior || !args.behavior_payload || !args.schedule_graph) {
+          return { data: null, error: null };
+        }
+
+        Object.assign(behavior, args.behavior_payload, {
+          updated_at:
+            args.configuration_event_plan?.recorded_at ?? behavior.updated_at,
+        });
+        installFakeScheduleGraph(
+          tables,
+          behavior,
+          args.schedule_graph,
+          counters,
+        );
+        if (args.configuration_event_plan) {
+          tables.behavior_configuration_events.push({
+            ...args.configuration_event_plan,
+            id: `behavior_configuration_events-${tables.behavior_configuration_events.length + 1}`,
+            user_id: USER_ID,
+            behavior_id: args.target_behavior_id,
+          });
+        }
+
+        return { data: behavior, error: null };
+      }
+
+      if (functionName !== "create_behavior_with_schedule_graph") {
         return {
           data: null,
           error: new Error(`Unsupported fake RPC ${functionName}.`),
@@ -1796,8 +2445,14 @@ function createApplyClient(input: {
 
       const behaviorPayload = args.behavior_payload;
       const definitionEventPlan = args.definition_event_plan;
+      const configurationEventPlan = args.configuration_event_plan;
 
-      if (!behaviorPayload || !definitionEventPlan) {
+      if (
+        !behaviorPayload ||
+        !definitionEventPlan ||
+        !configurationEventPlan ||
+        !args.schedule_graph
+      ) {
         return {
           data: null,
           error: new Error("Missing atomic behavior definition payload."),
@@ -1813,6 +2468,9 @@ function createApplyClient(input: {
         user_id: USER_ID,
         created_at: createdAt,
         updated_at: createdAt,
+        category: null,
+        schedules: [],
+        schedule_slots: [],
       };
       const event = {
         id: `behavior_definition_events-${tables.behavior_definition_events.length + 1}`,
@@ -1832,6 +2490,18 @@ function createApplyClient(input: {
 
       tables.behaviors.push(behavior);
       tables.behavior_definition_events.push(event);
+      tables.behavior_configuration_events.push({
+        ...configurationEventPlan,
+        id: `behavior_configuration_events-${tables.behavior_configuration_events.length + 1}`,
+        user_id: USER_ID,
+        behavior_id: behaviorId,
+      });
+      installFakeScheduleGraph(
+        tables,
+        behavior,
+        args.schedule_graph,
+        counters,
+      );
 
       return { data: behavior, error: null };
     },
@@ -1845,6 +2515,70 @@ function createApplyClient(input: {
   };
 }
 
+function installFakeScheduleGraph(
+  tables: FakeTables,
+  behavior: Record<string, unknown>,
+  scheduleGraph: Array<Record<string, unknown>>,
+  counters: Map<string, number>,
+): void {
+  const behaviorId = String(behavior.id);
+  tables.behavior_schedules = tables.behavior_schedules.filter(
+    (schedule) => schedule.behavior_id !== behaviorId,
+  );
+  tables.behavior_schedule_slots = tables.behavior_schedule_slots.filter(
+    (slot) => slot.behavior_id !== behaviorId,
+  );
+  const schedules = scheduleGraph.map((entry) => {
+    const scheduleId =
+      typeof entry.id === "string"
+        ? entry.id
+        : `behavior_schedules-${nextFakeId(counters, "behavior_schedules")}`;
+    const schedule = {
+      id: scheduleId,
+      user_id: USER_ID,
+      behavior_id: behaviorId,
+      recurrence_rule: entry.recurrence_rule,
+      sort_order: entry.sort_order,
+      created_at: behavior.created_at,
+      updated_at: behavior.updated_at,
+      schedule_slots: [] as Array<Record<string, unknown>>,
+    };
+    const slots = (entry.time_entries as Array<Record<string, unknown>>).map(
+      (timeEntry) => ({
+        id:
+          typeof timeEntry.id === "string"
+            ? timeEntry.id
+            : `behavior_schedule_slots-${nextFakeId(counters, "behavior_schedule_slots")}`,
+        user_id: USER_ID,
+        behavior_id: behaviorId,
+        behavior_schedule_id: scheduleId,
+        kind: timeEntry.kind,
+        preset: timeEntry.preset,
+        start_time: timeEntry.start_time,
+        end_time: timeEntry.end_time,
+        sort_order: timeEntry.sort_order,
+        created_at: behavior.created_at,
+        updated_at: behavior.updated_at,
+      }),
+    );
+    schedule.schedule_slots = slots;
+    tables.behavior_schedules.push(schedule);
+    tables.behavior_schedule_slots.push(...slots);
+    return schedule;
+  });
+
+  behavior.schedules = schedules;
+  behavior.schedule_slots = schedules.flatMap(
+    (schedule) => schedule.schedule_slots,
+  );
+}
+
+function nextFakeId(counters: Map<string, number>, table: string): number {
+  const next = (counters.get(table) ?? 0) + 1;
+  counters.set(table, next);
+  return next;
+}
+
 class FakeQuery {
   private filters: Array<{ column: string; value: unknown }> = [];
   private inFilters: Array<{ column: string; values: unknown[] }> = [];
@@ -1852,6 +2586,8 @@ class FakeQuery {
   private values: Array<Record<string, unknown>> = [];
   private updateValue: Record<string, unknown> = {};
   private limitCount: number | null = null;
+  private rangeStart: number | null = null;
+  private rangeEnd: number | null = null;
 
   constructor(
     private readonly table: string,
@@ -1880,6 +2616,12 @@ class FakeQuery {
 
   limit(count: number): this {
     this.limitCount = count;
+    return this;
+  }
+
+  range(from: number, to: number): this {
+    this.rangeStart = from;
+    this.rangeEnd = to;
     return this;
   }
 
@@ -1980,7 +2722,12 @@ class FakeQuery {
       ),
     );
 
-    return this.limitCount === null ? rows : rows.slice(0, this.limitCount);
+    const limited =
+      this.limitCount === null ? rows : rows.slice(0, this.limitCount);
+
+    return this.rangeStart === null || this.rangeEnd === null
+      ? limited
+      : limited.slice(this.rangeStart, this.rangeEnd + 1);
   }
 
   private tableRows(): Array<Record<string, unknown>> {

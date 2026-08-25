@@ -665,6 +665,17 @@ BehaviorLog for complete portability and restore-oriented status history. Omit
 icons and row borders. Do not render download actions as explanatory card
 grids.
 
+App JSON guidance must name complete behavior definition, schedule, and
+reminder history. BehaviorLog guidance must name Cadence definition, schedule,
+reminder, and status history. Before Downloads, disclose that Full JSON and
+BehaviorLog include complete prior/next titles and descriptions plus schedule
+and reminder history by default. State that historical definition and
+configuration can contain sensitive context. Do not add a history checkbox.
+
+The Import section must state that definition and configuration revisions are
+not replayed. Import and restore use the current snapshot and keep historical
+Occurrence snapshots portable without activating prior schedules.
+
 Exports should support both download and copy where practical.
 
 The AI summary is an export artifact, not an in-app coaching feature. It should
@@ -761,6 +772,10 @@ typed confirmation, and stale-preview refusal before destructive writes.
 The account deletion action should stay disabled in the client until both the
 export acknowledgement and typed confirmation match, while server-side
 validation remains authoritative.
+Service-role verification and Auth deletion occur before sign-out. A failure
+before deletion keeps Settings reachable and shows one specific recoverable
+error. A successful hard deletion still redirects to Login if the later
+current-browser sign-out cleanup reports that the deleted session is gone.
 
 Notification, behavior archive/restore, and account-deletion action results
 must use one concise live result per action. Successful results use status

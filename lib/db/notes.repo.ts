@@ -1,4 +1,5 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import { readAllPostgrestRows } from "@/lib/db/paginated-read";
 import type { ImportedNote, NewImportedNote } from "@/lib/types/database";
 
 export async function createImportedNote(
@@ -45,16 +46,15 @@ export async function listImportedNotes(
   supabase: AppSupabaseClient,
   userId: string,
 ): Promise<ImportedNote[]> {
-  const { data, error } = await supabase
-    .from("imported_notes")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
-
-  if (error) {
-    throw error;
-  }
-
-  return data ?? [];
+  return readAllPostgrestRows<ImportedNote>({
+    label: "Imported notes",
+    getRowKey: (note) => note.id,
+    createQuery: () =>
+      supabase
+        .from("imported_notes")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true }),
+  });
 }

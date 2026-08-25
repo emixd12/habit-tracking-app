@@ -8,11 +8,9 @@ import {
   listUserBehaviors,
 } from "@/lib/db/behaviors.repo";
 import {
-  createMissingOccurrences,
-  deleteUnresolvedOccurrencesById,
+  applyOccurrenceGenerationPlan,
   getOccurrenceWithBehaviorTimezoneById,
   listBehaviorOccurrencesFrom,
-  updateUnresolvedOccurrenceScheduleById,
   updateOccurrenceById,
   type OccurrenceWithBehaviorTimezone,
 } from "@/lib/db/occurrences.repo";
@@ -33,6 +31,7 @@ import {
 } from "@/lib/resolvers/occurrence.resolver";
 import { resolveReminderDeliveryCancellation } from "@/lib/resolvers/reminder.resolver";
 import { listProfileOccurrenceSyncTargets } from "@/lib/db/profiles.repo";
+import { listOccurrenceIdsWithTimeSessions } from "@/lib/db/timeSessions.repo";
 import {
   resolveNoteUpdate,
   resolveStatusEvent,
@@ -65,7 +64,6 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Behavior,
-  NewOccurrence,
   Occurrence,
   OccurrenceSyncState,
   OccurrenceStatus,
@@ -130,6 +128,10 @@ export async function syncUserOccurrences(
       counts: (plans) => countGenerationPlans(plans),
     },
     async () => {
+      const expectedSyncState = await readOccurrenceSyncState(
+        supabase,
+        userId,
+      );
       const behaviors = await measurePerformanceSpan(
         {
           span: "occurrence_sync.behavior_list_reuse",
@@ -159,6 +161,8 @@ export async function syncUserOccurrences(
           fallbackWindow,
           syncedAt: now.toString(),
           timezone: syncTimezone,
+          expectedBehaviorConfigurationEvents: [],
+          expectedSyncState,
         });
 
         return [];
@@ -192,6 +196,17 @@ export async function syncUserOccurrences(
             behaviorWindows,
           ),
       );
+      const existingOccurrences = Array.from(
+        existingOccurrencesByBehaviorId.values(),
+      ).flat();
+      const timeSessionOccurrenceIds = new Set(
+        await listOccurrenceIdsWithTimeSessions(supabase, {
+          userId,
+          occurrenceIds: existingOccurrences.map(
+            (occurrence) => occurrence.id,
+          ),
+        }),
+      );
       const plans = await measurePerformanceSpan(
         {
           span: "occurrence_sync.generation_planning",
@@ -210,6 +225,8 @@ export async function syncUserOccurrences(
                 behavior: {
                   id: behavior.id,
                   userId,
+                  configurationEventId:
+                    requireCurrentConfigurationEventId(behavior),
                   recurrenceRule: normalizeRecurrenceRule(
                     behavior.recurrence_rule,
                   ),
@@ -222,7 +239,11 @@ export async function syncUserOccurrences(
                   createdAt: behavior.created_at,
                 },
                 existingOccurrences: behaviorOccurrences.map(
-                  toExistingOccurrenceForGeneration,
+                  (occurrence) =>
+                    toExistingOccurrenceForGeneration(
+                      occurrence,
+                      timeSessionOccurrenceIds,
+                    ),
                 ),
                 now,
                 horizonDays: options.horizonDays,
@@ -230,51 +251,46 @@ export async function syncUserOccurrences(
             }),
           ),
       );
-      const createdOccurrences = plans.flatMap((plan) =>
-        plan.create.map(toNewOccurrence),
+      const createdCount = plans.reduce(
+        (sum, plan) => sum + plan.create.length,
+        0,
       );
-      const scheduleUpdates = plans.flatMap((plan) => plan.updateUnresolved);
-      const deleteIds = plans.flatMap((plan) => plan.deleteUnresolvedIds);
+      const updatedCount = plans.reduce(
+        (sum, plan) => sum + plan.updateUnresolved.length,
+        0,
+      );
+      const deletedCount = plans.reduce(
+        (sum, plan) => sum + plan.deleteUnresolved.length,
+        0,
+      );
 
       await measurePerformanceSpan(
         {
           span: "occurrence_sync.occurrence_writes",
           counts: {
-            created: createdOccurrences.length,
-            updated: scheduleUpdates.length,
-            deleted: deleteIds.length,
+            created: createdCount,
+            updated: updatedCount,
+            deleted: deletedCount,
           },
         },
         async () => {
-          await createMissingOccurrences(supabase, createdOccurrences);
           await Promise.all(
-            scheduleUpdates.map((occurrence) =>
-              updateUnresolvedOccurrenceScheduleById(supabase, {
+            behaviorWindows.map(({ behavior }, index) =>
+              applyOccurrenceGenerationPlan(supabase, {
                 userId,
-                occurrenceId: occurrence.id,
-                occurrence: {
-                  behavior_schedule_slot_id: occurrence.scheduleSlotId,
-                  schedule_kind: occurrence.scheduleKind,
-                  schedule_preset: occurrence.schedulePreset,
-                  schedule_start_time: occurrence.scheduleStartTime,
-                  schedule_end_time: occurrence.scheduleEndTime,
-                  local_date: occurrence.localDate,
-                },
+                behaviorId: behavior.id,
+                expectedConfigurationEventId:
+                  requireCurrentConfigurationEventId(behavior),
+                now: now.toString(),
+                plan: plans[index]!,
               }),
             ),
-          );
-          await deleteUnresolvedOccurrencesById(
-            supabase,
-            userId,
-            deleteIds,
           );
         },
       );
 
       const mutatedOccurrences =
-        createdOccurrences.length > 0 ||
-        scheduleUpdates.length > 0 ||
-        deleteIds.length > 0;
+        createdCount > 0 || updatedCount > 0 || deletedCount > 0;
       const plannedReminderDeliveries =
         options.planReminderDeliveries !== false;
       if (plannedReminderDeliveries) {
@@ -335,6 +351,12 @@ export async function syncUserOccurrences(
           fallbackWindow,
           syncedAt: now.toString(),
           timezone: syncTimezone,
+          expectedBehaviorConfigurationEvents: behaviors.map((behavior) => ({
+            behaviorId: behavior.id,
+            configurationEventId:
+              requireCurrentConfigurationEventId(behavior),
+          })),
+          expectedSyncState,
         });
       }
 
@@ -395,7 +417,7 @@ export async function ensureUserOccurrencesFresh(
           0,
         ),
         deleted: result.plans.reduce(
-          (sum, plan) => sum + plan.deleteUnresolvedIds.length,
+          (sum, plan) => sum + plan.deleteUnresolved.length,
           0,
         ),
       }),
@@ -572,66 +594,74 @@ export async function syncBehaviorOccurrences(
   options: SyncBehaviorOccurrencesOptions = {},
 ): Promise<OccurrenceGenerationPlan> {
   const now = options.now ?? Temporal.Now.instant();
+  const currentBehavior = await getBehaviorById(
+    supabase,
+    userId,
+    behavior.id,
+  );
+
+  if (!currentBehavior) {
+    throw new Error("Behavior not found for occurrence generation.");
+  }
+
   const generationWindow = resolveGenerationWindow({
     now,
-    timezone: behavior.timezone,
+    timezone: currentBehavior.timezone,
     horizonDays: options.horizonDays,
   });
   const [existingOccurrences, schedules] = await Promise.all([
     listBehaviorOccurrencesFrom(
       supabase,
       userId,
-      behavior.id,
+      currentBehavior.id,
       generationWindow.rangeStart.toString(),
     ),
-    resolveBehaviorSchedulesForGeneration(supabase, userId, behavior),
+    resolveBehaviorSchedulesForGeneration(supabase, userId, currentBehavior),
   ]);
+  const timeSessionOccurrenceIds = new Set(
+    await listOccurrenceIdsWithTimeSessions(supabase, {
+      userId,
+      occurrenceIds: existingOccurrences.map((occurrence) => occurrence.id),
+    }),
+  );
   const plan = planOccurrenceGeneration({
     behavior: {
-      id: behavior.id,
+      id: currentBehavior.id,
       userId,
-      recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
+      configurationEventId:
+        requireCurrentConfigurationEventId(currentBehavior),
+      recurrenceRule: normalizeRecurrenceRule(currentBehavior.recurrence_rule),
       schedules,
       scheduleSlots: schedules.flatMap((schedule) => schedule.timeEntries),
-      timezone: behavior.timezone,
-      active: behavior.active,
-      createdAt: behavior.created_at,
+      timezone: currentBehavior.timezone,
+      active: currentBehavior.active,
+      createdAt: currentBehavior.created_at,
     },
     existingOccurrences: existingOccurrences.map(
-      toExistingOccurrenceForGeneration,
+      (occurrence) =>
+        toExistingOccurrenceForGeneration(
+          occurrence,
+          timeSessionOccurrenceIds,
+        ),
     ),
     now,
     horizonDays: options.horizonDays,
   });
 
-  await createMissingOccurrences(supabase, plan.create.map(toNewOccurrence));
-  await Promise.all(
-    plan.updateUnresolved.map((occurrence) =>
-      updateUnresolvedOccurrenceScheduleById(supabase, {
-        userId,
-        occurrenceId: occurrence.id,
-        occurrence: {
-          behavior_schedule_slot_id: occurrence.scheduleSlotId,
-          schedule_kind: occurrence.scheduleKind,
-          schedule_preset: occurrence.schedulePreset,
-          schedule_start_time: occurrence.scheduleStartTime,
-          schedule_end_time: occurrence.scheduleEndTime,
-          local_date: occurrence.localDate,
-        },
-      }),
-    ),
-  );
-  await deleteUnresolvedOccurrencesById(
-    supabase,
+  await applyOccurrenceGenerationPlan(supabase, {
     userId,
-    plan.deleteUnresolvedIds,
-  );
+    behaviorId: currentBehavior.id,
+    expectedConfigurationEventId:
+      requireCurrentConfigurationEventId(currentBehavior),
+    now: now.toString(),
+    plan,
+  });
   const mutatedOccurrences =
     plan.create.length > 0 ||
     plan.updateUnresolved.length > 0 ||
-    plan.deleteUnresolvedIds.length > 0;
+    plan.deleteUnresolved.length > 0;
 
-  await syncReminderDeliveriesForBehavior(supabase, userId, behavior, {
+  await syncReminderDeliveriesForBehavior(supabase, userId, currentBehavior, {
     scheduledFrom: generationWindow.rangeStart.toString(),
     occurrences: mutatedOccurrences ? undefined : existingOccurrences,
     now,
@@ -819,6 +849,7 @@ export function occurrenceErrorToActionState(
 
 function toExistingOccurrenceForGeneration(
   occurrence: Occurrence,
+  timeSessionOccurrenceIds: ReadonlySet<string>,
 ): ExistingOccurrenceForGeneration {
   return {
     id: occurrence.id,
@@ -832,6 +863,10 @@ function toExistingOccurrenceForGeneration(
     scheduleEndTime: occurrence.schedule_end_time
       ? normalizeScheduledTime(occurrence.schedule_end_time)
       : null,
+    note: occurrence.note,
+    hasTimeSessions: timeSessionOccurrenceIds.has(occurrence.id),
+    behaviorConfigurationEventId:
+      occurrence.behavior_configuration_event_id,
   };
 }
 
@@ -890,7 +925,7 @@ function countGenerationPlans(plans: OccurrenceGenerationPlan[]) {
     created: plans.reduce((sum, plan) => sum + plan.create.length, 0),
     updated: plans.reduce((sum, plan) => sum + plan.updateUnresolved.length, 0),
     deleted: plans.reduce(
-      (sum, plan) => sum + plan.deleteUnresolvedIds.length,
+      (sum, plan) => sum + plan.deleteUnresolved.length,
       0,
     ),
   };
@@ -954,32 +989,6 @@ function normalizeOccurrenceSyncProcessLimit(
   return Math.min(value, MAX_OCCURRENCE_SYNC_PROCESS_LIMIT);
 }
 
-function toNewOccurrence(occurrence: {
-  userId: string;
-  behaviorId: string;
-  scheduledFor: string;
-  localDate: string;
-  status: "unresolved";
-  scheduleSlotId: string | null;
-  scheduleKind: ScheduleKind;
-  schedulePreset: TimeRangePreset | null;
-  scheduleStartTime: string;
-  scheduleEndTime: string | null;
-}): NewOccurrence {
-  return {
-    user_id: occurrence.userId,
-    behavior_id: occurrence.behaviorId,
-    scheduled_for: occurrence.scheduledFor,
-    local_date: occurrence.localDate,
-    status: occurrence.status,
-    behavior_schedule_slot_id: occurrence.scheduleSlotId,
-    schedule_kind: occurrence.scheduleKind,
-    schedule_preset: occurrence.schedulePreset,
-    schedule_start_time: occurrence.scheduleStartTime,
-    schedule_end_time: occurrence.scheduleEndTime,
-  };
-}
-
 async function resolveBehaviorScheduleSlots(
   supabase: AppSupabaseClient,
   userId: string,
@@ -1033,6 +1042,8 @@ async function resolveBehaviorSchedulesForGeneration(
   userId: string,
   behavior: Behavior | BehaviorWithCategory,
 ): Promise<OccurrenceGenerationSchedule[]> {
+  requireCurrentConfigurationEventId(behavior);
+
   const persistedSchedules =
     "schedules" in behavior &&
     Array.isArray(behavior.schedules) &&
@@ -1095,6 +1106,20 @@ async function resolveBehaviorSchedulesForGeneration(
   }
 
   return normalization.schedules;
+}
+
+function requireCurrentConfigurationEventId(
+  behavior: Behavior | BehaviorWithCategory,
+): string {
+  const eventId = behavior.current_configuration_event_id;
+
+  if (!eventId) {
+    throw new Error(
+      "Behavior configuration history is unavailable for occurrence generation.",
+    );
+  }
+
+  return eventId;
 }
 
 class OccurrenceScheduleIntegrityError extends Error {

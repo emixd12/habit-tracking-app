@@ -33,6 +33,14 @@ create table profiles (
 );
 ```
 
+`profiles.email` is identity-owned reminder-recipient data. The Auth user
+creation trigger seeds it from `auth.users.email`, and an Auth email-update
+trigger keeps it synchronized when the identity provider changes the address.
+Authenticated Data API clients may select their own profile and update only
+`timezone`. They cannot insert or delete profile rows, or update `email`,
+`display_name`, `id`, `created_at`, or `updated_at` directly. Account deletion
+continues through the server-side Auth user deletion boundary and its cascade.
+
 ### `categories`
 
 ```sql
@@ -81,6 +89,7 @@ create table behaviors (
   reminder_offset_minutes int not null default 0,
 
   active boolean not null default true,
+  current_configuration_event_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   archived_at timestamptz
@@ -92,10 +101,22 @@ and first time-entry start for compatibility, sorting, and simple summaries.
 The schedule source of truth is `behavior_schedules` plus
 `behavior_schedule_slots`.
 
+`current_configuration_event_id` identifies the event for the Behavior's
+current semantic configuration. The column stays nullable to permit the
+deferred Behavior/event creation cycle, but every committed app-created
+Behavior has a pointer. The history-aware configuration-event helper updates
+it immediately after each validated append. Its composite, deferred foreign
+key requires the event to have the same owner and Behavior.
+
 `timezone` is copied from `profiles.timezone` when a behavior is created. When
 the user saves a new timezone in Settings, active behaviors are updated to the
 new timezone and future unresolved occurrences are resynced. Archived behavior
 rows and past or resolved occurrence history remain historical records.
+The profile update, active-Behavior updates, configuration events, and one
+`timezone_changed` stale-state write share one owner-scoped database
+transaction. A failed Behavior precondition rolls back the profile update.
+Occurrence generation stays outside that transaction and can be retried while
+the committed sync state remains stale.
 
 ### `behavior_definition_events`
 
@@ -146,11 +167,11 @@ archive, and timezone-only changes do not create definition events. `reason`
 is schema-only in the Behavior form; import paths use `behaviorlog_import` or
 `behaviorlog_restore` as machine-readable provenance.
 
-Authenticated app clients may select and insert their own rows. They have no
-update or delete policy or grant for this table. Database cascades still remove
-events when the owning behavior or account is deleted.
+Authenticated app clients may select their own rows. History-aware RPCs own
+inserts. Clients have no direct insert, update, or delete grant. Database
+cascades still remove events when the owning behavior or account is deleted.
 
-Manual Behavior form writes use the owner-scoped `SECURITY INVOKER` functions
+Manual Behavior form writes use owner-checked `SECURITY DEFINER` functions
 `create_behavior_with_schedule_graph` and
 `update_behavior_with_schedule_graph`. The service passes the pure resolver's
 optional definition-event plan and the complete validated schedule graph into
@@ -163,8 +184,8 @@ definition, `updated_at`, and schedule graph. This preserves the definition
 ABA guard and also rejects stale schedule-only submissions. A null event plan
 must preserve the exact stored title and description bytes, so
 canonical-equivalent tabs or Unicode edge whitespace cannot be rewritten
-without history. The earlier definition-only functions remain available to
-the import path; manual form saves do not use their non-schedule boundary.
+without history. Authenticated callers cannot execute the earlier
+definition-only functions.
 
 Create-only and approved-merge BehaviorLog imports use the same atomic create
 function with `source = 'import'`, and preserve the imported behavior
@@ -173,6 +194,62 @@ locks existing restored behaviors, requires a resolver-planned baseline for
 every new behavior and a transition for every title/description overwrite,
 then inserts those events in the same transaction as product rows, provenance
 mappings, and the applied-run ledger.
+
+### `behavior_configuration_events`
+
+```sql
+create table behavior_configuration_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  behavior_id uuid not null,
+  event_kind text not null check (event_kind in ('baseline', 'revision')),
+  previous_configuration jsonb,
+  next_configuration jsonb not null,
+  changed_fields text[] not null,
+  recorded_at timestamptz not null,
+  effective_at timestamptz not null,
+  effective_local_date date not null,
+  timezone text not null,
+  source text not null check (source in ('manual', 'import', 'system')),
+  reason_code text not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, behavior_id, id),
+  foreign key (user_id, behavior_id)
+    references behaviors(user_id, id) on delete cascade
+);
+```
+
+`behavior_configuration_events` stores append-only configuration history. A
+snapshot contains `category_id`, the complete semantic schedule graph, browser
+and email reminder settings, reminder offset, active state, and timezone.
+Schedule and time-entry IDs are excluded. Stable sort order, recurrence JSON,
+local times, and reminder values define the semantic graph.
+
+Baselines use `previous_configuration = null`. Revisions store complete prior
+and next snapshots and canonical changed fields. No-op saves append no event.
+`effective_local_date` uses `effective_at` in the next snapshot's timezone.
+Stored timezone aliases remain unchanged, so an alias-to-canonical Settings
+save remains an honest revision.
+
+The rollout backfill records `source = 'system'` and
+`reason_code = 'history_capture_started'` at migration time. It does not claim
+capture began at Behavior creation. Manual create, edit, archive, restore,
+Settings timezone changes, create/merge imports, and destructive restore write
+events inside atomic owner boundaries. Restore derives parent graphs from
+validated schedule rows and locked prior graphs. It does not trust client prior
+snapshots or parent graphs. Archive-only restore preserves the prior schedule
+graph as retained archived context.
+
+Authenticated clients may select owned events. They cannot insert, update, or
+delete event rows directly. Direct authenticated writes to Behaviors, schedule
+parents, and schedule slots are revoked; app writes use history-aware RPCs.
+Category deletion is disabled because `ON DELETE SET NULL` would bypass
+history. A future category-delete boundary must capture each affected Behavior
+atomically.
+
+Generated Occurrences link to these events when verified lineage exists. Full
+JSON and BehaviorLog expose the complete included-Behavior history and
+Occurrence lineage as documented in `docs/EXPORT_FORMATS.md`.
 
 ### `behavior_schedules`
 
@@ -246,9 +323,9 @@ Each schedule must have at least one time entry. A behavior can have multiple
 schedules and multiple time entries per schedule. A nullable
 `behavior_schedule_id` preserves legacy/import paths that only know flat
 behavior-level slots; new writes should set it. Occurrence generation creates
-one occurrence per matching schedule time entry, then merges duplicate
-generated occurrences with the same behavior, local date, start time, and
-end-time/range identity.
+one occurrence per matching schedule time entry, then merges candidates with
+the same scheduled instant. The first schedule and time entry by stable sort
+order wins, matching the `(behavior_id, scheduled_for)` persistence key.
 
 Current uniqueness is enforced with partial indexes:
 
@@ -263,6 +340,7 @@ create table occurrences (
   user_id uuid not null references auth.users(id) on delete cascade,
   behavior_id uuid not null references behaviors(id) on delete cascade,
   behavior_schedule_slot_id uuid references behavior_schedule_slots(id) on delete set null,
+  behavior_configuration_event_id uuid,
 
   scheduled_for timestamptz not null,
   local_date date not null,
@@ -282,13 +360,39 @@ create table occurrences (
   updated_at timestamptz not null default now(),
 
   unique (behavior_id, scheduled_for),
-  unique (user_id, id, behavior_id)
+  unique (user_id, id, behavior_id),
+  foreign key (user_id, behavior_id, behavior_configuration_event_id)
+    references behavior_configuration_events(user_id, behavior_id, id)
+    deferrable initially deferred
 );
 ```
 
 `status` is the current-status snapshot for fast Timeline, Analytics, and
 app-native export reads. Status history is stored separately in
 `occurrence_status_events`.
+
+`behavior_configuration_event_id` is nullable for legacy, imported, and
+restored Occurrences whose governing event is unknown. The migration does not
+invent lineage for existing rows. New generated Occurrences store the current
+Behavior event. A linked, unresolved Occurrence strictly after the injected
+current instant may advance to a new current event only when the same scheduled
+instant remains in the new graph and Ticket 078 protections do not apply. A
+null-lineage row never receives inferred lineage during generation.
+
+Occurrence plan writes lock the Behavior and compare the exact expected current
+event before inserting, updating, or deleting. Deletes compare the planned
+instant, lineage, and complete schedule snapshot. Insert conflicts or changed
+update/delete targets reject the plan as stale. Direct authenticated inserts
+cannot set lineage. Direct authenticated updates are limited to status
+snapshots and notes; generation and restore boundaries own schedule and lineage
+changes.
+
+Any update that names an Occurrence identity or schedule-snapshot column clears
+captured lineage, even when the value is unchanged. This prevents destructive
+restore conflict updates from retaining a now-false event reference. Status and
+note-only updates preserve lineage. The generation-plan boundary performs its
+guarded snapshot update first, then restores the verified current event in a
+separate lineage-only update within the same transaction.
 
 ### `occurrence_time_sessions`
 
@@ -352,6 +456,7 @@ create table occurrence_sync_state (
   last_sync_created_count int not null default 0,
   last_sync_updated_count int not null default 0,
   last_sync_deleted_count int not null default 0,
+  state_version bigint not null default 0,
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -369,6 +474,11 @@ empty or ambiguous persisted schedule graph raises a safe integrity error and
 best-effort records `stale_reason = 'sync_failed'`; it cannot be filtered out
 and then recorded as fresh.
 
+Every update increments `state_version` in a database trigger. Authenticated
+clients can write the existing freshness columns but cannot insert or update
+`state_version` directly. A final fresh write must match the state existence
+and version captured before generation planning.
+
 The protected occurrence/reminder repair process reads this ledger rather than
 the oldest profiles. It orders stale rows first, followed by the earliest or
 missing `synced_through_local_date`, oldest `updated_at`, and `user_id` as a
@@ -378,6 +488,10 @@ mark coverage fresh. This matters for archived behaviors, whose historical
 timezone may differ from the current profile timezone. Updating a successful
 or failed attempt therefore rotates bounded batches fairly as the account
 population grows.
+
+`occurrence_sync_state_batch_order_idx` uses that exact ordering: `stale DESC`,
+`synced_through_local_date ASC NULLS FIRST`, `updated_at ASC`, then `user_id ASC`.
+Keep the repository query and index order aligned when the batch policy changes.
 
 ### `occurrence_status_events`
 
@@ -691,6 +805,18 @@ permissions, push subscriptions, provider accounts, provider secrets, or
 external provider state. It must not call notification providers or processing
 routes.
 
+Restore preview and accepted-preview fingerprinting materialize the complete
+owner-scoped local graph before planning. User Behaviors, Behavior schedules,
+schedule slots, Occurrences, Occurrence status events, imported Notes,
+BehaviorLog record mappings, and imported interventions use deterministic
+PostgREST range pagination. Behavior schedule rows are read separately and
+reassembled instead of relying on capped embedded-resource arrays. Status
+events also batch large Occurrence-ID filters before restoring global order.
+Each list rejects duplicate/non-advancing pages and fails above the shared
+100,000-row absolute read ceiling. A page failure or ceiling failure aborts the
+preview or fingerprint; the service never plans or applies from partial local
+data.
+
 ### `behaviorlog_import_record_mappings`
 
 ```sql
@@ -898,6 +1024,13 @@ must still satisfy the normal idempotence key
 `(occurrence_id, channel, scheduled_send_at)`, so promotion cannot create a
 second operational delivery for the same occurrence/channel/send time.
 
+Authenticated owner-scoped writes continue to plan pending deliveries, cancel
+pending deliveries, and reactivate unclaimed cancelled deliveries. A
+before-update guard prevents non-`service_role` callers from moving `sent` or
+`failed` deliveries back to `pending`, or from clearing a non-null
+`processing_started_at`. Server-only reminder processing retains the
+`service_role` exception for provider-result recording and claim maintenance.
+
 ### `launch_rate_limits`
 
 ```sql
@@ -969,6 +1102,22 @@ inactive. If browser unsubscribe itself fails, Cadence refuses to create a new
 subscription and the user can retry the existing Settings action after clearing
 the obsolete subscription in browser/site settings.
 
+Each account may have at most 20 active rows. The cap trigger takes a
+transaction-scoped advisory lock derived from `user_id` when an active insert
+or activation occurs. It keeps the registering row plus the 19 most recently
+updated other active rows and deactivates older rows. The migration first applies the
+same `updated_at`, `created_at`, and `id` ordering to any pre-existing excess.
+This makes the 21st registration an LRU eviction and prevents concurrent
+successful registrations from leaving more than 20 active rows.
+
+Registration consumes the `push_subscription_registration` action in
+`launch_rate_limits`. Its fixed policy allows six attempts per authenticated
+account in one 60-second window. Sign out posts the current browser endpoint
+when available and deactivates only the matching RLS-visible active row before
+the local Auth session is cleared. A missing endpoint or missing row is a no-op.
+Existing browser subscriptions need no stored client migration because
+PushManager supplies their endpoint at submit time.
+
 ### `exports`
 
 Optional. Only implement if useful for export history.
@@ -985,9 +1134,18 @@ create table exports (
 ### Account deletion
 
 Public launch includes an account deletion path from Settings. The current
-implementation requires an export acknowledgement and typed confirmation, signs
-out the current Supabase session globally, then uses a server-only Supabase
-service-role client to delete the authenticated `auth.users` row.
+implementation requires an export acknowledgement and typed confirmation. The
+server then constructs and verifies a server-only Supabase service-role client,
+hard-deletes the authenticated `auth.users` row, and attempts global sign-out
+to clear the current cookie-backed session. Configuration, verification, and
+deletion failures occur before sign-out, so the account and session remain
+available for a recoverable error.
+
+Hard deletion cascades through Supabase Auth session rows and prevents refresh.
+Already-issued stateless access-token JWTs can remain valid until their `exp`
+claim. Global sign-out cannot retroactively revoke those JWTs. Cadence relies on
+the ownership cascades below and the configured JWT lifetime for that bounded
+window.
 
 Deletion removes user-owned hosted records through the existing `on delete
 cascade` ownership graph. Until a detailed retention policy is adopted, the
@@ -1014,18 +1172,22 @@ For every user-owned table:
 - Update only where `user_id = auth.uid()`
 - Delete only where `user_id = auth.uid()`
 
-Exceptions: `occurrence_status_events` and `behavior_definition_events` are
-append-only for normal app code. They allow authenticated select and insert for
-owned rows, but do not expose authenticated update or delete policies.
-Database-level cascades may still remove events when their owning occurrence or
-behavior is removed.
+Exceptions: `occurrence_status_events`, `behavior_definition_events`, and
+`behavior_configuration_events` are append-only. Configuration and definition
+history inserts use history-aware RPCs; authenticated clients receive select
+only on configuration history and no direct mutation grant. Database cascades
+may still remove events with their owning occurrence, Behavior, or account.
 
 `launch_rate_limits` allows authenticated owner-scoped select only. Its
 `SECURITY DEFINER` consume function checks `auth.uid()`, accepts only the fixed
 `export_download` action, pins an empty `search_path`, and is executable by
 `authenticated` only. `public` and `anon` execute privileges are revoked.
 
-For `profiles`, use `id = auth.uid()` because the primary key is the authenticated user's id.
+For `profiles`, use `id = auth.uid()` because the primary key is the
+authenticated user's id. RLS still owns row visibility, while grants limit
+authenticated profile mutation to the `timezone` column. Auth trigger
+functions, not the authenticated Data API role, own profile creation and email
+synchronization.
 
 Normal app code should use the authenticated user context.
 
@@ -1059,12 +1221,27 @@ another user's profile/category/behavior rows.
 
 When a behavior changes:
 
-- Future unresolved occurrences may be regenerated.
+- Unresolved occurrences strictly after the injected current instant may be
+  regenerated.
+- An unresolved occurrence with a non-empty note or any time session is
+  preserved, even when it is scheduled in the future and the new schedule no
+  longer produces it.
+- Unresolved occurrences scheduled at or before the injected current instant
+  are preserved. Same-day preserved occurrences remain Unresolved until the
+  user decides them.
 - Past occurrences are preserved.
 - Resolved occurrences are preserved.
 - Archived behaviors generate no new occurrences.
 - Occurrences preserve schedule snapshots so historical rows still display the
   time or range that existed when they were generated.
+- Existing null-lineage Occurrences remain null. Linked future unprotected
+  same-instant Occurrences may advance to the new current configuration event.
+- The final fresh-state write takes the same per-user advisory lock as Behavior
+  configuration writers. It verifies the exact Behavior/current-event set and
+  the planning-start sync-state existence/version. Every sync-state update
+  increments `state_version`. A concurrent revision, occurrence-only
+  import/restore, or zero-Behavior timezone change cannot clear a newer stale
+  marker.
 
 ## Occurrence uniqueness
 
@@ -1169,8 +1346,9 @@ the same six minimal columns in `started_at ASC, id ASC` order.
 `listTimeSessionHistory` uses a page size of 1,000 and follows keyset pages
 until a shorter page returns. An exact 1,000-row page therefore triggers a
 continuation call. The repository reuses one service-supplied high-water value
-for every page and rejects a non-advancing cursor. An all-time request maps its
-null application start to the explicit `0001-01-01` database sentinel.
+for every page, rejects duplicate or non-advancing rows, and fails above the
+shared 100,000-row absolute read ceiling. An all-time request maps its null
+application start to the explicit `0001-01-01` database sentinel.
 
 This function has the same `STABLE`, `SECURITY INVOKER`, empty `search_path`,
 explicit `auth.uid()` ownership, owner RLS, and authenticated-only exact

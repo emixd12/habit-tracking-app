@@ -229,6 +229,25 @@ Data retention policy is undecided. Until it is decided, retain user data while
 the account exists, delete user-owned records on account deletion, and do not
 add background data purging beyond operational logs.
 
+## Source, asset, trademark, and disclosure boundaries
+
+Cadence source code, repository documentation, and synthetic sample content use
+the root MIT license. Tracked binary non-code assets remain excluded pending
+provenance review. The excluded groups include app icons, Cadence logos, brand
+illustrations, product captures, custom notification icons, design exploration,
+QA screenshots, and audio.
+
+Copyright licensing of a logo image does not grant permission to use Cadence as
+a source-identifying mark. Cadence names and logos remain reserved as
+trademarks, subject to applicable nominative-use doctrines. The source license
+also grants no hosted-service access and no rights to user-owned behavioral
+data. Hosted Terms, Privacy, and Trust pages remain separate service documents.
+
+Security reports use the dedicated private email named in `SECURITY.md`.
+GitHub private vulnerability reporting becomes a secondary route after Ticket
+100 enables it. Do not publish a security defect through an issue or marketing
+surface before coordinated remediation.
+
 ## Desktop and mobile relationship
 
 `docs/DESKTOP_BUILD.md` remains a proposal, not scheduled work. The public

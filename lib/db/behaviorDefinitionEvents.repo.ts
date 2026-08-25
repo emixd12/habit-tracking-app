@@ -1,10 +1,16 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import type { Json } from "@/lib/db/database.types";
+import {
+  POSTGREST_PAGE_SIZE,
+  USER_SCOPED_READ_ABSOLUTE_CEILING,
+} from "@/lib/db/paginated-read";
 import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   BehaviorDefinition,
   BehaviorDefinitionEventPlan,
 } from "@/lib/types/behavior-definition-event";
+import { toBehaviorConfigurationEventPlanPayload } from "@/lib/db/behaviorConfigurationEvents.repo";
+import type { BehaviorConfigurationEventPlan } from "@/lib/types/behavior-configuration-event";
 import type {
   Behavior,
   BehaviorUpdate,
@@ -27,11 +33,15 @@ export type BehaviorScheduleGraphMutation = {
   }>;
 };
 
+const DEFINITION_HISTORY_HIGH_WATER_ERROR =
+  "Behavior definition history pagination ended before the captured high-water event.";
+
 export async function createBehaviorWithAtomicScheduleGraph(
   supabase: AppSupabaseClient,
   input: {
     behavior: NewBehavior;
     definitionEventPlan: BehaviorDefinitionEventPlan;
+    configurationEventPlan: BehaviorConfigurationEventPlan;
     schedules: BehaviorScheduleGraphMutation[];
   },
 ): Promise<Behavior> {
@@ -41,6 +51,9 @@ export async function createBehaviorWithAtomicScheduleGraph(
       behavior_payload: toBehaviorPayload(input.behavior),
       definition_event_plan: toDefinitionEventPlanPayload(
         input.definitionEventPlan,
+      ),
+      configuration_event_plan: toBehaviorConfigurationEventPlanPayload(
+        input.configurationEventPlan,
       ),
       schedule_graph: toScheduleGraphPayload(input.schedules),
     },
@@ -67,6 +80,7 @@ export async function updateBehaviorWithAtomicScheduleGraph(
     expectedScheduleGraph: BehaviorScheduleGraphMutation[];
     expectedUpdatedAt: string;
     definitionEventPlan: BehaviorDefinitionEventPlan | null;
+    configurationEventPlan: BehaviorConfigurationEventPlan | null;
     schedules: BehaviorScheduleGraphMutation[];
   },
 ): Promise<Behavior | null> {
@@ -87,6 +101,9 @@ export async function updateBehaviorWithAtomicScheduleGraph(
       expected_updated_at: input.expectedUpdatedAt,
       definition_event_plan: input.definitionEventPlan
         ? toDefinitionEventPlanPayload(input.definitionEventPlan)
+        : null,
+      configuration_event_plan: input.configurationEventPlan
+        ? toBehaviorConfigurationEventPlanPayload(input.configurationEventPlan)
         : null,
       schedule_graph: toScheduleGraphPayload(input.schedules),
     },
@@ -190,20 +207,122 @@ export async function listBehaviorDefinitionEvents(
       }),
     },
     async () => {
-      const { data, error } = await supabase
+      const { data: highWaterRows, error: highWaterError } = await supabase
         .from("behavior_definition_events")
-        .select("*")
+        .select("id, recorded_at")
         .eq("user_id", userId)
-        .order("recorded_at", { ascending: true })
-        .order("id", { ascending: true });
+        .order("recorded_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(1);
 
-      if (error) {
-        throw error;
+      if (highWaterError) {
+        throw highWaterError;
       }
 
-      return data ?? [];
+      const highWater = highWaterRows?.[0];
+
+      if (!highWater) {
+        return [];
+      }
+
+      const events: BehaviorDefinitionEvent[] = [];
+      const eventIds = new Set<string>();
+      let cursor: Pick<BehaviorDefinitionEvent, "id" | "recorded_at"> | null =
+        null;
+
+      for (;;) {
+        let query = supabase
+          .from("behavior_definition_events")
+          .select("*")
+          .eq("user_id", userId)
+          .lte("recorded_at", highWater.recorded_at)
+          .order("recorded_at", { ascending: true })
+          .order("id", { ascending: true })
+          .limit(POSTGREST_PAGE_SIZE);
+
+        if (cursor) {
+          query = query.or(
+            `recorded_at.gt.${cursor.recorded_at},and(recorded_at.eq.${cursor.recorded_at},id.gt.${cursor.id})`,
+          );
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          throw error;
+        }
+
+        const page = (data ?? []).filter(
+          (event) =>
+            event.recorded_at !== highWater.recorded_at ||
+            event.id.localeCompare(highWater.id) <= 0,
+        );
+
+        let previous = cursor;
+
+        for (const event of page) {
+          if (
+            eventIds.has(event.id) ||
+            (previous !== null && compareHistoryRows(event, previous) <= 0)
+          ) {
+            throw new Error(
+              "Behavior definition history pagination did not advance.",
+            );
+          }
+
+          eventIds.add(event.id);
+          previous = event;
+        }
+
+        if (
+          events.length + page.length >
+          USER_SCOPED_READ_ABSOLUTE_CEILING
+        ) {
+          throw new Error(
+            "Behavior definition history exceeds Cadence's 100,000-event export ceiling.",
+          );
+        }
+
+        events.push(...page);
+
+        const last = page.at(-1);
+
+        if (!last) {
+          throw new Error(DEFINITION_HISTORY_HIGH_WATER_ERROR);
+        }
+
+        if (
+          last.recorded_at === highWater.recorded_at &&
+          last.id === highWater.id
+        ) {
+          return events;
+        }
+
+        if (events.length === USER_SCOPED_READ_ABSOLUTE_CEILING) {
+          throw new Error(
+            "Behavior definition history exceeds Cadence's 100,000-event export ceiling.",
+          );
+        }
+
+        cursor = last;
+      }
     },
   );
+}
+
+function compareHistoryRows(
+  left: Pick<BehaviorDefinitionEvent, "id" | "recorded_at">,
+  right: Pick<BehaviorDefinitionEvent, "id" | "recorded_at">,
+): number {
+  if (left.recorded_at < right.recorded_at) {
+    return -1;
+  }
+
+  if (left.recorded_at > right.recorded_at) {
+    return 1;
+  }
+
+  return left.id.localeCompare(right.id);
 }
 
 function toBehaviorPayload(

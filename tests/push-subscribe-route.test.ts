@@ -5,6 +5,7 @@ import {
   hasActivePushSubscriptionForUser,
   upsertPushSubscription,
 } from "@/lib/db/pushSubscriptions.repo";
+import { consumePushSubscriptionRegistrationRateLimit } from "@/lib/db/launchRateLimits.repo";
 import { resetAuthFailureRateLimitersForTests } from "@/lib/security/auth-failure-rate-limits";
 import { createClient } from "@/lib/supabase/server";
 import { POST, PUT } from "../app/api/push/subscribe/route";
@@ -16,6 +17,10 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/db/pushSubscriptions.repo", () => ({
   hasActivePushSubscriptionForUser: vi.fn(),
   upsertPushSubscription: vi.fn(),
+}));
+
+vi.mock("@/lib/db/launchRateLimits.repo", () => ({
+  consumePushSubscriptionRegistrationRateLimit: vi.fn(),
 }));
 
 const VALID_SUBSCRIPTION = {
@@ -30,6 +35,15 @@ describe("push subscribe route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetAuthFailureRateLimitersForTests();
+    vi.mocked(
+      consumePushSubscriptionRegistrationRateLimit,
+    ).mockResolvedValue({
+      allowed: true,
+      limit: 6,
+      remaining: 5,
+      resetAt: "2026-08-25T12:01:00Z",
+      retryAfterSeconds: 60,
+    });
   });
 
   it("rejects invalid subscription payloads", async () => {
@@ -198,16 +212,89 @@ describe("push subscribe route", () => {
     expect(limitedResponse.headers.get("retry-after")).toBeTruthy();
     expect(upsertPushSubscription).not.toHaveBeenCalled();
   });
+
+  it("rate limits repeated successful registrations per authenticated account", async () => {
+    const supabase = authenticatedSupabase("user-1");
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(upsertPushSubscription).mockResolvedValue({
+      id: "subscription-1",
+    } as never);
+    vi.mocked(consumePushSubscriptionRegistrationRateLimit)
+      .mockResolvedValueOnce(registrationLimit(true, 5))
+      .mockResolvedValueOnce(registrationLimit(true, 4))
+      .mockResolvedValueOnce(registrationLimit(true, 3))
+      .mockResolvedValueOnce(registrationLimit(true, 2))
+      .mockResolvedValueOnce(registrationLimit(true, 1))
+      .mockResolvedValueOnce(registrationLimit(true, 0))
+      .mockResolvedValueOnce(registrationLimit(false, 0));
+
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const response = await POST(pushRequest("203.0.113.30"));
+      expect(response.status).toBe(200);
+    }
+
+    const limitedResponse = await POST(pushRequest("203.0.113.30"));
+
+    expect(limitedResponse.status).toBe(429);
+    expect(limitedResponse.headers.get("retry-after")).toBe("60");
+    await expect(limitedResponse.json()).resolves.toEqual({
+      ok: false,
+      error: "Too many browser notification registration attempts. Try again later.",
+    });
+    expect(upsertPushSubscription).toHaveBeenCalledTimes(6);
+  });
+
+  it("does not reset accumulated auth failures after a successful POST", async () => {
+    const getClaims = vi.fn().mockResolvedValue({ data: null, error: null });
+    vi.mocked(createClient).mockResolvedValue({ auth: { getClaims } } as never);
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      expect((await POST(pushRequest("203.0.113.40"))).status).toBe(401);
+    }
+
+    getClaims.mockResolvedValueOnce({
+      data: { claims: { sub: "user-1" } },
+      error: null,
+    });
+    vi.mocked(upsertPushSubscription).mockResolvedValue({
+      id: "subscription-1",
+    } as never);
+    expect((await POST(pushRequest("203.0.113.40"))).status).toBe(200);
+
+    expect((await POST(pushRequest("203.0.113.40"))).status).toBe(401);
+    expect((await POST(pushRequest("203.0.113.40"))).status).toBe(429);
+  });
 });
 
-function pushRequest() {
+function pushRequest(clientIp = "203.0.113.10") {
   return new NextRequest("http://localhost:3000/api/push/subscribe", {
     method: "POST",
     body: JSON.stringify(VALID_SUBSCRIPTION),
     headers: {
-      "x-forwarded-for": "203.0.113.10",
+      "x-forwarded-for": clientIp,
     },
   });
+}
+
+function authenticatedSupabase(userId: string) {
+  return {
+    auth: {
+      getClaims: vi.fn().mockResolvedValue({
+        data: { claims: { sub: userId } },
+        error: null,
+      }),
+    },
+  };
+}
+
+function registrationLimit(allowed: boolean, remaining: number) {
+  return {
+    allowed,
+    limit: 6,
+    remaining,
+    resetAt: "2026-08-25T12:01:00Z",
+    retryAfterSeconds: 60,
+  };
 }
 
 function pushStatusRequest() {

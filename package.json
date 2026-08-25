@@ -20,6 +20,9 @@
     "agents:check": "node scripts/check-agents.mjs",
     "interactions:check": "node scripts/check-interactions.mjs",
     "resolvers:check": "node scripts/check-resolvers.mjs",
+    "public-source:check": "node scripts/check-public-source-boundary.mjs source",
+    "public-artifacts:check": "node scripts/check-public-source-boundary.mjs artifacts",
+    "public-database:audit:local": "node scripts/audit-public-database.mjs",
     "perf:routes": "node scripts/performance-route-harness.mjs",
     "load:install": "python3 -m venv load-tests/.venv && load-tests/.venv/bin/python -m pip install --requirement load-tests/requirements.txt",
     "load:manifest:check": "node scripts/check-load-test-interactions.mjs",
@@ -51,6 +54,7 @@
     "smoke:rls": "node scripts/supabase-rls-smoke.mjs",
     "smoke:rls:local": "node scripts/supabase-rls-smoke.mjs --local",
     "smoke:launch-rate-limit:local": "psql postgresql://postgres:postgres@127.0.0.1:55322/postgres -v ON_ERROR_STOP=1 -f tests/sql/ticket-067-launch-rate-limit-smoke.sql",
+    "smoke:push-cap:local": "node scripts/push-subscription-cap-smoke.mjs",
     "smoke:schedule-integrity:local": "psql postgresql://postgres:postgres@127.0.0.1:55322/postgres -v ON_ERROR_STOP=1 -f tests/sql/ticket-060-schedule-integrity-smoke.sql",
     "test-login:cleanup": "node scripts/supabase-test-login-cleanup.mjs",
     "agentmail": "node scripts/agentmail-cli.mjs",
@@ -63,7 +67,7 @@
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.107.0",
     "lucide-react": "^1.17.0",
-    "next": "16.2.7",
+    "next": "16.3.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "web-push": "^3.6.7"
@@ -77,13 +81,20 @@
     "@types/web-push": "^3.6.4",
     "agentmail-cli": "^0.7.12",
     "eslint": "^9",
-    "eslint-config-next": "16.2.7",
+    "eslint-config-next": "16.3.3",
     "supabase": "^2.105.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.8"
   },
   "overrides": {
-    "postcss": "^8.5.15"
+    "esbuild": "^0.28.2",
+    "nanoid": "^3.3.18",
+    "postcss": "^8.5.23",
+    "sharp": "^0.35.0",
+    "svgo": "^4.0.2"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

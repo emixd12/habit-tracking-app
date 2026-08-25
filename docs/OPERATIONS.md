@@ -21,7 +21,7 @@ marketing-site, workspace, desktop, or mobile work.
 ## Setup
 
 ```bash
-npm install
+npm ci
 npm run agents:check
 npm run interactions:check
 npm run resolvers:check
@@ -30,6 +30,10 @@ npm run typecheck
 npm run test
 npm run build
 ```
+
+Use Node.js 22.12 or newer. Node.js 24 is the preferred local release runtime
+because both Vercel projects use Node.js 24.x. The root `package.json` enforces
+the minimum supported version.
 
 If local `npm` or `node` is not on the shell path in an agent environment, use the user's local binary path or a login shell. On this machine, npm and node are available under `/Users/emi/.local/bin`.
 
@@ -670,6 +674,10 @@ Safety gates:
 - The service-role key is used only server-side to create a temporary confirmed
   Supabase Auth user. The route then signs in through the ordinary Supabase
   password flow so app code still uses normal auth cookies and RLS.
+- One app process reserves at most 10 successful temporary-user creations.
+  Creation and successful failure-cleanup release unused reservations. Restart
+  the local app after the quota is reached; the quota is intentionally not a
+  distributed production control and does not weaken the environment gates.
 
 Clean up stale temporary test users:
 
@@ -680,6 +688,11 @@ npm run test-login:cleanup
 The cleanup command deletes only `cadence-test-*@example.invalid` users older
 than `CADENCE_TEST_LOGIN_MAX_AGE_HOURS`, defaulting to 24 hours, and reports
 counts without printing emails, ids, or auth responses.
+
+Run cleanup after every clean-session QA run. While test login remains enabled,
+also run cleanup at least once per day. Disable test login when QA ends. Cleanup
+removes database users; restarting the local app resets the separate per-process
+creation quota.
 
 ## Auth route protection
 
@@ -917,6 +930,76 @@ npm run interactions:check
 
 The interaction validator is also invoked from `npm run agents:check`, so new
 interactive source files cannot silently bypass the inventory.
+
+## Public repository release audit
+
+Ticket 098 is an evidence-only gate. It never changes repository visibility,
+rewrites history, rotates credentials, or deploys application or database
+changes.
+
+Run the local source and database checks with:
+
+```bash
+npm run public-source:check
+npm run public-database:audit:local
+npm run smoke:rls:local
+```
+
+Run `public-source:check` in addition to a genuine history-aware secret scanner
+across every Git ref. Keep raw scanner reports in a private temporary directory.
+Never print or commit matches, fingerprints, provider identifiers, or private
+repository metadata.
+
+For the browser-boundary proof, build both applications with unique synthetic
+values for every documented public setting and server-only credential setting.
+Pass only the synthetic value lists to `public-artifacts:check` through
+`CADENCE_TICKET_098_PUBLIC_CANARIES` and
+`CADENCE_TICKET_098_SERVER_CANARIES`. The public list maps each value to its
+single allowed artifact root. The check fails if a server value appears, a
+public value crosses surfaces, or a declared public value is absent from its
+allowed build.
+
+Record only sanitized aggregate evidence in
+`docs/PUBLIC_REPOSITORY_RELEASE.md`. A pass applies only to the exact reviewed
+commit, deployed application version, hosted migration boundary, and GitHub
+metadata snapshot. Any unresolved high or critical production dependency,
+undeployed security fix, real credential, cross-account path, or incomplete
+surface review keeps the gate at fail.
+
+## Source license and private security reporting
+
+Cadence source code, repository documentation, and synthetic samples use the
+root MIT `LICENSE`, with Identity Scaffolding LLC as the 2026 copyright holder.
+`README.md` owns the exact split-scope statement. Tracked binary non-code assets
+remain outside that grant pending provenance review. Cadence names and logos
+remain reserved as trademarks; the MIT license is not trademark permission.
+
+`THIRD_PARTY_NOTICES.md` preserves the pinned BehaviorLog validator's upstream
+MIT notice. Do not remove or replace that notice when updating the snapshot.
+Recheck the upstream license at the new pinned commit during any snapshot
+update.
+
+`SECURITY.md` owns the public disclosure contract. The primary private route is
+`security@identityscaffolding.com`. GitHub private vulnerability reporting is a
+secondary route only after Ticket 100 enables it. Never direct reporters to a
+public issue for credentials, user data, behavioral content, or an unpatched
+vulnerability.
+
+The repository owner monitors the inbox. The owner authorized exactly one
+harmless synthetic test email to the approved address. The sender accepted and
+retained that one message with sent status on 2026-08-25. Recipient-side
+inspection confirmed receipt at the approved mailbox. The message landed in the
+junk folder. Monitor junk and quarantine folders or maintain appropriate
+allowlisting so filtered private reports receive review. Do not repeat the send.
+Record only delivery and acknowledgement outcome; never commit screenshots,
+message content, message headers, sender details, recipient internals, or
+provider identifiers.
+
+Self-hosters own secret storage, provider accounts, access controls, upgrades,
+backups, monitoring, and incident response. Browser configuration may include
+documented `NEXT_PUBLIC_` values and the VAPID public key. Service-role keys,
+OAuth secrets, provider keys, VAPID private keys, process secrets, database
+credentials, and provider tokens remain server-only.
 
 ## Secrets and local files
 

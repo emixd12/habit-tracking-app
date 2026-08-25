@@ -20,6 +20,7 @@ describe("web push VAPID subject", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it.each([
@@ -28,6 +29,7 @@ describe("web push VAPID subject", () => {
     [undefined, FALLBACK_SUBJECT],
     ["   ", FALLBACK_SUBJECT],
   ])("uses %s as %s", async (siteUrl, expectedSubject) => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", siteUrl);
 
     const sendBrowserPush = createWebPushReminderSender();
@@ -49,5 +51,9 @@ describe("web push VAPID subject", () => {
       vi.mocked(webPush.sendNotification).mock.calls[0]?.[2]?.vapidDetails
         ?.subject,
     ).toBe(expectedSubject);
+    expect(
+      vi.mocked(webPush.sendNotification).mock.calls[0]?.[2]?.timeout,
+    ).toBe(10_000);
+    expect(timeoutSpy).toHaveBeenCalledWith(10_000);
   });
 });

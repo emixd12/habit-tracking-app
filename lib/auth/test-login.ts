@@ -9,6 +9,9 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const LOCAL_SUPABASE_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 const TEST_EMAIL_DOMAIN = "example.invalid";
 const PASSWORD_PREFIX = "CadenceTestLogin";
+export const TEST_LOGIN_CREATION_QUOTA = 10;
+
+let reservedTestLoginCreations = 0;
 
 type TestLoginEnv = Record<string, string | undefined>;
 
@@ -31,6 +34,27 @@ export type TestLoginCredentials = {
   email: string;
   password: string;
 };
+
+export function reserveTestLoginCreation(): boolean {
+  if (reservedTestLoginCreations >= TEST_LOGIN_CREATION_QUOTA) {
+    return false;
+  }
+
+  reservedTestLoginCreations += 1;
+  return true;
+}
+
+export function releaseTestLoginCreation(): void {
+  reservedTestLoginCreations = Math.max(0, reservedTestLoginCreations - 1);
+}
+
+export function resetTestLoginCreationQuotaForTests(): void {
+  if (process.env.NODE_ENV !== "test") {
+    throw new Error("Test-login quota reset is available only in tests.");
+  }
+
+  reservedTestLoginCreations = 0;
+}
 
 export function shouldShowTestLogin(env: TestLoginEnv = process.env): boolean {
   return env.CADENCE_ENABLE_TEST_LOGIN === ENABLED_VALUE && !isProduction(env);

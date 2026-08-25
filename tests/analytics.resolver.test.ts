@@ -334,6 +334,7 @@ describe("resolveAnalytics", () => {
       behavior: {
         id: "behavior-overlap",
         userId: "user-1",
+        configurationEventId: "configuration-event-overlap",
         recurrenceRule: { frequency: "daily", interval: 1 },
         scheduleSlots: [],
         schedules: [

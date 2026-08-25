@@ -1,3 +1,8 @@
+import {
+  PROVIDER_CALL_TIMEOUT_MS,
+  runProviderCallWithTimeout,
+} from "@/lib/services/provider-call-timeout";
+
 export type SequenzyTemplateVariables = Record<
   string,
   string | number | boolean | null
@@ -20,6 +25,10 @@ export type SequenzyRuntimeConfig = {
 };
 
 export type SequenzyFetch = typeof fetch;
+
+export type SequenzySendOptions = {
+  signal?: AbortSignal;
+};
 
 export class SequenzyConfigurationError extends Error {
   constructor(message: string) {
@@ -68,10 +77,11 @@ export function createSequenzyReminderEmailSender(
   config: SequenzyRuntimeConfig = getSequenzyRuntimeConfig(),
   fetcher: SequenzyFetch = fetch,
 ) {
-  return (input: SequenzyReminderEmailInput) =>
+  return (input: SequenzyReminderEmailInput, options?: SequenzySendOptions) =>
     sendSequenzyReminderEmail(input, {
       config,
       fetcher,
+      signal: options?.signal,
     });
 }
 
@@ -80,23 +90,32 @@ export async function sendSequenzyReminderEmail(
   options: {
     config?: SequenzyRuntimeConfig;
     fetcher?: SequenzyFetch;
+    signal?: AbortSignal;
   } = {},
 ): Promise<SequenzySendResult> {
   const config = options.config ?? getSequenzyRuntimeConfig();
   const fetcher = options.fetcher ?? fetch;
-  const response = await fetcher(buildTransactionalSendUrl(config.apiUrl), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
+  const response = await runProviderCallWithTimeout(
+    (signal) =>
+      fetcher(buildTransactionalSendUrl(config.apiUrl), {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: input.to,
+          subscriberExternalId: input.subscriberExternalId,
+          slug: config.reminderTemplateSlug,
+          variables: input.variables,
+        }),
+        signal,
+      }),
+    {
+      timeoutMs: PROVIDER_CALL_TIMEOUT_MS,
+      signal: options.signal,
     },
-    body: JSON.stringify({
-      to: input.to,
-      subscriberExternalId: input.subscriberExternalId,
-      slug: config.reminderTemplateSlug,
-      variables: input.variables,
-    }),
-  });
+  );
   const payload = parseJsonObject(await response.text());
 
   if (!response.ok || payload?.success === false) {

@@ -25,6 +25,7 @@ import {
   deactivatePushSubscriptionById,
   listActivePushSubscriptionsForUser,
 } from "@/lib/db/pushSubscriptions.repo";
+import { reportMonitoringEvent } from "@/lib/monitoring/privacy-safe-events";
 import {
   cancelReminderDeliveriesForResolvedOccurrence,
   processDueBrowserPushReminders,
@@ -74,8 +75,13 @@ vi.mock("@/lib/db/pushSubscriptions.repo", () => ({
   listActivePushSubscriptionsForUser: vi.fn(),
 }));
 
+vi.mock("@/lib/monitoring/privacy-safe-events", () => ({
+  reportMonitoringEvent: vi.fn(),
+}));
+
 const NOW = Temporal.Instant.from("2026-06-08T14:00:00Z");
 const NOW_STRING = NOW.toString();
+const RECLAIM_BEFORE_STRING = NOW.subtract({ minutes: 15 }).toString();
 const PLANNING_NOW = Temporal.Instant.from("2026-06-08T11:00:00Z");
 const SUPABASE = { kind: "supabase" } as never;
 
@@ -118,6 +124,7 @@ const BASE_OCCURRENCE: Occurrence = {
   user_id: "user-1",
   behavior_id: "behavior-1",
   behavior_schedule_slot_id: null,
+  behavior_configuration_event_id: null,
   scheduled_for: "2026-06-08T14:00:00Z",
   schedule_kind: "exact",
   schedule_preset: null,
@@ -146,6 +153,7 @@ const BASE_BEHAVIOR: Behavior = {
   reminder_offset_minutes: 0,
   active: true,
   archived_at: null,
+  current_configuration_event_id: "configuration-event-1",
   created_at: "2026-06-01T00:00:00Z",
   updated_at: "2026-06-01T00:00:00Z",
 };
@@ -371,6 +379,7 @@ describe("cancelReminderDeliveriesForResolvedOccurrence", () => {
 describe("processDueEmailReminders", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(markReminderDeliverySent).mockResolvedValue(true);
 
     vi.mocked(listDuePendingEmailReminderDeliveries).mockResolvedValue([
       BASE_DELIVERY,
@@ -422,24 +431,29 @@ describe("processDueEmailReminders", () => {
 
     expect(listDuePendingEmailReminderDeliveries).toHaveBeenCalledWith(SUPABASE, {
       dueAt: NOW_STRING,
+      reclaimBefore: RECLAIM_BEFORE_STRING,
       limit: 2,
     });
     expect(claimPendingEmailReminderDelivery).toHaveBeenCalledWith(SUPABASE, {
       id: "delivery-1",
       userId: "user-1",
       dueAt: NOW_STRING,
+      reclaimBefore: RECLAIM_BEFORE_STRING,
       processingStartedAt: NOW_STRING,
     });
-    expect(sendEmail).toHaveBeenCalledWith({
-      to: "user@example.com",
-      subscriberExternalId: "user-1",
-      variables: expect.objectContaining({
-        BEHAVIOR_TITLE: "Drink water",
-        OCCURRENCE_ID: "occurrence-1",
-        REMINDER_SCHEDULED_SEND_AT: "2026-06-08T14:00:00Z",
-        SCHEDULED_TIME: "10:00 AM",
-      }),
-    });
+    expect(sendEmail).toHaveBeenCalledWith(
+      {
+        to: "user@example.com",
+        subscriberExternalId: "user-1",
+        variables: expect.objectContaining({
+          BEHAVIOR_TITLE: "Drink water",
+          OCCURRENCE_ID: "occurrence-1",
+          REMINDER_SCHEDULED_SEND_AT: "2026-06-08T14:00:00Z",
+          SCHEDULED_TIME: "10:00 AM",
+        }),
+      },
+      { signal: expect.anything() },
+    );
     expect(markReminderDeliverySent).toHaveBeenCalledWith(SUPABASE, {
       id: "delivery-1",
       userId: "user-1",
@@ -538,6 +552,7 @@ describe("processDueEmailReminders", () => {
           SCHEDULED_TIME: "Morning (6:00 AM-Noon)",
         }),
       }),
+      { signal: expect.anything() },
     );
   });
 
@@ -640,11 +655,99 @@ describe("processDueEmailReminders", () => {
     });
     expect(markReminderDeliverySent).not.toHaveBeenCalled();
   });
+
+  it("reclaims one stale claim exactly once across concurrent workers", async () => {
+    const staleDelivery = {
+      ...BASE_DELIVERY,
+      processing_started_at: "2026-06-08T13:44:59Z",
+    };
+    vi.mocked(listDuePendingEmailReminderDeliveries).mockResolvedValue([
+      staleDelivery,
+    ]);
+    let claimWon = false;
+    vi.mocked(claimPendingEmailReminderDelivery).mockImplementation(async () => {
+      if (claimWon) {
+        return null;
+      }
+
+      claimWon = true;
+      return {
+        ...staleDelivery,
+        processing_started_at: NOW_STRING,
+      };
+    });
+    const sendEmail = vi.fn().mockResolvedValue({ jobId: "job-1" });
+
+    const results = await Promise.all([
+      processDueEmailReminders({ supabase: SUPABASE, now: NOW, sendEmail }),
+      processDueEmailReminders({ supabase: SUPABASE, now: NOW, sendEmail }),
+    ]);
+
+    expect(results.reduce((sum, result) => sum + result.sent, 0)).toBe(1);
+    expect(results.reduce((sum, result) => sum + result.skipped, 0)).toBe(1);
+    expect(sendEmail).toHaveBeenCalledOnce();
+    expect(reportMonitoringEvent).toHaveBeenCalledWith({
+      name: "reminder_delivery_claim_reclaimed",
+      severity: "warning",
+      context: {
+        channel: "email",
+        retry: true,
+      },
+    });
+  });
+
+  it("leaves a mid-send cancellation cancelled instead of marking it sent", async () => {
+    vi.mocked(markReminderDeliverySent).mockResolvedValue(false);
+    const sendEmail = vi.fn().mockResolvedValue({ jobId: "job-1" });
+
+    await expect(
+      processDueEmailReminders({ supabase: SUPABASE, now: NOW, sendEmail }),
+    ).resolves.toMatchObject({
+      sent: 0,
+      failed: 0,
+      cancelled: 1,
+    });
+
+    expect(markReminderDeliveryFailed).not.toHaveBeenCalled();
+    expect(reportMonitoringEvent).toHaveBeenCalledWith({
+      name: "reminder_delivery_cancelled_mid_send",
+      severity: "warning",
+      context: { channel: "email" },
+    });
+  });
+
+  it("fails a hung email provider call through the delivery failure path", async () => {
+    const sendEmail = vi.fn(
+      () => new Promise<never>(() => undefined),
+    );
+
+    await expect(
+      processDueEmailReminders({
+        supabase: SUPABASE,
+        now: NOW,
+        sendEmail,
+        providerTimeoutMs: 5,
+      }),
+    ).resolves.toMatchObject({
+      sent: 0,
+      failed: 1,
+      cancelled: 0,
+    });
+
+    expect(markReminderDeliveryFailed).toHaveBeenCalledWith(
+      SUPABASE,
+      expect.objectContaining({
+        id: "delivery-1",
+        error: expect.stringMatching(/timed out/i),
+      }),
+    );
+  });
 });
 
 describe("processDueBrowserPushReminders", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(markReminderDeliverySent).mockResolvedValue(true);
 
     vi.mocked(listDuePendingBrowserPushReminderDeliveries).mockResolvedValue([
       BASE_BROWSER_DELIVERY,
@@ -687,6 +790,7 @@ describe("processDueBrowserPushReminders", () => {
       SUPABASE,
       {
         dueAt: NOW_STRING,
+        reclaimBefore: RECLAIM_BEFORE_STRING,
         limit: 2,
       },
     );
@@ -696,28 +800,74 @@ describe("processDueBrowserPushReminders", () => {
         id: "browser-delivery-1",
         userId: "user-1",
         dueAt: NOW_STRING,
+        reclaimBefore: RECLAIM_BEFORE_STRING,
         processingStartedAt: NOW_STRING,
       },
     );
-    expect(sendBrowserPush).toHaveBeenCalledWith({
-      endpoint: "https://push.example.com/subscription/1",
-      p256dh: "p256dh-key",
-      auth: "auth-key",
-      payload: {
-        title: "Drink water",
-        body: "Scheduled for 10:00 AM.",
-        tag: "cadence-reminder-occurrence-1",
-        url: "/timeline",
-        icon: "/icons/cadence-notification-icon.png",
-        badge: "/icons/cadence-notification-badge.png",
+    expect(sendBrowserPush).toHaveBeenCalledWith(
+      {
+        endpoint: "https://push.example.com/subscription/1",
+        p256dh: "p256dh-key",
+        auth: "auth-key",
+        payload: {
+          title: "Drink water",
+          body: "Scheduled for 10:00 AM.",
+          tag: "cadence-reminder-occurrence-1",
+          url: "/timeline",
+          icon: "/icons/cadence-notification-icon.png",
+          badge: "/icons/cadence-notification-badge.png",
+        },
       },
-    });
+      { signal: expect.anything() },
+    );
     expect(markReminderDeliverySent).toHaveBeenCalledWith(SUPABASE, {
       id: "browser-delivery-1",
       userId: "user-1",
       sentAt: NOW_STRING,
     });
     expect(markReminderDeliveryFailed).not.toHaveBeenCalled();
+  });
+
+  it("sends to at most 20 subscriptions with four concurrent provider calls", async () => {
+    vi.mocked(listActivePushSubscriptionsForUser).mockResolvedValue(
+      Array.from({ length: 25 }, (_, index) => ({
+        ...BASE_PUSH_SUBSCRIPTION,
+        id: `push-subscription-${index + 1}`,
+        endpoint: `https://push.example.com/subscription/${index + 1}`,
+      })),
+    );
+    let activeCalls = 0;
+    let maximumActiveCalls = 0;
+    let releaseCalls!: () => void;
+    const callGate = new Promise<void>((resolve) => {
+      releaseCalls = resolve;
+    });
+    const sendBrowserPush = vi.fn(async () => {
+      activeCalls += 1;
+      maximumActiveCalls = Math.max(maximumActiveCalls, activeCalls);
+      await callGate;
+      activeCalls -= 1;
+    });
+
+    const processing = processDueBrowserPushReminders({
+      supabase: SUPABASE,
+      now: NOW,
+      sendBrowserPush,
+    });
+
+    await vi.waitFor(() => {
+      expect(sendBrowserPush).toHaveBeenCalledTimes(4);
+    });
+    expect(maximumActiveCalls).toBe(4);
+
+    releaseCalls();
+
+    await expect(processing).resolves.toMatchObject({
+      sent: 1,
+      failed: 0,
+    });
+    expect(sendBrowserPush).toHaveBeenCalledTimes(20);
+    expect(maximumActiveCalls).toBe(4);
   });
 
   it("leaves due push rows unclaimed when browser push sends are disabled", async () => {
@@ -886,11 +1036,39 @@ describe("processDueBrowserPushReminders", () => {
       error: "Browser push sending is not configured.",
     });
   });
+
+  it("fails a hung browser push call through the delivery failure path", async () => {
+    const sendBrowserPush = vi.fn(
+      () => new Promise<never>(() => undefined),
+    );
+
+    await expect(
+      processDueBrowserPushReminders({
+        supabase: SUPABASE,
+        now: NOW,
+        sendBrowserPush,
+        providerTimeoutMs: 5,
+      }),
+    ).resolves.toMatchObject({
+      sent: 0,
+      failed: 1,
+      cancelled: 0,
+    });
+
+    expect(markReminderDeliveryFailed).toHaveBeenCalledWith(
+      SUPABASE,
+      expect.objectContaining({
+        id: "browser-delivery-1",
+        error: expect.stringMatching(/timed out/i),
+      }),
+    );
+  });
 });
 
 describe("processDueReminders", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(markReminderDeliverySent).mockResolvedValue(true);
 
     vi.mocked(listDuePendingEmailReminderDeliveries).mockResolvedValue([
       BASE_DELIVERY,
@@ -944,6 +1122,71 @@ describe("processDueReminders", () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(sendBrowserPush).toHaveBeenCalledTimes(1);
     expect(markReminderDeliverySent).toHaveBeenCalledTimes(2);
+  });
+
+  it("processes browser push without Sequenzy configuration when no email is due", async () => {
+    vi.mocked(listDuePendingEmailReminderDeliveries).mockResolvedValue([]);
+    const originalApiKey = process.env.SEQUENZY_API_KEY;
+    const originalTemplateSlug = process.env.SEQUENZY_REMINDER_TEMPLATE_SLUG;
+    delete process.env.SEQUENZY_API_KEY;
+    delete process.env.SEQUENZY_REMINDER_TEMPLATE_SLUG;
+    const sendBrowserPush = vi.fn().mockResolvedValue(undefined);
+
+    try {
+      await expect(
+        processDueReminders({
+          supabase: SUPABASE,
+          now: NOW,
+          sendBrowserPush,
+        }),
+      ).resolves.toMatchObject({
+        checked: 1,
+        claimed: 1,
+        sent: 1,
+        failed: 0,
+      });
+    } finally {
+      restoreEnv("SEQUENZY_API_KEY", originalApiKey);
+      restoreEnv("SEQUENZY_REMINDER_TEMPLATE_SLUG", originalTemplateSlug);
+    }
+
+    expect(sendBrowserPush).toHaveBeenCalledOnce();
+    expect(markReminderDeliveryFailed).not.toHaveBeenCalled();
+  });
+
+  it("fails due email configuration while browser push continues", async () => {
+    const originalApiKey = process.env.SEQUENZY_API_KEY;
+    const originalTemplateSlug = process.env.SEQUENZY_REMINDER_TEMPLATE_SLUG;
+    delete process.env.SEQUENZY_API_KEY;
+    delete process.env.SEQUENZY_REMINDER_TEMPLATE_SLUG;
+    const sendBrowserPush = vi.fn().mockResolvedValue(undefined);
+
+    try {
+      await expect(
+        processDueReminders({
+          supabase: SUPABASE,
+          now: NOW,
+          sendBrowserPush,
+        }),
+      ).resolves.toMatchObject({
+        checked: 2,
+        claimed: 2,
+        sent: 1,
+        failed: 1,
+      });
+    } finally {
+      restoreEnv("SEQUENZY_API_KEY", originalApiKey);
+      restoreEnv("SEQUENZY_REMINDER_TEMPLATE_SLUG", originalTemplateSlug);
+    }
+
+    expect(sendBrowserPush).toHaveBeenCalledOnce();
+    expect(markReminderDeliveryFailed).toHaveBeenCalledWith(
+      SUPABASE,
+      expect.objectContaining({
+        id: "delivery-1",
+        error: "Missing SEQUENZY_API_KEY for email reminder sending.",
+      }),
+    );
   });
 });
 

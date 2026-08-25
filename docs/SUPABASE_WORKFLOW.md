@@ -64,11 +64,30 @@ All schema work must be represented by migration files under `supabase/migration
 
 2. Edit the generated SQL file.
 
+   New migrations created after
+   `20260825075255_fix_settings_timezone_conflict_errors.sql` must use explicit
+   `begin;` and `commit;` boundaries when they backfill rows or apply
+   `SET NOT NULL`. This prevents a failed hosted push from committing only the
+   early statements and leaving retries unable to recreate prior objects.
+   `npm run agents:check` enforces this rule. The two known historical cases,
+   `20260609202707_add_behavior_schedule_slots.sql` and
+   `20260626140000_add_behavior_schedules.sql`, remain unchanged because they
+   have already been applied. Never rewrite an applied migration to add the
+   boundary retroactively.
+
 3. Apply and test locally:
 
    ```bash
    npm run supabase -- db reset
    ```
+
+### Occurrence sync batch index
+
+Migration `20260825080815_add_occurrence_sync_batch_order_index.sql` adds
+`occurrence_sync_state_batch_order_idx`. Its columns match the daily batch query
+exactly: `stale DESC`, `synced_through_local_date ASC NULLS FIRST`,
+`updated_at ASC`, and `user_id ASC`. Verify both the migration and repository
+order together before changing either contract.
 
    Use `db reset` as the default verification because it proves a clean database can be recreated from migrations and seed data.
 
@@ -138,14 +157,71 @@ npm run smoke:rls       # selected environment; hosted use requires authorizatio
 The command reads `NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
 `SUPABASE_SERVICE_ROLE_KEY` from the environment or `.env.local`. It uses the
-service-role key only to create and delete two temporary auth users. It signs
+service-role key only to create and delete three temporary auth users. It signs
 those users in through ordinary publishable-key clients, creates one behavior
 and owned time-session fixture per user, and verifies one account cannot read,
 insert, or update another account's rows. It also verifies own-only,
 foreign-only, and mixed-owner reads through both Ticket 094 time-session RPCs.
+Ticket 083 additionally proves the Settings timezone function rolls back a
+profile update after a later Behavior precondition failure. Its success case
+commits the profile, active Behavior, one configuration event, and exactly one
+sync-state version increment.
 
 Do not print Supabase keys, temporary user ids, emails, or auth responses in
 handoff notes. The command summary intentionally reports only counts.
+
+## Ticket 082 push-subscription cap workflow
+
+Migration `20260825072106_cap_push_subscriptions_and_rate_limit.sql` extends the
+owner-scoped `launch_rate_limits` action set and adds the push-subscription cap
+trigger. The trigger is `SECURITY INVOKER`, has an empty search path, and is not
+directly executable by app roles. An active insert or activation takes one
+transaction-scoped advisory lock derived from `user_id`, keeps the registering
+row plus the 19 most recently updated other active rows, and deactivates the
+rest. The migration applies the same ordering to pre-existing excess rows.
+
+Registration consumes `push_subscription_registration` through the existing
+authenticated `consume_launch_rate_limit(text)` RPC. The fixed policy is six
+attempts per account per 60 seconds. It does not key on IP address, endpoint,
+recipient, or browser data.
+
+Verify locally before any hosted rollout:
+
+```bash
+npm run supabase -- db reset
+npm run --silent supabase -- gen types typescript --local > lib/db/database.types.ts
+npm run test -- tests/push-subscription-cap-migration.test.ts tests/push-subscriptions.repo.test.ts tests/push-subscribe-route.test.ts tests/reminder.service.test.ts tests/sign-out-route.test.ts tests/push-browser.test.ts
+npm run smoke:push-cap:local
+```
+
+The smoke creates one disposable local Auth user, registers 21 ordered
+endpoints, proves LRU eviction, then races additional ordinary authenticated
+registrations and proves the active count remains 20. It deletes the exact user
+in `finally`. It never contacts a push provider. Hosted deployment still
+requires explicit authorization.
+
+## Ticket 083 Settings transaction workflow
+
+Migration `20260825075255_fix_settings_timezone_conflict_errors.sql` replaces
+only the existing Settings timezone function. The Ticket 095-097 configuration
+history boundary remains intact. Stale profile, active-set, and Behavior
+preconditions use non-retryable `P0001`; never use `40001` for these permanent
+input conflicts because PostgREST can retry them until gateway timeout.
+
+Verify locally before any hosted rollout:
+
+```bash
+npm run supabase -- db reset
+npm run test -- tests/settings-timezone-atomicity-migration.test.ts tests/settings.service.test.ts tests/account-deletion.service.test.ts tests/rls-smoke-script.test.ts
+npm run smoke:rls:local
+```
+
+The authenticated smoke deliberately passes a stale Behavior timestamp after
+the function updates the profile inside its transaction. The returned error
+must be the non-retryable Behavior conflict. Follow-up reads must show the old
+profile, Behavior, configuration-event pointer, event count, and sync-state
+version. A valid retry must advance the event count and sync-state version once.
+Hosted migration deployment still requires explicit authorization.
 
 ## Ticket 094 time-session RPC workflow
 
@@ -169,6 +245,27 @@ response ranges returned `[1000, 1]`, and the history RPC returned `[1000, 1]`
 keyset pages. Cleanup removed the temporary user, and an aggregate auth query
 confirmed zero matching users remained. Reconfirm the cap after any hosted
 Data API configuration change.
+
+Ticket 081 treats that cap as a transport boundary, not a record limit.
+`lib/db/paginated-read.ts` issues deterministic 1,000-row `.range()` pages
+until a short page returns. An exact 1,000-row page therefore always triggers
+a continuation request. The helper rejects duplicate or non-advancing pages,
+propagates any page error before returning data, and fails loudly above the
+100,000-row absolute read ceiling. It never returns a partial materialization.
+
+The shared range helper owns complete reads for user Behaviors, Behavior
+schedules, schedule slots, Occurrences, Occurrence status events, imported
+Notes, BehaviorLog record mappings, imported interventions, and compatible
+arbitrary-ID time-session reads. Behavior rows, schedule parents, and slots are
+read separately and reassembled by owner and foreign key, so embedded-resource
+caps cannot truncate the restore graph.
+Occurrence status-event filters use deterministic 500-ID batches before
+merging back into global `recorded_at ASC, id ASC` order. Definition and
+configuration history keep their fixed-high-water keyset pagination, and
+historical time sessions keep Ticket 094's fixed-high-water keyset RPC. Those
+keyset reads share the same 1,000-row page size and 100,000-row fail-loud
+ceiling. The main Export-page RPC remains unchanged because it returns one JSON
+row whose nested arrays are materialized inside PostgreSQL.
 
 This response cap is independent of the arbitrary-ID function's 2,000-ID input
 guard. The repository normalizes IDs, sends sequential batches of at most

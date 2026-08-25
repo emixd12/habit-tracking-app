@@ -734,6 +734,50 @@ function toExistingBehavior(behavior: BehaviorWithCategory) {
     archivedAt: behavior.archived_at,
     sourceOriginalId: behavior.id,
     schedules: toExistingSchedules(behavior),
+    configurationSnapshot: toExistingBehaviorConfiguration(behavior),
+  };
+}
+
+function toExistingBehaviorConfiguration(behavior: BehaviorWithCategory) {
+  const parentSchedules = behavior.schedules ?? [];
+  const scheduleGraph =
+    parentSchedules.length > 0
+      ? parentSchedules.map((schedule) => ({
+          id: schedule.id,
+          recurrenceRule: schedule.recurrence_rule,
+          sortOrder: schedule.sort_order,
+          timeEntries: schedule.schedule_slots.map((slot) => ({
+            id: slot.id,
+            kind: slot.kind,
+            preset: slot.preset,
+            startTime: slot.start_time,
+            endTime: slot.end_time,
+            sortOrder: slot.sort_order,
+          })),
+        }))
+      : [
+          {
+            recurrenceRule: behavior.recurrence_rule,
+            sortOrder: 0,
+            timeEntries: behavior.schedule_slots.map((slot) => ({
+              id: slot.id,
+              kind: slot.kind,
+              preset: slot.preset,
+              startTime: slot.start_time,
+              endTime: slot.end_time,
+              sortOrder: slot.sort_order,
+            })),
+          },
+        ];
+
+  return {
+    categoryId: behavior.category_id,
+    scheduleGraph,
+    browserReminderEnabled: behavior.browser_reminder_enabled,
+    emailReminderEnabled: behavior.email_reminder_enabled,
+    reminderOffsetMinutes: behavior.reminder_offset_minutes,
+    active: behavior.active,
+    timezone: behavior.timezone,
   };
 }
 

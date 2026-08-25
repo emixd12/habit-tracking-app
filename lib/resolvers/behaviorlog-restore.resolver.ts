@@ -293,6 +293,22 @@ function actionForSchedule(
   context: RestoreContext,
 ): BehaviorLogRestoreAction {
   if (schedule.action === "skip") {
+    if (
+      schedule.skipReasons.includes(
+        "cadence_historical_schedule_export_only",
+      )
+    ) {
+      return action({
+        recordType: "schedule",
+        action: "skip",
+        externalId: schedule.externalId,
+        localId: null,
+        reasons: schedule.skipReasons,
+        relatedExternalIds: { behavior: schedule.behaviorExternalId },
+        metadata: { historicalReferenceOnly: true },
+      });
+    }
+
     return skippedAction("schedule", schedule.externalId, schedule.skipReasons);
   }
 
@@ -367,8 +383,10 @@ function actionForOccurrence(
   const localScheduleId = context.mapScheduleExternalToLocal.get(
     occurrence.scheduleExternalId,
   );
+  const detachedScheduleSnapshot =
+    occurrence.importWithDetachedScheduleSnapshot;
 
-  if (!localBehaviorId || !localScheduleId) {
+  if (!localBehaviorId || (!detachedScheduleSnapshot && !localScheduleId)) {
     return skippedAction("occurrence", occurrence.externalId, [
       "Occurrence cannot be restored because its behavior or schedule is not safely mapped.",
     ]);
@@ -410,7 +428,8 @@ function actionForOccurrence(
 
   const same =
     existing.behaviorId === localBehaviorId &&
-    existing.scheduleId === localScheduleId &&
+    existing.scheduleId ===
+      (detachedScheduleSnapshot ? null : localScheduleId) &&
     existing.scheduledForUtc === occurrence.scheduledForUtc &&
     existing.localDate === occurrence.localDate &&
     existing.timezone === occurrence.timezone &&
@@ -547,10 +566,24 @@ function actionForInlineOccurrenceNote(
     ? context.existing.occurrences.find((candidate) => candidate.id === localOccurrenceId)
     : null;
 
-  if (!occurrence) {
+  if (!localOccurrenceId) {
     return skippedAction("inline_occurrence_note", note.externalId, [
       "Inline note cannot be restored because its occurrence is not safely mapped.",
     ]);
+  }
+
+  if (!occurrence) {
+    return action({
+      recordType: "inline_occurrence_note",
+      action: "create",
+      externalId: note.externalId,
+      localId: null,
+      reasons: [
+        "BehaviorLog note will be attached to the Occurrence created by this restore.",
+      ],
+      relatedExternalIds: { occurrence: note.attachedToId },
+      metadata: { sensitivity: note.sensitivity },
+    });
   }
 
   const localNote = occurrence.note?.trim() ? occurrence.note : null;
@@ -983,6 +1016,11 @@ function summarizeActions(
   for (const actionItem of actions) {
     actionCounts[actionItem.action] += 1;
   }
+  const unsupportedActions = actions.filter(
+    (actionItem) =>
+      actionItem.action === "skip" &&
+      actionItem.metadata?.historicalReferenceOnly !== true,
+  );
 
   return {
     actionCounts,
@@ -993,16 +1031,14 @@ function summarizeActions(
     archivedCount: actionCounts.archive,
     deletedCount: actionCounts.delete,
     keptCount: actionCounts.keep,
-    skippedCount: actionCounts.skip,
+    skippedCount: unsupportedActions.length,
     highOrRestrictedNoteCount: notes.filter(
       (note) =>
         note.action !== "skip" &&
         note.noteRole !== "ai_generated" &&
         (note.sensitivity === "high" || note.sensitivity === "restricted"),
     ).length,
-    unsupportedActionCount: actions.filter(
-      (actionItem) => actionItem.action === "skip",
-    ).length,
+    unsupportedActionCount: unsupportedActions.length,
   };
 }
 

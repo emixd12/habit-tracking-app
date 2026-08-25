@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createRunningTimeSession,
   deleteTimeSessionsForOccurrence,
+  listOccurrenceIdsWithTimeSessions,
   listTimeSessionHistory,
   listTimeSessionsByOccurrenceIds,
   stopRunningTimeSession,
@@ -14,9 +15,23 @@ const insert = vi.fn();
 const update = vi.fn();
 const remove = vi.fn();
 const eq = vi.fn();
+const inFilter = vi.fn();
+const order = vi.fn();
+const range = vi.fn();
 const is = vi.fn();
 const maybeSingle = vi.fn();
-const builder = { select, insert, update, delete: remove, eq, is, maybeSingle };
+const builder = {
+  select,
+  insert,
+  update,
+  delete: remove,
+  eq,
+  in: inFilter,
+  order,
+  range,
+  is,
+  maybeSingle,
+};
 const supabase = { rpc, from: vi.fn(() => builder) };
 const repositorySupabase = supabase as never;
 
@@ -28,6 +43,8 @@ describe("time sessions repository", () => {
     update.mockReturnValue(builder);
     remove.mockReturnValue(builder);
     eq.mockReturnValue(builder);
+    inFilter.mockReturnValue(builder);
+    order.mockReturnValue(builder);
     is.mockReturnValue(builder);
   });
 
@@ -53,6 +70,72 @@ describe("time sessions repository", () => {
       occurrence_ids: occurrenceIds,
     });
     expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it("reads owner-filtered time-session presence without the authenticated-only RPC", async () => {
+    range.mockResolvedValue({
+      data: [
+        { id: uuid(1), occurrence_id: uuid(101) },
+        { id: uuid(2), occurrence_id: uuid(101) },
+        { id: uuid(3), occurrence_id: uuid(102) },
+      ],
+      error: null,
+    });
+
+    await expect(
+      listOccurrenceIdsWithTimeSessions(repositorySupabase, {
+        userId: "user-1",
+        occurrenceIds: [uuid(101), uuid(102)],
+      }),
+    ).resolves.toEqual([uuid(101), uuid(102)]);
+
+    expect(supabase.from).toHaveBeenCalledWith("occurrence_time_sessions");
+    expect(select).toHaveBeenCalledWith("id, occurrence_id");
+    expect(eq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(inFilter).toHaveBeenCalledWith("occurrence_id", [
+      uuid(101),
+      uuid(102),
+    ]);
+    expect(order).toHaveBeenCalledWith("id", { ascending: true });
+    expect(range).toHaveBeenCalledWith(0, 999);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("does not query time-session presence for an empty occurrence set", async () => {
+    await expect(
+      listOccurrenceIdsWithTimeSessions(repositorySupabase, {
+        userId: "user-1",
+        occurrenceIds: [],
+      }),
+    ).resolves.toEqual([]);
+
+    expect(supabase.from).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("paginates time-session presence so later occurrence IDs are not truncated", async () => {
+    range
+      .mockResolvedValueOnce({
+        data: Array.from({ length: 1_000 }, (_, index) => ({
+          id: uuid(index + 1),
+          occurrence_id: uuid(101),
+        })),
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [{ id: uuid(1_001), occurrence_id: uuid(102) }],
+        error: null,
+      });
+
+    await expect(
+      listOccurrenceIdsWithTimeSessions(repositorySupabase, {
+        userId: "user-1",
+        occurrenceIds: [uuid(101), uuid(102)],
+      }),
+    ).resolves.toEqual([uuid(101), uuid(102)]);
+
+    expect(range).toHaveBeenNthCalledWith(1, 0, 999);
+    expect(range).toHaveBeenNthCalledWith(2, 1_000, 1_999);
   });
 
   it("normalizes duplicate IDs and performs no request for empty input", async () => {

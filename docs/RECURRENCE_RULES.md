@@ -69,9 +69,9 @@ entries use their exact time. Range entries use the start of the range.
 
 If a behavior has multiple schedules, occurrence generation iterates each
 schedule's recurrence, expands all of that schedule's time entries, and creates
-one occurrence per matching time entry. Generated occurrences are deduplicated
-when they share the same behavior, local date, start time, and end-time/range
-identity.
+one occurrence per matching time entry. Generated candidates at the same
+scheduled instant are deduplicated. The first schedule and time entry by stable
+sort order supplies the stored schedule snapshot.
 
 Legacy behavior-level recurrence and flat schedule-slot records are normalized
 to a single schedule before occurrence generation. A persisted schedule parent
@@ -129,8 +129,30 @@ Occurrence generation must be idempotent.
 Running generation twice must not create duplicates.
 
 The persistence idempotence key is `behavior_id + scheduled_for`. The resolver
-also deduplicates generated candidates by behavior, local date, start time, and
-end-time/range identity before persistence.
+deduplicates by that same scheduled instant before persistence.
+
+Every new generated Occurrence stores the current Behavior configuration-event
+ID. Existing legacy, imported, or restored rows with null lineage stay null.
+Generation may advance lineage only for an already-linked, unresolved row
+strictly after the injected current instant when the new graph still produces
+the same scheduled instant. Resolved rows, rows at or before the current
+instant, rows with notes, and rows with time sessions retain their historical
+lineage and schedule snapshot.
+
+Duplicate schedules still merge deterministically before persistence. The
+generation service plans from one current Behavior and schedule graph. The
+database locks that Behavior and rejects a plan unless its expected current
+event still matches. Inserts must all succeed. Updates and deletes must still
+match their protected state and planned identity. The final freshness write
+uses the configuration-writer advisory lock and verifies the exact current
+Behavior/event set plus the planning-start sync-state existence/version before
+clearing stale state. Every stale or fresh state update increments that
+version.
+
+Restore or import updates that name identity or schedule-snapshot columns clear
+captured lineage at the database boundary. Status and note-only updates do not.
+The generation-plan transaction reapplies the verified current event after its
+guarded snapshot update.
 
 ## Interval anchor
 

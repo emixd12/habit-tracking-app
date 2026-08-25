@@ -225,3 +225,31 @@ saving and future speech-to-speech AI features.
 
 Do not add payment or AI speech features until tickets update the relevant
 product, route, data, legal, and operations docs.
+
+## Open-source copyright and security disclosure
+
+Decision date: 2026-08-25. Ticket: 099.
+
+Cadence uses the MIT license with
+`Copyright (c) 2026 Identity Scaffolding LLC`.
+
+The MIT scope covers owner-controlled source code, repository documentation,
+and synthetic sample content. It excludes tracked binary non-code assets
+pending provenance review, including app icons, logos, brand illustrations,
+product captures, custom notification icons, design exploration, QA
+screenshots, and audio.
+
+Cadence names and logos remain reserved as trademarks. The MIT license grants
+no trademark-use permission. Hosted service access, production credentials,
+and user-owned behavioral data also remain outside the source license.
+
+Private vulnerability reports use `security@identityscaffolding.com` as the
+primary route. GitHub private vulnerability reporting becomes a secondary
+route after publication and explicit enablement. The repository owner monitors
+the inbox. The owner authorized exactly one harmless synthetic route test. The
+sender accepted and retained that one message with sent status on 2026-08-25,
+and recipient-side inspection confirmed receipt at the approved mailbox. The
+message landed in the junk folder, so the repository owner monitors filtered
+folders or maintains appropriate allowlisting. No response deadline, bug
+bounty, paid support, contributor license agreement, or copyright assignment
+is promised.

@@ -11,6 +11,7 @@ import {
 import { createStoredZip } from "../lib/services/zip";
 import type {
   ExportBehaviorInput,
+  ExportBehaviorConfigurationEventInput,
   ExportBehaviorDefinitionEventInput,
   ExportCategoryInput,
   ExportOccurrenceInput,
@@ -148,10 +149,64 @@ function behaviorDefinitionEvent(
   };
 }
 
+function behaviorConfigurationEvent(
+  overrides: Partial<ExportBehaviorConfigurationEventInput> &
+    Pick<ExportBehaviorConfigurationEventInput, "id">,
+): ExportBehaviorConfigurationEventInput {
+  const nextConfiguration = overrides.nextConfiguration ?? {
+    categoryId: "category-grooming",
+    scheduleGraph: [
+      {
+        recurrenceRule: { frequency: "daily", interval: 1 },
+        sortOrder: 0,
+        timeEntries: [
+          {
+            kind: "exact" as const,
+            preset: null,
+            startTime: "09:00",
+            endTime: null,
+            sortOrder: 0,
+          },
+        ],
+      },
+    ],
+    browserReminderEnabled: true,
+    emailReminderEnabled: false,
+    reminderOffsetMinutes: 0,
+    active: true,
+    timezone: DEFAULT_TIMEZONE,
+  };
+
+  return {
+    behaviorId: "behavior-brush",
+    eventKind: "baseline",
+    previousConfiguration: null,
+    nextConfiguration,
+    changedFields: [
+      "category_id",
+      "schedule_graph",
+      "browser_reminder_enabled",
+      "email_reminder_enabled",
+      "reminder_offset_minutes",
+      "active",
+      "timezone",
+    ],
+    recordedAt: "2026-05-01T12:00:00Z",
+    effectiveAt: "2026-05-01T12:00:00Z",
+    effectiveLocalDate: "2026-05-01",
+    timezone: nextConfiguration.timezone,
+    source: "system",
+    reasonCode: "history_capture_started",
+    createdAt: "2026-05-01T12:00:00Z",
+    ...overrides,
+  };
+}
+
 function resolve(
   overrides: {
     behaviors?: ExportBehaviorInput[];
     behaviorDefinitionEvents?: ExportBehaviorDefinitionEventInput[];
+    behaviorConfigurationEvents?: ExportBehaviorConfigurationEventInput[];
     occurrences?: ExportOccurrenceInput[];
     statusEvents?: ExportStatusEventInput[];
     reminderDeliveries?: ExportReminderDeliveryInput[];
@@ -170,6 +225,7 @@ function resolve(
     categories,
     behaviors: overrides.behaviors ?? [behavior({ id: "behavior-brush" })],
     behaviorDefinitionEvents: overrides.behaviorDefinitionEvents,
+    behaviorConfigurationEvents: overrides.behaviorConfigurationEvents,
     occurrences: overrides.occurrences ?? [occurrence({ id: "occurrence-1" })],
     statusEvents: overrides.statusEvents,
     reminderDeliveries: overrides.reminderDeliveries,
@@ -1161,6 +1217,565 @@ describe("resolveExportBundle", () => {
     expect(bundle.markdownSummary).toContain(
       "Behavior definition history: included (0 events)",
     );
+  });
+
+  it("exports complete configuration history and segments BehaviorLog schedule periods", () => {
+    const daily = behaviorConfigurationEvent({ id: "config-daily" });
+    const reminderConfiguration = {
+      ...daily.nextConfiguration,
+      emailReminderEnabled: true,
+    };
+    const reminder = behaviorConfigurationEvent({
+      id: "config-reminder",
+      eventKind: "revision",
+      previousConfiguration: daily.nextConfiguration,
+      nextConfiguration: reminderConfiguration,
+      changedFields: ["email_reminder_enabled"],
+      recordedAt: "2026-06-05T14:00:00Z",
+      effectiveAt: "2026-06-05T14:00:00Z",
+      effectiveLocalDate: "2026-06-05",
+      source: "manual",
+      reasonCode: "behavior_form_update",
+    });
+    const weeklyConfiguration = {
+      ...reminderConfiguration,
+      scheduleGraph: [
+        {
+          recurrenceRule: {
+            frequency: "weekly" as const,
+            interval: 1,
+            daysOfWeek: ["monday" as const],
+          },
+          sortOrder: 0,
+          timeEntries: reminderConfiguration.scheduleGraph[0].timeEntries,
+        },
+      ],
+    };
+    const weekly = behaviorConfigurationEvent({
+      id: "config-weekly",
+      eventKind: "revision",
+      previousConfiguration: reminderConfiguration,
+      nextConfiguration: weeklyConfiguration,
+      changedFields: ["schedule_graph"],
+      recordedAt: "2026-06-08T14:00:00Z",
+      effectiveAt: "2026-06-08T14:00:00Z",
+      effectiveLocalDate: "2026-06-08",
+      source: "manual",
+      reasonCode: "behavior_form_update",
+    });
+    const bundle = resolve({
+      range: "all",
+      behaviorConfigurationEvents: [weekly, reminder, daily],
+      occurrences: [
+        occurrence({
+          id: "occurrence-daily",
+          behaviorConfigurationEventId: "config-reminder",
+          scheduledFor: "2026-06-01T13:00:00Z",
+          localDate: "2026-06-01",
+        }),
+        occurrence({
+          id: "occurrence-weekly",
+          behaviorConfigurationEventId: "config-weekly",
+          scheduledFor: "2026-06-08T15:00:00Z",
+          localDate: "2026-06-08",
+        }),
+      ],
+    });
+    const fileByPath = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file]),
+    );
+    const schedules = parseJsonl(
+      fileByPath.get("data/schedules.jsonl")?.content ?? "",
+    );
+    const behaviorLogOccurrences = parseJsonl(
+      fileByPath.get("data/occurrences.jsonl")?.content ?? "",
+    );
+    const rawHistory = parseJsonl(
+      fileByPath.get("raw/cadence/behavior_configuration_events.jsonl")
+        ?.content ?? "",
+    );
+    const manifest = JSON.parse(fileByPath.get("manifest.json")?.content ?? "");
+
+    expect(bundle.jsonBackup.behavior_configuration_events.map((event) => event.id)).toEqual([
+      "config-daily",
+      "config-reminder",
+      "config-weekly",
+    ]);
+    expect(bundle.jsonBackup.behavior_configuration_events[2]).toMatchObject({
+      previous_configuration: expect.objectContaining({
+        email_reminder_enabled: true,
+      }),
+      next_configuration: expect.objectContaining({
+        schedule_graph: [
+          expect.objectContaining({
+            recurrence_rule: expect.objectContaining({ frequency: "weekly" }),
+          }),
+        ],
+      }),
+      effective_at: "2026-06-08T14:00:00Z",
+    });
+    expect(rawHistory).toEqual(bundle.jsonBackup.behavior_configuration_events);
+    expect(manifest.extensions["app.cadence"].behavior_configuration_history).toEqual({
+      path: "raw/cadence/behavior_configuration_events.jsonl",
+      record_count: 3,
+      ordering: ["recorded_at", "id"],
+      import_restore_support: "export_only",
+    });
+    const historyFile = fileByPath.get(
+      "raw/cadence/behavior_configuration_events.jsonl",
+    );
+    expect(
+      manifest.files.find(
+        (entry: { path: string }) => entry.path === historyFile?.path,
+      ),
+    ).toMatchObject({
+      required: false,
+      schema_ref: null,
+      sha256: sha256(historyFile?.content ?? ""),
+    });
+    expect(schedules).toEqual([
+      expect.objectContaining({
+        schedule_id: "sch_config-daily_0_0",
+        recurrence: { type: "daily", interval: 1 },
+        active_from_local_date: "2026-05-01",
+        active_until_local_date: "2026-06-08",
+        extensions: {
+          "app.cadence": expect.objectContaining({
+            behavior_configuration_event_id: "config-daily",
+            effective_from_utc: "2026-05-01T12:00:00Z",
+            effective_until_utc: "2026-06-08T14:00:00Z",
+            import_role: "historical_reference_only",
+          }),
+        },
+      }),
+      expect.objectContaining({
+        schedule_id: "sch_config-weekly_0_0",
+        recurrence: {
+          type: "weekly_on_weekdays",
+          weekdays: ["monday"],
+        },
+        active_from_local_date: "2026-06-08",
+        active_until_local_date: null,
+        extensions: {
+          "app.cadence": expect.objectContaining({
+            behavior_configuration_event_id: "config-weekly",
+            import_role: "current_configuration",
+          }),
+        },
+      }),
+    ]);
+    expect(behaviorLogOccurrences).toEqual([
+      expect.objectContaining({
+        occurrence_id: "occurrence-daily",
+        schedule_id: "sch_config-daily_0_0",
+        extensions: {
+          "app.cadence": expect.objectContaining({
+            behavior_configuration_event_id: "config-reminder",
+          }),
+        },
+      }),
+      expect.objectContaining({
+        occurrence_id: "occurrence-weekly",
+        schedule_id: "sch_config-weekly_0_0",
+      }),
+    ]);
+    expect(bundle.jsonl).not.toContain("behavior_configuration_event_id");
+    expect(bundle.csv.split("\n")[0]).not.toContain(
+      "behavior_configuration_event_id",
+    );
+    expect(bundle.markdownSummary).toContain(
+      "Behavior configuration history: included (3 events)",
+    );
+    expect(bundle.markdownSummary).toContain("does not establish causality");
+    expect(bundle.markdownSummary).toContain(
+      "does not provide clinical guidance",
+    );
+  });
+
+  it("uses one-day medium-confidence placeholders for null-lineage Occurrences", () => {
+    const bundle = resolve({
+      range: "all",
+      behaviorConfigurationEvents: [
+        behaviorConfigurationEvent({ id: "config-daily" }),
+      ],
+      occurrences: [
+        occurrence({
+          id: "occurrence-legacy",
+          behaviorConfigurationEventId: null,
+          behaviorScheduleSlotId: "slot-old",
+          localDate: "2026-06-01",
+          scheduledFor: "2026-06-01T13:00:00Z",
+        }),
+      ],
+    });
+    const schedules = parseJsonl(
+      bundle.behaviorLog.files.find(
+        (file) => file.path === "data/schedules.jsonl",
+      )?.content ?? "",
+    );
+    const exportedOccurrence = parseJsonl(
+      bundle.behaviorLog.files.find(
+        (file) => file.path === "data/occurrences.jsonl",
+      )?.content ?? "",
+    )[0];
+    const fallback = schedules.find(
+      (schedule) => schedule.schedule_id === "sch_legacy_occurrence-legacy",
+    );
+
+    expect(fallback).toMatchObject({
+      recurrence: { type: "daily", interval: 1 },
+      active_from_local_date: "2026-06-01",
+      active_until_local_date: "2026-06-01",
+      source: expect.objectContaining({ confidence: "medium" }),
+      extensions: {
+        "app.cadence": expect.objectContaining({
+          historical_recurrence: "unknown",
+          lineage_confidence: "medium",
+          import_role: "historical_reference_only",
+        }),
+      },
+    });
+    expect(exportedOccurrence.schedule_id).toBe(
+      "sch_legacy_occurrence-legacy",
+    );
+  });
+
+  it("keeps JSONL and CSV byte-stable when historical lineage uses another timezone", () => {
+    const losAngelesConfiguration = behaviorConfigurationEvent({
+      id: "config-los-angeles-history",
+      nextConfiguration: {
+        ...behaviorConfigurationEvent({ id: "template" }).nextConfiguration,
+        timezone: "America/Los_Angeles",
+      },
+      timezone: "America/Los_Angeles",
+      effectiveLocalDate: "2026-05-01",
+    });
+    const occurrenceInput = occurrence({
+      id: "occurrence-timezone-history",
+      behaviorConfigurationEventId: "config-los-angeles-history",
+      scheduledFor: "2026-06-08T13:00:00Z",
+    });
+    const legacyBundle = resolve({
+      occurrences: [occurrenceInput],
+    });
+    const historyBundle = resolve({
+      behaviorConfigurationEvents: [losAngelesConfiguration],
+      occurrences: [occurrenceInput],
+    });
+    const behaviorLogOccurrence = parseJsonl(
+      historyBundle.behaviorLog.files.find(
+        (file) => file.path === "data/occurrences.jsonl",
+      )?.content ?? "",
+    )[0];
+
+    expect(historyBundle.jsonl).toBe(legacyBundle.jsonl);
+    expect(historyBundle.csv).toBe(legacyBundle.csv);
+    expect(behaviorLogOccurrence.timezone).toBe("America/Los_Angeles");
+    expect(historyBundle.jsonBackup.occurrences[0]?.timezone).toBe(
+      "America/Los_Angeles",
+    );
+  });
+
+  it("ends an old timezone period using the old period timezone", () => {
+    const oldConfiguration = behaviorConfigurationEvent({
+      id: "config-los-angeles",
+      nextConfiguration: {
+        ...behaviorConfigurationEvent({ id: "base" }).nextConfiguration,
+        timezone: "America/Los_Angeles",
+      },
+      timezone: "America/Los_Angeles",
+      effectiveLocalDate: "2026-05-01",
+    });
+    const newConfiguration = behaviorConfigurationEvent({
+      id: "config-tokyo",
+      eventKind: "revision",
+      previousConfiguration: oldConfiguration.nextConfiguration,
+      nextConfiguration: {
+        ...oldConfiguration.nextConfiguration,
+        timezone: "Asia/Tokyo",
+      },
+      changedFields: ["timezone"],
+      recordedAt: "2026-06-02T01:00:00Z",
+      effectiveAt: "2026-06-02T01:00:00Z",
+      effectiveLocalDate: "2026-06-02",
+      timezone: "Asia/Tokyo",
+    });
+    const bundle = resolve({
+      behaviorConfigurationEvents: [oldConfiguration, newConfiguration],
+      occurrences: [],
+    });
+    const oldSchedule = parseJsonl(
+      bundle.behaviorLog.files.find(
+        (file) => file.path === "data/schedules.jsonl",
+      )?.content ?? "",
+    ).find(
+      (schedule) => schedule.schedule_id === "sch_config-los-angeles_0_0",
+    );
+
+    expect(oldSchedule?.active_until_local_date).toBe("2026-06-01");
+  });
+
+  it("ends and reopens same-day active periods with distinct event schedule ids", () => {
+    const initial = behaviorConfigurationEvent({ id: "config-initial" });
+    const inactiveConfiguration = {
+      ...initial.nextConfiguration,
+      active: false,
+    };
+    const inactive = behaviorConfigurationEvent({
+      id: "config-inactive",
+      eventKind: "revision",
+      previousConfiguration: initial.nextConfiguration,
+      nextConfiguration: inactiveConfiguration,
+      changedFields: ["active"],
+      recordedAt: "2026-06-08T14:00:00Z",
+      effectiveAt: "2026-06-08T14:00:00Z",
+      effectiveLocalDate: "2026-06-08",
+      source: "manual",
+    });
+    const restored = behaviorConfigurationEvent({
+      id: "config-restored",
+      eventKind: "revision",
+      previousConfiguration: inactiveConfiguration,
+      nextConfiguration: initial.nextConfiguration,
+      changedFields: ["active"],
+      recordedAt: "2026-06-08T19:00:00Z",
+      effectiveAt: "2026-06-08T19:00:00Z",
+      effectiveLocalDate: "2026-06-08",
+      source: "manual",
+    });
+    const bundle = resolve({
+      range: "all",
+      behaviorConfigurationEvents: [restored, initial, inactive],
+      occurrences: [],
+    });
+    const files = new Map(
+      bundle.behaviorLog.files.map((file) => [file.path, file.content]),
+    );
+    const schedules = parseJsonl(files.get("data/schedules.jsonl") ?? "");
+    const rawHistory = parseJsonl(
+      files.get("raw/cadence/behavior_configuration_events.jsonl") ?? "",
+    );
+
+    expect(schedules).toEqual([
+      expect.objectContaining({
+        schedule_id: "sch_config-initial_0_0",
+        active_until_local_date: "2026-06-08",
+        extensions: {
+          "app.cadence": expect.objectContaining({
+            effective_until_utc: "2026-06-08T14:00:00Z",
+            import_role: "historical_reference_only",
+          }),
+        },
+      }),
+      expect.objectContaining({
+        schedule_id: "sch_config-restored_0_0",
+        active_from_local_date: "2026-06-08",
+        extensions: {
+          "app.cadence": expect.objectContaining({
+            effective_from_utc: "2026-06-08T19:00:00Z",
+            import_role: "current_configuration",
+          }),
+        },
+      }),
+    ]);
+    expect(rawHistory.map((event) => event.id)).toEqual([
+      "config-initial",
+      "config-inactive",
+      "config-restored",
+    ]);
+    expect(
+      rawHistory.map((event) => [
+        event.effective_at,
+        (event.next_configuration as { active: boolean }).active,
+      ]),
+    ).toEqual([
+      ["2026-05-01T12:00:00Z", true],
+      ["2026-06-08T14:00:00Z", false],
+      ["2026-06-08T19:00:00Z", true],
+    ]);
+  });
+
+  it("keeps category-only revisions in history without splitting schedules", () => {
+    const initial = behaviorConfigurationEvent({ id: "config-category-base" });
+    const categoryConfiguration = {
+      ...initial.nextConfiguration,
+      categoryId: "category-food",
+    };
+    const categoryRevision = behaviorConfigurationEvent({
+      id: "config-category-change",
+      eventKind: "revision",
+      previousConfiguration: initial.nextConfiguration,
+      nextConfiguration: categoryConfiguration,
+      changedFields: ["category_id"],
+      recordedAt: "2026-06-02T12:00:00Z",
+      effectiveAt: "2026-06-02T12:00:00Z",
+      effectiveLocalDate: "2026-06-02",
+      source: "manual",
+    });
+    const bundle = resolve({
+      behaviorConfigurationEvents: [categoryRevision, initial],
+      occurrences: [
+        occurrence({
+          id: "occurrence-category",
+          behaviorConfigurationEventId: "config-category-change",
+        }),
+      ],
+    });
+    const schedules = parseJsonl(
+      bundle.behaviorLog.files.find(
+        (file) => file.path === "data/schedules.jsonl",
+      )?.content ?? "",
+    );
+    const exportedOccurrence = parseJsonl(
+      bundle.behaviorLog.files.find(
+        (file) => file.path === "data/occurrences.jsonl",
+      )?.content ?? "",
+    )[0];
+
+    expect(schedules).toHaveLength(1);
+    expect(schedules[0]).toMatchObject({
+      schedule_id: "sch_config-category-base_0_0",
+      extensions: {
+        "app.cadence": expect.objectContaining({
+          import_role: "current_configuration",
+        }),
+      },
+    });
+    expect(exportedOccurrence.schedule_id).toBe(
+      "sch_config-category-base_0_0",
+    );
+    expect(bundle.jsonBackup.behavior_configuration_events).toHaveLength(2);
+  });
+
+  it("filters archived configuration history only by the archived option, not range", () => {
+    const archivedBaseline = behaviorConfigurationEvent({
+      id: "config-archived-active",
+      behaviorId: "behavior-archived",
+    });
+    const archivedInactiveConfiguration = {
+      ...archivedBaseline.nextConfiguration,
+      active: false,
+    };
+    const archivedRevision = behaviorConfigurationEvent({
+      id: "config-archived-inactive",
+      behaviorId: "behavior-archived",
+      eventKind: "revision",
+      previousConfiguration: archivedBaseline.nextConfiguration,
+      nextConfiguration: archivedInactiveConfiguration,
+      changedFields: ["active"],
+      recordedAt: "2026-05-20T12:00:00Z",
+      effectiveAt: "2026-05-20T12:00:00Z",
+      effectiveLocalDate: "2026-05-20",
+      source: "manual",
+    });
+    const inputs = {
+      behaviors: [
+        behavior({ id: "behavior-brush" }),
+        behavior({
+          id: "behavior-archived",
+          active: false,
+          archivedAt: "2026-05-20T12:00:00Z",
+        }),
+      ],
+      behaviorConfigurationEvents: [
+        archivedRevision,
+        behaviorConfigurationEvent({ id: "config-live" }),
+        archivedBaseline,
+      ],
+      occurrences: [],
+      range: "7",
+    };
+    const defaultBundle = resolve(inputs);
+    const archivedBundle = resolve({ ...inputs, includeArchived: true });
+    const archivedSchedules = parseJsonl(
+      archivedBundle.behaviorLog.files.find(
+        (file) => file.path === "data/schedules.jsonl",
+      )?.content ?? "",
+    );
+
+    expect(
+      defaultBundle.jsonBackup.behavior_configuration_events.map(
+        (event) => event.id,
+      ),
+    ).toEqual(["config-live"]);
+    expect(
+      archivedBundle.jsonBackup.behavior_configuration_events.map(
+        (event) => event.id,
+      ),
+    ).toEqual([
+      "config-archived-active",
+      "config-live",
+      "config-archived-inactive",
+    ]);
+    expect(
+      archivedSchedules.find(
+        (schedule) =>
+          schedule.behavior_id === "behavior-archived" &&
+          (
+            schedule.extensions as {
+              "app.cadence": { import_role: string };
+            }
+          )["app.cadence"].import_role === "current_configuration",
+      ),
+    ).toMatchObject({
+      active_from_local_date: "2026-05-20",
+      active_until_local_date: "2026-05-20",
+      extensions: {
+        "app.cadence": expect.objectContaining({
+          behavior_configuration_event_id: "config-archived-inactive",
+          configuration_active: false,
+          period_semantics: "inactive_current_configuration_carrier",
+          effective_from_utc: "2026-05-20T12:00:00Z",
+          effective_until_utc: "2026-05-20T12:00:00Z",
+        }),
+      },
+    });
+  });
+
+  it("exports an honest current carrier for an archived false baseline", () => {
+    const inactiveConfiguration = {
+      ...behaviorConfigurationEvent({ id: "template" }).nextConfiguration,
+      active: false,
+    };
+    const bundle = resolve({
+      behaviors: [
+        behavior({
+          id: "behavior-archived",
+          active: false,
+          archivedAt: "2026-05-01T12:00:00Z",
+        }),
+      ],
+      behaviorConfigurationEvents: [
+        behaviorConfigurationEvent({
+          id: "config-archived-baseline",
+          behaviorId: "behavior-archived",
+          nextConfiguration: inactiveConfiguration,
+        }),
+      ],
+      occurrences: [],
+      includeArchived: true,
+    });
+    const schedules = parseJsonl(
+      bundle.behaviorLog.files.find(
+        (file) => file.path === "data/schedules.jsonl",
+      )?.content ?? "",
+    );
+
+    expect(schedules).toEqual([
+      expect.objectContaining({
+        schedule_id: "sch_config-archived-baseline_0_0",
+        active_from_local_date: "2026-05-01",
+        active_until_local_date: "2026-05-01",
+        extensions: {
+          "app.cadence": expect.objectContaining({
+            behavior_configuration_event_id: "config-archived-baseline",
+            configuration_active: false,
+            period_semantics: "inactive_current_configuration_carrier",
+            import_role: "current_configuration",
+          }),
+        },
+      }),
+    ]);
   });
 
   it("guides Markdown readers to use status history for corrections and logging", () => {

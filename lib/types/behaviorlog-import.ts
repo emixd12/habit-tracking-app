@@ -1,4 +1,5 @@
 import type { OccurrenceStatus } from "@/lib/types/database";
+import type { BehaviorConfigurationSnapshot } from "@/lib/types/behavior-configuration-event";
 
 export type BehaviorLogImportRecordType =
   | "behavior"
@@ -120,6 +121,7 @@ export type BehaviorLogExistingBehavior = {
   archivedAt?: string | null;
   sourceOriginalId?: string | null;
   schedules?: BehaviorLogExistingSchedule[];
+  configurationSnapshot?: BehaviorConfigurationSnapshot;
 };
 
 export type BehaviorLogExistingSchedule = {
@@ -252,6 +254,12 @@ export type BehaviorLogImportSchedulePlan = {
   windowEndLocal: string | null;
   cadenceScheduleKind: "exact" | "range" | null;
   cadenceSchedulePreset: "morning" | "afternoon" | "evening" | "night" | null;
+  cadenceConfigurationEventId?: string | null;
+  cadenceImportRole?:
+    | "current_configuration"
+    | "historical_reference_only"
+    | null;
+  cadenceHistoricalRecurrence?: "unknown" | null;
   activeFromLocalDate: string;
   activeUntilLocalDate: string | null;
   sourceOriginalId?: string | null;
@@ -261,6 +269,7 @@ export type BehaviorLogImportSchedulePlan = {
 export type BehaviorLogImportOccurrencePlan = {
   action: BehaviorLogImportPlanAction;
   skipReasons: string[];
+  importWithDetachedScheduleSnapshot?: boolean;
   externalId: string;
   behaviorExternalId: string;
   scheduleExternalId: string;

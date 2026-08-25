@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getSequenzyRuntimeConfig,
@@ -25,12 +25,17 @@ const EMAIL_INPUT = {
 };
 
 describe("sequenzy service", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   afterAll(() => {
     process.env.SEQUENZY_API_KEY = ORIGINAL_API_KEY;
     process.env.SEQUENZY_REMINDER_TEMPLATE_SLUG = ORIGINAL_TEMPLATE_SLUG;
   });
 
   it("sends reminder emails through the transactional template endpoint", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
     const fetcher = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -54,12 +59,14 @@ describe("sequenzy service", () => {
       "https://api.sequenzy.com/api/v1/transactional/send",
       expect.objectContaining({
         method: "POST",
+        signal: expect.anything(),
         headers: {
           Authorization: "Bearer seq_test_key",
           "Content-Type": "application/json",
         },
       }),
     );
+    expect(timeoutSpy).toHaveBeenCalledWith(10_000);
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
       to: "user@example.com",
       subscriberExternalId: "user-1",

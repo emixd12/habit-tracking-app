@@ -1,4 +1,5 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import type { Json } from "@/lib/db/database.types";
 import type {
   NewOccurrenceSyncState,
   OccurrenceSyncState,
@@ -86,4 +87,53 @@ export async function upsertOccurrenceSyncStateFresh(
   }
 
   return data;
+}
+
+export async function upsertOccurrenceSyncStateFreshIfConfigurationCurrent(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    expectedBehaviorConfigurationEvents: Array<{
+      behaviorId: string;
+      configurationEventId: string;
+    }>;
+    expectedSyncStateExists: boolean;
+    expectedSyncStateVersion: number | null;
+    timezone: string;
+    lastSyncedLocalDate: string;
+    syncedThroughLocalDate: string;
+    lastSuccessfulSyncAt: string;
+    behaviorCount: number;
+    createdCount: number;
+    updatedCount: number;
+    deletedCount: number;
+  },
+): Promise<OccurrenceSyncState> {
+  const { data, error } = await supabase.rpc(
+    "mark_occurrence_sync_fresh_if_configuration_current",
+    {
+      target_user_id: input.userId,
+      expected_behavior_configuration_events:
+        input.expectedBehaviorConfigurationEvents.map((expected) => ({
+          behavior_id: expected.behaviorId,
+          configuration_event_id: expected.configurationEventId,
+        })) as Json,
+      expected_sync_state_exists: input.expectedSyncStateExists,
+      expected_sync_state_version: input.expectedSyncStateVersion ?? -1,
+      target_timezone: input.timezone,
+      target_last_synced_local_date: input.lastSyncedLocalDate,
+      target_synced_through_local_date: input.syncedThroughLocalDate,
+      target_last_successful_sync_at: input.lastSuccessfulSyncAt,
+      target_behavior_count: input.behaviorCount,
+      target_created_count: input.createdCount,
+      target_updated_count: input.updatedCount,
+      target_deleted_count: input.deletedCount,
+    },
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return data as unknown as OccurrenceSyncState;
 }

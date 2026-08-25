@@ -4,6 +4,8 @@ export type Profile = Tables<"profiles">;
 export type Category = Tables<"categories">;
 export type Behavior = Tables<"behaviors">;
 export type BehaviorDefinitionEvent = Tables<"behavior_definition_events">;
+export type BehaviorConfigurationEvent =
+  Tables<"behavior_configuration_events">;
 export type BehaviorSchedule = Tables<"behavior_schedules">;
 export type BehaviorScheduleSlot = Tables<"behavior_schedule_slots">;
 export type Occurrence = Tables<"occurrences">;

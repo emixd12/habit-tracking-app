@@ -14,6 +14,8 @@ const MIGRATION_SQL = [
   "20260625204148_add_occurrence_sync_state.sql",
   "20260626140000_add_behavior_schedules.sql",
   "20260709201516_add_behavior_definition_events.sql",
+  "20260815015023_add_behavior_configuration_events.sql",
+  "20260815023424_link_occurrences_to_behavior_configuration_events.sql",
   "20260801051601_add_launch_export_rate_limit.sql",
   "20260802000000_add_occurrence_time_sessions.sql",
 ]
@@ -25,6 +27,7 @@ const USER_OWNED_TABLES = [
   "categories",
   "behaviors",
   "behavior_definition_events",
+  "behavior_configuration_events",
   "behavior_schedules",
   "behavior_schedule_slots",
   "occurrences",
@@ -42,11 +45,15 @@ const USER_OWNED_TABLES = [
 
 const NORMALIZED_MIGRATION_SQL = MIGRATION_SQL.replace(/\s+/g, " ");
 
-const AUTHENTICATED_TABLE_GRANTS = new Map<(typeof USER_OWNED_TABLES)[number], string>([
+const HISTORICAL_AUTHENTICATED_TABLE_GRANTS = new Map<
+  (typeof USER_OWNED_TABLES)[number],
+  string
+>([
   ["profiles", "select, insert, update, delete"],
   ["categories", "select, insert, update, delete"],
   ["behaviors", "select, insert, update, delete"],
-  ["behavior_definition_events", "select, insert"],
+  ["behavior_definition_events", "select"],
+  ["behavior_configuration_events", "select"],
   ["behavior_schedules", "select, insert, update, delete"],
   ["behavior_schedule_slots", "select, insert, update, delete"],
   ["occurrences", "select, insert, update, delete"],
@@ -82,9 +89,10 @@ describe("RLS policy registry", () => {
     }
   });
 
-  it("keeps every user-owned public table explicitly granted to authenticated clients", () => {
+  it("records an explicit historical authenticated grant for every user-owned public table", () => {
     for (const table of USER_OWNED_TABLES) {
-      const expectedPrivileges = AUTHENTICATED_TABLE_GRANTS.get(table);
+      const expectedPrivileges =
+        HISTORICAL_AUTHENTICATED_TABLE_GRANTS.get(table);
 
       expect(expectedPrivileges).toBeDefined();
       expect(NORMALIZED_MIGRATION_SQL).toMatch(

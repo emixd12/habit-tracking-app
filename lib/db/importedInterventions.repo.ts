@@ -1,4 +1,5 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import { readAllPostgrestRows } from "@/lib/db/paginated-read";
 import type {
   ImportedIntervention,
   NewImportedIntervention,
@@ -48,18 +49,17 @@ export async function listImportedInterventions(
   supabase: AppSupabaseClient,
   userId: string,
 ): Promise<ImportedIntervention[]> {
-  const { data, error } = await supabase
-    .from("imported_interventions")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
-
-  if (error) {
-    throw error;
-  }
-
-  return data ?? [];
+  return readAllPostgrestRows<ImportedIntervention>({
+    label: "Imported interventions",
+    getRowKey: (intervention) => intervention.id,
+    createQuery: () =>
+      supabase
+        .from("imported_interventions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true }),
+  });
 }
 
 export async function listImportedInterventionsByIds(

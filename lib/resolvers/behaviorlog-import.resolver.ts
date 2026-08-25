@@ -348,7 +348,7 @@ export function resolveBehaviorLogImportPreview(
   validateCrossReferences({ plan, errors, warnings });
   validateNoteImportPolicy({ plan, warnings });
   validateSupportedSchedules({ plan, warnings });
-  markConflicts({ plan, existing: input.existing, conflicts });
+  markConflicts({ plan, existing: input.existing, conflicts, warnings });
   warnAboutSnapshotHistory({ plan, warnings });
 
   return {
@@ -990,6 +990,15 @@ function toSchedulePlan(
       cadence,
       "schedule_preset",
     ),
+    cadenceConfigurationEventId: readExtensionString(
+      cadence,
+      "behavior_configuration_event_id",
+    ),
+    cadenceImportRole: readCadenceScheduleImportRole(cadence),
+    cadenceHistoricalRecurrence:
+      readExtensionString(cadence, "historical_recurrence") === "unknown"
+        ? "unknown"
+        : null,
     activeFromLocalDate,
     activeUntilLocalDate: readOptionalLocalDate(
       row,
@@ -1030,6 +1039,7 @@ function toOccurrencePlan(
   return {
     action: "create",
     skipReasons: [],
+    importWithDetachedScheduleSnapshot: false,
     externalId: id,
     behaviorExternalId: behaviorId,
     scheduleExternalId: scheduleId,
@@ -1567,6 +1577,33 @@ function validateSupportedSchedules(input: {
       continue;
     }
 
+    if (schedule.cadenceHistoricalRecurrence === "unknown") {
+      input.warnings.push({
+        severity: "warning",
+        code: "cadence_unknown_historical_schedule_export_only",
+        message: `Schedule ${schedule.externalId} is a one-occurrence historical placeholder. Cadence keeps it readable but does not import it as a current schedule.`,
+        file: JSONL_FILES.schedules,
+      });
+      skip(schedule, "cadence_historical_schedule_export_only");
+      markHistoricalOccurrenceSnapshots(input, schedule);
+      continue;
+    }
+
+    if (
+      schedule.cadenceConfigurationEventId &&
+      schedule.cadenceImportRole !== "current_configuration"
+    ) {
+      input.warnings.push({
+        severity: "warning",
+        code: "cadence_historical_schedule_period_export_only",
+        message: `Schedule ${schedule.externalId} is a historical configuration period. Cadence keeps it readable but imports only the current schedule snapshot.`,
+        file: JSONL_FILES.schedules,
+      });
+      skip(schedule, "cadence_historical_schedule_export_only");
+      markHistoricalOccurrenceSnapshots(input, schedule);
+      continue;
+    }
+
     if (schedule.recurrenceProfile !== "behaviorlog.calendar_simple.v1") {
       input.warnings.push({
         severity: "warning",
@@ -1601,10 +1638,33 @@ function validateSupportedSchedules(input: {
   }
 }
 
+function markHistoricalOccurrenceSnapshots(
+  input: {
+    plan: BehaviorLogImportPlan;
+    warnings: BehaviorLogImportIssue[];
+  },
+  schedule: BehaviorLogImportSchedulePlan,
+): void {
+  for (const occurrence of input.plan.occurrences) {
+    if (occurrence.scheduleExternalId !== schedule.externalId) {
+      continue;
+    }
+
+    occurrence.importWithDetachedScheduleSnapshot = true;
+    input.warnings.push({
+      severity: "warning",
+      code: "cadence_historical_occurrence_detached_schedule",
+      message: `Occurrence ${occurrence.externalId} references historical schedule ${schedule.externalId}. Cadence imports the occurrence snapshot without attaching the historical schedule to the current Behavior graph.`,
+      file: JSONL_FILES.occurrences,
+    });
+  }
+}
+
 function markConflicts(input: {
   plan: BehaviorLogImportPlan;
   existing: BehaviorLogExistingRecords | undefined;
   conflicts: BehaviorLogImportConflict[];
+  warnings: BehaviorLogImportIssue[];
 }): void {
   markDuplicateIds(input.plan.behaviors, "behavior", input.conflicts);
   markDuplicateIds(input.plan.schedules, "schedule", input.conflicts);
@@ -1696,7 +1756,12 @@ function markConflicts(input: {
       skip(occurrence, "parent_behavior_skipped");
     }
 
-    if (scheduleById.get(occurrence.scheduleExternalId)?.action === "skip") {
+    const parentSchedule = scheduleById.get(occurrence.scheduleExternalId);
+
+    if (
+      parentSchedule?.action === "skip" &&
+      !occurrence.importWithDetachedScheduleSnapshot
+    ) {
       skip(occurrence, "parent_schedule_skipped");
     }
 
@@ -2101,7 +2166,7 @@ function createMergePreviewContext(
       importedNotes.map((note) => [note.externalId, note]),
     ),
     importedSchedulesByBehaviorId: groupBy(
-      input.plan.schedules,
+      input.plan.schedules.filter((schedule) => schedule.action === "create"),
       (schedule) => schedule.behaviorExternalId,
     ),
   };
@@ -2254,6 +2319,21 @@ function resolveScheduleMergeAction(input: {
   conflicts: BehaviorLogImportMergeConflict[];
   behaviorActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
 }): BehaviorLogImportMergeRecordAction {
+  if (input.schedule.action === "skip") {
+    return mergeAction({
+      recordType: "schedule",
+      externalId: input.schedule.externalId,
+      action: "skip_existing",
+      localId: null,
+      reasons: input.schedule.skipReasons.map(
+        (reason) => `Schedule import skipped: ${reason}.`,
+      ),
+      relatedExternalIds: {
+        behavior: input.schedule.behaviorExternalId,
+      },
+    });
+  }
+
   const parent = input.behaviorActionsByExternalId.get(
     input.schedule.behaviorExternalId,
   );
@@ -2377,16 +2457,35 @@ function resolveOccurrenceMergeAction(input: {
   behaviorActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
   scheduleActionsByExternalId: Map<string, BehaviorLogImportMergeRecordAction>;
 }): BehaviorLogImportMergeRecordAction {
+  if (input.occurrence.action === "skip") {
+    return mergeAction({
+      recordType: "occurrence",
+      externalId: input.occurrence.externalId,
+      action: "skip_existing",
+      localId: null,
+      reasons: input.occurrence.skipReasons.map(
+        (reason) => `Occurrence import skipped: ${reason}.`,
+      ),
+      relatedExternalIds: {
+        behavior: input.occurrence.behaviorExternalId,
+        schedule: input.occurrence.scheduleExternalId,
+      },
+    });
+  }
+
   const behaviorAction = input.behaviorActionsByExternalId.get(
     input.occurrence.behaviorExternalId,
   );
   const scheduleAction = input.scheduleActionsByExternalId.get(
     input.occurrence.scheduleExternalId,
   );
+  const detachedScheduleSnapshot =
+    input.occurrence.importWithDetachedScheduleSnapshot;
 
   if (
     behaviorAction?.action === "conflict_requires_decision" ||
-    scheduleAction?.action === "conflict_requires_decision"
+    (!detachedScheduleSnapshot &&
+      scheduleAction?.action === "conflict_requires_decision")
   ) {
     return conflictMergeAction({
       conflicts: input.conflicts,
@@ -2406,14 +2505,19 @@ function resolveOccurrenceMergeAction(input: {
     });
   }
 
-  if (!behaviorAction?.localId || !scheduleAction?.localId) {
+  if (
+    !behaviorAction?.localId ||
+    (!detachedScheduleSnapshot && !scheduleAction?.localId)
+  ) {
     return mergeAction({
       recordType: "occurrence",
       externalId: input.occurrence.externalId,
       action: "create_new",
       localId: null,
       reasons: [
-        `Occurrence ${input.occurrence.externalId} belongs to behavior or schedule records that will be created.`,
+        detachedScheduleSnapshot
+          ? `Occurrence ${input.occurrence.externalId} will preserve its historical schedule snapshot without attaching that schedule to the current Behavior graph.`
+          : `Occurrence ${input.occurrence.externalId} belongs to behavior or schedule records that will be created.`,
       ],
       relatedExternalIds: {
         behavior: input.occurrence.behaviorExternalId,
@@ -2423,7 +2527,9 @@ function resolveOccurrenceMergeAction(input: {
   }
 
   const localBehaviorId = behaviorAction.localId;
-  const localScheduleId = scheduleAction.localId;
+  const localScheduleId = detachedScheduleSnapshot
+    ? null
+    : (scheduleAction?.localId ?? null);
   const mappedLocalId = input.context.mappingsByKey.get(
     mergeMappingKey("occurrence", input.occurrence.externalId),
   );
@@ -3134,7 +3240,7 @@ function compareScheduleCandidate(
 function compareOccurrenceCandidate(
   occurrence: BehaviorLogImportOccurrencePlan,
   existing: NonNullable<BehaviorLogExistingRecords["occurrences"]>[number],
-  parent: { behaviorId: string; scheduleId: string },
+  parent: { behaviorId: string; scheduleId: string | null },
 ): { codes: string[]; reasons: string[] } {
   if (occurrencesMatch(occurrence, existing, parent)) {
     return { codes: [], reasons: [] };
@@ -3361,7 +3467,7 @@ function schedulesMatch(
 function occurrencesMatch(
   imported: BehaviorLogImportOccurrencePlan,
   existing: NonNullable<BehaviorLogExistingRecords["occurrences"]>[number],
-  parent: { behaviorId: string; scheduleId: string },
+  parent: { behaviorId: string; scheduleId: string | null },
 ): boolean {
   return (
     existing.behaviorId === parent.behaviorId &&
@@ -4322,6 +4428,17 @@ function readExtensionBoolean(
   const value = extension?.[field];
 
   return typeof value === "boolean" ? value : null;
+}
+
+function readCadenceScheduleImportRole(
+  extension: JsonRecord | null,
+): BehaviorLogImportSchedulePlan["cadenceImportRole"] {
+  const value = extension?.import_role;
+
+  return value === "current_configuration" ||
+    value === "historical_reference_only"
+    ? value
+    : null;
 }
 
 function readExtensionInteger(

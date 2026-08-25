@@ -13,6 +13,7 @@ import { previewBehaviorLogImportFromZip } from "../lib/services/behaviorlog-imp
 import { createStoredZip } from "../lib/services/zip";
 import type {
   BehaviorLogFile,
+  ExportBehaviorConfigurationEventInput,
   ExportBehaviorInput,
   ExportBehaviorDefinitionEventInput,
   ExportCategoryInput,
@@ -37,6 +38,8 @@ const REQUIRED_CORE_FILES = [
 ] as const;
 const CADENCE_DEFINITION_HISTORY_PATH =
   "raw/cadence/behavior_definition_events.jsonl";
+const CADENCE_CONFIGURATION_HISTORY_PATH =
+  "raw/cadence/behavior_configuration_events.jsonl";
 
 const CORE_STATUSES = new Set(["unresolved", "completed", "not_completed"]);
 const OCCURRENCE_STATES = new Set(["active", "cancelled"]);
@@ -165,6 +168,7 @@ function conformanceOccurrences(): ExportOccurrenceInput[] {
       id: "occurrence-1",
       behaviorId: "behavior-brush",
       behaviorScheduleSlotId: "slot-brush",
+      behaviorConfigurationEventId: "configuration-brush-initial",
       scheduledFor: "2026-06-08T13:00:00Z",
       scheduledTimeLabel: "9:00 AM",
       scheduleKind: "exact",
@@ -183,6 +187,7 @@ function conformanceOccurrences(): ExportOccurrenceInput[] {
       id: "occurrence-2",
       behaviorId: "behavior-brush",
       behaviorScheduleSlotId: "slot-brush",
+      behaviorConfigurationEventId: "configuration-brush-initial",
       scheduledFor: "2026-06-08T15:00:00Z",
       scheduledTimeLabel: "9:00 AM",
       scheduleKind: "exact",
@@ -215,6 +220,55 @@ function conformanceBehaviorDefinitionEvents(): ExportBehaviorDefinitionEventInp
       reason: "baseline_backfill",
       createdAt: "2026-05-01T12:00:00Z",
       updatedAt: "2026-05-01T12:00:00Z",
+    },
+  ];
+}
+
+function conformanceBehaviorConfigurationEvents(): ExportBehaviorConfigurationEventInput[] {
+  return [
+    {
+      id: "configuration-brush-initial",
+      behaviorId: "behavior-brush",
+      eventKind: "baseline",
+      previousConfiguration: null,
+      nextConfiguration: {
+        categoryId: "category-grooming",
+        scheduleGraph: [
+          {
+            recurrenceRule: { frequency: "daily", interval: 1 },
+            sortOrder: 0,
+            timeEntries: [
+              {
+                kind: "exact",
+                preset: null,
+                startTime: "09:00",
+                endTime: null,
+                sortOrder: 0,
+              },
+            ],
+          },
+        ],
+        browserReminderEnabled: true,
+        emailReminderEnabled: false,
+        reminderOffsetMinutes: 0,
+        active: true,
+        timezone: DEFAULT_TIMEZONE,
+      },
+      changedFields: [
+        "category_id",
+        "schedule_graph",
+        "browser_reminder_enabled",
+        "email_reminder_enabled",
+        "reminder_offset_minutes",
+        "active",
+        "timezone",
+      ],
+      recordedAt: "2026-05-01T12:00:00Z",
+      effectiveAt: "2026-05-01T12:00:00Z",
+      effectiveLocalDate: "2026-05-01",
+      timezone: DEFAULT_TIMEZONE,
+      source: "system",
+      reasonCode: "history_capture_started",
     },
   ];
 }
@@ -287,6 +341,7 @@ function resolveConformanceBundle(input: {
     categories,
     behaviors: [conformanceBehavior()],
     behaviorDefinitionEvents: conformanceBehaviorDefinitionEvents(),
+    behaviorConfigurationEvents: conformanceBehaviorConfigurationEvents(),
     occurrences: conformanceOccurrences(),
     statusEvents: conformanceStatusEvents(),
     reminderDeliveries: conformanceReminderDeliveries(),
@@ -394,6 +449,9 @@ describe("BehaviorLog core conformance", () => {
       );
       expect(bundle.files.map((file) => file.path)).toContain(
         CADENCE_DEFINITION_HISTORY_PATH,
+      );
+      expect(bundle.files.map((file) => file.path)).toContain(
+        CADENCE_CONFIGURATION_HISTORY_PATH,
       );
     } finally {
       await rm(root, { recursive: true, force: true });

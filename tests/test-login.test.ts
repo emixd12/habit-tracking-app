@@ -4,8 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET } from "../app/auth/test-login/route";
 import {
   createTestLoginCredentials,
+  resetTestLoginCreationQuotaForTests,
   resolveTestLoginGate,
   shouldShowTestLogin,
+  TEST_LOGIN_CREATION_QUOTA,
 } from "../lib/auth/test-login";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -20,6 +22,7 @@ vi.mock("@/lib/supabase/server", () => ({
 
 describe("test login guards", () => {
   afterEach(() => {
+    resetTestLoginCreationQuotaForTests();
     vi.unstubAllEnvs();
   });
 
@@ -79,6 +82,7 @@ describe("test login guards", () => {
 
 describe("test login route", () => {
   afterEach(() => {
+    resetTestLoginCreationQuotaForTests();
     vi.clearAllMocks();
     vi.unstubAllEnvs();
   });
@@ -160,6 +164,73 @@ describe("test login route", () => {
     expect(deleteUser).toHaveBeenCalledWith("temporary-user-id");
     expect(response.headers.get("location")).toBe(
       "http://localhost:3000/login?next=%2Fbehaviors&error=test_login_failed",
+    );
+  });
+
+  it("releases quota after create failure so a later creation can succeed", async () => {
+    stubEnabledLocalSupabaseEnv();
+    const createUser = vi
+      .fn()
+      .mockResolvedValueOnce({ data: { user: null }, error: new Error("create failed") })
+      .mockResolvedValue({
+        data: { user: { id: "temporary-user-id" } },
+        error: null,
+      });
+    const deleteUser = vi.fn();
+    const signInWithPassword = vi.fn().mockResolvedValue({ error: null });
+
+    vi.mocked(createServiceRoleClient).mockReturnValue({
+      auth: { admin: { createUser, deleteUser } },
+    } as unknown as ReturnType<typeof createServiceRoleClient>);
+    vi.mocked(createClient).mockResolvedValue({
+      auth: { signInWithPassword },
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+    const failed = await GET(
+      new NextRequest("http://localhost:3000/auth/test-login"),
+    );
+    const succeeded = await GET(
+      new NextRequest("http://localhost:3000/auth/test-login"),
+    );
+
+    expect(failed.headers.get("location")).toContain("error=test_login_failed");
+    expect(succeeded.headers.get("location")).toBe(
+      "http://localhost:3000/timeline",
+    );
+  });
+
+  it("stops creating users after the per-process quota is consumed", async () => {
+    stubEnabledLocalSupabaseEnv();
+    const createUser = vi.fn().mockResolvedValue({
+      data: { user: { id: "temporary-user-id" } },
+      error: null,
+    });
+    const deleteUser = vi.fn();
+    const signInWithPassword = vi.fn().mockResolvedValue({ error: null });
+
+    vi.mocked(createServiceRoleClient).mockReturnValue({
+      auth: { admin: { createUser, deleteUser } },
+    } as unknown as ReturnType<typeof createServiceRoleClient>);
+    vi.mocked(createClient).mockResolvedValue({
+      auth: { signInWithPassword },
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+
+    for (let index = 0; index < TEST_LOGIN_CREATION_QUOTA; index += 1) {
+      const response = await GET(
+        new NextRequest("http://localhost:3000/auth/test-login"),
+      );
+      expect(response.headers.get("location")).toBe(
+        "http://localhost:3000/timeline",
+      );
+    }
+
+    const limited = await GET(
+      new NextRequest("http://localhost:3000/auth/test-login?next=%2Fsettings"),
+    );
+
+    expect(createUser).toHaveBeenCalledTimes(TEST_LOGIN_CREATION_QUOTA);
+    expect(limited.headers.get("location")).toBe(
+      "http://localhost:3000/login?next=%2Fsettings&error=test_login_quota_reached",
     );
   });
 });

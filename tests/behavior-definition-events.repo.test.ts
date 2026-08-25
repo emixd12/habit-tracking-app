@@ -36,6 +36,7 @@ describe("behavior definition events repository", () => {
           archived_at: null,
         },
         definitionEventPlan: initialPlan(),
+        configurationEventPlan: initialConfigurationPlan(),
         schedules: [weeklyFridaySchedule()],
       }),
     ).resolves.toEqual(behavior);
@@ -85,6 +86,7 @@ describe("behavior definition events repository", () => {
         previousTitle: "Brush teeth",
         nextTitle: "Brush and floss",
       },
+      configurationEventPlan: null,
       schedules: expectedScheduleGraph,
     });
 
@@ -299,35 +301,152 @@ describe("behavior definition events repository", () => {
 
   it("lists only the authenticated user's history in stable event order", async () => {
     const events = [storedEvent()];
-    const builder: {
-      select: ReturnType<typeof vi.fn>;
-      eq: ReturnType<typeof vi.fn>;
-      order: ReturnType<typeof vi.fn>;
-    } = {
-      select: vi.fn(),
-      eq: vi.fn(),
-      order: vi.fn(),
-    };
-    builder.select.mockReturnValue(builder);
-    builder.eq.mockReturnValue(builder);
-    builder.order
-      .mockReturnValueOnce(builder)
-      .mockResolvedValueOnce({ data: events, error: null });
-    const from = vi.fn().mockReturnValue(builder);
+    const highWaterBuilder = chainBuilder();
+    const pageBuilder = chainBuilder();
+    highWaterBuilder.limit.mockResolvedValue({
+      data: [{ id: events[0].id, recorded_at: events[0].recorded_at }],
+      error: null,
+    });
+    pageBuilder.limit.mockResolvedValue({ data: events, error: null });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(highWaterBuilder)
+      .mockReturnValueOnce(pageBuilder);
     const supabase = { from } as unknown as AppSupabaseClient;
 
     const result = await listBehaviorDefinitionEvents(supabase, USER_ID);
 
     expect(result).toEqual(events);
-    expect(builder.eq).toHaveBeenCalledWith("user_id", USER_ID);
-    expect(builder.order).toHaveBeenNthCalledWith(1, "recorded_at", {
+    expect(pageBuilder.eq).toHaveBeenCalledWith("user_id", USER_ID);
+    expect(pageBuilder.order).toHaveBeenNthCalledWith(1, "recorded_at", {
       ascending: true,
     });
-    expect(builder.order).toHaveBeenNthCalledWith(2, "id", {
+    expect(pageBuilder.order).toHaveBeenNthCalledWith(2, "id", {
       ascending: true,
     });
   });
+
+  it("reads every definition event past the Data API cap with one fixed high-water", async () => {
+    const events = Array.from({ length: 1_001 }, (_, index) =>
+      storedEvent({ id: definitionEventId(index) }),
+    );
+    const highWaterBuilder = pagedQueryBuilder({
+      data: [
+        {
+          id: events.at(-1)?.id,
+          recorded_at: events.at(-1)?.recorded_at,
+        },
+      ],
+      error: null,
+    });
+    const firstPageBuilder = pagedQueryBuilder({
+      data: events.slice(0, 1_000),
+      error: null,
+    });
+    const finalPageBuilder = pagedQueryBuilder({
+      data: events.slice(1_000),
+      error: null,
+    });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(highWaterBuilder)
+      .mockReturnValueOnce(firstPageBuilder)
+      .mockReturnValueOnce(finalPageBuilder);
+
+    const result = await listBehaviorDefinitionEvents(
+      { from } as unknown as AppSupabaseClient,
+      USER_ID,
+    );
+
+    expect(result).toHaveLength(1_001);
+    expect(result.at(-1)?.id).toBe(definitionEventId(1_000));
+    expect(finalPageBuilder.or).toHaveBeenCalledWith(
+      `recorded_at.gt.2026-07-09T18:30:00Z,and(recorded_at.eq.2026-07-09T18:30:00Z,id.gt.${definitionEventId(999)})`,
+    );
+  });
+
+  it("fails loudly when a later page is empty before the captured high-water", async () => {
+    const firstPage = Array.from({ length: 1_000 }, (_, index) =>
+      storedEvent({ id: definitionEventId(index) }),
+    );
+    const highWaterBuilder = pagedQueryBuilder({
+      data: [
+        {
+          id: definitionEventId(1_000),
+          recorded_at: "2026-07-09T18:30:00Z",
+        },
+      ],
+      error: null,
+    });
+    const firstPageBuilder = pagedQueryBuilder({
+      data: firstPage,
+      error: null,
+    });
+    const emptyPageBuilder = pagedQueryBuilder({ data: [], error: null });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(highWaterBuilder)
+      .mockReturnValueOnce(firstPageBuilder)
+      .mockReturnValueOnce(emptyPageBuilder);
+
+    await expect(
+      listBehaviorDefinitionEvents(
+        { from } as unknown as AppSupabaseClient,
+        USER_ID,
+      ),
+    ).rejects.toThrow(
+      "Behavior definition history pagination ended before the captured high-water event.",
+    );
+  });
 });
+
+function chainBuilder() {
+  const builder = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    lte: vi.fn(),
+    order: vi.fn(),
+    limit: vi.fn(),
+    or: vi.fn(),
+  };
+
+  for (const method of ["select", "eq", "lte", "order", "or"] as const) {
+    builder[method].mockReturnValue(builder);
+  }
+
+  return builder;
+}
+
+function pagedQueryBuilder(response: {
+  data: unknown[];
+  error: Error | null;
+}) {
+  const builder = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    lte: vi.fn(),
+    order: vi.fn(),
+    limit: vi.fn(),
+    or: vi.fn(),
+    then: (
+      onFulfilled: (value: typeof response) => unknown,
+      onRejected?: (reason: unknown) => unknown,
+    ) => Promise.resolve(response).then(onFulfilled, onRejected),
+  };
+
+  for (const method of [
+    "select",
+    "eq",
+    "lte",
+    "order",
+    "limit",
+    "or",
+  ] as const) {
+    builder[method].mockReturnValue(builder);
+  }
+
+  return builder;
+}
 
 function weeklyFridaySchedule() {
   return {
@@ -351,7 +470,9 @@ function weeklyFridaySchedule() {
   };
 }
 
-function storedEvent(): BehaviorDefinitionEvent {
+function storedEvent(
+  overrides: Partial<BehaviorDefinitionEvent> = {},
+): BehaviorDefinitionEvent {
   return {
     id: "33333333-3333-4333-8333-333333333333",
     user_id: USER_ID,
@@ -366,7 +487,12 @@ function storedEvent(): BehaviorDefinitionEvent {
     reason: null,
     created_at: "2026-07-09T18:30:00Z",
     updated_at: "2026-07-09T18:30:00Z",
+    ...overrides,
   };
+}
+
+function definitionEventId(index: number): string {
+  return `event-${String(index).padStart(4, "0")}`;
 }
 
 function initialPlan() {
@@ -379,6 +505,63 @@ function initialPlan() {
     recordedAt: "2026-07-09T18:30:00Z",
     source: "manual" as const,
     reason: null,
+  };
+}
+
+function initialConfigurationPlan() {
+  return {
+    eventKind: "baseline" as const,
+    previousConfiguration: null,
+    nextConfiguration: {
+      categoryId: null,
+      scheduleGraph: [
+        {
+          recurrenceRule: {
+            frequency: "weekly",
+            interval: 1,
+            daysOfWeek: ["friday"],
+          },
+          sortOrder: 0,
+          timeEntries: [
+            {
+              kind: "exact",
+              preset: null,
+              startTime: "11:30:00",
+              endTime: null,
+              sortOrder: 0,
+            },
+          ],
+        },
+      ],
+      browserReminderEnabled: true,
+      emailReminderEnabled: false,
+      reminderOffsetMinutes: 0,
+      active: true,
+      timezone: "America/New_York",
+    },
+    changedFields: [
+      "category_id",
+      "schedule_graph",
+      "browser_reminder_enabled",
+      "email_reminder_enabled",
+      "reminder_offset_minutes",
+      "active",
+      "timezone",
+    ] as (
+      | "category_id"
+      | "schedule_graph"
+      | "browser_reminder_enabled"
+      | "email_reminder_enabled"
+      | "reminder_offset_minutes"
+      | "active"
+      | "timezone"
+    )[],
+    recordedAt: "2026-07-09T18:30:00Z",
+    effectiveAt: "2026-07-09T18:30:00Z",
+    effectiveLocalDate: "2026-07-09",
+    timezone: "America/New_York",
+    source: "manual" as const,
+    reasonCode: "behavior_created",
   };
 }
 

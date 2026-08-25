@@ -1,6 +1,11 @@
 import * as webPush from "web-push";
 import type { PushSubscription as WebPushSubscription } from "web-push";
 
+import {
+  PROVIDER_CALL_TIMEOUT_MS,
+  runProviderCallWithTimeout,
+} from "@/lib/services/provider-call-timeout";
+
 export type BrowserPushReminderPayload = {
   title: string;
   body: string;
@@ -19,6 +24,7 @@ export type BrowserPushReminderSendInput = {
 
 export type BrowserPushReminderSender = (
   input: BrowserPushReminderSendInput,
+  options?: { signal?: AbortSignal },
 ) => Promise<void>;
 
 export class BrowserPushConfigurationError extends Error {
@@ -38,15 +44,23 @@ export class BrowserPushSubscriptionExpiredError extends Error {
 export function createWebPushReminderSender(): BrowserPushReminderSender {
   const vapidDetails = readVapidDetails();
 
-  return async function sendBrowserPushReminder(input) {
+  return async function sendBrowserPushReminder(input, options) {
     try {
-      await webPush.sendNotification(
-        toWebPushSubscription(input),
-        JSON.stringify(input.payload),
+      await runProviderCallWithTimeout(
+        () =>
+          webPush.sendNotification(
+            toWebPushSubscription(input),
+            JSON.stringify(input.payload),
+            {
+              TTL: 60 * 60 * 24,
+              urgency: "normal",
+              timeout: PROVIDER_CALL_TIMEOUT_MS,
+              vapidDetails,
+            },
+          ),
         {
-          TTL: 60 * 60 * 24,
-          urgency: "normal",
-          vapidDetails,
+          timeoutMs: PROVIDER_CALL_TIMEOUT_MS,
+          signal: options?.signal,
         },
       );
     } catch (error) {

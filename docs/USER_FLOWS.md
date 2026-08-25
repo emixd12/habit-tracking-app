@@ -113,10 +113,14 @@ The root route should eventually redirect authenticated users to `/timeline`.
 
 Do not use `/dashboard` for the primary app screen.
 
-Signing out submits POST `/auth/sign-out`, ends the current Supabase session,
-and redirects to `/login?signedout=1`. Login announces the focused polite status
-**Signed out.** Only the exact `signedout=1` query value enables that notice;
-GET does not sign out.
+Signing out reads the current browser PushManager endpoint when one exists,
+submits it with POST `/auth/sign-out`, deactivates only that active endpoint for
+the departing account, then ends the current Supabase session and redirects to
+`/login?signedout=1`. This works for browser subscriptions created before the
+sign-out endpoint field existed. A browser with no subscription still signs
+out. A deactivation or sign-out failure leaves the session intact. Login
+announces the focused polite status **Signed out.** Only the exact `signedout=1`
+query value enables that notice; GET does not sign out.
 
 Authenticated internal QA can open `/login?preview=1` in any environment to
 inspect the login screen without ending the current session. The app shell
@@ -476,17 +480,24 @@ Export options:
 - Include occurrence notes, off by default
 - Include time tracking, off by default
 
-Full JSON and BehaviorLog include behavior title and description revision
-history by default for the behaviors in the export. This is not a separate
-option in Ticket 057. Before download, the screen explains that the history
-contains full prior and next text and may contain sensitive context. The
-Markdown summary reports the number of revision events and gives agent guidance
-without repeating the historical text. JSONL and CSV remain current snapshots.
+Full JSON and BehaviorLog include behavior definition and configuration history
+by default for the Behaviors in the export. Configuration history covers
+schedule graphs, reminder settings, category, timezone, and active state. This
+is not a separate option. Before download, the screen explains that historical
+definition and configuration can contain sensitive context. The Markdown
+summary reports history counts and gives segmentation guidance without causal
+or clinical claims. JSONL and CSV remain unchanged current snapshots.
 
-Behavior definition events follow behavior inclusion rather than the selected
-occurrence date range. A 7, 30, or 90 day export therefore includes the complete
-definition trail for each included behavior, ordered by `recorded_at`, then
-`id`. Excluding archived behaviors also excludes their definition events.
+Behavior definition and configuration events follow Behavior inclusion rather
+than the selected Occurrence date range. A 7, 30, or 90 day export therefore
+includes both complete trails for each included Behavior, ordered by
+`recorded_at`, then `id`. Excluding archived Behaviors also excludes their
+history events.
+
+BehaviorLog uses captured configuration lineage to segment schedule periods.
+Import and restore do not replay revision events. They create only the retained
+current graph and preserve historical Occurrences with non-generating detached
+schedule snapshots, including status and note relationships.
 
 Time tracking is omitted unless **Include time tracking** is selected. Its exact
 timestamps can reveal activity patterns. With the option selected, each format
@@ -585,7 +596,12 @@ Settings includes:
 
 Timezone detection uses the browser/OS timezone reported by `Intl.DateTimeFormat().resolvedOptions().timeZone`; it does not request location permission.
 
-The user can apply the detected timezone or manually enter an IANA timezone. Saving updates the profile timezone, updates active behavior schedules to that timezone, and resyncs future unresolved occurrences. Past and resolved occurrence history stays unchanged.
+The user can apply the detected timezone or manually enter an IANA timezone.
+Saving commits the profile timezone, every active Behavior timezone,
+configuration history, and one stale sync marker in one owner-scoped database
+transaction. A failed write leaves those values unchanged. Future unresolved
+Occurrence sync runs afterward and remains rerunnable; past and resolved
+Occurrence history stays unchanged.
 The Settings UI should state this impact before submit so the user understands
 that future unresolved rows change while past and resolved history does not.
 
@@ -601,10 +617,16 @@ first-run setup likewise remains available instead of hanging or disappearing.
 
 Account deletion requires the signed-in user to acknowledge the export reminder
 and type the account email, or `DELETE` if no email is available. The server
-signs out the account globally and deletes the Supabase auth user through a
-server-only service-role client, relying on the database ownership cascades to
-remove hosted Cadence records. On success, Login focuses and announces the
-`Account deleted.` confirmation reached by the deletion redirect.
+constructs and verifies the server-only service-role client first. It then
+hard-deletes the Supabase auth user, relies on database ownership cascades to
+remove hosted Cadence records, and attempts global sign-out for current-browser
+cleanup. Validation, service-role verification, and deletion failures leave the
+account and session intact so Settings can show a recoverable error. A
+post-deletion sign-out error does not turn completed deletion into a recoverable
+failure. On success, Login focuses and announces the `Account deleted.`
+confirmation reached by the deletion redirect. Auth deletion removes server
+session rows and refresh capability. An already-issued access-token JWT can
+remain valid until its expiry.
 The client should mirror those gates by disabling the destructive submit until
 the acknowledgement and exact typed confirmation are present; the server still
 enforces the same requirements.

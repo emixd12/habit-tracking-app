@@ -32,13 +32,14 @@ Export options should include:
   activity patterns. Only `include_time_tracking=1` opts in; disabled exports
   do not read timing rows or expose timing fields, files, counts, or filenames.
 
-Behavior definition history has a separate privacy posture from occurrence
-notes. Full JSON and BehaviorLog exports include full prior and next title and
-description values by default for every included behavior. The Markdown
-summary includes the revision count and agent guidance, but does not repeat the
-revision text. Historical definitions can contain sensitive context, so the
-Export & Import screen discloses this default before download. Ticket 057 does
-not add a separate history option.
+Behavior definition and configuration history has a separate privacy posture
+from occurrence notes. Full JSON and BehaviorLog exports include full prior and
+next title, description, schedule, reminder, category, timezone, and active
+values by default for every included behavior. The Markdown summary includes
+history counts and agent guidance, but does not repeat the historical values.
+Historical definitions and configuration can contain sensitive context, so the
+Export & Import screen discloses this default before download. There is no
+separate history option.
 
 ## JSONL
 
@@ -56,9 +57,10 @@ unless the include-notes option is selected.
 JSONL occurrence rows are current snapshots. `status_marked_at` is the latest
 mark on that snapshot, not the complete decision trail.
 
-App-native JSONL remains a compact snapshot format and does not include
-behavior definition events. Use Full JSON or BehaviorLog when definition
-history is needed.
+App-native JSONL remains a compact snapshot format. It does not include
+behavior definition events, behavior configuration events, or Occurrence
+configuration-event lineage. Use Full JSON or BehaviorLog when history is
+needed. Configuration-history export does not change JSONL fields or ordering.
 
 When time tracking is selected, JSONL appends ordered `time_session` records
 with session, occurrence, and behavior IDs, start/stop instants, and nullable
@@ -99,8 +101,10 @@ include-notes option is selected.
 CSV rows are current snapshots. `status_marked_at` must not be interpreted as
 complete status history.
 
-CSV does not include behavior definition events. Use Full JSON or BehaviorLog
-when definition history is needed.
+CSV does not include behavior definition events, behavior configuration events,
+or Occurrence configuration-event lineage. Use Full JSON or BehaviorLog when
+history is needed. Configuration-history export does not change CSV columns or
+ordering.
 
 When time tracking is selected, CSV adds `tracked_duration_seconds`,
 `time_session_count`, and `time_sessions`. The latter is one escaped JSON array
@@ -131,7 +135,8 @@ Shape:
   "behaviors": [],
   "occurrences": [],
   "status_events": [],
-  "behavior_definition_events": []
+  "behavior_definition_events": [],
+  "behavior_configuration_events": []
 }
 ```
 
@@ -148,6 +153,12 @@ The additive `status_events` root preserves compatibility for existing readers
 of the unchanged category, behavior, and occurrence snapshot arrays. BehaviorLog
 remains the interoperable and restore-oriented export format; its
 `data/status_events.jsonl` remains the authoritative standard record.
+
+Each Full JSON Occurrence includes nullable
+`behavior_configuration_event_id`. A non-null value identifies the captured
+configuration event that governed generation. Legacy null values mean Cadence
+did not capture verified lineage. Readers must not substitute the Behavior's
+current recurrence as historical fact.
 
 `behavior_definition_events` is the append-only history for behavior title and
 description definitions. Each record includes:
@@ -171,6 +182,30 @@ so equal-timestamp exports remain deterministic. Baseline events use the
 behavior creation time and preserve the initial definition with null previous
 values.
 
+`behavior_configuration_events` is the complete append-only configuration
+history for included Behaviors. Each record contains `event_kind`, full
+`previous_configuration` and `next_configuration` snapshots, canonical
+`changed_fields`, `recorded_at`, `effective_at`, `effective_local_date`,
+timezone, source, and reason code. Configuration snapshots contain category,
+schedule graph, browser/email reminder settings, reminder offset, active state,
+and timezone.
+
+Configuration history follows archived-Behavior filtering but ignores the
+selected Occurrence date range. Events sort by `recorded_at`, then `id`.
+Repository reads use fixed-high-water keyset pagination so the Data API row cap
+cannot silently truncate history. The exporter fails loudly if either
+definition or configuration history for one export exceeds 100,000 events.
+Exactly 100,000 events is supported. A captured 100,001st event is rejected.
+
+All unbounded export-side list reads complete before resolver formatting.
+PostgREST range reads continue in deterministic 1,000-row pages until a short
+page, while definition, configuration, and historical time-session reads keep
+their fixed-high-water keyset contracts. Every materialized list fails loudly
+above 100,000 rows or on duplicate/non-advancing pagination. Export never
+substitutes the Data API cap for a record count. Manifest, summary, Full JSON,
+and raw-file counts derive from the completed in-memory arrays, so their counts
+remain the true artifact counts.
+
 Behavior records include `schedules[]` as the current app-native schedule
 structure. `recurrence_rule`, `scheduled_time`, and `schedule_slots` remain in
 app-native exports for backward compatibility with old records and older tools.
@@ -193,6 +228,7 @@ The BehaviorLog bundle is the interoperability export. It is downloaded as
   contain notes
 - `data/interventions.jsonl` when exported occurrences have reminder deliveries
 - `raw/cadence/behavior_definition_events.jsonl`
+- `raw/cadence/behavior_configuration_events.jsonl`
 - `raw/cadence/occurrence_time_sessions.jsonl` only when time tracking is
   selected
 - `csv/behaviors.csv`
@@ -217,6 +253,35 @@ Core alignment rules:
 - `manifest.json.extensions.app.cadence.behavior_definition_history` declares
   the file path, record count, `recorded_at`/`id` ordering, and current
   `export_only` import/restore support.
+- `raw/cadence/behavior_configuration_events.jsonl` is an optional, hashed
+  Cadence-specific file. It contains the same deterministically sorted records
+  as Full JSON `behavior_configuration_events`, with `required: false` and no
+  core schema reference. The manifest extension declares its path, count,
+  `recorded_at`/`id` ordering, and `export_only` history-replay support.
+- Core schedules are segmented only when `schedule_graph`, `timezone`, or
+  `active` changes. Reminder-only and category-only revisions remain in the
+  Cadence history file and do not split schedule periods.
+- Historical schedule IDs use the configuration event that started the period
+  plus semantic schedule and time-entry positions. Core period bounds remain
+  local dates. Exact effective instants, configuration-event IDs, semantic
+  positions, lineage confidence, and import role live only under
+  `extensions.app.cadence`.
+- Occurrences with captured lineage reference the schedule period that governed
+  their configuration event. Every exported `schedule_id` resolves to a core
+  schedule record. Legacy null-lineage Occurrences reference a one-local-date,
+  daily placeholder copied from the Occurrence schedule snapshot. Its Cadence
+  extension declares medium lineage confidence, `historical_recurrence:
+  unknown`, and `import_role: historical_reference_only`. It never claims the
+  current recurrence as verified history.
+- If an included archived Behavior's captured current configuration is an
+  active-false baseline or boundary, BehaviorLog emits one current-configuration
+  carrier per schedule/time entry. The carrier uses the same local date for
+  `active_from_local_date` and `active_until_local_date`. Its Cadence extension
+  sets exact `effective_from_utc` and `effective_until_utc` to the boundary
+  instant, `configuration_active: false`, and `period_semantics:
+  inactive_current_configuration_carrier`. This transports the retained current
+  graph for safe inactive round-trip. It does not claim activity before history
+  capture or reopen the schedule period.
 - `raw/cadence/occurrence_time_sessions.jsonl` is an optional, hashed
   Cadence-specific JSONL file. Its records include `session_id`, occurrence and
   behavior IDs, start/stop instants, and nullable derived duration. The manifest
@@ -280,6 +345,17 @@ locally generated events do not reconstruct the bundle's earlier revision
 trail. Full JSON has no import or restore path. Users should retain the original
 Full JSON or BehaviorLog export when they need to preserve the complete
 revision trail outside Cadence.
+
+`raw/cadence/behavior_configuration_events.jsonl` follows the same hash
+validation and export-only replay contract. Import and restore use only core
+schedules marked `extensions.app.cadence.import_role:
+current_configuration` to build the current Behavior schedule graph. They skip
+`historical_reference_only` schedules as generating schedules. Dependent
+historical Occurrences still import or restore with their schedule kind,
+preset, and start/end snapshot intact and a null
+`behavior_schedule_slot_id`; their status history and notes remain attached.
+This prevents a daily-to-weekly export from becoming simultaneous daily and
+weekly schedules while preserving Occurrence portability.
 
 `raw/cadence/occurrence_time_sessions.jsonl` follows the same hash validation.
 Cadence validates its record shape and export-only declaration, but import,
@@ -507,9 +583,10 @@ User-facing import UI rules:
   a new preview before another apply attempt.
 - Raw uploaded bundle contents are not stored in the import-run ledger.
 - The Export & Import screen must disclose that the exported behavior
-  definition revision trail is not replayed in this release. Import and restore
-  use current behavior snapshots and record only the local import baseline or
-  transition needed to keep subsequent Cadence history complete.
+  definition and configuration revision trails are not replayed in this
+  release. Import and restore use current Behavior snapshots, retain historical
+  Occurrences as detached snapshots, and record only the local import baseline
+  or transition needed to keep subsequent Cadence history complete.
 - Do not add full restore, destructive overwrite, generalized notes browsing, or
   intervention-to-reminder writes in this UI milestone.
 
@@ -579,7 +656,9 @@ Restore apply rules:
   - acknowledgement that the user created or downloaded a fresh backup,
   - high/restricted note acknowledgement when relevant,
   - no validation errors,
-  - no skipped or unsupported restore actions.
+  - no unsupported restore actions. Intentional
+    `historical_reference_only` schedule skips are safe because their
+    Occurrences restore as detached schedule snapshots.
 - Apply refuses stale previews when local data has changed since preview.
 - Apply uses a transaction-scoped database function for destructive product
   writes instead of a long multi-call Supabase client workflow.
@@ -654,6 +733,13 @@ occurrences should be interpreted. The summary does not repeat the full
 historical text and definition events do not alter occurrence status or
 adherence calculations.
 
+Every Markdown summary also reports the behavior configuration-event count and
+directs agents to Full JSON `behavior_configuration_events` or BehaviorLog
+`raw/cadence/behavior_configuration_events.jsonl`. Agents may segment analysis
+at captured schedule, timezone, or active boundaries. They must not infer
+causality, medication effects, or clinical guidance from a configuration
+change.
+
 Example:
 
 ```text
@@ -717,6 +803,10 @@ The resolver should not query Supabase directly.
 - Full JSON includes categories, behaviors, and occurrences.
 - Full JSON includes sorted all-time behavior definition events for included
   behaviors with full previous/next text and canonical `changed_fields`.
+- Full JSON includes sorted, range-independent behavior configuration events
+  for included Behaviors, manifest/count/hash determinism where applicable,
+  and nullable Occurrence configuration lineage. JSONL and CSV remain
+  byte-for-byte unchanged for the same snapshot input.
 - AI summary calculates adherence correctly.
 - AI summary omits notes by default and includes a compact notes section when
   include-notes is selected.
@@ -727,6 +817,20 @@ The resolver should not query Supabase directly.
 - BehaviorLog includes the optional hashed Cadence definition-history file as
   `required: false` with no core schema reference, while remaining valid in the
   upstream conformance harness and Cadence dry-run importer.
+- BehaviorLog includes the optional hashed Cadence configuration-history file,
+  splits daily-to-weekly and active/timezone schedule periods at exact captured
+  revisions, does not split category/reminder-only revisions, orders same-day
+  revisions deterministically, and keeps every Occurrence schedule reference
+  valid.
+- Known-lineage Occurrences map to their governing schedule period. Legacy
+  null-lineage Occurrences use medium-confidence one-day placeholders with
+  unknown historical recurrence.
+- Create-only import, approved merge, and destructive restore keep only the
+  current configuration schedule graph while preserving historical Occurrences,
+  statuses, and notes with null schedule-slot linkage.
+- Repository coverage proves keyset reads beyond 1,000 equal-timestamp rows,
+  exactly 100,000 rows, a loud 100,001st-row failure, and the local PostgREST
+  timestamp/ID cursor grammar.
 - Markdown reports definition-history presence and gives rename/description
   guidance without reproducing sensitive revision text.
 - BehaviorLog export synthesizes status events for resolved legacy occurrences

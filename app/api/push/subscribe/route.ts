@@ -14,6 +14,7 @@ import {
   parsePushSubscriptionRequest,
   parsePushSubscriptionStatusRequest,
   PushSubscriptionAuthError,
+  PushSubscriptionRateLimitError,
   PushSubscriptionValidationError,
   registerPushSubscription,
 } from "@/lib/services/push-subscription.service";
@@ -139,7 +140,6 @@ export async function POST(request: NextRequest) {
     );
     const subscription = await registerPushSubscription(input);
 
-    pushSubscribeAuthFailureLimiter.reset(rateLimitKey);
     reportMonitoringEvent({
       name: "push_subscribe_saved",
       context: routeContext(request),
@@ -150,6 +150,15 @@ export async function POST(request: NextRequest) {
       subscriptionId: subscription.id,
     });
   } catch (error) {
+    if (error instanceof PushSubscriptionRateLimitError) {
+      reportMonitoringEvent({
+        name: "push_subscribe_registration_rate_limited",
+        severity: "warning",
+        context: routeContext(request),
+      });
+      return registrationRateLimitError(error.result);
+    }
+
     if (error instanceof PushSubscriptionValidationError) {
       reportMonitoringEvent({
         name: "push_subscribe_validation_failed",
@@ -200,6 +209,21 @@ function rateLimitError(result: RateLimitResult) {
     {
       ok: false,
       error: "Too many failed attempts. Try again later.",
+    },
+    {
+      status: 429,
+      headers: {
+        "Retry-After": String(result.retryAfterSeconds),
+      },
+    },
+  );
+}
+
+function registrationRateLimitError(result: { retryAfterSeconds: number }) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: "Too many browser notification registration attempts. Try again later.",
     },
     {
       status: 429,

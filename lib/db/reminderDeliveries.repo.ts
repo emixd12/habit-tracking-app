@@ -143,6 +143,7 @@ export async function listDuePendingEmailReminderDeliveries(
   supabase: AppSupabaseClient,
   options: {
     dueAt: string;
+    reclaimBefore: string;
     limit: number;
   },
 ): Promise<ReminderDelivery[]> {
@@ -151,7 +152,7 @@ export async function listDuePendingEmailReminderDeliveries(
     .select("*")
     .eq("channel", "email")
     .eq("status", "pending")
-    .is("processing_started_at", null)
+    .or(reclaimableClaimPredicate(options.reclaimBefore))
     .lte("scheduled_send_at", options.dueAt)
     .order("scheduled_send_at", { ascending: true })
     .limit(options.limit);
@@ -167,6 +168,7 @@ export async function listDuePendingBrowserPushReminderDeliveries(
   supabase: AppSupabaseClient,
   options: {
     dueAt: string;
+    reclaimBefore: string;
     limit: number;
   },
 ): Promise<ReminderDelivery[]> {
@@ -175,7 +177,7 @@ export async function listDuePendingBrowserPushReminderDeliveries(
     .select("*")
     .eq("channel", "browser_push")
     .eq("status", "pending")
-    .is("processing_started_at", null)
+    .or(reclaimableClaimPredicate(options.reclaimBefore))
     .lte("scheduled_send_at", options.dueAt)
     .order("scheduled_send_at", { ascending: true })
     .limit(options.limit);
@@ -228,6 +230,7 @@ export async function claimPendingEmailReminderDelivery(
     id: string;
     userId: string;
     dueAt: string;
+    reclaimBefore: string;
     processingStartedAt: string;
   },
 ): Promise<ReminderDelivery | null> {
@@ -240,7 +243,7 @@ export async function claimPendingEmailReminderDelivery(
     .eq("user_id", input.userId)
     .eq("channel", "email")
     .eq("status", "pending")
-    .is("processing_started_at", null)
+    .or(reclaimableClaimPredicate(input.reclaimBefore))
     .lte("scheduled_send_at", input.dueAt)
     .select("*")
     .maybeSingle();
@@ -258,6 +261,7 @@ export async function claimPendingBrowserPushReminderDelivery(
     id: string;
     userId: string;
     dueAt: string;
+    reclaimBefore: string;
     processingStartedAt: string;
   },
 ): Promise<ReminderDelivery | null> {
@@ -270,7 +274,7 @@ export async function claimPendingBrowserPushReminderDelivery(
     .eq("user_id", input.userId)
     .eq("channel", "browser_push")
     .eq("status", "pending")
-    .is("processing_started_at", null)
+    .or(reclaimableClaimPredicate(input.reclaimBefore))
     .lte("scheduled_send_at", input.dueAt)
     .select("*")
     .maybeSingle();
@@ -302,12 +306,25 @@ export async function markReminderDeliverySent(
     userId: string;
     sentAt: string;
   },
-): Promise<void> {
-  await updateReminderDeliveryById(supabase, input, {
-    status: "sent",
-    sent_at: input.sentAt,
-    error: null,
-  });
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("reminder_deliveries")
+    .update({
+      status: "sent",
+      sent_at: input.sentAt,
+      error: null,
+    })
+    .eq("id", input.id)
+    .eq("user_id", input.userId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data !== null;
 }
 
 export async function markReminderDeliveryFailed(
@@ -348,6 +365,10 @@ function truncateError(value: string): string {
   return value.length > MAX_ERROR_LENGTH
     ? `${value.slice(0, MAX_ERROR_LENGTH - 3)}...`
     : value;
+}
+
+function reclaimableClaimPredicate(reclaimBefore: string): string {
+  return `processing_started_at.is.null,processing_started_at.lt.${reclaimBefore}`;
 }
 
 export async function cancelPendingReminderDeliveriesForOccurrences(

@@ -5,10 +5,8 @@ import { spawnSync } from "node:child_process";
 const root = process.cwd();
 const failures = [];
 const notes = [];
-let assertions = 0;
 
 function assert(condition, message) {
-  assertions += 1;
   if (!condition) failures.push(message);
 }
 
@@ -28,6 +26,73 @@ function read(relativePath) {
 
 function readJson(relativePath) {
   return JSON.parse(read(relativePath));
+}
+
+function walk(relativePath) {
+  const start = filePath(relativePath);
+  if (!fs.existsSync(start)) return [];
+  const results = [];
+  const stack = [start];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const stat = fs.statSync(current);
+
+    if (stat.isDirectory()) {
+      for (const child of fs.readdirSync(current)) {
+        if (["node_modules", ".git", ".next", ".supabase", "dist", "coverage"].includes(child)) {
+          continue;
+        }
+        stack.push(path.join(current, child));
+      }
+      continue;
+    }
+
+    results.push(path.relative(root, current));
+  }
+
+  return results.sort();
+}
+
+function sourceEnvironmentVariables() {
+  const sourceFiles = ["app", "components", "lib", "apps", "scripts"]
+    .flatMap(walk)
+    .filter((file) => /\.(?:astro|[cm]?[jt]sx?)$/.test(file));
+  const names = new Set();
+  const pattern =
+    /(?:process\.env\.|import\.meta\.env\.|\b(?:env|mergedEnv)\.)([A-Z][A-Z0-9_]*)/g;
+
+  for (const sourceFile of sourceFiles) {
+    for (const match of read(sourceFile).matchAll(pattern)) {
+      names.add(match[1]);
+    }
+  }
+
+  return [...names].sort();
+}
+
+function documentedEnvironmentVariables(content) {
+  return new Set(
+    [...content.matchAll(/^([A-Z][A-Z0-9_]*)=/gm)].map((match) => match[1]),
+  );
+}
+
+function migrationRequiresExplicitTransaction(content) {
+  return (
+    /\bset\s+not\s+null\b/i.test(content) ||
+    /^\s*--[^\n]*\bbackfill\b/im.test(content) ||
+    /^\s*update\s+(?:public\.)?[a-z_][a-z0-9_]*\b/im.test(content) ||
+    /\binsert\s+into\b[\s\S]*?\bselect\b/i.test(content)
+  );
+}
+
+function hasExplicitTransaction(content) {
+  const withoutComments = content
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*--.*$/gm, "")
+    .trim();
+
+  return /^begin\s*;/i.test(withoutComments) && /commit\s*;\s*$/i.test(withoutComments);
 }
 
 const requiredFiles = [
@@ -184,28 +249,24 @@ for (const snippet of [
 }
 
 const envExample = read(".env.example");
-for (const name of [
-  "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-  "SUPABASE_SERVICE_ROLE_KEY",
-  "SUPABASE_PROJECT_REF",
-  "SEQUENZY_API_KEY",
-  "SEQUENZY_REMINDER_TEMPLATE_SLUG",
-  "SEQUENZY_API_URL",
-  "SEQUENZY_APP_URL",
-  "AGENTMAIL_API_KEY",
-  "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
-  "VAPID_PRIVATE_KEY",
-  "REMINDER_PROCESS_SECRET",
-  "CADENCE_DISABLE_EMAIL_SENDS",
-  "CADENCE_DISABLE_BROWSER_PUSH_SENDS",
-  "CADENCE_DISABLE_REMINDER_BATCHES",
-  "CADENCE_DISABLE_OCCURRENCE_SYNC_BATCHES",
-  "CADENCE_DISABLE_EXPORT_DOWNLOADS",
-  "CADENCE_LAUNCH_BREAKER_REASON_CODE",
-]) {
-  assert(envExample.includes(`${name}=`), `.env.example is missing ${name}.`);
+const documentedEnvNames = documentedEnvironmentVariables(envExample);
+for (const name of sourceEnvironmentVariables()) {
+  assert(
+    documentedEnvNames.has(name),
+    `.env.example is missing ${name}, which repository source reads.`,
+  );
 }
+
+const missingEnvFixture = read("tests/fixtures/governance/env-source-missing.txt");
+const missingEnvFixtureNames = new Set(
+  [...missingEnvFixture.matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)].map(
+    (match) => match[1],
+  ),
+);
+assert(
+  [...missingEnvFixtureNames].some((name) => !documentedEnvironmentVariables("").has(name)),
+  "The missing-environment negative fixture must remain absent from its fixture env contract.",
+);
 
 for (const [index, line] of envExample.split(/\r?\n/).entries()) {
   const trimmed = line.trim();
@@ -222,6 +283,30 @@ for (const [index, line] of envExample.split(/\r?\n/).entries()) {
     failures.push(`.env.example line ${index + 1} appears to contain a real secret for ${key}; use an empty placeholder.`);
   }
 }
+
+const migrationTransactionBoundary =
+  "20260825075255_fix_settings_timezone_conflict_errors.sql";
+for (const migration of fs
+  .readdirSync(filePath("supabase/migrations"))
+  .filter((file) => file.endsWith(".sql") && file > migrationTransactionBoundary)
+  .sort()) {
+  const sql = read(`supabase/migrations/${migration}`);
+  if (migrationRequiresExplicitTransaction(sql)) {
+    assert(
+      hasExplicitTransaction(sql),
+      `${migration} contains a backfill or SET NOT NULL and must start with BEGIN; and end with COMMIT;.`,
+    );
+  }
+}
+
+const unsafeMigrationFixture = read(
+  "tests/fixtures/governance/migration-backfill-without-transaction.sql.txt",
+);
+assert(
+  migrationRequiresExplicitTransaction(unsafeMigrationFixture) &&
+    !hasExplicitTransaction(unsafeMigrationFixture),
+  "The migration transaction negative fixture must remain an unsafe backfill without BEGIN/COMMIT.",
+);
 
 const requiredAppRoutes = [
   "app/(app)/timeline/page.tsx",
@@ -305,5 +390,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`agents:check passed (${assertions} invariants).`);
+console.log("agents:check passed (repository contracts checked).");
 for (const note of notes) console.log(`note: ${note}`);

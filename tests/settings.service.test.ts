@@ -1,13 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  updateActiveBehaviorTimezones,
+  listUserBehaviors,
   type BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
-import {
-  getProfileSettings,
-  updateProfileTimezone,
-} from "@/lib/db/profiles.repo";
+import { getProfileSettings } from "@/lib/db/profiles.repo";
+import { updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents } from "@/lib/db/behaviorConfigurationEvents.repo";
 import {
   getSettingsPageData,
   normalizeTimezoneInput,
@@ -15,7 +13,6 @@ import {
   updateCurrentUserTimezoneFromFormData,
 } from "@/lib/services/settings.service";
 import { syncUserOccurrencesAndReminders } from "@/lib/services/occurrence.service";
-import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import { createClient } from "@/lib/supabase/server";
 import { clearUserReadCache } from "@/lib/cache/user-read-cache";
 
@@ -25,19 +22,18 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/db/profiles.repo", () => ({
   getProfileSettings: vi.fn(),
-  updateProfileTimezone: vi.fn(),
 }));
 
 vi.mock("@/lib/db/behaviors.repo", () => ({
-  updateActiveBehaviorTimezones: vi.fn(),
+  listUserBehaviors: vi.fn(),
+}));
+
+vi.mock("@/lib/db/behaviorConfigurationEvents.repo", () => ({
+  updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents: vi.fn(),
 }));
 
 vi.mock("@/lib/services/occurrence.service", () => ({
   syncUserOccurrencesAndReminders: vi.fn(),
-}));
-
-vi.mock("@/lib/services/occurrence-sync-state.service", () => ({
-  markOccurrenceSyncStale: vi.fn(),
 }));
 
 const getClaims = vi.fn();
@@ -61,11 +57,14 @@ const ACTIVE_BEHAVIOR = {
   reminder_offset_minutes: 0,
   active: true,
   archived_at: null,
+  current_configuration_event_id: "configuration-event-1",
   created_at: "2026-06-01T00:00:00Z",
   updated_at: "2026-06-01T00:00:00Z",
   category: null,
   schedule_slots: [],
 } satisfies BehaviorWithCategory;
+
+let storedBehaviorTimezone = "America/New_York";
 
 function timezoneForm(timezone: string): FormData {
   const formData = new FormData();
@@ -150,14 +149,22 @@ describe("updateCurrentUserTimezoneFromFormData", () => {
       email: "user@example.com",
       timezone: "America/New_York",
     });
-    vi.mocked(updateProfileTimezone).mockResolvedValue({
-      email: "user@example.com",
-      timezone: "America/Los_Angeles",
-    });
-    vi.mocked(updateActiveBehaviorTimezones).mockResolvedValue([
-      ACTIVE_BEHAVIOR,
+    storedBehaviorTimezone = "America/New_York";
+    vi.mocked(listUserBehaviors).mockImplementation(async () => [
+      { ...ACTIVE_BEHAVIOR, timezone: storedBehaviorTimezone },
     ]);
-    vi.mocked(markOccurrenceSyncStale).mockResolvedValue({} as never);
+    vi.mocked(
+      updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents,
+    ).mockImplementation(async (_supabase, input) => {
+      storedBehaviorTimezone = input.timezone;
+      return {
+        activeBehaviorCount: 1,
+        changedBehaviorCount: input.behaviorChanges.filter(
+          (change) => change.configurationEventPlan !== null,
+        ).length,
+        profileChanged: true,
+      };
+    });
     vi.mocked(syncUserOccurrencesAndReminders).mockResolvedValue([]);
   });
 
@@ -172,30 +179,40 @@ describe("updateCurrentUserTimezoneFromFormData", () => {
       changed: true,
     });
 
-    expect(updateProfileTimezone).toHaveBeenCalledWith(
+    expect(
+      updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents,
+    ).toHaveBeenCalledWith(
       SUPABASE,
-      "user-1",
-      "America/Los_Angeles",
+      expect.objectContaining({
+        timezone: "America/Los_Angeles",
+        expectedProfileTimezone: "America/New_York",
+        behaviorChanges: [
+          expect.objectContaining({
+            behaviorId: "behavior-1",
+            expectedUpdatedAt: "2026-06-01T00:00:00Z",
+            configurationEventPlan: expect.objectContaining({
+              changedFields: ["timezone"],
+              source: "manual",
+            }),
+          }),
+        ],
+      }),
     );
-    expect(updateActiveBehaviorTimezones).toHaveBeenCalledWith(
-      SUPABASE,
-      "user-1",
-      "America/Los_Angeles",
-    );
-    expect(markOccurrenceSyncStale).toHaveBeenCalledWith(SUPABASE, {
-      userId: "user-1",
-      reason: "timezone_changed",
-      timezone: "America/Los_Angeles",
-    });
     expect(syncUserOccurrencesAndReminders).toHaveBeenCalledWith(
       SUPABASE,
       "user-1",
       {
-        behaviors: [ACTIVE_BEHAVIOR],
+        behaviors: [
+          { ...ACTIVE_BEHAVIOR, timezone: "America/Los_Angeles" },
+        ],
         now: expect.any(Object),
         timezone: "America/Los_Angeles",
       },
     );
+    expect(
+      updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents,
+    ).toHaveBeenCalledTimes(1);
+    expect(syncUserOccurrencesAndReminders).toHaveBeenCalledTimes(1);
   });
 
   it("repairs active behavior timezones and occurrence coverage when the profile timezone is already saved", async () => {
@@ -207,56 +224,33 @@ describe("updateCurrentUserTimezoneFromFormData", () => {
       changed: false,
     });
 
-    expect(updateProfileTimezone).not.toHaveBeenCalled();
-    expect(updateActiveBehaviorTimezones).toHaveBeenCalledWith(
+    expect(
+      updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents,
+    ).toHaveBeenCalledWith(
       SUPABASE,
-      "user-1",
-      "America/New_York",
+      expect.objectContaining({
+        behaviorChanges: [
+          expect.objectContaining({ configurationEventPlan: null }),
+        ],
+      }),
     );
-    expect(markOccurrenceSyncStale).toHaveBeenCalledWith(SUPABASE, {
-      userId: "user-1",
-      reason: "timezone_changed",
-      timezone: "America/New_York",
-    });
-    expect(syncUserOccurrencesAndReminders).toHaveBeenCalledWith(SUPABASE, "user-1", {
-      behaviors: [ACTIVE_BEHAVIOR],
-      now: expect.any(Object),
-      timezone: "America/New_York",
-    });
   });
 
-  it("repairs a partial save when the profile write succeeded before behavior propagation failed", async () => {
-    vi.mocked(updateActiveBehaviorTimezones)
-      .mockRejectedValueOnce(new Error("behavior timezone write failed"))
-      .mockResolvedValueOnce([ACTIVE_BEHAVIOR]);
+  it("does not run follow-on synchronization when the atomic owner write fails", async () => {
+    vi.mocked(
+      updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents,
+    ).mockRejectedValueOnce(new Error("atomic timezone write failed"));
 
     await expect(
       updateCurrentUserTimezoneFromFormData(
         timezoneForm("America/Los_Angeles"),
       ),
-    ).rejects.toThrow("behavior timezone write failed");
+    ).rejects.toThrow("atomic timezone write failed");
 
-    vi.mocked(getProfileSettings).mockResolvedValue({
-      email: "user@example.com",
-      timezone: "America/Los_Angeles",
-    });
-
-    await expect(
-      updateCurrentUserTimezoneFromFormData(
-        timezoneForm("America/Los_Angeles"),
-      ),
-    ).resolves.toEqual({
-      timezone: "America/Los_Angeles",
-      activeBehaviorCount: 1,
-      changed: false,
-    });
-
-    expect(updateProfileTimezone).toHaveBeenCalledTimes(1);
-    expect(updateActiveBehaviorTimezones).toHaveBeenCalledTimes(2);
-    expect(syncUserOccurrencesAndReminders).toHaveBeenCalledOnce();
+    expect(syncUserOccurrencesAndReminders).not.toHaveBeenCalled();
   });
 
-  it("repairs a partial save when occurrence and reminder synchronization failed", async () => {
+  it("retries occurrence synchronization after the atomic timezone commit remains stale", async () => {
     vi.mocked(syncUserOccurrencesAndReminders)
       .mockRejectedValueOnce(new Error("occurrence sync failed"))
       .mockResolvedValueOnce([]);
@@ -282,8 +276,9 @@ describe("updateCurrentUserTimezoneFromFormData", () => {
       changed: false,
     });
 
-    expect(updateProfileTimezone).toHaveBeenCalledTimes(1);
-    expect(updateActiveBehaviorTimezones).toHaveBeenCalledTimes(2);
+    expect(
+      updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents,
+    ).toHaveBeenCalledTimes(2);
     expect(syncUserOccurrencesAndReminders).toHaveBeenCalledTimes(2);
   });
 });

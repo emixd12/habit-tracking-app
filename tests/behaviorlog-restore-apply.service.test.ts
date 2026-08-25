@@ -16,6 +16,7 @@ import { createStoredZip } from "../lib/services/zip";
 import { BEHAVIORLOG_BUNDLE_SIZE_ERROR } from "../lib/types/behaviorlog-bundle-ui";
 import type {
   ExportBehaviorInput,
+  ExportBehaviorConfigurationEventInput,
   ExportCategoryInput,
   ExportOccurrenceInput,
   ExportStatusEventInput,
@@ -33,6 +34,7 @@ type RestorePayloadForTest = {
     external_id: string;
     title: string;
     description: string | null;
+    active: boolean;
     created_at: string | null;
   }>;
   behavior_definition_events: Array<{
@@ -49,16 +51,29 @@ type RestorePayloadForTest = {
     expected_previous_title: string | null;
     expected_previous_description: string | null;
   }>;
+  behavior_configuration_events: Array<{
+    behavior_id: string;
+    event_kind: "baseline" | "revision";
+    previous_configuration: Record<string, unknown> | null;
+    next_configuration: Record<string, unknown>;
+    changed_fields: string[];
+    recorded_at: string;
+    effective_at: string;
+    source: "import";
+    reason_code: "behaviorlog_restore";
+  }>;
   schedules: Array<{
     id: string;
     external_id: string;
     behavior_id: string;
+    configuration_sort_order: number;
+    recurrence_rule: Record<string, unknown>;
   }>;
   occurrences: Array<{
     id: string;
     external_id: string;
     behavior_id: string;
-    behavior_schedule_slot_id: string;
+    behavior_schedule_slot_id: string | null;
     scheduled_for: string;
     local_date: string;
     status: "unresolved" | "completed" | "not_completed";
@@ -473,9 +488,10 @@ describe("BehaviorLog restore apply service", () => {
       ]),
     );
 
-    await applyBehaviorLogRestoreUploadFromFormData(
-      restoreApplyFormData(zip, preview),
-    );
+    const applyFormData = restoreApplyFormData(zip, preview);
+
+    applyFormData.set("confirm_sensitive_notes", "yes");
+    await applyBehaviorLogRestoreUploadFromFormData(applyFormData);
 
     const restorePayload = rpc.mock.calls[0]?.[1]?.restore_payload;
     expect(JSON.stringify(restorePayload)).not.toContain("time_session");
@@ -655,7 +671,9 @@ describe("BehaviorLog restore apply service", () => {
         functionName: string,
         args: { restore_payload: RestorePayloadForTest },
       ) => {
-        expect(functionName).toBe("apply_behaviorlog_restore");
+        expect(functionName).toBe(
+          "apply_behaviorlog_restore_with_configuration_events",
+        );
         expect(args.restore_payload.schedules.length).toBe(1);
 
         return {
@@ -707,11 +725,16 @@ describe("BehaviorLog restore apply service", () => {
       ...applyRun,
       id: "66666666-6666-4666-8666-666666666666",
     };
+    const archiveApplyRun = {
+      ...applyRun,
+      id: "77777777-7777-4777-8777-777777777777",
+    };
     mocks.createBehaviorLogImportRun
       .mockResolvedValueOnce(applyRun)
       .mockResolvedValueOnce(secondApplyRun)
       .mockResolvedValueOnce(normalizedNoOpApplyRun)
-      .mockResolvedValueOnce(replaceApplyRun);
+      .mockResolvedValueOnce(replaceApplyRun)
+      .mockResolvedValueOnce(archiveApplyRun);
 
     const result = await applyBehaviorLogRestoreUploadFromFormData(
       restoreApplyFormData(zip, preview),
@@ -742,6 +765,41 @@ describe("BehaviorLog restore apply service", () => {
         expected_previous_description: null,
       },
     ]);
+    expect(restorePayload.behavior_configuration_events).toEqual([
+      expect.objectContaining({
+        behavior_id: restorePayload.behaviors[0]?.id,
+        event_kind: "baseline",
+        previous_configuration: null,
+        changed_fields: [
+          "category_id",
+          "schedule_graph",
+          "browser_reminder_enabled",
+          "email_reminder_enabled",
+          "reminder_offset_minutes",
+          "active",
+          "timezone",
+        ],
+        recorded_at: expect.any(String),
+        effective_at: expect.any(String),
+        source: "import",
+        reason_code: "behaviorlog_restore",
+        next_configuration: expect.objectContaining({
+          active: true,
+          schedule_graph: [
+            expect.objectContaining({
+              recurrence_rule: { frequency: "daily", interval: 1 },
+              time_entries: [
+                expect.objectContaining({ start_time: "22:00:00" }),
+              ],
+            }),
+          ],
+        }),
+      }),
+    ]);
+    expect(restorePayload.schedules[0]).toMatchObject({
+      configuration_sort_order: 0,
+      recurrence_rule: { frequency: "daily", interval: 1 },
+    });
     expect(restorePayload.behaviors[0]?.created_at).toBe(
       "2026-05-01T12:00:00Z",
     );
@@ -863,6 +921,7 @@ describe("BehaviorLog restore apply service", () => {
         expected_previous_description: "Old description",
       }),
     ]);
+    expect(replacePayload.behavior_configuration_events).toEqual([]);
     expect(replacePayload.preconditions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -873,6 +932,296 @@ describe("BehaviorLog restore apply service", () => {
         }),
       ]),
     );
+
+    const archiveExisting = existingRecordsFromRestorePayload(restorePayload);
+    const archivedBehaviorId = "88888888-8888-4888-8888-888888888888";
+    const archivedScheduleId = "99999999-9999-4999-8999-999999999999";
+    const archivedSchedule = {
+      id: archivedScheduleId,
+      rowUpdatedAtUtc: "2026-06-08T21:12:00Z",
+      behaviorId: archivedBehaviorId,
+      recurrenceProfile: "behaviorlog.calendar_simple.v1",
+      recurrence: { type: "daily", interval: 1 },
+      timezone: DEFAULT_TIMEZONE,
+      localTime: "08:00",
+      windowStartLocal: null,
+      windowEndLocal: null,
+      cadenceScheduleKind: "exact" as const,
+      cadenceSchedulePreset: null,
+      activeFromLocalDate: "2026-05-01",
+      activeUntilLocalDate: null,
+      sourceOriginalId: archivedScheduleId,
+    };
+    archiveExisting.behaviors.push({
+      id: archivedBehaviorId,
+      rowUpdatedAtUtc: "2026-06-08T21:12:00Z",
+      title: "Archived context",
+      description: "Retained archived context",
+      category: "Other",
+      active: true,
+      archivedAt: null,
+      sourceOriginalId: archivedBehaviorId,
+      schedules: [archivedSchedule],
+      configurationSnapshot: {
+        categoryId: null,
+        scheduleGraph: [
+          {
+            recurrenceRule: { frequency: "daily", interval: 1 },
+            sortOrder: 0,
+            timeEntries: [
+              {
+                id: archivedScheduleId,
+                kind: "exact",
+                preset: null,
+                startTime: "08:00",
+                endTime: null,
+                sortOrder: 0,
+              },
+            ],
+          },
+        ],
+        browserReminderEnabled: true,
+        emailReminderEnabled: false,
+        reminderOffsetMinutes: 0,
+        active: true,
+        timezone: DEFAULT_TIMEZONE,
+      },
+    });
+    archiveExisting.schedules.push(archivedSchedule);
+    const archivePreview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: archiveExisting,
+    });
+
+    expect(
+      archivePreview.actions.behaviors.find(
+        (action) => action.localId === archivedBehaviorId,
+      )?.action,
+    ).toBe("archive");
+    mocks.listBehaviorLogExistingRecords.mockResolvedValueOnce(archiveExisting);
+    mocks.getBehaviorLogImportRunById.mockResolvedValueOnce(
+      restorePreviewRun(archivePreview),
+    );
+
+    await applyBehaviorLogRestoreUploadFromFormData(
+      restoreApplyFormData(zip, archivePreview),
+    );
+    const archivePayload = rpc.mock.calls[4]?.[1]?.restore_payload;
+    const archiveEvent = archivePayload.behavior_configuration_events.find(
+      (event) => event.behavior_id === archivedBehaviorId,
+    );
+
+    expect(archiveEvent).toMatchObject({
+      event_kind: "revision",
+      changed_fields: ["active"],
+      previous_configuration: expect.objectContaining({ active: true }),
+      next_configuration: expect.objectContaining({
+        active: false,
+        schedule_graph: [
+          expect.objectContaining({
+            time_entries: [expect.objectContaining({ start_time: "08:00:00" })],
+          }),
+        ],
+      }),
+    });
+  });
+
+  it("restores historical Occurrences detached while keeping only the current schedule", async () => {
+    const files = dailyToWeeklyBundleFiles();
+    const zip = createStoredZip(files);
+    const preview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: emptyExisting(),
+    });
+    const rpc = vi.fn(
+      async (
+        _functionName: string,
+        _args: { restore_payload: RestorePayloadForTest },
+      ) => {
+        void _functionName;
+        void _args;
+
+        return {
+          data: {
+            behaviors: 1,
+            schedules: 1,
+            occurrences: 2,
+            status_events: 2,
+          },
+          error: null,
+        };
+      },
+    );
+
+    expect(preview.errors).toEqual([]);
+    expect(
+      Object.values(preview.actions)
+        .flat()
+        .filter(
+          (action) =>
+            action.action === "skip" &&
+            action.metadata?.historicalReferenceOnly !== true,
+        ),
+    ).toEqual([]);
+    expect(preview.valid).toBe(true);
+    expect(preview.actions.schedules.map((action) => action.action)).toEqual([
+      "skip",
+      "create",
+    ]);
+    expect(preview.actions.occurrences.map((action) => action.action)).toEqual([
+      "create",
+      "create",
+    ]);
+    expect(preview.actions.inlineOccurrenceNotes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          externalId: "note_occurrence-daily",
+          action: "create",
+          relatedExternalIds: { occurrence: "occurrence-daily" },
+        }),
+      ]),
+    );
+    mocks.createClient.mockResolvedValue({
+      auth: {
+        getClaims: vi.fn(async () => ({
+          data: { claims: { sub: USER_ID } },
+          error: null,
+        })),
+      },
+      rpc,
+    });
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(
+      restorePreviewRun(preview, zip),
+    );
+    mocks.createBehaviorLogImportRun.mockResolvedValue({
+      ...restoreAppliedRun(preview),
+      status: "previewed",
+      completed_at: null,
+    });
+
+    const applyFormData = restoreApplyFormData(zip, preview);
+
+    applyFormData.set("confirm_sensitive_notes", "yes");
+    await applyBehaviorLogRestoreUploadFromFormData(applyFormData);
+
+    const payload = rpc.mock.calls[0]?.[1]?.restore_payload;
+    expect(payload.schedules).toHaveLength(1);
+    expect(payload.schedules[0]?.recurrence_rule).toEqual({
+      frequency: "weekly",
+      interval: 1,
+      daysOfWeek: ["monday"],
+    });
+    expect(payload.occurrences).toHaveLength(2);
+    expect(
+      payload.occurrences.find(
+        (occurrence) => occurrence.external_id === "occurrence-daily",
+      ),
+    ).toMatchObject({
+      behavior_schedule_slot_id: null,
+      schedule_kind: "exact",
+      schedule_start_time: "09:00",
+      status: "completed",
+      note: "Daily-period note.",
+    });
+    expect(
+      payload.occurrences.find(
+        (occurrence) => occurrence.external_id === "occurrence-weekly",
+      )?.behavior_schedule_slot_id,
+    ).toEqual(expect.any(String));
+    expect(payload.status_events).toHaveLength(2);
+    expect(payload.mappings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          record_type: "occurrence",
+          external_id: "occurrence-daily",
+        }),
+        expect.objectContaining({
+          record_type: "status_event",
+          external_id: "event-daily",
+        }),
+      ]),
+    );
+    expect(
+      payload.mappings.some(
+        (mapping) =>
+          mapping.record_type === "schedule" &&
+          mapping.external_id.includes("config-daily"),
+      ),
+    ).toBe(false);
+  });
+
+  it("restores an archived false-baseline Behavior with one inactive current graph", async () => {
+    const files = archivedBaselineBundleFiles();
+    const zip = createStoredZip(files);
+    const preview = previewBehaviorLogRestoreFromZip({
+      zip,
+      existing: emptyExisting(),
+    });
+    const rpc = vi.fn(
+      async (
+        _functionName: string,
+        _args: { restore_payload: RestorePayloadForTest },
+      ) => {
+        void _functionName;
+        void _args;
+
+        return {
+          data: {
+            behaviors: 1,
+            schedules: 1,
+            occurrences: 1,
+            status_events: 1,
+          },
+          error: null,
+        };
+      },
+    );
+
+    expect(preview.valid).toBe(true);
+    expect(preview.actions.behaviors).toEqual([
+      expect.objectContaining({ action: "create" }),
+    ]);
+    expect(preview.actions.schedules).toEqual([
+      expect.objectContaining({ action: "create" }),
+    ]);
+    mocks.createClient.mockResolvedValue({
+      auth: {
+        getClaims: vi.fn(async () => ({
+          data: { claims: { sub: USER_ID } },
+          error: null,
+        })),
+      },
+      rpc,
+    });
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(
+      restorePreviewRun(preview, zip),
+    );
+    mocks.createBehaviorLogImportRun.mockResolvedValue({
+      ...restoreAppliedRun(preview),
+      status: "previewed",
+      completed_at: null,
+    });
+    const applyFormData = restoreApplyFormData(zip, preview);
+
+    applyFormData.set("confirm_sensitive_notes", "yes");
+    await applyBehaviorLogRestoreUploadFromFormData(applyFormData);
+
+    const payload = rpc.mock.calls[0]?.[1]?.restore_payload;
+    expect(payload.behaviors).toEqual([
+      expect.objectContaining({ active: false }),
+    ]);
+    expect(payload.schedules).toEqual([
+      expect.objectContaining({
+        recurrence_rule: { frequency: "daily", interval: 1 },
+      }),
+    ]);
+    expect(payload.occurrences).toEqual([
+      expect.objectContaining({
+        status: "completed",
+        note: "Archived baseline note.",
+      }),
+    ]);
+    expect(payload.status_events).toHaveLength(1);
   });
 });
 
@@ -980,6 +1329,30 @@ function existingRecordsFromRestorePayload(payload: RestorePayloadForTest) {
         archivedAt: null,
         sourceOriginalId: behavior.id,
         schedules: [existingSchedule],
+        configurationSnapshot: {
+          categoryId: null,
+          scheduleGraph: [
+            {
+              recurrenceRule: { frequency: "daily", interval: 1 },
+              sortOrder: 0,
+              timeEntries: [
+                {
+                  id: schedule.id,
+                  kind: "exact" as const,
+                  preset: null,
+                  startTime: "22:00",
+                  endTime: null,
+                  sortOrder: 0,
+                },
+              ],
+            },
+          ],
+          browserReminderEnabled: true,
+          emailReminderEnabled: false,
+          reminderOffsetMinutes: 0,
+          active: true,
+          timezone: DEFAULT_TIMEZONE,
+        },
       },
     ],
     schedules: [existingSchedule],
@@ -1122,6 +1495,331 @@ function bundleFiles(
     timezone: DEFAULT_TIMEZONE,
     range: "30",
     includeTimeTracking: Boolean(input.timeSessions),
+  }).behaviorLog.files;
+}
+
+function dailyToWeeklyBundleFiles() {
+  const behaviorId = "behavior-history";
+  const dailyConfiguration = {
+    categoryId: null,
+    scheduleGraph: [
+      {
+        recurrenceRule: { frequency: "daily" as const, interval: 1 },
+        sortOrder: 0,
+        timeEntries: [
+          {
+            kind: "exact" as const,
+            preset: null,
+            startTime: "09:00",
+            endTime: null,
+            sortOrder: 0,
+          },
+        ],
+      },
+    ],
+    browserReminderEnabled: true,
+    emailReminderEnabled: false,
+    reminderOffsetMinutes: 0,
+    active: true,
+    timezone: DEFAULT_TIMEZONE,
+  };
+  const weeklyConfiguration = {
+    ...dailyConfiguration,
+    scheduleGraph: [
+      {
+        recurrenceRule: {
+          frequency: "weekly" as const,
+          interval: 1,
+          daysOfWeek: ["monday" as const],
+        },
+        sortOrder: 0,
+        timeEntries: dailyConfiguration.scheduleGraph[0].timeEntries,
+      },
+    ],
+  };
+  const behavior: ExportBehaviorInput = {
+    id: behaviorId,
+    categoryId: null,
+    categoryName: null,
+    title: "History behavior",
+    description: "Daily then weekly",
+    recurrenceRule: weeklyConfiguration.scheduleGraph[0].recurrenceRule,
+    scheduledTime: "09:00",
+    scheduleSlots: [
+      {
+        id: "slot-current",
+        kind: "exact",
+        preset: null,
+        startTime: "09:00",
+        endTime: null,
+        sortOrder: 0,
+        label: "9:00 AM",
+      },
+    ],
+    timezone: DEFAULT_TIMEZONE,
+    browserReminderEnabled: true,
+    emailReminderEnabled: false,
+    reminderOffsetMinutes: 0,
+    active: true,
+    archivedAt: null,
+    createdAt: "2026-05-01T12:00:00Z",
+    updatedAt: "2026-06-08T12:00:00Z",
+  };
+  const behaviorConfigurationEvents: ExportBehaviorConfigurationEventInput[] = [
+    {
+      id: "config-daily",
+      behaviorId,
+      eventKind: "baseline",
+      previousConfiguration: null,
+      nextConfiguration: dailyConfiguration,
+      changedFields: [
+        "category_id",
+        "schedule_graph",
+        "browser_reminder_enabled",
+        "email_reminder_enabled",
+        "reminder_offset_minutes",
+        "active",
+        "timezone",
+      ],
+      recordedAt: "2026-05-01T12:00:00Z",
+      effectiveAt: "2026-05-01T12:00:00Z",
+      effectiveLocalDate: "2026-05-01",
+      timezone: DEFAULT_TIMEZONE,
+      source: "system",
+      reasonCode: "history_capture_started",
+    },
+    {
+      id: "config-weekly",
+      behaviorId,
+      eventKind: "revision",
+      previousConfiguration: dailyConfiguration,
+      nextConfiguration: weeklyConfiguration,
+      changedFields: ["schedule_graph"],
+      recordedAt: "2026-06-08T12:00:00Z",
+      effectiveAt: "2026-06-08T12:00:00Z",
+      effectiveLocalDate: "2026-06-08",
+      timezone: DEFAULT_TIMEZONE,
+      source: "manual",
+      reasonCode: "behavior_form_update",
+    },
+  ];
+  const occurrences: ExportOccurrenceInput[] = [
+    {
+      id: "occurrence-daily",
+      behaviorId,
+      behaviorScheduleSlotId: "slot-current",
+      behaviorConfigurationEventId: "config-daily",
+      scheduledFor: "2026-06-01T13:00:00Z",
+      scheduledTimeLabel: "9:00 AM",
+      scheduleKind: "exact",
+      schedulePreset: null,
+      scheduleStartTime: "09:00",
+      scheduleEndTime: null,
+      localDate: "2026-06-01",
+      status: "completed",
+      completedAt: "2026-06-01T13:05:00Z",
+      statusMarkedAt: "2026-06-01T13:05:00Z",
+      note: "Daily-period note.",
+      createdAt: "2026-06-01T12:00:00Z",
+      updatedAt: "2026-06-01T13:05:00Z",
+    },
+    {
+      id: "occurrence-weekly",
+      behaviorId,
+      behaviorScheduleSlotId: "slot-current",
+      behaviorConfigurationEventId: "config-weekly",
+      scheduledFor: "2026-06-08T13:00:00Z",
+      scheduledTimeLabel: "9:00 AM",
+      scheduleKind: "exact",
+      schedulePreset: null,
+      scheduleStartTime: "09:00",
+      scheduleEndTime: null,
+      localDate: "2026-06-08",
+      status: "not_completed",
+      completedAt: null,
+      statusMarkedAt: "2026-06-08T13:05:00Z",
+      note: null,
+      createdAt: "2026-06-08T12:00:00Z",
+      updatedAt: "2026-06-08T13:05:00Z",
+    },
+  ];
+  const statusEvents: ExportStatusEventInput[] = [
+    {
+      id: "event-daily",
+      occurrenceId: "occurrence-daily",
+      behaviorId,
+      previousStatus: "unresolved",
+      status: "completed",
+      statusSemantics: "explicit_user_mark",
+      recordedAt: "2026-06-01T13:05:00Z",
+      effectiveAt: "2026-06-01T13:05:00Z",
+      localDate: "2026-06-01",
+      timezone: DEFAULT_TIMEZONE,
+      sourceCaptureMethod: "manual_tap",
+      sourceConfidence: "high",
+      revisesEventId: null,
+      reasonCode: null,
+    },
+    {
+      id: "event-weekly",
+      occurrenceId: "occurrence-weekly",
+      behaviorId,
+      previousStatus: "unresolved",
+      status: "not_completed",
+      statusSemantics: "explicit_user_mark",
+      recordedAt: "2026-06-08T13:05:00Z",
+      effectiveAt: "2026-06-08T13:05:00Z",
+      localDate: "2026-06-08",
+      timezone: DEFAULT_TIMEZONE,
+      sourceCaptureMethod: "manual_tap",
+      sourceConfidence: "high",
+      revisesEventId: null,
+      reasonCode: null,
+    },
+  ];
+
+  return resolveExportBundle({
+    profile: { timezone: DEFAULT_TIMEZONE, subjectId: "subject-history" },
+    categories: [],
+    behaviors: [behavior],
+    behaviorConfigurationEvents,
+    occurrences,
+    statusEvents,
+    reminderDeliveries: [],
+    now: Temporal.Instant.from("2026-06-09T12:00:00Z"),
+    timezone: DEFAULT_TIMEZONE,
+    range: "all",
+    includeNotes: true,
+  }).behaviorLog.files;
+}
+
+function archivedBaselineBundleFiles() {
+  const behaviorId = "behavior-archived-baseline";
+  const configuration = {
+    categoryId: null,
+    scheduleGraph: [
+      {
+        recurrenceRule: { frequency: "daily" as const, interval: 1 },
+        sortOrder: 0,
+        timeEntries: [
+          {
+            kind: "exact" as const,
+            preset: null,
+            startTime: "09:00",
+            endTime: null,
+            sortOrder: 0,
+          },
+        ],
+      },
+    ],
+    browserReminderEnabled: true,
+    emailReminderEnabled: false,
+    reminderOffsetMinutes: 0,
+    active: false,
+    timezone: DEFAULT_TIMEZONE,
+  };
+  const occurrence: ExportOccurrenceInput = {
+    id: "occurrence-archived-baseline",
+    behaviorId,
+    behaviorScheduleSlotId: "slot-archived",
+    behaviorConfigurationEventId: "config-archived-baseline",
+    scheduledFor: "2026-04-30T13:00:00Z",
+    scheduledTimeLabel: "9:00 AM",
+    scheduleKind: "exact",
+    schedulePreset: null,
+    scheduleStartTime: "09:00",
+    scheduleEndTime: null,
+    localDate: "2026-04-30",
+    status: "completed",
+    completedAt: "2026-04-30T13:05:00Z",
+    statusMarkedAt: "2026-04-30T13:05:00Z",
+    note: "Archived baseline note.",
+    createdAt: "2026-04-30T12:00:00Z",
+    updatedAt: "2026-04-30T13:05:00Z",
+  };
+
+  return resolveExportBundle({
+    profile: { timezone: DEFAULT_TIMEZONE, subjectId: "subject-archived" },
+    categories: [],
+    behaviors: [
+      {
+        id: behaviorId,
+        categoryId: null,
+        categoryName: null,
+        title: "Archived baseline",
+        description: null,
+        recurrenceRule: { frequency: "daily", interval: 1 },
+        scheduledTime: "09:00",
+        scheduleSlots: [
+          {
+            id: "slot-archived",
+            kind: "exact",
+            preset: null,
+            startTime: "09:00",
+            endTime: null,
+            sortOrder: 0,
+            label: "9:00 AM",
+          },
+        ],
+        timezone: DEFAULT_TIMEZONE,
+        browserReminderEnabled: true,
+        emailReminderEnabled: false,
+        reminderOffsetMinutes: 0,
+        active: false,
+        archivedAt: "2026-05-01T12:00:00Z",
+        createdAt: "2026-04-01T12:00:00Z",
+        updatedAt: "2026-05-01T12:00:00Z",
+      },
+    ],
+    behaviorConfigurationEvents: [
+      {
+        id: "config-archived-baseline",
+        behaviorId,
+        eventKind: "baseline",
+        previousConfiguration: null,
+        nextConfiguration: configuration,
+        changedFields: [
+          "category_id",
+          "schedule_graph",
+          "browser_reminder_enabled",
+          "email_reminder_enabled",
+          "reminder_offset_minutes",
+          "active",
+          "timezone",
+        ],
+        recordedAt: "2026-05-01T12:00:00Z",
+        effectiveAt: "2026-05-01T12:00:00Z",
+        effectiveLocalDate: "2026-05-01",
+        timezone: DEFAULT_TIMEZONE,
+        source: "system",
+        reasonCode: "history_capture_started",
+      },
+    ],
+    occurrences: [occurrence],
+    statusEvents: [
+      {
+        id: "event-archived-baseline",
+        occurrenceId: occurrence.id,
+        behaviorId,
+        previousStatus: "unresolved",
+        status: "completed",
+        statusSemantics: "explicit_user_mark",
+        recordedAt: "2026-04-30T13:05:00Z",
+        effectiveAt: "2026-04-30T13:05:00Z",
+        localDate: occurrence.localDate,
+        timezone: DEFAULT_TIMEZONE,
+        sourceCaptureMethod: "manual_tap",
+        sourceConfidence: "high",
+        revisesEventId: null,
+        reasonCode: null,
+      },
+    ],
+    reminderDeliveries: [],
+    now: Temporal.Instant.from("2026-06-09T12:00:00Z"),
+    timezone: DEFAULT_TIMEZONE,
+    range: "all",
+    includeArchived: true,
+    includeNotes: true,
   }).behaviorLog.files;
 }
 

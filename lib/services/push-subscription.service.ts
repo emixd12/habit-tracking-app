@@ -4,6 +4,10 @@ import {
   upsertPushSubscription,
   type PushSubscriptionInput,
 } from "@/lib/db/pushSubscriptions.repo";
+import {
+  consumePushSubscriptionRegistrationRateLimit,
+  type LaunchRateLimitResult,
+} from "@/lib/db/launchRateLimits.repo";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
 import type { PushSubscription } from "@/lib/types/database";
@@ -19,6 +23,16 @@ export class PushSubscriptionAuthError extends Error {
   constructor() {
     super("Sign in again before enabling browser reminders.");
     this.name = "PushSubscriptionAuthError";
+  }
+}
+
+export class PushSubscriptionRateLimitError extends Error {
+  readonly result: LaunchRateLimitResult;
+
+  constructor(result: LaunchRateLimitResult) {
+    super("Too many browser notification registration attempts. Try again later.");
+    this.name = "PushSubscriptionRateLimitError";
+    this.result = result;
   }
 }
 
@@ -67,6 +81,11 @@ export async function registerPushSubscription(
 ): Promise<PushSubscription> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
+  const rateLimit = await consumePushSubscriptionRegistrationRateLimit(supabase);
+
+  if (!rateLimit.allowed) {
+    throw new PushSubscriptionRateLimitError(rateLimit);
+  }
 
   return upsertPushSubscription(supabase, {
     userId,

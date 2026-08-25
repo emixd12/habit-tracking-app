@@ -30,6 +30,10 @@ import {
   planInitialBehaviorDefinitionEvent,
   normalizeBehaviorDefinition,
 } from "@/lib/resolvers/behavior-definition.resolver";
+import {
+  planBehaviorConfigurationChangeEvent,
+  planInitialBehaviorConfigurationEvent,
+} from "@/lib/resolvers/behavior-configuration.resolver";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 import {
   behaviorErrorToActionState,
@@ -103,16 +107,24 @@ export async function createBehaviorFromFormData(
     active: true,
     archived_at: null,
   };
+  const recordedAt = new Date().toISOString();
 
   const initialDefinitionEvent = planInitialBehaviorDefinitionEvent({
     definition: {
       title: behavior.title,
       description: behavior.description ?? null,
     },
-    recordedAt: new Date().toISOString(),
+    recordedAt,
     source: "manual",
   });
   const schedules = input.schedules.map(toBehaviorScheduleMutation);
+  const initialConfigurationEvent = planInitialBehaviorConfigurationEvent({
+    configuration: toBehaviorConfigurationSnapshot(behavior, schedules),
+    recordedAt,
+    effectiveAt: recordedAt,
+    source: "manual",
+    reasonCode: "behavior_created",
+  });
   const createdBehavior = await createBehaviorWithAtomicScheduleGraph(supabase, {
     behavior: {
       ...behavior,
@@ -120,6 +132,7 @@ export async function createBehaviorFromFormData(
       description: initialDefinitionEvent.nextDescription,
     },
     definitionEventPlan: initialDefinitionEvent,
+    configurationEventPlan: initialConfigurationEvent,
     schedules,
   });
   const confirmedBehavior = await getBehaviorById(
@@ -164,10 +177,11 @@ export async function updateBehaviorFromFormData(
     title: input.title,
     description: input.description,
   });
+  const recordedAt = new Date().toISOString();
   const definitionEvent = planBehaviorDefinitionChangeEvent({
     previousDefinition,
     nextDefinition,
-    recordedAt: new Date().toISOString(),
+    recordedAt,
     source: "manual",
   });
   const behavior: BehaviorUpdate = {
@@ -182,7 +196,26 @@ export async function updateBehaviorFromFormData(
     reminder_offset_minutes: input.reminderOffsetMinutes,
     active: input.active,
     archived_at: resolveArchiveTimestamp(existingBehavior, input.active),
+    timezone: existingBehavior.timezone,
   };
+  const schedules = input.schedules.map(toBehaviorScheduleMutation);
+  const configurationEvent = planBehaviorConfigurationChangeEvent({
+    previousConfiguration: toBehaviorConfigurationSnapshot(
+      existingBehavior,
+      toStoredBehaviorScheduleGraph(existingBehavior),
+    ),
+    nextConfiguration: toBehaviorConfigurationSnapshot(
+      {
+        ...existingBehavior,
+        ...behavior,
+      },
+      schedules,
+    ),
+    recordedAt,
+    effectiveAt: recordedAt,
+    source: "manual",
+    reasonCode: "behavior_edited",
+  });
   const updatedBehavior = await updateBehaviorWithAtomicScheduleGraph(supabase, {
     behaviorId: input.behaviorId,
     behavior,
@@ -194,7 +227,8 @@ export async function updateBehaviorFromFormData(
     expectedScheduleGraph: toStoredBehaviorScheduleGraph(existingBehavior),
     expectedUpdatedAt: existingBehavior.updated_at,
     definitionEventPlan: definitionEvent,
-    schedules: input.schedules.map(toBehaviorScheduleMutation),
+    configurationEventPlan: configurationEvent,
+    schedules,
   });
 
   if (!updatedBehavior) {
@@ -294,27 +328,45 @@ async function updateBehaviorLifecycleStateAtomically(
     title: existingBehavior.title,
     description: existingBehavior.description,
   };
+  const recordedAt = new Date().toISOString();
+  const nextBehavior: BehaviorUpdate = {
+    category_id: existingBehavior.category_id,
+    title: existingBehavior.title,
+    description: existingBehavior.description,
+    recurrence_rule: existingBehavior.recurrence_rule,
+    scheduled_time: existingBehavior.scheduled_time,
+    timezone: existingBehavior.timezone,
+    browser_reminder_enabled: existingBehavior.browser_reminder_enabled,
+    email_reminder_enabled: existingBehavior.email_reminder_enabled,
+    reminder_offset_minutes: existingBehavior.reminder_offset_minutes,
+    active,
+    archived_at: active ? null : existingBehavior.archived_at ?? recordedAt,
+  };
+  const configurationEvent = planBehaviorConfigurationChangeEvent({
+    previousConfiguration: toBehaviorConfigurationSnapshot(
+      existingBehavior,
+      expectedScheduleGraph,
+    ),
+    nextConfiguration: toBehaviorConfigurationSnapshot(
+      { ...existingBehavior, ...nextBehavior },
+      expectedScheduleGraph,
+    ),
+    recordedAt,
+    effectiveAt: recordedAt,
+    source: "manual",
+    reasonCode: active ? "behavior_restored" : "behavior_archived",
+  });
 
   return updateBehaviorWithAtomicScheduleGraph(supabase, {
     behaviorId: existingBehavior.id,
-    behavior: {
-      category_id: existingBehavior.category_id,
-      title: existingBehavior.title,
-      description: existingBehavior.description,
-      recurrence_rule: existingBehavior.recurrence_rule,
-      scheduled_time: existingBehavior.scheduled_time,
-      browser_reminder_enabled: existingBehavior.browser_reminder_enabled,
-      email_reminder_enabled: existingBehavior.email_reminder_enabled,
-      reminder_offset_minutes: existingBehavior.reminder_offset_minutes,
-      active,
-      archived_at: active ? null : new Date().toISOString(),
-    },
+    behavior: nextBehavior,
     expectedDefinition,
     expectedNormalizedDefinition:
       normalizeBehaviorDefinition(expectedDefinition),
     expectedScheduleGraph,
     expectedUpdatedAt: existingBehavior.updated_at,
     definitionEventPlan: null,
+    configurationEventPlan: configurationEvent,
     schedules: expectedScheduleGraph,
   });
 }
@@ -572,6 +624,38 @@ function toStoredBehaviorScheduleGraph(
       sort_order: slot.sort_order,
     })),
   }));
+}
+
+function toBehaviorConfigurationSnapshot(
+  behavior: {
+    category_id?: string | null;
+    browser_reminder_enabled?: boolean;
+    email_reminder_enabled?: boolean;
+    reminder_offset_minutes?: number;
+    active?: boolean;
+    timezone?: string;
+  },
+  schedules: BehaviorScheduleGraphMutation[],
+) {
+  return {
+    categoryId: behavior.category_id ?? null,
+    scheduleGraph: schedules.map((schedule) => ({
+      recurrenceRule: schedule.recurrence_rule,
+      sortOrder: schedule.sort_order,
+      timeEntries: schedule.slots.map((slot) => ({
+        kind: slot.kind,
+        preset: slot.preset,
+        startTime: slot.start_time,
+        endTime: slot.end_time,
+        sortOrder: slot.sort_order,
+      })),
+    })),
+    browserReminderEnabled: behavior.browser_reminder_enabled ?? true,
+    emailReminderEnabled: behavior.email_reminder_enabled ?? false,
+    reminderOffsetMinutes: behavior.reminder_offset_minutes ?? 0,
+    active: behavior.active ?? true,
+    timezone: behavior.timezone ?? DEFAULT_TIMEZONE,
+  };
 }
 
 function toBehaviorScheduleSlotMutation(slot: BehaviorScheduleInput["timeEntries"][number]) {

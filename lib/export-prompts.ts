@@ -10,6 +10,7 @@ export const EXPORT_PROMPT_SEMANTICS_PREAMBLE = `How to read my Cadence export:
 - Status values are Completed, Not Completed, and Unresolved. Unresolved means no decision was recorded; treat it as missing data, never as failure. In the app, Unresolved occurrences appear as Needs decision items.
 - Occurrence rows are current snapshots. When the export includes status_events, that append-only history is the source of truth for chronology and corrections: recorded_at is when a decision was logged, effective_at is its stated effective time when present, and revises_event_id links a correction to the event it revises.
 - Use local_date with my IANA timezone for any day-of-week or date analysis, not UTC timestamps.
+- When behavior_configuration_events is present, segment schedule analysis only at captured schedule_graph, timezone, or active changes. Treat reminder-only and category-only revisions as context, not new schedule periods. A configuration change is descriptive history; do not claim it caused an outcome or provide clinical guidance.
 - Report Completed versus Not Completed adherence and Unresolved counts separately; never fold Unresolved into failures.
 - In raw export files these statuses appear as "completed", "not_completed", and "unresolved".`;
 
@@ -82,12 +83,12 @@ Task: Match records in data/interventions.jsonl to their occurrences. Compare oc
     id: "definition-drift",
     title: "Definition drift",
     purpose:
-      "Segment a behavior's history by definition period before comparing adherence over time.",
+      "Segment a behavior's history by captured definition and configuration periods before comparing adherence over time.",
     requirements:
-      "Needs the App JSON backup or the BehaviorLog bundle; JSONL and CSV do not include behavior definition history.",
+      "Needs the App JSON backup or the BehaviorLog bundle; JSONL and CSV do not include behavior definition history or configuration history.",
     prompt: `${EXPORT_PROMPT_SEMANTICS_PREAMBLE}
 
-Task: Using behavior_definition_events, split each behavior's timeline into definition periods at each change to its title or description. Compare adherence across periods within the same behavior, and flag any apparent trend that is really a definition change; a renamed or redefined behavior is not one unchanged behavior.`,
+Task: Using behavior_definition_events and behavior_configuration_events, split each behavior's timeline at title or description changes and at captured schedule_graph, timezone, or active changes. Do not split schedule periods for reminder-only or category-only revisions. Compare adherence descriptively across periods, flag apparent trends that coincide with definition or schedule changes, and do not claim the changes caused outcomes or provide clinical guidance.`,
   },
   {
     id: "decision-debt",

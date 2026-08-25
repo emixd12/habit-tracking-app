@@ -13,6 +13,7 @@ export const DEFAULT_OCCURRENCE_HORIZON_DAYS = 30;
 export type OccurrenceGenerationBehavior = {
   id: string;
   userId: string;
+  configurationEventId: string;
   recurrenceRule: RecurrenceRule;
   schedules?: OccurrenceGenerationSchedule[];
   scheduleSlots: OccurrenceGenerationScheduleSlot[];
@@ -50,6 +51,9 @@ export type ExistingOccurrenceForGeneration = {
   schedulePreset: TimeRangePreset | null;
   scheduleStartTime: string;
   scheduleEndTime: string | null;
+  note: string | null;
+  hasTimeSessions: boolean;
+  behaviorConfigurationEventId: string | null;
 };
 
 export type PlannedOccurrenceInsert = {
@@ -63,13 +67,27 @@ export type PlannedOccurrenceInsert = {
   schedulePreset: TimeRangePreset | null;
   scheduleStartTime: string;
   scheduleEndTime: string | null;
+  behaviorConfigurationEventId: string;
 };
 
 export type PlannedOccurrenceScheduleUpdate = Omit<
   PlannedOccurrenceInsert,
-  "userId" | "behaviorId" | "status"
+  "userId" | "behaviorId" | "status" | "behaviorConfigurationEventId"
 > & {
   id: string;
+  behaviorConfigurationEventId: string;
+};
+
+export type PlannedOccurrenceDelete = {
+  id: string;
+  scheduledFor: string;
+  localDate: string;
+  scheduleSlotId: string | null;
+  scheduleKind: ScheduleKind;
+  schedulePreset: TimeRangePreset | null;
+  scheduleStartTime: string;
+  scheduleEndTime: string | null;
+  behaviorConfigurationEventId: string | null;
 };
 
 export type OccurrenceGenerationWindow = {
@@ -83,7 +101,7 @@ export type OccurrenceGenerationWindow = {
 export type OccurrenceGenerationPlan = {
   create: PlannedOccurrenceInsert[];
   updateUnresolved: PlannedOccurrenceScheduleUpdate[];
-  deleteUnresolvedIds: string[];
+  deleteUnresolved: PlannedOccurrenceDelete[];
   generationWindow: OccurrenceGenerationWindow;
 };
 
@@ -258,6 +276,7 @@ function planOccurrenceGenerationForWindow(
         schedulePreset: occurrence.schedulePreset,
         scheduleStartTime: occurrence.scheduleStartTime,
         scheduleEndTime: occurrence.scheduleEndTime,
+        behaviorConfigurationEventId: input.behavior.configurationEventId,
       })),
     updateUnresolved: input.existingOccurrences
       .filter(
@@ -266,14 +285,28 @@ function planOccurrenceGenerationForWindow(
           isWithinGenerationWindow(
             normalizeInstant(occurrence.scheduledFor),
             generationWindow,
-          ),
+          ) &&
+          isAfter(normalizeInstant(occurrence.scheduledFor), input.now) &&
+          !hasNonEmptyNote(occurrence.note) &&
+          !occurrence.hasTimeSessions,
       )
       .flatMap((occurrence) => {
         const desired = desiredByScheduledKey.get(
           normalizeInstantString(occurrence.scheduledFor),
         );
 
-        if (!desired || snapshotsMatch(occurrence, desired)) {
+        if (!desired || occurrence.behaviorConfigurationEventId === null) {
+          return [];
+        }
+
+        const behaviorConfigurationEventId =
+          input.behavior.configurationEventId;
+
+        if (
+          (snapshotsMatch(occurrence, desired) &&
+            occurrence.behaviorConfigurationEventId ===
+              behaviorConfigurationEventId)
+        ) {
           return [];
         }
 
@@ -287,10 +320,11 @@ function planOccurrenceGenerationForWindow(
             schedulePreset: desired.schedulePreset,
             scheduleStartTime: desired.scheduleStartTime,
             scheduleEndTime: desired.scheduleEndTime,
+            behaviorConfigurationEventId,
           },
         ];
       }),
-    deleteUnresolvedIds: input.existingOccurrences
+    deleteUnresolved: input.existingOccurrences
       .filter(
         (occurrence) =>
           occurrence.status === "unresolved" &&
@@ -298,9 +332,23 @@ function planOccurrenceGenerationForWindow(
             normalizeInstant(occurrence.scheduledFor),
             generationWindow,
           ) &&
+          isAfter(normalizeInstant(occurrence.scheduledFor), input.now) &&
+          !hasNonEmptyNote(occurrence.note) &&
+          !occurrence.hasTimeSessions &&
           !desiredScheduledKeys.has(normalizeInstantString(occurrence.scheduledFor)),
       )
-      .map((occurrence) => occurrence.id),
+      .map((occurrence) => ({
+        id: occurrence.id,
+        scheduledFor: normalizeInstantString(occurrence.scheduledFor),
+        localDate: occurrence.localDate,
+        scheduleSlotId: occurrence.scheduleSlotId,
+        scheduleKind: occurrence.scheduleKind,
+        schedulePreset: occurrence.schedulePreset,
+        scheduleStartTime: occurrence.scheduleStartTime,
+        scheduleEndTime: occurrence.scheduleEndTime,
+        behaviorConfigurationEventId:
+          occurrence.behaviorConfigurationEventId,
+      })),
     generationWindow,
   };
 }
@@ -411,43 +459,54 @@ function resolveGenerationSchedules(
   behavior: OccurrenceGenerationBehavior,
 ): OccurrenceGenerationSchedule[] {
   if (behavior.schedules && behavior.schedules.length > 0) {
-    return [...behavior.schedules].sort((left, right) => {
-      const sortComparison = left.sortOrder - right.sortOrder;
+    return [...behavior.schedules]
+      .sort((left, right) => {
+        const sortComparison = left.sortOrder - right.sortOrder;
 
-      if (sortComparison !== 0) {
-        return sortComparison;
-      }
+        if (sortComparison !== 0) {
+          return sortComparison;
+        }
 
-      return (left.id ?? "").localeCompare(right.id ?? "");
-    });
+        return (left.id ?? "").localeCompare(right.id ?? "");
+      })
+      .map((schedule) => ({
+        ...schedule,
+        timeEntries: sortGenerationScheduleSlots(schedule.timeEntries),
+      }));
   }
 
   return [
     {
       id: null,
       recurrenceRule: behavior.recurrenceRule,
-      timeEntries: behavior.scheduleSlots,
+      timeEntries: sortGenerationScheduleSlots(behavior.scheduleSlots),
       sortOrder: 0,
       anchorDate: behavior.anchorDate,
     },
   ];
 }
 
+function sortGenerationScheduleSlots(
+  slots: OccurrenceGenerationScheduleSlot[],
+): OccurrenceGenerationScheduleSlot[] {
+  return [...slots].sort((left, right) => {
+    const sortComparison = left.sortOrder - right.sortOrder;
+
+    if (sortComparison !== 0) {
+      return sortComparison;
+    }
+
+    return (left.id ?? "").localeCompare(right.id ?? "");
+  });
+}
+
 function dedupeDesiredOccurrences<T extends {
-  localDate: string;
-  scheduleKind: ScheduleKind;
-  scheduleStartTime: string;
-  scheduleEndTime: string | null;
+  scheduledFor: Temporal.Instant;
 }>(occurrences: T[]): T[] {
   const occurrencesByKey = new Map<string, T>();
 
   for (const occurrence of occurrences) {
-    const key = [
-      occurrence.localDate,
-      occurrence.scheduleKind,
-      occurrence.scheduleStartTime,
-      occurrence.scheduleEndTime ?? "",
-    ].join("|");
+    const key = occurrence.scheduledFor.toString();
 
     if (!occurrencesByKey.has(key)) {
       occurrencesByKey.set(key, occurrence);
@@ -547,6 +606,17 @@ function isAtOrBefore(
   ceiling: Temporal.Instant,
 ): boolean {
   return Temporal.Instant.compare(candidate, ceiling) <= 0;
+}
+
+function isAfter(
+  candidate: Temporal.Instant,
+  floor: Temporal.Instant,
+): boolean {
+  return Temporal.Instant.compare(candidate, floor) > 0;
+}
+
+function hasNonEmptyNote(note: string | null): boolean {
+  return (note?.trim() ?? "").length > 0;
 }
 
 function isWithinGenerationWindow(

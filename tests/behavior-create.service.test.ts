@@ -97,7 +97,7 @@ describe("createBehaviorFromFormData", () => {
     ]);
     expect(mocks.createBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
       expect.anything(),
-      {
+      expect.objectContaining({
         behavior: expect.objectContaining({
           user_id: USER_ID,
           title: "Brush teeth",
@@ -115,6 +115,20 @@ describe("createBehaviorFromFormData", () => {
           source: "manual",
           reason: null,
         },
+        configurationEventPlan: expect.objectContaining({
+          eventKind: "baseline",
+          changedFields: [
+            "category_id",
+            "schedule_graph",
+            "browser_reminder_enabled",
+            "email_reminder_enabled",
+            "reminder_offset_minutes",
+            "active",
+            "timezone",
+          ],
+          reasonCode: "behavior_created",
+          source: "manual",
+        }),
         schedules: [
           expect.objectContaining({
             recurrence_rule: {
@@ -130,7 +144,7 @@ describe("createBehaviorFromFormData", () => {
             ],
           }),
         ],
-      },
+      }),
     );
     expect(mocks.getBehaviorById).toHaveBeenCalledWith(
       expect.anything(),

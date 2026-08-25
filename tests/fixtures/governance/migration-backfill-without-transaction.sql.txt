@@ -1,0 +1,6 @@
+create table public.fixture_records (id bigint primary key, label text);
+
+-- Backfill the fixture before enforcing its final shape.
+update public.fixture_records set label = 'fixture' where label is null;
+
+alter table public.fixture_records alter column label set not null;

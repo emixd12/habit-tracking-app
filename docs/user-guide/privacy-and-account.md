@@ -12,11 +12,18 @@ and provides the permanent account-deletion flow.
 2. Choose **Sign out** directly below the account row.
 3. Confirm that Login shows **Signed out.**
 
-**Result and persistence:** Cadence ends the current authenticated session and
-returns to Login. It does not delete the account or its records.
+**Result and persistence:** Cadence reads this browser's current push endpoint,
+deactivates only its active row for the departing account, ends the current
+authenticated session, and returns to Login. This also works for browser
+subscriptions created before Cadence added endpoint-aware sign-out. A browser
+without a subscription still signs out. Cadence does not delete the account or
+its other records.
 
-**Recovery or undo:** Sign in with Google again to start a new session. If sign
-out fails, Cadence leaves the session unchanged and shows a factual error.
+**Recovery or undo:** Sign in with Google again to start a new session. If
+current-device deactivation or sign out fails, Cadence leaves the session
+unchanged and shows a factual error. A second account may then enable browser
+notifications in the same browser without the departed account retaining the
+active endpoint.
 
 **Privacy and safety:** Sign out before leaving a shared device. Avoid signing
 in through a shared browser profile when another person can access its cookies
@@ -124,16 +131,19 @@ export decision, and both deletion gates above are valid.
 5. Confirm that Cadence returns to the public login screen and shows
    **Account deleted.**
 
-**Result and persistence:** The server revalidates both gates, signs the
-account out globally, deletes the Supabase Auth user through server-only
-credentials, and relies on ownership cascades to delete the account's hosted
-Cadence records. This is permanent and cannot be undone from the deleted
-account.
+**Result and persistence:** The server revalidates both gates, verifies its
+server-only deletion credentials, deletes the Supabase Auth user, then attempts
+global sign-out to clear the current browser session. Auth deletion removes
+server session rows and refresh capability, and ownership cascades delete the
+account's hosted Cadence records. An issued access token can remain valid until
+its expiry. This is permanent and cannot be undone from the deleted account.
 
 **Recovery or undo:** There is no undo after success. A later Google sign-in may
 create a new empty Cadence account; it does not restore deleted records. If
-validation, global sign-out, or user deletion fails, Cadence shows an error and
-preserves the account so you can review the problem before trying again.
+validation, credential verification, or user deletion fails, Cadence shows a
+specific error and preserves the account and session so you can review the
+problem before trying again. A sign-out cleanup error after completed deletion
+cannot restore the account and does not block the success confirmation.
 
 **Privacy and safety:** Account deletion is destructive. Do not use it as a
 troubleshooting step for notification, timezone, import, or schedule problems.

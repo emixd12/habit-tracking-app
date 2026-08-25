@@ -1,4 +1,7 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import type { Json } from "@/lib/db/database.types";
+import { readAllPostgrestRows } from "@/lib/db/paginated-read";
+import type { OccurrenceGenerationPlan } from "@/lib/resolvers/occurrence.resolver";
 import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   NewOccurrence,
@@ -161,18 +164,18 @@ export async function listUserOccurrences(
   supabase: AppSupabaseClient,
   userId: string,
 ): Promise<Occurrence[]> {
-  const { data, error } = await supabase
-    .from("occurrences")
-    .select("*")
-    .eq("user_id", userId)
-    .order("local_date", { ascending: true })
-    .order("scheduled_for", { ascending: true });
-
-  if (error) {
-    throw error;
-  }
-
-  return data ?? [];
+  return readAllPostgrestRows<Occurrence>({
+    label: "User occurrences",
+    getRowKey: (occurrence) => occurrence.id,
+    createQuery: () =>
+      supabase
+        .from("occurrences")
+        .select("*")
+        .eq("user_id", userId)
+        .order("local_date", { ascending: true })
+        .order("scheduled_for", { ascending: true })
+        .order("id", { ascending: true }),
+  });
 }
 
 export async function getOccurrenceById(
@@ -277,6 +280,79 @@ export async function createMissingOccurrences(
   }
 }
 
+export async function applyOccurrenceGenerationPlan(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    behaviorId: string;
+    expectedConfigurationEventId: string;
+    now: string;
+    plan: OccurrenceGenerationPlan;
+  },
+): Promise<{
+  insertedCount: number;
+  updatedCount: number;
+  deletedCount: number;
+}> {
+  const { data, error } = await supabase.rpc(
+    "apply_occurrence_generation_plan",
+    {
+      target_user_id: input.userId,
+      target_behavior_id: input.behaviorId,
+      expected_configuration_event_id:
+        input.expectedConfigurationEventId,
+      plan_now: input.now,
+      occurrence_inserts: input.plan.create.map((occurrence) => ({
+        scheduled_for: occurrence.scheduledFor,
+        local_date: occurrence.localDate,
+        behavior_schedule_slot_id: occurrence.scheduleSlotId,
+        behavior_configuration_event_id:
+          occurrence.behaviorConfigurationEventId,
+        schedule_kind: occurrence.scheduleKind,
+        schedule_preset: occurrence.schedulePreset,
+        schedule_start_time: occurrence.scheduleStartTime,
+        schedule_end_time: occurrence.scheduleEndTime,
+      })) as Json,
+      occurrence_updates: input.plan.updateUnresolved.map((occurrence) => ({
+        id: occurrence.id,
+        scheduled_for: occurrence.scheduledFor,
+        local_date: occurrence.localDate,
+        behavior_schedule_slot_id: occurrence.scheduleSlotId,
+        behavior_configuration_event_id:
+          occurrence.behaviorConfigurationEventId,
+        schedule_kind: occurrence.scheduleKind,
+        schedule_preset: occurrence.schedulePreset,
+        schedule_start_time: occurrence.scheduleStartTime,
+        schedule_end_time: occurrence.scheduleEndTime,
+      })) as Json,
+      occurrence_deletes: input.plan.deleteUnresolved.map((occurrence) => ({
+        id: occurrence.id,
+        scheduled_for: occurrence.scheduledFor,
+        local_date: occurrence.localDate,
+        behavior_schedule_slot_id: occurrence.scheduleSlotId,
+        behavior_configuration_event_id:
+          occurrence.behaviorConfigurationEventId,
+        schedule_kind: occurrence.scheduleKind,
+        schedule_preset: occurrence.schedulePreset,
+        schedule_start_time: occurrence.scheduleStartTime,
+        schedule_end_time: occurrence.scheduleEndTime,
+      })) as Json,
+    },
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  const result = data as Record<string, unknown> | null;
+
+  return {
+    insertedCount: readInteger(result?.inserted_count),
+    updatedCount: readInteger(result?.updated_count),
+    deletedCount: readInteger(result?.deleted_count),
+  };
+}
+
 export async function updateOccurrenceById(
   supabase: AppSupabaseClient,
   userId: string,
@@ -351,6 +427,10 @@ export async function updateUnresolvedOccurrenceScheduleById(
 
 function isEmptyOccurrenceNote(note: string | null): boolean {
   return (note?.trim() ?? "").length === 0;
+}
+
+function readInteger(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) ? value : 0;
 }
 
 export async function deleteUnresolvedOccurrencesById(

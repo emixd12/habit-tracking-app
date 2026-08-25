@@ -22,6 +22,7 @@ import {
   DEFAULT_APP_ROUTE,
   type AppNavHref,
 } from "@/lib/navigation";
+import { readCurrentBrowserPushEndpoint } from "@/lib/push/browser";
 
 const navIcons: Record<AppNavHref, LucideIcon> = {
   "/timeline": CalendarDays,
@@ -260,8 +261,33 @@ export function SignOutControl({
   isCollapsed: boolean;
   onSubmit?: () => void;
 }>) {
+  const submittingRef = useRef(false);
+
+  const handleSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+
+      if (submittingRef.current) {
+        return;
+      }
+
+      submittingRef.current = true;
+      const form = event.currentTarget;
+      const endpointInput = form.elements.namedItem("pushEndpoint");
+
+      if (endpointInput instanceof HTMLInputElement) {
+        endpointInput.value = (await readCurrentBrowserPushEndpoint()) ?? "";
+      }
+
+      onSubmit?.();
+      form.submit();
+    },
+    [onSubmit],
+  );
+
   return (
-    <form action="/auth/sign-out" method="post" onSubmit={onSubmit}>
+    <form action="/auth/sign-out" method="post" onSubmit={handleSubmit}>
+      <input type="hidden" name="pushEndpoint" defaultValue="" />
       <button
         type="submit"
         title={isCollapsed ? "Sign out" : undefined}

@@ -6,6 +6,7 @@ import type {
   BehaviorLogBundle,
   BehaviorLogFile,
   ExportBehaviorDefinitionEventInput,
+  ExportBehaviorConfigurationEventInput,
   ExportBehaviorInput,
   ExportBundle,
   ExportCategoryInput,
@@ -13,6 +14,8 @@ import type {
   ExportJsonBackup,
   ExportJsonBehavior,
   ExportJsonBehaviorDefinitionEvent,
+  ExportJsonBehaviorConfigurationEvent,
+  ExportJsonBehaviorConfigurationSnapshot,
   ExportJsonCategory,
   ExportJsonOccurrence,
   ExportJsonStatusEvent,
@@ -27,6 +30,7 @@ import type {
   ExportTimeSessionInput,
 } from "@/lib/types/export";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
+import { BEHAVIOR_CONFIGURATION_CHANGED_FIELDS } from "@/lib/types/behavior-configuration-event";
 import {
   formatRecordedDuration,
   resolveOccurrenceTimeTracking,
@@ -37,6 +41,8 @@ const BEHAVIORLOG_FORMAT = "behaviorlog.bundle";
 const BEHAVIORLOG_EXTENSION_NAMESPACE = "app.cadence";
 const BEHAVIORLOG_DEFINITION_HISTORY_PATH =
   "raw/cadence/behavior_definition_events.jsonl";
+const BEHAVIORLOG_CONFIGURATION_HISTORY_PATH =
+  "raw/cadence/behavior_configuration_events.jsonl";
 const BEHAVIORLOG_TIME_SESSIONS_PATH =
   "raw/cadence/occurrence_time_sessions.jsonl";
 const BEHAVIORLOG_GENERATION_RULE_ID = "rule_recurrence_calendar_simple_v1";
@@ -153,6 +159,7 @@ export type ResolveExportInput = {
   categories: ExportCategoryInput[];
   behaviors: ExportBehaviorInput[];
   behaviorDefinitionEvents?: ExportBehaviorDefinitionEventInput[];
+  behaviorConfigurationEvents?: ExportBehaviorConfigurationEventInput[];
   occurrences: ExportOccurrenceInput[];
   statusEvents?: ExportStatusEventInput[];
   reminderDeliveries?: ExportReminderDeliveryInput[];
@@ -188,17 +195,33 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     behaviorDefinitionEvents: input.behaviorDefinitionEvents ?? [],
     behaviorById,
   });
-  const occurrences = input.occurrences
+  const behaviorConfigurationEvents = toJsonBehaviorConfigurationEvents({
+    behaviorConfigurationEvents: input.behaviorConfigurationEvents ?? [],
+    behaviorById,
+  });
+  const behaviorConfigurationEventById = new Map(
+    behaviorConfigurationEvents.map((event) => [event.id, event]),
+  );
+  const includedOccurrences = input.occurrences
     .filter((occurrence) => behaviorById.has(occurrence.behaviorId))
     .filter((occurrence) => isOccurrenceWithinRange(occurrence, range))
-    .sort((left, right) => compareOccurrences(left, right, behaviorById))
-    .map((occurrence) =>
+    .sort((left, right) => compareOccurrences(left, right, behaviorById));
+  const occurrences = includedOccurrences.map((occurrence) =>
       toJsonOccurrence({
         occurrence,
         behaviorById,
+        behaviorConfigurationEventById,
         includeNotes,
       }),
     );
+  const legacySnapshotOccurrences = includedOccurrences.map((occurrence) =>
+    toJsonOccurrence({
+      occurrence,
+      behaviorById,
+      behaviorConfigurationEventById: new Map(),
+      includeNotes,
+    }),
+  );
   const overallCounts = countOccurrences(occurrences);
   const timeSessions = includeTimeTracking
     ? toJsonTimeSessions({
@@ -227,6 +250,7 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     occurrences,
     statusEvents,
     behaviorDefinitionEvents,
+    behaviorConfigurationEvents,
     timeSessions: includeTimeTracking ? timeSessions : undefined,
   });
   const behaviorLog = toBehaviorLogBundle({
@@ -235,6 +259,8 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     profile: input.profile,
     behaviors,
     behaviorDefinitionEvents,
+    behaviorConfigurationEvents,
+    useConfigurationHistory: input.behaviorConfigurationEvents !== undefined,
     occurrences,
     statusEvents: input.statusEvents ?? [],
     reminderDeliveries: input.reminderDeliveries ?? [],
@@ -253,11 +279,21 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     categoryCount: categories.length,
     behaviorCount: behaviors.length,
     occurrenceCount: occurrences.length,
+    behaviorConfigurationEventCount: behaviorConfigurationEvents.length,
     ...(includeTimeTracking ? { timeSessionCount: timeSessions.length } : {}),
     overallCounts,
     overallAdherenceLabel: formatAdherenceValue(overallCounts),
-    jsonl: toJsonl({ categories, behaviors, occurrences, timeSessions }),
-    csv: toCsv(occurrences, timeSessions, includeTimeTracking),
+    jsonl: toJsonl({
+      categories,
+      behaviors,
+      occurrences: legacySnapshotOccurrences,
+      timeSessions,
+    }),
+    csv: toCsv(
+      legacySnapshotOccurrences,
+      timeSessions,
+      includeTimeTracking,
+    ),
     jsonBackup,
     json: JSON.stringify(jsonBackup, null, 2),
     markdownSummary: toMarkdownSummary({
@@ -265,6 +301,7 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
       counts: overallCounts,
       behaviors,
       behaviorDefinitionEvents,
+      behaviorConfigurationEvents,
       occurrences,
       statusEvents,
       includeArchived,
@@ -395,19 +432,94 @@ function toJsonBehaviorDefinitionEvents(input: {
     }));
 }
 
+function toJsonBehaviorConfigurationEvents(input: {
+  behaviorConfigurationEvents: ExportBehaviorConfigurationEventInput[];
+  behaviorById: Map<string, ExportBehaviorInput>;
+}): ExportJsonBehaviorConfigurationEvent[] {
+  return input.behaviorConfigurationEvents
+    .filter((event) => input.behaviorById.has(event.behaviorId))
+    .sort(compareBehaviorConfigurationEvents)
+    .map((event) => ({
+      id: event.id,
+      behavior_id: event.behaviorId,
+      event_kind: event.eventKind,
+      previous_configuration: event.previousConfiguration
+        ? toJsonBehaviorConfigurationSnapshot(event.previousConfiguration)
+        : null,
+      next_configuration: toJsonBehaviorConfigurationSnapshot(
+        event.nextConfiguration,
+      ),
+      changed_fields: BEHAVIOR_CONFIGURATION_CHANGED_FIELDS.filter((field) =>
+        event.changedFields.includes(field),
+      ),
+      recorded_at: formatUtc(event.recordedAt),
+      effective_at: formatUtc(event.effectiveAt),
+      effective_local_date: event.effectiveLocalDate,
+      timezone: event.timezone,
+      source: event.source,
+      reason_code: event.reasonCode,
+      created_at: event.createdAt,
+    }));
+}
+
+function toJsonBehaviorConfigurationSnapshot(
+  snapshot: ExportBehaviorConfigurationEventInput["nextConfiguration"],
+): ExportJsonBehaviorConfigurationSnapshot {
+  return {
+    category_id: snapshot.categoryId,
+    schedule_graph: snapshot.scheduleGraph.map((schedule) => ({
+      recurrence_rule: schedule.recurrenceRule,
+      sort_order: schedule.sortOrder,
+      time_entries: schedule.timeEntries.map((entry) => ({
+        kind: entry.kind,
+        preset: entry.preset,
+        start_time: entry.startTime,
+        end_time: entry.endTime,
+        sort_order: entry.sortOrder,
+      })),
+    })),
+    browser_reminder_enabled: snapshot.browserReminderEnabled,
+    email_reminder_enabled: snapshot.emailReminderEnabled,
+    reminder_offset_minutes: snapshot.reminderOffsetMinutes,
+    active: snapshot.active,
+    timezone: snapshot.timezone,
+  };
+}
+
 function toJsonOccurrence(input: {
   occurrence: ExportOccurrenceInput;
   behaviorById: Map<string, ExportBehaviorInput>;
+  behaviorConfigurationEventById: Map<
+    string,
+    ExportJsonBehaviorConfigurationEvent
+  >;
   includeNotes: boolean;
 }): ExportJsonOccurrence {
-  const { occurrence, behaviorById, includeNotes } = input;
+  const {
+    occurrence,
+    behaviorById,
+    behaviorConfigurationEventById,
+    includeNotes,
+  } = input;
   const behavior = behaviorById.get(occurrence.behaviorId);
-  const timezone = behavior?.timezone || DEFAULT_TIMEZONE;
+  const configurationEvent = occurrence.behaviorConfigurationEventId
+    ? behaviorConfigurationEventById.get(
+        occurrence.behaviorConfigurationEventId,
+      )
+    : null;
+  const timezone =
+    (configurationEvent?.behavior_id === occurrence.behaviorId
+      ? configurationEvent.next_configuration.timezone
+      : null) ||
+    behavior?.timezone ||
+    DEFAULT_TIMEZONE;
 
   return {
     id: occurrence.id,
     behavior_id: occurrence.behaviorId,
     behavior_schedule_slot_id: occurrence.behaviorScheduleSlotId,
+    behavior_configuration_event_id:
+      occurrence.behaviorConfigurationEventId ?? null,
     behavior_title: behavior?.title ?? "Unknown behavior",
     category: behavior?.categoryName ?? null,
     scheduled_for: formatInstantInTimezone(occurrence.scheduledFor, timezone),
@@ -441,6 +553,7 @@ function toJsonBackup(input: {
   occurrences: ExportJsonOccurrence[];
   statusEvents: ExportJsonStatusEvent[];
   behaviorDefinitionEvents: ExportJsonBehaviorDefinitionEvent[];
+  behaviorConfigurationEvents: ExportJsonBehaviorConfigurationEvent[];
   timeSessions?: ExportJsonTimeSession[];
 }): ExportJsonBackup {
   return {
@@ -453,6 +566,7 @@ function toJsonBackup(input: {
     occurrences: input.occurrences,
     status_events: input.statusEvents,
     behavior_definition_events: input.behaviorDefinitionEvents,
+    behavior_configuration_events: input.behaviorConfigurationEvents,
     ...(input.timeSessions ? { time_sessions: input.timeSessions } : {}),
   };
 }
@@ -676,6 +790,8 @@ function toBehaviorLogBundle(input: {
   profile: ExportProfileInput;
   behaviors: ExportJsonBehavior[];
   behaviorDefinitionEvents: ExportJsonBehaviorDefinitionEvent[];
+  behaviorConfigurationEvents: ExportJsonBehaviorConfigurationEvent[];
+  useConfigurationHistory: boolean;
   occurrences: ExportJsonOccurrence[];
   statusEvents: ExportStatusEventInput[];
   reminderDeliveries: ExportReminderDeliveryInput[];
@@ -683,12 +799,19 @@ function toBehaviorLogBundle(input: {
   includeTimeTracking: boolean;
 }): BehaviorLogBundle {
   const schemaContent = JSON.stringify(createBehaviorLogSchema(), null, 2);
-  const readmeContent = createBehaviorLogReadme();
-  const agentsContent = createBehaviorLogAgentsMd();
+  const readmeContent = createBehaviorLogReadme(input.useConfigurationHistory);
+  const agentsContent = createBehaviorLogAgentsMd(
+    input.useConfigurationHistory,
+  );
   const behaviorRecords = input.behaviors.map((behavior) =>
     toBehaviorLogBehavior(behavior, input.profile),
   );
-  const schedules = toBehaviorLogSchedules(input.behaviors, input.occurrences);
+  const schedules = toBehaviorLogSchedules({
+    behaviors: input.behaviors,
+    configurationEvents: input.behaviorConfigurationEvents,
+    occurrences: input.occurrences,
+    useConfigurationHistory: input.useConfigurationHistory,
+  });
   const occurrenceRecords = input.occurrences.map((occurrence) =>
     toBehaviorLogOccurrence(occurrence, schedules.scheduleIdByOccurrenceId),
   );
@@ -761,6 +884,13 @@ function toBehaviorLogBundle(input: {
     mediaType: "application/jsonl",
     content: toJsonlRecords(input.behaviorDefinitionEvents),
   });
+  if (input.useConfigurationHistory) {
+    filesWithoutManifest.push({
+      path: BEHAVIORLOG_CONFIGURATION_HISTORY_PATH,
+      mediaType: "application/jsonl",
+      content: toJsonlRecords(input.behaviorConfigurationEvents),
+    });
+  }
 
   if (input.includeTimeTracking) {
     filesWithoutManifest.push({
@@ -796,6 +926,9 @@ function toBehaviorLogBundle(input: {
       containsNotes: noteRecords.length > 0,
       containsInterventions: interventionRecords.length > 0,
       behaviorDefinitionEventCount: input.behaviorDefinitionEvents.length,
+      behaviorConfigurationEventCount:
+        input.behaviorConfigurationEvents.length,
+      configurationHistoryIncluded: input.useConfigurationHistory,
       timeSessionCount: input.includeTimeTracking
         ? input.timeSessions.length
         : undefined,
@@ -824,6 +957,8 @@ function createBehaviorLogManifest(input: {
   containsNotes: boolean;
   containsInterventions: boolean;
   behaviorDefinitionEventCount: number;
+  behaviorConfigurationEventCount: number;
+  configurationHistoryIncluded: boolean;
   timeSessionCount?: number;
   files: BehaviorLogFile[];
 }) {
@@ -863,6 +998,16 @@ function createBehaviorLogManifest(input: {
           ordering: ["recorded_at", "id"],
           import_restore_support: "export_only",
         },
+        ...(input.configurationHistoryIncluded
+          ? {
+              behavior_configuration_history: {
+                path: BEHAVIORLOG_CONFIGURATION_HISTORY_PATH,
+                record_count: input.behaviorConfigurationEventCount,
+                ordering: ["recorded_at", "id"],
+                import_restore_support: "export_only",
+              },
+            }
+          : {}),
         ...(input.timeSessionCount !== undefined
           ? {
               occurrence_time_sessions: {
@@ -1282,7 +1427,187 @@ function toBehaviorLogBehavior(
   });
 }
 
-function toBehaviorLogSchedules(
+function toBehaviorLogSchedules(input: {
+  behaviors: ExportJsonBehavior[];
+  configurationEvents: ExportJsonBehaviorConfigurationEvent[];
+  occurrences: ExportJsonOccurrence[];
+  useConfigurationHistory: boolean;
+}) {
+  if (!input.useConfigurationHistory) {
+    return toLegacyBehaviorLogSchedules(input.behaviors, input.occurrences);
+  }
+
+  return toHistoricalBehaviorLogSchedules(input);
+}
+
+function toHistoricalBehaviorLogSchedules(input: {
+  behaviors: ExportJsonBehavior[];
+  configurationEvents: ExportJsonBehaviorConfigurationEvent[];
+  occurrences: ExportJsonOccurrence[];
+}) {
+  const behaviorById = new Map(
+    input.behaviors.map((behavior) => [behavior.id, behavior]),
+  );
+  const eventsByBehaviorId = new Map<
+    string,
+    ExportJsonBehaviorConfigurationEvent[]
+  >();
+
+  for (const event of input.configurationEvents) {
+    const events = eventsByBehaviorId.get(event.behavior_id) ?? [];
+    events.push(event);
+    eventsByBehaviorId.set(event.behavior_id, events);
+  }
+
+  const recordsById = new Map<
+    string,
+    ReturnType<typeof createBehaviorLogSchedule>
+  >();
+  const periodEventByConfigurationEventId = new Map<
+    string,
+    ExportJsonBehaviorConfigurationEvent
+  >();
+  const scheduleIdsByPeriodEventId = new Map<string, string[]>();
+
+  for (const behavior of input.behaviors) {
+    const events = [...(eventsByBehaviorId.get(behavior.id) ?? [])].sort(
+      compareJsonBehaviorConfigurationEvents,
+    );
+    const boundaries = events.filter(isBehaviorLogScheduleBoundary);
+    const importBoundaryId = behavior.active
+      ? [...boundaries]
+          .reverse()
+          .find((candidate) => candidate.next_configuration.active)?.id
+      : boundaries.at(-1)?.id;
+    let currentBoundary: ExportJsonBehaviorConfigurationEvent | null = null;
+
+    for (const event of events) {
+      if (isBehaviorLogScheduleBoundary(event)) {
+        currentBoundary = event;
+      }
+
+      if (currentBoundary) {
+        periodEventByConfigurationEventId.set(event.id, currentBoundary);
+      }
+    }
+
+    for (const [boundaryIndex, boundary] of boundaries.entries()) {
+      const inactiveCurrentCarrier =
+        !boundary.next_configuration.active &&
+        boundary.id === importBoundaryId;
+
+      if (!boundary.next_configuration.active && !inactiveCurrentCarrier) {
+        continue;
+      }
+
+      const nextBoundary = boundaries[boundaryIndex + 1] ?? null;
+      const scheduleIds: string[] = [];
+
+      for (const [scheduleIndex, schedule] of
+        boundary.next_configuration.schedule_graph.entries()) {
+        for (const [entryIndex, entry] of schedule.time_entries.entries()) {
+          const scheduleId = scheduleIdForConfigurationPeriod(
+            boundary.id,
+            scheduleIndex,
+            entryIndex,
+          );
+          scheduleIds.push(scheduleId);
+          recordsById.set(
+            scheduleId,
+            createBehaviorLogSchedule({
+              scheduleId,
+              behavior,
+              recurrenceRule: schedule.recurrence_rule,
+              localTime: entry.start_time,
+              windowStartLocal:
+                entry.kind === "range" ? entry.start_time : null,
+              windowEndLocal: entry.kind === "range" ? entry.end_time : null,
+              slotId: null,
+              scheduleKind: entry.kind,
+              schedulePreset: entry.preset,
+              scheduleLabel: entry.start_time,
+              sourceConfidence: "high",
+              timezone: boundary.next_configuration.timezone,
+              activeFromLocalDate: boundary.effective_local_date,
+              activeUntilLocalDate:
+                inactiveCurrentCarrier
+                  ? boundary.effective_local_date
+                  : nextBoundary
+                  ? localDateForInstant(
+                      nextBoundary.effective_at,
+                      boundary.next_configuration.timezone,
+                    )
+                  : null,
+              configurationEventId: boundary.id,
+              effectiveFromUtc: boundary.effective_at,
+              effectiveUntilUtc: inactiveCurrentCarrier
+                ? boundary.effective_at
+                : nextBoundary?.effective_at ?? null,
+              scheduleIndex,
+              timeEntryIndex: entryIndex,
+              configurationActive: boundary.next_configuration.active,
+              periodSemantics: inactiveCurrentCarrier
+                ? "inactive_current_configuration_carrier"
+                : undefined,
+              importRole:
+                boundary.id === importBoundaryId
+                  ? "current_configuration"
+                  : "historical_reference_only",
+            }),
+          );
+        }
+      }
+
+      scheduleIdsByPeriodEventId.set(boundary.id, scheduleIds);
+    }
+  }
+
+  const scheduleIdByOccurrenceId = new Map<string, string>();
+
+  for (const occurrence of input.occurrences) {
+    const behavior = behaviorById.get(occurrence.behavior_id);
+    const configurationEventId =
+      occurrence.behavior_configuration_event_id;
+    const periodEvent = configurationEventId
+      ? periodEventByConfigurationEventId.get(configurationEventId)
+      : null;
+    const matchedScheduleId = periodEvent
+      ? findHistoricalScheduleId({
+          occurrence,
+          periodEvent,
+          scheduleIds: scheduleIdsByPeriodEventId.get(periodEvent.id) ?? [],
+        })
+      : null;
+
+    if (matchedScheduleId) {
+      scheduleIdByOccurrenceId.set(occurrence.id, matchedScheduleId);
+      continue;
+    }
+
+    const fallbackId = scheduleIdForLegacyOccurrence(occurrence.id);
+    scheduleIdByOccurrenceId.set(occurrence.id, fallbackId);
+
+    if (behavior && !recordsById.has(fallbackId)) {
+      recordsById.set(
+        fallbackId,
+        createBehaviorLogLegacyOccurrenceSchedule({
+          scheduleId: fallbackId,
+          behavior,
+          occurrence,
+        }),
+      );
+    }
+  }
+
+  return {
+    records: Array.from(recordsById.values()).sort((left, right) =>
+      left.schedule_id.localeCompare(right.schedule_id),
+    ),
+    scheduleIdByOccurrenceId,
+  };
+}
+
+function toLegacyBehaviorLogSchedules(
   behaviors: ExportJsonBehavior[],
   occurrences: ExportJsonOccurrence[],
 ) {
@@ -1436,6 +1761,78 @@ function recurrenceRuleForOccurrence(
   return schedule?.recurrenceRule ?? behavior.recurrence_rule;
 }
 
+function isBehaviorLogScheduleBoundary(
+  event: ExportJsonBehaviorConfigurationEvent,
+): boolean {
+  return (
+    event.event_kind === "baseline" ||
+    event.changed_fields.some((field) =>
+      field === "schedule_graph" || field === "timezone" || field === "active",
+    )
+  );
+}
+
+function findHistoricalScheduleId(input: {
+  occurrence: ExportJsonOccurrence;
+  periodEvent: ExportJsonBehaviorConfigurationEvent;
+  scheduleIds: string[];
+}): string | null {
+  let flatIndex = 0;
+
+  for (const schedule of input.periodEvent.next_configuration.schedule_graph) {
+    for (const entry of schedule.time_entries) {
+      const scheduleId = input.scheduleIds[flatIndex] ?? null;
+      flatIndex += 1;
+
+      if (
+        scheduleId &&
+        entry.kind === input.occurrence.schedule_kind &&
+        entry.preset === input.occurrence.schedule_preset &&
+        entry.start_time === input.occurrence.schedule_start_time &&
+        entry.end_time === input.occurrence.schedule_end_time
+      ) {
+        return scheduleId;
+      }
+    }
+  }
+
+  return null;
+}
+
+function createBehaviorLogLegacyOccurrenceSchedule(input: {
+  scheduleId: string;
+  behavior: ExportJsonBehavior;
+  occurrence: ExportJsonOccurrence;
+}) {
+  return createBehaviorLogSchedule({
+    scheduleId: input.scheduleId,
+    behavior: input.behavior,
+    recurrenceRule: { frequency: "daily", interval: 1 },
+    localTime: input.occurrence.schedule_start_time,
+    windowStartLocal:
+      input.occurrence.schedule_kind === "range"
+        ? input.occurrence.schedule_start_time
+        : null,
+    windowEndLocal:
+      input.occurrence.schedule_kind === "range"
+        ? input.occurrence.schedule_end_time
+        : null,
+    slotId: input.occurrence.behavior_schedule_slot_id,
+    scheduleKind: input.occurrence.schedule_kind,
+    schedulePreset: input.occurrence.schedule_preset,
+    scheduleLabel: input.occurrence.schedule,
+    sourceConfidence: "medium",
+    timezone: input.occurrence.timezone,
+    activeFromLocalDate: input.occurrence.local_date,
+    activeUntilLocalDate: input.occurrence.local_date,
+    configurationEventId:
+      input.occurrence.behavior_configuration_event_id,
+    historicalRecurrence: "unknown",
+    lineageConfidence: "medium",
+    importRole: "historical_reference_only",
+  });
+}
+
 function createBehaviorLogSchedule(input: {
   scheduleId: string;
   behavior: ExportJsonBehavior;
@@ -1448,6 +1845,19 @@ function createBehaviorLogSchedule(input: {
   schedulePreset: string | null;
   scheduleLabel: string;
   sourceConfidence: "high" | "medium";
+  timezone?: string;
+  activeFromLocalDate?: string;
+  activeUntilLocalDate?: string | null;
+  configurationEventId?: string | null;
+  effectiveFromUtc?: string;
+  effectiveUntilUtc?: string | null;
+  scheduleIndex?: number;
+  timeEntryIndex?: number;
+  historicalRecurrence?: "unknown";
+  lineageConfidence?: "medium";
+  importRole?: "current_configuration" | "historical_reference_only";
+  configurationActive?: boolean;
+  periodSemantics?: "inactive_current_configuration_carrier";
 }) {
   return omitNullish({
     record_type: "schedule",
@@ -1455,19 +1865,25 @@ function createBehaviorLogSchedule(input: {
     behavior_id: input.behavior.id,
     recurrence_profile: "behaviorlog.calendar_simple.v1",
     recurrence: toBehaviorLogRecurrence(input.recurrenceRule),
-    timezone: input.behavior.timezone,
+    timezone: input.timezone ?? input.behavior.timezone,
     local_time: input.localTime,
     window_start_local: input.windowStartLocal,
     window_end_local: input.windowEndLocal,
-    active_from_local_date: instantToLocalDate(
-      input.behavior.created_at,
-      input.behavior.timezone,
-    ),
-    active_until_local_date: input.behavior.archived_at
-      ? instantToLocalDate(input.behavior.archived_at, input.behavior.timezone)
-      : null,
+    active_from_local_date:
+      input.activeFromLocalDate ??
+      instantToLocalDate(input.behavior.created_at, input.behavior.timezone),
+    active_until_local_date:
+      input.activeUntilLocalDate !== undefined
+        ? input.activeUntilLocalDate
+        : input.behavior.archived_at
+          ? instantToLocalDate(
+              input.behavior.archived_at,
+              input.behavior.timezone,
+            )
+          : null,
     source: createBehaviorLogSource({
-      originalId: input.slotId ?? input.scheduleId,
+      originalId:
+        input.configurationEventId ?? input.slotId ?? input.scheduleId,
       captureMethod: "system_generated",
       confidence: input.sourceConfidence,
     }),
@@ -1477,6 +1893,16 @@ function createBehaviorLogSchedule(input: {
         schedule_kind: input.scheduleKind,
         schedule_preset: input.schedulePreset,
         schedule_label: input.scheduleLabel,
+        behavior_configuration_event_id: input.configurationEventId,
+        effective_from_utc: input.effectiveFromUtc,
+        effective_until_utc: input.effectiveUntilUtc,
+        schedule_index: input.scheduleIndex,
+        time_entry_index: input.timeEntryIndex,
+        historical_recurrence: input.historicalRecurrence,
+        lineage_confidence: input.lineageConfidence,
+        import_role: input.importRole,
+        configuration_active: input.configurationActive,
+        period_semantics: input.periodSemantics,
       },
     },
   });
@@ -1521,6 +1947,11 @@ function toBehaviorLogOccurrence(
         schedule_preset: occurrence.schedule_preset,
         schedule_start_time: occurrence.schedule_start_time,
         schedule_end_time: occurrence.schedule_end_time,
+        behavior_configuration_event_id:
+          occurrence.behavior_configuration_event_id,
+        lineage_confidence: occurrence.behavior_configuration_event_id
+          ? "high"
+          : "medium",
       },
     },
   });
@@ -1744,7 +2175,7 @@ function toBehaviorLogInterventions(input: {
     });
 }
 
-function createBehaviorLogReadme(): string {
+function createBehaviorLogReadme(includeConfigurationHistory: boolean): string {
   return [
     "# Cadence BehaviorLog Bundle",
     "",
@@ -1753,11 +2184,18 @@ function createBehaviorLogReadme(): string {
     "Read `manifest.json` first. JSONL files under `data/` are authoritative.",
     "CSV files under `csv/`, when present, are derived compatibility views and should join back to JSONL records by stable ID.",
     "Cadence behavior title and description revisions are included in the optional app-specific file `raw/cadence/behavior_definition_events.jsonl`.",
+    ...(includeConfigurationHistory
+      ? [
+          "Cadence schedule, reminder, category, active-state, and timezone revisions are included in `raw/cadence/behavior_configuration_events.jsonl`.",
+        ]
+      : []),
     "Cadence import and restore currently use the current behavior snapshots and do not apply those revision events.",
   ].join("\n");
 }
 
-function createBehaviorLogAgentsMd(): string {
+function createBehaviorLogAgentsMd(
+  includeConfigurationHistory: boolean,
+): string {
   return [
     "# AGENTS.md",
     "",
@@ -1771,6 +2209,13 @@ function createBehaviorLogAgentsMd(): string {
     "- Use UTC timestamps for ordering events.",
     "- Prefer `status_events.jsonl` over `current_status` snapshots when analyzing history.",
     "- Use `raw/cadence/behavior_definition_events.jsonl` to account for behavior renames and description changes. Order revisions by `recorded_at`, then `id`.",
+    ...(includeConfigurationHistory
+      ? [
+          "- Use `raw/cadence/behavior_configuration_events.jsonl` to segment schedule analysis at schedule, timezone, and active-state boundaries. Exact effective instants live in Cadence extensions.",
+          "- Treat legacy schedules marked `historical_recurrence: unknown` as one-occurrence placeholders, not verified recurrence history.",
+          "- Treat before-and-after configuration differences as descriptive. Do not infer causality or clinical guidance from them.",
+        ]
+      : []),
     "- Treat behavior definition revisions as context. They do not change occurrence status history or adherence calculations.",
     "- Treat files under `csv/` as compatibility views only; JSONL files under `data/` remain authoritative.",
     "- Treat notes as attributed context, not objective fact.",
@@ -1880,6 +2325,13 @@ function instantToLocalDate(
     .toString();
 }
 
+function localDateForInstant(value: string, timezone: string): string {
+  return Temporal.Instant.from(value)
+    .toZonedDateTimeISO(timezone || DEFAULT_TIMEZONE)
+    .toPlainDate()
+    .toString();
+}
+
 function timezoneForOccurrence(occurrence: ExportJsonOccurrence): string {
   return occurrence.timezone || DEFAULT_TIMEZONE;
 }
@@ -1960,6 +2412,18 @@ function scheduleIdForOccurrenceSnapshot(
       occurrence.schedule_end_time ?? "none",
     ].join("_"),
   )}`;
+}
+
+function scheduleIdForConfigurationPeriod(
+  configurationEventId: string,
+  scheduleIndex: number,
+  timeEntryIndex: number,
+): string {
+  return `sch_${stableId(configurationEventId)}_${scheduleIndex}_${timeEntryIndex}`;
+}
+
+function scheduleIdForLegacyOccurrence(occurrenceId: string): string {
+  return `sch_legacy_${stableId(occurrenceId)}`;
 }
 
 function noteIdForOccurrence(occurrenceId: string): string {
@@ -2071,6 +2535,34 @@ function compareBehaviorDefinitionEvents(
   return left.id.localeCompare(right.id);
 }
 
+function compareBehaviorConfigurationEvents(
+  left: ExportBehaviorConfigurationEventInput,
+  right: ExportBehaviorConfigurationEventInput,
+): number {
+  const recordedComparison = Temporal.Instant.compare(
+    Temporal.Instant.from(left.recordedAt),
+    Temporal.Instant.from(right.recordedAt),
+  );
+
+  return recordedComparison !== 0
+    ? recordedComparison
+    : left.id.localeCompare(right.id);
+}
+
+function compareJsonBehaviorConfigurationEvents(
+  left: ExportJsonBehaviorConfigurationEvent,
+  right: ExportJsonBehaviorConfigurationEvent,
+): number {
+  const recordedComparison = Temporal.Instant.compare(
+    Temporal.Instant.from(left.recorded_at),
+    Temporal.Instant.from(right.recorded_at),
+  );
+
+  return recordedComparison !== 0
+    ? recordedComparison
+    : left.id.localeCompare(right.id);
+}
+
 function compareStatusEvents(
   left: ExportStatusEventInput,
   right: ExportStatusEventInput,
@@ -2131,6 +2623,7 @@ function toMarkdownSummary(input: {
   counts: ExportStatusCounts;
   behaviors: ExportJsonBehavior[];
   behaviorDefinitionEvents: ExportJsonBehaviorDefinitionEvent[];
+  behaviorConfigurationEvents: ExportJsonBehaviorConfigurationEvent[];
   occurrences: ExportJsonOccurrence[];
   includeArchived: boolean;
   includeNotes: boolean;
@@ -2151,6 +2644,7 @@ function toMarkdownSummary(input: {
     `Archived behaviors: ${input.includeArchived ? "included" : "excluded"}`,
     `Occurrence notes: ${input.includeNotes ? "included" : "excluded"}`,
     `Behavior definition history: included (${input.behaviorDefinitionEvents.length} ${input.behaviorDefinitionEvents.length === 1 ? "event" : "events"})`,
+    `Behavior configuration history: included (${input.behaviorConfigurationEvents.length} ${input.behaviorConfigurationEvents.length === 1 ? "event" : "events"})`,
     "",
     "## Overall",
     `- Completed: ${input.counts.completedCount}`,
@@ -2172,6 +2666,11 @@ function toMarkdownSummary(input: {
     "- Behavior rows and occurrence titles are current snapshots. Use Full JSON `behavior_definition_events` or BehaviorLog `raw/cadence/behavior_definition_events.jsonl` to account for renames and description changes.",
     "- Order revisions by `recorded_at`, then `id`. `changed_fields` identifies whether the title, description, or both changed; previous and next values preserve the full definition text.",
     "- Definition revision events are export-only in this release. Cadence import and restore use current behavior snapshots and do not apply the revision trail.",
+    "",
+    "## Behavior configuration history",
+    "- Use Full JSON `behavior_configuration_events` or BehaviorLog `raw/cadence/behavior_configuration_events.jsonl` for schedule, timezone, active-state, category, and reminder changes.",
+    "- Segment schedule and adherence analysis at `schedule_graph`, `timezone`, and `active` boundaries. Exact change instants are in `effective_at`; BehaviorLog core date bounds are calendar-date approximations.",
+    "- Treat before-and-after differences as descriptive associations. Configuration timing does not establish causality, and this export does not provide clinical guidance.",
     "",
     "## Status history",
     "- Occurrence rows are current snapshots. Use `status_events` for corrections and decision chronology.",

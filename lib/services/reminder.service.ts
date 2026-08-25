@@ -24,6 +24,7 @@ import {
   listBehaviorOccurrencesFrom,
 } from "@/lib/db/occurrences.repo";
 import { getProfileSettings } from "@/lib/db/profiles.repo";
+import { reportMonitoringEvent } from "@/lib/monitoring/privacy-safe-events";
 import {
   deactivatePushSubscriptionById,
   listActivePushSubscriptionsForUser,
@@ -44,8 +45,11 @@ import {
 } from "@/lib/security/launch-circuit-breakers";
 import {
   createSequenzyReminderEmailSender,
+  SequenzyConfigurationError,
   type SequenzyReminderEmailInput,
+  type SequenzySendOptions,
 } from "@/lib/services/sequenzy.service";
+import { runProviderCallWithTimeout } from "@/lib/services/provider-call-timeout";
 import {
   BrowserPushConfigurationError,
   BrowserPushSubscriptionExpiredError,
@@ -67,6 +71,7 @@ import type {
 
 export type ReminderEmailSender = (
   input: SequenzyReminderEmailInput,
+  options?: SequenzySendOptions,
 ) => Promise<unknown>;
 
 export type ProcessDueEmailRemindersOptions = {
@@ -74,6 +79,7 @@ export type ProcessDueEmailRemindersOptions = {
   limit?: number;
   supabase?: AppSupabaseClient;
   sendEmail?: ReminderEmailSender;
+  providerTimeoutMs?: number;
   circuitBreakerEnvironment?: Readonly<
     Record<string, string | undefined>
   >;
@@ -101,6 +107,9 @@ export type SyncReminderDeliveriesForBehaviorsInput = {
 
 const DEFAULT_PROCESS_LIMIT = 25;
 const MAX_PROCESS_LIMIT = 100;
+const CLAIM_RECLAIM_AFTER_MINUTES = 15;
+const MAX_BROWSER_PUSH_SUBSCRIPTIONS_PER_DELIVERY = 20;
+const BROWSER_PUSH_SEND_CONCURRENCY = 4;
 
 export async function syncReminderDeliveriesForBehavior(
   supabase: AppSupabaseClient,
@@ -235,16 +244,18 @@ export async function processDueReminders(
 ): Promise<ProcessDueRemindersResult> {
   const now = options.now ?? Temporal.Now.instant();
   const supabase = options.supabase ?? createServiceRoleClient();
-  const emailResult = await processDueEmailReminders({
-    ...options,
-    now,
-    supabase,
-  });
-  const browserPushResult = await processDueBrowserPushReminders({
-    ...options,
-    now,
-    supabase,
-  });
+  const [emailResult, browserPushResult] = await Promise.all([
+    processDueEmailReminders({
+      ...options,
+      now,
+      supabase,
+    }),
+    processDueBrowserPushReminders({
+      ...options,
+      now,
+      supabase,
+    }),
+  ]);
 
   return mergeProcessResults(emailResult, browserPushResult);
 }
@@ -264,12 +275,15 @@ export async function processDueEmailReminders(
 
   const now = options.now ?? Temporal.Now.instant();
   const dueAt = now.toString();
+  const reclaimBefore = now
+    .subtract({ minutes: CLAIM_RECLAIM_AFTER_MINUTES })
+    .toString();
   const processingStartedAt = dueAt;
   const limit = normalizeProcessLimit(options.limit);
-  const sendEmail = options.sendEmail ?? createSequenzyReminderEmailSender();
   const supabase = options.supabase ?? createServiceRoleClient();
   const dueDeliveries = await listDuePendingEmailReminderDeliveries(supabase, {
     dueAt,
+    reclaimBefore,
     limit,
   });
   const result: ProcessDueEmailRemindersResult = {
@@ -281,11 +295,52 @@ export async function processDueEmailReminders(
     cancelled: 0,
   };
 
+  if (dueDeliveries.length === 0) {
+    return result;
+  }
+
+  let sendEmail: ReminderEmailSender;
+
+  try {
+    sendEmail = options.sendEmail ?? createSequenzyReminderEmailSender();
+  } catch (error) {
+    if (!(error instanceof SequenzyConfigurationError)) {
+      throw error;
+    }
+
+    for (const delivery of dueDeliveries) {
+      const claimedDelivery = await claimPendingEmailReminderDelivery(supabase, {
+        id: delivery.id,
+        userId: delivery.user_id,
+        dueAt,
+        reclaimBefore,
+        processingStartedAt,
+      });
+
+      if (!claimedDelivery) {
+        result.skipped += 1;
+        continue;
+      }
+
+      reportReclaimedDelivery(delivery);
+      result.claimed += 1;
+      result.failed += 1;
+      await markReminderDeliveryFailed(supabase, {
+        id: claimedDelivery.id,
+        userId: claimedDelivery.user_id,
+        error: error.message,
+      });
+    }
+
+    return result;
+  }
+
   for (const delivery of dueDeliveries) {
     const claimedDelivery = await claimPendingEmailReminderDelivery(supabase, {
       id: delivery.id,
       userId: delivery.user_id,
       dueAt,
+      reclaimBefore,
       processingStartedAt,
     });
 
@@ -294,6 +349,7 @@ export async function processDueEmailReminders(
       continue;
     }
 
+    reportReclaimedDelivery(delivery);
     result.claimed += 1;
 
     const outcome = await processClaimedEmailReminder({
@@ -301,6 +357,7 @@ export async function processDueEmailReminders(
       delivery: claimedDelivery,
       sendEmail,
       processedAt: dueAt,
+      providerTimeoutMs: options.providerTimeoutMs,
     });
 
     result[outcome] += 1;
@@ -324,6 +381,9 @@ export async function processDueBrowserPushReminders(
 
   const now = options.now ?? Temporal.Now.instant();
   const dueAt = now.toString();
+  const reclaimBefore = now
+    .subtract({ minutes: CLAIM_RECLAIM_AFTER_MINUTES })
+    .toString();
   const processingStartedAt = dueAt;
   const limit = normalizeProcessLimit(options.limit);
   const supabase = options.supabase ?? createServiceRoleClient();
@@ -331,6 +391,7 @@ export async function processDueBrowserPushReminders(
     supabase,
     {
       dueAt,
+      reclaimBefore,
       limit,
     },
   );
@@ -363,6 +424,7 @@ export async function processDueBrowserPushReminders(
           id: delivery.id,
           userId: delivery.user_id,
           dueAt,
+          reclaimBefore,
           processingStartedAt,
         },
       );
@@ -372,6 +434,7 @@ export async function processDueBrowserPushReminders(
         continue;
       }
 
+      reportReclaimedDelivery(delivery);
       result.claimed += 1;
       result.failed += 1;
       await markReminderDeliveryFailed(supabase, {
@@ -391,6 +454,7 @@ export async function processDueBrowserPushReminders(
         id: delivery.id,
         userId: delivery.user_id,
         dueAt,
+        reclaimBefore,
         processingStartedAt,
       },
     );
@@ -400,6 +464,7 @@ export async function processDueBrowserPushReminders(
       continue;
     }
 
+    reportReclaimedDelivery(delivery);
     result.claimed += 1;
 
     const outcome = await processClaimedBrowserPushReminder({
@@ -407,6 +472,7 @@ export async function processDueBrowserPushReminders(
       delivery: claimedDelivery,
       sendBrowserPush,
       processedAt: dueAt,
+      providerTimeoutMs: options.providerTimeoutMs,
     });
 
     result[outcome] += 1;
@@ -420,6 +486,7 @@ async function processClaimedEmailReminder(input: {
   delivery: ReminderDelivery;
   sendEmail: ReminderEmailSender;
   processedAt: string;
+  providerTimeoutMs?: number;
 }): Promise<"sent" | "failed" | "cancelled"> {
   const occurrence = await getOccurrenceById(
     input.supabase,
@@ -464,13 +531,15 @@ async function processClaimedEmailReminder(input: {
   }
 
   try {
-    await input.sendEmail(
-      toSequenzyReminderEmailInput({
-        delivery: input.delivery,
-        behavior,
-        occurrence,
-        recipientEmail,
-      }),
+    const emailInput = toSequenzyReminderEmailInput({
+      delivery: input.delivery,
+      behavior,
+      occurrence,
+      recipientEmail,
+    });
+    await runProviderCallWithTimeout(
+      (signal) => input.sendEmail(emailInput, { signal }),
+      { timeoutMs: input.providerTimeoutMs },
     );
   } catch (error) {
     await markReminderDeliveryFailed(input.supabase, {
@@ -481,11 +550,17 @@ async function processClaimedEmailReminder(input: {
     return "failed";
   }
 
-  await markReminderDeliverySent(input.supabase, {
+  const markedSent = await markReminderDeliverySent(input.supabase, {
     id: input.delivery.id,
     userId: input.delivery.user_id,
     sentAt: input.processedAt,
   });
+
+  if (!markedSent) {
+    reportMidSendCancellation("email");
+    return "cancelled";
+  }
+
   return "sent";
 }
 
@@ -494,6 +569,7 @@ async function processClaimedBrowserPushReminder(input: {
   delivery: ReminderDelivery;
   sendBrowserPush: BrowserPushReminderSender;
   processedAt: string;
+  providerTimeoutMs?: number;
 }): Promise<"sent" | "failed" | "cancelled"> {
   const occurrence = await getOccurrenceById(
     input.supabase,
@@ -546,6 +622,7 @@ async function processClaimedBrowserPushReminder(input: {
     userId: input.delivery.user_id,
     subscriptions,
     sendBrowserPush: input.sendBrowserPush,
+    providerTimeoutMs: input.providerTimeoutMs,
     payload: toBrowserPushReminderPayload({
       behavior,
       occurrence,
@@ -553,11 +630,17 @@ async function processClaimedBrowserPushReminder(input: {
   });
 
   if (sendResult.sent > 0) {
-    await markReminderDeliverySent(input.supabase, {
+    const markedSent = await markReminderDeliverySent(input.supabase, {
       id: input.delivery.id,
       userId: input.delivery.user_id,
       sentAt: input.processedAt,
     });
+
+    if (!markedSent) {
+      reportMidSendCancellation("browser_push");
+      return "cancelled";
+    }
+
     return "sent";
   }
 
@@ -618,36 +701,93 @@ function emptyProcessResult(): ProcessDueRemindersResult {
   };
 }
 
+function reportReclaimedDelivery(delivery: ReminderDelivery): void {
+  if (delivery.processing_started_at === null) {
+    return;
+  }
+
+  reportMonitoringEvent({
+    name: "reminder_delivery_claim_reclaimed",
+    severity: "warning",
+    context: {
+      channel: delivery.channel,
+      retry: true,
+    },
+  });
+}
+
+function reportMidSendCancellation(channel: ReminderChannel): void {
+  reportMonitoringEvent({
+    name: "reminder_delivery_cancelled_mid_send",
+    severity: "warning",
+    context: { channel },
+  });
+}
+
 async function sendBrowserPushToSubscriptions(input: {
   supabase: AppSupabaseClient;
   userId: string;
   subscriptions: PushSubscription[];
   sendBrowserPush: BrowserPushReminderSender;
+  providerTimeoutMs?: number;
   payload: BrowserPushReminderPayload;
 }): Promise<{ sent: number; error: string | null }> {
   let sent = 0;
   let error: string | null = null;
+  let nextSubscriptionIndex = 0;
+  const subscriptions = input.subscriptions.slice(
+    0,
+    MAX_BROWSER_PUSH_SUBSCRIPTIONS_PER_DELIVERY,
+  );
 
-  for (const subscription of input.subscriptions) {
-    try {
-      await input.sendBrowserPush({
-        endpoint: subscription.endpoint,
-        p256dh: subscription.p256dh,
-        auth: subscription.auth,
-        payload: input.payload,
-      });
-      sent += 1;
-    } catch (sendError) {
-      if (sendError instanceof BrowserPushSubscriptionExpiredError) {
-        await deactivatePushSubscriptionById(input.supabase, {
-          userId: input.userId,
-          subscriptionId: subscription.id,
-        });
+  async function sendNextSubscription(): Promise<void> {
+    while (nextSubscriptionIndex < subscriptions.length) {
+      const subscription = subscriptions[nextSubscriptionIndex];
+      nextSubscriptionIndex += 1;
+
+      if (!subscription) {
+        return;
       }
 
-      error = errorToMessage(sendError, "Browser push reminder could not be sent.");
+      try {
+        await runProviderCallWithTimeout(
+          (signal) =>
+            input.sendBrowserPush(
+              {
+                endpoint: subscription.endpoint,
+                p256dh: subscription.p256dh,
+                auth: subscription.auth,
+                payload: input.payload,
+              },
+              { signal },
+            ),
+          { timeoutMs: input.providerTimeoutMs },
+        );
+        sent += 1;
+      } catch (sendError) {
+        if (sendError instanceof BrowserPushSubscriptionExpiredError) {
+          await deactivatePushSubscriptionById(input.supabase, {
+            userId: input.userId,
+            subscriptionId: subscription.id,
+          });
+        }
+
+        error = errorToMessage(
+          sendError,
+          "Browser push reminder could not be sent.",
+        );
+      }
     }
   }
+
+  await Promise.all(
+    Array.from(
+      {
+        length: Math.min(BROWSER_PUSH_SEND_CONCURRENCY, subscriptions.length),
+      },
+      () => sendNextSubscription(),
+    ),
+  );
 
   return {
     sent,

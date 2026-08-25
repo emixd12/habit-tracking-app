@@ -1,5 +1,8 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import {
+  clearSupabaseAuthCookies,
+  createClient,
+} from "@/lib/supabase/server";
 import { invalidateStableUserData } from "@/lib/cache/stable-user-data.cache";
 import type { AccountDeletionActionState } from "@/lib/types/account";
 
@@ -30,22 +33,36 @@ export async function deleteCurrentAccountFromFormData(
   assertExportAcknowledged(formData);
   assertConfirmationMatches(formData, expectedConfirmation);
 
-  const { error: signOutError } = await supabase.auth.signOut({
-    scope: "global",
-  });
+  const serviceRole = createAccountDeletionClient();
+  await verifyAccountDeletionClient(serviceRole, user.id);
 
-  if (signOutError) {
-    throw new Error("Unable to sign out before deleting this account.");
-  }
-
-  const serviceRole = createServiceRoleClient();
-  const { error: deleteError } = await serviceRole.auth.admin.deleteUser(user.id);
+  const { error: deleteError } = await deleteAuthUser(serviceRole, user.id);
 
   if (deleteError) {
-    throw new Error("Unable to delete this account.");
+    throw new AccountDeletionUserError(
+      "Unable to delete this account. Your account and session are unchanged. Try again.",
+    );
   }
 
-  invalidateStableUserData(user.id);
+  try {
+    invalidateStableUserData(user.id);
+  } catch {
+    // The deleted account cannot retry a local cache invalidation failure.
+  }
+
+  // Hard Auth deletion removes Auth session rows and refresh capability. This
+  // final sign-out best-effort clears the current browser's cookie-backed state.
+  try {
+    await supabase.auth.signOut({ scope: "global" });
+  } catch {
+    // The account is already deleted. Do not present an impossible retry.
+  }
+
+  try {
+    await clearSupabaseAuthCookies();
+  } catch {
+    // Auth deletion succeeded. The issued JWT expires on its configured bound.
+  }
 }
 
 export function accountDeletionErrorToActionState(
@@ -86,4 +103,46 @@ function assertConfirmationMatches(
   throw new AccountDeletionUserError(
     `Type ${expectedConfirmation} to confirm account deletion.`,
   );
+}
+
+function createAccountDeletionClient(): ReturnType<
+  typeof createServiceRoleClient
+> {
+  try {
+    return createServiceRoleClient();
+  } catch {
+    throw new AccountDeletionUserError(
+      "Account deletion is temporarily unavailable. Your account and session are unchanged. Try again later.",
+    );
+  }
+}
+
+async function verifyAccountDeletionClient(
+  serviceRole: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+): Promise<void> {
+  try {
+    const { data, error } = await serviceRole.auth.admin.getUserById(userId);
+
+    if (error || data.user?.id !== userId) {
+      throw error ?? new Error("Authenticated user mismatch.");
+    }
+  } catch {
+    throw new AccountDeletionUserError(
+      "Unable to verify account deletion. Your account and session are unchanged. Try again.",
+    );
+  }
+}
+
+async function deleteAuthUser(
+  serviceRole: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+) {
+  try {
+    return await serviceRole.auth.admin.deleteUser(userId);
+  } catch {
+    throw new AccountDeletionUserError(
+      "Unable to delete this account. Your account and session are unchanged. Try again.",
+    );
+  }
 }

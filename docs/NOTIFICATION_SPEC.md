@@ -14,6 +14,11 @@ Email reminders default to off and are enabled per behavior.
 Public launch does not include marketing or product lifecycle emails. Reminder
 emails remain transactional behavior reminders.
 
+The reminder processor reads the recipient from `profiles.email`. Auth
+creation and email-update triggers synchronize that value from
+`auth.users.email`. Authenticated Data API clients cannot write the profile
+email or display name; they may update only the profile timezone.
+
 ## Browser notifications
 
 Requirements:
@@ -56,18 +61,27 @@ Requirements:
   different account must be unsubscribed before Cadence creates a fresh
   subscription for the current account. At most one account may have an active
   row for one endpoint.
+- One account may have at most 20 active push subscriptions. Registering a
+  device beyond that cap keeps the new device active and deactivates the least
+  recently used active row. A per-owner database transaction lock makes the cap
+  hold across concurrent registrations and direct owner-scoped writes.
+- Authenticated registration attempts consume a separate account
+  limit of six attempts per 60 seconds. A denied attempt returns 429 with a
+  factual `Retry-After` value and does not write the subscription. Successful
+  registration does not reset the separate unauthenticated failure limiter.
 - If current-account ownership cannot be verified, Settings must not report the
   device as enabled. If saving a newly created browser subscription fails,
   Cadence must unsubscribe that new browser state and show a retryable setup
   failure. The retry remains the existing Enable notifications on this device
   or Refresh this device action; no privileged cross-account transfer or
   service-role write is allowed.
-- A successfully unsubscribed prior-account endpoint is invalid at the push
-  provider even if its old database row remains active until the next send.
-  Existing gone/not-found delivery cleanup then marks that row inactive. If a
-  provider reissues the same still-active endpoint and the database uniqueness
-  guard rejects the new row, Cadence must unsubscribe the rejected new browser
-  subscription and leave Settings in the retryable not-enabled state.
+- Sign out reads the current PushManager subscription endpoint in the browser,
+  including subscriptions created before this contract shipped. The server
+  deactivates the departing account's matching active row before clearing the
+  local session. No current browser subscription or no matching active row is
+  a successful no-op. A deactivation failure leaves the session intact so the
+  user can retry. This ordering frees a provider-reissued endpoint for a second
+  account in the same browser.
 - V1 does not need a test notification button.
 
 Behavior fields:
@@ -123,6 +137,11 @@ Statuses:
 - sent
 - failed
 - cancelled
+
+Authenticated owner-scoped clients may plan pending deliveries, cancel
+pending deliveries, and reactivate unclaimed cancelled deliveries. They cannot
+move a sent or failed delivery back to pending or clear a non-null processing
+claim. The server-only `service_role` retains those maintenance capabilities.
 
 ## BehaviorLog intervention import history
 
@@ -228,6 +247,8 @@ Browser notifications:
 - Generate if `browser_reminder_enabled = true`
 - Processing sends the due delivery to active `push_subscriptions` for the
   owning user through the server-only VAPID configuration.
+- One delivery reads and sends to at most 20 active subscriptions. Provider
+  calls run through a fixed four-worker pool, so fan-out concurrency is bounded.
 - If a push service reports a subscription as gone or not found, mark that
   subscription inactive.
 - If no active subscription exists, or browser push sending is not configured,
@@ -266,8 +287,13 @@ Rules:
   when the profile or behavior already contains the requested value.
 - Do not send the same reminder twice.
 - Claim a due pending delivery before provider calls so overlapping process runs skip already-claimed work.
+- A pending claim older than 15 minutes is reclaimable. Due selection and the
+  conditional claim update use the same strict predicate, so only one worker
+  can win an abandoned-claim retry. Reclaims emit a privacy-safe monitoring
+  event and do not count as an earlier delivery failure.
 - If a send fails, log the failure.
-- A retry strategy may be added later, but v1 only needs to avoid duplicate sends.
+- Failed deliveries are not retried automatically in v1. Abandoned pending
+  claim recovery is the only retry path.
 
 ## Processing
 
@@ -277,6 +303,20 @@ A scheduled backend process should periodically:
 3. Send through the correct channel.
 4. Mark as sent or failed.
 5. Store error text for failed sends.
+
+Email and browser-push processing are isolated and may run concurrently. The
+processor constructs the Sequenzy sender only after it finds at least one due
+email row. Missing Sequenzy configuration fails claimed due email rows through
+the normal failure path without blocking browser push. An email or push
+provider call receives a 10-second `AbortSignal.timeout` bound. A timeout also
+uses the normal delivery-failure path, so it cannot leave a fresh claim waiting
+forever.
+
+After a provider reports success, the processor marks the delivery sent only
+when its stored status is still `pending`. A zero-row sent update means the
+occurrence was resolved and the delivery was cancelled during the provider
+call. The processor records a privacy-safe monitoring event, leaves the row
+cancelled, and increments the cancelled result count instead of sent.
 
 The process route must be protected by `REMINDER_PROCESS_SECRET`,
 `CRON_SECRET`, or an equivalent server-only mechanism. Repeated auth failures

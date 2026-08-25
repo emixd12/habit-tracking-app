@@ -73,12 +73,24 @@ on 2026-08-04. Chromium touch QA passed. Mobile WebKit and an authenticated
 physical-device pass remain unverified because those browser surfaces were not
 available in this environment.
 
-Tickets 078-093 are `not_started`. Ticket 094 is `complete`. Tickets 078-093 were defined on 2026-08-06
-from a repository-wide read-only audit across five independent passes (domain
-resolvers/services/repos, routes/auth/API, import/restore/export,
-UI/interaction, schema/marketing/ops). No fix was applied during the audit and
-no product scope changed. Scope and acceptance criteria live in
-`docs/TICKETS.md`; the suggested order is 078, 079, 080, 081, 082, 083 first.
+Tickets 078 and 095-097 are `complete` locally under explicit owner direction
+on 2026-08-14. Ticket 078 prevents Behavior edits from deleting unresolved
+Occurrences at or before the current instant or future unresolved Occurrences
+with notes or tracked time. Tickets 095-097 add append-only Behavior
+configuration history, Occurrence-to-revision lineage, and rich-export schedule
+history without adding medication dose or clinical semantics. Clean migration
+reset, authenticated RLS smoke coverage, real 1,001-row Data API pagination,
+949 tests passed with one environment-gated integration test skipped. Lint,
+typecheck, build, and repository checks passed. Hosted migration deployment
+remains unauthorized and was not performed.
+
+Tickets 079-083 and 093 are `complete` locally. Tickets 084-092 are `not_started`. Ticket 094 is `complete`. Tickets 078-093
+were defined on 2026-08-06 from a repository-wide read-only audit across five
+independent passes (domain resolvers/services/repos, routes/auth/API,
+import/restore/export, UI/interaction, schema/marketing/ops). No fix was applied
+during the audit and no product scope changed. Scope and acceptance criteria
+live in `docs/TICKETS.md`; the remaining suggested order starts with Ticket
+084.
 Ticket 094 was added on 2026-08-12 after the live 90-day Behaviors range
 produced an oversized Supabase Data API URL. It replaces Ticket 091's earlier
 chunked-table-query decision with two owner-scoped query contracts: a bounded
@@ -88,19 +100,77 @@ verification completed on 2026-08-12. The owner authorized and completed the
 migration-first hosted rollout on 2026-08-12. Authenticated production QA
 passed for every required caller, so the production defect is resolved.
 
-Two of those findings are live in production and should be treated as
-defects, not backlog:
+Ticket 082 caps one account at 20 active push subscriptions through an
+owner-serialized database trigger. The 21st registration keeps the new row and
+evicts the LRU row. Reminder fan-out reads at most 20 rows and uses four
+concurrent workers. A distributed authenticated-account limiter allows six
+registration attempts per 60 seconds without resetting the separate auth-
+failure limiter. Sign out discovers existing browser PushManager endpoints and
+deactivates the departing account's current-device row before local session
+clear. A clean migration reset, generated-type comparison, focused 74-test
+suite, local 21st-row/concurrency/two-account smoke, 991-test full suite with
+one environment-gated skip, lint, typecheck, build, repository checks, and diff
+check passed. The first sandboxed full-test run failed only because the existing
+fake provider could not bind loopback; the permission-enabled rerun passed. No
+hosted migration, application deployment, provider contact, or push send was
+performed. Two intermediate reset attempts applied every migration but received
+a local gateway 502 during container restart. A non-destructive local
+Supabase stop/start restored health; the final clean reset and smoke passed.
 
-- Ticket 078: editing a behavior deletes unresolved occurrences scheduled
-  earlier the same day, cascading their notes and tracked time sessions. The
-  deletion planner has no guard for instants before `now`, which contradicts
-  `docs/DATA_MODEL.md`. This is silent, unrecoverable user data loss in an
-  ordinary edit flow.
+Ticket 083 makes both destructive Settings writes preserve a recoverable
+boundary. Account deletion validates both gates, verifies the service-role
+client, hard-deletes the Auth user, then attempts global sign-out. Verification
+or deletion failure leaves the account and session intact. A post-delete
+sign-out error does not turn completed deletion into a false retry state.
+Settings timezone save reuses the Ticket 095-097 history-aware transaction.
+Migration `20260825075255_fix_settings_timezone_conflict_errors.sql` changes
+its stale preconditions from retryable `40001` to non-retryable `P0001` without
+weakening configuration history. Authenticated local smoke proves rollback
+after the profile update, one configuration event, and one sync-state version
+increment. Clean reset, 1,000 tests with one environment-gated skip, lint,
+typecheck, build, repository checks, and local advisors pass. No hosted action
+occurred.
+
+Ticket 098 is `complete` locally with release decision `FAIL`. Ticket 099 is
+`complete` locally. The repository owner monitors the security inbox. The
+sender accepted and retained exactly one authorized synthetic route-test
+message with sent status, and recipient-side inspection confirmed receipt at
+the approved mailbox. The message landed in the junk folder, so monitoring
+filtered folders or maintaining appropriate allowlisting remains required.
+Ticket 100 is `not_started`. They define the public repository security gate,
+open-source license and private disclosure contract, and authorized GitHub
+publication sequence. Ticket 098 cannot pass until Tickets 079-083 and 093 are
+complete and deployed. Ticket 100 remains blocked on passing Ticket 098 and
+explicit authorization for every repository or production mutation.
+
+Tickets 101-103 are `not_started`. They complete the public Trust evidence
+pipeline: Ticket 101 defines the versioned evidence and freshness contract,
+Ticket 102 publishes post-deployment provenance, dependency, integrity, route,
+migration, and RLS evidence, and Ticket 103 renders normalized results on the
+public Trust page and machine route. Ticket 102 depends on Tickets 092 and
+098-101. Ticket 103 depends on Tickets 100-102.
+
+Four remediated findings remain live in production until their migration or
+application deployment is authorized:
+
 - Ticket 079: `profiles.email` is writable by its owner through the Data API
   because the base schema grants table-wide DML, and the reminder processor
   uses that column as the outbound email recipient. An account can direct
   Cadence's transactional email at a third party from the project's sending
-  domain.
+  domain. The local migration and acceptance proof are complete. Hosted
+  migration deployment remains unauthorized.
+- Ticket 080: abandoned reminder claims remain stranded, reminder sends can
+  overwrite a mid-flight cancellation, and missing email configuration can
+  block browser push. The local application fix and acceptance proof are
+  complete. Application deployment remains unauthorized.
+- Ticket 082: production still permits unbounded active subscriptions and
+  sequential unbounded fan-out, and sign out still leaves the current-device
+  row active. The local migration, application fix, and acceptance proof are
+  complete. Hosted migration and application deployment remain unauthorized.
+- Ticket 083: production still uses sign-out-before-delete ordering and
+  non-atomic timezone writes until the configuration-history and Ticket 083
+  migrations plus application changes deploy. Hosted migration and application
+  deployment remain unauthorized.
 
 The completed sequence includes the Ticket 001 Next.js scaffold, Ticket 002
 Supabase Auth setup, Ticket 003 database schema, Tickets 004-012 core behavior
@@ -5331,6 +5401,307 @@ Remaining limitations:
   fixture-backed design-system route that renders the production components and
   the real server-action success path without changing product data.
 
+## Profile email integrity and reminder recipient trust (Ticket 079)
+
+Status: complete locally.
+
+Implemented:
+
+- Added migration
+  `20260825061411_protect_profile_email_and_reminder_delivery_state.sql`.
+- Removed authenticated profile insert, table-wide update, and delete grants.
+  Authenticated clients retain profile select and may update only `timezone`.
+- Added an Auth email-update trigger that synchronizes `profiles.email` from
+  `auth.users.email`, matching the existing account-creation source of truth.
+- Added a reminder-delivery before-update guard. Non-`service_role` callers
+  cannot move `sent` or `failed` deliveries to `pending`, or clear a non-null
+  `processing_started_at` claim.
+- Preserved user-scoped pending planning, cancellation, and unclaimed
+  cancelled-delivery reactivation. The server-only processor retains the
+  `service_role` maintenance exception.
+- Extended the authenticated RLS smoke with profile timezone and protected
+  identity-field writes, Auth email propagation, reminder planning,
+  cancellation, reactivation, terminal recycling, and claim-clearing proof.
+- Updated the data and notification contracts. Added a static migration
+  permission and trigger regression test.
+- Database types were not regenerated. The migration changes privileges and
+  trigger behavior only; it adds no Data API row or callable RPC type shape.
+
+Verification:
+
+- Pass: focused Ticket 079 coverage with
+  `npm run test -- tests/profile-email-reminder-integrity-migration.test.ts tests/supabase-function-permissions-migration.test.ts tests/rls-smoke-script.test.ts tests/reminder.service.test.ts tests/occurrence.service.test.ts tests/settings.service.test.ts`
+  (6 files, 68 tests).
+- Pass: clean `npm run supabase -- db reset` through the Ticket 079 migration.
+- Pass: `npm run smoke:rls:local` created and cleaned three temporary users and
+  verified 51 ownership and integrity checks through ordinary authenticated
+  clients. The local stack required restarting only its stopped PostgREST and
+  API gateway containers after reset.
+- Pass: `npm run agents:check` (178 invariants),
+  `npm run interactions:check` (4,484 invariants), and
+  `npm run resolvers:check` (169 invariants).
+- Pass: `npm run lint`, `npm run typecheck`, `npm run test` (123 files passed,
+  1 skipped; 953 tests passed, 1 skipped), and `npm run build`.
+- The first sandboxed full-test run failed only because the existing fake
+  Sequenzy tests could not bind `127.0.0.1`. The approved loopback-capable
+  rerun passed without source changes.
+- Pass: `git diff --check`.
+
+Rollout status and remaining risk:
+
+- No hosted migration, provider operation, deployment, email send, commit, or
+  push occurred. Hosted migration deployment remains unauthorized.
+- Production remains vulnerable until the owner authorizes the migration-first
+  hosted rollout and the same authenticated RLS smoke passes against that
+  target.
+
+## Reminder pipeline claim recovery and channel isolation (Ticket 080)
+
+Status: complete locally.
+
+Implemented:
+
+- Made pending reminder claims strictly older than 15 minutes due and
+  reclaimable. Due selection and conditional claim updates share the same
+  predicate, so concurrent workers cannot both win one abandoned claim.
+- Classified successful abandoned-claim recovery as a retry and added a
+  privacy-safe monitoring event containing only the channel and retry flag.
+- Added 10-second `AbortSignal.timeout` bounds at email, browser-push, and
+  reminder-service provider boundaries. Web Push also uses the matching SDK
+  socket timeout. Timeouts follow the existing delivery-failure path.
+- Made sent updates conditional on `status = 'pending'` and return whether a
+  row changed. A zero-row result leaves a mid-flight cancellation intact,
+  emits privacy-safe monitoring, and increments cancelled instead of sent.
+- Constructed the Sequenzy sender only after a due-email query returns rows.
+  Missing email configuration now fails claimed due emails while browser push
+  continues. Email and browser-push channel processing starts concurrently.
+- Added focused repository, orchestration, provider-timeout, cancellation,
+  concurrent-reclaim, monitoring, and channel-isolation coverage. Updated the
+  notification contract. No schema or generated database type changed.
+
+Verification:
+
+- Pass: focused Ticket 080 coverage with
+  `npm run test -- tests/reminder-deliveries.repo.test.ts tests/reminder.service.test.ts tests/sequenzy.service.test.ts tests/web-push-subject.test.ts`
+  (4 files, 40 tests).
+- Pass: `npm run agents:check` (178 invariants),
+  `npm run interactions:check` (4,484 invariants), and
+  `npm run resolvers:check` (169 invariants).
+- Pass: `npm run lint`, `npm run typecheck`, `npm run test` (123 files passed,
+  1 skipped; 961 tests passed, 1 skipped), `npm run build`, and
+  `git diff --check`.
+- The first sandboxed full-test run failed only because the existing fake
+  Sequenzy tests could not bind `127.0.0.1`. The approved loopback-capable
+  rerun passed without source changes.
+
+Rollout status and remaining risk:
+
+- No schema change, database reset, hosted mutation, provider operation,
+  deployment, notification send, commit, or push occurred.
+- Production retains the old reminder processor until the owner authorizes an
+  application deployment. The local tests use deterministic repository and
+  provider fakes; hosted reminder processing remains unverified in this task.
+
+## Complete reads for export and restore (Ticket 081)
+
+Status: complete locally.
+
+Implemented:
+
+- Added one shared PostgREST range-read helper with fixed 1,000-row pages,
+  exact-page continuation, deterministic caller ordering, duplicate and
+  non-advancing-page rejection, page-error propagation, and a fail-loud
+  100,000-row absolute ceiling.
+- Routed complete user-scoped reads for Behaviors, Behavior schedules, schedule
+  slots, Occurrences, Occurrence status events, imported Notes, BehaviorLog
+  record mappings, and imported interventions through the helper. Schedule
+  rows are reassembled instead of relying on capped embedded arrays.
+  Status-event reads normalize and batch Occurrence IDs before restoring global
+  `recorded_at`, `id` order.
+- Reused the helper for Ticket 094 arbitrary-ID and retention-presence
+  time-session response ranges without changing its owner-scoped RPC batching,
+  deduplication, or global ordering.
+- Preserved Ticket 094 historical time-session and Ticket 095-097 definition
+  and configuration fixed-high-water keyset semantics. Added the same absolute
+  ceiling plus duplicate or non-advancing cursor rejection. Definition and
+  configuration history reads now also fail when a captured high-water row is
+  not reached before pagination returns an empty page.
+- Kept the main Export-page RPC unchanged because it returns one JSON row.
+  Manifest and summary counts continue to derive from fully materialized arrays.
+- Added focused helper, repository, restore-graph materialization, and Export
+  service coverage. A 1,001-definition-event and 1,001-time-session export now
+  proves the true BehaviorLog manifest counts.
+- Reused Ticket 094's 2026-08-12 local and hosted `max_rows = 1000` evidence.
+  No hosted inspection or mutation occurred.
+
+Verification:
+
+- Pass: focused Ticket 081 coverage with
+  `npm run test -- tests/behaviorlog-import-ui.test.tsx tests/complete-reads.repo.test.ts tests/paginated-read.test.ts tests/export.service.test.ts tests/time-sessions.repo.test.ts tests/behavior-definition-events.repo.test.ts tests/behavior-configuration-events.repo.test.ts`
+  (7 files, 66 tests).
+- Pass: focused import-write fake-repository compatibility coverage with
+  `npm run test -- tests/behaviorlog-import-write.service.test.ts tests/behaviorlog-import-intervention-history.test.ts`
+  (2 files, 24 tests).
+- Pass: `npm run agents:check` (178 invariants),
+  `npm run interactions:check` (4,484 invariants), and
+  `npm run resolvers:check` (169 invariants).
+- Pass: `npm run lint`, `npm run typecheck`, `npm run test` (125 files passed,
+  1 skipped; 978 tests passed, 1 skipped), `npm run build`, and
+  `git diff --check`.
+- The first sandboxed full-test run also exposed missing `.range()` support in
+  two in-memory Supabase fakes. Those fakes now model range slicing. The final
+  loopback-capable full run passed.
+- No migration or schema change was introduced, so the local Supabase database
+  reset was not required for Ticket 081.
+
+Rollout status and remaining risk:
+
+- No hosted mutation, provider operation, deployment, email send, commit, or
+  push occurred.
+- Reads above 100,000 rows now stop with a clear error by contract. A future
+  larger-account strategy must change that explicit ceiling before export or
+  restore can proceed.
+
+## Settings write atomicity and account-deletion ordering (Ticket 083)
+
+Status: complete locally.
+
+Implemented:
+
+- Reordered account deletion to validate both gates, construct and verify the
+  server-only client with `admin.getUserById`, hard-delete the Auth user, then
+  attempt global sign-out. Client construction, verification, thrown provider
+  failures, and returned delete errors now produce specific recoverable
+  messages before any session mutation.
+- Kept a post-delete sign-out error on the success path. Auth hard deletion has
+  already removed Auth session rows and refresh capability, so the application
+  redirects to Login instead of presenting an impossible deletion retry.
+- Added explicit expiration for every current `sb-*-auth-token*` cookie after
+  deletion. This prevents an issued JWT left by a failed SDK sign-out from
+  redirecting the success destination back into the protected app.
+- Reused the Ticket 095-097 owner-scoped timezone function. It updates the
+  profile, every active Behavior, configuration history, and the stale sync
+  ledger inside one transaction. Occurrence sync remains outside and
+  rerunnable.
+- Added migration
+  `20260825075255_fix_settings_timezone_conflict_errors.sql`. It preserves the
+  complete history-aware function and changes its stale profile, active-set,
+  and Behavior precondition errors from retryable `40001` to non-retryable
+  `P0001`.
+- Extended the authenticated local RLS smoke. A deliberately stale Behavior
+  timestamp fails only after the profile update statement executes, then
+  follow-up reads prove transaction rollback. A valid retry proves one profile
+  update, one Behavior update, one configuration event, and exactly one
+  sync-state version increment. A stale-profile retry performs no write.
+- Updated `INT-SETTINGS-003` and `INT-SETTINGS-009`, account/timezone source
+  docs, the user guide, and the Supabase workflow to match observed ordering,
+  rollback, retry, and access-token semantics.
+
+Verification:
+
+- Pass: focused Ticket 083 coverage with
+  `npm run test -- tests/account-deletion.service.test.ts tests/settings.service.test.ts tests/settings-timezone-atomicity-migration.test.ts tests/behavior-configuration-events-migration.test.ts tests/rls-smoke-script.test.ts tests/ux-ticket-049-052-ui.test.tsx`
+  (6 files, 44 tests).
+- Pass: explicit returned/throwing sign-out cleanup and auth-cookie expiration
+  coverage with
+  `npm run test -- tests/account-deletion.service.test.ts tests/supabase-server-cookies.test.ts`
+  (2 files, 10 tests).
+- Pass: clean `npm run supabase -- db reset` through the Ticket 083 migration.
+- Pass: `npm run smoke:rls:local` created and cleaned three temporary users and
+  verified 56 ownership and transaction checks.
+- Pass: generated local database types match `lib/db/database.types.ts` except
+  for one trailing blank line. The function signature did not change.
+- Pass: local Supabase security advisors at warning level and performance
+  advisors at error level reported no issues.
+- Pass: `npm run agents:check` (178 invariants),
+  `npm run interactions:check` (4,506 invariants), and
+  `npm run resolvers:check` (169 invariants).
+- Pass: `npm run lint`, `npm run typecheck`, `npm run test` (128 files passed,
+  1 skipped; 1,000 tests passed, 1 skipped), `npm run build`, and
+  `git diff --check`.
+- The final sandboxed build rerun failed only because the configured Google
+  font fetch lacked network access. The approved network-capable rerun passed
+  without source changes.
+- Two pre-migration smoke attempts returned gateway timeout. Local Postgres
+  logs showed the intended stale-Behavior exception repeating under SQLSTATE
+  `40001`. Both attempts ran exact temporary-user cleanup. The non-retryable
+  migration removed the retry storm, and the final smoke passed in 4.8 seconds.
+
+Rollout status and remaining risk:
+
+- No hosted migration, provider mutation, deployment, notification send,
+  commit, or push occurred. Hosted migration and application deployment remain
+  unauthorized.
+- Supabase Auth hard deletion removes Auth session rows and refresh capability.
+  Already-issued stateless access-token JWTs can remain valid until `exp`, and
+  global sign-out cannot retroactively revoke them. The configured JWT lifetime
+  bounds this residual window.
+
+## Governance checks, environment contract, and database operations (Ticket 093)
+
+Status: complete locally.
+
+Implemented:
+
+- Upgraded the interaction registry to schema `1.2.0`. Optional
+  `effect_checks` bind a recorded effect to a named handler and stable evidence
+  inside that handler. The Note-write contract is the first fully mechanical
+  entry. A deliberately altered delete handler remains a negative fixture.
+- Replaced headline invariant totals with factual checker scope. The
+  interaction checker reports mechanically checked entries separately from
+  entries requiring human side-effect review. The current result is 1 checked
+  entry and 87 human-review entries, with every unchecked effect listed.
+- Extended resolver caller checks to reject direct `.rpc(` and `.upsert(` use
+  under `app` and `components`. Both bypasses have negative fixtures.
+- Replaced the fixed environment-variable allowlist with a source-derived scan
+  across app, component, library, marketing, and script source. `.env.example`
+  now documents every discovered variable, including routing fallbacks,
+  performance flags, design-system tooling, and supervised load-test values.
+  The missing-variable behavior has a negative fixture.
+- Added CLI-created migration
+  `20260825080815_add_occurrence_sync_batch_order_index.sql`. Its composite
+  index matches the daily sync batch order exactly.
+- Added a post-`20260825075255` migration governance boundary. New migrations
+  with a backfill or `SET NOT NULL` require explicit `BEGIN` and `COMMIT`.
+  Historical applied migrations remain unchanged. An unsafe backfill is a
+  negative fixture.
+- Updated the Vercel workflow with both scheduled jobs. Updated
+  `INT-SETTINGS-004` so denied permission still exposes Refresh this device.
+- Added a 10-creation per-process test-login quota. Failed creation or a
+  successfully cleaned failed sign-in releases its reservation. Operators now
+  clean temporary users after each QA run and daily while test login is
+  enabled.
+
+Verification:
+
+- Pass: focused Ticket 093 coverage with
+  `npm run test -- tests/test-login.test.ts tests/test-login-cleanup-script.test.ts tests/occurrence-sync-batch-index-migration.test.ts`
+  (3 files, 13 tests).
+- Pass: checker positive and negative fixtures through `npm run agents:check`,
+  `npm run interactions:check`, and `npm run resolvers:check`.
+- Pass: clean `npm run supabase -- db reset` through the Ticket 093 migration.
+- Pass: local `EXPLAIN` with sequential scans disabled selected an index-only
+  scan through `occurrence_sync_state_batch_order_idx` for the exact repository
+  ordering and `LIMIT 25`.
+- Pass: local Supabase advisors for the affected `public` schema reported no
+  errors. The all-schema advisor command still reports the pre-existing
+  Ticket 060 temporary-table helper error in `cadence_private`; Ticket 093 did
+  not change that function.
+- Pass: `npm run lint`, `npm run typecheck`, `npm run test` (129 files passed,
+  1 skipped; 1,003 tests passed, 1 skipped), `npm run build`, and
+  `git diff --check`.
+- The first sandboxed build failed only because `next/font` could not fetch IBM
+  Plex Sans. The approved network-capable rerun passed without source changes.
+
+Rollout status and remaining risk:
+
+- No hosted migration, provider mutation, deployment, notification send,
+  commit, push, or GitHub mutation occurred. Hosted migration and application
+  deployment remain unauthorized.
+- The 87 explicitly listed human-review interaction entries remain outside
+  mechanical side-effect verification. The checker does not count them as
+  mechanically checked.
+
 ## Owner-scoped time-session query transport (Ticket 094)
 
 Status: complete.
@@ -5409,6 +5780,206 @@ Rollout status:
   loopback-only command existed. It created two temporary smoke users, stopped
   at the missing RPC, and ran cleanup. A read-only follow-up confirmed zero
   `cadence-rls-smoke-*` users remained. No hosted schema changed.
+
+## Public repository security release gate (Ticket 098)
+
+Status: complete locally. The audited release decision is FAIL.
+
+Ticket 098 resumed after Ticket 099 for safe local dependency and privacy
+remediation. The resumed audit removes two local blockers but does not change
+the release decision because deployment, remote-history, and fresh
+hosted-metadata gates remain open.
+
+Implemented:
+
+- Added a sanitized source/history audit for Cadence-specific Supabase,
+  Sequenzy, VAPID, Google OAuth, AgentMail, Vercel, cron/process, database,
+  session, and private-key patterns. Client-source checks reject server-only
+  environment names in Next client and Astro source.
+- Added a complete Next/Astro artifact check with unique synthetic canaries.
+  Every declared public canary must appear in its allowed build. Cross-surface
+  public values, absent public values, and all server-only values fail.
+- Added a local public-schema catalog audit. It binds the 18 public relations
+  and 12 authenticated functions to the ordinary-user RLS smoke registry,
+  rejects unexpected views, anonymous policies or functions, missing RLS, and
+  unpinned security-definer search paths.
+- Extended the existing RLS smoke across every exposed relation. Ordinary
+  authenticated accounts attempt cross-account Data API reads and mutations.
+- Rewrote local `main` after explicit owner approval. The isolated rewrite
+  replaces the two audited private history values without changing commit
+  topology, messages, timestamps, names, or unrelated blobs and metadata.
+- Recorded the exact audited worktree, last documented production version,
+  hosted migration mismatch, sanitized GitHub inventory, privileged callers,
+  dependency findings, open risks, and explicit FAIL in
+  `docs/PUBLIC_REPOSITORY_RELEASE.md`.
+
+Verification complete:
+
+- Pass: post-rewrite Gitleaks 8.30.1 scans covered rewritten local `main`, all
+  15 preserved local refs, and a private copy of every tracked and unignored
+  worktree path. All three returned no finding. The all-ref graph contains 164
+  unique reachable commits; rewritten local `main` retains 137 commits.
+- Pass: authenticated read-only GitHub inventory covered branches, tags,
+  issues, pull requests, comments, reviews, releases/assets, Actions
+  runs/logs/artifacts, wiki, Discussions, and Pages where those surfaces
+  existed. The GitHub CLI token was invalid, so the connector supplied this
+  coverage. No GitHub mutation occurred.
+- Pass: fresh Next and Astro synthetic-canary builds. Six public canaries had
+  intended placements only. Ten server-only canaries were absent from both
+  complete artifact roots. `npm run marketing:check` passed.
+- Pass: final `npm run public-source:check` reviewed 571 tracked and unignored
+  text files plus all-ref patch history. It found no credential pattern or
+  client environment violation.
+- Pass for local `main`: the isolated rewrite retained 137 commits and preserved
+  topology, messages, timestamps, author/committer names, and all unrelated
+  blobs and metadata. The prior values have zero occurrence in rewritten
+  branch blobs, patches, or author/committer metadata. Intended replacements
+  are present. One path changed across 27 commit trees, and rewritten HEAD
+  changes that path only.
+- Pass: local `main` now points to
+  `c02514851b30987c432bfdfc9067ccb1245a20c8`. `origin/main`, the remote URL,
+  and both detached Codex worktrees remain unchanged. The primary worktree
+  checksum audit covered 157 concrete dirty or untracked paths with zero byte
+  mismatch. Its 150-entry status snapshot is unchanged, and staging is empty.
+- Pass: the mode-700 recovery directory is
+  `/private/tmp/cadence-ticket098-history-rewrite-XTnslg`. Its mode-600
+  all-refs bundle, dirty patch, untracked archive, snapshots, and checksum
+  manifest passed verification. The bundle SHA-256 is
+  `e67ebb4d621226f1f611f8bbee1e2a8dd488067c7a14ed27e8a0fda228ef2fc3`.
+- Pass: clean `npm run supabase -- db reset`,
+  `npm run public-database:audit:local`, and `npm run smoke:rls:local`. The
+  smoke cleaned three temporary users and passed 92 ownership checks. Local
+  advisors reported no error-level finding.
+- Pass: authorized `npm audit --omit=dev` returned exit code 0 with 0 low, 0
+  moderate, 0 high, and 0 critical findings after Next.js and
+  `eslint-config-next` 16.3.3, Astro 7.2.6, esbuild 0.28.2, js-yaml 4.3.1,
+  nanoid 3.3.18, PostCSS 8.5.26, sharp 0.35.3, and SVGO 4.1.0 resolved.
+- Pass: Vite 8 accepts esbuild 0.28.x, so the narrow root override removes the
+  last low finding without crossing its peer range. Astro and Next retain
+  sharp and SVGO without direct marketing-workspace declarations.
+- Pass: the full `npm audit` also returned exit code 0 with zero findings.
+  Compatible lock refreshes resolved @astrojs/language-server 2.16.14,
+  volar-service-yaml 0.0.71, yaml-language-server 1.23.0, YAML 2.8.3 or newer,
+  fast-uri 3.1.6, and brace-expansion 1.1.18 and 5.0.9. No broad override or
+  forced install was used.
+- Pass: the root Node engine now requires 22.12.0 or newer without an
+  unsupported upper bound. Public setup, Operations, and Vercel guidance
+  recommend Node 24 to match both deployed projects.
+- Pass: `npm run agents:check`, `npm run interactions:check`,
+  `npm run resolvers:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test` (130 files passed, 1 skipped; 1,008 tests passed, 1 skipped),
+  `npm run build`, `npm run marketing:build`, `npm run marketing:check`, and
+  `git diff --check`. The first full-test run failed only because the sandbox
+  denied a loopback fake-provider listener. The authorized rerun passed.
+- Pass: one final approved plain `npm ci` reproduced Next 16.3.3, Astro 7.2.6,
+  and the remediated transitive tree. `package.json`,
+  `apps/marketing/package.json`, and `package-lock.json` retained their exact
+  pre-install SHA-256 values.
+- Pass: the final status inventory contains no added screenshot or temporary
+  path.
+- Pass: this containing commit records all 150 previously dirty or untracked
+  status entries as the immutable local release candidate. Its hash is reported
+  externally because a commit cannot contain its own hash. The candidate does
+  not change the `FAIL` decision while remote history and production remain at
+  older versions.
+
+Publication blockers:
+
+- Tickets 079-083 and 093 remain undeployed or incompletely verified in
+  production.
+- The last documented deployed application commit and hosted migration
+  boundary predate the audited local state. Ticket 098 did not mutate or
+  freshly verify production.
+- GitHub and `origin/main` retain the pre-rewrite history. Publishing the local
+  rewrite requires separate authorization, a fresh remote check, and a
+  force-with-lease update against the recorded remote commit.
+
+Ticket 098 cannot pass until the blockers are resolved and every evidence step
+is rerun against the exact proposed commit and fresh repository metadata.
+
+## Open-source license and disclosure contract (Ticket 099)
+
+Status: complete locally. Safe local policy implementation, monitor assignment,
+and recipient-side route verification are complete.
+
+Prepared:
+
+- Added `docs/OPEN_SOURCE_DECISION_PACKET.md` as a public-safe final decision
+  record. Root `LICENSE`, `SECURITY.md`, and `README.md` remain the operative
+  public terms.
+- Inventoried every direct Node and Python dependency, declared license,
+  bundled font, imported icon library, tracked image and audio group, generated
+  sample bundle, BehaviorLog material, and existing third-party provenance
+  signal.
+- Distinguished the hosted Terms, Privacy, and Trust pages from source,
+  trademark, asset, sample-content, and user-data rights.
+- Recorded the owner's MIT selection, dedicated-security-email primary route,
+  post-publication GitHub private-reporting secondary route, split copyright
+  scope, included-group rights confirmation, binary-asset exclusions, and
+  reserved Cadence marks.
+- Recorded the repository owner as the security inbox monitor. The owner
+  authorized exactly one harmless synthetic route-test email to the approved
+  address.
+- Kept copyright licensing separate from permission to use Cadence names or
+  logos as trademarks. No affirmative trademark-use grant is approved.
+- Added the standard root MIT `LICENSE` with
+  `Copyright (c) 2026 Identity Scaffolding LLC`.
+- Added root `SECURITY.md` with `security@identityscaffolding.com` as the
+  primary private route, post-publication GitHub private reporting as the
+  secondary route, current-production/latest-source support, requested report
+  details, coordinated disclosure, and safe research boundaries.
+- Fetched the exact MIT license from the pinned BehaviorLog validator commit
+  and preserved it in the narrowly scoped `THIRD_PARTY_NOTICES.md`.
+- Updated `README.md`, Operations, Decisions, public architecture, and the
+  release record with the split MIT scope, named binary-asset exclusions,
+  reserved marks, self-hosting secret responsibilities, and hosted-service and
+  user-data boundaries.
+- Reviewed the hosted Terms, Privacy, and Trust copy. It remains a separate
+  service contract and needs no content change for the selected email and
+  GitHub reporting routes.
+
+Operational follow-up:
+
+- The test message landed in the junk folder. Monitor junk and quarantine
+  folders or maintain appropriate allowlisting so filtered private reports
+  receive review.
+
+Later follow-up:
+
+- Test GitHub private vulnerability reporting separately after Ticket 100
+  enables it.
+
+Verification:
+
+- Pass: `npm run agents:check`.
+- Pass: `npm run interactions:check` (1 mechanically checked entry; 87 entries
+  explicitly require human side-effect review).
+- Pass: `npm run resolvers:check`, `npm run lint`, and `npm run typecheck`.
+- Pass: permission-enabled `npm run test` (130 files passed, 1 skipped; 1,008
+  tests passed, 1 skipped). The first sandboxed run failed only because the
+  existing fake Sequenzy server could not bind loopback.
+- Pass: `npm run build`.
+- Pass: `npm run marketing:build` built five static pages after generating the
+  sanitized example bundle. Astro reported zero errors, warnings, or hints.
+- Pass: `npm run marketing:check`; Astro reported zero diagnostics and the
+  agent-readability check passed.
+- Pass: `npm run public-source:check` reviewed 571 tracked and unignored text
+  files plus all-ref patch history. It found zero worktree or history
+  credential-pattern findings and zero client environment violations.
+- Pass: focused policy inspection found the approved holder and email in the
+  root files and no placeholder in `LICENSE`, `SECURITY.md`, `README.md`, or
+  `THIRD_PARTY_NOTICES.md`.
+- Pass: `git diff --check`.
+- Pass: the root execution context sent exactly one authorized synthetic
+  private-route test. The sender accepted and retained the message with sent
+  status. Recipient-side inspection confirmed receipt at the approved mailbox;
+  the message landed in the junk folder. No screenshot, sender address,
+  provider identifier, message header, message content, vulnerability detail,
+  credential, user data, or behavioral content was recorded.
+
+Publication remains blocked independently by Ticket 098's `FAIL`. The one
+authorized synthetic route-test email was the only recipient mutation. No
+GitHub, deployment, publication, commit, or push mutation occurred.
 
 ## Handoff notes
 

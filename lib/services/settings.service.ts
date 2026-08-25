@@ -1,13 +1,16 @@
 import { Temporal } from "@js-temporal/polyfill";
 
-import { updateActiveBehaviorTimezones } from "@/lib/db/behaviors.repo";
-import { updateProfileTimezone } from "@/lib/db/profiles.repo";
+import {
+  listUserBehaviors,
+  type BehaviorWithCategory,
+} from "@/lib/db/behaviors.repo";
+import { updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents } from "@/lib/db/behaviorConfigurationEvents.repo";
 import {
   getCurrentUserClaims,
   requireCurrentUserId,
 } from "@/lib/auth/current-user";
 import { syncUserOccurrencesAndReminders } from "@/lib/services/occurrence.service";
-import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
+import { planBehaviorConfigurationChangeEvent } from "@/lib/resolvers/behavior-configuration.resolver";
 import {
   invalidateBehaviorData,
   invalidateProfileData,
@@ -70,24 +73,40 @@ export async function updateCurrentUserTimezoneFromFormData(
   const profile = await readCachedProfileSettings(supabase, userId);
   const currentTimezone = profile?.timezone ?? DEFAULT_TIMEZONE;
   const changed = currentTimezone !== timezone;
-
-  await markOccurrenceSyncStale(supabase, {
-    userId,
-    reason: "timezone_changed",
-    timezone,
-  });
-  if (changed) {
-    await updateProfileTimezone(supabase, userId, timezone);
-    invalidateProfileData(userId);
-  }
-
-  const activeBehaviors = await updateActiveBehaviorTimezones(
-    supabase,
-    userId,
-    timezone,
+  const beforeBehaviors = (await listUserBehaviors(supabase, userId)).filter(
+    (behavior) => behavior.active,
   );
+  const effectiveAt = Temporal.Now.instant().toString();
+
+  await updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents(
+    supabase,
+    {
+      timezone,
+      expectedProfileTimezone: currentTimezone,
+      behaviorChanges: beforeBehaviors.map((behavior) => ({
+        behaviorId: behavior.id,
+        expectedUpdatedAt: behavior.updated_at,
+        configurationEventPlan: planBehaviorConfigurationChangeEvent({
+          previousConfiguration: toBehaviorConfigurationSnapshot(behavior),
+          nextConfiguration: {
+            ...toBehaviorConfigurationSnapshot(behavior),
+            timezone,
+          },
+          recordedAt: effectiveAt,
+          effectiveAt,
+          source: "manual",
+          reasonCode: "timezone_changed",
+        }),
+      })),
+    },
+  );
+
+  invalidateProfileData(userId);
   invalidateBehaviorData(userId);
-  const now = Temporal.Now.instant();
+  const activeBehaviors = (await listUserBehaviors(supabase, userId)).filter(
+    (behavior) => behavior.active,
+  );
+  const now = Temporal.Instant.from(effectiveAt);
 
   await syncUserOccurrencesAndReminders(supabase, userId, {
     behaviors: activeBehaviors,
@@ -99,6 +118,28 @@ export async function updateCurrentUserTimezoneFromFormData(
     timezone,
     activeBehaviorCount: activeBehaviors.length,
     changed,
+  };
+}
+
+function toBehaviorConfigurationSnapshot(behavior: BehaviorWithCategory) {
+  return {
+    categoryId: behavior.category_id,
+    scheduleGraph: (behavior.schedules ?? []).map((schedule) => ({
+      recurrenceRule: schedule.recurrence_rule,
+      sortOrder: schedule.sort_order,
+      timeEntries: schedule.schedule_slots.map((slot) => ({
+        kind: slot.kind,
+        preset: slot.preset,
+        startTime: slot.start_time,
+        endTime: slot.end_time,
+        sortOrder: slot.sort_order,
+      })),
+    })),
+    browserReminderEnabled: behavior.browser_reminder_enabled,
+    emailReminderEnabled: behavior.email_reminder_enabled,
+    reminderOffsetMinutes: behavior.reminder_offset_minutes,
+    active: behavior.active,
+    timezone: behavior.timezone,
   };
 }
 

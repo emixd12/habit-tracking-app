@@ -2,6 +2,7 @@ import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import {
   getOccurrenceSyncState,
   upsertOccurrenceSyncStateFresh,
+  upsertOccurrenceSyncStateFreshIfConfigurationCurrent,
   upsertOccurrenceSyncStateStale,
 } from "@/lib/db/occurrenceSyncState.repo";
 import type {
@@ -86,9 +87,14 @@ export async function markOccurrenceSyncFreshForPlans(
     fallbackWindow: OccurrenceGenerationWindow;
     syncedAt: string;
     timezone?: string | null;
+    expectedBehaviorConfigurationEvents: Array<{
+      behaviorId: string;
+      configurationEventId: string;
+    }>;
+    expectedSyncState: Pick<OccurrenceSyncState, "state_version"> | null;
   },
 ): Promise<OccurrenceSyncState> {
-  return markOccurrenceSyncFresh(supabase, {
+  const freshInput = {
     userId: input.userId,
     lastSuccessfulSyncAt: input.syncedAt,
     ...summarizeOccurrenceSyncPlans({
@@ -96,6 +102,15 @@ export async function markOccurrenceSyncFreshForPlans(
       fallbackWindow: input.fallbackWindow,
       timezone: input.timezone,
     }),
+  };
+  validateFreshInput(freshInput);
+
+  return upsertOccurrenceSyncStateFreshIfConfigurationCurrent(supabase, {
+    ...freshInput,
+    expectedBehaviorConfigurationEvents:
+      input.expectedBehaviorConfigurationEvents,
+    expectedSyncStateExists: input.expectedSyncState !== null,
+    expectedSyncStateVersion: input.expectedSyncState?.state_version ?? null,
   });
 }
 
@@ -127,7 +142,7 @@ export function summarizeOccurrenceSyncPlans(input: {
       0,
     ),
     deletedCount: input.plans.reduce(
-      (sum, plan) => sum + plan.deleteUnresolvedIds.length,
+      (sum, plan) => sum + plan.deleteUnresolved.length,
       0,
     ),
   };

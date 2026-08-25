@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   readCachedProfileTimezone: vi.fn(),
   readCachedUserBehaviors: vi.fn(),
   listBehaviorDefinitionEvents: vi.fn(),
+  listBehaviorConfigurationEvents: vi.fn(),
   readExportPageBundle: vi.fn(),
   ensureUserOccurrencesFresh: vi.fn(),
   listTimeSessionHistory: vi.fn(),
@@ -31,6 +32,10 @@ vi.mock("@/lib/cache/stable-user-data.cache", () => ({
 
 vi.mock("@/lib/db/behaviorDefinitionEvents.repo", () => ({
   listBehaviorDefinitionEvents: mocks.listBehaviorDefinitionEvents,
+}));
+
+vi.mock("@/lib/db/behaviorConfigurationEvents.repo", () => ({
+  listBehaviorConfigurationEvents: mocks.listBehaviorConfigurationEvents,
 }));
 
 vi.mock("@/lib/db/exportPageRead.repo", () => ({
@@ -70,11 +75,14 @@ describe("getExportPageData", () => {
         updated_at: "2026-05-01T12:00:00Z",
       },
     ]);
+    mocks.listBehaviorConfigurationEvents.mockResolvedValue([
+      storedConfigurationEvent(),
+    ]);
     mocks.readExportPageBundle.mockResolvedValue({
       profile: null,
       syncState: null,
       categories: [],
-      behaviors: [],
+      behaviors: [storedExportPageBehavior()],
       occurrences: [],
       statusEvents: [],
       reminderDeliveries: [],
@@ -106,6 +114,15 @@ describe("getExportPageData", () => {
         reason: "baseline_backfill",
       }),
     ]);
+    expect(bundle.jsonBackup.behavior_configuration_events).toEqual([
+      expect.objectContaining({
+        id: "configuration-1",
+        behavior_id: BEHAVIOR_ID,
+        event_kind: "baseline",
+        reason_code: "history_capture_started",
+      }),
+    ]);
+    expect(bundle.behaviorConfigurationEventCount).toBe(1);
     expect(bundle.markdownSummary).toContain(
       "Behavior definition history: included (1 event)",
     );
@@ -114,6 +131,101 @@ describe("getExportPageData", () => {
         (file) => file.path === "raw/cadence/behavior_definition_events.jsonl",
       )?.content,
     ).toContain('"id":"definition-1"');
+  });
+
+  it("uses complete materialized histories for manifest counts above the Data API cap", async () => {
+    const recordedAt = Temporal.Instant.from("2026-05-01T12:00:00Z");
+    const definitionEvents = Array.from({ length: 1_001 }, (_, index) => ({
+      id: uuid(index + 10_000),
+      user_id: USER_ID,
+      behavior_id: BEHAVIOR_ID,
+      previous_title: index === 0 ? null : `Brush teeth ${index - 1}`,
+      next_title: `Brush teeth ${index}`,
+      previous_description: null,
+      next_description: null,
+      changed_fields: ["title"],
+      recorded_at: recordedAt.add({ seconds: index }).toString(),
+      source: "system",
+      reason: "history",
+      created_at: recordedAt.add({ seconds: index }).toString(),
+      updated_at: recordedAt.add({ seconds: index }).toString(),
+    }));
+    const occurrence = storedExportOccurrence();
+    const timeSessions = Array.from({ length: 1_001 }, (_, index) => ({
+      id: uuid(index + 20_000),
+      user_id: USER_ID,
+      occurrence_id: occurrence.id,
+      behavior_id: BEHAVIOR_ID,
+      started_at: recordedAt.add({ seconds: index }).toString(),
+      stopped_at: recordedAt.add({ seconds: index + 1 }).toString(),
+    }));
+    mocks.listBehaviorDefinitionEvents.mockResolvedValue(definitionEvents);
+    mocks.listTimeSessionHistory.mockResolvedValue(timeSessions);
+    mocks.readExportPageBundle.mockResolvedValue({
+      profile: null,
+      syncState: null,
+      categories: [],
+      behaviors: [storedExportPageBehavior()],
+      occurrences: [occurrence],
+      statusEvents: [],
+      reminderDeliveries: [],
+    });
+    const { getExportPageData } =
+      await import("../lib/services/export.service");
+
+    const bundle = await getExportPageData({
+      now: Temporal.Instant.from("2026-06-08T16:00:00Z"),
+      range: "all",
+      includeTimeTracking: true,
+    });
+    const manifestFile = bundle.behaviorLog.files.find(
+      (file) => file.path === "manifest.json",
+    );
+    const manifest = JSON.parse(manifestFile?.content ?? "{}") as {
+      extensions?: {
+        "app.cadence"?: {
+          behavior_definition_history?: { record_count: number };
+          occurrence_time_sessions?: { record_count: number };
+        };
+      };
+    };
+
+    expect(bundle.jsonBackup.behavior_definition_events).toHaveLength(1_001);
+    expect(bundle.jsonBackup.time_sessions).toHaveLength(1_001);
+    expect(
+      manifest.extensions?.["app.cadence"]?.behavior_definition_history
+        ?.record_count,
+    ).toBe(1_001);
+    expect(
+      manifest.extensions?.["app.cadence"]?.occurrence_time_sessions
+        ?.record_count,
+    ).toBe(1_001);
+  });
+
+  it("fails when a final Behavior pointer no longer matches the captured history", async () => {
+    mocks.readExportPageBundle.mockResolvedValue({
+      profile: null,
+      syncState: null,
+      categories: [],
+      behaviors: [
+        {
+          ...storedExportPageBehavior(),
+          current_configuration_event_id: "configuration-2",
+        },
+      ],
+      occurrences: [],
+      statusEvents: [],
+      reminderDeliveries: [],
+    });
+    const { getExportPageData } =
+      await import("../lib/services/export.service");
+
+    await expect(
+      getExportPageData({
+        now: Temporal.Instant.from("2026-06-08T16:00:00Z"),
+        range: "all",
+      }),
+    ).rejects.toThrow("Behavior configuration changed during export");
   });
 
   it("does not read timing rows unless the exact time-tracking option is enabled", async () => {
@@ -162,10 +274,93 @@ function storedBehavior() {
     reminder_offset_minutes: 0,
     active: true,
     archived_at: null,
+    current_configuration_event_id: "configuration-1",
     created_at: "2026-05-01T12:00:00Z",
     updated_at: "2026-05-01T12:00:00Z",
     category: null,
     schedules: [],
     schedule_slots: [],
   };
+}
+
+function storedExportPageBehavior() {
+  return {
+    ...storedBehavior(),
+    category: null,
+    schedule_slots: [],
+  };
+}
+
+function storedConfigurationEvent() {
+  return {
+    id: "configuration-1",
+    user_id: USER_ID,
+    behavior_id: BEHAVIOR_ID,
+    event_kind: "baseline",
+    previous_configuration: null,
+    next_configuration: {
+      category_id: null,
+      schedule_graph: [
+        {
+          recurrence_rule: { frequency: "daily", interval: 1 },
+          sort_order: 0,
+          time_entries: [
+            {
+              kind: "exact",
+              preset: null,
+              start_time: "22:00:00",
+              end_time: null,
+              sort_order: 0,
+            },
+          ],
+        },
+      ],
+      browser_reminder_enabled: true,
+      email_reminder_enabled: false,
+      reminder_offset_minutes: 0,
+      active: true,
+      timezone: "America/New_York",
+    },
+    changed_fields: [
+      "category_id",
+      "schedule_graph",
+      "browser_reminder_enabled",
+      "email_reminder_enabled",
+      "reminder_offset_minutes",
+      "active",
+      "timezone",
+    ],
+    recorded_at: "2026-05-01T12:00:00Z",
+    effective_at: "2026-05-01T12:00:00Z",
+    effective_local_date: "2026-05-01",
+    timezone: "America/New_York",
+    source: "system",
+    reason_code: "history_capture_started",
+    created_at: "2026-05-01T12:00:00Z",
+  };
+}
+
+function storedExportOccurrence() {
+  return {
+    id: "33333333-3333-4333-8333-333333333333",
+    behavior_id: BEHAVIOR_ID,
+    behavior_schedule_slot_id: null,
+    behavior_configuration_event_id: "configuration-1",
+    scheduled_for: "2026-05-01T22:00:00Z",
+    local_date: "2026-05-01",
+    schedule_kind: "exact",
+    schedule_preset: null,
+    schedule_start_time: "22:00:00",
+    schedule_end_time: null,
+    status: "unresolved",
+    completed_at: null,
+    status_marked_at: null,
+    note: null,
+    created_at: "2026-05-01T12:00:00Z",
+    updated_at: "2026-05-01T12:00:00Z",
+  };
+}
+
+function uuid(index: number): string {
+  return `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
 }

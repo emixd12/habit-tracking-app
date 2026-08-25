@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getBrowserPushSupport,
+  readCurrentBrowserPushEndpoint,
   readBrowserPushSubscriptionStatus,
   registerBrowserPushSubscription,
   requestNotificationPermission,
@@ -139,6 +140,22 @@ describe("browser push helpers", () => {
       }),
     );
     expect(unsubscribe).not.toHaveBeenCalled();
+  });
+
+  it("reads an existing pre-change subscription endpoint for sign-out", async () => {
+    const getRegistration = vi.fn().mockResolvedValue({
+      pushManager: {
+        getSubscription: vi.fn().mockResolvedValue({
+          endpoint: "https://push.example.com/pre-change-device",
+        }),
+      },
+    });
+
+    mockSupportedBrowser({ permission: "granted", getRegistration });
+
+    await expect(readCurrentBrowserPushEndpoint()).resolves.toBe(
+      "https://push.example.com/pre-change-device",
+    );
   });
 
   it("revokes a browser subscription that belongs to a different account", async () => {
@@ -456,6 +473,60 @@ describe("browser push helpers", () => {
     expect(unsubscribeStale).toHaveBeenCalledTimes(1);
     expect(unsubscribeFresh).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("lets a second account reuse an endpoint after sign-out deactivates the prior row", async () => {
+    const endpoint = "https://push.example.com/reissued-endpoint";
+    const unsubscribePrior = vi.fn().mockResolvedValue(true);
+    const unsubscribeCurrent = vi.fn();
+    const fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        return {
+          ok: true,
+          json: vi.fn().mockResolvedValue({ ok: true, saved: false }),
+        };
+      }
+
+      return { ok: true };
+    });
+
+    mockSupportedBrowser({
+      permission: "granted",
+      getRegistration: vi.fn(),
+      register: vi.fn().mockResolvedValue({}),
+      ready: Promise.resolve({
+        pushManager: {
+          getSubscription: vi.fn().mockResolvedValue({
+            endpoint,
+            unsubscribe: unsubscribePrior,
+            toJSON: () => ({
+              endpoint,
+              keys: { p256dh: "prior-public-key", auth: "prior-auth-key" },
+            }),
+          }),
+          subscribe: vi.fn().mockResolvedValue({
+            endpoint,
+            unsubscribe: unsubscribeCurrent,
+            toJSON: () => ({
+              endpoint,
+              keys: { p256dh: "current-public-key", auth: "current-auth-key" },
+            }),
+          }),
+        },
+      }),
+    });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetch,
+    });
+
+    await expect(registerBrowserPushSubscription("AQID")).resolves.toBeUndefined();
+    expect(unsubscribePrior).toHaveBeenCalledOnce();
+    expect(unsubscribeCurrent).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenLastCalledWith(
+      "/api/push/subscribe",
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 
   it("removes a newly created browser subscription when persistence fails", async () => {

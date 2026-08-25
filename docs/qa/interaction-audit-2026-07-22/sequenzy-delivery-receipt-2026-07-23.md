@@ -8,8 +8,9 @@ account or recipient was used.
   hosted Supabase project; provider send through the production Sequenzy
   `habit-reminder` template path.
 - Account: disposable `/auth/test-login` user (deleted after the test); its
-  profile email was pointed at the task-scoped AgentMail inbox
-  `cadence-delivery-receipt@example.invalid` (deleted after the test).
+  profile email was pointed at a task-scoped AgentMail inbox. The published
+  placeholder is `cadence-delivery-receipt@example.invalid`; the real test
+  address is intentionally redacted.
 - Setup: behavior "QA Email Due", daily schedule, exact time 11:48 AM
   America/New_York, email reminder at scheduled start, created through the
   real product UI. Reminder deliveries were planned immediately at save by

@@ -11,6 +11,50 @@ const PASSWORD_PREFIX = "CadenceRlsSmoke";
 const DEFAULT_CATEGORY_NAME = "Other";
 const PROJECT_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
+export const PUBLIC_DATA_API_RELATIONS = [
+  { table: "profiles", ownerColumn: "id" },
+  { table: "categories", ownerColumn: "user_id" },
+  { table: "behaviors", ownerColumn: "user_id" },
+  { table: "behavior_definition_events", ownerColumn: "user_id" },
+  { table: "behavior_configuration_events", ownerColumn: "user_id" },
+  { table: "behavior_schedules", ownerColumn: "user_id" },
+  { table: "behavior_schedule_slots", ownerColumn: "user_id" },
+  { table: "occurrences", ownerColumn: "user_id" },
+  { table: "reminder_deliveries", ownerColumn: "user_id" },
+  { table: "push_subscriptions", ownerColumn: "user_id" },
+  { table: "occurrence_status_events", ownerColumn: "user_id" },
+  {
+    table: "occurrence_sync_state",
+    ownerColumn: "user_id",
+    selectColumn: "user_id",
+  },
+  { table: "behaviorlog_import_runs", ownerColumn: "user_id" },
+  { table: "behaviorlog_import_record_mappings", ownerColumn: "user_id" },
+  { table: "imported_notes", ownerColumn: "user_id" },
+  { table: "imported_interventions", ownerColumn: "user_id" },
+  {
+    table: "launch_rate_limits",
+    ownerColumn: "user_id",
+    selectColumn: "user_id",
+  },
+  { table: "occurrence_time_sessions", ownerColumn: "user_id" },
+];
+
+export const PUBLIC_AUTHENTICATED_FUNCTIONS = [
+  "apply_behaviorlog_restore_with_configuration_events",
+  "apply_occurrence_generation_plan",
+  "apply_occurrence_status_transition",
+  "bind_behaviorlog_restore_apply_payload",
+  "consume_launch_rate_limit",
+  "create_behavior_with_schedule_graph",
+  "get_export_page_read_bundle",
+  "list_my_occurrence_time_session_history",
+  "list_my_occurrence_time_sessions",
+  "mark_occurrence_sync_fresh_if_configuration_current",
+  "update_behavior_with_schedule_graph",
+  "update_profile_and_behavior_timezones_with_config_events",
+];
+
 export function readSmokeConfig(env = process.env, envFilePath = ENV_FILE) {
   const fileEnv = readEnvFile(envFilePath);
   const mergedEnv = { ...fileEnv, ...env };
@@ -121,19 +165,43 @@ async function main() {
     users.push(
       await createTemporaryUser(admin, buildSmokeUserEmail(runId, "a"), password),
       await createTemporaryUser(admin, buildSmokeUserEmail(runId, "b"), password),
+      await createTemporaryUser(admin, buildSmokeUserEmail(runId, "c"), password),
     );
 
     const userA = users[0];
     const userB = users[1];
+    const userC = users[2];
     const clientA = await signInTemporaryUser(config, userA.email, password);
     const clientB = await signInTemporaryUser(config, userB.email, password);
+    const clientC = await signInTemporaryUser(config, userC.email, password);
     const assertions = [];
 
     await waitForOnboardingRows(clientA, userA.id);
     await waitForOnboardingRows(clientB, userB.id);
+    await waitForOnboardingRows(clientC, userC.id);
+
+    assertions.push(
+      await assertZeroBehaviorFreshnessRejectsConcurrentStateCreation({
+        client: clientC,
+        userId: userC.id,
+      }),
+    );
 
     const categoryA = await getCategory(clientA, userA.id);
     const categoryB = await getCategory(clientB, userB.id);
+    const categoryC = await getCategory(clientC, userC.id);
+    const behaviorC = await createSmokeBehavior(clientC, {
+      userId: userC.id,
+      categoryId: categoryC.id,
+      title: `RLS smoke timezone ${runId}`,
+    });
+    assertions.push(
+      ...(await assertSettingsTimezoneTransaction({
+        client: clientC,
+        userId: userC.id,
+        behavior: behaviorC,
+      })),
+    );
     const behaviorA = await createSmokeBehavior(clientA, {
       userId: userA.id,
       categoryId: categoryA.id,
@@ -144,6 +212,25 @@ async function main() {
       categoryId: categoryB.id,
       title: `RLS smoke B ${runId}`,
     });
+    const behaviorA2 = await createSmokeBehavior(clientA, {
+      userId: userA.id,
+      categoryId: categoryA.id,
+      title: `RLS smoke A2 ${runId}`,
+    });
+    const configurationEventA = await getBehaviorConfigurationEvent(
+      clientA,
+      behaviorA.id,
+    );
+    const configurationEventA2 = await getBehaviorConfigurationEvent(
+      clientA,
+      behaviorA2.id,
+    );
+    const configurationEventB = await getBehaviorConfigurationEvent(
+      clientB,
+      behaviorB.id,
+    );
+    await archiveSmokeBehavior(clientB, behaviorB);
+    await archiveSmokeBehavior(clientA, behaviorA2);
     const occurrenceA = await createSmokeOccurrence(clientA, {
       userId: userA.id,
       behaviorId: behaviorA.id,
@@ -170,14 +257,59 @@ async function main() {
       startedAt: "2000-01-02T15:00:00Z",
       stoppedAt: "2000-01-02T15:05:00Z",
     });
-    await archiveSmokeBehavior(clientB, behaviorB.id);
-
     assertions.push(await assertProfileIsolation(clientA, userB.id));
+    assertions.push(
+      ...(await assertProfileWriteIntegrity({
+        admin,
+        client: clientA,
+        user: userA,
+        updatedEmail: buildSmokeUserEmail(runId, "a-updated"),
+      })),
+    );
     assertions.push(await assertCategoryIsolation(clientA, userB.id));
     assertions.push(await assertBehaviorIsolation(clientA, behaviorB.id));
     assertions.push(await assertBehaviorInsertCheck(clientA, userB.id));
     assertions.push(await assertBehaviorUpdateIsolation(clientA, behaviorB.id));
     assertions.push(await assertOwnBehaviorVisible(clientA, behaviorA.id));
+    assertions.push(
+      ...(await assertEveryExposedRelationRejectsCrossAccountAccess(
+        clientA,
+        userB.id,
+      )),
+    );
+    assertions.push("configuration_event_own_select");
+    assertions.push(
+      await assertBehaviorConfigurationEventIsolation(clientA, behaviorB.id),
+    );
+    assertions.push(
+      ...(await assertBehaviorConfigurationEventAppendOnly({
+        client: clientA,
+        userId: userA.id,
+        behaviorId: behaviorA.id,
+        eventId: configurationEventA.id,
+      })),
+    );
+    assertions.push(
+      ...(await assertOccurrenceConfigurationLineage({
+        admin,
+        client: clientA,
+        userId: userA.id,
+        behavior: behaviorA,
+        secondBehavior: behaviorA2,
+        occurrence: occurrenceA,
+        currentEvent: configurationEventA,
+        staleSecondEvent: configurationEventA2,
+        foreignEvent: configurationEventB,
+      })),
+    );
+    assertions.push(
+      ...(await assertReminderDeliveryIntegrity({
+        admin,
+        client: clientA,
+        userId: userA.id,
+        occurrenceId: occurrenceA.id,
+      })),
+    );
     assertions.push(
       ...(await assertTimeSessionRpcIsolation({
         clientA,
@@ -204,6 +336,36 @@ async function main() {
       users.map((user) => admin.auth.admin.deleteUser(user.id)),
     );
   }
+}
+
+async function assertEveryExposedRelationRejectsCrossAccountAccess(
+  client,
+  otherUserId,
+) {
+  const assertions = [];
+
+  for (const { table, ownerColumn, selectColumn = "id" } of PUBLIC_DATA_API_RELATIONS) {
+    const read = await client
+      .from(table)
+      .select(selectColumn)
+      .eq(ownerColumn, otherUserId)
+      .limit(1);
+    assertNoError(read.error, `reading another account's ${table} rows`);
+    assertNoRows(read.data, `another account's ${table} rows`);
+    assertions.push(`${table}_cross_account_select`);
+
+    const deletion = await client
+      .from(table)
+      .delete()
+      .eq(ownerColumn, otherUserId)
+      .select(selectColumn);
+    if (!deletion.error) {
+      assertNoRows(deletion.data, `deleted another account's ${table} rows`);
+    }
+    assertions.push(`${table}_cross_account_delete`);
+  }
+
+  return assertions;
 }
 
 async function createTemporaryUser(admin, email, password) {
@@ -278,10 +440,93 @@ async function getCategory(client, userId) {
   return data;
 }
 
+async function archiveSmokeBehavior(client, behavior) {
+  const recordedAt = "2000-01-02T18:00:00Z";
+  const snapshotGraph = behavior.scheduleGraph.map((schedule) => ({
+    recurrence_rule: schedule.recurrence_rule,
+    sort_order: schedule.sort_order,
+    time_entries: schedule.time_entries.map((entry) => ({
+      kind: entry.kind,
+      preset: entry.preset,
+      start_time: entry.start_time,
+      end_time: entry.end_time,
+      sort_order: entry.sort_order,
+    })),
+  }));
+  const previousConfiguration = {
+    category_id: behavior.category_id,
+    schedule_graph: snapshotGraph,
+    browser_reminder_enabled: behavior.browser_reminder_enabled,
+    email_reminder_enabled: behavior.email_reminder_enabled,
+    reminder_offset_minutes: behavior.reminder_offset_minutes,
+    active: true,
+    timezone: behavior.timezone,
+  };
+  const { data, error } = await client.rpc(
+    "update_behavior_with_schedule_graph",
+    {
+      target_behavior_id: behavior.id,
+      behavior_payload: {
+        category_id: behavior.category_id,
+        title: behavior.title,
+        description: behavior.description,
+        recurrence_rule: behavior.recurrence_rule,
+        scheduled_time: behavior.scheduled_time,
+        timezone: behavior.timezone,
+        browser_reminder_enabled: behavior.browser_reminder_enabled,
+        email_reminder_enabled: behavior.email_reminder_enabled,
+        reminder_offset_minutes: behavior.reminder_offset_minutes,
+        active: false,
+        archived_at: recordedAt,
+      },
+      expected_definition: {
+        stored_title: behavior.title,
+        stored_description: behavior.description,
+        normalized_title: behavior.title,
+        normalized_description: behavior.description,
+      },
+      expected_schedule_graph: behavior.scheduleGraph,
+      expected_updated_at: behavior.updated_at,
+      definition_event_plan: null,
+      configuration_event_plan: {
+        event_kind: "revision",
+        previous_configuration: previousConfiguration,
+        next_configuration: { ...previousConfiguration, active: false },
+        changed_fields: ["active"],
+        recorded_at: recordedAt,
+        effective_at: recordedAt,
+        effective_local_date: "2000-01-02",
+        timezone: behavior.timezone,
+        source: "manual",
+        reason_code: "behavior_archived",
+      },
+      schedule_graph: behavior.scheduleGraph,
+    },
+  );
+
+  if (error || !data) {
+    throw new Error(`Unable to archive smoke behavior: ${error?.message}`);
+  }
+}
+
 async function createSmokeBehavior(client, input) {
-  const { data, error } = await client
-    .from("behaviors")
-    .insert({
+  const recordedAt = "2000-01-01T14:00:00Z";
+  const scheduleGraph = [
+    {
+      recurrence_rule: { frequency: "daily", interval: 1 },
+      sort_order: 0,
+      time_entries: [
+        {
+          kind: "exact",
+          preset: null,
+          start_time: "09:00:00",
+          end_time: null,
+          sort_order: 0,
+        },
+      ],
+    },
+  ];
+  const behaviorPayload = {
       user_id: input.userId,
       category_id: input.categoryId,
       title: input.title,
@@ -297,15 +542,86 @@ async function createSmokeBehavior(client, input) {
       reminder_offset_minutes: 0,
       active: true,
       archived_at: null,
-    })
-    .select("id")
-    .single();
+      created_at: recordedAt,
+  };
+  const { data, error } = await client.rpc(
+    "create_behavior_with_schedule_graph",
+    {
+      behavior_payload: behaviorPayload,
+      definition_event_plan: {
+        previous_title: null,
+        next_title: input.title,
+        previous_description: null,
+        next_description: null,
+        changed_fields: ["title"],
+        recorded_at: recordedAt,
+        source: "manual",
+        reason: null,
+      },
+      configuration_event_plan: {
+        event_kind: "baseline",
+        previous_configuration: null,
+        next_configuration: {
+          category_id: input.categoryId,
+          schedule_graph: scheduleGraph,
+          browser_reminder_enabled: true,
+          email_reminder_enabled: false,
+          reminder_offset_minutes: 0,
+          active: true,
+          timezone: "America/New_York",
+        },
+        changed_fields: [
+          "category_id",
+          "schedule_graph",
+          "browser_reminder_enabled",
+          "email_reminder_enabled",
+          "reminder_offset_minutes",
+          "active",
+          "timezone",
+        ],
+        recorded_at: recordedAt,
+        effective_at: recordedAt,
+        effective_local_date: "2000-01-01",
+        timezone: "America/New_York",
+        source: "manual",
+        reason_code: "behavior_created",
+      },
+      schedule_graph: scheduleGraph,
+    },
+  );
 
   if (error || !data) {
     throw new Error(`Unable to create smoke behavior: ${error?.message}`);
   }
 
-  return data;
+  const { data: schedules, error: scheduleError } = await client
+    .from("behavior_schedules")
+    .select(
+      "id, recurrence_rule, sort_order, schedule_slots:behavior_schedule_slots!behavior_schedule_slots_schedule_owner_fkey(id, kind, preset, start_time, end_time, sort_order)",
+    )
+    .eq("behavior_id", data.id)
+    .order("sort_order", { ascending: true });
+
+  if (scheduleError || !schedules) {
+    throw new Error(`Unable to read smoke behavior graph: ${scheduleError?.message}`);
+  }
+
+  return {
+    ...data,
+    scheduleGraph: schedules.map((schedule) => ({
+      id: schedule.id,
+      recurrence_rule: schedule.recurrence_rule,
+      sort_order: schedule.sort_order,
+      time_entries: schedule.schedule_slots.map((slot) => ({
+        id: slot.id,
+        kind: slot.kind,
+        preset: slot.preset,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        sort_order: slot.sort_order,
+      })),
+    })),
+  };
 }
 
 async function createSmokeOccurrence(client, input) {
@@ -336,6 +652,509 @@ async function createSmokeOccurrence(client, input) {
   return data;
 }
 
+async function getBehaviorConfigurationEvent(client, behaviorId) {
+  const { data, error } = await client
+    .from("behavior_configuration_events")
+    .select("id")
+    .eq("behavior_id", behaviorId)
+    .single();
+
+  if (error || !data) {
+    throw new Error(
+      `Unable to read owned behavior configuration history: ${error?.message}`,
+    );
+  }
+
+  return data;
+}
+
+async function getBehaviorCurrentConfigurationEventId(client, behaviorId) {
+  const { data, error } = await client
+    .from("behaviors")
+    .select("current_configuration_event_id")
+    .eq("id", behaviorId)
+    .single();
+
+  if (error || !data?.current_configuration_event_id) {
+    throw new Error(
+      `Unable to read current behavior configuration event: ${error?.message}`,
+    );
+  }
+
+  return data.current_configuration_event_id;
+}
+
+async function assertOccurrenceConfigurationLineage(input) {
+  const directUpdate = await input.client
+    .from("occurrences")
+    .update({ behavior_configuration_event_id: input.currentEvent.id })
+    .eq("id", input.occurrence.id);
+  assertPermissionDenied(
+    directUpdate.error,
+    "setting occurrence configuration lineage directly",
+  );
+
+  const crossOwnerUpdate = await input.admin
+    .from("occurrences")
+    .update({ behavior_configuration_event_id: input.foreignEvent.id })
+    .eq("id", input.occurrence.id);
+  assertForeignKeyViolation(
+    crossOwnerUpdate.error,
+    "linking an occurrence to another owner's configuration event",
+  );
+
+  const wrongBehaviorUpdate = await input.admin
+    .from("occurrences")
+    .update({ behavior_configuration_event_id: input.staleSecondEvent.id })
+    .eq("id", input.occurrence.id);
+  assertForeignKeyViolation(
+    wrongBehaviorUpdate.error,
+    "linking an occurrence to another Behavior's configuration event",
+  );
+
+  const generatedScheduledFor = "2099-01-01T14:00:00Z";
+  const generated = await input.client.rpc("apply_occurrence_generation_plan", {
+    target_user_id: input.userId,
+    target_behavior_id: input.behavior.id,
+    expected_configuration_event_id: input.currentEvent.id,
+    plan_now: "2098-12-31T00:00:00Z",
+    occurrence_inserts: [
+      {
+        scheduled_for: generatedScheduledFor,
+        local_date: "2099-01-01",
+        behavior_schedule_slot_id: null,
+        behavior_configuration_event_id: input.currentEvent.id,
+        schedule_kind: "exact",
+        schedule_preset: null,
+        schedule_start_time: "09:00:00",
+        schedule_end_time: null,
+      },
+    ],
+    occurrence_updates: [],
+    occurrence_deletes: [],
+  });
+  assertNoError(generated.error, "applying an owned occurrence generation plan");
+
+  const { data: generatedOccurrence, error: generatedReadError } =
+    await input.client
+      .from("occurrences")
+      .select("id, behavior_configuration_event_id")
+      .eq("behavior_id", input.behavior.id)
+      .eq("scheduled_for", generatedScheduledFor)
+      .single();
+  assertNoError(generatedReadError, "reading generated occurrence lineage");
+
+  if (
+    generatedOccurrence?.behavior_configuration_event_id !==
+    input.currentEvent.id
+  ) {
+    throw new Error("Occurrence generation did not persist current lineage.");
+  }
+
+  const generationUpdate = await input.client.rpc(
+    "apply_occurrence_generation_plan",
+    {
+      target_user_id: input.userId,
+      target_behavior_id: input.behavior.id,
+      expected_configuration_event_id: input.currentEvent.id,
+      plan_now: "2098-12-31T00:00:00Z",
+      occurrence_inserts: [],
+      occurrence_updates: [
+        {
+          id: generatedOccurrence.id,
+          scheduled_for: generatedScheduledFor,
+          local_date: "2099-01-01",
+          behavior_schedule_slot_id: null,
+          behavior_configuration_event_id: input.currentEvent.id,
+          schedule_kind: "range",
+          schedule_preset: null,
+          schedule_start_time: "09:00:00",
+          schedule_end_time: "10:00:00",
+        },
+      ],
+      occurrence_deletes: [],
+    },
+  );
+  assertNoError(
+    generationUpdate.error,
+    "applying a two-step occurrence snapshot and lineage update",
+  );
+
+  const { data: updatedGenerated, error: updatedGeneratedError } =
+    await input.client
+      .from("occurrences")
+      .select("behavior_configuration_event_id, schedule_end_time")
+      .eq("id", generatedOccurrence.id)
+      .single();
+  assertNoError(updatedGeneratedError, "reading two-step generated lineage");
+
+  if (
+    updatedGenerated?.behavior_configuration_event_id !== input.currentEvent.id ||
+    updatedGenerated.schedule_end_time !== "10:00:00"
+  ) {
+    throw new Error("Two-step generation did not restore current lineage.");
+  }
+
+  const statusAndNoteUpdate = await input.client
+    .from("occurrences")
+    .update({
+      status: "completed",
+      completed_at: "2099-01-01T14:05:00Z",
+      status_marked_at: "2099-01-01T14:05:00Z",
+      note: "Lineage preservation smoke",
+    })
+    .eq("id", generatedOccurrence.id);
+  assertNoError(
+    statusAndNoteUpdate.error,
+    "updating status and note without changing lineage",
+  );
+
+  const { data: statusUpdated, error: statusUpdatedError } = await input.client
+    .from("occurrences")
+    .select("behavior_configuration_event_id")
+    .eq("id", generatedOccurrence.id)
+    .single();
+  assertNoError(statusUpdatedError, "reading status-only lineage");
+
+  if (statusUpdated?.behavior_configuration_event_id !== input.currentEvent.id) {
+    throw new Error("A status/note-only update cleared occurrence lineage.");
+  }
+
+  const restoreStyleUpdate = await input.admin
+    .from("occurrences")
+    .update({ schedule_start_time: "09:00:00" })
+    .eq("id", generatedOccurrence.id);
+  assertNoError(
+    restoreStyleUpdate.error,
+    "applying a restore-style same-value schedule snapshot update",
+  );
+
+  const { data: restoredSnapshot, error: restoredSnapshotError } =
+    await input.client
+      .from("occurrences")
+      .select("behavior_configuration_event_id")
+      .eq("id", generatedOccurrence.id)
+      .single();
+  assertNoError(restoredSnapshotError, "reading restore-cleared lineage");
+
+  if (restoredSnapshot?.behavior_configuration_event_id !== null) {
+    throw new Error("A restore-style snapshot update retained false lineage.");
+  }
+
+  const currentSecondEventId = await getBehaviorCurrentConfigurationEventId(
+    input.client,
+    input.secondBehavior.id,
+  );
+  const plannedStateVersion = await getOccurrenceSyncStateVersion(
+    input.client,
+    input.userId,
+  );
+  const staleFreshness = await input.client.rpc(
+    "mark_occurrence_sync_fresh_if_configuration_current",
+    occurrenceFreshnessArgs(
+      input,
+      input.staleSecondEvent.id,
+      plannedStateVersion,
+    ),
+  );
+  assertStalePlanFailure(
+    staleFreshness.error,
+    "marking occurrence sync fresh with a stale configuration set",
+  );
+
+  const { data: staleState, error: staleStateError } = await input.client
+    .from("occurrence_sync_state")
+    .select("stale")
+    .eq("user_id", input.userId)
+    .single();
+  assertNoError(staleStateError, "reading rejected occurrence sync state");
+
+  if (!staleState?.stale) {
+    throw new Error("A stale freshness plan cleared occurrence sync staleness.");
+  }
+
+  const currentFreshness = await input.client.rpc(
+    "mark_occurrence_sync_fresh_if_configuration_current",
+    occurrenceFreshnessArgs(input, currentSecondEventId, plannedStateVersion),
+  );
+  assertNoError(
+    currentFreshness.error,
+    "marking occurrence sync fresh with the exact configuration set",
+  );
+
+  return [
+    "occurrence_lineage_direct_update_denied",
+    "occurrence_lineage_cross_owner_fk",
+    "occurrence_lineage_wrong_behavior_fk",
+    "occurrence_generation_authenticated_rpc",
+    "occurrence_generation_two_step_lineage",
+    "occurrence_status_note_lineage_preserved",
+    "occurrence_restore_snapshot_lineage_cleared",
+    "occurrence_freshness_stale_plan_rejected",
+    "occurrence_freshness_exact_set",
+    await assertOccurrenceOnlyStaleWriteWins({
+      ...input,
+      currentSecondEventId,
+    }),
+  ];
+}
+
+async function assertOccurrenceOnlyStaleWriteWins(input) {
+  const plannedStateVersion = await getOccurrenceSyncStateVersion(
+    input.client,
+    input.userId,
+  );
+  const forgedVersion = await input.client
+    .from("occurrence_sync_state")
+    .update({ state_version: plannedStateVersion + 100 })
+    .eq("user_id", input.userId);
+  assertPermissionDenied(
+    forgedVersion.error,
+    "setting occurrence sync state version directly",
+  );
+
+  const staleWrite = await input.client
+    .from("occurrence_sync_state")
+    .upsert({
+      user_id: input.userId,
+      stale: true,
+      stale_reason: "behaviorlog_import_applied",
+    }, { onConflict: "user_id" });
+  assertNoError(
+    staleWrite.error,
+    "upserting an existing occurrence-only import stale state",
+  );
+  const staleStateVersion = await getOccurrenceSyncStateVersion(
+    input.client,
+    input.userId,
+  );
+
+  if (staleStateVersion <= plannedStateVersion) {
+    throw new Error("Occurrence sync stale upsert did not increment state version.");
+  }
+
+  const freshness = await input.client.rpc(
+    "mark_occurrence_sync_fresh_if_configuration_current",
+    occurrenceFreshnessArgs(
+      input,
+      input.currentSecondEventId,
+      plannedStateVersion,
+    ),
+  );
+  assertStalePlanFailure(
+    freshness.error,
+    "clearing an occurrence-only stale write with an older sync plan",
+  );
+
+  const { data: state, error } = await input.client
+    .from("occurrence_sync_state")
+    .select("stale")
+    .eq("user_id", input.userId)
+    .single();
+  assertNoError(error, "reading occurrence-only stale state");
+
+  if (!state?.stale) {
+    throw new Error("An older sync plan cleared occurrence-only stale state.");
+  }
+
+  return "occurrence_freshness_state_version_race_and_forgery_denial";
+}
+
+async function assertZeroBehaviorFreshnessRejectsConcurrentStateCreation(input) {
+  const { data: initialState, error: initialStateError } = await input.client
+    .from("occurrence_sync_state")
+    .select("state_version")
+    .eq("user_id", input.userId)
+    .maybeSingle();
+  assertNoError(initialStateError, "reading initial zero-Behavior sync state");
+
+  if (initialState) {
+    throw new Error("Zero-Behavior freshness fixture unexpectedly had sync state.");
+  }
+
+  const timezoneWrite = await input.client
+    .from("occurrence_sync_state")
+    .insert({
+      user_id: input.userId,
+      timezone: "America/Chicago",
+      stale: true,
+      stale_reason: "timezone_changed",
+    });
+  assertNoError(
+    timezoneWrite.error,
+    "creating a zero-Behavior timezone stale state",
+  );
+
+  const freshness = await input.client.rpc(
+    "mark_occurrence_sync_fresh_if_configuration_current",
+    {
+      target_user_id: input.userId,
+      expected_behavior_configuration_events: [],
+      expected_sync_state_exists: false,
+      expected_sync_state_version: -1,
+      target_timezone: "America/New_York",
+      target_last_synced_local_date: "2098-12-31",
+      target_synced_through_local_date: "2099-01-30",
+      target_last_successful_sync_at: "2098-12-31T00:00:00Z",
+      target_behavior_count: 0,
+      target_created_count: 0,
+      target_updated_count: 0,
+      target_deleted_count: 0,
+    },
+  );
+  assertStalePlanFailure(
+    freshness.error,
+    "clearing a zero-Behavior timezone stale-state creation",
+  );
+
+  return "occurrence_freshness_zero_behavior_state_creation_race";
+}
+
+async function getOccurrenceSyncStateVersion(client, userId) {
+  const { data, error } = await client
+    .from("occurrence_sync_state")
+    .select("state_version")
+    .eq("user_id", userId)
+    .single();
+  assertNoError(error, "reading occurrence sync state version");
+
+  if (!Number.isInteger(data?.state_version)) {
+    throw new Error("Occurrence sync state version is unavailable.");
+  }
+
+  return data.state_version;
+}
+
+function occurrenceFreshnessArgs(
+  input,
+  secondConfigurationEventId,
+  expectedSyncStateVersion,
+) {
+  return {
+    target_user_id: input.userId,
+    expected_behavior_configuration_events: [
+      {
+        behavior_id: input.behavior.id,
+        configuration_event_id: input.currentEvent.id,
+      },
+      {
+        behavior_id: input.secondBehavior.id,
+        configuration_event_id: secondConfigurationEventId,
+      },
+    ],
+    expected_sync_state_exists: true,
+    expected_sync_state_version: expectedSyncStateVersion,
+    target_timezone: "America/New_York",
+    target_last_synced_local_date: "2098-12-31",
+    target_synced_through_local_date: "2099-01-30",
+    target_last_successful_sync_at: "2098-12-31T00:00:00Z",
+    target_behavior_count: 2,
+    target_created_count: 1,
+    target_updated_count: 0,
+    target_deleted_count: 0,
+  };
+}
+
+async function assertBehaviorConfigurationEventIsolation(
+  client,
+  otherBehaviorId,
+) {
+  const { data, error } = await client
+    .from("behavior_configuration_events")
+    .select("id")
+    .eq("behavior_id", otherBehaviorId);
+
+  assertNoError(error, "reading another user's behavior configuration history");
+  assertNoRows(data, "another user's behavior configuration history");
+
+  return "configuration_event_select";
+}
+
+async function assertBehaviorConfigurationEventAppendOnly(input) {
+  const previousConfiguration = {
+    category_id: null,
+    schedule_graph: [],
+    browser_reminder_enabled: true,
+    email_reminder_enabled: false,
+    reminder_offset_minutes: 0,
+    active: true,
+    timezone: "America/New_York",
+  };
+  const nextConfiguration = {
+    ...previousConfiguration,
+    timezone: "America/Los_Angeles",
+  };
+  const insertResult = await input.client
+    .from("behavior_configuration_events")
+    .insert({
+      user_id: input.userId,
+      behavior_id: input.behaviorId,
+      event_kind: "revision",
+      previous_configuration: previousConfiguration,
+      next_configuration: nextConfiguration,
+      changed_fields: ["timezone"],
+      recorded_at: "2000-01-01T14:00:00Z",
+      effective_at: "2000-01-01T14:00:00Z",
+      effective_local_date: "2000-01-01",
+      timezone: "America/Los_Angeles",
+      source: "manual",
+      reason_code: "forged_smoke_event",
+    });
+  assertPermissionDenied(
+    insertResult.error,
+    "inserting behavior configuration history directly",
+  );
+
+  const updateResult = await input.client
+    .from("behavior_configuration_events")
+    .update({ reason_code: "forged_update" })
+    .eq("id", input.eventId);
+  assertPermissionDenied(
+    updateResult.error,
+    "updating behavior configuration history directly",
+  );
+
+  const deleteResult = await input.client
+    .from("behavior_configuration_events")
+    .delete()
+    .eq("id", input.eventId);
+  assertPermissionDenied(
+    deleteResult.error,
+    "deleting behavior configuration history directly",
+  );
+
+  return [
+    "configuration_event_insert_denied",
+    "configuration_event_update_denied",
+    "configuration_event_delete_denied",
+  ];
+}
+
+function assertPermissionDenied(error, action) {
+  if (
+    !error ||
+    (error.code !== "42501" && !/permission denied/iu.test(error.message ?? ""))
+  ) {
+    throw new Error(`Expected permission denial while ${action}.`);
+  }
+}
+
+function assertForeignKeyViolation(error, action) {
+  if (!error || error.code !== "23503") {
+    throw new Error(`Expected owner-and-Behavior foreign-key failure while ${action}.`);
+  }
+}
+
+function assertStalePlanFailure(error, action) {
+  if (!error || error.code !== "P0001") {
+    throw new Error(
+      `Expected stale-plan rejection while ${action}; received ${
+        error ? `${error.code}: ${error.message}` : "success"
+      }.`,
+    );
+  }
+}
+
 async function createSmokeTimeSession(client, input) {
   const { data, error } = await client
     .from("occurrence_time_sessions")
@@ -354,20 +1173,6 @@ async function createSmokeTimeSession(client, input) {
   }
 
   return data;
-}
-
-async function archiveSmokeBehavior(client, behaviorId) {
-  const { error } = await client
-    .from("behaviors")
-    .update({
-      active: false,
-      archived_at: "2000-01-02T18:00:00Z",
-    })
-    .eq("id", behaviorId);
-
-  if (error) {
-    throw new Error(`Unable to archive smoke behavior: ${error.message}`);
-  }
 }
 
 async function assertTimeSessionRpcIsolation(input) {
@@ -612,7 +1417,9 @@ function assertRpcRejected(response, action, expectedMessage) {
     expectedMessage &&
     !response.error.message.toLowerCase().includes(expectedMessage.toLowerCase())
   ) {
-    throw new Error(`RPC rejected ${action} with an unexpected safe error.`);
+    throw new Error(
+      `RPC rejected ${action} with an unexpected safe error: ${response.error.message}`,
+    );
   }
 }
 
@@ -626,6 +1433,461 @@ async function assertProfileIsolation(client, otherUserId) {
   assertNoRows(data, "another user's profile");
 
   return "profile_select";
+}
+
+async function assertProfileWriteIntegrity(input) {
+  const timezoneUpdate = await input.client
+    .from("profiles")
+    .update({ timezone: "America/Chicago" })
+    .eq("id", input.user.id)
+    .select("timezone")
+    .single();
+  assertNoError(timezoneUpdate.error, "updating the owned profile timezone");
+
+  if (timezoneUpdate.data?.timezone !== "America/Chicago") {
+    throw new Error("Owned profile timezone update did not persist.");
+  }
+
+  const emailUpdate = await input.client
+    .from("profiles")
+    .update({ email: input.updatedEmail })
+    .eq("id", input.user.id);
+  assertPermissionDenied(emailUpdate.error, "updating the owned profile email");
+
+  const displayNameUpdate = await input.client
+    .from("profiles")
+    .update({ display_name: "Forged reminder recipient" })
+    .eq("id", input.user.id);
+  assertPermissionDenied(
+    displayNameUpdate.error,
+    "updating the owned profile display name",
+  );
+
+  const profileDelete = await input.client
+    .from("profiles")
+    .delete()
+    .eq("id", input.user.id);
+  assertPermissionDenied(profileDelete.error, "deleting the owned profile");
+
+  const profileInsert = await input.client.from("profiles").insert({
+    id: input.user.id,
+    email: input.updatedEmail,
+    display_name: null,
+    timezone: "America/Chicago",
+  });
+  assertPermissionDenied(profileInsert.error, "inserting an owned profile");
+
+  const identityUpdate = await input.admin.auth.admin.updateUserById(
+    input.user.id,
+    {
+      email: input.updatedEmail,
+      email_confirm: true,
+    },
+  );
+  assertNoError(
+    identityUpdate.error,
+    "updating the temporary identity-provider email",
+  );
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const { data, error } = await input.client
+      .from("profiles")
+      .select("email")
+      .eq("id", input.user.id)
+      .single();
+    assertNoError(error, "reading the identity-synced profile email");
+
+    if (data?.email === input.updatedEmail) {
+      return [
+        "profile_timezone_update",
+        "profile_email_update_denied",
+        "profile_display_name_update_denied",
+        "profile_delete_denied",
+        "profile_insert_denied",
+        "profile_identity_email_sync",
+      ];
+    }
+
+    await delay(250);
+  }
+
+  throw new Error("Identity-provider email did not propagate to the profile.");
+}
+
+async function assertSettingsTimezoneTransaction(input) {
+  const { data: profileBefore, error: profileBeforeError } = await input.client
+    .from("profiles")
+    .select("timezone")
+    .eq("id", input.userId)
+    .single();
+  assertNoError(profileBeforeError, "reading pre-timezone profile state");
+
+  const { data: behaviorBefore, error: behaviorBeforeError } = await input.client
+    .from("behaviors")
+    .select("updated_at, timezone, current_configuration_event_id")
+    .eq("id", input.behavior.id)
+    .single();
+  assertNoError(behaviorBeforeError, "reading pre-timezone Behavior state");
+
+  const { count: eventCountBefore, error: eventCountBeforeError } =
+    await input.client
+      .from("behavior_configuration_events")
+      .select("id", { count: "exact", head: true })
+      .eq("behavior_id", input.behavior.id);
+  assertNoError(
+    eventCountBeforeError,
+    "counting pre-timezone configuration events",
+  );
+
+  const syncBefore = await readOccurrenceSyncState(input.client, input.userId);
+  const targetTimezone = "America/Los_Angeles";
+  const eventPlan = buildTimezoneConfigurationEventPlan(
+    input.behavior,
+    targetTimezone,
+  );
+  const failedWrite = await input.client.rpc(
+    "update_profile_and_behavior_timezones_with_config_events",
+    {
+      target_timezone: targetTimezone,
+      expected_profile_timezone: profileBefore.timezone,
+      behavior_changes: [
+        {
+          behavior_id: input.behavior.id,
+          expected_updated_at: "1999-01-01T00:00:00Z",
+          configuration_event_plan: eventPlan,
+        },
+      ],
+    },
+  );
+  assertRpcRejected(
+    failedWrite,
+    "a timezone write with a changed Behavior precondition",
+    "Active behavior changed after it was read",
+  );
+
+  await assertTimezoneTransactionState(input.client, {
+    userId: input.userId,
+    behaviorId: input.behavior.id,
+    expectedProfileTimezone: profileBefore.timezone,
+    expectedBehaviorTimezone: behaviorBefore.timezone,
+    expectedConfigurationEventId:
+      behaviorBefore.current_configuration_event_id,
+    expectedEventCount: eventCountBefore,
+    expectedSyncState: syncBefore,
+    action: "rejected timezone transaction rollback",
+  });
+
+  const successfulWrite = await input.client.rpc(
+    "update_profile_and_behavior_timezones_with_config_events",
+    {
+      target_timezone: targetTimezone,
+      expected_profile_timezone: profileBefore.timezone,
+      behavior_changes: [
+        {
+          behavior_id: input.behavior.id,
+          expected_updated_at: behaviorBefore.updated_at,
+          configuration_event_plan: eventPlan,
+        },
+      ],
+    },
+  );
+  assertNoError(successfulWrite.error, "saving an atomic Settings timezone");
+
+  if (
+    successfulWrite.data?.active_behavior_count !== 1 ||
+    successfulWrite.data?.changed_behavior_count !== 1 ||
+    successfulWrite.data?.profile_changed !== true
+  ) {
+    throw new Error("Atomic Settings timezone result counts were incorrect.");
+  }
+
+  const { data: profileAfter, error: profileAfterError } = await input.client
+    .from("profiles")
+    .select("timezone")
+    .eq("id", input.userId)
+    .single();
+  assertNoError(profileAfterError, "reading committed timezone profile state");
+
+  const { data: behaviorAfter, error: behaviorAfterError } = await input.client
+    .from("behaviors")
+    .select("timezone, current_configuration_event_id")
+    .eq("id", input.behavior.id)
+    .single();
+  assertNoError(behaviorAfterError, "reading committed timezone Behavior state");
+
+  const { count: eventCountAfter, error: eventCountAfterError } =
+    await input.client
+      .from("behavior_configuration_events")
+      .select("id", { count: "exact", head: true })
+      .eq("behavior_id", input.behavior.id);
+  assertNoError(
+    eventCountAfterError,
+    "counting committed timezone configuration events",
+  );
+  const syncAfter = await readOccurrenceSyncState(input.client, input.userId);
+
+  if (
+    profileAfter.timezone !== targetTimezone ||
+    behaviorAfter.timezone !== targetTimezone ||
+    behaviorAfter.current_configuration_event_id ===
+      behaviorBefore.current_configuration_event_id ||
+    eventCountAfter !== eventCountBefore + 1 ||
+    !syncAfter.stale ||
+    syncAfter.stale_reason !== "timezone_changed" ||
+    syncAfter.timezone !== targetTimezone ||
+    syncAfter.state_version !== syncBefore.state_version + 1
+  ) {
+    throw new Error(
+      "Atomic Settings timezone did not commit one profile, Behavior, history, and stale-state boundary.",
+    );
+  }
+
+  const staleProfileWrite = await input.client.rpc(
+    "update_profile_and_behavior_timezones_with_config_events",
+    {
+      target_timezone: "America/Denver",
+      expected_profile_timezone: profileBefore.timezone,
+      behavior_changes: [],
+    },
+  );
+  assertRpcRejected(
+    staleProfileWrite,
+    "a timezone write with a stale profile precondition",
+    "Profile timezone changed after it was read",
+  );
+
+  const syncAfterStaleAttempt = await readOccurrenceSyncState(
+    input.client,
+    input.userId,
+  );
+
+  if (syncAfterStaleAttempt.state_version !== syncAfter.state_version) {
+    throw new Error("A rejected concurrent timezone write marked sync stale.");
+  }
+
+  return [
+    "settings_timezone_behavior_failure_rollback",
+    "settings_timezone_profile_behavior_atomic_commit",
+    "settings_timezone_configuration_event_once",
+    "settings_timezone_stale_mark_once",
+    "settings_timezone_stale_profile_precondition",
+  ];
+}
+
+function buildTimezoneConfigurationEventPlan(behavior, targetTimezone) {
+  const previousConfiguration = {
+    category_id: behavior.category_id,
+    schedule_graph: behavior.scheduleGraph.map((schedule) => ({
+      recurrence_rule: schedule.recurrence_rule,
+      sort_order: schedule.sort_order,
+      time_entries: schedule.time_entries.map((entry) => ({
+        kind: entry.kind,
+        preset: entry.preset,
+        start_time: entry.start_time,
+        end_time: entry.end_time,
+        sort_order: entry.sort_order,
+      })),
+    })),
+    browser_reminder_enabled: behavior.browser_reminder_enabled,
+    email_reminder_enabled: behavior.email_reminder_enabled,
+    reminder_offset_minutes: behavior.reminder_offset_minutes,
+    active: true,
+    timezone: behavior.timezone,
+  };
+
+  return {
+    event_kind: "revision",
+    previous_configuration: previousConfiguration,
+    next_configuration: {
+      ...previousConfiguration,
+      timezone: targetTimezone,
+    },
+    changed_fields: ["timezone"],
+    recorded_at: "2000-01-03T18:00:00Z",
+    effective_at: "2000-01-03T18:00:00Z",
+    effective_local_date: "2000-01-03",
+    timezone: targetTimezone,
+    source: "manual",
+    reason_code: "timezone_changed",
+  };
+}
+
+async function assertTimezoneTransactionState(client, expected) {
+  const { data: profile, error: profileError } = await client
+    .from("profiles")
+    .select("timezone")
+    .eq("id", expected.userId)
+    .single();
+  assertNoError(profileError, `reading ${expected.action} profile`);
+
+  const { data: behavior, error: behaviorError } = await client
+    .from("behaviors")
+    .select("timezone, current_configuration_event_id")
+    .eq("id", expected.behaviorId)
+    .single();
+  assertNoError(behaviorError, `reading ${expected.action} Behavior`);
+
+  const { count: eventCount, error: eventCountError } = await client
+    .from("behavior_configuration_events")
+    .select("id", { count: "exact", head: true })
+    .eq("behavior_id", expected.behaviorId);
+  assertNoError(eventCountError, `counting ${expected.action} history`);
+  const syncState = await readOccurrenceSyncState(client, expected.userId);
+
+  if (
+    profile.timezone !== expected.expectedProfileTimezone ||
+    behavior.timezone !== expected.expectedBehaviorTimezone ||
+    behavior.current_configuration_event_id !==
+      expected.expectedConfigurationEventId ||
+    eventCount !== expected.expectedEventCount ||
+    JSON.stringify(syncState) !== JSON.stringify(expected.expectedSyncState)
+  ) {
+    throw new Error(`Database state changed during ${expected.action}.`);
+  }
+}
+
+async function readOccurrenceSyncState(client, userId) {
+  const { data, error } = await client
+    .from("occurrence_sync_state")
+    .select("timezone, stale, stale_reason, state_version")
+    .eq("user_id", userId)
+    .single();
+  assertNoError(error, "reading occurrence sync state for timezone proof");
+  return data;
+}
+
+async function assertReminderDeliveryIntegrity(input) {
+  const scheduledSendAt = {
+    cancellation: "2000-01-01T13:00:00Z",
+    sent: "2000-01-01T13:01:00Z",
+    failed: "2000-01-01T13:02:00Z",
+    claimed: "2000-01-01T13:03:00Z",
+  };
+  const { data: inserted, error: insertError } = await input.client
+    .from("reminder_deliveries")
+    .insert(
+      Object.values(scheduledSendAt).map((sendAt, index) => ({
+        user_id: input.userId,
+        occurrence_id: input.occurrenceId,
+        channel: index % 2 === 0 ? "email" : "browser_push",
+        scheduled_send_at: sendAt,
+        status: "pending",
+      })),
+    )
+    .select("id, scheduled_send_at");
+  assertNoError(insertError, "planning owned pending reminder deliveries");
+
+  if (inserted?.length !== 4) {
+    throw new Error("Owned reminder planning did not create every fixture.");
+  }
+
+  const idByScheduledSendAt = new Map(
+    inserted.map((delivery) => [
+      Date.parse(delivery.scheduled_send_at),
+      delivery.id,
+    ]),
+  );
+  const cancellationId = idByScheduledSendAt.get(
+    Date.parse(scheduledSendAt.cancellation),
+  );
+  const sentId = idByScheduledSendAt.get(Date.parse(scheduledSendAt.sent));
+  const failedId = idByScheduledSendAt.get(Date.parse(scheduledSendAt.failed));
+  const claimedId = idByScheduledSendAt.get(Date.parse(scheduledSendAt.claimed));
+
+  if (!cancellationId || !sentId || !failedId || !claimedId) {
+    throw new Error("Owned reminder planning returned incomplete fixtures.");
+  }
+
+  const cancellation = await input.client
+    .from("reminder_deliveries")
+    .update({ status: "cancelled", error: null })
+    .eq("id", cancellationId);
+  assertNoError(cancellation.error, "cancelling an owned pending reminder");
+
+  const reactivation = await input.client
+    .from("reminder_deliveries")
+    .update({
+      status: "pending",
+      sent_at: null,
+      processing_started_at: null,
+      error: null,
+    })
+    .eq("id", cancellationId);
+  assertNoError(
+    reactivation.error,
+    "reactivating an owned unclaimed cancelled reminder",
+  );
+
+  const sentUpdate = await input.admin
+    .from("reminder_deliveries")
+    .update({
+      status: "sent",
+      sent_at: "2000-01-01T13:01:30Z",
+      error: null,
+    })
+    .eq("id", sentId);
+  assertNoError(sentUpdate.error, "marking the reminder sent as service role");
+
+  const failedUpdate = await input.admin
+    .from("reminder_deliveries")
+    .update({ status: "failed", sent_at: null, error: "smoke failure" })
+    .eq("id", failedId);
+  assertNoError(
+    failedUpdate.error,
+    "marking the reminder failed as service role",
+  );
+
+  const claimStartedAt = "2000-01-01T13:03:30Z";
+  const claimUpdate = await input.admin
+    .from("reminder_deliveries")
+    .update({ processing_started_at: claimStartedAt })
+    .eq("id", claimedId);
+  assertNoError(claimUpdate.error, "claiming the reminder as service role");
+
+  const sentRecycle = await input.client
+    .from("reminder_deliveries")
+    .update({ status: "pending", sent_at: null, error: null })
+    .eq("id", sentId);
+  assertPermissionDenied(sentRecycle.error, "recycling a sent reminder");
+
+  const failedRecycle = await input.client
+    .from("reminder_deliveries")
+    .update({ status: "pending", error: null })
+    .eq("id", failedId);
+  assertPermissionDenied(failedRecycle.error, "recycling a failed reminder");
+
+  const claimClear = await input.client
+    .from("reminder_deliveries")
+    .update({ processing_started_at: null })
+    .eq("id", claimedId);
+  assertPermissionDenied(claimClear.error, "clearing a reminder processing claim");
+
+  const { data: guardedRows, error: guardedReadError } = await input.client
+    .from("reminder_deliveries")
+    .select("id, status, processing_started_at")
+    .in("id", [sentId, failedId, claimedId]);
+  assertNoError(guardedReadError, "reading guarded reminder delivery states");
+
+  const guardedById = new Map(
+    (guardedRows ?? []).map((delivery) => [delivery.id, delivery]),
+  );
+
+  if (
+    guardedById.get(sentId)?.status !== "sent" ||
+    guardedById.get(failedId)?.status !== "failed" ||
+    guardedById.get(claimedId)?.processing_started_at === null
+  ) {
+    throw new Error("A rejected reminder delivery update changed guarded state.");
+  }
+
+  return [
+    "reminder_pending_planning",
+    "reminder_pending_cancellation",
+    "reminder_cancelled_reactivation",
+    "reminder_sent_recycle_denied",
+    "reminder_failed_recycle_denied",
+    "reminder_processing_claim_clear_denied",
+  ];
 }
 
 async function assertCategoryIsolation(client, otherUserId) {
@@ -690,10 +1952,13 @@ async function assertBehaviorUpdateIsolation(client, otherBehaviorId) {
     .eq("id", otherBehaviorId)
     .select("id");
 
-  assertNoError(error, "updating another user's behavior");
-  assertNoRows(data, "updated behavior rows");
+  if (!error) {
+    throw new Error(
+      `Authenticated direct behavior update was not denied: ${JSON.stringify(data)}`,
+    );
+  }
 
-  return "behavior_update";
+  return "behavior_direct_update_denied";
 }
 
 async function assertOwnBehaviorVisible(client, behaviorId) {

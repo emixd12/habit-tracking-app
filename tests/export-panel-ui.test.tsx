@@ -97,23 +97,26 @@ describe("Export panel UI", () => {
     expect(html).toContain("Spreadsheet review of occurrence snapshots");
     expect(html).toContain("App JSON backup (.json)");
     expect(html).toContain(
-      "status-event history, and behavior definition history.",
+      "status-event history, and complete behavior definition, schedule, and reminder history.",
     );
     expect(html).toContain("BehaviorLog bundle (.behaviorlog.zip)");
     expect(html).toContain(
-      "BehaviorLog core records plus Cadence definition history",
+      "BehaviorLog core records plus Cadence definition, schedule, reminder, and status history",
     );
     expect(html).toContain(
-      "Full JSON and BehaviorLog include complete prior and next behavior titles and descriptions by default.",
+      "Full JSON and BehaviorLog include complete prior and next behavior titles and descriptions, plus schedule and reminder history, by default.",
     );
     expect(html).toContain(
-      "Historical definitions can contain sensitive text.",
+      "Historical definitions and configuration can contain sensitive context.",
     );
     expect(html).toContain(
-      "Exported behavior definition revisions are not replayed on import or restore.",
+      "Exported behavior definition and configuration revisions are not replayed on import or restore.",
     );
     expect(html).toContain(
       "records a new local import baseline or transition",
+    );
+    expect(html).toContain(
+      "Historical Occurrence snapshots stay portable without activating prior schedules.",
     );
   });
 
@@ -235,6 +238,7 @@ function exportBundle(): ExportBundle {
     categoryCount: 1,
     behaviorCount: 1,
     occurrenceCount: 1,
+    behaviorConfigurationEventCount: 0,
     overallCounts: {
       completedCount: 1,
       notCompletedCount: 0,
@@ -255,6 +259,7 @@ function exportBundle(): ExportBundle {
       occurrences: [],
       status_events: [],
       behavior_definition_events: [],
+      behavior_configuration_events: [],
     },
     json: "{}",
     markdownSummary: "# Cadence export summary",

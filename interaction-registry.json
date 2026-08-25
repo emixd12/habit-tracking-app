@@ -1,6 +1,6 @@
 {
   "$schema": "./interaction-registry.schema.json",
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "registry_id": "cadence.user-interactions",
   "product": "Cadence",
   "updated": "2026-08-04",
@@ -258,7 +258,7 @@
     {
       "path": "components/layout/AppShell.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 25,
+      "interaction_marker_count": 26,
       "interaction_ids": [
         "INT-SHELL-001",
         "INT-SHELL-002",
@@ -977,13 +977,13 @@
       "intent": "End the current authenticated Cadence session, including before leaving a shared device.",
       "triggers": [{ "kind": "submit", "control": "Sign out" }],
       "availability": "Available directly below the account row in the expanded desktop rail, collapsed desktop rail, and mobile drawer.",
-      "success_result": "Ends the session and redirects to /login with the signed-out status.",
-      "failure_result": "Shows a factual recoverable error and leaves the session state unchanged.",
-      "effects": ["authentication_session", "navigation"],
+      "success_result": "Deactivates the departing account's current-browser push endpoint when one exists, then ends the session and redirects to /login with the signed-out status.",
+      "failure_result": "Shows a factual recoverable error and leaves the session state unchanged when current-device deactivation or sign-out fails.",
+      "effects": ["push_subscription", "authentication_session", "navigation"],
       "risk": "low",
       "confirmation": "none",
-      "implementation": ["components/layout/AppShell.tsx", "app/auth/sign-out/route.ts", "app/(auth)/login/page.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/sign-out-shell.test.tsx"], "notes": "The app-shell test renders the POST-only Sign out control in every shell presentation; route and focused-result behavior are covered separately." }
+      "implementation": ["components/layout/AppShell.tsx", "lib/push/browser.ts#readCurrentBrowserPushEndpoint", "app/auth/sign-out/route.ts", "lib/db/pushSubscriptions.repo.ts#deactivateCurrentUserPushSubscriptionByEndpoint", "app/(auth)/login/page.tsx"],
+      "test_coverage": { "level": "direct", "references": ["tests/sign-out-shell.test.tsx", "tests/sign-out-route.test.ts", "tests/push-browser.test.ts"], "notes": "The app-shell test renders the POST-only control and current-endpoint field. Route tests prove deactivation-before-sign-out, no-subscription success, and failure ordering. Browser tests prove existing endpoint discovery and second-account endpoint reuse." }
     },
     {
       "id": "INT-ONBOARD-001",
@@ -1237,9 +1237,14 @@
       "risk": "moderate",
       "confirmation": "none",
       "implementation": [
-        "components/timeline/OccurrenceNoteForm.tsx",
+        "components/timeline/OccurrenceNoteForm.tsx#OccurrenceNoteForm",
         "app/(app)/timeline/actions.ts#updateOccurrenceNoteAction",
         "app/(app)/behaviors/actions.ts#updateBehaviorReviewOccurrenceNoteAction"
+      ],
+      "effect_checks": [
+        { "effect": "database_write", "handler": "app/(app)/timeline/actions.ts#updateOccurrenceNoteAction", "evidence": ["updateOccurrenceNoteFromFormData(formData)"] },
+        { "effect": "database_write", "handler": "app/(app)/behaviors/actions.ts#updateBehaviorReviewOccurrenceNoteAction", "evidence": ["updateOccurrenceNoteFromFormData(formData)"] },
+        { "effect": "ui_state", "handler": "components/timeline/OccurrenceNoteForm.tsx#OccurrenceNoteForm", "evidence": ["useActionState(action", "router.refresh()"] }
       ],
       "test_coverage": { "level": "direct", "references": ["tests/timeline-interactions-ui.test.tsx"], "notes": "The Timeline UI test renders the Note field and Save note submission control; note persistence is covered separately." }
     },
@@ -2360,7 +2365,7 @@
       "risk": "high",
       "confirmation": "none",
       "implementation": ["components/settings/TimezonePanel.tsx", "app/(app)/settings/actions.ts#updateTimezoneAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/settings-interactions-ui.test.tsx"], "notes": "The Settings UI test renders Save timezone; propagation and historical preservation are covered separately." }
+      "test_coverage": { "level": "direct", "references": ["tests/settings-interactions-ui.test.tsx", "tests/settings.service.test.ts", "tests/rls-smoke-script.test.ts"], "notes": "Service tests prove one atomic repository boundary and rerunnable occurrence sync. The authenticated local smoke proves rollback, one configuration event, and one stale-state version increment." }
     },
     {
       "id": "INT-SETTINGS-004",
@@ -2375,7 +2380,7 @@
       "journeys": ["J12", "J20"],
       "intent": "Request notification permission when allowed and save or refresh this browser's push subscription.",
       "triggers": [{ "kind": "activate", "control": "Enable notifications on this device or Refresh this device" }],
-      "availability": "Shown when browser push is supported and notification permission is not denied; disabled while saving.",
+      "availability": "Shown when browser push is supported, including after notification permission is denied; the denied state labels the action Refresh this device. Disabled while saving.",
       "success_result": "Requests the browser permission only from this user gesture when necessary, registers the service worker and push subscription, persists the owner-scoped subscription, and reports Enabled on this device.",
       "failure_result": "Reports blocked, unavailable, unconfigured, declined, or registration errors while leaving the tracker usable.",
       "effects": ["browser_prompt", "browser_permission", "push_subscription_write", "ui_state"],
@@ -2495,13 +2500,13 @@
       "intent": "Permanently remove the signed-in Cadence account and its hosted owned records.",
       "triggers": [{ "kind": "submit", "control": "Delete account" }],
       "availability": "Enabled only when the export acknowledgement and exact typed confirmation are both present and no deletion is pending.",
-      "success_result": "Server revalidates both gates, signs out globally, deletes the Supabase Auth user through server-only credentials, relies on ownership cascades to delete hosted records, and redirects to the public login confirmation.",
-      "failure_result": "Shows a factual error and preserves the account when validation, sign-out, or deletion fails.",
+      "success_result": "Server revalidates both gates, verifies the server-only service-role client, hard-deletes the Supabase Auth user and its server session rows, then attempts global sign-out to clear the current browser session and redirects to the public login confirmation.",
+      "failure_result": "A validation, service-role verification, or user-deletion failure shows a specific recoverable error and preserves both account and session. A post-deletion sign-out error cannot restore the deleted account and does not block the success redirect.",
       "effects": ["authentication_session_end", "destructive_data_change", "database_delete", "navigation"],
       "risk": "destructive",
       "confirmation": "acknowledgement_and_typed",
       "implementation": ["components/settings/AccountDeletionPanel.tsx", "app/(app)/settings/actions.ts#deleteAccountAction"],
-      "test_coverage": { "level": "direct", "references": ["tests/settings-interactions-ui.test.tsx"], "notes": "The Settings UI test renders Delete account behind the acknowledgement and typed gates; destructive service behavior is covered separately." }
+      "test_coverage": { "level": "direct", "references": ["tests/settings-interactions-ui.test.tsx", "tests/account-deletion.service.test.ts", "tests/supabase-server-cookies.test.ts"], "notes": "Tests prove the client gates plus service-role verification and hard deletion before sign-out. Verification and deletion failures preserve the session; post-delete sign-out errors stay successful and current Auth cookies expire explicitly." }
     },
     {
       "id": "INT-NOTIFICATION-001",

@@ -1,4 +1,9 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import {
+  POSTGREST_PAGE_SIZE,
+  readAllPostgrestRows,
+  USER_SCOPED_READ_ABSOLUTE_CEILING,
+} from "@/lib/db/paginated-read";
 import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   NewOccurrenceTimeSession,
@@ -6,8 +11,9 @@ import type {
 } from "@/lib/types/database";
 
 const ARBITRARY_ID_BATCH_SIZE = 2_000;
-const RPC_PAGE_SIZE = 1_000;
 const ALL_TIME_START_LOCAL_DATE = "0001-01-01";
+const TIME_SESSION_CEILING_ERROR =
+  "Time-session history exceeds Cadence's absolute read ceiling of 100,000 rows.";
 
 export type OccurrenceTimeSessionReadRow = Pick<
   OccurrenceTimeSession,
@@ -18,6 +24,83 @@ export type OccurrenceTimeSessionReadRow = Pick<
   | "started_at"
   | "stopped_at"
 >;
+
+export async function listOccurrenceIdsWithTimeSessions(
+  supabase: AppSupabaseClient,
+  input: Readonly<{ userId: string; occurrenceIds: string[] }>,
+): Promise<string[]> {
+  const occurrenceIds = Array.from(new Set(input.occurrenceIds));
+
+  if (occurrenceIds.length === 0) {
+    return [];
+  }
+
+  const result = await measurePerformanceSpan(
+    {
+      span: "db.list_occurrence_ids_with_time_sessions",
+      counts: (read) => ({
+        query_batches: read.batchCount,
+        query_pages: read.pageCount,
+        occurrences: read.occurrenceIds.length,
+      }),
+    },
+    async () => {
+      const occurrenceIdsWithSessions = new Set<string>();
+      const sessionIds = new Set<string>();
+      let batchCount = 0;
+      let pageCount = 0;
+
+      for (
+        let batchStart = 0;
+        batchStart < occurrenceIds.length;
+        batchStart += ARBITRARY_ID_BATCH_SIZE
+      ) {
+        const occurrenceIdBatch = occurrenceIds.slice(
+          batchStart,
+          batchStart + ARBITRARY_ID_BATCH_SIZE,
+        );
+        batchCount += 1;
+
+        const pageSessions = await readAllPostgrestRows<{
+          id: string;
+          occurrence_id: string;
+        }>({
+          label: "Time-session presence rows",
+          absoluteCeiling:
+            USER_SCOPED_READ_ABSOLUTE_CEILING - sessionIds.size,
+          absoluteCeilingError: TIME_SESSION_CEILING_ERROR,
+          duplicateRowPolicy: "ignore",
+          nonAdvancingError:
+            "Time-session presence pagination did not advance.",
+          getRowKey: (session) => session.id,
+          onPage: () => {
+            pageCount += 1;
+          },
+          createQuery: () =>
+            supabase
+              .from("occurrence_time_sessions")
+              .select("id, occurrence_id")
+              .eq("user_id", input.userId)
+              .in("occurrence_id", occurrenceIdBatch)
+              .order("id", { ascending: true }),
+        });
+
+        for (const session of pageSessions) {
+          sessionIds.add(session.id);
+          occurrenceIdsWithSessions.add(session.occurrence_id);
+        }
+      }
+
+      return {
+        occurrenceIds: Array.from(occurrenceIdsWithSessions).sort(),
+        batchCount,
+        pageCount,
+      };
+    },
+  );
+
+  return result.occurrenceIds;
+}
 
 export async function listTimeSessionsByOccurrenceIds(
   supabase: AppSupabaseClient,
@@ -56,36 +139,26 @@ export async function listTimeSessionsByOccurrenceIds(
         );
         batchCount += 1;
 
-        for (let pageStart = 0; ; pageStart += RPC_PAGE_SIZE) {
-          const { data, error } = await supabase
-            .rpc("list_my_occurrence_time_sessions", {
-              occurrence_ids: occurrenceIdBatch,
-            })
-            .range(pageStart, pageStart + RPC_PAGE_SIZE - 1);
-          pageCount += 1;
+        const pageSessions =
+          await readAllPostgrestRows<OccurrenceTimeSessionReadRow>({
+            label: "Time-session ID rows",
+            absoluteCeiling:
+              USER_SCOPED_READ_ABSOLUTE_CEILING - sessionsById.size,
+            absoluteCeilingError: TIME_SESSION_CEILING_ERROR,
+            duplicateRowPolicy: "ignore",
+            nonAdvancingError: "Time-session ID pagination did not advance.",
+            getRowKey: (session) => session.id,
+            onPage: () => {
+              pageCount += 1;
+            },
+            createQuery: () =>
+              supabase.rpc("list_my_occurrence_time_sessions", {
+                occurrence_ids: occurrenceIdBatch,
+              }),
+          });
 
-          if (error) {
-            throw error;
-          }
-
-          const page = data ?? [];
-          let addedSessionCount = 0;
-
-          for (const session of page) {
-            if (!sessionsById.has(session.id)) {
-              addedSessionCount += 1;
-            }
-
-            sessionsById.set(session.id, session);
-          }
-
-          if (page.length < RPC_PAGE_SIZE) {
-            break;
-          }
-
-          if (addedSessionCount === 0) {
-            throw new Error("Time-session ID pagination did not advance.");
-          }
+        for (const session of pageSessions) {
+          sessionsById.set(session.id, session);
         }
       }
 
@@ -122,8 +195,10 @@ export async function listTimeSessionHistory(
     },
     async () => {
       const sessions: OccurrenceTimeSessionReadRow[] = [];
+      const sessionIds = new Set<string>();
       let cursorStartedAt: string | null = null;
       let cursorSessionId: string | null = null;
+      let previousSession: OccurrenceTimeSessionReadRow | null = null;
       let pageCount = 0;
 
       for (;;) {
@@ -139,7 +214,7 @@ export async function listTimeSessionHistory(
             // PostgREST still requires explicit nulls for the first page.
             cursor_started_at: cursorStartedAt as unknown as string,
             cursor_session_id: cursorSessionId as unknown as string,
-            page_size: RPC_PAGE_SIZE,
+            page_size: POSTGREST_PAGE_SIZE,
           },
         );
         pageCount += 1;
@@ -149,9 +224,30 @@ export async function listTimeSessionHistory(
         }
 
         const page: OccurrenceTimeSessionReadRow[] = response.data ?? [];
+
+        if (
+          sessions.length + page.length >
+          USER_SCOPED_READ_ABSOLUTE_CEILING
+        ) {
+          throw new Error(TIME_SESSION_CEILING_ERROR);
+        }
+
+        for (const session of page) {
+          if (
+            sessionIds.has(session.id) ||
+            (previousSession !== null &&
+              compareTimeSessions(session, previousSession) <= 0)
+          ) {
+            throw new Error("Time-session history cursor did not advance.");
+          }
+
+          sessionIds.add(session.id);
+          previousSession = session;
+        }
+
         sessions.push(...page);
 
-        if (page.length < RPC_PAGE_SIZE) {
+        if (page.length < POSTGREST_PAGE_SIZE) {
           break;
         }
 

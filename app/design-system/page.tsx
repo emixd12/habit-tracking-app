@@ -2314,6 +2314,7 @@ const exportFixture: ExportBundle = {
   ],
   categoryCount: 2,
   behaviorCount: 2,
+  behaviorConfigurationEventCount: 0,
   occurrenceCount: 4,
   overallCounts: {
     completedCount: 2,
@@ -2343,6 +2344,7 @@ const exportFixture: ExportBundle = {
         id: "occurrence-completed",
         behavior_id: "behavior-reset",
         behavior_schedule_slot_id: "slot-evening-reset",
+        behavior_configuration_event_id: null,
         behavior_title: "Evening reset",
         category: "Home",
         scheduled_for: "2026-06-08T16:00:00Z",
@@ -2361,6 +2363,7 @@ const exportFixture: ExportBundle = {
     ],
     status_events: [],
     behavior_definition_events: [],
+    behavior_configuration_events: [],
   },
   json: "{\"profile\":{\"timezone\":\"America/New_York\"}}",
   markdownSummary:

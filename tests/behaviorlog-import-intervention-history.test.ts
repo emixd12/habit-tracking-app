@@ -491,6 +491,8 @@ function createApplyClient(input: {
     ],
     behaviors: [],
     behavior_definition_events: [],
+    behavior_configuration_events: [],
+    behavior_schedules: [],
     behavior_schedule_slots: [],
     occurrences: [],
     occurrence_status_events: [],
@@ -507,9 +509,11 @@ function createApplyClient(input: {
       args: {
         behavior_payload?: Record<string, unknown>;
         definition_event_plan?: Record<string, unknown>;
+        configuration_event_plan?: Record<string, unknown>;
+        schedule_graph?: Array<Record<string, unknown>>;
       },
     ) => {
-      if (functionName !== "create_behavior_with_definition_event") {
+      if (functionName !== "create_behavior_with_schedule_graph") {
         return {
           data: null,
           error: new Error(`Unsupported fake RPC ${functionName}.`),
@@ -518,8 +522,14 @@ function createApplyClient(input: {
 
       const behaviorPayload = args.behavior_payload;
       const definitionEventPlan = args.definition_event_plan;
+      const configurationEventPlan = args.configuration_event_plan;
 
-      if (!behaviorPayload || !definitionEventPlan) {
+      if (
+        !behaviorPayload ||
+        !definitionEventPlan ||
+        !configurationEventPlan ||
+        !args.schedule_graph
+      ) {
         return {
           data: null,
           error: new Error("Missing atomic behavior definition payload."),
@@ -535,6 +545,9 @@ function createApplyClient(input: {
         user_id: USER_ID,
         created_at: createdAt,
         updated_at: createdAt,
+        category: null,
+        schedules: [],
+        schedule_slots: [],
       };
 
       tables.behaviors.push(behavior);
@@ -553,6 +566,18 @@ function createApplyClient(input: {
         created_at: createdAt,
         updated_at: createdAt,
       });
+      tables.behavior_configuration_events.push({
+        ...configurationEventPlan,
+        id: `behavior_configuration_events-${tables.behavior_configuration_events.length + 1}`,
+        user_id: USER_ID,
+        behavior_id: behaviorId,
+      });
+      installFakeScheduleGraph(
+        tables,
+        behavior,
+        args.schedule_graph,
+        counters,
+      );
 
       return { data: behavior, error: null };
     },
@@ -566,6 +591,65 @@ function createApplyClient(input: {
   };
 }
 
+function installFakeScheduleGraph(
+  tables: FakeTables,
+  behavior: Record<string, unknown>,
+  scheduleGraph: Array<Record<string, unknown>>,
+  counters: Map<string, number>,
+): void {
+  const behaviorId = String(behavior.id);
+  const schedules = scheduleGraph.map((entry) => {
+    const scheduleId = `behavior_schedules-${nextFakeId(
+      counters,
+      "behavior_schedules",
+    )}`;
+    const schedule = {
+      id: scheduleId,
+      user_id: USER_ID,
+      behavior_id: behaviorId,
+      recurrence_rule: entry.recurrence_rule,
+      sort_order: entry.sort_order,
+      created_at: behavior.created_at,
+      updated_at: behavior.updated_at,
+      schedule_slots: [] as Array<Record<string, unknown>>,
+    };
+    const slots = (entry.time_entries as Array<Record<string, unknown>>).map(
+      (timeEntry) => ({
+        id: `behavior_schedule_slots-${nextFakeId(
+          counters,
+          "behavior_schedule_slots",
+        )}`,
+        user_id: USER_ID,
+        behavior_id: behaviorId,
+        behavior_schedule_id: scheduleId,
+        kind: timeEntry.kind,
+        preset: timeEntry.preset,
+        start_time: timeEntry.start_time,
+        end_time: timeEntry.end_time,
+        sort_order: timeEntry.sort_order,
+        created_at: behavior.created_at,
+        updated_at: behavior.updated_at,
+      }),
+    );
+
+    schedule.schedule_slots = slots;
+    tables.behavior_schedules.push(schedule);
+    tables.behavior_schedule_slots.push(...slots);
+    return schedule;
+  });
+
+  behavior.schedules = schedules;
+  behavior.schedule_slots = schedules.flatMap(
+    (schedule) => schedule.schedule_slots,
+  );
+}
+
+function nextFakeId(counters: Map<string, number>, table: string): number {
+  const next = (counters.get(table) ?? 0) + 1;
+  counters.set(table, next);
+  return next;
+}
+
 class FakeQuery {
   private filters: Array<{ column: string; value: unknown }> = [];
   private inFilters: Array<{ column: string; values: unknown[] }> = [];
@@ -573,6 +657,8 @@ class FakeQuery {
   private values: Array<Record<string, unknown>> = [];
   private updateValue: Record<string, unknown> = {};
   private limitCount: number | null = null;
+  private rangeStart: number | null = null;
+  private rangeEnd: number | null = null;
 
   constructor(
     private readonly table: string,
@@ -601,6 +687,12 @@ class FakeQuery {
 
   limit(count: number): this {
     this.limitCount = count;
+    return this;
+  }
+
+  range(from: number, to: number): this {
+    this.rangeStart = from;
+    this.rangeEnd = to;
     return this;
   }
 
@@ -702,7 +794,12 @@ class FakeQuery {
         ),
     );
 
-    return this.limitCount === null ? rows : rows.slice(0, this.limitCount);
+    const limited =
+      this.limitCount === null ? rows : rows.slice(0, this.limitCount);
+
+    return this.rangeStart === null || this.rangeEnd === null
+      ? limited
+      : limited.slice(this.rangeStart, this.rangeEnd + 1);
   }
 
   private tableRows(): Array<Record<string, unknown>> {
