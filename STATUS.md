@@ -5910,10 +5910,10 @@ Ticket 098 later performed the separately authorized private `main` rewrite.
 
 ## Public repository publication and GitHub controls (Ticket 100)
 
-Status: in_progress. Publication and repository controls are complete, but
-production account-deletion failure recovery remains unverified. The canonical repository is public at
+Status: complete. Publication, repository controls, and production
+account-deletion failure recovery are verified. The canonical repository is public at
 `https://github.com/emixd12/habit-tracking-app`. The released implementation
-commit is `cb82e0014fc12d6dbf18fb4719e102a2b5908662`.
+commit verified in production is `c86a6d4a366a6e322a23b6977f9c2d812efdef25`.
 
 GitHub evidence:
 
@@ -5933,6 +5933,9 @@ GitHub evidence:
 - GitHub blocks repository administrators from self-submitting through the
   public private-report form. One harmless low maintainer draft advisory tested
   the equivalent private route and was closed immediately.
+- PRs #11 and #12 merged through protected `main`. Exact `main` push CI run 27
+  passed. Required conversation resolution is enabled and was read back as
+  active before the final merges.
 
 Public and production evidence:
 
@@ -5953,6 +5956,14 @@ Public and production evidence:
 - An intentionally wrong account-deletion confirmation kept the production
   Delete account control disabled. This verified only the client gate. It did
   not invoke the deployed Server Action or verify Auth-deletion failure recovery.
+- On 2026-08-26, one authorized disposable Google-authenticated account invoked
+  the deployed Server Action through the production browser. Deployment
+  `dpl_HFhFd4T5Z4YjbVFbzkmGTrXybvEB` returned the documented recoverable error.
+  The session stayed authenticated, and the disposable profile, one synthetic
+  Behavior, and 31 occurrences remained. The canary variable was then removed.
+  Deployment `dpl_7TUcDZSMsonnLnhte8cvwCes5gHD` restored normal behavior from
+  the same Git tree. Normal Settings deletion removed the disposable Auth user.
+  Auth plus all 18 user-owned tables then reported zero remaining rows.
 - Hosted RLS smoke run `e3d21922` passed 92 ownership checks and removed all
   three temporary users.
 - Reminder processing checked, claimed, and sent one isolated browser delivery
@@ -5968,14 +5979,13 @@ Public and production evidence:
 
 Remaining risks: the security inbox route test reached junk, so the owner must
 keep monitoring filtered folders. The browser-push dependency emits the
-recorded Node deprecation warning. A separately authorized production run must
-exercise the deployed account-deletion Server Action with the bounded canary
-and a disposable account before Ticket 100 can return to `complete`. The
-repository owner is the incident rollback owner; returning the repository to
-private cannot retract public clones.
+recorded Node deprecation warning. The repository owner is the incident
+rollback owner; returning the repository to private cannot retract public
+clones.
 
-No domain, environment variable, secret, billing, plan, installed GitHub App,
-or real-user-data setting changed during Ticket 100.
+The bounded canary variable was the only production environment mutation in
+the final check, and it is unset. No domain, secret, billing, plan, installed
+GitHub App, or real-user-data setting changed during Ticket 100.
 
 ## Handoff notes
 
