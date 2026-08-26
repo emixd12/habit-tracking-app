@@ -2,12 +2,12 @@
 
 ## Decision
 
-Ticket 098 status: **PASS**. Ticket 100 status: **IN PROGRESS**.
+Ticket 098 status: **PASS**. Ticket 100 status: **COMPLETE**.
 
 Reviewed on 2026-08-25. Ticket 098 cleared the security release gate while the
 repository was private. Ticket 100 later completed the separately authorized
-publication and controls recorded below. Production account-deletion failure
-recovery remains unverified.
+publication, controls, and production account-deletion failure recovery
+recorded below.
 
 ## Audited basis
 
@@ -226,16 +226,15 @@ synthetic route-test email reached the approved mailbox. No recipient,
 provider, message, header, vulnerability, credential, user, or behavior data
 appears in this record. Ticket 098 sent no email or push notification.
 
-## Remaining boundary
+## Completion boundary
 
 Ticket 098 has no remaining release blocker. The decision is PASS.
 
-Ticket 100 remains `in_progress`. The canonical repository is public at
-`https://github.com/emixd12/habit-tracking-app`. The released implementation
-commit is `cb82e0014fc12d6dbf18fb4719e102a2b5908662`. The repository owner is the
+Ticket 100 is `complete`. The canonical repository is public at
+`https://github.com/emixd12/habit-tracking-app`. Production verification used
+commit `c86a6d4a366a6e322a23b6977f9c2d812efdef25`. The repository owner is the
 incident rollback owner. Publication cannot be retracted from existing clones
-or forks. The only unmet acceptance criterion is production account-deletion
-failure recovery through the deployed Server Action.
+or forks.
 
 ## Ticket 100 publication evidence
 
@@ -304,9 +303,24 @@ reported one Node `url.parse()` deprecation warning from the browser-push
 dependency during the successful send. A bounded synthetic direct-HTTP
 deletion-failure probe could not invoke Next's encrypted server action and
 returned 500 before application logic. Every temporary account and profile was
-removed. The probe and browser gate do not satisfy the remaining production
-acceptance criterion.
+removed. At that time, the probe and browser gate did not satisfy the remaining
+production acceptance criterion.
 
-Ticket 100 can return to `complete` only after an authorized disposable account
-uses the bounded server-only canary and the deployed browser Server Action,
-then passes rollback and cleanup from `docs/OPERATIONS.md`.
+The final authorized production check passed on 2026-08-26. One disposable
+Google-authenticated account created one synthetic Behavior. Production
+deployment `dpl_HFhFd4T5Z4YjbVFbzkmGTrXybvEB` set the bounded server-only
+canary for that account and ran the deployed browser Server Action. Settings
+returned the documented recoverable error. The session stayed authenticated,
+and the profile, one Behavior, and 31 occurrences remained.
+
+The canary variable was removed and read back as absent. Production deployment
+`dpl_7TUcDZSMsonnLnhte8cvwCes5gHD` redeployed the same reviewed Git tree with
+normal deletion restored. Settings then deleted the disposable account through
+the normal path. Auth plus all 18 user-owned tables reported zero remaining
+rows. No identifier, email, token, payload, secret, or user data is retained in
+this record.
+
+PRs #11 and #12 merged through protected `main`. Exact `main` push CI run 27
+passed. Required conversation resolution is enabled and was read back as
+active. The temporary canary variable is unset. No lasting domain, environment,
+secret, billing, plan, installed-app, or real-user-data setting changed.

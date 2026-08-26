@@ -205,12 +205,26 @@ Verified on 2026-08-25 at release commit
   kept an intentionally invalid deletion behind the disabled client gate; the
   account, session, and visible behavior inventory remained intact.
 
-Those two checks did not exercise production account-deletion failure recovery.
-Ticket 100 remains `in_progress` until the bounded canary procedure in
-`docs/OPERATIONS.md` passes through the deployed browser Server Action.
+Those two initial checks did not exercise production account-deletion failure
+recovery. The bounded canary procedure later passed on 2026-08-26 through the
+deployed browser Server Action.
 
-The release changed no Vercel domain, environment variable, secret, billing,
-plan, project, or installed integration.
+- Canary deployment `dpl_HFhFd4T5Z4YjbVFbzkmGTrXybvEB` was READY from reviewed
+  Git tree `916eafe3ef34190b47bd4338a1ddcae52dcc4999`.
+- Settings returned the recoverable error. The disposable session and records
+  remained intact.
+- The canary variable was removed and read back as absent.
+- Clean deployment `dpl_7TUcDZSMsonnLnhte8cvwCes5gHD` was READY from the same
+  tree and restored normal deletion.
+- Normal deletion removed the disposable account. Auth plus all 18 user-owned
+  tables reported zero remaining rows.
+
+Ticket 100 is `complete`. The evidence retains no disposable identifier, email,
+token, payload, secret, or user data.
+
+The final check temporarily set only the bounded canary variable, then removed
+it. No lasting Vercel domain, environment variable, secret, billing, plan,
+project, or installed integration changed.
 
 ## Production Smoke QA
 

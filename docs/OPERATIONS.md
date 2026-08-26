@@ -1036,10 +1036,8 @@ scanning and push protection, private vulnerability reporting, and CodeQL
 default setup are active. Initial open secret, dependency, and CodeQL alert
 counts are zero after one documented false-positive disposition.
 
-Ticket 100 remains `in_progress`. The production account-deletion failure
-recovery criterion is unverified. An invalid confirmation exercised only the
-client gate. A direct HTTP probe stopped before the encrypted Server Action and
-did not reach application logic. Unit tests do not replace the production check.
+Ticket 100 is `complete`. The production account-deletion failure recovery
+criterion passed through the deployed browser Server Action on 2026-08-26.
 
 The production application and marketing deployments at that release commit
 are recorded in `docs/PUBLIC_REPOSITORY_RELEASE.md`. The hosted 92-check RLS
@@ -1087,6 +1085,17 @@ and cleanup:
 16. Verify that the disposable profile and every temporary record are gone.
 17. Record sanitized evidence without identifiers, tokens, payloads, secrets, or user data.
 18. Mark Ticket 100 `complete` only after every step passes.
+
+The authorized run completed every step against reviewed Git tree
+`916eafe3ef34190b47bd4338a1ddcae52dcc4999`, which matches production commit
+`c86a6d4a366a6e322a23b6977f9c2d812efdef25`. Canary deployment
+`dpl_HFhFd4T5Z4YjbVFbzkmGTrXybvEB` returned the recoverable error while the
+session, profile, one synthetic Behavior, and 31 occurrences remained. The
+variable was removed and read back as absent. Clean deployment
+`dpl_7TUcDZSMsonnLnhte8cvwCes5gHD` restored normal deletion from the same tree.
+Normal Settings deletion removed the disposable Auth user, and Auth plus all
+18 user-owned tables reported zero remaining rows. The evidence record retains
+no disposable identifier, email, token, payload, secret, or user data.
 
 The repository owner is the incident rollback owner. A visibility rollback is
 appropriate only for an active incident. It cannot retract existing public
