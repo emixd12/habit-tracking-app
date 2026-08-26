@@ -60,7 +60,7 @@
     "agentmail": "node scripts/agentmail-cli.mjs",
     "agentmail:version": "node scripts/agentmail-cli.mjs --version",
     "supabase": "supabase",
-    "sequenzy": "sequenzy"
+    "sequenzy": "npm exec --yes --package=@sequenzy/cli@0.0.34 -- sequenzy"
   },
   "dependencies": {
     "@js-temporal/polyfill": "^0.5.1",
@@ -73,7 +73,6 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "@sequenzy/cli": "^0.0.34",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
     "@types/react": "^19",

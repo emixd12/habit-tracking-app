@@ -127,7 +127,7 @@ IBM publishes Plex under SIL OFL 1.1 with “Plex” as a reserved font name.
 
 | Declared license | Direct packages and resolved versions |
 |---|---|
-| MIT | `@sequenzy/cli` 0.0.34; `@tailwindcss/postcss` 4.3.0; `@types/node` 22.19.20; `@types/react` 19.2.17; `@types/react-dom` 19.2.3; `@types/web-push` 3.6.4; `eslint` 9.39.4; `eslint-config-next` 16.2.7; `supabase` 2.105.0; `tailwindcss` 4.3.0; `vitest` 4.1.8; `@astrojs/check` 0.9.9. |
+| MIT | `@tailwindcss/postcss` 4.3.0; `@types/node` 22.19.20; `@types/react` 19.2.17; `@types/react-dom` 19.2.3; `@types/web-push` 3.6.4; `eslint` 9.39.4; `eslint-config-next` 16.2.7; `supabase` 2.105.0; `tailwindcss` 4.3.0; `vitest` 4.1.8; `@astrojs/check` 0.9.9. |
 | Apache-2.0 | `agentmail-cli` 0.7.12; `typescript` 5.9.3. |
 | MIT, Python load harness | `locust` 2.46.2 from `load-tests/requirements.txt`. |
 

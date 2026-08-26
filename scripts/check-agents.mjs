@@ -207,8 +207,13 @@ assert(
   "Supabase CLI must be installed as a devDependency named `supabase`.",
 );
 assert(
-  Boolean(packageJson.devDependencies?.["@sequenzy/cli"]),
-  "Sequenzy CLI must be installed as a devDependency named `@sequenzy/cli`.",
+  !packageJson.devDependencies?.["@sequenzy/cli"],
+  "Sequenzy CLI must stay isolated from the application dependency graph.",
+);
+assert(
+  packageJson.scripts?.sequenzy ===
+    "npm exec --yes --package=@sequenzy/cli@0.0.34 -- sequenzy",
+  "The Sequenzy script must use the reviewed isolated CLI version.",
 );
 
 const docsToScan = [

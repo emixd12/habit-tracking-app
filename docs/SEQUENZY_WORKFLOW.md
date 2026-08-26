@@ -11,9 +11,10 @@ Authoritative upstream docs checked during this setup:
 - Transactional list API: `https://docs.sequenzy.com/api-reference/transactional/list`
 - Transactional send API: `https://docs.sequenzy.com/api-reference/transactional/send`
 
-## Installed pathway
+## Isolated pathway
 
-The CLI is installed as a project dev dependency:
+The repository script installs the reviewed CLI version into npm's isolated
+execution cache only when an operator invokes it:
 
 ```bash
 npm run sequenzy -- --version
@@ -27,7 +28,9 @@ npx sequenzy --help
 npm install -g @sequenzy/cli
 ```
 
-In this repo, prefer the project-local `npm run sequenzy -- ...` form for deterministic agent work.
+The CLI stays out of the application dependency graph because its Ink renderer
+requires React 18 while Cadence uses React 19. In this repo, prefer the pinned
+`npm run sequenzy -- ...` form for deterministic agent work.
 
 ## Authentication
 
