@@ -357,3 +357,16 @@ Rollback through Vercel by promoting or rolling back to a previous ready
 production deployment. The latest known rollback candidate before Ticket 013 was
 `dpl_BkZ4Xmh2CCSzhan2zZQ1jqg29Hxp`, but verify the current deployment list
 before choosing a target.
+
+## Public repository release verification
+
+Making the GitHub repository public does not authorize a Vercel setting,
+environment, domain, or deployment change. Before publication, merge only a
+pull request whose `CI / verify` check passed on a non-default branch and
+confirm the resulting production deployments identify the intended commit.
+
+After publication, verify Google login, cross-account RLS isolation, Timeline
+read and status mutation, Export, account-deletion failure recovery, reminder
+processing, and one bounded owner-approved browser-push delivery. Do not send a
+notification or create production test data without the separate approval and
+cleanup plan required by the owning workflow.

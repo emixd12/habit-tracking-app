@@ -1001,6 +1001,36 @@ documented `NEXT_PUBLIC_` values and the VAPID public key. Service-role keys,
 OAuth secrets, provider keys, VAPID private keys, process secrets, database
 credentials, and provider tokens remain server-only.
 
+## Public repository publication
+
+Ticket 100 uses the canonical repository at
+`https://github.com/emixd12/habit-tracking-app`. Every GitHub and production
+mutation needs explicit owner approval for that exact action.
+
+Use this order:
+
+1. Complete the sanitized repository access and integration inventory.
+2. Push the prepared files to a non-default branch and open a pull request.
+3. Require the `CI / verify` check only after that pull request passes from a
+   fresh clone without production credentials.
+4. Protect `main` from deletion and force pushes and require pull requests plus
+   the passing check.
+5. Merge the reviewed release files and verify both Vercel projects remain
+   healthy.
+6. Obtain a separate visibility approval, then make the existing repository
+   public.
+7. Enable secret scanning and push protection, Dependabot alerts and security
+   updates, private vulnerability reporting, and CodeQL default setup.
+8. Review every initial alert before announcing completion.
+9. Verify an unauthenticated clone, `LICENSE`, `SECURITY.md`, and the marketing
+   GitHub link. Then run the Ticket 100 production checks.
+
+The repository owner is the incident rollback owner. A visibility rollback is
+appropriate only for an active incident. It cannot retract existing public
+clones or forks. Contain the incident, rotate exposed credentials, preserve
+evidence privately, and redeploy a verified fix before restoring normal
+publication.
+
 ## Secrets and local files
 
 - Never commit `.env`, `.env.local`, `.env.*.local`, CLI auth config, service-role keys, API keys, approval codes, or generated secrets.

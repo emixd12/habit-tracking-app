@@ -137,12 +137,13 @@ sender accepted and retained exactly one authorized synthetic route-test
 message with sent status, and recipient-side inspection confirmed receipt at
 the approved mailbox. The message landed in the junk folder, so monitoring
 filtered folders or maintaining appropriate allowlisting remains required.
-Ticket 100 is `not_started`. They define the public repository security gate,
+Ticket 100 is `in_progress`. They define the public repository security gate,
 open-source license and private disclosure contract, and authorized GitHub
 publication sequence. Tickets 079-083 and 093 are deployed and verified. The
-authorized private `main` history rewrite is complete. Ticket 100 still
-requires separate explicit authorization for every repository or production
-mutation. The repository remains private.
+authorized private `main` history rewrite is complete. Ticket 100 has started
+with read-only inventory and safe local release files. It still requires
+separate explicit authorization for every repository or production mutation.
+The repository remains private.
 
 Tickets 101-103 are `not_started`. They complete the public Trust evidence
 pipeline: Ticket 101 defines the versioned evidence and freshness contract,
@@ -5924,6 +5925,81 @@ separate explicit authorization. The one authorized synthetic route-test
 email was Ticket 099's only recipient mutation.
 Ticket 099 made no GitHub, deployment, publication, commit, or push mutation.
 Ticket 098 later performed the separately authorized private `main` rewrite.
+
+## Public repository publication and GitHub controls (Ticket 100)
+
+Status: in progress. Read-only inventory and safe local staging started on
+2026-08-25. The repository remains private. No GitHub setting, branch, commit,
+push, pull request, deployment, domain, environment, provider, or visibility
+state changed.
+
+Prepared locally:
+
+- Added `.github/workflows/ci.yml` with pull-request-only, read-only `CI /
+  verify` coverage for the documented repository, application, and marketing
+  checks under Node.js 24.
+- Added `.github/dependabot.yml` with weekly npm-workspace and GitHub Actions
+  updates.
+- Updated `README.md` with the canonical repository and complete
+  unauthenticated verification command set.
+- Updated Operations, Vercel, and public-release guidance with the ordered
+  approval gates, production checks, and repository-owner rollback role.
+- Confirmed that marketing already points `View on GitHub` to the canonical
+  repository, so no marketing source change is needed.
+
+Current read-only GitHub findings:
+
+- Private, unarchived repository with `main` as its default and only branch at
+  `a640740798514ac6b6bbe054e0240f400160a03d`; no tag, issue, pull request,
+  release, Actions run, workflow, classic protection, ruleset, deploy key,
+  webhook, or Pages site.
+- Wiki and Discussions are disabled. Repository Actions and Dependabot secret
+  inventories are empty. The unrestricted `Preview` and `Production`
+  environments have no Actions secret or variable.
+- Actions allows all actions without mandatory SHA pinning. The default
+  workflow token is read-only. Fork pull-request workflows, Actions pull
+  request approval, and cross-repository workflow sharing are disabled.
+  Artifact and log retention is 90 days.
+- The dependency graph, Dependabot alerts and security updates, private
+  vulnerability reporting, secret scanning, push protection, and code scanning
+  are disabled or unavailable before publication. No initial alert scan exists
+  to triage yet.
+- Six installed repository GitHub Apps were reviewed. The public release
+  record omits their identities and permissions. The sanitized collaborator
+  inventory is complete: one collaborator has administrator access. No
+  identity is recorded.
+
+Verification:
+
+- Pass: permission-enabled `npm ci`; 741 packages installed and npm found zero
+  vulnerabilities.
+- Pass: `npm run agents:check`, `npm run interactions:check`,
+  `npm run resolvers:check`, `npm run lint`, and `npm run typecheck`.
+- Pass: permission-enabled `npm run test`; 130 files and 1,008 tests passed,
+  with one environment-gated file and test skipped. The first sandboxed run
+  failed only because five fake-provider tests could not bind loopback.
+- Pass: `npm run marketing:check` and `npm run marketing:build`; Astro reported
+  zero diagnostics and built five pages.
+- Pass: `npm run build -- --webpack` as local compile proof; Next compiled,
+  typechecked, and generated all routes.
+- Pass: `npm run public-source:check` reviewed 573 tracked and unignored text
+  files with zero source, history, or client-environment finding.
+- Pass: both new GitHub configuration files parse as YAML, and
+  `git diff --check` passes.
+- Environment-blocked: exact `npm run build` cannot create Turbopack's local
+  worker port in this child execution context. Three attempts, including the
+  escalation path, stopped at `EPERM` before source compilation. The root
+  execution context reproduced the same managed-environment limitation.
+  Pull-request CI must pass the exact command before protection or publication.
+- PR CI run 1 passed the exact `npm run build` step, then failed because the
+  fresh runner called the generated-output marketing readability check before
+  the marketing build. The workflow and README now run marketing build before
+  marketing check. A full terminal rerun remains required.
+
+The owner opened one bounded Ticket 100 completion window after this local
+staging. Continue in the documented dependency order. Do not protect `main`,
+merge, or publish until the exact pull-request CI workflow passes from the
+non-default branch.
 
 ## Handoff notes
 

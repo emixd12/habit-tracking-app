@@ -231,6 +231,38 @@ appears in this record. Ticket 098 sent no email or push notification.
 
 Ticket 098 has no remaining release blocker. The decision is PASS.
 
-The repository remains private. Ticket 100 is `not_started`. Ticket 100 must
+The repository remains private. Ticket 100 is `in_progress`. Ticket 100 must
 obtain separate explicit authorization before changing visibility or any
 GitHub setting. This PASS record does not authorize that work.
+
+## Ticket 100 publication staging
+
+Read-only inspection on 2026-08-25 confirmed private `main` at
+`a640740798514ac6b6bbe054e0240f400160a03d`. The repository is unarchived and
+has one branch, no tag, issue, pull request, release, Actions workflow run,
+classic branch protection, ruleset, deploy key, webhook, repository Actions
+secret, Dependabot secret, or GitHub Pages site. Wiki and Discussions remain
+disabled. The Vercel-created `Preview` and `Production` environments have no
+deployment restriction, GitHub Actions secret, or variable.
+
+Actions currently allows all actions, uses read-only default workflow token
+permissions, blocks fork pull-request workflows, prevents Actions from
+approving pull requests, retains artifacts and logs for 90 days, and does not
+share repository workflows with other repositories. The dependency graph,
+Dependabot alerts, Dependabot security updates, private vulnerability
+reporting, secret scanning, push protection, and code scanning are not enabled.
+Initial security alerts cannot be reviewed until their controls run.
+
+The sanitized collaborator inventory is complete: one collaborator has
+administrator access. No identity is recorded. Do not place collaborator
+identities, secret names, environment identifiers, or installed-app permission
+details in this public record.
+
+Local staging adds pull-request CI, weekly npm and GitHub Actions Dependabot
+updates, documented unauthenticated checks, the publication sequence, and the
+incident rollback owner. The marketing configuration already targets the
+canonical repository URL, so no marketing source change is needed.
+
+No branch, commit, push, pull request, repository setting, visibility setting,
+security control, alert disposition, deployment, domain, environment, or
+provider state changed during this staging work.
