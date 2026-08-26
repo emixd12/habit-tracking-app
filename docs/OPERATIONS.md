@@ -38,7 +38,7 @@ If local `npm` or `node` is not on the shell path, load the workspace
 dependencies and use their Node 24 runtime. Do not run release checks with the
 older Node installation under `/Users/emi/.local/bin`.
 
-## Installed CLIs
+## CLI commands
 
 Project-local CLI tools:
 
@@ -48,8 +48,9 @@ npm run sequenzy -- --version
 npm run agentmail:version
 ```
 
-The Supabase and Sequenzy CLIs are dev dependencies so agents do not need global installs.
-AgentMail is also installed as a dev dependency for agent-owned test inbox QA.
+Supabase and AgentMail are dev dependencies. The Sequenzy command downloads
+the exact reviewed CLI version through npm's isolated execution cache, so it
+requires npm registry access when that version is not already cached.
 
 ## Standard verification
 
