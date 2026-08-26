@@ -73,7 +73,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "@sequenzy/cli": "^0.0.34",
+    "@sequenzy/cli": "^0.0.117",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
     "@types/react": "^19",
