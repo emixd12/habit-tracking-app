@@ -16,7 +16,7 @@ Future agents should treat the docs as source-of-truth and use `STATUS.md` to un
 
 If these bootstrap files are copied into a new repository, copy the full project-definition layer, including `AGENTS.md`, `STATUS.md`, `docs/PRODUCT_SPEC.md`, `DESIGN.md`, `.env.example`, `.agents/`, and `docs/`.
 
-Cadence requires Node.js 22.12 or newer. Use Node.js 24 for local release
+Cadence requires Node.js 24.x. Use Node.js 24 for local release
 verification so local builds match the Vercel runtime. Install the locked
 workspace with `npm ci`.
 

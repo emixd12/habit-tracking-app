@@ -13,6 +13,11 @@ export class AccountDeletionUserError extends Error {
   }
 }
 
+const ACCOUNT_DELETION_FAILURE_MESSAGE =
+  "Unable to delete this account. Your account and session are unchanged. Try again.";
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function deleteCurrentAccountFromFormData(
   formData: FormData,
 ): Promise<void> {
@@ -35,13 +40,12 @@ export async function deleteCurrentAccountFromFormData(
 
   const serviceRole = createAccountDeletionClient();
   await verifyAccountDeletionClient(serviceRole, user.id);
+  assertDeletionFailureCanaryInactive(user.id);
 
   const { error: deleteError } = await deleteAuthUser(serviceRole, user.id);
 
   if (deleteError) {
-    throw new AccountDeletionUserError(
-      "Unable to delete this account. Your account and session are unchanged. Try again.",
-    );
+    throw new AccountDeletionUserError(ACCOUNT_DELETION_FAILURE_MESSAGE);
   }
 
   try {
@@ -62,6 +66,19 @@ export async function deleteCurrentAccountFromFormData(
     await clearSupabaseAuthCookies();
   } catch {
     // Auth deletion succeeded. The issued JWT expires on its configured bound.
+  }
+}
+
+function assertDeletionFailureCanaryInactive(userId: string): void {
+  const configuredUserId =
+    process.env.CADENCE_ACCOUNT_DELETION_FAILURE_CANARY_USER_ID;
+
+  if (!configuredUserId) {
+    return;
+  }
+
+  if (!UUID_PATTERN.test(configuredUserId) || configuredUserId === userId) {
+    throw new AccountDeletionUserError(ACCOUNT_DELETION_FAILURE_MESSAGE);
   }
 }
 
@@ -141,8 +158,6 @@ async function deleteAuthUser(
   try {
     return await serviceRole.auth.admin.deleteUser(userId);
   } catch {
-    throw new AccountDeletionUserError(
-      "Unable to delete this account. Your account and session are unchanged. Try again.",
-    );
+    throw new AccountDeletionUserError(ACCOUNT_DELETION_FAILURE_MESSAGE);
   }
 }
