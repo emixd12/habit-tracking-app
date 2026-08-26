@@ -84,7 +84,7 @@ reset, authenticated RLS smoke coverage, real 1,001-row Data API pagination,
 typecheck, build, and repository checks passed. Hosted migration deployment
 remains unauthorized and was not performed.
 
-Tickets 079-083 and 093 are `complete` locally. Tickets 084-092 are `not_started`. Ticket 094 is `complete`. Tickets 078-093
+Tickets 079-083 and 093 are `complete` and deployed. Tickets 084-092 are `not_started`. Ticket 094 is `complete`. Tickets 078-093
 were defined on 2026-08-06 from a repository-wide read-only audit across five
 independent passes (domain resolvers/services/repos, routes/auth/API,
 import/restore/export, UI/interaction, schema/marketing/ops). No fix was applied
@@ -137,13 +137,14 @@ sender accepted and retained exactly one authorized synthetic route-test
 message with sent status, and recipient-side inspection confirmed receipt at
 the approved mailbox. The message landed in the junk folder, so monitoring
 filtered folders or maintaining appropriate allowlisting remains required.
-Ticket 100 is `in_progress`. They define the public repository security gate,
+Ticket 100 is `complete` when this evidence update reaches protected public
+`main`. They define the public repository security gate,
 open-source license and private disclosure contract, and authorized GitHub
 publication sequence. Tickets 079-083 and 093 are deployed and verified. The
-authorized private `main` history rewrite is complete. Ticket 100 has published
-the reviewed repository, protected `main`, and merged its first passing CI pull
-request. Security controls, initial alert review, production verification, and
-final evidence remain in progress.
+authorized private `main` history rewrite is complete. Ticket 100 published the
+reviewed repository, protected `main`, enabled the required security controls,
+triaged the first scans, and completed the production checks. The final
+evidence pull request is the completion gate.
 
 Tickets 101-103 are `not_started`. They complete the public Trust evidence
 pipeline: Ticket 101 defines the versioned evidence and freshness contract,
@@ -152,27 +153,8 @@ migration, and RLS evidence, and Ticket 103 renders normalized results on the
 public Trust page and machine route. Ticket 102 depends on Tickets 092 and
 098-101. Ticket 103 depends on Tickets 100-102.
 
-Four remediated findings remain live in production until their migration or
-application deployment is authorized:
-
-- Ticket 079: `profiles.email` is writable by its owner through the Data API
-  because the base schema grants table-wide DML, and the reminder processor
-  uses that column as the outbound email recipient. An account can direct
-  Cadence's transactional email at a third party from the project's sending
-  domain. The local migration and acceptance proof are complete. Hosted
-  migration deployment remains unauthorized.
-- Ticket 080: abandoned reminder claims remain stranded, reminder sends can
-  overwrite a mid-flight cancellation, and missing email configuration can
-  block browser push. The local application fix and acceptance proof are
-  complete. Application deployment remains unauthorized.
-- Ticket 082: production still permits unbounded active subscriptions and
-  sequential unbounded fan-out, and sign out still leaves the current-device
-  row active. The local migration, application fix, and acceptance proof are
-  complete. Hosted migration and application deployment remain unauthorized.
-- Ticket 083: production still uses sign-out-before-delete ordering and
-  non-atomic timezone writes until the configuration-history and Ticket 083
-  migrations plus application changes deploy. Hosted migration and application
-  deployment remain unauthorized.
+No remediated finding from Tickets 079-083 or 093 remains local-only. Their
+hosted migrations and application changes are deployed and verified.
 
 The completed sequence includes the Ticket 001 Next.js scaffold, Ticket 002
 Supabase Auth setup, Ticket 003 database schema, Tickets 004-012 core behavior
@@ -5920,96 +5902,80 @@ Verification:
   provider identifier, message header, message content, vulnerability detail,
   credential, user data, or behavioral content was recorded.
 
-Ticket 098 now passes. Ticket 100 remains `not_started` and still requires
-separate explicit authorization. The one authorized synthetic route-test
-email was Ticket 099's only recipient mutation.
+At Ticket 099 completion, Ticket 098 passed and Ticket 100 remained
+`not_started` pending separate explicit authorization. The one authorized
+synthetic route-test email was Ticket 099's only recipient mutation.
 Ticket 099 made no GitHub, deployment, publication, commit, or push mutation.
 Ticket 098 later performed the separately authorized private `main` rewrite.
 
 ## Public repository publication and GitHub controls (Ticket 100)
 
-Status: in progress. Read-only inventory and safe local staging started on
-2026-08-25. The canonical repository is public. `main` is protected and PR #1
-is merged. Security controls, initial alert review, production verification,
-and final evidence remain pending.
+Status: complete on public `main` after this evidence update merges. The
+canonical repository is public at
+`https://github.com/emixd12/habit-tracking-app`. The released implementation
+commit is `cb82e0014fc12d6dbf18fb4719e102a2b5908662`.
 
-Prepared locally:
+GitHub evidence:
 
-- Added `.github/workflows/ci.yml` with pull-request-only, read-only `CI /
-  verify` coverage for the documented repository, application, and marketing
-  checks under Node.js 24.
-- Added `.github/dependabot.yml` with weekly npm-workspace and GitHub Actions
-  updates.
-- Updated `README.md` with the canonical repository and complete
-  unauthenticated verification command set.
-- Updated Operations, Vercel, and public-release guidance with the ordered
-  approval gates, production checks, and repository-owner rollback role.
-- Confirmed that marketing already points `View on GitHub` to the canonical
-  repository, so no marketing source change is needed.
+- PR #1 introduced pull-request CI and weekly Dependabot configuration. PR #9
+  added the public-source boundary check. CI run `32920923372` passed every
+  required repository, lint, typecheck, test, Next build, Astro build, and
+  Astro check at `56609924d637947234c695905f46c6d6e6eef203`.
+- Strict `verify` protection applies to administrators, requires pull requests,
+  and blocks force pushes and deletion.
+- The dependency graph, Dependabot alerts and security updates, secret
+  scanning, push protection, private vulnerability reporting, and CodeQL
+  default setup are enabled.
+- CodeQL run `32921147161` passed for Actions, JavaScript/TypeScript, and Python.
+  One heading-slug alert was dismissed as a false positive with a concrete
+  repository-only data-flow rationale. Open secret, dependency, and CodeQL
+  alert counts are zero.
+- GitHub blocks repository administrators from self-submitting through the
+  public private-report form. One harmless low maintainer draft advisory tested
+  the equivalent private route and was closed immediately.
 
-Current read-only GitHub findings:
+Public and production evidence:
 
-- Private, unarchived repository with `main` as its default and only branch at
-  `a640740798514ac6b6bbe054e0240f400160a03d`; no tag, issue, pull request,
-  release, Actions run, workflow, classic protection, ruleset, deploy key,
-  webhook, or Pages site.
-- Wiki and Discussions are disabled. Repository Actions and Dependabot secret
-  inventories are empty. The unrestricted `Preview` and `Production`
-  environments have no Actions secret or variable.
-- Actions allows all actions without mandatory SHA pinning. The default
-  workflow token is read-only. Fork pull-request workflows, Actions pull
-  request approval, and cross-repository workflow sharing are disabled.
-  Artifact and log retention is 90 days.
-- The dependency graph, Dependabot alerts and security updates, private
-  vulnerability reporting, secret scanning, push protection, and code scanning
-  are disabled or unavailable before publication. No initial alert scan exists
-  to triage yet.
-- Six installed repository GitHub Apps were reviewed. The public release
-  record omits their identities and permissions. The sanitized collaborator
-  inventory is complete: one collaborator has administrator access. No
-  identity is recorded.
+- A fresh unauthenticated HTTPS clone at the release commit passed `npm ci`,
+  all repository checks, `npm run public-source:check`, lint, typecheck, 1,008
+  tests with one environment-gated skip, the exact Next build, the Astro build,
+  and the Astro check. `LICENSE` and `SECURITY.md` were readable.
+- The marketing `View on GitHub` link reached the canonical public repository
+  in an unauthenticated browser.
+- Application deployment `dpl_FzvK2siMz4VwkCQ5hCxSTCcKa1bH` and marketing
+  deployment `dpl_DMAQ4o6u1QkqxtGC2WZ9YramCe42` are READY at the release commit.
+- A fresh Google OAuth flow using the existing account completed through the
+  production callback and returned to the authenticated Timeline. Timeline read
+  and one reversible status mutation and notification readiness passed. The
+  authenticated Export page rendered all four download contracts. One CSV
+  download returned a non-empty attachment with the expected contract. The
+  temporary copy was removed immediately without retaining its contents.
+- An intentionally wrong account-deletion confirmation kept the production
+  Delete account control disabled. The account remained authenticated and the
+  visible behavior inventory remained unchanged. The passing suite covers the
+  server Auth-deletion failure path. No destructive owner-account deletion was
+  attempted.
+- Hosted RLS smoke run `e3d21922` passed 92 ownership checks and removed all
+  three temporary users.
+- Reminder processing checked, claimed, and sent one isolated browser delivery
+  to one active owner-controlled subscription. Cleanup removed the complete
+  synthetic record graph. Existing reminders were not claimed. No email was
+  sent and no real user record was deleted.
+- Marketing had no runtime error in the verification window. The application
+  logged one non-failing Node `url.parse()` deprecation warning from the
+  browser-push dependency during the successful send. A bounded synthetic raw
+  HTTP deletion probe returned 500 before application logic because it could
+  not invoke Next's encrypted server action. All temporary accounts and
+  profiles were removed.
 
-Verification:
+Remaining risks: the security inbox route test reached junk, so the owner must
+keep monitoring filtered folders. The browser-push dependency emits the
+recorded Node deprecation warning. The repository owner is the incident
+rollback owner; returning the repository to private cannot retract public
+clones. This final evidence update must pass protected `verify` before merge.
 
-- Pass: permission-enabled `npm ci`; 741 packages installed and npm found zero
-  vulnerabilities.
-- Pass: `npm run agents:check`, `npm run interactions:check`,
-  `npm run resolvers:check`, `npm run lint`, and `npm run typecheck`.
-- Pass: permission-enabled `npm run test`; 130 files and 1,008 tests passed,
-  with one environment-gated file and test skipped. The first sandboxed run
-  failed only because five fake-provider tests could not bind loopback.
-- Pass: `npm run marketing:check` and `npm run marketing:build`; Astro reported
-  zero diagnostics and built five pages.
-- Pass: `npm run build -- --webpack` as local compile proof; Next compiled,
-  typechecked, and generated all routes.
-- Pass: `npm run public-source:check` reviewed 573 tracked and unignored text
-  files with zero source, history, or client-environment finding.
-- Pass: both new GitHub configuration files parse as YAML, and
-  `git diff --check` passes.
-- Environment-blocked: exact `npm run build` cannot create Turbopack's local
-  worker port in this child execution context. Three attempts, including the
-  escalation path, stopped at `EPERM` before source compilation. The root
-  execution context reproduced the same managed-environment limitation.
-  Pull-request CI must pass the exact command before protection or publication.
-- PR CI run 1 passed the exact `npm run build` step, then failed because the
-  fresh runner called the generated-output marketing readability check before
-  the marketing build. The workflow and README now run marketing build before
-  marketing check.
-- Pass: PR CI run 2 completed every exact workflow step at
-  `2490a8840327830426000b9dfa299634cd8cd615`.
-- GitHub Free rejected protection while the repository was private. The owner
-  used the provider-required fallback: make the reviewed `a640740` `main`
-  public, immediately protect `main`, then merge the passing pull request.
-  Protection requires strict `verify`, applies to administrators, requires a
-  pull request with zero approvals, and blocks force pushes and deletion.
-- PR #1 merged as `96d1c2b`. A later actionable review found that protected CI
-  omitted `npm run public-source:check`. The minimal follow-up adds that
-  existing release-boundary check and must pass a second protected pull request.
-
-The owner opened one bounded Ticket 100 completion window. Continue in the
-documented dependency order. Do not mark Ticket 100 complete until the
-follow-up CI gate, GitHub security controls, alert review, production checks,
-and final evidence pass.
+No domain, environment variable, secret, billing, plan, installed GitHub App,
+or real-user-data setting changed during Ticket 100.
 
 ## Handoff notes
 

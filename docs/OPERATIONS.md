@@ -980,10 +980,9 @@ Recheck the upstream license at the new pinned commit during any snapshot
 update.
 
 `SECURITY.md` owns the public disclosure contract. The primary private route is
-`security@identityscaffolding.com`. GitHub private vulnerability reporting is a
-secondary route only after Ticket 100 enables it. Never direct reporters to a
-public issue for credentials, user data, behavioral content, or an unpatched
-vulnerability.
+`security@identityscaffolding.com`. GitHub private vulnerability reporting is
+also enabled. Never direct reporters to a public issue for credentials, user
+data, behavioral content, or an unpatched vulnerability.
 
 The repository owner monitors the inbox. The owner authorized exactly one
 harmless synthetic test email to the approved address. The sender accepted and
@@ -1026,6 +1025,25 @@ Use this order:
 8. Review every initial alert before announcing completion.
 9. Verify an unauthenticated clone, `LICENSE`, `SECURITY.md`, and the marketing
    GitHub link. Then run the Ticket 100 production checks.
+
+Ticket 100 completed the external publication sequence on 2026-08-25. Public `main` released
+`cb82e0014fc12d6dbf18fb4719e102a2b5908662`. Strict `verify` protection,
+administrator enforcement, required pull requests, and force-push and deletion
+blocks are active. The dependency graph, Dependabot security controls, secret
+scanning and push protection, private vulnerability reporting, and CodeQL
+default setup are active. Initial open secret, dependency, and CodeQL alert
+counts are zero after one documented false-positive disposition.
+
+The production application and marketing deployments at that release commit
+are recorded in `docs/PUBLIC_REPOSITORY_RELEASE.md`. The hosted 92-check RLS
+smoke cleaned its three temporary users. One isolated browser-push delivery
+passed and its complete synthetic record graph was removed. No email, domain,
+environment, secret, plan, billing, or real-user-data mutation occurred.
+
+Fresh production Google OAuth completed with the existing account. An
+intentionally invalid account-deletion confirmation kept the client gate
+closed; the account, session, and visible behavior inventory remained intact.
+The final evidence change must pass protected `verify` before merge.
 
 The repository owner is the incident rollback owner. A visibility rollback is
 appropriate only for an active incident. It cannot retract existing public

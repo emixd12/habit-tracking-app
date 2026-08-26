@@ -4,10 +4,9 @@
 
 Status: **PASS**.
 
-Reviewed on 2026-08-25. Ticket 098 clears the security release gate. The
-repository remains private. Ticket 100 may begin only after separate explicit
-authorization. This record does not authorize public visibility, settings
-changes, deployment, or provider sends.
+Reviewed on 2026-08-25. Ticket 098 cleared the security release gate while the
+repository was private. Ticket 100 later completed the separately authorized
+publication and controls recorded below.
 
 ## Audited basis
 
@@ -218,8 +217,8 @@ workspace contract. A marketing-local lockfile is unnecessary.
 
 The root MIT `LICENSE` names the approved holder. `README.md` documents the
 license boundary for source, documentation, synthetic samples, binary assets,
-and Cadence marks. `SECURITY.md` defines the monitored private disclosure route
-and the future GitHub private-reporting route. `THIRD_PARTY_NOTICES.md`
+and Cadence marks. `SECURITY.md` defines the monitored email and GitHub private
+disclosure routes. `THIRD_PARTY_NOTICES.md`
 preserves required upstream notices.
 
 The owner assigned the security inbox monitor. One separately authorized
@@ -231,51 +230,82 @@ appears in this record. Ticket 098 sent no email or push notification.
 
 Ticket 098 has no remaining release blocker. The decision is PASS.
 
-The repository is public. Ticket 100 is `in_progress`. Its bounded completion
-window authorized the recorded publication and control changes. This PASS
-record does not authorize unrelated repository or provider work.
+Ticket 100 is complete when this evidence update reaches protected public
+`main`. The canonical repository is public at
+`https://github.com/emixd12/habit-tracking-app`. The released implementation
+commit is `cb82e0014fc12d6dbf18fb4719e102a2b5908662`. The repository owner is the
+incident rollback owner. Publication cannot be retracted from existing clones
+or forks.
 
-## Ticket 100 publication staging
-
-Read-only inspection on 2026-08-25 confirmed private `main` at
-`a640740798514ac6b6bbe054e0240f400160a03d`. The repository is unarchived and
-has one branch, no tag, issue, pull request, release, Actions workflow run,
-classic branch protection, ruleset, deploy key, webhook, repository Actions
-secret, Dependabot secret, or GitHub Pages site. Wiki and Discussions remain
-disabled. The Vercel-created `Preview` and `Production` environments have no
-deployment restriction, GitHub Actions secret, or variable.
-
-Actions currently allows all actions, uses read-only default workflow token
-permissions, blocks fork pull-request workflows, prevents Actions from
-approving pull requests, retains artifacts and logs for 90 days, and does not
-share repository workflows with other repositories. The dependency graph,
-Dependabot alerts, Dependabot security updates, private vulnerability
-reporting, secret scanning, push protection, and code scanning are not enabled.
-Initial security alerts cannot be reviewed until their controls run.
-
-The sanitized collaborator inventory is complete: one collaborator has
-administrator access. No identity is recorded. Do not place collaborator
-identities, secret names, environment identifiers, or installed-app permission
-details in this public record.
-
-Local staging adds pull-request CI, weekly npm and GitHub Actions Dependabot
-updates, documented unauthenticated checks, the publication sequence, and the
-incident rollback owner. The marketing configuration already targets the
-canonical repository URL, so no marketing source change is needed.
+## Ticket 100 completion evidence
 
 Initial publication occurred from reviewed private `main` at
-`a640740798514ac6b6bbe054e0240f400160a03d`. GitHub Free rejected branch
-protection while the repository was private, so the owner used the
-provider-required order: public visibility, immediate `main` protection, then
-merge of the passing PR #1. Protection requires strict `verify`, applies to
-administrators, requires pull requests with zero approvals, and blocks force
-pushes and deletion. PR #1 merged as `96d1c2b`.
+`a640740798514ac6b6bbe054e0240f400160a03d`. GitHub Free rejected protection
+while the repository was private. The authorized provider-required order made
+that reviewed commit public, protected `main`, and then merged PR #1. PR #9
+added the previously omitted public-source check. CI run `32920923372` passed
+at `56609924d637947234c695905f46c6d6e6eef203`, and PR #9 merged as the released
+implementation commit.
 
-PR CI run 2 passed every exact workflow step at
-`2490a8840327830426000b9dfa299634cd8cd615`. An actionable review arrived after
-merge and found that the workflow omitted the existing public-source boundary
-check. A minimal protected follow-up adds `npm run public-source:check` and must
-pass before Ticket 100 continues to security-control completion.
+Protection requires strict `verify`, applies to administrators, requires a
+pull request, and blocks force pushes and deletion. The dependency graph,
+Dependabot alerts and security updates, secret scanning, push protection,
+private vulnerability reporting, and CodeQL default setup are enabled. The
+first CodeQL run `32921147161` passed for Actions, JavaScript/TypeScript, and
+Python.
 
-No domain, environment, secret, billing, plan, installed-app, or production
-data setting changed during publication.
+Initial review found one CodeQL alert for incomplete multi-character
+sanitization in the repository-only Markdown heading slug check. It was closed
+as a false positive because the final allowlist removes HTML delimiters and the
+slug is used only for in-memory anchor membership. Open secret-scanning,
+Dependabot, and CodeQL alert counts are zero.
+
+GitHub does not let a repository administrator self-submit through the public
+private-report form. The maintainer-side equivalent created one harmless low
+draft advisory and immediately closed it. This verified the private advisory
+route without publishing a vulnerability or changing product data.
+
+An unauthenticated HTTPS clone at the released implementation commit exposed
+`LICENSE` and `SECURITY.md` and passed the documented clean install, repository
+checks, public-source check, lint, typecheck, 1,008-test suite, Next build,
+Astro build, and Astro check. An unauthenticated browser reached the canonical
+repository from the marketing `View on GitHub` link.
+
+The `cadence` production deployment `dpl_FzvK2siMz4VwkCQ5hCxSTCcKa1bH` and
+the `cadence-marketing` production deployment
+`dpl_DMAQ4o6u1QkqxtGC2WZ9YramCe42` are READY at the released implementation
+commit. No domain, environment variable, secret, billing, plan, installed-app,
+or Vercel project setting changed.
+
+Post-publication production verification passed on 2026-08-25. A fresh Google
+OAuth flow using the existing account completed through the production
+callback and returned to the authenticated Timeline. Timeline read and one
+reversible status mutation, notification readiness, and account-deletion
+confirmation gates passed. The authenticated Export page rendered all four
+download contracts. One CSV download returned a non-empty attachment with the
+expected contract. The temporary copy was removed immediately without
+retaining its contents.
+
+An intentionally wrong account-deletion confirmation kept the production
+Delete account control disabled. The account remained authenticated and the
+visible behavior inventory remained unchanged. The passing suite covers the
+server failure path that retains the account and session when Auth deletion
+fails. No destructive owner-account deletion was attempted.
+
+The hosted cross-account RLS smoke passed 92 ownership checks and removed all
+three temporary users. Reminder processing checked, claimed, and sent exactly
+one synthetic browser delivery to one active owner-controlled subscription.
+Exact cleanup removed its behavior, occurrences, deliveries, status events,
+schedules, configuration records, and time sessions. No email was sent and no
+real user record was deleted.
+
+Marketing reported no runtime error in the verification window. The app
+reported one Node `url.parse()` deprecation warning from the browser-push
+dependency during the successful send. A bounded synthetic direct-HTTP
+deletion-failure probe could not invoke Next's encrypted server action and
+returned 500 before application logic. Every temporary account and profile was
+removed. The production browser proof then passed without sending a deletion
+request.
+
+This evidence update is the final Ticket 100 merge gate. Protected `verify`
+must pass before it merges to `main`.

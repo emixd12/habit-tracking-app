@@ -15,10 +15,9 @@ Do not report a suspected vulnerability in a public GitHub issue, discussion,
 pull request, or social post. Do not include credentials, authentication
 tokens, real user data, behavioral content, or other personal records.
 
-After GitHub private vulnerability reporting is enabled for the public
-repository, the **Report a vulnerability** form in the repository's Security
-tab is an additional private route. Until that control is visible, use the
-security email.
+GitHub private vulnerability reporting is enabled. The **Report a
+vulnerability** form in the repository's Security tab is an additional private
+route.
 
 Include only the details needed to understand and reproduce the issue:
 
