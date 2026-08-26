@@ -183,6 +183,27 @@ vercel deploy --prod
 
 Do not commit `.vercel/project.json`; `.vercel/` is gitignored.
 
+### Ticket 100 public-release deployment
+
+Verified on 2026-08-25 at release commit
+`cb82e0014fc12d6dbf18fb4719e102a2b5908662`:
+
+- `cadence` deployment `dpl_FzvK2siMz4VwkCQ5hCxSTCcKa1bH` is READY.
+- `cadence-marketing` deployment `dpl_DMAQ4o6u1QkqxtGC2WZ9YramCe42` is READY.
+- The existing production aliases remained unchanged.
+- Marketing reported no runtime error during the verification window.
+- The application recorded one Node `url.parse()` deprecation warning from
+  the browser-push dependency during a successful isolated send. The request
+  completed and synthetic cleanup passed.
+- A bounded synthetic raw HTTP deletion probe returned 500 before application
+  logic because it could not invoke Next's encrypted server action. All
+  temporary accounts and profiles were removed. A production browser check then
+  kept an intentionally invalid deletion behind the disabled client gate; the
+  account, session, and visible behavior inventory remained intact.
+
+The release changed no Vercel domain, environment variable, secret, billing,
+plan, project, or installed integration.
+
 ## Production Smoke QA
 
 Unauthenticated checks:
