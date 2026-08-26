@@ -231,9 +231,9 @@ appears in this record. Ticket 098 sent no email or push notification.
 
 Ticket 098 has no remaining release blocker. The decision is PASS.
 
-The repository remains private. Ticket 100 is `in_progress`. Ticket 100 must
-obtain separate explicit authorization before changing visibility or any
-GitHub setting. This PASS record does not authorize that work.
+The repository is public. Ticket 100 is `in_progress`. Its bounded completion
+window authorized the recorded publication and control changes. This PASS
+record does not authorize unrelated repository or provider work.
 
 ## Ticket 100 publication staging
 
@@ -263,6 +263,19 @@ updates, documented unauthenticated checks, the publication sequence, and the
 incident rollback owner. The marketing configuration already targets the
 canonical repository URL, so no marketing source change is needed.
 
-No branch, commit, push, pull request, repository setting, visibility setting,
-security control, alert disposition, deployment, domain, environment, or
-provider state changed during this staging work.
+Initial publication occurred from reviewed private `main` at
+`a640740798514ac6b6bbe054e0240f400160a03d`. GitHub Free rejected branch
+protection while the repository was private, so the owner used the
+provider-required order: public visibility, immediate `main` protection, then
+merge of the passing PR #1. Protection requires strict `verify`, applies to
+administrators, requires pull requests with zero approvals, and blocks force
+pushes and deletion. PR #1 merged as `96d1c2b`.
+
+PR CI run 2 passed every exact workflow step at
+`2490a8840327830426000b9dfa299634cd8cd615`. An actionable review arrived after
+merge and found that the workflow omitted the existing public-source boundary
+check. A minimal protected follow-up adds `npm run public-source:check` and must
+pass before Ticket 100 continues to security-control completion.
+
+No domain, environment, secret, billing, plan, installed-app, or production
+data setting changed during publication.

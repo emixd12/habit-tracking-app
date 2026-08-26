@@ -24,6 +24,7 @@ jobs:
       - run: npm run agents:check
       - run: npm run interactions:check
       - run: npm run resolvers:check
+      - run: npm run public-source:check
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test

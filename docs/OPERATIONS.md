@@ -1014,11 +1014,13 @@ Use this order:
 3. Require the `CI / verify` check only after that pull request passes from a
    fresh clone without production credentials.
 4. Protect `main` from deletion and force pushes and require pull requests plus
-   the passing check.
-5. Merge the reviewed release files and verify both Vercel projects remain
-   healthy.
-6. Obtain a separate visibility approval, then make the existing repository
-   public.
+   the passing check. If GitHub Free rejects protection while private, record
+   the rejection, use the approved visibility change, and apply protection
+   immediately before merging.
+5. Read back protection, merge the reviewed release files, and verify both
+   Vercel projects remain healthy.
+6. If the repository is still private, obtain a separate visibility approval
+   and make the existing repository public.
 7. Enable secret scanning and push protection, Dependabot alerts and security
    updates, private vulnerability reporting, and CodeQL default setup.
 8. Review every initial alert before announcing completion.
