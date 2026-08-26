@@ -140,10 +140,10 @@ filtered folders or maintaining appropriate allowlisting remains required.
 Ticket 100 is `in_progress`. They define the public repository security gate,
 open-source license and private disclosure contract, and authorized GitHub
 publication sequence. Tickets 079-083 and 093 are deployed and verified. The
-authorized private `main` history rewrite is complete. Ticket 100 has started
-with read-only inventory and safe local release files. It still requires
-separate explicit authorization for every repository or production mutation.
-The repository remains private.
+authorized private `main` history rewrite is complete. Ticket 100 has published
+the reviewed repository, protected `main`, and merged its first passing CI pull
+request. Security controls, initial alert review, production verification, and
+final evidence remain in progress.
 
 Tickets 101-103 are `not_started`. They complete the public Trust evidence
 pipeline: Ticket 101 defines the versioned evidence and freshness contract,
@@ -5929,9 +5929,9 @@ Ticket 098 later performed the separately authorized private `main` rewrite.
 ## Public repository publication and GitHub controls (Ticket 100)
 
 Status: in progress. Read-only inventory and safe local staging started on
-2026-08-25. The repository remains private. No GitHub setting, branch, commit,
-push, pull request, deployment, domain, environment, provider, or visibility
-state changed.
+2026-08-25. The canonical repository is public. `main` is protected and PR #1
+is merged. Security controls, initial alert review, production verification,
+and final evidence remain pending.
 
 Prepared locally:
 
@@ -5994,12 +5994,22 @@ Verification:
 - PR CI run 1 passed the exact `npm run build` step, then failed because the
   fresh runner called the generated-output marketing readability check before
   the marketing build. The workflow and README now run marketing build before
-  marketing check. A full terminal rerun remains required.
+  marketing check.
+- Pass: PR CI run 2 completed every exact workflow step at
+  `2490a8840327830426000b9dfa299634cd8cd615`.
+- GitHub Free rejected protection while the repository was private. The owner
+  used the provider-required fallback: make the reviewed `a640740` `main`
+  public, immediately protect `main`, then merge the passing pull request.
+  Protection requires strict `verify`, applies to administrators, requires a
+  pull request with zero approvals, and blocks force pushes and deletion.
+- PR #1 merged as `96d1c2b`. A later actionable review found that protected CI
+  omitted `npm run public-source:check`. The minimal follow-up adds that
+  existing release-boundary check and must pass a second protected pull request.
 
-The owner opened one bounded Ticket 100 completion window after this local
-staging. Continue in the documented dependency order. Do not protect `main`,
-merge, or publish until the exact pull-request CI workflow passes from the
-non-default branch.
+The owner opened one bounded Ticket 100 completion window. Continue in the
+documented dependency order. Do not mark Ticket 100 complete until the
+follow-up CI gate, GitHub security controls, alert review, production checks,
+and final evidence pass.
 
 ## Handoff notes
 
