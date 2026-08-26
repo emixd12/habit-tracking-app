@@ -18,12 +18,13 @@ one reproducible deployed commit and a fresh GitHub metadata snapshot.
   `e8d3ec79bf56c6e7e762ed1a229c7f99bdb2ffb9`. The owner authorized one exact
   force-with-lease update after a fresh remote read matched this value.
 - Immutable release candidate:
-  `ae3dae1c554ac389db715891abef1704ab648a8c`. This commit records the 150
+  `57171c3f17b32b83acd60b31a27938c856675731`, with parent
+  `ae3dae1c554ac389db715891abef1704ab648a8c`. The parent records the 150
   previously changed or untracked status entries containing the locally
-  completed Ticket 078-083, 093, and 095-099 work. Local `main`, private GitHub
-  `main`, and `origin/main` now identify this candidate. Both Vercel projects
-  report it as their Git source commit.
-- Rewritten `main` retains 138 commits. Commit topology, messages,
+  completed Ticket 078-083, 093, and 095-099 work. The candidate adds the
+  audited Next route-export correction and its release evidence. Local `main`,
+  private GitHub `main`, and `origin/main` identify this candidate.
+- Rewritten `main` retains 139 commits. Commit topology, messages,
   timestamps, and author/committer names are unchanged. All non-targeted blob
   contents and metadata are unchanged. Local Codex worktrees, reflogs, and the
   recovery bundle keep the pre-rewrite objects recoverable locally. No local or
@@ -33,24 +34,25 @@ one reproducible deployed commit and a fresh GitHub metadata snapshot.
   mode 700. Its all-refs bundle, dirty patch, untracked archive, status/refs
   snapshots, and checksum manifest are mode 600. The verified bundle SHA-256
   is `e67ebb4d621226f1f611f8bbee1e2a8dd488067c7a14ed27e8a0fda228ef2fc3`.
-- The authenticated web application and marketing deployment both report the
-  immutable candidate as their Git source commit. The marketing deployment is
-  `dpl_8aYoaAbPQ3rVE6tS3v2SWJBvCBQU`.
+- The authenticated web deployment `dpl_GvjE9J2CyA79inKvoqnJ8g7G3PrZ` is
+  `READY` at the immutable candidate. Its default Next 16.3.3 Turbopack build
+  completed. The healthy marketing production deployment remains
+  `dpl_8aYoaAbPQ3rVE6tS3v2SWJBvCBQU` at the candidate's parent.
 - The marketing canonical and project domains remain. Vercel automatically
   removed the prior per-user branch alias during the production deployment;
   Ticket 098 made no domain or project-setting request.
 - The hosted Supabase migration boundary now ends at
   `20260825080815_add_occurrence_sync_batch_order_index.sql`. It matches a
   clean local reset and the tracked migration directory.
-- Five worktree paths now differ from the candidate: these two evidence files,
-  the Settings App Router page, the existing settings component module, and
-  the focused settings test. The three source/test changes are the minimal
-  correction for a Next 16.3.3 route-export failure discovered during the
-  fresh gate. They are not committed, pushed, or deployed.
+- Three worktree paths now differ from the candidate: these two evidence files
+  and the marketing Astro config. The config change is the minimal correction
+  for root PostCSS discovery during a marketing-scoped workspace install. It
+  is not committed, pushed, or deployed.
 
-The Git source and hosted schema identify the candidate. The marketing build's
-installed dependency graph does not. The uncommitted Next correction also
-means the candidate is no longer the proposed releasable source tree.
+The web deployment and hosted schema identify the candidate. Marketing
+production still identifies its parent and does not reproduce the audited
+dependency graph. The local PostCSS correction means the candidate is no
+longer the proposed releasable source tree.
 
 ## Source and history evidence
 
@@ -81,10 +83,10 @@ means the candidate is no longer the proposed releasable source tree.
   `origin/main` at the immutable release candidate. Remote ref inventory found
   one branch named `main` and no tags, so no old branch, tag, or recovery ref
   was created remotely.
-- A fresh private single-branch clone resolved to the exact candidate with 138
-  commits. It contained zero prior-target occurrences across 2,366 reachable
-  history blobs, full patches, and author/committer metadata. Intended
-  replacements were present. Gitleaks returned exit code 0 with no finding.
+- A fresh private single-branch clone resolved to the exact candidate with 139
+  commits. It contained zero prior-target occurrences across reachable history
+  blobs, full patches, and author/committer metadata. Intended replacements
+  were present. Gitleaks returned exit code 0 with no finding.
   The public-source check reviewed 571 text files with zero worktree, history,
   or client-environment finding. `LICENSE`, `SECURITY.md`,
   `THIRD_PARTY_NOTICES.md`, `README.md`, and the required release-policy files
@@ -116,10 +118,11 @@ and run artifacts had no parent object to inspect. A generic repository-artifact
 request was unavailable, but the zero-run inventory makes per-run logs and
 artifacts inapplicable for this snapshot. The reviewed issue, pull-request,
 release, Actions, wiki, Discussions, and Pages metadata contained no sensitive
-content. The only GitHub mutation was the separately authorized
-force-with-lease update of `refs/heads/main` to the immutable release candidate.
-No tag, other branch, repository setting, visibility setting, release, issue,
-pull request, Actions, Pages, Discussions, or wiki state changed.
+content. GitHub mutations were limited to the separately authorized
+force-with-lease history update and the later normal fast-forward update of
+`refs/heads/main` to the immutable release candidate. No tag, other branch,
+repository setting, visibility setting, release, issue, pull request, Actions,
+Pages, Discussions, or wiki state changed.
 
 ## Browser artifact boundary
 
@@ -140,9 +143,8 @@ a cross-surface public canary, or any server canary fails the check.
 The fresh Astro build used the ordinary workspace command. The managed local
 environment denied Turbopack's internal loopback bind before compilation, even
 after escalation. A clean Next webpack production build compiled, typechecked,
-generated all routes, and supplied the audited artifacts after the route-export
-correction. The next Vercel web deployment must pass the exact default
-`npm run build`; the local webpack proof does not replace that hosted gate.
+and generated all routes. The subsequent web deployment passed the exact
+default `npm run build` with Next 16.3.3 Turbopack at the immutable candidate.
 
 ## Public database and authorization evidence
 
@@ -228,29 +230,33 @@ The root Node engine requires 22.12.0 or newer. The public setup and operations
 guidance recommends Node 24 to match both Vercel projects without asserting an
 unsupported upper bound.
 
-The production marketing deployment does not reproduce this audited dependency
-graph. The CLI command ran from `apps/marketing` and uploaded 37 marketing
-files. It omitted the committed root `package-lock.json` and root `overrides`.
-Vercel therefore ran `npm install`, reported a generated lockfile change, and
-installed sharp 0.34.5 instead of the audited sharp 0.35.3. The deployment
-reports the exact Git commit, but its installed dependency provenance is not
-the candidate's locked graph.
+The healthy production marketing deployment does not reproduce this audited
+dependency graph. Its subtree-only upload omitted the committed root
+`package-lock.json` and root `overrides`, so Vercel installed a different
+dependency tree.
 
-The smallest durable remediation is to set the Vercel Root Directory to
-`apps/marketing` and invoke Vercel CLI from the monorepo root. An authenticated
-read-only project query confirms that the Root Directory is currently unset,
-**Include source files outside of the Root Directory in the Build Step** is
-already enabled, and no Git repository is linked to this project. Vercel's
-monorepo guidance says CLI deployment should start at the repository root. The
-existing outside-source setting then permits the build to read the root npm
-workspace manifest and lockfile.
+The project now uses Root Directory `apps/marketing` with outside-root source
+inclusion enabled. A clean deployment from the monorepo root consumed the root
+workspace and lockfile, but it failed before promotion. Astro's Vite process
+discovered `/vercel/path0/postcss.config.mjs`. The marketing-scoped install
+correctly omitted the web app's root-only `@tailwindcss/postcss` development
+dependency, so Vite could not load that root plugin. Vercel retained healthy
+production deployment `dpl_8aYoaAbPQ3rVE6tS3v2SWJBvCBQU`; no failed build was
+promoted.
 
-A committed `apps/marketing/package-lock.json` is the fallback, not the
-preferred fix. It would make subtree-only uploads reproducible, but it would
-duplicate dependency state. The root overrides would not govern a standalone
-marketing install, so equivalent marketing-local overrides and separate audit
-maintenance would also be required. The root-source option preserves one lock,
-one override policy, and the existing npm workspace contract.
+The local correction adds an inline empty PostCSS plugin list to the existing
+marketing Astro config. Vite treats this inline configuration as the complete
+PostCSS configuration and stops searching for the root file. A clean temporary
+checkout reproduced the Vercel marketing-scoped install and pre-fix failure.
+The same install then built all five static pages and passed Astro diagnostics
+without installing `@tailwindcss/postcss`. Its production-only and full npm
+audits both returned zero findings. The root and marketing manifests and the
+root lockfile retained their exact pre-install checksums.
+
+A committed `apps/marketing/package-lock.json` remains unnecessary. The inline
+boundary preserves one root lockfile, one override policy, and the existing npm
+workspace contract while keeping marketing independent from the web app's
+Tailwind/PostCSS pipeline.
 
 ## Ticket 099 post-audit policy artifacts
 
@@ -273,22 +279,21 @@ upstream MIT notice.
 These additions do not change this document's `FAIL`. The resumed local source,
 worktree, dependency, build, and artifact checks include Ticket 099's files.
 The authorized private `main` rewrite clears the remote-history blocker but
-does not authorize public visibility. Rerun Ticket 098 against a new immutable
-candidate after the dependency-provenance and Next route-export fixes share one
-commit, using a fresh GitHub metadata snapshot. Ticket 099's monitor assignment
-and route-test gate are complete. Neither changes this release decision.
+does not authorize public visibility. The Next route-export fix is committed,
+pushed, and deployed. Rerun Ticket 098 against a new immutable candidate after
+the local marketing PostCSS boundary is committed and deployed, using a fresh
+GitHub metadata snapshot. Ticket 099's monitor assignment and route-test gate
+are complete. Neither changes this release decision.
 
 ## Open risks and pass conditions
 
-The gate fails for two independent reasons:
+The gate fails because marketing production remains on the prior healthy
+deployment. The first root-lock corrective build exposed root PostCSS config
+discovery and failed before promotion. The verified local boundary fix is not
+committed, pushed, or deployed.
 
-1. Marketing production omitted the committed root lockfile and overrides, so
-   its installed dependency graph differs from the audited candidate.
-2. The minimal Next route-export correction is uncommitted and undeployed. The
-   next web deployment must pass its default `npm run build`.
-
-A future rerun may pass only after both fixes share one new immutable commit
-and reproducible production deployments. It also requires another fresh GitHub
-snapshot, both dependency audits, history and source scans, clean canary
-builds, and repeated database/RLS evidence. Ticket 100 must not make this
-repository public before that pass record exists.
+A future rerun may pass only after the marketing fix belongs to a new immutable
+commit and production reproduces that commit's root lockfile and overrides. It
+also requires another fresh GitHub snapshot, both dependency audits, history
+and source scans, clean canary builds, and repeated database/RLS evidence.
+Ticket 100 must not make this repository public before that pass record exists.

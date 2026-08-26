@@ -5789,10 +5789,12 @@ Status: complete locally. The audited release decision is FAIL.
 Ticket 098 resumed after Ticket 099 for safe local dependency and privacy
 remediation. The owner later authorized one exact force-with-lease update of
 private GitHub `main`, seven hosted migrations, and one exact marketing
-production deployment. Those actions clear the remote-history and hosted-
-migration blockers. The release decision remains `FAIL` because the marketing
-deployment did not consume the audited root lockfile and the final Next route
-correction is not committed or deployed.
+production deployment. The owner then authorized the Next route correction
+commit, its fast-forward push, and the resulting web deployment. Those actions
+clear the remote-history, hosted-migration, and web-build blockers. The release
+decision remains `FAIL` because the first root-lock marketing corrective build
+failed before promotion. Its verified local PostCSS boundary fix is not
+committed or deployed.
 
 Implemented:
 
@@ -5842,11 +5844,12 @@ Verification complete:
   branch blobs, patches, or author/committer metadata. Intended replacements
   are present. One path changed across 27 commit trees, and rewritten HEAD
   changes that path only.
-- Pass: the immutable release-candidate commit is
-  `ae3dae1c554ac389db715891abef1704ab648a8c`, with rewritten base parent
-  `c02514851b30987c432bfdfc9067ccb1245a20c8`. It records the verified 150-entry
-  worktree as one commit. Local `main`, private GitHub `main`, and `origin/main`
-  now identify this candidate. Both detached Codex worktrees remain unchanged.
+- Pass: the current immutable release-candidate commit is
+  `57171c3f17b32b83acd60b31a27938c856675731`, with parent
+  `ae3dae1c554ac389db715891abef1704ab648a8c`. The parent records the verified
+  150-entry worktree. The candidate adds the audited Next route-export fix and
+  its evidence. Local `main`, private GitHub `main`, and `origin/main` identify
+  this candidate. Both detached Codex worktrees remain unchanged.
 - Pass: the mode-700 recovery directory is
   `/private/tmp/cadence-ticket098-history-rewrite-XTnslg`. Its mode-600
   all-refs bundle, dirty patch, untracked archive, snapshots, and checksum
@@ -5888,9 +5891,9 @@ Verification complete:
   lease. Pre-push and post-push reads matched the expected commits. Remote ref
   inventory shows only `main` and no tags. No other branch or recovery ref was
   created remotely.
-- Pass: a fresh private clone resolves to the immutable candidate with 138
-  commits. Exact scans found zero prior-target occurrence across 2,366
-  reachable blobs, patches, or author/committer metadata. Intended
+- Pass: a fresh private clone resolves to the immutable candidate with 139
+  commits. Exact scans found zero prior-target occurrence across reachable
+  blobs, patches, or author/committer metadata. Intended
   replacements are present. Fresh-clone Gitleaks and public-source checks
   returned zero finding, and seven required license, security, notice, README,
   and release-policy files are present.
@@ -5913,43 +5916,57 @@ Verification complete:
   no error-level finding; 9 security and 31 performance warnings remain
   documented.
 - Pass for source identity and public content: marketing deployment
-  `dpl_8aYoaAbPQ3rVE6tS3v2SWJBvCBQU` is `READY`, reports the exact candidate
+  `dpl_8aYoaAbPQ3rVE6tS3v2SWJBvCBQU` is `READY`, reports the candidate's parent
   commit and `apps/marketing` root, retains the canonical
   `cadence-marketing-two.vercel.app` alias, and serves all 19 audited public
   endpoints successfully.
 - Observation: the canonical and project domains remain. Vercel automatically
   removed the prior per-user branch alias during the production deployment.
   Ticket 098 made no domain or project-setting request.
-- Fail for marketing dependency provenance: the CLI upload contained only the
-  marketing subtree. Vercel did not receive the committed root lockfile or
-  root overrides, ran an unlocked install, and resolved a different sharp
-  version from the audited tree. The deployed dependency graph therefore does
-  not reproduce the candidate despite matching Git source metadata.
-- Read-only Vercel project metadata confirms that the marketing Root Directory
-  is unset, outside-root source inclusion is already enabled, and no Git
-  repository is linked. The durable correction is to set Root Directory to
-  `apps/marketing` and deploy from the monorepo root so the build consumes the
-  committed workspace lockfile and overrides.
+- Fail for marketing dependency provenance: the healthy production deployment
+  still uses its prior subtree-only dependency graph. The project now uses
+  Root Directory `apps/marketing` with outside-root source inclusion enabled.
+  The first monorepo-root corrective build consumed the root workspace and
+  lockfile, then failed before promotion because Vite discovered the root web
+  app PostCSS config while the marketing-scoped install correctly omitted its
+  Tailwind plugin.
+- Pass for the minimal local marketing boundary: an inline empty PostCSS plugin
+  list in the existing Astro config prevents root config discovery without
+  adding a dependency. A clean temporary workspace-only install reproduced the
+  Vercel failure before the change and built five static pages after it. The
+  marketing check passed with zero diagnostics, both marketing audits returned
+  zero findings, and all three dependency-file checksums stayed unchanged.
+- Pass after the local boundary fix: `npm run marketing:build`,
+  `npm run marketing:check`, both root dependency audits,
+  `npm run public-source:check`, `npm run agents:check`,
+  `npm run interactions:check`, `npm run resolvers:check`, lint, typecheck,
+  1,008 tests with one skipped test, the Next webpack production build,
+  Gitleaks diff scan, and `git diff --check`. The first test run failed only
+  because the sandbox denied its loopback fake-provider listener. The
+  authorized rerun passed.
 - Pass for the minimal Next correction: moved `SettingsPanelGrid` and
   `SettingsProfile` from the App Router page into the existing settings
   component module. The page now exports only allowed route symbols. The
   focused test, typecheck, lint, webpack production build, and synthetic-
-  canary artifact proof pass. The correction is intentionally uncommitted and
-  undeployed.
+  canary artifact proof pass. Commit
+  `57171c3f17b32b83acd60b31a27938c856675731` contains the correction. Private
+  GitHub `main` and the `READY` web deployment identify that commit, and its
+  default Next 16.3.3 Turbopack build passed.
 - Managed-environment limitation: exact `npm run build` cannot pass locally
   because Turbopack receives `EPERM` while binding its internal loopback port.
   The same command failed for both Ticket 098 agents after escalation. The
-  passing webpack build proves the corrected source compiles and typechecks;
-  the next Vercel web deployment must prove the default build.
+  passing webpack build proves the corrected source compiles and typechecks.
+  The Vercel web deployment supplied the required default-build proof.
 
 Publication blockers:
 
-- The marketing production build must consume the committed root lockfile and
-  overrides, then pass fresh dependency and source verification.
-- The minimal Next settings correction must be committed, pushed, and deployed
-  through a successful default Vercel build.
+- The local marketing PostCSS boundary and these evidence updates must belong
+  to a new immutable commit.
+- Marketing production must deploy that commit from the monorepo root, consume
+  the committed root lockfile and overrides, and pass fresh dependency and
+  source verification.
 - The complete gate must be rerun against that new immutable commit. The two
-  evidence documents and three source/test files are currently uncommitted.
+  evidence documents and marketing Astro config are currently uncommitted.
 
 Ticket 098 cannot pass until the blockers are resolved and every evidence step
 is rerun against the exact proposed commit and fresh repository metadata.
