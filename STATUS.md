@@ -269,7 +269,7 @@ Current evidence:
   service-role credentials only for temporary user setup/cleanup and ordinary
   signed-in publishable-key clients for isolation checks.
 - A minimal `public/push-service-worker.js` displays received push payloads and opens same-origin app URLs, defaulting to `/timeline`. It does not implement PWA install, route caching, background sync, offline writes, or offline mutation.
-- Supabase and Sequenzy CLIs are installed as dev dependencies and exposed through `npm run supabase -- ...` and `npm run sequenzy -- ...`.
+- The Supabase CLI is installed as a dev dependency. The Sequenzy CLI runs through an exact-version isolated `npm exec` script. Both remain exposed through `npm run supabase -- ...` and `npm run sequenzy -- ...`.
 - Agent operations docs now include Supabase CLI workflow, Sequenzy CLI workflow, date/time strategy, route map, and deterministic drift checks.
 - A local/dev-only design-system bench exists at `/design-system`, backed by
   `design-system.config.json`, `design-system.surfaces.json`,
