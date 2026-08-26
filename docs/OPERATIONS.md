@@ -991,10 +991,13 @@ harmless synthetic test email to the approved address. The sender accepted and
 retained that one message with sent status on 2026-08-25. Recipient-side
 inspection confirmed receipt at the approved mailbox. The message landed in the
 junk folder. Monitor junk and quarantine folders or maintain appropriate
-allowlisting so filtered private reports receive review. Do not repeat the send.
-Record only delivery and acknowledgement outcome; never commit screenshots,
-message content, message headers, sender details, recipient internals, or
-provider identifiers.
+allowlisting so filtered private reports receive review. The Ticket 099
+authorization is exhausted; do not repeat that send under its authority.
+Ticket 104 may perform at most one new harmless route test only after the owner
+separately authorizes its recipient and send. No other follow-up send is
+authorized. Record only delivery and acknowledgement outcome; never commit
+screenshots, message content, message headers, sender details, recipient
+internals, or provider identifiers.
 
 Self-hosters own secret storage, provider accounts, access controls, upgrades,
 backups, monitoring, and incident response. Browser configuration may include
