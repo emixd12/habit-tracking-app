@@ -5902,9 +5902,9 @@ Verification:
   provider identifier, message header, message content, vulnerability detail,
   credential, user data, or behavioral content was recorded.
 
-Ticket 098 now passes. Ticket 100 remains `not_started` and still requires
-separate explicit authorization. The one authorized synthetic route-test
-email was Ticket 099's only recipient mutation.
+At Ticket 099 completion, Ticket 098 passed and Ticket 100 remained
+`not_started` pending separate explicit authorization. The one authorized
+synthetic route-test email was Ticket 099's only recipient mutation.
 Ticket 099 made no GitHub, deployment, publication, commit, or push mutation.
 Ticket 098 later performed the separately authorized private `main` rewrite.
 
@@ -5947,8 +5947,9 @@ Public and production evidence:
 - A fresh Google OAuth flow using the existing account completed through the
   production callback and returned to the authenticated Timeline. Timeline read
   and one reversible status mutation and notification readiness passed. The
-  authenticated Export page rendered all four download contracts; no user
-  export was downloaded.
+  authenticated Export page rendered all four download contracts. One CSV
+  download returned a non-empty attachment with the expected contract. The
+  temporary copy was removed immediately without retaining its contents.
 - An intentionally wrong account-deletion confirmation kept the production
   Delete account control disabled. The account remained authenticated and the
   visible behavior inventory remained unchanged. The passing suite covers the

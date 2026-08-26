@@ -282,7 +282,9 @@ OAuth flow using the existing account completed through the production
 callback and returned to the authenticated Timeline. Timeline read and one
 reversible status mutation, notification readiness, and account-deletion
 confirmation gates passed. The authenticated Export page rendered all four
-download contracts; no user export was downloaded.
+download contracts. One CSV download returned a non-empty attachment with the
+expected contract. The temporary copy was removed immediately without
+retaining its contents.
 
 An intentionally wrong account-deletion confirmation kept the production
 Delete account control disabled. The account remained authenticated and the
