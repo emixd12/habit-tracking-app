@@ -7852,6 +7852,127 @@ Out of scope:
 
 ---
 
+## Ticket 104: Security inbox deliverability hardening
+
+Close the filtered-folder risk found by the Ticket 099 security-route test
+without weakening mailbox protections or changing Cadence's public reporting
+address.
+
+Dependencies:
+- Tickets 099 and 100 must remain complete.
+- Any mailbox rule, allowlist, or provider setting change requires explicit
+  owner authorization during execution.
+
+Settled decisions:
+- Keep the dedicated security email as the primary private reporting route and
+  GitHub private vulnerability reporting as the secondary route.
+- Inspect the existing delivery path before changing it. Identify whether the
+  junk placement came from forwarding, sender authentication, mailbox policy,
+  or a provider reputation rule.
+- Prefer the narrowest provider-supported rule that preserves normal spam and
+  malware filtering. Do not disable filtering globally.
+- Document one owner, a review cadence, and coverage for inbox, junk, spam, and
+  quarantine folders. A mailbox rule does not replace monitoring.
+- Send only one harmless synthetic route-test message after separate approval
+  of the recipient and send. Do not include vulnerability details, credentials,
+  user data, or behavioral content.
+- Record only sanitized delivery status, destination folder class, and timing.
+  Do not commit addresses, headers, provider identifiers, or message content.
+
+Acceptance criteria:
+- The provider path and root cause of the filtered delivery are documented in
+  private operator notes.
+- The narrowest approved mailbox or provider rule is applied, or the ticket
+  records why no safe rule exists and relies on explicit filtered-folder
+  monitoring.
+- One authorized synthetic message reaches the monitored route and receives
+  timely review from either the primary inbox or a documented filtered folder.
+- `SECURITY.md` continues to name the same primary and secondary private routes.
+- Public documentation contains no mailbox configuration, address beyond the
+  already-published route, message metadata, or private provider detail.
+
+Suggested files:
+- `docs/OPERATIONS.md`
+- `docs/OPEN_SOURCE_DECISION_PACKET.md`
+- `docs/PUBLIC_REPOSITORY_RELEASE.md`
+- `STATUS.md`
+
+Required verification:
+- Review the primary inbox, junk, spam, and quarantine surfaces after the
+  authorized synthetic send.
+- Verify GitHub private vulnerability reporting remains enabled.
+- Run `npm run agents:check`, `npm run interactions:check`, and
+  `npm run public-source:check` for repository documentation changes.
+
+Out of scope:
+- Publishing a vulnerability report, weakening mailbox-wide filtering, adding
+  an admin dashboard, or automating inbound security-report handling.
+- Changing the public security address unless the owner opens a separate policy
+  decision.
+
+---
+
+## Ticket 105: Browser-push dependency compatibility cleanup
+
+Remove the non-failing Node `url.parse()` deprecation warning emitted by the
+browser-push dependency while preserving the verified Web Push behavior.
+
+Dependencies:
+- Ticket 100 provides the recorded production warning and successful bounded
+  browser-push delivery evidence.
+- Use current official upstream package and Node documentation when selecting
+  a compatible version.
+
+Settled decisions:
+- Trace the warning to the exact direct or transitive package and call path
+  before changing dependencies.
+- Prefer the smallest compatible dependency upgrade already supported by the
+  existing `web-push` service. Do not patch `node_modules` or replace the Web
+  Push provider for a deprecation warning.
+- Preserve VAPID key ownership, push-subscription storage, reminder claiming,
+  idempotency, expired-subscription handling, and failure logging.
+- If upstream has no compatible fix, keep the current version, document the
+  upstream issue and review trigger, and retain a focused regression check.
+- Use local fakes for verification. A real browser-push send requires separate
+  production authorization.
+
+Acceptance criteria:
+- Repository evidence identifies the package and version that emits the
+  warning.
+- The supported Node production path completes without the `url.parse()`
+  deprecation warning, or an upstream-blocked exception names an owner and
+  concrete recheck condition.
+- Browser-push subject, payload, delivery, duplicate prevention, expired
+  subscription, and failure tests continue to pass.
+- `npm audit --omit=dev` introduces no new high or critical production finding.
+- The application and Vercel-compatible production build pass on the supported
+  Node version.
+
+Suggested files:
+- `package.json`
+- `package-lock.json`
+- `lib/services/web-push.service.ts`
+- `tests/web-push-subject.test.ts`
+- `tests/reminder.service.test.ts`
+- `docs/OPERATIONS.md`
+- `docs/VERCEL_WORKFLOW.md`
+- `STATUS.md`
+
+Required verification:
+- Run the focused browser-push and reminder service tests with deprecation
+  tracing enabled.
+- Run `npm audit --omit=dev`, `npm run agents:check`,
+  `npm run resolvers:check`, `npm run lint`, `npm run typecheck`,
+  `npm run test`, and `npm run build`.
+- Inspect one authorized Preview deployment before any separately authorized
+  Production deployment.
+
+Out of scope:
+- Switching push providers, changing subscription schema, adding PWA or offline
+  behavior, or sending a real notification without separate approval.
+
+---
+
 ## Deferred work
 
 PWA caching, offline timeline access, local pending status changes, and sync conflict handling are not part of the v1 ticket sequence.

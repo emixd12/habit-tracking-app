@@ -137,21 +137,24 @@ sender accepted and retained exactly one authorized synthetic route-test
 message with sent status, and recipient-side inspection confirmed receipt at
 the approved mailbox. The message landed in the junk folder, so monitoring
 filtered folders or maintaining appropriate allowlisting remains required.
-Ticket 100 is `complete` when this evidence update reaches protected public
-`main`. They define the public repository security gate,
-open-source license and private disclosure contract, and authorized GitHub
-publication sequence. Tickets 079-083 and 093 are deployed and verified. The
-authorized private `main` history rewrite is complete. Ticket 100 published the
-reviewed repository, protected `main`, enabled the required security controls,
-triaged the first scans, and completed the production checks. The final
-evidence pull request is the completion gate.
+Ticket 100 is `complete`. It published the reviewed repository, protected
+`main`, enabled the required security controls, triaged the first scans, and
+completed the production checks. PR #13 merged the final completion evidence
+through protected `main`. Tickets 098-100 define the public repository security
+gate, open-source license and private disclosure contract, and authorized
+GitHub publication sequence. Tickets 079-083 and 093 are deployed and verified.
+The authorized private `main` history rewrite is complete.
 
-Tickets 101-103 are `not_started`. They complete the public Trust evidence
-pipeline: Ticket 101 defines the versioned evidence and freshness contract,
-Ticket 102 publishes post-deployment provenance, dependency, integrity, route,
-migration, and RLS evidence, and Ticket 103 renders normalized results on the
-public Trust page and machine route. Ticket 102 depends on Tickets 092 and
-098-101. Ticket 103 depends on Tickets 100-102.
+Tickets 101-105 are `not_started`. Tickets 101-103 complete the public Trust
+evidence pipeline: Ticket 101 defines the versioned evidence and freshness
+contract, Ticket 102 publishes post-deployment provenance, dependency,
+integrity, route, migration, and RLS evidence, and Ticket 103 renders normalized
+results on the public Trust page and machine route. Ticket 104 hardens security
+inbox delivery and filtered-folder monitoring. Ticket 105 removes or records a
+bounded upstream exception for the browser-push Node deprecation warning.
+Ticket 102 depends on Tickets 092 and 098-101. Ticket 103 depends on Tickets
+100-102. Tickets 104 and 105 depend only on their named completed evidence
+tickets and may proceed independently of the Trust evidence pipeline.
 
 No remediated finding from Tickets 079-083 or 093 remains local-only. Their
 hosted migrations and application changes are deployed and verified.
@@ -5818,9 +5821,9 @@ Verification complete:
   and backups remain intact. Detached worktrees and old local objects were not
   pruned.
 
-Release decision: PASS. Ticket 100 may begin only after separate explicit
-authorization. This pass does not authorize public visibility, repository
-settings changes, or any provider send.
+Release decision: PASS. At this Ticket 098 checkpoint, Ticket 100 still
+required separate explicit authorization. Ticket 100 later completed through
+its separately authorized publication and verification work.
 
 ## Open-source license and disclosure contract (Ticket 099)
 
