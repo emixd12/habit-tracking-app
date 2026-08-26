@@ -52,8 +52,8 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
-npm run marketing:check
 npm run marketing:build
+npm run marketing:check
 ```
 
 These checks run without production credentials. Provider-backed smoke checks

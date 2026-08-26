@@ -5991,6 +5991,10 @@ Verification:
   escalation path, stopped at `EPERM` before source compilation. The root
   execution context reproduced the same managed-environment limitation.
   Pull-request CI must pass the exact command before protection or publication.
+- PR CI run 1 passed the exact `npm run build` step, then failed because the
+  fresh runner called the generated-output marketing readability check before
+  the marketing build. The workflow and README now run marketing build before
+  marketing check. A full terminal rerun remains required.
 
 The owner opened one bounded Ticket 100 completion window after this local
 staging. Continue in the documented dependency order. Do not protect `main`,

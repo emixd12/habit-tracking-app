@@ -28,5 +28,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
-      - run: npm run marketing:check
       - run: npm run marketing:build
+      - run: npm run marketing:check
