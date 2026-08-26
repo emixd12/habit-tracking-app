@@ -17,8 +17,8 @@ Authoritative upstream docs used for this workflow:
 - Vercel environment variables: `https://vercel.com/docs/environment-variables`
 - Vercel Cron Jobs: `https://vercel.com/docs/cron-jobs`
 
-The root `package.json` supports Node.js 22.12 or newer. Keep local release
-verification and both Vercel projects on Node.js 24.x so Next.js and Astro
+The root `package.json` requires Node.js 24.x. Keep local release verification,
+GitHub Actions, and both Vercel projects on that major so Next.js and Astro
 build under the deployed runtime.
 
 ## Current Project
@@ -67,6 +67,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_SITE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
+CADENCE_ACCOUNT_DELETION_FAILURE_CANARY_USER_ID=
 SEQUENZY_API_KEY=
 SEQUENZY_REMINDER_TEMPLATE_SLUG=habit-reminder
 SEQUENZY_API_URL=
@@ -86,9 +87,12 @@ Rules:
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` is preferred. Keep
   `NEXT_PUBLIC_SUPABASE_ANON_KEY` only for legacy Supabase projects that still
   need it.
-- `SUPABASE_SERVICE_ROLE_KEY`, `SEQUENZY_API_KEY`, `VAPID_PRIVATE_KEY`,
-  `REMINDER_PROCESS_SECRET`, and `CRON_SECRET` are server-only secrets. Never
-  prefix them with `NEXT_PUBLIC_`.
+- `SUPABASE_SERVICE_ROLE_KEY`,
+  `CADENCE_ACCOUNT_DELETION_FAILURE_CANARY_USER_ID`, `SEQUENZY_API_KEY`,
+  `VAPID_PRIVATE_KEY`, `REMINDER_PROCESS_SECRET`, and `CRON_SECRET` are
+  server-only. Never prefix them with `NEXT_PUBLIC_`.
+- Keep `CADENCE_ACCOUNT_DELETION_FAILURE_CANARY_USER_ID` unset except during
+  the exact authorization-gated Ticket 100 procedure in `docs/OPERATIONS.md`.
 - For Vercel Cron, set `CRON_SECRET` to the same value as
   `REMINDER_PROCESS_SECRET` unless there is a deliberate secret rotation plan.
 - `SEQUENZY_API_URL` can be omitted when using the default
@@ -200,6 +204,10 @@ Verified on 2026-08-25 at release commit
   temporary accounts and profiles were removed. A production browser check then
   kept an intentionally invalid deletion behind the disabled client gate; the
   account, session, and visible behavior inventory remained intact.
+
+Those two checks did not exercise production account-deletion failure recovery.
+Ticket 100 remains `in_progress` until the bounded canary procedure in
+`docs/OPERATIONS.md` passes through the deployed browser Server Action.
 
 The release changed no Vercel domain, environment variable, secret, billing,
 plan, project, or installed integration.

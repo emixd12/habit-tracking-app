@@ -5910,8 +5910,8 @@ Ticket 098 later performed the separately authorized private `main` rewrite.
 
 ## Public repository publication and GitHub controls (Ticket 100)
 
-Status: complete on public `main` after this evidence update merges. The
-canonical repository is public at
+Status: in_progress. Publication and repository controls are complete, but
+production account-deletion failure recovery remains unverified. The canonical repository is public at
 `https://github.com/emixd12/habit-tracking-app`. The released implementation
 commit is `cb82e0014fc12d6dbf18fb4719e102a2b5908662`.
 
@@ -5951,10 +5951,8 @@ Public and production evidence:
   download returned a non-empty attachment with the expected contract. The
   temporary copy was removed immediately without retaining its contents.
 - An intentionally wrong account-deletion confirmation kept the production
-  Delete account control disabled. The account remained authenticated and the
-  visible behavior inventory remained unchanged. The passing suite covers the
-  server Auth-deletion failure path. No destructive owner-account deletion was
-  attempted.
+  Delete account control disabled. This verified only the client gate. It did
+  not invoke the deployed Server Action or verify Auth-deletion failure recovery.
 - Hosted RLS smoke run `e3d21922` passed 92 ownership checks and removed all
   three temporary users.
 - Reminder processing checked, claimed, and sent one isolated browser delivery
@@ -5965,14 +5963,16 @@ Public and production evidence:
   logged one non-failing Node `url.parse()` deprecation warning from the
   browser-push dependency during the successful send. A bounded synthetic raw
   HTTP deletion probe returned 500 before application logic because it could
-  not invoke Next's encrypted server action. All temporary accounts and
-  profiles were removed.
+  not invoke Next's encrypted Server Action. It supplied no account-deletion
+  failure evidence. All temporary accounts and profiles were removed.
 
 Remaining risks: the security inbox route test reached junk, so the owner must
 keep monitoring filtered folders. The browser-push dependency emits the
-recorded Node deprecation warning. The repository owner is the incident
-rollback owner; returning the repository to private cannot retract public
-clones. This final evidence update must pass protected `verify` before merge.
+recorded Node deprecation warning. A separately authorized production run must
+exercise the deployed account-deletion Server Action with the bounded canary
+and a disposable account before Ticket 100 can return to `complete`. The
+repository owner is the incident rollback owner; returning the repository to
+private cannot retract public clones.
 
 No domain, environment variable, secret, billing, plan, installed GitHub App,
 or real-user-data setting changed during Ticket 100.

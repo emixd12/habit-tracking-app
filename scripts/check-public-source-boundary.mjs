@@ -7,6 +7,7 @@ const PROJECT_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 export const SERVER_ONLY_ENV_NAMES = [
   "AGENTMAIL_API_KEY",
+  "CADENCE_ACCOUNT_DELETION_FAILURE_CANARY_USER_ID",
   "CRON_SECRET",
   "DATABASE_URL",
   "REMINDER_PROCESS_SECRET",
@@ -29,6 +30,7 @@ const DIRECT_PATTERNS = [
 
 const ASSIGNMENT_CATEGORIES = new Map([
   ["AGENTMAIL_API_KEY", "agentmail"],
+  ["CADENCE_ACCOUNT_DELETION_FAILURE_CANARY_USER_ID", "supabase"],
   ["CRON_SECRET", "process"],
   ["DATABASE_URL", "database"],
   ["GOOGLE_CLIENT_SECRET", "google"],
@@ -211,12 +213,26 @@ export function scanTrackedAndUnignoredWorktree() {
   return { checkedFiles, findings };
 }
 
-export function scanAllRefPatchHistory() {
+export function scanAllRefPatchHistory(projectRoot = PROJECT_ROOT) {
+  const shallow = spawnSync(
+    "git",
+    ["rev-parse", "--is-shallow-repository"],
+    { cwd: projectRoot, encoding: "utf8" },
+  );
+
+  if (shallow.status !== 0 || shallow.error) {
+    throw new Error("Unable to verify complete Git history.");
+  }
+
+  if (shallow.stdout.trim() !== "false") {
+    throw new Error("The public source audit requires complete Git history.");
+  }
+
   const result = spawnSync(
     "git",
     ["log", "--all", "--full-history", "--text", "--no-ext-diff", "--format=fuller", "-p"],
     {
-      cwd: PROJECT_ROOT,
+      cwd: projectRoot,
       encoding: "utf8",
       maxBuffer: 256 * 1024 * 1024,
     },

@@ -2,11 +2,12 @@
 
 ## Decision
 
-Status: **PASS**.
+Ticket 098 status: **PASS**. Ticket 100 status: **IN PROGRESS**.
 
 Reviewed on 2026-08-25. Ticket 098 cleared the security release gate while the
 repository was private. Ticket 100 later completed the separately authorized
-publication and controls recorded below.
+publication and controls recorded below. Production account-deletion failure
+recovery remains unverified.
 
 ## Audited basis
 
@@ -171,9 +172,8 @@ esbuild override selects 0.28.2 within Vite 8's peer range. Astro and Next
 retain sharp and SVGO through transitive contracts. Marketing does not declare
 unnecessary direct copies.
 
-The root Node engine requires 22.12.0 or newer. Public setup and operations
-guidance recommend Node 24 for Vercel parity without asserting an unsupported
-upper bound.
+The root Node engine requires Node 24.x. Local release verification, GitHub
+Actions, and both Vercel projects target the same major.
 
 The complete clean verification passed:
 
@@ -230,14 +230,14 @@ appears in this record. Ticket 098 sent no email or push notification.
 
 Ticket 098 has no remaining release blocker. The decision is PASS.
 
-Ticket 100 is complete when this evidence update reaches protected public
-`main`. The canonical repository is public at
+Ticket 100 remains `in_progress`. The canonical repository is public at
 `https://github.com/emixd12/habit-tracking-app`. The released implementation
 commit is `cb82e0014fc12d6dbf18fb4719e102a2b5908662`. The repository owner is the
 incident rollback owner. Publication cannot be retracted from existing clones
-or forks.
+or forks. The only unmet acceptance criterion is production account-deletion
+failure recovery through the deployed Server Action.
 
-## Ticket 100 completion evidence
+## Ticket 100 publication evidence
 
 Initial publication occurred from reviewed private `main` at
 `a640740798514ac6b6bbe054e0240f400160a03d`. GitHub Free rejected protection
@@ -288,9 +288,9 @@ retaining its contents.
 
 An intentionally wrong account-deletion confirmation kept the production
 Delete account control disabled. The account remained authenticated and the
-visible behavior inventory remained unchanged. The passing suite covers the
-server failure path that retains the account and session when Auth deletion
-fails. No destructive owner-account deletion was attempted.
+visible behavior inventory remained unchanged. This verified only the client
+gate. It did not invoke the deployed Server Action or exercise Auth-deletion
+failure recovery. No destructive owner-account deletion was attempted.
 
 The hosted cross-account RLS smoke passed 92 ownership checks and removed all
 three temporary users. Reminder processing checked, claimed, and sent exactly
@@ -304,8 +304,9 @@ reported one Node `url.parse()` deprecation warning from the browser-push
 dependency during the successful send. A bounded synthetic direct-HTTP
 deletion-failure probe could not invoke Next's encrypted server action and
 returned 500 before application logic. Every temporary account and profile was
-removed. The production browser proof then passed without sending a deletion
-request.
+removed. The probe and browser gate do not satisfy the remaining production
+acceptance criterion.
 
-This evidence update is the final Ticket 100 merge gate. Protected `verify`
-must pass before it merges to `main`.
+Ticket 100 can return to `complete` only after an authorized disposable account
+uses the bounded server-only canary and the deployed browser Server Action,
+then passes rollback and cleanup from `docs/OPERATIONS.md`.

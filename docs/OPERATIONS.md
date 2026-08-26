@@ -31,11 +31,12 @@ npm run test
 npm run build
 ```
 
-Use Node.js 22.12 or newer. Node.js 24 is the preferred local release runtime
-because both Vercel projects use Node.js 24.x. The root `package.json` enforces
-the minimum supported version.
+Use Node.js 24.x. Local release verification, GitHub Actions, and both Vercel
+projects use the same major. The root `package.json` enforces that version.
 
-If local `npm` or `node` is not on the shell path in an agent environment, use the user's local binary path or a login shell. On this machine, npm and node are available under `/Users/emi/.local/bin`.
+If local `npm` or `node` is not on the shell path, load the workspace
+dependencies and use their Node 24 runtime. Do not run release checks with the
+older Node installation under `/Users/emi/.local/bin`.
 
 ## Installed CLIs
 
@@ -1034,16 +1035,57 @@ scanning and push protection, private vulnerability reporting, and CodeQL
 default setup are active. Initial open secret, dependency, and CodeQL alert
 counts are zero after one documented false-positive disposition.
 
+Ticket 100 remains `in_progress`. The production account-deletion failure
+recovery criterion is unverified. An invalid confirmation exercised only the
+client gate. A direct HTTP probe stopped before the encrypted Server Action and
+did not reach application logic. Unit tests do not replace the production check.
+
 The production application and marketing deployments at that release commit
 are recorded in `docs/PUBLIC_REPOSITORY_RELEASE.md`. The hosted 92-check RLS
 smoke cleaned its three temporary users. One isolated browser-push delivery
 passed and its complete synthetic record graph was removed. No email, domain,
 environment, secret, plan, billing, or real-user-data mutation occurred.
 
-Fresh production Google OAuth completed with the existing account. An
-intentionally invalid account-deletion confirmation kept the client gate
-closed; the account, session, and visible behavior inventory remained intact.
-The final evidence change must pass protected `verify` before merge.
+Fresh production Google OAuth completed with the existing account. The account,
+session, and visible behavior inventory remained intact during the invalid
+confirmation check. No destructive owner-account deletion was attempted.
+
+### Account-deletion failure canary
+
+`CADENCE_ACCOUNT_DELETION_FAILURE_CANARY_USER_ID` is an optional server-only
+production verification control. Keep it unset during normal operation. When
+set, it must contain one exact Auth user UUID. A malformed value fails closed.
+A nonmatching user follows the normal deletion path.
+
+For the matching authenticated user, the service still requires export
+acknowledgement and exact typed confirmation. It creates the service-role client
+and verifies the Auth user normally. Immediately before Auth deletion, it
+returns the existing recoverable deletion error without calling Auth deletion,
+signing out, clearing cookies, or invalidating account data. Do not expose or
+log the configured UUID. Do not use this variable as general fault injection.
+
+Complete the remaining Ticket 100 check only with explicit authorization for
+the production environment changes, deployments, disposable-account creation,
+and cleanup:
+
+1. Create one disposable Google-authenticated Cadence account.
+2. Record its Auth user UUID and minimum cleanup identifiers only in private operator notes.
+3. Add one synthetic canary Behavior or record owned by the disposable account.
+4. Set `CADENCE_ACCOUNT_DELETION_FAILURE_CANARY_USER_ID` to that Auth user UUID.
+5. Deploy the exact reviewed commit to production.
+6. Sign in as the disposable account.
+7. Complete the real export acknowledgement.
+8. Enter the exact deletion confirmation.
+9. Invoke the deployed account-deletion Server Action through the browser.
+10. Confirm Settings returns the recoverable deletion error.
+11. Confirm the account remains authenticated.
+12. Confirm the profile and synthetic canary data still exist.
+13. Remove `CADENCE_ACCOUNT_DELETION_FAILURE_CANARY_USER_ID` from production.
+14. Redeploy the same reviewed application with the canary unset.
+15. Delete the disposable account through the approved administrative or normal path.
+16. Verify that the disposable profile and every temporary record are gone.
+17. Record sanitized evidence without identifiers, tokens, payloads, secrets, or user data.
+18. Mark Ticket 100 `complete` only after every step passes.
 
 The repository owner is the incident rollback owner. A visibility rollback is
 appropriate only for an active incident. It cannot retract existing public
