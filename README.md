@@ -2,6 +2,8 @@
 
 This repository contains Cadence, a public, open-source personal behavior tracker. The implemented surfaces are the authenticated Next.js web app and the sibling Astro marketing site under `apps/marketing`.
 
+Canonical source: <https://github.com/emixd12/habit-tracking-app>
+
 Future agents should treat the docs as source-of-truth and use `STATUS.md` to understand what has actually been implemented.
 
 ## How to use
@@ -42,13 +44,20 @@ The target public-product architecture is documented in
 ## Agent checks
 
 ```bash
+npm ci
 npm run agents:check
+npm run interactions:check
 npm run resolvers:check
 npm run lint
 npm run typecheck
 npm run test
 npm run build
+npm run marketing:check
+npm run marketing:build
 ```
+
+These checks run without production credentials. Provider-backed smoke checks
+remain separate and require the environment described in `docs/OPERATIONS.md`.
 
 Provider workflows are CLI-first:
 
