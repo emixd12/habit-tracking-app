@@ -131,7 +131,7 @@ increment. Clean reset, 1,000 tests with one environment-gated skip, lint,
 typecheck, build, repository checks, and local advisors pass. No hosted action
 occurred.
 
-Ticket 098 is `complete` locally with release decision `FAIL`. Ticket 099 is
+Ticket 098 is `complete` with release decision `PASS`. Ticket 099 is
 `complete` locally. The repository owner monitors the security inbox. The
 sender accepted and retained exactly one authorized synthetic route-test
 message with sent status, and recipient-side inspection confirmed receipt at
@@ -139,10 +139,10 @@ the approved mailbox. The message landed in the junk folder, so monitoring
 filtered folders or maintaining appropriate allowlisting remains required.
 Ticket 100 is `not_started`. They define the public repository security gate,
 open-source license and private disclosure contract, and authorized GitHub
-publication sequence. Ticket 098 cannot pass until Tickets 079-083 and 093 are
-deployed and verified. The authorized private `main` history rewrite is
-complete. Ticket 100 remains blocked on passing Ticket 098 and explicit
-authorization for every repository or production mutation.
+publication sequence. Tickets 079-083 and 093 are deployed and verified. The
+authorized private `main` history rewrite is complete. Ticket 100 still
+requires separate explicit authorization for every repository or production
+mutation. The repository remains private.
 
 Tickets 101-103 are `not_started`. They complete the public Trust evidence
 pipeline: Ticket 101 defines the versioned evidence and freshness contract,
@@ -5784,192 +5784,60 @@ Rollout status:
 
 ## Public repository security release gate (Ticket 098)
 
-Status: complete locally. The audited release decision is FAIL.
+Status: complete. The audited release decision is PASS.
 
-Ticket 098 resumed after Ticket 099 for safe local dependency and privacy
-remediation. The owner later authorized one exact force-with-lease update of
-private GitHub `main`, seven hosted migrations, and one exact marketing
-production deployment. The owner then authorized the Next route correction
-commit, its fast-forward push, and the resulting web deployment. Those actions
-clear the remote-history, hosted-migration, and web-build blockers. The release
-decision remains `FAIL` because the first root-lock marketing corrective build
-failed before promotion. Its verified local PostCSS boundary fix is not
-committed or deployed.
-
-Implemented:
-
-- Added a sanitized source/history audit for Cadence-specific Supabase,
-  Sequenzy, VAPID, Google OAuth, AgentMail, Vercel, cron/process, database,
-  session, and private-key patterns. Client-source checks reject server-only
-  environment names in Next client and Astro source.
-- Added a complete Next/Astro artifact check with unique synthetic canaries.
-  Every declared public canary must appear in its allowed build. Cross-surface
-  public values, absent public values, and all server-only values fail.
-- Added a local public-schema catalog audit. It binds the 18 public relations
-  and 12 authenticated functions to the ordinary-user RLS smoke registry,
-  rejects unexpected views, anonymous policies or functions, missing RLS, and
-  unpinned security-definer search paths.
-- Extended the existing RLS smoke across every exposed relation. Ordinary
-  authenticated accounts attempt cross-account Data API reads and mutations.
-- Rewrote local `main` after explicit owner approval. The isolated rewrite
-  replaces the two audited private history values without changing commit
-  topology, messages, timestamps, names, or unrelated blobs and metadata.
-- Recorded the exact audited worktree, fresh production source identities,
-  hosted migration alignment, sanitized GitHub inventory, privileged callers,
-  dependency provenance, open risks, and explicit `FAIL` in
-  `docs/PUBLIC_REPOSITORY_RELEASE.md`.
+Ticket 098 cleared the public-repository security release gate. The audited
+executable commit is `6c07538f13df1a358bd8902383b9f109e4da0509` with parent
+`57171c3f17b32b83acd60b31a27938c856675731`. The commit containing this PASS
+record changes only `STATUS.md` and `docs/PUBLIC_REPOSITORY_RELEASE.md` from
+that executable commit. Its exact hash belongs in the external release
+handoff, which avoids a self-referential commit claim.
 
 Verification complete:
 
-- Pass: post-rewrite Gitleaks 8.30.1 scans covered rewritten local `main`, all
-  15 preserved local refs, and a private copy of every tracked and unignored
-  worktree path. All three returned no finding. The all-ref graph contains 164
-  unique reachable commits; rewritten base `main` retained 137 commits before
-  the release-candidate commit.
-- Pass: authenticated read-only GitHub inventory covered branches, tags,
-  issues, pull requests, comments, reviews, releases/assets, Actions
-  runs/logs/artifacts, wiki, Discussions, and Pages where those surfaces
-  existed. The GitHub CLI token was invalid, so the connector supplied this
-  coverage. The inventory itself made no GitHub mutation.
-- Pass: fresh Astro and Next webpack synthetic-canary builds. Six public
-  canaries had intended placements only. Ten server-only canaries were absent
-  from both complete artifact roots. The proof found 27 Next and 7 marketing
-  artifact-file placements. `npm run marketing:check` passed.
-- Pass: final `npm run public-source:check` reviewed 571 tracked and unignored
-  text files plus all-ref patch history. It found no credential pattern or
-  client environment violation.
-- Pass for local `main`: the isolated rewrite retained 137 commits and preserved
-  topology, messages, timestamps, author/committer names, and all unrelated
-  blobs and metadata. The prior values have zero occurrence in rewritten
-  branch blobs, patches, or author/committer metadata. Intended replacements
-  are present. One path changed across 27 commit trees, and rewritten HEAD
-  changes that path only.
-- Pass: the current immutable release-candidate commit is
-  `57171c3f17b32b83acd60b31a27938c856675731`, with parent
-  `ae3dae1c554ac389db715891abef1704ab648a8c`. The parent records the verified
-  150-entry worktree. The candidate adds the audited Next route-export fix and
-  its evidence. Local `main`, private GitHub `main`, and `origin/main` identify
-  this candidate. Both detached Codex worktrees remain unchanged.
-- Pass: the mode-700 recovery directory is
-  `/private/tmp/cadence-ticket098-history-rewrite-XTnslg`. Its mode-600
-  all-refs bundle, dirty patch, untracked archive, snapshots, and checksum
-  manifest passed verification. The bundle SHA-256 is
-  `e67ebb4d621226f1f611f8bbee1e2a8dd488067c7a14ed27e8a0fda228ef2fc3`.
-- Pass: clean `npm run supabase -- db reset`,
-  `npm run public-database:audit:local`, and `npm run smoke:rls:local`. The
-  smoke cleaned three temporary users and passed 92 ownership checks. Local
-  advisors reported no error-level finding.
-- Pass: authorized `npm audit --omit=dev` returned exit code 0 with 0 low, 0
-  moderate, 0 high, and 0 critical findings after Next.js and
-  `eslint-config-next` 16.3.3, Astro 7.2.6, esbuild 0.28.2, js-yaml 4.3.1,
-  nanoid 3.3.18, PostCSS 8.5.26, sharp 0.35.3, and SVGO 4.1.0 resolved.
-- Pass: Vite 8 accepts esbuild 0.28.x, so the narrow root override removes the
-  last low finding without crossing its peer range. Astro and Next retain
-  sharp and SVGO without direct marketing-workspace declarations.
-- Pass: the full `npm audit` also returned exit code 0 with zero findings.
-  Compatible lock refreshes resolved @astrojs/language-server 2.16.14,
-  volar-service-yaml 0.0.71, yaml-language-server 1.23.0, YAML 2.8.3 or newer,
-  fast-uri 3.1.6, and brace-expansion 1.1.18 and 5.0.9. No broad override or
-  forced install was used.
-- Pass: the root Node engine now requires 22.12.0 or newer without an
-  unsupported upper bound. Public setup, Operations, and Vercel guidance
-  recommend Node 24 to match both deployed projects.
-- Pass after the final source correction: `npm run agents:check`,
-  `npm run interactions:check`, `npm run resolvers:check`, `npm run lint`,
-  `npm run typecheck`, `npm run test` (130 files passed, 1 skipped; 1,008 tests
-  passed, 1 skipped), the focused settings test, the Next webpack production
-  build, `npm run marketing:build`, `npm run marketing:check`, and
-  `git diff --check`. The first full-test run failed only because the sandbox
-  denied a loopback fake-provider listener. The authorized rerun passed.
-- Pass: one final approved plain `npm ci` reproduced Next 16.3.3, Astro 7.2.6,
-  and the remediated transitive tree. `package.json`,
-  `apps/marketing/package.json`, and `package-lock.json` retained their exact
-  pre-install SHA-256 values.
-- Pass: the final status inventory contains no added screenshot or temporary
-  path.
-- Pass: the force-with-lease used the approved prior remote commit as its exact
-  lease. Pre-push and post-push reads matched the expected commits. Remote ref
-  inventory shows only `main` and no tags. No other branch or recovery ref was
-  created remotely.
-- Pass: a fresh private clone resolves to the immutable candidate with 139
-  commits. Exact scans found zero prior-target occurrence across reachable
-  blobs, patches, or author/committer metadata. Intended
-  replacements are present. Fresh-clone Gitleaks and public-source checks
-  returned zero finding, and seven required license, security, notice, README,
-  and release-policy files are present.
-- Pass: authenticated read-only GitHub inspection confirms that the repository
-  remains private and unarchived with `main` as its only branch and default
-  branch. The authorized push changed no tag, other ref, visibility, setting,
-  deployment, release, issue, pull request, or other hosted surface.
-- Pass: a fresh read-only GitHub snapshot after deployment confirms private,
-  unarchived visibility, exact remote `main`, one branch, no tags, no issues,
-  no pull requests, no releases, and no Actions runs. Wiki, Discussions, and
-  Pages remain disabled based on the authenticated repository inventory.
-- Pass: the seven tracked migrations were applied in order to the linked
-  hosted Supabase project. The remote boundary now ends at
-  `20260825080815_add_occurrence_sync_batch_order_index.sql`, and a final dry
-  run reports the remote database up to date.
-- Pass: hosted RLS smoke passed 92 ownership checks and cleaned three temporary
-  users. Hosted catalog evidence reports 18 RLS-enabled public relations, no
-  views, no anonymous policy or executable function, 12 authenticated
-  functions, and no unpinned security-definer function. Hosted advisors report
-  no error-level finding; 9 security and 31 performance warnings remain
-  documented.
-- Pass for source identity and public content: marketing deployment
-  `dpl_8aYoaAbPQ3rVE6tS3v2SWJBvCBQU` is `READY`, reports the candidate's parent
-  commit and `apps/marketing` root, retains the canonical
-  `cadence-marketing-two.vercel.app` alias, and serves all 19 audited public
-  endpoints successfully.
-- Observation: the canonical and project domains remain. Vercel automatically
-  removed the prior per-user branch alias during the production deployment.
-  Ticket 098 made no domain or project-setting request.
-- Fail for marketing dependency provenance: the healthy production deployment
-  still uses its prior subtree-only dependency graph. The project now uses
-  Root Directory `apps/marketing` with outside-root source inclusion enabled.
-  The first monorepo-root corrective build consumed the root workspace and
-  lockfile, then failed before promotion because Vite discovered the root web
-  app PostCSS config while the marketing-scoped install correctly omitted its
-  Tailwind plugin.
-- Pass for the minimal local marketing boundary: an inline empty PostCSS plugin
-  list in the existing Astro config prevents root config discovery without
-  adding a dependency. A clean temporary workspace-only install reproduced the
-  Vercel failure before the change and built five static pages after it. The
-  marketing check passed with zero diagnostics, both marketing audits returned
-  zero findings, and all three dependency-file checksums stayed unchanged.
-- Pass after the local boundary fix: `npm run marketing:build`,
-  `npm run marketing:check`, both root dependency audits,
-  `npm run public-source:check`, `npm run agents:check`,
-  `npm run interactions:check`, `npm run resolvers:check`, lint, typecheck,
-  1,008 tests with one skipped test, the Next webpack production build,
-  Gitleaks diff scan, and `git diff --check`. The first test run failed only
-  because the sandbox denied its loopback fake-provider listener. The
-  authorized rerun passed.
-- Pass for the minimal Next correction: moved `SettingsPanelGrid` and
-  `SettingsProfile` from the App Router page into the existing settings
-  component module. The page now exports only allowed route symbols. The
-  focused test, typecheck, lint, webpack production build, and synthetic-
-  canary artifact proof pass. Commit
-  `57171c3f17b32b83acd60b31a27938c856675731` contains the correction. Private
-  GitHub `main` and the `READY` web deployment identify that commit, and its
-  default Next 16.3.3 Turbopack build passed.
-- Managed-environment limitation: exact `npm run build` cannot pass locally
-  because Turbopack receives `EPERM` while binding its internal loopback port.
-  The same command failed for both Ticket 098 agents after escalation. The
-  passing webpack build proves the corrected source compiles and typechecks.
-  The Vercel web deployment supplied the required default-build proof.
+- Pass: private GitHub `main` contains the authorized history rewrite and the
+  executable commit. The repository remains private and unarchived. It has one
+  branch, no tags, no issues, no pull requests, no releases, and no Actions
+  runs. Wiki, Discussions, and Pages remain disabled.
+- Pass: Gitleaks 8.30.1 and the Cadence public-source checker found no secret,
+  private-recipient, history-metadata, or client-environment finding. The fresh
+  executable clone contains 140 commits and all required policy files.
+- Pass: clean dependency installation reproduced Next 16.3.3, Astro 7.2.6,
+  esbuild 0.28.2, PostCSS 8.5.26, sharp 0.35.3, and SVGO 4.1.0 without changing
+  either manifest or the root lockfile. Full and production-only npm audits
+  returned zero findings.
+- Pass: all repository checks, lint, typecheck, 1,008 tests with one skipped
+  test, the exact Next 16.3.3 Turbopack build, the Astro build, and the Astro
+  check passed. Six public canaries had intended placements only. Ten
+  server-only canaries were absent. Final placement counts were 20 Next and 23
+  marketing artifact files.
+- Pass: a clean local Supabase reset applied all 33 migrations through
+  `20260825080815_add_occurrence_sync_batch_order_index.sql`. The catalog audit
+  covered 18 RLS-enabled public tables and 12 authenticated functions. Local
+  RLS smoke passed 92 ownership checks and cleaned three temporary users.
+- Pass: hosted migration and catalog reads match local state. The linked
+  project has no pending migration. Hosted RLS smoke evidence remains valid
+  because no schema or RLS source changed. The bounded final window forbade
+  deleting hosted data, so the gate reused that already-passed 92-check smoke
+  instead of creating new fixtures.
+- Pass: production web deployment `dpl_3KGt9dNUy2bg1UxtMdLWDakqDBSZ` is READY
+  at the executable commit. Vercel ran the default Next Turbopack build. All
+  audited public and authenticated-route boundaries responded as expected.
+- Pass: production marketing deployment `dpl_7gLBemWhZ9WuaUujD2npwu62JUGd`
+  is READY at the executable commit. It consumed the committed root workspace,
+  lockfile, and overrides, resolved esbuild 0.28.2, and completed the Astro
+  build. All 19 audited public endpoints returned HTTP 200.
+- Pass: the inline Astro PostCSS boundary keeps marketing independent from the
+  web application's Tailwind plugin while preserving one root lockfile and one
+  override policy. The canonical aliases and domains remain unchanged.
+- Pass: the recovery directory remains mode 700 at
+  `/private/tmp/cadence-ticket098-history-rewrite-XTnslg`. Its mode-600 bundle
+  and backups remain intact. Detached worktrees and old local objects were not
+  pruned.
 
-Publication blockers:
-
-- The local marketing PostCSS boundary and these evidence updates must belong
-  to a new immutable commit.
-- Marketing production must deploy that commit from the monorepo root, consume
-  the committed root lockfile and overrides, and pass fresh dependency and
-  source verification.
-- The complete gate must be rerun against that new immutable commit. The two
-  evidence documents and marketing Astro config are currently uncommitted.
-
-Ticket 098 cannot pass until the blockers are resolved and every evidence step
-is rerun against the exact proposed commit and fresh repository metadata.
+Release decision: PASS. Ticket 100 may begin only after separate explicit
+authorization. This pass does not authorize public visibility, repository
+settings changes, or any provider send.
 
 ## Open-source license and disclosure contract (Ticket 099)
 
@@ -6051,8 +5919,9 @@ Verification:
   provider identifier, message header, message content, vulnerability detail,
   credential, user data, or behavioral content was recorded.
 
-Publication remains blocked independently by Ticket 098's `FAIL`. The one
-authorized synthetic route-test email was Ticket 099's only recipient mutation.
+Ticket 098 now passes. Ticket 100 remains `not_started` and still requires
+separate explicit authorization. The one authorized synthetic route-test
+email was Ticket 099's only recipient mutation.
 Ticket 099 made no GitHub, deployment, publication, commit, or push mutation.
 Ticket 098 later performed the separately authorized private `main` rewrite.
 
