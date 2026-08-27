@@ -52,8 +52,9 @@ export async function collectRouteCandidates({ origin, candidates, fetcher, verc
 }
 
 export function marketingContracts(manifest) {
-  if (!Array.isArray(manifest) || manifest.length > MAX_ROUTES) throw new Error("Marketing manifest exceeds the route limit.");
-  return manifest.flatMap((entry) => [
+  const routes = manifest?.schema_version === 1 && Array.isArray(manifest.routes) ? manifest.routes : null;
+  if (!routes || routes.length > MAX_ROUTES) throw new Error("Marketing manifest exceeds the route limit or has an unsupported shape.");
+  return routes.flatMap((entry) => [
     { path: new URL(entry.url).pathname, status: 200, content_type: "text/html", marker: `<title>${entry.title}`, canonical: entry.canonical_url },
     ...(entry.include_in_markdown_mirror ? [{ path: new URL(entry.markdown_url).pathname, status: 200, content_type: "text/markdown", marker: `canonical_url: ${entry.canonical_url}` }] : []),
   ]);
