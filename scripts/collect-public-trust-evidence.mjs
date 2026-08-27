@@ -94,12 +94,22 @@ async function githubFacts(input) {
     return response.json();
   };
   const [code, checks, secrets, dependabot, repo] = await Promise.all([get("code-scanning/alerts?state=open&per_page=1"), get(`commits/${input.source_commit}/check-runs?per_page=100`), get("secret-scanning/alerts?state=open&per_page=1"), get("dependabot/alerts?state=open&per_page=1"), get("")]);
-  const codeqlComplete = checks?.check_runs?.some((run) => run.name === "CodeQL" && run.status === "completed" && run.conclusion === "success") ?? false;
+  const codeqlComplete = codeqlAnalysisComplete(checks?.check_runs);
   return {
     code_scanning: code === null || checks === null ? null : { open: code.length, analysis_complete: codeqlComplete },
     dependabot: dependabot === null ? null : { open: dependabot.length },
     secret_scanning: secrets === null ? null : { open: secrets.length, enabled: repo?.security_and_analysis?.secret_scanning?.status === "enabled", push_protection: repo?.security_and_analysis?.secret_scanning_push_protection?.status === "enabled" },
   };
+}
+
+export function codeqlAnalysisComplete(checkRuns) {
+  if (!Array.isArray(checkRuns)) return false;
+  const analyses = checkRuns.filter(
+    (run) => run?.name === "CodeQL" || /^Analyze \([^)]+\)$/.test(run?.name ?? ""),
+  );
+  return analyses.length > 0 && analyses.every(
+    (run) => run.status === "completed" && run.conclusion === "success",
+  );
 }
 
 function safeCountFact(value, scope, tool) {
