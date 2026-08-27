@@ -1152,6 +1152,8 @@ first. Name the exact source commit, Ready application deployment, and Ready
 marketing deployment. Select `run_rls` only when the owner authorizes
 disposable hosted users. After Preview passes, repeat with the protected
 `public-trust-production` environment and matching Production deployments.
+Production collection binds each configured public origin to the exact named
+deployment through the deployment's Vercel alias inventory before fetching it.
 The daily schedule resolves the latest Ready Production deployments. It reuses
 an unexpired RLS result only while all three release subjects still match.
 

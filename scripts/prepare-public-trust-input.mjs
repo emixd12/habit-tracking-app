@@ -45,6 +45,10 @@ async function main() {
   const marketing = process.env.TRUST_MARKETING_DEPLOYMENT_ID
     ? { id: process.env.TRUST_MARKETING_DEPLOYMENT_ID, url: process.env.TRUST_MARKETING_DEPLOYMENT_URL }
     : await latestDeployment(process.env.VERCEL_MARKETING_PROJECT_ID);
+  if (process.env.TRUST_TARGET !== "preview") {
+    application.url = process.env.APPLICATION_PRODUCTION_ORIGIN;
+    marketing.url = process.env.MARKETING_PRODUCTION_ORIGIN;
+  }
   const verifiedAt = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   const compact = verifiedAt.replace(/[-:]/g, "").replace(".000", "");
   const pagesOrigin = process.env.TRUST_PAGES_ORIGIN;

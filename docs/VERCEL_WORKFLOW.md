@@ -449,3 +449,7 @@ protected deployment. The collector uses the resulting cookie only while
 requesting the allowlisted Preview routes. It never stores the bypass in the
 snapshot, details file, Actions artifact, logs, or GitHub secret inventory.
 Production collection does not create a bypass.
+
+Production collection requests each configured public Production origin only
+after the Vercel API confirms that origin is an alias on the exact named Ready
+deployment. It does not follow an immutable deployment host across origins.
