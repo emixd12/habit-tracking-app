@@ -6,10 +6,11 @@ import { validatePublicTrustEvidence } from "../lib/resolvers/public-trust-evide
 import { boundedFetch } from "./public-trust-http.mjs";
 import { validatePublicTrustDetails } from "./publish-public-trust-evidence.mjs";
 
-export async function downloadPublicTrustHistory({ origin, outputDirectory, fetcher = fetch }) {
+export async function downloadPublicTrustHistory({ origin, outputDirectory, fetcher = fetch, allowEmpty = false }) {
   const base = origin.endsWith("/") ? origin : `${origin}/`;
   const index = await boundedFetch(origin, new URL("trust/snapshots.json", base).toString(), { fetcher });
   if (index.response.status === 404) {
+    if (!allowEmpty) throw new Error("Public Trust history is missing; empty initialization was not authorized.");
     await mkdir(outputDirectory, { recursive: true });
     return 0;
   }
@@ -43,7 +44,7 @@ export async function downloadPublicTrustHistory({ origin, outputDirectory, fetc
 
 async function main() {
   const value = (name) => process.argv[process.argv.indexOf(name) + 1];
-  await downloadPublicTrustHistory({ origin: value("--origin"), outputDirectory: value("--output") });
+  await downloadPublicTrustHistory({ origin: value("--origin"), outputDirectory: value("--output"), allowEmpty: process.argv.includes("--allow-empty") });
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) main().catch((error) => { console.error(error.message); process.exitCode = 1; });

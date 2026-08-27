@@ -21,7 +21,9 @@ async function validSubject(failed = false) {
 describe("public Trust publication", () => {
   it("creates an empty history directory for the first Pages publication", async () => {
     const output = path.join(await mkdtemp(path.join(os.tmpdir(), "cadence-trust-")), "history");
-    expect(await downloadPublicTrustHistory({ origin: "https://pages.example/project", outputDirectory: output, fetcher: async () => new Response("missing", { status: 404 }) })).toBe(0);
+    const fetcher = async () => new Response("missing", { status: 404 });
+    await expect(downloadPublicTrustHistory({ origin: "https://pages.example/project", outputDirectory: output, fetcher })).rejects.toThrow(/not authorized/);
+    expect(await downloadPublicTrustHistory({ origin: "https://pages.example/project", outputDirectory: output, fetcher, allowEmpty: true })).toBe(0);
     await expect(stat(output)).resolves.toMatchObject({});
   });
 
