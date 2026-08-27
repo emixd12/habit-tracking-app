@@ -19,12 +19,14 @@ export function getLlmsTxt(): string {
     "- [Example bundle](/examples.md): Sanitized sample bundle for inspection.",
     "",
     "## Machine-Readable Files",
+    `- [Trust evidence](${siteConfig.trustEvidenceUrl}): Normalized current results for all nine public checks.`,
     "- [Route manifest](/data/route-manifest.json): Canonical route data used by generated outputs.",
     "- [Full text bundle](/llms-full.txt): Small scoped text dump with page boundaries.",
     "- [Sitemap](/sitemap.xml): Canonical HTML routes.",
     "- [Robots](/robots.txt): Crawl policy and sitemap pointer.",
     "",
     "## Project Links",
+    `- [Trust](${siteConfig.trustUrl}): Durable commitments and current bounded verification results.`,
     `- [Cadence repository](${siteConfig.githubUrl}): Product implementation.`,
     `- [Try Cadence](${siteConfig.cadenceAppUrl}/login): Authenticated web app.`,
     `- [BehaviorLog Bundle repository](${siteConfig.standardUrl}): Upstream standard.`,
@@ -49,6 +51,8 @@ export function getLlmsFullTxt(): string {
     `Generated from route manifest. Last updated: ${siteConfig.lastModified}.`,
     "",
     "This file is intentionally small. Prefer the per-route Markdown files when targeting one page.",
+    `Canonical Trust page: ${siteConfig.trustUrl}`,
+    `Normalized Trust evidence: ${siteConfig.trustEvidenceUrl}`,
     "",
   ];
 

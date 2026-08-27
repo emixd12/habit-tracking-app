@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export type LegalPageKey = "privacy" | "terms" | "trust";
 
 type LegalSection = Readonly<{
@@ -96,7 +98,7 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
     title: "Trust",
     summary:
       "The app is designed around manual truth, account isolation, portability, and small product scope.",
-    updated: "June 19, 2026",
+    updated: "August 27, 2026",
     sections: [
       {
         title: "Manual truth",
@@ -132,8 +134,10 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
 
 export function LegalPageContent({
   pageKey,
+  children,
 }: Readonly<{
   pageKey: LegalPageKey;
+  children?: ReactNode;
 }>) {
   const page = LEGAL_PAGES[pageKey];
 
@@ -175,6 +179,8 @@ export function LegalPageContent({
           {page.summary}
         </p>
       </header>
+
+      {children}
 
       <div className="grid divide-y divide-line">
         {page.sections.map((section) => (

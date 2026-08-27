@@ -1147,6 +1147,12 @@ Update `STATUS.md` when a ticket starts, completes, becomes blocked, is reopened
 Do not use `STATUS.md` to expand v1 product scope. Put future ideas in `docs/FUTURE_UPDATES.md` unless the user explicitly changes v1 scope.
 ## Ticket 102 Public Trust publication
 
+For a release that changes the Trust consumer, deploy marketing first. Set the
+application project's `CADENCE_TRUST_MARKETING_DEPLOYMENT_ID` to that Ready
+deployment, then deploy the application. Dispatch Production evidence against
+the resulting merge commit and both Ready deployment IDs. Until that snapshot
+is public, the consumer must show older Passed results as Stale.
+
 Run `.github/workflows/public-trust-evidence.yml` manually against Preview
 first. Name the exact source commit, Ready application deployment, and Ready
 marketing deployment. Select `run_rls` only when the owner authorizes

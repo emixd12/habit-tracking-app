@@ -12,6 +12,8 @@ The Astro marketing site uses a max-visibility public posture:
 - User-triggered fetchers: allowed for public marketing content.
 - Public machine-readable files such as `/llms.txt`, `/llms-full.txt`,
   `.md` mirrors, `/data/route-manifest.json`, and `/sitemap.xml`: allowed.
+- The canonical app `/trust` page and `/api/public/trust-evidence` machine
+  route: allowed and linked from marketing agent outputs.
 - Authenticated app routes and user data: excluded by architecture and auth,
   not by robots rules.
 

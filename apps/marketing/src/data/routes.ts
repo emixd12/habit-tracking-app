@@ -121,6 +121,8 @@ This route is optimized for coding agents, retrieval tools, and developers evalu
 
 ## Machine Files
 
+- ${siteConfig.trustUrl} is the canonical human Trust page.
+- ${siteConfig.trustEvidenceUrl} is the normalized current Trust evidence route.
 - /llms.txt is the curated agent index.
 - /llms-full.txt contains scoped page text for this small marketing site.
 - /data/route-manifest.json is the source route manifest exposed as JSON.

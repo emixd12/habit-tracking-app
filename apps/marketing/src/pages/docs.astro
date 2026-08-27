@@ -15,6 +15,8 @@ const agentRuleSnippet = JSON.stringify(
   2,
 );
 const machineFiles = [
+  [siteConfig.trustUrl, "Canonical human Trust page with durable commitments and current verification results."],
+  [siteConfig.trustEvidenceUrl, "Normalized current Trust evidence as JSON."],
   ["/llms.txt", "Curated index for working agents and developer tools."],
   ["/llms-full.txt", "Small full-site text bundle with page boundaries."],
   ["/data/route-manifest.json", "Public route manifest used by generators."],
@@ -62,6 +64,7 @@ const docsRoadmap = [
         <div class="ledger-row">
           <h2 id="quick-start-title">Quick start</h2>
           <ul class="text-list">
+            <li>Open <a class="inline-link" href={siteConfig.trustUrl}>Trust</a> for current bounded verification results and durable product commitments.</li>
             <li>Open <a class="inline-link" href="/">Cadence</a> for product scope and user-facing behavior.</li>
             <li>Open <a class="inline-link" href={siteConfig.standardUrl}>BehaviorLog</a> for bundle structure and status semantics.</li>
             <li>Download the <a class="inline-link" href={primaryCtas.downloadExample.href}>example bundle</a> for parser tests.</li>

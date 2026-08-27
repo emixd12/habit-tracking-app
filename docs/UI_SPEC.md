@@ -761,6 +761,8 @@ Show:
 - Trust, Privacy, and Terms links for public-product account context
 - Account deletion with export acknowledgement and typed confirmation
 
+The public `/trust` page keeps durable product commitments separate from current verification evidence. It always shows all nine checks with text and symbols, exact UTC timestamps, scope, limits, and immutable evidence links. Passed requires a valid, fresh snapshot for the current source commit and both deployments. Feed failures show a validated cached copy as Stale, or Unavailable when no validated copy exists.
+
 Timezone detection should use the browser/OS timezone exposed by `Intl.DateTimeFormat().resolvedOptions().timeZone`; do not request geolocation or location permission. Settings should present one native select of IANA timezones whose selected value is the stored timezone; the select is the only "current timezone" display, with no separate stored or browser-detected value rows. When the detected browser timezone differs from the current selection, show a single quiet Detected line with an inline Use detected timezone action; when they match or detection is unavailable, show nothing. If the browser cannot enumerate timezones, fall back to manual IANA timezone entry. Before submit, Settings should state that saving a timezone updates the profile and active behavior schedules, then resyncs future unresolved occurrences while preserving past and resolved history.
 
 Do not include a test notification button in v1.
