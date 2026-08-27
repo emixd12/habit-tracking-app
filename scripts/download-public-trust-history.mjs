@@ -9,7 +9,10 @@ import { validatePublicTrustDetails } from "./publish-public-trust-evidence.mjs"
 export async function downloadPublicTrustHistory({ origin, outputDirectory, fetcher = fetch }) {
   const base = origin.endsWith("/") ? origin : `${origin}/`;
   const index = await boundedFetch(origin, new URL("trust/snapshots.json", base).toString(), { fetcher });
-  if (index.response.status === 404) return 0;
+  if (index.response.status === 404) {
+    await mkdir(outputDirectory, { recursive: true });
+    return 0;
+  }
   if (index.response.status !== 200) throw new Error("Unable to read the existing public snapshot index.");
   const urls = JSON.parse(index.body.toString("utf8"));
   if (!Array.isArray(urls) || urls.length > 1_000) throw new Error("Existing snapshot index exceeds the retention bound.");
