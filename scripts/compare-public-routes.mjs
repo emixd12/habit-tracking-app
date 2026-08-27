@@ -54,7 +54,7 @@ export async function collectRouteCandidates({ origin, candidates, fetcher }) {
 export function marketingContracts(manifest) {
   if (!Array.isArray(manifest) || manifest.length > MAX_ROUTES) throw new Error("Marketing manifest exceeds the route limit.");
   return manifest.flatMap((entry) => [
-    { path: new URL(entry.url).pathname, status: 200, content_type: "text/html", marker: `<title>${entry.title}`, canonical: new URL(entry.canonical_url).pathname },
+    { path: new URL(entry.url).pathname, status: 200, content_type: "text/html", marker: `<title>${entry.title}`, canonical: entry.canonical_url },
     ...(entry.include_in_markdown_mirror ? [{ path: new URL(entry.markdown_url).pathname, status: 200, content_type: "text/markdown", marker: `canonical_url: ${entry.canonical_url}` }] : []),
   ]);
 }

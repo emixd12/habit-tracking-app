@@ -18,11 +18,19 @@ describe("public integrity manifest", () => {
     expect(result.status).toBe("failed");
   });
 
-  it("rejects redirects to a non-Cadence origin", async () => {
-    await expect(buildIntegrityManifest({
+  it("records redirects outside the allowlisted origin as Failed evidence", async () => {
+    const result = await buildIntegrityManifest({
       assets: [{ surface: "application", path: "/asset", content_type: "text/plain" }], origins: { application: "https://cadence.example" }, fetchedAt: "2026-08-26T12:00:00Z",
       fetcher: async () => new Response(null, { status: 302, headers: { location: "https://attacker.example/asset" } }),
-    })).rejects.toThrow(/allowlisted origin/);
+    });
+    expect(result.status).toBe("failed");
+    expect(result.entries[0]).toMatchObject({ status: 0, ok: false, final_url: "https://cadence.example/asset" });
+  });
+
+  it("records a rejected bounded fetch as Failed evidence", async () => {
+    const result = await buildIntegrityManifest({ assets: [{ surface: "application", path: "/asset", content_type: "text/plain" }], origins: { application: "https://cadence.example" }, fetchedAt: "2026-08-26T12:00:00Z", fetcher: async () => { throw new Error("synthetic timeout"); } });
+    expect(result.status).toBe("failed");
+    expect(result.entries[0]).toMatchObject({ status: 0, bytes: 0, sha256: null, ok: false });
   });
 
   it("rejects private and loopback origins before fetching", async () => {

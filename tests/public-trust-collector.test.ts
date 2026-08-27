@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error Operational JavaScript module intentionally has no declarations.
-import { aggregateAudit, aggregateSbom, buildSnapshot, readHostedMigrationBoundary } from "../scripts/collect-public-trust-evidence.mjs";
+import { aggregateAudit, aggregateSbom, buildSnapshot, codeScanningFact, readHostedMigrationBoundary } from "../scripts/collect-public-trust-evidence.mjs";
 
 const input = JSON.parse(readFileSync("tests/fixtures/public-trust-collector/input.json", "utf8"));
 
@@ -44,5 +44,11 @@ describe("public Trust collector", () => {
       projectRef: "abcdefghijklmnopqrst",
       fetchImpl: async () => new Response(JSON.stringify([{ version: "not-a-boundary" }]), { status: 201 }),
     })).toBeNull();
+  });
+
+  it("does not pass CodeQL before the named commit analysis succeeds", () => {
+    const tool = { name: "GitHub CodeQL", version: "1" };
+    expect(codeScanningFact({ open: 0, analysis_complete: false }, "scope", tool).status).toBe("not_run");
+    expect(codeScanningFact({ open: 0, analysis_complete: true }, "scope", tool).status).toBe("passed");
   });
 });

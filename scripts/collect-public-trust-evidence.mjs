@@ -87,9 +87,10 @@ async function githubFacts(input) {
     if (!response.ok) return null;
     return response.json();
   };
-  const [code, secrets, dependabot, repo] = await Promise.all([get("code-scanning/alerts?state=open&per_page=1"), get("secret-scanning/alerts?state=open&per_page=1"), get("dependabot/alerts?state=open&per_page=1"), get("")]);
+  const [code, checks, secrets, dependabot, repo] = await Promise.all([get("code-scanning/alerts?state=open&per_page=1"), get(`commits/${input.source_commit}/check-runs?per_page=100`), get("secret-scanning/alerts?state=open&per_page=1"), get("dependabot/alerts?state=open&per_page=1"), get("")]);
+  const codeqlComplete = checks?.check_runs?.some((run) => run.name === "CodeQL" && run.status === "completed" && run.conclusion === "success") ?? false;
   return {
-    code_scanning: code === null ? null : { open: code.length },
+    code_scanning: code === null || checks === null ? null : { open: code.length, analysis_complete: codeqlComplete },
     dependabot: dependabot === null ? null : { open: dependabot.length },
     secret_scanning: secrets === null ? null : { open: secrets.length, enabled: repo?.security_and_analysis?.secret_scanning?.status === "enabled", push_protection: repo?.security_and_analysis?.secret_scanning_push_protection?.status === "enabled" },
   };
@@ -99,6 +100,12 @@ function safeCountFact(value, scope, tool) {
   if (!value) return { status: "unavailable", scope, tool, summary: "The provider did not expose a safe aggregate result.", unavailable_reason: "The workflow token could not read this aggregate provider result." };
   const passed = value.open === 0 && value.enabled !== false && value.push_protection !== false;
   return { status: passed ? "passed" : "failed", scope, tool, summary: passed ? "The configured provider check reported zero open results." : "The configured provider check reported an adverse aggregate result.", unavailable_reason: null };
+}
+
+export function codeScanningFact(value, scope, tool) {
+  if (!value) return { status: "unavailable", scope, tool, summary: "The provider did not expose a safe aggregate result.", unavailable_reason: "The workflow token could not read the aggregate alert and commit analysis results." };
+  if (!value.analysis_complete) return { status: "not_run", scope, tool, summary: "CodeQL has not completed successfully for the named source commit.", unavailable_reason: null };
+  return { status: value.open === 0 ? "passed" : "failed", scope, tool, summary: value.open === 0 ? "CodeQL completed for the named commit and reported zero open repository alerts." : "CodeQL completed for the named commit and the repository has an adverse aggregate result.", unavailable_reason: null };
 }
 
 export async function readHostedMigrationBoundary({ accessToken, projectRef, fetchImpl = fetch }) {
@@ -191,7 +198,7 @@ async function liveFacts(input) {
   const facts = {
     source_to_deployment_provenance: { status: provenance?.passed ? "passed" : "failed", scope: "Both named Ready Vercel deployments and their public Git commit metadata.", tool: tool("Vercel REST API"), summary: provenance?.passed ? "Both Ready deployments name the expected source commit." : "The named deployments are not both Ready from the expected source commit." },
     production_dependency_vulnerabilities: { status: auditCounts.total === 0 && github.dependabot?.open === 0 ? "passed" : github.dependabot ? "failed" : "unavailable", scope: "Production dependencies declared by the lockfile, npm advisory data, and Dependabot status.", tool: tool("npm audit", process.env.npm_config_user_agent?.split("/")[1]?.split(" ")[0] ?? "unknown"), summary: `SBOM has ${sbomSummary.components} components with SHA-256 ${sbomSummary.sha256}; audit totals: ${auditCounts.total} (${auditCounts.critical} critical, ${auditCounts.high} high, ${auditCounts.moderate} moderate, ${auditCounts.low} low); Dependabot ${github.dependabot ? `open aggregate ${github.dependabot.open}` : "aggregate unavailable"}.`, unavailable_reason: github.dependabot ? null : "The workflow token could not read the Dependabot aggregate result." },
-    code_scanning: safeCountFact(github.code_scanning, "Configured GitHub code-scanning analyzers for the named public repository.", tool("GitHub CodeQL")),
+    code_scanning: codeScanningFact(github.code_scanning, "Configured GitHub code-scanning analyzers for the named public repository and source commit.", tool("GitHub CodeQL")),
     secret_scanning: safeCountFact(github.secret_scanning, "GitHub secret scanning and push protection for the named public repository.", tool("GitHub secret scanning")),
     public_artifact_integrity: { status: integrity.status, scope: `${integrity.entries.length} allowlisted public application and marketing assets.`, tool: tool("SHA-256"), summary: `${integrity.entries.filter((entry) => entry.ok).length} of ${integrity.entries.length} public assets matched status, type, size, and digest bounds.` },
     application_live_route_comparison: { status: routes.application.status, scope: `${routes.application.checked} explicit unauthenticated application route contracts.`, tool: tool("Cadence route comparator"), summary: `${routes.application.checked - routes.application.failures.length} of ${routes.application.checked} application routes matched the registry.` },

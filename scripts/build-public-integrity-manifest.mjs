@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
-import { boundedFetch } from "./public-trust-http.mjs";
+import { allowedUrl, boundedFetch } from "./public-trust-http.mjs";
 
 export async function buildIntegrityManifest({ assets, origins, fetchedAt, fetcher, maxAssets = 32, localRoot = new URL("..", import.meta.url) }) {
   if (!Array.isArray(assets) || assets.length === 0 || assets.length > maxAssets) throw new Error("Asset count is outside the bounded allowlist.");
@@ -10,12 +10,17 @@ export async function buildIntegrityManifest({ assets, origins, fetchedAt, fetch
   for (const asset of assets) {
     const origin = origins[asset.surface];
     if (!origin) throw new Error(`Missing allowlisted origin for ${asset.surface}.`);
-    const { response, body, finalUrl } = await boundedFetch(origin, asset.path, { fetcher });
-    const contentType = response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "";
-    const digest = createHash("sha256").update(body).digest("hex");
-    const expectedDigest = asset.local_path ? createHash("sha256").update(await readFile(new URL(asset.local_path, localRoot))).digest("hex") : asset.sha256;
-    const ok = response.status === 200 && contentType === asset.content_type && (!expectedDigest || expectedDigest === digest);
-    entries.push({ path: asset.path, surface: asset.surface, status: response.status, content_type: contentType, bytes: body.length, sha256: digest, final_url: finalUrl, verified_at: fetchedAt, ok });
+    const targetUrl = allowedUrl(origin, asset.path).toString();
+    try {
+      const { response, body, finalUrl } = await boundedFetch(origin, asset.path, { fetcher });
+      const contentType = response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "";
+      const digest = createHash("sha256").update(body).digest("hex");
+      const expectedDigest = asset.local_path ? createHash("sha256").update(await readFile(new URL(asset.local_path, localRoot))).digest("hex") : asset.sha256;
+      const ok = response.status === 200 && contentType === asset.content_type && (!expectedDigest || expectedDigest === digest);
+      entries.push({ path: asset.path, surface: asset.surface, status: response.status, content_type: contentType, bytes: body.length, sha256: digest, final_url: finalUrl, verified_at: fetchedAt, ok });
+    } catch {
+      entries.push({ path: asset.path, surface: asset.surface, status: 0, content_type: "", bytes: 0, sha256: null, final_url: targetUrl, verified_at: fetchedAt, ok: false });
+    }
   }
   return { status: entries.every((entry) => entry.ok) ? "passed" : "failed", entries };
 }
