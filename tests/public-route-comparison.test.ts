@@ -23,7 +23,11 @@ describe("public route comparison", () => {
   });
 
   it("preserves the configured canonical host when collection uses an immutable deployment", () => {
-    const [route] = marketingContracts([{ url: "https://preview.example/page", canonical_url: "https://www.example.com/page", markdown_url: "https://preview.example/page.md", include_in_markdown_mirror: false, title: "Page" }]);
+    const [route] = marketingContracts({ schema_version: 1, routes: [{ url: "https://preview.example/page", canonical_url: "https://www.example.com/page", markdown_url: "https://preview.example/page.md", include_in_markdown_mirror: false, title: "Page" }] });
     expect(route.canonical).toBe("https://www.example.com/page");
+  });
+
+  it("rejects a bare route array instead of bypassing the generated manifest envelope", () => {
+    expect(() => marketingContracts([])).toThrow(/unsupported shape/);
   });
 });
