@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cadence.example/schemas/public-trust-evidence.schema.json",
+  "title": "Cadence public trust evidence",
+  "description": "A sanitized immutable snapshot. Results describe only the bounded checks and scope limits declared here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "snapshot_id", "snapshot_url", "source_commit", "application_deployment", "marketing_deployment", "workflow_run", "built_at", "verified_at", "freshness_deadline", "checks"],
+  "properties": {
+    "schema": { "const": "cadence.public-trust-evidence" },
+    "schema_version": { "const": 1, "type": "integer" },
+    "snapshot_id": { "type": "string", "pattern": "^20[0-9]{6}T[0-9]{6}Z-[0-9a-f]{12}$" },
+    "snapshot_url": { "$ref": "#/$defs/immutableEvidenceUrl" },
+    "source_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "application_deployment": { "$ref": "#/$defs/deployment" },
+    "marketing_deployment": { "$ref": "#/$defs/deployment" },
+    "workflow_run": { "$ref": "#/$defs/deployment" },
+    "built_at": { "$ref": "#/$defs/timestamp" },
+    "verified_at": { "$ref": "#/$defs/timestamp" },
+    "freshness_deadline": { "$ref": "#/$defs/timestamp" },
+    "checks": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": { "$ref": "#/$defs/check" }
+    }
+  },
+  "$defs": {
+    "timestamp": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "immutableEvidenceUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://(?:github\\.com/[^?#]+/(?:blob/[0-9a-f]{40}/|actions/runs/[0-9]+)|[A-Za-z0-9-]+\\.github\\.io/[^?#]+)"
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "url"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" },
+        "url": { "type": "string", "format": "uri", "pattern": "^https://" }
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "scope", "scope_limit", "tool", "completed_at", "freshness_deadline", "summary", "unavailable_reason", "evidence_url", "source_commit", "application_deployment_id", "marketing_deployment_id"],
+      "properties": {
+        "id": { "enum": ["source_to_deployment_provenance", "production_dependency_vulnerabilities", "code_scanning", "secret_scanning", "public_artifact_integrity", "application_live_route_comparison", "marketing_live_route_comparison", "hosted_migration_boundary", "cross_account_rls_isolation"] },
+        "status": { "enum": ["passed", "failed", "stale", "not_run", "unavailable"] },
+        "scope": { "type": "string", "minLength": 8, "maxLength": 500 },
+        "scope_limit": { "type": "string", "minLength": 8, "maxLength": 500 },
+        "tool": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": { "name": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 } }
+        },
+        "completed_at": { "type": ["string", "null"], "format": "date-time" },
+        "freshness_deadline": { "type": ["string", "null"], "format": "date-time" },
+        "summary": { "type": "string", "minLength": 8, "maxLength": 500 },
+        "unavailable_reason": { "type": ["string", "null"], "minLength": 8 },
+        "evidence_url": { "$ref": "#/$defs/immutableEvidenceUrl" },
+        "source_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "application_deployment_id": { "type": "string" },
+        "marketing_deployment_id": { "type": "string" }
+      }
+    }
+  },
+  "x-check-definitions": {
+    "source_to_deployment_provenance": { "meaning": "The named source commit produced both named production deployments.", "scope_limit": "It does not prove that later configuration or provider state is unchanged." },
+    "production_dependency_vulnerabilities": { "meaning": "The named commit's production dependencies completed the declared vulnerability check.", "scope_limit": "It covers declared production dependencies and the tool's data at completion time only." },
+    "code_scanning": { "meaning": "The named commit completed the repository's configured code-scanning checks.", "scope_limit": "It covers configured analyzers and rules only and cannot establish the absence of defects." },
+    "secret_scanning": { "meaning": "The named commit completed the repository's available secret-scanning check.", "scope_limit": "It covers patterns and repository history visible to the configured platform only." },
+    "public_artifact_integrity": { "meaning": "The named commit's generated public artifacts match their declared manifests and sanitization rules.", "scope_limit": "It covers generated public files, not private operational records or live-route availability." },
+    "application_live_route_comparison": { "meaning": "The required application routes on the named production deployment matched the declared route contract.", "scope_limit": "It covers the sampled routes and responses at completion time, not every authenticated workflow." },
+    "marketing_live_route_comparison": { "meaning": "The required marketing routes on the named production deployment matched the declared route contract.", "scope_limit": "It covers declared marketing routes at completion time, not every external cache or network path." },
+    "hosted_migration_boundary": { "meaning": "The hosted database migration boundary matched the named source commit's migration history.", "scope_limit": "It proves migration-history alignment only, not correctness of user-owned data." },
+    "cross_account_rls_isolation": { "meaning": "Disposable accounts could not read or mutate each other's tested rows through ordinary authenticated clients.", "scope_limit": "It covers only the tested tables and operations at completion time." }
+  },
+  "x-freshness-hours": {
+    "source_to_deployment_provenance": 24,
+    "production_dependency_vulnerabilities": 168,
+    "code_scanning": 168,
+    "secret_scanning": 168,
+    "public_artifact_integrity": 24,
+    "application_live_route_comparison": 24,
+    "marketing_live_route_comparison": 24,
+    "hosted_migration_boundary": 24,
+    "cross_account_rls_isolation": 168
+  }
+}

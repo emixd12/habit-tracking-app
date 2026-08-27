@@ -324,3 +324,15 @@ PRs #11 and #12 merged through protected `main`. Exact `main` push CI run 27
 passed. Required conversation resolution is enabled and was read back as
 active. The temporary canary variable is unset. No lasting domain, environment,
 secret, billing, plan, installed-app, or real-user-data setting changed.
+## Ticket 102 GitHub Pages boundary
+
+Ticket 102 uses GitHub Pages only for workflow-artifact evidence. It does not
+commit generated evidence to `main` or a Pages branch. Pages must use GitHub
+Actions as its source. Enabling Pages remains an owner-authorized repository
+mutation. The workflow grants Pages and OIDC writes, read-only repository
+content, and read-only security-event access.
+
+Keep CodeQL, Dependabot, secret scanning, and push protection enabled. When an
+API cannot expose a safe aggregate, the snapshot records Unavailable. The
+workflow never publishes raw alerts, scanner matches, advisory notes,
+repository administration payloads, credentials, or production user data.

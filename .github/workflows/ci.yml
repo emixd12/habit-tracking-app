@@ -36,6 +36,8 @@ jobs:
       - name: Verify complete Git history
         run: test "$(git rev-parse --is-shallow-repository)" = "false"
       - run: npm run public-source:check
+      - run: npm run public-trust:check
+      - run: npm run public-trust:fixtures
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test

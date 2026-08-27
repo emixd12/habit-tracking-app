@@ -35,11 +35,17 @@ the apex `/`.
 | Route | Status | Purpose | Notes |
 |---|---|---|---|
 | `/` | implemented in Astro marketing app | Cadence-led landing page that introduces BehaviorLog as the open portability standard | Includes Try Cadence, Read BehaviorLog, Download Example Bundle, View on GitHub, and Log in CTAs. |
-| `/cadence` | implemented in Astro marketing app | Product page for the tracker | Uses sanitized product captures and links to the authenticated web app. |
-| `/standard` | implemented in Astro marketing app | BehaviorLog Bundle overview and adoption case, surfaced in navigation as BehaviorLog | Points to the upstream BehaviorLog Bundle repository. |
+| `/faq` | implemented in Astro marketing app | Frequently asked questions | Covers Cadence philosophy, privacy, time tracking, and BehaviorLog portability. |
 | `/docs` | implemented in Astro marketing app | Technical docs entry point for Cadence, BehaviorLog, machine-readable mirrors, and future docs structure | Links to Markdown mirrors, `llms.txt`, `llms-full.txt`, route manifest, sitemap, robots, example bundle, and future docs map. |
 | `/examples` | implemented in Astro marketing app | Sanitized sample BehaviorLog bundle page | Downloads a build-generated `.behaviorlog.zip` that passes the pinned BehaviorLog reference validator. |
 | `/about` | implemented in Astro marketing app | Philosophy, governance, scope boundaries, and open-source posture | No desktop/mobile teaser, billing, AI, analytics, or marketing-cookie scope. |
+
+Marketing compatibility redirects:
+
+| Route | Status | Destination | Notes |
+|---|---|---|---|
+| `/cadence` | implemented redirect | `/` | No dedicated page, manifest entry, sitemap entry, or Markdown mirror. |
+| `/standard` | implemented redirect | `/` | No dedicated page, manifest entry, sitemap entry, or Markdown mirror. The homepage links to the upstream BehaviorLog repository. |
 
 Marketing machine-readable routes:
 

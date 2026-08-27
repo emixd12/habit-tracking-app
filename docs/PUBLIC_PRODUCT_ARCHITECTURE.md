@@ -113,11 +113,14 @@ Launch routes:
 | Route | Purpose |
 |---|---|
 | `/` | Cadence-led landing page that introduces BehaviorLog as the open portability standard |
-| `/cadence` | Product page for the tracker |
-| `/standard` | BehaviorLog Bundle overview and adoption case, surfaced in navigation as BehaviorLog |
+| `/faq` | Frequently asked questions about Cadence philosophy, privacy, time tracking, and BehaviorLog portability |
 | `/docs` | Technical docs entry point for Cadence, BehaviorLog, machine-readable mirrors, and future docs structure |
 | `/examples` | Sanitized sample bundle page |
 | `/about` | Philosophy, governance, scope boundaries, and open-source posture |
+
+`/cadence` and `/standard` are compatibility redirects to `/`. They are not
+dedicated pages and do not appear in the manifest, sitemap, Markdown mirrors,
+or `llms-full.txt`.
 
 Primary calls to action:
 
@@ -139,12 +142,9 @@ Marketing posture:
 - BehaviorLog is the open bundle standard and portability layer Cadence writes
   and reads. It should be explained in the same manner as a technical base
   layer or open package, not as the primary site brand.
-- `/standard` remains the stable route, but visible navigation may label it
-  BehaviorLog for clarity.
-- Launch header navigation shows only Cadence and BehaviorLog route links plus
-  Log in. About is linked from the footer. Docs and Examples stay available by
-  direct URL, machine-readable mirrors, and in-page content links rather than
-  top navigation.
+- The header shows the Cadence brand link and Log in. About and FAQ are linked
+  from the footer. Docs and Examples stay available by direct URL,
+  machine-readable mirrors, and in-page content links.
 - `/docs` should grow toward a familiar developer-docs structure: Guides,
   Reference, Examples, Agent policy, and Schema history, while preserving
   Markdown mirrors, route manifests, `llms.txt`, and static HTML.
@@ -247,6 +247,30 @@ Security reports use the dedicated private email named in `SECURITY.md`.
 GitHub private vulnerability reporting becomes a secondary route after Ticket
 100 enables it. Do not publish a security defect through an issue or marketing
 surface before coordinated remediation.
+
+## Public Trust evidence
+
+`schemas/public-trust-evidence.schema.json` is the versioned machine contract
+for every public Trust check. The release evidence workflow owns publishing.
+The pure resolver validates snapshots and derives freshness for scripts and
+future Trust consumers.
+
+Each immutable snapshot names one source commit, application deployment,
+marketing deployment, workflow run, build time, verification time, and
+freshness deadline. Retain every published snapshot at its commit- or
+workflow-run-pinned URL. GitHub Pages paths must include the workflow run and
+both deployment IDs. `latest.json` may point to the newest valid snapshot, but
+it must not replace or mutate an older snapshot.
+
+Consumers show all nine required checks. They keep Failed, Not run, and
+Unavailable results visible. They derive Stale when a Passed check exceeds its
+fixed check-specific deadline or when any named source or deployment differs
+from the current release. Validation derives each deadline from its completion
+time, so a new snapshot cannot extend an old result.
+
+Public evidence contains sanitized aggregates and public identifiers only. It
+is bounded operational evidence and establishes no assurance beyond each
+check's stated meaning and scope limit.
 
 ## Desktop and mobile relationship
 

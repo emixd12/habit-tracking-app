@@ -1,18 +1,22 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { runnerImport } from "vite";
 
 import { hasMainLandmark } from "./agent-readability-html.mjs";
 
 const root = process.cwd();
 const dist = join(root, "dist");
+const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const failures = [];
 const warnings = [];
 
 if (!existsSync(dist)) {
   fail("Marketing dist directory is missing. Run `npm run build` in apps/marketing first.");
 } else {
-  checkBuiltOutput();
+  await checkBuiltOutput();
 }
 
 if (failures.length > 0) {
@@ -24,7 +28,7 @@ if (failures.length > 0) {
 console.log("marketing agent-readability check passed.");
 for (const warning of warnings) console.warn(`warning: ${warning}`);
 
-function checkBuiltOutput() {
+async function checkBuiltOutput() {
   const requiredFiles = [
     "index.html",
     "faq/index.html",
@@ -107,8 +111,64 @@ function checkBuiltOutput() {
     assert(!html.includes("googletagmanager"), `${htmlFile} must not include tag manager.`);
   }
 
+  for (const [htmlFile, markdownFile] of [
+    ["index.html", "index.md"],
+    ["faq/index.html", "faq.md"],
+    ["examples/index.html", "examples.md"],
+    ["docs/index.html", "docs.md"],
+    ["about/index.html", "about.md"],
+  ]) {
+    assertPrivacyClaimParity(htmlFile, markdownFile);
+  }
+
   const bundleSize = statSync(join(dist, "examples/cadence-demo.behaviorlog.zip")).size;
   assert(bundleSize > 0, "Example BehaviorLog bundle must not be empty.");
+  await assertExampleBundleImports();
+}
+
+async function assertExampleBundleImports() {
+  const viteConfig = {
+    configFile: false,
+    root: repositoryRoot,
+    resolve: { alias: { "@": repositoryRoot } },
+  };
+  const [{ module: importer }, { module: zipService }] = await Promise.all([
+    runnerImport("./lib/resolvers/behaviorlog-import.resolver.ts", viteConfig),
+    runnerImport("./lib/services/zip.ts", viteConfig),
+  ]);
+  const zip = readFileSync(join(dist, "examples/cadence-demo.behaviorlog.zip"));
+  const preview = importer.resolveBehaviorLogImportPreview({
+    files: zipService.readZipEntries(zip),
+  });
+
+  assert(preview.valid, "Example BehaviorLog bundle must pass Cadence import preview.");
+  assert(preview.errors.length === 0, "Example BehaviorLog bundle must import with zero errors.");
+  assert(preview.summary.skipCount === 0, "Example BehaviorLog bundle must import with zero skips.");
+  assert(
+    preview.plan.behaviors.length === 1 &&
+      preview.plan.behaviors.every((record) => record.action === "create"),
+    "Example BehaviorLog bundle must create its behavior without skips.",
+  );
+  assert(
+    preview.plan.schedules.length === 1 &&
+      preview.plan.schedules.every((record) => record.action === "create"),
+    "Example BehaviorLog bundle must create its schedule without skips.",
+  );
+}
+
+function assertPrivacyClaimParity(htmlFile, markdownFile) {
+  const markdown = normalizeText(read(markdownFile));
+  const claims = [...read(htmlFile).matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
+    .map((match) => normalizeText(stripHtml(match[1])))
+    .filter((claim) =>
+      /(privacy|cookies?|analytics|tracking|real account|reminder-provider|Supabase Auth|Row Level Security)/i.test(
+        claim,
+      ),
+    );
+
+  for (const claim of claims) {
+    assert(markdown.includes(claim), `${markdownFile} is missing HTML data-handling claim: ${claim}`);
+  }
 }
 
 function read(relativePath) {
@@ -121,6 +181,23 @@ function countMatches(value, pattern) {
 
 function containsSecretLikeText(value) {
   return /(sk-[a-z0-9_-]{20,}|service_role|private[_-]?key\s*=|password\s*=|api[_-]?key\s*=)/i.test(value);
+}
+
+function stripHtml(value) {
+  let text = "";
+  let insideTag = false;
+  for (const character of value) {
+    if (character === "<") insideTag = true;
+    else if (character === ">") {
+      insideTag = false;
+      text += " ";
+    } else if (!insideTag) text += character;
+  }
+  return text;
+}
+
+function normalizeText(value) {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function assert(condition, message) {

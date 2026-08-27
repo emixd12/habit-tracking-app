@@ -75,7 +75,7 @@ helpful for machine-readable files.
    agent-oriented index.
 3. Choose **Open route manifest** for `/data/route-manifest.json`.
 4. Follow the listed links for `llms-full.txt`, Markdown mirrors such as
-   `/cadence.md`, or related public resources.
+   `/faq.md`, or related public resources.
 5. Use **Cadence**, **BehaviorLog**, the example bundle, and related Docs links
    to move between the human-readable and machine-readable explanations.
 
@@ -158,4 +158,3 @@ authentication; its public Privacy page lists stored product and provider data.
 the external provider returns, focus begins in the Cadence page normally. If
 you use browser zoom or a screen magnifier, confirm the account shown by Google
 before continuing.
-

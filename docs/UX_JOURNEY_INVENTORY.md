@@ -93,7 +93,7 @@ Steps:
 
 1. Land on the Astro marketing homepage.
 2. Identify Cadence as the product and BehaviorLog as the portability standard.
-3. Open `/cadence`, `/standard`, `/examples`, or `/docs` based on intent.
+3. Open `/faq`, `/examples`, or `/docs` based on intent.
 4. Choose Try Cadence, Log in, Read BehaviorLog, Download Example Bundle, or
    View on GitHub.
 

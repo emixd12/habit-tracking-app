@@ -116,6 +116,12 @@ const resolverRegistry = [
     test: "tests/imported-intervention-promotion.test.ts",
     source: "docs/NOTIFICATION_SPEC.md",
   },
+  {
+    domain: "public trust evidence",
+    resolver: "lib/resolvers/public-trust-evidence.resolver.ts",
+    test: "tests/public-trust-evidence.resolver.test.ts",
+    source: "schemas/public-trust-evidence.schema.json",
+  },
 ];
 
 const guide = read("docs/AGENT_RESOLVERS.md");

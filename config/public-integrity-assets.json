@@ -1,0 +1,11 @@
+{
+  "max_assets": 16,
+  "assets": [
+    { "surface": "application", "path": "/push-service-worker.js", "content_type": "application/javascript", "local_path": "public/push-service-worker.js" },
+    { "surface": "application", "path": "/brand/cadence-logo.png", "content_type": "image/png", "local_path": "public/brand/cadence-logo.png" },
+    { "surface": "marketing", "path": "/robots.txt", "content_type": "text/plain", "local_path": "apps/marketing/dist/robots.txt" },
+    { "surface": "marketing", "path": "/llms.txt", "content_type": "text/plain", "local_path": "apps/marketing/dist/llms.txt" },
+    { "surface": "marketing", "path": "/data/route-manifest.json", "content_type": "application/json", "local_path": "apps/marketing/dist/data/route-manifest.json" },
+    { "surface": "marketing", "path": "/examples/cadence-demo.behaviorlog.zip", "content_type": "application/zip", "local_path": "apps/marketing/dist/examples/cadence-demo.behaviorlog.zip" }
+  ]
+}

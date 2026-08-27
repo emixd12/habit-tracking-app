@@ -1,0 +1,54 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+// @ts-expect-error Operational JavaScript module intentionally has no declarations.
+import { aggregateAudit, aggregateSbom, buildSnapshot, codeScanningFact, readHostedMigrationBoundary } from "../scripts/collect-public-trust-evidence.mjs";
+
+const input = JSON.parse(readFileSync("tests/fixtures/public-trust-collector/input.json", "utf8"));
+
+describe("public Trust collector", () => {
+  it("builds one valid deterministic snapshot with immutable Pages evidence paths", () => {
+    const facts = Object.fromEntries([
+      "source_to_deployment_provenance", "production_dependency_vulnerabilities", "code_scanning", "secret_scanning", "public_artifact_integrity", "application_live_route_comparison", "marketing_live_route_comparison", "hosted_migration_boundary", "cross_account_rls_isolation",
+    ].map((id) => [id, { status: "passed", scope: "A bounded deterministic fixture check.", tool: { name: "fixture", version: "1" }, summary: "The deterministic fixture check passed." }]));
+    const snapshot = buildSnapshot({ ...input, facts });
+    expect(snapshot.checks).toHaveLength(9);
+    expect(snapshot.snapshot_url).toContain("/123456789/dpl_application/dpl_marketing/");
+  });
+
+  it("publishes only aggregate audit counts and a stable SBOM digest", () => {
+    expect(aggregateAudit(input.fixture.audit).total).toBe(0);
+    expect(aggregateSbom(input.fixture.sbom).sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("reads only the hosted migration boundary through the read-only Management API", async () => {
+    let request: { url?: string; query?: string } = {};
+    const boundary = await readHostedMigrationBoundary({
+      accessToken: "secret",
+      projectRef: "abcdefghijklmnopqrst",
+      fetchImpl: async (url: string, init: RequestInit) => {
+        request = { url, query: JSON.parse(String(init.body)).query };
+        return new Response(JSON.stringify([{ version: "20260825080815" }]), { status: 201 });
+      },
+    });
+    expect(boundary).toBe("20260825080815");
+    expect(request.url).toContain("/database/query/read-only");
+    expect(request.query).toContain("supabase_migrations.schema_migrations");
+  });
+
+  it("rejects invalid project references and migration responses", async () => {
+    const neverFetch = async () => { throw new Error("must not fetch"); };
+    expect(await readHostedMigrationBoundary({ accessToken: "secret", projectRef: "invalid", fetchImpl: neverFetch })).toBeNull();
+    expect(await readHostedMigrationBoundary({
+      accessToken: "secret",
+      projectRef: "abcdefghijklmnopqrst",
+      fetchImpl: async () => new Response(JSON.stringify([{ version: "not-a-boundary" }]), { status: 201 }),
+    })).toBeNull();
+  });
+
+  it("does not pass CodeQL before the named commit analysis succeeds", () => {
+    const tool = { name: "GitHub CodeQL", version: "1" };
+    expect(codeScanningFact({ open: 0, analysis_complete: false }, "scope", tool).status).toBe("not_run");
+    expect(codeScanningFact({ open: 0, analysis_complete: true }, "scope", tool).status).toBe("passed");
+  });
+});

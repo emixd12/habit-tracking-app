@@ -933,6 +933,34 @@ npm run interactions:check
 The interaction validator is also invoked from `npm run agents:check`, so new
 interactive source files cannot silently bypass the inventory.
 
+## Public Trust evidence contract
+
+Run `npm run public-trust:check` before publishing or consuming a Trust
+snapshot. `schemas/public-trust-evidence.schema.json` owns the versioned public
+shape. `lib/resolvers/public-trust-evidence.resolver.ts` owns validation,
+sanitization gates, exact subject matching, and freshness normalization.
+
+The release evidence workflow owns collection and publication. It must retain
+all nine checks, including Failed, Not run, and Unavailable. Store snapshots at
+immutable commit- or workflow-run-pinned public URLs. GitHub Pages paths must
+contain the workflow run and both deployment IDs. Retain published snapshots
+indefinitely. A replaceable `latest.json` pointer may select the newest valid
+snapshot, but it never changes retained snapshots.
+
+Collectors must name the exact source commit, application deployment,
+marketing deployment, and workflow run. They must never copy a prior result
+under a new subject. The contract fixes each deadline from completion time:
+24 hours for provenance, public artifact, live-route, and migration checks;
+seven days for dependency, code-scanning, secret-scanning, and RLS checks.
+Consumers inject the current subject and time. They derive Stale for an expired
+or mismatched Passed result and never hide missing or adverse results.
+
+Only publish counts, digests, public dependency names, public route paths, and
+sanitized public identifiers. Never publish scanner details, private repository
+metadata, credentials, headers, user identifiers, behavioral data, notes,
+provider payloads, or private hostnames. Ticket 101 defines and tests this
+contract only. It does not run a production check or publish evidence.
+
 ## Public repository release audit
 
 Ticket 098 is an evidence-only gate. It never changes repository visibility,
@@ -1117,3 +1145,39 @@ publication.
 Update `STATUS.md` when a ticket starts, completes, becomes blocked, is reopened, or materially changes scope. Record verification commands with real pass/fail results.
 
 Do not use `STATUS.md` to expand v1 product scope. Put future ideas in `docs/FUTURE_UPDATES.md` unless the user explicitly changes v1 scope.
+## Ticket 102 Public Trust publication
+
+Run `.github/workflows/public-trust-evidence.yml` manually against Preview
+first. Name the exact source commit, Ready application deployment, and Ready
+marketing deployment. Select `run_rls` only when the owner authorizes
+disposable hosted users. After Preview passes, repeat with the protected
+`public-trust-production` environment and matching Production deployments.
+The daily schedule resolves the latest Ready Production deployments. It reuses
+an unexpired RLS result only while all three release subjects still match.
+
+The protected environments own `VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN`,
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and
+`SUPABASE_SERVICE_ROLE_KEY`. Environment variables own both Vercel project
+IDs, the team ID, Supabase project reference, the Pages origin, and scheduled Production origins. Rotate a
+secret at its provider, replace the Actions environment secret, then dispatch
+Preview before Production. Never print raw provider responses or credentials.
+
+The workflow validates the schema and detail sanitization before staging a
+Pages artifact. It restores every indexed immutable snapshot, adds one path
+containing the workflow run ID and both Vercel deployment IDs, and changes
+`latest.json` in the same Pages deployment. An adverse check publishes a
+Failed snapshot and then fails the workflow. A schema, sanitization, history,
+or provider-input failure deploys nothing. Snapshots and detail files remain
+indefinitely addressable.
+
+Preview is a dry run. It retains the validated collection as a private Actions
+artifact and never changes GitHub Pages or the public `latest.json`. Only an
+explicit Production run or the Production schedule enters the Pages job.
+
+For failure triage, inspect the sanitized snapshot and failing workflow step.
+Fix the release or provider outage, then dispatch a new run. Do not edit old
+evidence. A provider outage becomes Unavailable only when collection can still
+produce valid sanitized evidence. Otherwise the prior Pages deployment stays
+active. Roll Pages back by redeploying the last valid Pages artifact. Never
+delete an immutable snapshot. After rollback, verify `trust/latest.json` in an
+unauthenticated browser before resuming the schedule.

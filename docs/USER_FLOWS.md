@@ -21,13 +21,14 @@ Implemented public marketing routes in the Astro site under `apps/marketing`:
 
 - `/`: Cadence-led landing page that introduces BehaviorLog as the open
   portability standard
-- `/cadence`: product page for the tracker
-- `/standard`: BehaviorLog Bundle overview and adoption case, surfaced in
-  navigation as BehaviorLog
+- `/faq`: frequently asked questions about product philosophy, privacy, time
+  tracking, and BehaviorLog portability
 - `/docs`: technical docs entry point for Cadence, BehaviorLog,
   machine-readable mirrors, and future docs structure
 - `/examples`: sanitized sample bundle page
 - `/about`: philosophy, governance, scope boundaries, and open-source posture
+
+`/cadence` and `/standard` redirect to `/`; neither is a dedicated page.
 
 Primary actions:
 
