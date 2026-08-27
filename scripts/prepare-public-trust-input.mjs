@@ -9,6 +9,33 @@ async function latestDeployment(projectId) {
   return { id: deployment.uid, url: `https://${deployment.url}` };
 }
 
+async function temporaryPreviewBypass(deploymentId) {
+  const team = process.env.VERCEL_TEAM_ID ? `?teamId=${encodeURIComponent(process.env.VERCEL_TEAM_ID)}` : "";
+  const response = await fetch(`https://api.vercel.com/aliases/${encodeURIComponent(deploymentId)}/protection-bypass${team}`, {
+    method: "PATCH",
+    headers: { authorization: `Bearer ${process.env.VERCEL_TOKEN}`, "content-type": "application/json" },
+    body: JSON.stringify({ ttl: 3600 }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error("Unable to create a temporary Preview access boundary.");
+  const values = Object.keys((await response.json()).protectionBypass ?? {});
+  if (values.length !== 1) throw new Error("Vercel did not return one temporary Preview access boundary.");
+  return values[0];
+}
+
+async function verifyDeploymentOwner(deployment, projectId) {
+  const team = process.env.VERCEL_TEAM_ID ? `?teamId=${encodeURIComponent(process.env.VERCEL_TEAM_ID)}` : "";
+  const response = await fetch(`https://api.vercel.com/v13/deployments/${encodeURIComponent(deployment.id)}${team}`, {
+    headers: { authorization: `Bearer ${process.env.VERCEL_TOKEN}` },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error("Unable to verify a named Vercel deployment.");
+  const value = await response.json();
+  if (value.projectId !== projectId || new URL(deployment.url).hostname !== value.url) {
+    throw new Error("A named Vercel deployment does not belong to the expected Cadence project.");
+  }
+}
+
 async function main() {
   const value = (name) => process.argv[process.argv.indexOf(name) + 1];
   const sourceCommit = process.env.TRUST_SOURCE_COMMIT || process.env.GITHUB_SHA;
@@ -36,6 +63,14 @@ async function main() {
     marketing_deployment: marketing,
     workflow_run: { id: process.env.GITHUB_RUN_ID, url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` }
   };
+  if (process.env.TRUST_TARGET === "preview") {
+    await verifyDeploymentOwner(application, process.env.VERCEL_APPLICATION_PROJECT_ID);
+    await verifyDeploymentOwner(marketing, process.env.VERCEL_MARKETING_PROJECT_ID);
+    input.preview_bypass = {
+      application: await temporaryPreviewBypass(application.id),
+      marketing: await temporaryPreviewBypass(marketing.id),
+    };
+  }
   await writeFile(value("--output"), `${JSON.stringify(input)}\n`, { mode: 0o600 });
 }
 

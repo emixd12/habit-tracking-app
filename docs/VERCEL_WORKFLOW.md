@@ -443,3 +443,9 @@ Git-to-deployment association. It does not cover private function bundles,
 later environment changes, aliases, or provider internals. The workflow keeps
 Vercel Git deployment unchanged and needs only a protected read token plus the
 existing project and team identifiers.
+
+Preview collection creates a one-hour Vercel share bypass for each named
+protected deployment. The collector uses the resulting cookie only while
+requesting the allowlisted Preview routes. It never stores the bypass in the
+snapshot, details file, Actions artifact, logs, or GitHub secret inventory.
+Production collection does not create a bypass.

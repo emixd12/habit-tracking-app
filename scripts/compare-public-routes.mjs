@@ -24,11 +24,11 @@ export function compareObservedRoutes(declared, observed) {
   return { status: failures.length ? "failed" : "passed", checked: declared.length, failures };
 }
 
-export async function collectRoutes({ origin, routes, fetcher }) {
+export async function collectRoutes({ origin, routes, fetcher, vercelShare }) {
   if (!Array.isArray(routes) || routes.length === 0 || routes.length > MAX_ROUTES) throw new Error("Route count is outside the bounded allowlist.");
   const observed = [];
   for (const route of routes) {
-    const { response, body, finalUrl } = await boundedFetch(origin, route.path, { fetcher, followRedirects: false });
+    const { response, body, finalUrl } = await boundedFetch(origin, route.path, { fetcher, followRedirects: false, vercelShare });
     const contentType = response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "";
     let reason = "";
     if (response.status !== route.status) reason = `expected status ${route.status}, received ${response.status}`;
@@ -41,11 +41,11 @@ export async function collectRoutes({ origin, routes, fetcher }) {
   return { observed, ...compareObservedRoutes(routes, observed) };
 }
 
-export async function collectRouteCandidates({ origin, candidates, fetcher }) {
+export async function collectRouteCandidates({ origin, candidates, fetcher, vercelShare }) {
   if (!Array.isArray(candidates) || candidates.length > MAX_ROUTES) throw new Error("Candidate route count exceeds the bounded allowlist.");
   const failures = [];
   for (const candidate of candidates) {
-    const { response } = await boundedFetch(origin, candidate.path, { fetcher, followRedirects: false });
+    const { response } = await boundedFetch(origin, candidate.path, { fetcher, followRedirects: false, vercelShare });
     if (response.status !== candidate.status) failures.push(`${candidate.path}: undeclared live public route candidate returned ${response.status}`);
   }
   return failures;

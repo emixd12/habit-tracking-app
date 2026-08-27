@@ -1173,6 +1173,9 @@ indefinitely addressable.
 Preview is a dry run. It retains the validated collection as a private Actions
 artifact and never changes GitHub Pages or the public `latest.json`. Only an
 explicit Production run or the Production schedule enters the Pages job.
+Protected Preview deployments receive one-hour share bypasses during input
+preparation. The collector exchanges each bypass for a short-lived cookie and
+does not include either value in validated or uploaded evidence.
 
 For failure triage, inspect the sanitized snapshot and failing workflow step.
 Fix the release or provider outage, then dispatch a new run. Do not edit old
