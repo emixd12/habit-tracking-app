@@ -193,12 +193,7 @@ function stripHtml(value) {
       text += " ";
     } else if (!insideTag) text += character;
   }
-  return text
-    .replaceAll("&amp;", "&")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">");
+  return text;
 }
 
 function normalizeText(value) {
