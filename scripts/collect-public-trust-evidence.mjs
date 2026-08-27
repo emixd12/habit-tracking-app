@@ -23,6 +23,12 @@ export function aggregateSbom(sbom) {
   return { sha256: createHash("sha256").update(bytes).digest("hex"), components: Array.isArray(sbom.components) ? sbom.components.length : 0 };
 }
 
+export function deploymentOwnsOrigin(value, deployment, projectId) {
+  const hostname = new URL(deployment.url).hostname;
+  const aliases = Array.isArray(value.alias) ? value.alias.map((item) => typeof item === "string" ? item : item?.domain).filter(Boolean) : [];
+  return value.projectId === projectId && [value.url, ...aliases].includes(hostname);
+}
+
 function runJson(command, args, allowedStatuses = [0]) {
   const result = spawnSync(command, args, { cwd: ROOT, encoding: "utf8", maxBuffer: 32 * 1024 * 1024, env: process.env });
   if (result.error || !allowedStatuses.includes(result.status)) throw new Error(`${command} collector failed.`);
@@ -135,7 +141,7 @@ async function liveFacts(input) {
       const response = await fetch(`https://api.vercel.com/v13/deployments/${encodeURIComponent(deployment.id)}${query}`, { headers, signal: AbortSignal.timeout(10_000) });
       if (!response.ok) throw new Error("Vercel could not verify an allowlisted deployment origin.");
       const value = await response.json();
-      if (value.projectId !== projectId || new URL(deployment.url).hostname !== value.url) throw new Error("A collection origin does not belong to the named Cadence Vercel project and deployment.");
+      if (!deploymentOwnsOrigin(value, deployment, projectId)) throw new Error("A collection origin does not belong to the named Cadence Vercel project and deployment.");
       return { ready: value.readyState === "READY", commit: value.meta?.githubCommitSha ?? value.gitSource?.sha ?? null };
     };
     const [application, marketing] = await Promise.all([

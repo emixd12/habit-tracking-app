@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error Operational JavaScript module intentionally has no declarations.
-import { aggregateAudit, aggregateSbom, buildSnapshot, codeScanningFact, readHostedMigrationBoundary } from "../scripts/collect-public-trust-evidence.mjs";
+import { aggregateAudit, aggregateSbom, buildSnapshot, codeScanningFact, deploymentOwnsOrigin, readHostedMigrationBoundary } from "../scripts/collect-public-trust-evidence.mjs";
 
 const input = JSON.parse(readFileSync("tests/fixtures/public-trust-collector/input.json", "utf8"));
 
@@ -50,5 +50,11 @@ describe("public Trust collector", () => {
     const tool = { name: "GitHub CodeQL", version: "1" };
     expect(codeScanningFact({ open: 0, analysis_complete: false }, "scope", tool).status).toBe("not_run");
     expect(codeScanningFact({ open: 0, analysis_complete: true }, "scope", tool).status).toBe("passed");
+  });
+
+  it("binds a public Production alias to the exact named Vercel deployment", () => {
+    const deployment = { url: "https://app.example" };
+    expect(deploymentOwnsOrigin({ projectId: "prj_app", url: "immutable.example", alias: ["app.example"] }, deployment, "prj_app")).toBe(true);
+    expect(deploymentOwnsOrigin({ projectId: "prj_other", url: "immutable.example", alias: ["app.example"] }, deployment, "prj_app")).toBe(false);
   });
 });
