@@ -28,8 +28,8 @@ const TIMELINE_BANNER_IMAGES = {
     height: 239,
   },
   mobile: {
-    src: "/brand/cadence-timeline-horse-lines-dots-mobile.png",
-    width: 2134,
+    src: "/brand/cadence-timeline-horse-lines-dots-mobile-right-18.png",
+    width: 1423,
     height: 367,
   },
 } as const;
@@ -101,7 +101,7 @@ function TimelineBanner() {
   const sharedImageProps = {
     alt: "",
     "aria-hidden": true,
-    className: "block h-full w-full object-fill",
+    className: "block h-full w-full object-fill lg:mt-1",
     fetchPriority: "high",
     loading: "eager",
     sizes: "100vw",
@@ -123,7 +123,7 @@ function TimelineBanner() {
 
   return (
     <div className="w-full overflow-hidden bg-background">
-      <div className="relative aspect-[2134/367] w-full sm:aspect-[2041/239]">
+      <div className="relative aspect-[1423/367] w-full sm:aspect-[2041/239]">
         <picture className="block h-full w-full">
           <source
             media="(max-width: 639px)"
