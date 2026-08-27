@@ -79,6 +79,7 @@ NEXT_PUBLIC_MARKETING_SITE_URL=
 MARKETING_SITE_URL=
 PUBLIC_CADENCE_APP_URL=
 CADENCE_PERF_LOG=0
+CADENCE_TRUST_MARKETING_DEPLOYMENT_ID=
 ```
 
 Rules:
@@ -105,6 +106,10 @@ Rules:
 - `CADENCE_PERF_LOG=1` is an optional short-term Production sampling flag for
   privacy-safe server timing spans. It is not a secret, but it should be enabled
   deliberately and reviewed through sanitized Vercel runtime logs.
+- `CADENCE_TRUST_MARKETING_DEPLOYMENT_ID` belongs to the application project
+  and names the current Ready marketing deployment. The app combines it with
+  Vercel's source-commit and application-deployment system variables before a
+  Trust check can remain Passed.
 
 ## Supabase Auth
 

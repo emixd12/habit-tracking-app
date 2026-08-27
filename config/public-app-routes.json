@@ -5,6 +5,7 @@
     { "path": "/privacy", "status": 200, "content_type": "text/html", "marker": "Privacy" },
     { "path": "/terms", "status": 200, "content_type": "text/html", "marker": "Terms" },
     { "path": "/trust", "status": 200, "content_type": "text/html", "marker": "Trust" },
+    { "path": "/api/public/trust-evidence", "status": 200, "content_type": "application/json", "marker": "cadence.public-trust-view" },
     { "path": "/timeline", "status": 307, "location": "/login?next=%2Ftimeline" },
     { "path": "/behaviors", "status": 307, "location": "/login?next=%2Fbehaviors" },
     { "path": "/export", "status": 307, "location": "/login?next=%2Fexport" },

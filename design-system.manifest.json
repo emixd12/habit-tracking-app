@@ -354,6 +354,20 @@
       "notes": "Settings link panel for public Terms, Privacy, and Trust routes."
     },
     {
+      "id": "module.trust-evidence-panel",
+      "name": "TrustEvidencePanel",
+      "kind": "module",
+      "source": "components/trust/TrustEvidencePanel.tsx",
+      "exportName": "TrustEvidencePanel",
+      "usageNames": [
+        "TrustEvidencePanel"
+      ],
+      "benchAnchor": "design-system#ds-module-trust-evidence-panel",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Public Trust verification ledger for all normalized evidence states."
+    },
+    {
       "id": "module.status-buttons",
       "name": "StatusButtons",
       "kind": "module",

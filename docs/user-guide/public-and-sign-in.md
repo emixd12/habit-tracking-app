@@ -102,7 +102,11 @@ be opened before sign-in or from Settings after sign-in.
 1. On the sign-in screen, choose **Terms**, **Privacy**, or **Trust**.
 2. On any of those pages, use the top legal navigation to switch between
    **Privacy**, **Terms**, and **Trust**. The current page is marked as current.
-3. At the bottom, choose **Cadence overview**, **Sign in**, or
+3. On **Trust**, review the named status, verification time, freshness deadline,
+   scope, and limit for each check. Choose an **Open immutable evidence** link
+   to inspect the public evidence behind that check. The machine-readable view
+   is available at `/api/public/trust-evidence`.
+4. At the bottom, choose **Cadence overview**, **Sign in**, or
    **Open settings**:
    - **Cadence overview** returns to the public product explanation.
    - **Sign in** opens the login screen.
@@ -117,8 +121,9 @@ not create an account or update product data.
 sign-in preserves the intended protected destination when supported.
 
 **Privacy and safety:** Read Privacy before putting sensitive text into Behavior
-descriptions or Occurrence Notes. Trust explains account isolation, manual
-statuses, portability, and reminder limits. Terms explains that Cadence is not
+descriptions or Occurrence Notes. Trust explains durable commitments separately
+from bounded, time-specific verification. A Passed check is not a certification
+or a claim that defects are absent. Terms explains that Cadence is not
 an emergency, clinical decision, medication dosing, refill, or calendar-sync
 system.
 

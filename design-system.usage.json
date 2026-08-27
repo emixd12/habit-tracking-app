@@ -612,6 +612,22 @@
       "confidence": "exact"
     },
     {
+      "componentId": "module.trust-evidence-panel",
+      "file": "app/(legal)/trust/page.tsx",
+      "line": 20,
+      "route": "(legal)/trust/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.trust-evidence-panel",
+      "file": "tests/public-trust-page.test.tsx",
+      "line": 33,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
       "componentId": "module.trust-and-legal-panel",
       "file": "tests/legal-content.test.tsx",
       "line": 34,
@@ -637,7 +653,7 @@
     }
   ],
   "summary": {
-    "productUsages": 79,
+    "productUsages": 81,
     "benchPreviews": 0
   }
 }

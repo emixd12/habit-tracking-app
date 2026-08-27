@@ -101,6 +101,11 @@
       "reason": "Its internal and external destinations are already represented by their owning document requests."
     },
     {
+      "id": "INT-LEGAL-003",
+      "classification": "external_provider",
+      "reason": "Immutable evidence links are served by the public GitHub Pages evidence host."
+    },
+    {
       "id": "INT-MKT-001",
       "classification": "browser_only",
       "reason": "Moving focus to marketing content requires a rendered document."

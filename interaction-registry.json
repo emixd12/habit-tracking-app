@@ -107,7 +107,7 @@
     {
       "path": "apps/marketing/src/layouts/BaseLayout.astro",
       "classification": "cataloged",
-      "interaction_marker_count": 10,
+      "interaction_marker_count": 11,
       "interaction_ids": [
         "INT-MKT-001",
         "INT-MKT-002",
@@ -126,7 +126,7 @@
     {
       "path": "apps/marketing/src/pages/docs.astro",
       "classification": "cataloged",
-      "interaction_marker_count": 9,
+      "interaction_marker_count": 10,
       "interaction_ids": ["INT-MKT-007", "INT-MKT-009", "INT-MKT-010", "INT-MKT-011"]
     },
     {
@@ -292,6 +292,12 @@
       "classification": "cataloged",
       "interaction_marker_count": 4,
       "interaction_ids": ["INT-LEGAL-001", "INT-LEGAL-002"]
+    },
+    {
+      "path": "components/trust/TrustEvidencePanel.tsx",
+      "classification": "cataloged",
+      "interaction_marker_count": 1,
+      "interaction_ids": ["INT-LEGAL-003"]
     },
     {
       "path": "components/settings/NotificationPermissionPanel.tsx",
@@ -512,6 +518,28 @@
       }
     },
     {
+      "id": "INT-LEGAL-003",
+      "name": "Open immutable Trust evidence",
+      "user_guidance": {
+        "audience": "user",
+        "references": ["docs/user-guide/public-and-sign-in.md#read-account-information"]
+      },
+      "status": "implemented",
+      "surfaces": ["public_legal"],
+      "routes": ["/trust", "/api/public/trust-evidence"],
+      "journeys": ["J02", "J18"],
+      "intent": "Inspect the immutable evidence behind a named public Trust check.",
+      "triggers": [{ "kind": "activate", "control": "Open immutable evidence link" }],
+      "availability": "Available for each check backed by a validated public snapshot.",
+      "success_result": "Opens the immutable public evidence URL for the named check.",
+      "failure_result": "No evidence link appears when no validated snapshot is available; normal external navigation failure otherwise applies.",
+      "effects": ["external_navigation"],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": ["components/trust/TrustEvidencePanel.tsx"],
+      "test_coverage": { "level": "direct", "references": ["tests/public-trust-page.test.tsx"], "notes": "Fixture-backed rendering asserts all statuses and immutable evidence links." }
+    },
+    {
       "id": "INT-MKT-001",
       "name": "Skip marketing navigation",
       "user_guidance": {
@@ -612,7 +640,7 @@
       },
       "status": "implemented",
       "surfaces": ["marketing", "public_legal"],
-      "routes": ["/cadence", "/standard", "/about", "/llms.txt", "/trust", "/privacy", "/terms"],
+      "routes": ["/cadence", "/standard", "/about", "/llms.txt", "/trust", "/api/public/trust-evidence", "/privacy", "/terms"],
       "journeys": ["J01", "J02", "J22"],
       "intent": "Open supporting product, standard, project, agent, trust, privacy, or terms material.",
       "triggers": [{ "kind": "activate", "control": "Marketing footer link" }],
@@ -623,6 +651,7 @@
         { "id": "github", "label": "GitHub", "result": "Open the project repository." },
         { "id": "llms", "label": "llms.txt", "result": "Open /llms.txt." },
         { "id": "trust", "label": "Trust", "result": "Open the deployed /trust page." },
+        { "id": "trust_evidence", "label": "Trust evidence JSON", "result": "Open the deployed /api/public/trust-evidence route." },
         { "id": "privacy", "label": "Privacy", "result": "Open the deployed /privacy page." },
         { "id": "terms", "label": "Terms", "result": "Open the deployed /terms page." }
       ],

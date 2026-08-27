@@ -44,6 +44,7 @@ import {
   type TimezoneUpdateAction,
 } from "@/components/settings/TimezonePanel";
 import { TrustAndLegalPanel } from "@/components/settings/SettingsPanels";
+import { TrustEvidencePanel } from "@/components/trust/TrustEvidencePanel";
 import { MobileTimelinePullToRefresh } from "@/components/timeline/MobileTimelinePullToRefresh";
 import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
@@ -78,6 +79,7 @@ import type {
 } from "@/lib/types/behaviorlog-restore-ui";
 import type { ExportBundle } from "@/lib/types/export";
 import type { FirstRunOnboardingState } from "@/lib/types/onboarding";
+import type { PublicTrustView } from "@/lib/services/public-trust-evidence.service";
 import type {
   OccurrenceActionState,
   OccurrenceFormAction,
@@ -1819,6 +1821,11 @@ const previewFactories: Record<
         <TrustAndLegalPanel />
       </ProductPreview>
   ),
+  "module.trust-evidence-panel": () => (
+      <ProductPreview maxHeight="48rem">
+        <TrustEvidencePanel evidence={trustEvidenceFixture} />
+      </ProductPreview>
+  ),
 };
 
 function firstSearchParam(value: string | string[] | undefined) {
@@ -1905,6 +1912,33 @@ const weeklyRecurrenceDefaults: BehaviorRecurrenceFormDefaults = {
   weeklyDays: ["monday", "wednesday", "friday"],
   monthlyInterval: 1,
   monthlyDay: 31,
+};
+
+const trustEvidenceFixture: PublicTrustView = {
+  schema: "cadence.public-trust-view",
+  schema_version: 1,
+  feed_state: "live",
+  feed_message: null,
+  snapshot: {
+    id: "20260827T044110Z-1ca208a5b445",
+    url: "https://example.com/immutable-evidence",
+    source_commit: "1ca208a5b4456a43506316b8d88fa372e6967c5e",
+    application_deployment_id: "dpl_application",
+    marketing_deployment_id: "dpl_marketing",
+    verified_at: "2026-08-27T04:41:10Z",
+  },
+  checks: ["passed", "failed", "stale", "not_run", "unavailable", "passed", "passed", "failed", "passed"].map((status, index) => ({
+    id: ["source_to_deployment_provenance", "production_dependency_vulnerabilities", "code_scanning", "secret_scanning", "public_artifact_integrity", "application_live_route_comparison", "marketing_live_route_comparison", "hosted_migration_boundary", "cross_account_rls_isolation"][index] as PublicTrustView["checks"][number]["id"],
+    label: ["Source to deployment provenance", "Production dependency scanning", "Code scanning", "Secret scanning", "Public artifact integrity", "Application routes", "Marketing routes", "Hosted migration boundary", "Cross-account RLS isolation"][index],
+    status: status as PublicTrustView["checks"][number]["status"],
+    scope: "A bounded public verification scope for the named release.",
+    scope_limit: "This result does not establish assurance outside the named scope and time.",
+    summary: "Fixture summary for the named public check.",
+    unavailable_reason: status === "unavailable" ? "The platform did not expose a safe aggregate result." : null,
+    completed_at: ["not_run", "unavailable"].includes(status) ? null : "2026-08-27T04:41:10Z",
+    freshness_deadline: ["not_run", "unavailable"].includes(status) ? null : "2026-08-28T04:41:10Z",
+    evidence_url: "https://example.com/immutable-evidence",
+  })),
 };
 
 const onboardingFixture: FirstRunOnboardingState = {

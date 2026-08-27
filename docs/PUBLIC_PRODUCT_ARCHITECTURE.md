@@ -272,6 +272,13 @@ Public evidence contains sanitized aggregates and public identifiers only. It
 is bounded operational evidence and establishes no assurance beyond each
 check's stated meaning and scope limit.
 
+The app owns the canonical human route at `/trust` and the same-origin machine
+route at `/api/public/trust-evidence`. Both use the same normalized view. The
+runtime validates the Pages feed before caching it. An outage downgrades a
+validated cached copy to Stale; without one, every check is Unavailable.
+Production config names the current source commit and both Vercel deployment
+IDs so an older Passed result cannot describe a newer release.
+
 ## Desktop and mobile relationship
 
 `docs/DESKTOP_BUILD.md` remains a proposal, not scheduled work. The public
