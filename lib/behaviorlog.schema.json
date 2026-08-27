@@ -1,0 +1,1511 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://behaviorlog.org/schema/behaviorlog.bundle/0.2.0-draft",
+  "title": "BehaviorLog Bundle 0.2.0-draft",
+  "description": "Core schema definitions for BehaviorLog Bundle records and manifest.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Manifest"
+    },
+    {
+      "$ref": "#/$defs/Behavior"
+    },
+    {
+      "$ref": "#/$defs/Schedule"
+    },
+    {
+      "$ref": "#/$defs/Occurrence"
+    },
+    {
+      "$ref": "#/$defs/StatusEvent"
+    },
+    {
+      "$ref": "#/$defs/Note"
+    },
+    {
+      "$ref": "#/$defs/Intervention"
+    },
+    {
+      "$ref": "#/$defs/InterventionRule"
+    },
+    {
+      "$ref": "#/$defs/ContextSnapshot"
+    },
+    {
+      "$ref": "#/$defs/Review"
+    },
+    {
+      "$ref": "#/$defs/DerivedMetric"
+    },
+    {
+      "$ref": "#/$defs/BehaviorDefinitionEvent"
+    },
+    {
+      "$ref": "#/$defs/TimeSession"
+    }
+  ],
+  "$defs": {
+    "Extensions": {
+      "type": "object",
+      "description": "Namespaced extension data. Keys should be reverse-DNS names or URLs.",
+      "additionalProperties": true
+    },
+    "Source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "producer": {
+          "type": "string"
+        },
+        "producer_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "original_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "capture_method": {
+          "type": "string",
+          "enum": [
+            "manual_tap",
+            "manual_text",
+            "system_generated",
+            "imported",
+            "inferred",
+            "derived",
+            "ai_generated",
+            "unknown"
+          ]
+        },
+        "imported_from": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "ambiguous",
+            "unknown"
+          ]
+        },
+        "transformation_notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "PrivacyFlags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_level",
+        "subject_id_strategy",
+        "contains_notes",
+        "contains_context",
+        "contains_raw_location",
+        "contains_health_data",
+        "contains_ai_generated_content"
+      ],
+      "properties": {
+        "redaction_level": {
+          "type": "string",
+          "enum": [
+            "full_fidelity",
+            "standard_redaction",
+            "analysis_safe",
+            "anonymized",
+            "migration_only"
+          ]
+        },
+        "subject_id_strategy": {
+          "type": "string",
+          "enum": [
+            "pseudonymous",
+            "direct_identifier",
+            "anonymous",
+            "not_declared"
+          ]
+        },
+        "contains_notes": {
+          "type": "boolean"
+        },
+        "contains_context": {
+          "type": "boolean"
+        },
+        "contains_raw_location": {
+          "type": "boolean"
+        },
+        "contains_health_data": {
+          "type": "boolean"
+        },
+        "contains_ai_generated_content": {
+          "type": "boolean"
+        },
+        "contains_time_tracking": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Status": {
+      "type": "string",
+      "enum": [
+        "unresolved",
+        "completed",
+        "not_completed"
+      ]
+    },
+    "LocalDate": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "LocalTime": {
+      "type": "string",
+      "pattern": "^[0-9]{2}:[0-9]{2}(:[0-9]{2})?$"
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "Timezone": {
+      "type": "string",
+      "minLength": 1
+    },
+    "FileEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "media_type",
+        "required"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "schema_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-fA-F0-9]{64}$"
+        }
+      }
+    },
+    "Manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "schema_version",
+        "exported_at_utc",
+        "producer",
+        "subject",
+        "privacy",
+        "rules",
+        "files"
+      ],
+      "properties": {
+        "format": {
+          "const": "behaviorlog.bundle"
+        },
+        "schema_version": {
+          "type": "string"
+        },
+        "exported_at_utc": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "producer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version",
+            "exporter_version"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "exporter_version": {
+              "type": "string"
+            },
+            "website": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "subject": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "subject_id",
+            "timezone_default",
+            "locale"
+          ],
+          "properties": {
+            "subject_id": {
+              "type": "string"
+            },
+            "timezone_default": {
+              "$ref": "#/$defs/Timezone"
+            },
+            "locale": {
+              "type": "string"
+            }
+          }
+        },
+        "privacy": {
+          "$ref": "#/$defs/PrivacyFlags"
+        },
+        "profiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rules": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "status_semantics",
+            "unresolved_policy",
+            "day_boundary",
+            "metric_rules"
+          ],
+          "properties": {
+            "status_semantics": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "unresolved_policy": {
+              "type": "string"
+            },
+            "day_boundary": {
+              "type": "string"
+            },
+            "metric_rules": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            "source_status_mappings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FileEntry"
+          }
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "Behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "behavior_id",
+        "title",
+        "category",
+        "success_definition",
+        "created_at_utc"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "behavior"
+        },
+        "behavior_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "success_definition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_duration_minutes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "created_at_utc": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "archived_at_utc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "restricted"
+          ]
+        }
+      }
+    },
+    "Schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "schedule_id",
+        "behavior_id",
+        "recurrence_profile",
+        "recurrence",
+        "timezone",
+        "active_from_local_date"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "schedule"
+        },
+        "schedule_id": {
+          "type": "string"
+        },
+        "behavior_id": {
+          "type": "string"
+        },
+        "recurrence_profile": {
+          "type": "string",
+          "enum": [
+            "behaviorlog.calendar_simple.v1",
+            "behaviorlog.completion_interval.v1",
+            "rfc5545.rrule"
+          ]
+        },
+        "recurrence": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "local_time": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_start_local": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_end_local": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "active_from_local_date": {
+          "$ref": "#/$defs/LocalDate"
+        },
+        "active_until_local_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalDate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        }
+      }
+    },
+    "Occurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "occurrence_id",
+        "behavior_id",
+        "schedule_id",
+        "scheduled_for_utc",
+        "local_date",
+        "timezone",
+        "occurrence_state",
+        "current_status"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "occurrence"
+        },
+        "occurrence_id": {
+          "type": "string"
+        },
+        "behavior_id": {
+          "type": "string"
+        },
+        "schedule_id": {
+          "type": "string"
+        },
+        "scheduled_for_utc": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "local_date": {
+          "$ref": "#/$defs/LocalDate"
+        },
+        "local_time": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "utc_offset_at_event": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "due_window_start_utc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "due_window_end_utc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "generated_at_utc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "generation_rule_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "occurrence_state": {
+          "type": "string",
+          "enum": [
+            "active",
+            "cancelled"
+          ]
+        },
+        "current_status": {
+          "$ref": "#/$defs/Status"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        }
+      }
+    },
+    "StatusEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "event_id",
+        "occurrence_id",
+        "behavior_id",
+        "status",
+        "status_semantics",
+        "recorded_at_utc",
+        "local_date",
+        "timezone",
+        "source"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "status_event"
+        },
+        "event_id": {
+          "type": "string"
+        },
+        "occurrence_id": {
+          "type": "string"
+        },
+        "behavior_id": {
+          "type": "string"
+        },
+        "previous_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Status"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "status_semantics": {
+          "type": "string",
+          "enum": [
+            "explicit_user_mark",
+            "explicit_user_correction",
+            "imported_explicit",
+            "system_rule_declared",
+            "ambiguous_import"
+          ]
+        },
+        "recorded_at_utc": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "effective_at_utc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "local_date": {
+          "$ref": "#/$defs/LocalDate"
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "utc_offset_at_event": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "actor": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "note_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revises_event_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "Note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "note_id",
+        "attached_to_type",
+        "attached_to_id",
+        "body_markdown",
+        "note_role",
+        "created_at_utc"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "note"
+        },
+        "note_id": {
+          "type": "string"
+        },
+        "attached_to_type": {
+          "type": "string",
+          "enum": [
+            "behavior",
+            "occurrence",
+            "status_event",
+            "review"
+          ]
+        },
+        "attached_to_id": {
+          "type": "string"
+        },
+        "body_markdown": {
+          "type": "string"
+        },
+        "note_role": {
+          "type": "string",
+          "enum": [
+            "user",
+            "imported",
+            "system",
+            "ai_generated"
+          ]
+        },
+        "created_at_utc": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "updated_at_utc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "restricted"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        }
+      }
+    },
+    "Intervention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "intervention_id",
+        "behavior_id",
+        "intervention_type",
+        "channel",
+        "delivery_status"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "intervention"
+        },
+        "intervention_id": {
+          "type": "string"
+        },
+        "behavior_id": {
+          "type": "string"
+        },
+        "occurrence_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "intervention_type": {
+          "type": "string",
+          "enum": [
+            "reminder",
+            "prompt",
+            "nudge",
+            "suppression",
+            "snooze",
+            "dismissal",
+            "feedback",
+            "other"
+          ]
+        },
+        "channel": {
+          "type": "string",
+          "enum": [
+            "browser_push",
+            "email",
+            "sms",
+            "mobile_push",
+            "in_app",
+            "calendar_notification",
+            "voice_assistant",
+            "webhook",
+            "other",
+            "none"
+          ]
+        },
+        "planned_for_utc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sent_at_utc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "delivery_status": {
+          "type": "string",
+          "enum": [
+            "planned",
+            "sent",
+            "delivered",
+            "failed",
+            "cancelled",
+            "suppressed",
+            "unknown"
+          ]
+        },
+        "cancel_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "failure_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message_variant": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message_body": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rule_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "response_event_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        }
+      }
+    },
+    "InterventionRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "rule_id",
+        "intervention_type",
+        "channel",
+        "enabled"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "intervention_rule"
+        },
+        "rule_id": {
+          "type": "string"
+        },
+        "behavior_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "intervention_type": {
+          "type": "string",
+          "enum": [
+            "reminder",
+            "prompt",
+            "nudge",
+            "suppression",
+            "snooze",
+            "dismissal",
+            "feedback",
+            "other"
+          ]
+        },
+        "channel": {
+          "type": "string",
+          "enum": [
+            "browser_push",
+            "email",
+            "sms",
+            "mobile_push",
+            "in_app",
+            "calendar_notification",
+            "voice_assistant",
+            "webhook",
+            "other",
+            "none"
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "offset_minutes": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "active_from_local_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalDate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "active_until_local_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalDate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timezone"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "message_variant": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        }
+      }
+    },
+    "ContextSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "snapshot_id",
+        "captured_at_utc",
+        "timezone",
+        "precision",
+        "source_type",
+        "consent_scope"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "context_snapshot"
+        },
+        "snapshot_id": {
+          "type": "string"
+        },
+        "attached_to_type": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "occurrence",
+            "intervention",
+            "status_event",
+            "timestamp",
+            null
+          ]
+        },
+        "attached_to_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "captured_at_utc": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "local_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalDate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "availability_state": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "calendar_conflict": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "place_label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "activity_state": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mood_label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "energy_label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "precision": {
+          "type": "string",
+          "enum": [
+            "none",
+            "coarse",
+            "precise",
+            "raw"
+          ]
+        },
+        "source_type": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "calendar",
+            "location",
+            "activity",
+            "device",
+            "weather",
+            "sleep",
+            "health",
+            "imported",
+            "inferred",
+            "other"
+          ]
+        },
+        "consent_scope": {
+          "type": "string"
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "restricted"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        }
+      }
+    },
+    "Review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "review_id",
+        "period_start_local_date",
+        "period_end_local_date",
+        "timezone",
+        "created_at_utc",
+        "review_role"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "review"
+        },
+        "review_id": {
+          "type": "string"
+        },
+        "period_start_local_date": {
+          "$ref": "#/$defs/LocalDate"
+        },
+        "period_end_local_date": {
+          "$ref": "#/$defs/LocalDate"
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "created_at_utc": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "review_role": {
+          "type": "string",
+          "enum": [
+            "user",
+            "system",
+            "ai_generated",
+            "imported"
+          ]
+        },
+        "summary_markdown": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "barriers_markdown": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "adjustments_markdown": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        }
+      }
+    },
+    "DefinitionSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "success_definition": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "BehaviorDefinitionEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "event_id",
+        "behavior_id",
+        "event_kind",
+        "changed_fields",
+        "previous",
+        "next",
+        "recorded_at_utc",
+        "source"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "behavior_definition_event"
+        },
+        "event_id": {
+          "type": "string"
+        },
+        "behavior_id": {
+          "type": "string"
+        },
+        "event_kind": {
+          "type": "string",
+          "enum": [
+            "baseline",
+            "revision"
+          ]
+        },
+        "changed_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "title",
+              "description",
+              "category",
+              "success_definition"
+            ]
+          }
+        },
+        "previous": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DefinitionSnapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "next": {
+          "$ref": "#/$defs/DefinitionSnapshot"
+        },
+        "recorded_at_utc": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "local_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalDate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timezone"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "utc_offset_at_event": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        }
+      }
+    },
+    "TimeSession": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "session_id",
+        "occurrence_id",
+        "behavior_id",
+        "started_at_utc",
+        "stopped_at_utc"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "time_session"
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "occurrence_id": {
+          "type": "string"
+        },
+        "behavior_id": {
+          "type": "string"
+        },
+        "started_at_utc": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "stopped_at_utc": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timezone"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "local_date": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalDate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        }
+      }
+    },
+    "DerivedMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_type",
+        "metric_id",
+        "metric_name",
+        "period_start_local_date",
+        "period_end_local_date",
+        "timezone",
+        "behavior_ids",
+        "value",
+        "rule_id"
+      ],
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "record_type": {
+          "const": "derived_metric"
+        },
+        "metric_id": {
+          "type": "string"
+        },
+        "metric_name": {
+          "type": "string",
+          "enum": [
+            "explicit_adherence_rate",
+            "resolution_rate",
+            "scheduled_completion_rate",
+            "unresolved_rate",
+            "on_time_completion_rate",
+            "schedule_slippage_minutes",
+            "reminder_response_rate",
+            "intervention_burden_index",
+            "tracked_duration_total_seconds",
+            "tracked_duration_mean_seconds"
+          ]
+        },
+        "period_start_local_date": {
+          "$ref": "#/$defs/LocalDate"
+        },
+        "period_end_local_date": {
+          "$ref": "#/$defs/LocalDate"
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "behavior_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "numerator": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "denominator": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "value": {
+          "type": [
+            "number",
+            "string",
+            "null"
+          ]
+        },
+        "unresolved_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "rule_id": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        }
+      }
+    }
+  }
+}

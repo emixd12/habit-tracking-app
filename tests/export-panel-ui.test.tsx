@@ -80,7 +80,7 @@ describe("Export panel UI", () => {
     }
   });
 
-  it("explains task-based export formats without overstating app JSON", () => {
+  it("explains standard BehaviorLog files and supported replay", () => {
     const html = renderToStaticMarkup(
       <ExportPanel
         exportData={exportBundle()}
@@ -101,22 +101,32 @@ describe("Export panel UI", () => {
     );
     expect(html).toContain("BehaviorLog bundle (.behaviorlog.zip)");
     expect(html).toContain(
-      "BehaviorLog core records plus Cadence definition, schedule, reminder, and status history",
+      "BehaviorLog core records, standard definition history and reminder rules, optional standard time sessions, Cadence configuration history",
     );
     expect(html).toContain(
-      "Full JSON and BehaviorLog include complete prior and next behavior titles and descriptions, plus schedule and reminder history, by default.",
+      "BehaviorLog stores title and description history in its standard definition-history file.",
+    );
+    expect(html).toContain(
+      "When time tracking is selected, it stores timing sessions in its standard time-session file.",
+    );
+    expect(html).toContain(
+      "reminder-setting history remains a Cadence extension.",
     );
     expect(html).toContain(
       "Historical definitions and configuration can contain sensitive context.",
     );
     expect(html).toContain(
-      "Exported behavior definition and configuration revisions are not replayed on import or restore.",
+      "Cadence replays standard definition history and safely mapped time sessions during supported imports and restore.",
     );
     expect(html).toContain(
-      "records a new local import baseline or transition",
+      "Cadence also validates its configuration-history extension.",
     );
+    expect(html).toContain("use its current schedule and reminder snapshot");
     expect(html).toContain(
       "Historical Occurrence snapshots stay portable without activating prior schedules.",
+    );
+    expect(html).not.toContain(
+      "Exported behavior definition and configuration revisions are not replayed",
     );
   });
 

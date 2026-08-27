@@ -325,9 +325,20 @@ describe("resolveExportBundle", () => {
     expect(bundle.markdownSummary).toContain("2m 14s average tracked time");
     expect(
       bundle.behaviorLog.files.find(
-        (file) => file.path === "raw/cadence/occurrence_time_sessions.jsonl",
+        (file) => file.path === "data/time_sessions.jsonl",
       )?.content,
     ).toContain("session-running");
+    expect(
+      bundle.behaviorLog.files.find(
+        (file) => file.path === "data/time_sessions.jsonl",
+      )?.content,
+    ).not.toContain("duration_seconds");
+    const manifest = JSON.parse(
+      bundle.behaviorLog.files.find((file) => file.path === "manifest.json")
+        ?.content ?? "{}",
+    );
+    expect(manifest.privacy.contains_time_tracking).toBe(true);
+    expect(manifest.profiles).toContain("time_tracking");
   });
 
   it("round-trips the enabled time-session CSV JSON column through CSV escaping", () => {
@@ -688,7 +699,11 @@ describe("resolveExportBundle", () => {
     expect(bundle.jsonBackup.occurrences[0]?.note).toBeNull();
     expect(fileByPath.has("data/notes.jsonl")).toBe(false);
     expect(manifest.privacy.contains_notes).toBe(false);
-    expect(manifest.profiles).toEqual(["core"]);
+    expect(manifest.profiles).toEqual([
+      "core",
+      "intervention",
+      "definition_history",
+    ]);
     expect(bundle.markdownSummary).toContain("Occurrence notes: excluded");
     expect(bundle.markdownSummary).not.toContain("## Notes");
     expect(bundle.markdownSummary).not.toContain("Private note");
@@ -722,7 +737,11 @@ describe("resolveExportBundle", () => {
       'Line one\nLine "two", more',
     );
     expect(manifest.privacy.contains_notes).toBe(true);
-    expect(manifest.profiles).toEqual(["core", "notes"]);
+    expect(manifest.profiles).toEqual([
+      "core",
+      "intervention",
+      "definition_history",
+    ]);
     expect(notes).toEqual([
       expect.objectContaining({
         record_type: "note",
@@ -1116,14 +1135,13 @@ describe("resolveExportBundle", () => {
     const fileByPath = new Map(
       bundle.behaviorLog.files.map((file) => [file.path, file]),
     );
-    const rawHistory = parseJsonl(
-      fileByPath.get("raw/cadence/behavior_definition_events.jsonl")?.content ??
-        "",
+    const portableHistory = parseJsonl(
+      fileByPath.get("data/behavior_definition_events.jsonl")?.content ?? "",
     );
     const manifest = JSON.parse(fileByPath.get("manifest.json")?.content ?? "");
     const manifestEntry = manifest.files.find(
       (entry: { path: string }) =>
-        entry.path === "raw/cadence/behavior_definition_events.jsonl",
+        entry.path === "data/behavior_definition_events.jsonl",
     );
 
     expect(bundle.jsonBackup.behavior_definition_events).toEqual([
@@ -1149,32 +1167,60 @@ describe("resolveExportBundle", () => {
         recorded_at: "2026-05-15T13:00:00Z",
       }),
     ]);
-    expect(rawHistory).toEqual(bundle.jsonBackup.behavior_definition_events);
+    expect(portableHistory).toEqual([
+      expect.objectContaining({
+        record_type: "behavior_definition_event",
+        event_id: "definition-a",
+        behavior_id: "behavior-brush",
+        event_kind: "baseline",
+        changed_fields: ["title", "description"],
+        previous: null,
+        next: {
+          title: "Brush teeth",
+          description: "Evening routine",
+        },
+        recorded_at_utc: "2026-05-01T12:00:00Z",
+        reason_code: "baseline_backfill",
+        source: expect.objectContaining({ capture_method: "system_generated" }),
+      }),
+      expect.objectContaining({
+        event_id: "definition-b",
+        event_kind: "revision",
+        changed_fields: ["description"],
+        previous: {
+          title: "Brush teeth",
+          description: "Night brushing",
+        },
+        next: {
+          title: "Brush teeth",
+          description: "Night brushing and flossing",
+        },
+        source: expect.objectContaining({ capture_method: "manual_text" }),
+      }),
+      expect.objectContaining({
+        event_id: "definition-z",
+        event_kind: "revision",
+      }),
+    ]);
     expect(manifestEntry).toMatchObject({
       media_type: "application/jsonl",
-      schema_ref: null,
+      schema_ref: "#/$defs/BehaviorDefinitionEvent",
       required: false,
       sha256: sha256(
-        fileByPath.get("raw/cadence/behavior_definition_events.jsonl")
-          ?.content ?? "",
+        fileByPath.get("data/behavior_definition_events.jsonl")?.content ?? "",
       ),
     });
-    expect(manifest.extensions).toMatchObject({
-      "app.cadence": {
-        behavior_definition_history: {
-          path: "raw/cadence/behavior_definition_events.jsonl",
-          record_count: 3,
-          ordering: ["recorded_at", "id"],
-          import_restore_support: "export_only",
-        },
-      },
-    });
+    expect(manifest.profiles).toContain("definition_history");
+    expect(manifest.rules.definition_history_policy).toBe("event_sourced");
+    expect(
+      manifest.extensions["app.cadence"],
+    ).not.toHaveProperty("behavior_definition_history");
     expect(bundle.markdownSummary).toContain(
       "Behavior definition history: included (3 events)",
     );
     expect(bundle.markdownSummary).toContain("## Behavior definition history");
     expect(bundle.markdownSummary).toContain(
-      "`raw/cadence/behavior_definition_events.jsonl`",
+      "`data/behavior_definition_events.jsonl`",
     );
 
     const withArchived = resolve({
@@ -1212,7 +1258,7 @@ describe("resolveExportBundle", () => {
 
     expect(bundle.jsonBackup.behavior_definition_events).toEqual([]);
     expect(
-      fileByPath.get("raw/cadence/behavior_definition_events.jsonl")?.content,
+      fileByPath.get("data/behavior_definition_events.jsonl")?.content,
     ).toBe("");
     expect(bundle.markdownSummary).toContain(
       "Behavior definition history: included (0 events)",
@@ -1850,7 +1896,8 @@ describe("resolveExportBundle", () => {
       "data/occurrences.jsonl",
       "data/status_events.jsonl",
       "data/notes.jsonl",
-      "raw/cadence/behavior_definition_events.jsonl",
+      "data/intervention_rules.jsonl",
+      "data/behavior_definition_events.jsonl",
       "csv/behaviors.csv",
       "csv/schedules.csv",
       "csv/occurrences.csv",
@@ -1858,7 +1905,7 @@ describe("resolveExportBundle", () => {
     ]);
     expect(manifest).toMatchObject({
       format: "behaviorlog.bundle",
-      schema_version: "0.1.0-draft",
+      schema_version: "0.2.0-draft",
       subject: {
         subject_id: "subject_test",
         timezone_default: DEFAULT_TIMEZONE,
@@ -1867,7 +1914,7 @@ describe("resolveExportBundle", () => {
         subject_id_strategy: "pseudonymous",
         contains_notes: true,
       },
-      profiles: ["core", "notes"],
+      profiles: ["core", "intervention", "definition_history"],
     });
 
     for (const manifestFile of manifest.files) {
@@ -2014,6 +2061,13 @@ describe("resolveExportBundle", () => {
 
   it("exports reminder deliveries as optional BehaviorLog intervention records", () => {
     const bundle = resolve({
+      behaviors: [
+        behavior({
+          id: "behavior-brush",
+          emailReminderEnabled: true,
+          reminderOffsetMinutes: 60,
+        }),
+      ],
       occurrences: [
         occurrence({
           id: "occurrence-1",
@@ -2075,6 +2129,9 @@ describe("resolveExportBundle", () => {
     const interventions = parseJsonl(
       fileByPath.get("data/interventions.jsonl")?.content ?? "",
     );
+    const interventionRules = parseJsonl(
+      fileByPath.get("data/intervention_rules.jsonl")?.content ?? "",
+    );
     const occurrenceIds = new Set(
       parseJsonl(fileByPath.get("data/occurrences.jsonl")?.content ?? "").map(
         (record) => record.occurrence_id,
@@ -2086,7 +2143,11 @@ describe("resolveExportBundle", () => {
       ),
     );
 
-    expect(manifest.profiles).toEqual(["core", "interventions"]);
+    expect(manifest.profiles).toEqual([
+      "core",
+      "intervention",
+      "definition_history",
+    ]);
     expect(manifestEntry).toMatchObject({
       path: "data/interventions.jsonl",
       media_type: "application/jsonl",
@@ -2094,16 +2155,28 @@ describe("resolveExportBundle", () => {
       schema_ref: "#/$defs/Intervention",
       sha256: sha256(fileByPath.get("data/interventions.jsonl")?.content ?? ""),
     });
-    expect(schema.$defs.Intervention).toMatchObject({
-      required: expect.arrayContaining([
-        "intervention_id",
-        "occurrence_id",
-        "behavior_id",
-        "channel",
-        "scheduled_send_at_utc",
-        "delivery_status",
-      ]),
-    });
+    expect(schema.$defs.Intervention.properties).toHaveProperty(
+      "planned_for_utc",
+    );
+    expect(schema.$defs.Intervention.properties).not.toHaveProperty(
+      "scheduled_send_at_utc",
+    );
+    expect(interventionRules).toEqual([
+      expect.objectContaining({
+        record_type: "intervention_rule",
+        rule_id: "rule_reminder_behavior-brush_browser_push",
+        behavior_id: "behavior-brush",
+        intervention_type: "reminder",
+        channel: "browser_push",
+        enabled: true,
+        offset_minutes: -60,
+      }),
+      expect.objectContaining({
+        rule_id: "rule_reminder_behavior-brush_email",
+        channel: "email",
+        offset_minutes: -60,
+      }),
+    ]);
     expect(
       interventions.map((intervention) => intervention.intervention_id),
     ).toEqual([
@@ -2114,7 +2187,7 @@ describe("resolveExportBundle", () => {
     ]);
     expect(
       interventions.map((intervention) => intervention.delivery_status),
-    ).toEqual(["pending", "sent", "failed", "cancelled"]);
+    ).toEqual(["planned", "sent", "failed", "cancelled"]);
     expect(interventions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -2123,14 +2196,34 @@ describe("resolveExportBundle", () => {
           behavior_id: "behavior-brush",
           channel: "email",
           sent_at_utc: "2026-06-08T12:51:00Z",
-          failure_reason: null,
         }),
       ]),
     );
 
+    expect(
+      interventions.find(
+        (intervention) => intervention.intervention_id === "delivery-sent",
+      ),
+    ).not.toHaveProperty("failure_reason");
+    expect(
+      interventions.find(
+        (intervention) => intervention.intervention_id === "delivery-pending",
+      ),
+    ).toMatchObject({
+      rule_id: "rule_reminder_behavior-brush_browser_push",
+    });
+    expect(
+      interventions.find(
+        (intervention) => intervention.intervention_id === "delivery-sent",
+      ),
+    ).toMatchObject({ rule_id: "rule_reminder_behavior-brush_email" });
+
     for (const intervention of interventions) {
       expect(occurrenceIds.has(intervention.occurrence_id)).toBe(true);
       expect(behaviorIds.has(intervention.behavior_id)).toBe(true);
+      expect(intervention).toHaveProperty("planned_for_utc");
+      expect(intervention).not.toHaveProperty("scheduled_send_at_utc");
+      expect(intervention.delivery_status).not.toBe("pending");
       expect(intervention).not.toHaveProperty("message_body");
       expect(intervention).not.toHaveProperty("endpoint");
       expect(intervention).not.toHaveProperty("p256dh");
@@ -2166,7 +2259,11 @@ describe("resolveExportBundle", () => {
     const manifest = JSON.parse(fileByPath.get("manifest.json")?.content ?? "");
 
     expect(fileByPath.has("data/interventions.jsonl")).toBe(false);
-    expect(manifest.profiles).toEqual(["core"]);
+    expect(manifest.profiles).toEqual([
+      "core",
+      "intervention",
+      "definition_history",
+    ]);
   });
 
   it("synthesizes BehaviorLog status events for resolved legacy occurrences", () => {

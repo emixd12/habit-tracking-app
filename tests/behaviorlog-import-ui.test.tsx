@@ -36,12 +36,15 @@ const mocks = vi.hoisted(() => ({
   listUserBehaviors: vi.fn(),
   listUserOccurrences: vi.fn(),
   listOccurrenceStatusEventsByOccurrenceIds: vi.fn(),
+  listBehaviorDefinitionEvents: vi.fn(),
+  listTimeSessionsByOccurrenceIds: vi.fn(),
   listBehaviorLogImportRecordMappings: vi.fn(),
   listBehaviorLogImportRuns: vi.fn(),
   getBehaviorLogImportRunById: vi.fn(),
   listImportedNotes: vi.fn(),
   listImportedInterventions: vi.fn(),
   createBehaviorLogImportRunFromPreview: vi.fn(),
+  applyAcceptedBehaviorLogImportPlanAtomically: vi.fn(),
   applyCreateMissingBehaviorLogImportPlan: vi.fn(),
   applyApprovedBehaviorLogMergePlan: vi.fn(),
 }));
@@ -78,6 +81,24 @@ vi.mock("@/lib/db/occurrenceStatusEvents.repo", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/db/behaviorDefinitionEvents.repo", async (importOriginal) => {
+  const original = await importOriginal<object>();
+
+  return {
+    ...original,
+    listBehaviorDefinitionEvents: mocks.listBehaviorDefinitionEvents,
+  };
+});
+
+vi.mock("@/lib/db/timeSessions.repo", async (importOriginal) => {
+  const original = await importOriginal<object>();
+
+  return {
+    ...original,
+    listTimeSessionsByOccurrenceIds: mocks.listTimeSessionsByOccurrenceIds,
+  };
+});
+
 vi.mock("@/lib/db/behaviorLogImports.repo", async (importOriginal) => {
   const original = await importOriginal<object>();
 
@@ -111,6 +132,8 @@ vi.mock("@/lib/db/importedInterventions.repo", async (importOriginal) => {
 vi.mock("@/lib/services/behaviorlog-import-write.service", () => ({
   createBehaviorLogImportRunFromPreview:
     mocks.createBehaviorLogImportRunFromPreview,
+  applyAcceptedBehaviorLogImportPlanAtomically:
+    mocks.applyAcceptedBehaviorLogImportPlanAtomically,
   applyCreateMissingBehaviorLogImportPlan:
     mocks.applyCreateMissingBehaviorLogImportPlan,
   applyApprovedBehaviorLogMergePlan: mocks.applyApprovedBehaviorLogMergePlan,
@@ -135,6 +158,8 @@ describe("BehaviorLog import UI workflow", () => {
     mocks.listUserBehaviors.mockResolvedValue([]);
     mocks.listUserOccurrences.mockResolvedValue([]);
     mocks.listOccurrenceStatusEventsByOccurrenceIds.mockResolvedValue([]);
+    mocks.listBehaviorDefinitionEvents.mockResolvedValue([]);
+    mocks.listTimeSessionsByOccurrenceIds.mockResolvedValue([]);
     mocks.listBehaviorLogImportRecordMappings.mockResolvedValue([]);
     mocks.listBehaviorLogImportRuns.mockResolvedValue([]);
     mocks.listImportedNotes.mockResolvedValue([]);
@@ -559,7 +584,7 @@ describe("BehaviorLog import UI workflow", () => {
       completed_at: "2026-06-08T21:11:02Z",
       failure_message: null,
     });
-    mocks.applyCreateMissingBehaviorLogImportPlan.mockResolvedValueOnce({
+    mocks.applyAcceptedBehaviorLogImportPlanAtomically.mockResolvedValueOnce({
       importRun: {
         id: "import-run-apply",
         import_mode: "create_missing_only",
@@ -592,7 +617,9 @@ describe("BehaviorLog import UI workflow", () => {
 
     expect(state.status).toBe("applied");
     expect(state.applyResult?.created.notes).toBe(1);
-    expect(mocks.applyCreateMissingBehaviorLogImportPlan).toHaveBeenCalledTimes(1);
+    expect(
+      mocks.applyAcceptedBehaviorLogImportPlanAtomically,
+    ).toHaveBeenCalledTimes(1);
   });
 
   it("rejects applies without a persisted accepted preview binding", async () => {
@@ -702,7 +729,7 @@ describe("BehaviorLog import UI workflow", () => {
       completed_at: "2026-06-08T21:11:02Z",
       failure_message: null,
     });
-    mocks.applyCreateMissingBehaviorLogImportPlan.mockResolvedValueOnce({
+    mocks.applyAcceptedBehaviorLogImportPlanAtomically.mockResolvedValueOnce({
       importRun: {
         id: "import-run-apply",
         import_mode: "create_missing_only",
@@ -732,7 +759,9 @@ describe("BehaviorLog import UI workflow", () => {
     const state = await applyBehaviorLogImportUploadFromFormData(formData);
 
     expect(state.status).toBe("applied");
-    expect(mocks.createBehaviorLogImportRunFromPreview).toHaveBeenCalledWith(
+    expect(
+      mocks.applyAcceptedBehaviorLogImportPlanAtomically,
+    ).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         importMode: "create_missing_only",
@@ -740,7 +769,9 @@ describe("BehaviorLog import UI workflow", () => {
         acceptedPreviewFingerprint: preview.previewFingerprint,
       }),
     );
-    expect(mocks.applyCreateMissingBehaviorLogImportPlan).toHaveBeenCalledTimes(1);
+    expect(
+      mocks.applyAcceptedBehaviorLogImportPlanAtomically,
+    ).toHaveBeenCalledTimes(1);
   });
 
   it("previews, accepts, and applies one valid bundle larger than 750 KiB", async () => {
@@ -784,7 +815,7 @@ describe("BehaviorLog import UI workflow", () => {
       completed_at: "2026-06-08T21:11:02Z",
       failure_message: null,
     });
-    mocks.applyCreateMissingBehaviorLogImportPlan.mockResolvedValueOnce({
+    mocks.applyAcceptedBehaviorLogImportPlanAtomically.mockResolvedValueOnce({
       importRun: {
         id: "large-import-run-apply",
         import_mode: "create_missing_only",
@@ -845,6 +876,8 @@ const EMPTY_EXISTING_RECORDS: BehaviorLogExistingRecords = {
   schedules: [],
   occurrences: [],
   statusEvents: [],
+  definitionEvents: [],
+  timeSessions: [],
   importedNotes: [],
   importedInterventions: [],
   mappings: [],

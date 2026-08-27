@@ -12,6 +12,7 @@ import {
 import type {
   BehaviorLogImportFile,
   BehaviorLogImportMergePreview,
+  BehaviorLogImportMergeRecordAction,
   BehaviorLogImportMergePreviewResult,
   BehaviorLogImportPreview,
 } from "../lib/types/behaviorlog-import";
@@ -440,13 +441,13 @@ function createInterventionPlan(): BehaviorLogImportPreview["plan"]["interventio
 }
 
 function mergeAction(
-  recordType: BehaviorLogImportMergePreview["actions"][keyof BehaviorLogImportMergePreview["actions"]][number]["recordType"],
+  recordType: BehaviorLogImportMergeRecordAction["recordType"],
   externalId: string,
-  action: BehaviorLogImportMergePreview["actions"][keyof BehaviorLogImportMergePreview["actions"]][number]["action"],
+  action: BehaviorLogImportMergeRecordAction["action"],
   localId: string | null,
   relatedExternalIds?: Record<string, string | null>,
   metadata?: Record<string, unknown>,
-): BehaviorLogImportMergePreview["actions"][keyof BehaviorLogImportMergePreview["actions"]][number] {
+): BehaviorLogImportMergeRecordAction {
   return {
     recordType,
     externalId,

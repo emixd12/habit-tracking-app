@@ -14,6 +14,7 @@ import {
   type BehaviorScheduleGraphMutation,
 } from "@/lib/db/behaviorDefinitionEvents.repo";
 import {
+  applyBehaviorLogImportAtomically,
   createBehaviorLogImportRecordMappings as insertBehaviorLogImportRecordMappings,
   createBehaviorLogImportRun as insertBehaviorLogImportRun,
   getBehaviorLogImportRunById,
@@ -231,6 +232,98 @@ export async function createBehaviorLogImportRecordMappings(
     supabase,
     mappings.map(normalizeMappingInput),
   );
+}
+
+export type AtomicBehaviorLogImportApplyResult = {
+  importRun: BehaviorLogImportRun;
+  created: BehaviorLogCreateOnlyApplyResult["created"] & {
+    definitionEvents: number;
+    timeSessions: number;
+  };
+  mapped?: BehaviorLogMergeApplyResult["mapped"] & {
+    definitionEvents: number;
+    timeSessions: number;
+  };
+  skipped: BehaviorLogCreateOnlyApplyResult["skipped"] & {
+    definitionEvents: number;
+    timeSessions: number;
+  };
+  warnings: BehaviorLogImportIssue[];
+};
+
+export async function applyAcceptedBehaviorLogImportPlanAtomically(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    files: BehaviorLogImportFile[];
+    preview: BehaviorLogImportMergePreviewResult;
+    importMode: "create_missing_only" | "merge_by_user_approved_plan";
+    acceptedPreviewRunId: string;
+    acceptedPreviewFingerprint: string;
+    completedAt?: string;
+  },
+): Promise<AtomicBehaviorLogImportApplyResult> {
+  const manifest = readManifestMetadata(input.files);
+  const completedAt = input.completedAt ?? Temporal.Now.instant().toString();
+  const response = await applyBehaviorLogImportAtomically(supabase, {
+    accepted_preview_run_id: input.acceptedPreviewRunId,
+    accepted_preview_fingerprint: input.acceptedPreviewFingerprint,
+    import_mode: input.importMode,
+    completed_at: completedAt,
+    intervention_rules_present: input.files.some(
+      (file) => file.path === "data/intervention_rules.jsonl",
+    ),
+    run: {
+      bundle_format: manifest.bundleFormat ?? BEHAVIORLOG_FORMAT,
+      schema_version: input.preview.summary.schemaVersion ?? manifest.schemaVersion,
+      manifest_sha256: manifest.manifestSha256,
+      bundle_fingerprint: createBehaviorLogImportBundleFingerprint(input.files),
+      producer_name: manifest.producerName,
+      producer_version: manifest.producerVersion,
+      subject_id_strategy: manifest.subjectIdStrategy,
+      privacy_redaction_level: manifest.privacyRedactionLevel,
+      dry_run_summary: toDryRunSummarySnapshot(input.preview),
+    },
+    preview: input.preview,
+  });
+
+  if (response.status === "failed") {
+    throw new Error(
+      typeof response.failure_message === "string"
+        ? response.failure_message
+        : "BehaviorLog import apply failed.",
+    );
+  }
+
+  const importRun = readObject(response.import_run) as BehaviorLogImportRun | null;
+  const created = readObject(response.created);
+  const skipped = readObject(response.skipped);
+
+  if (!importRun || !created || !skipped) {
+    throw new Error("BehaviorLog import apply returned an incomplete result.");
+  }
+
+  invalidateBehaviorData(input.userId);
+  invalidateImportRunData(input.userId);
+  await repairUserOccurrenceReminderGraphBestEffort(supabase, input.userId, {
+    operation:
+      input.importMode === "create_missing_only"
+        ? "behaviorlog_import_create_missing"
+        : "behaviorlog_import_merge",
+    now: Temporal.Instant.from(completedAt),
+  });
+
+  return {
+    importRun,
+    created: created as AtomicBehaviorLogImportApplyResult["created"],
+    mapped: readObject(response.mapped) as
+      | AtomicBehaviorLogImportApplyResult["mapped"]
+      | undefined,
+    skipped: skipped as AtomicBehaviorLogImportApplyResult["skipped"],
+    warnings: Array.isArray(response.warnings)
+      ? (response.warnings as BehaviorLogImportIssue[])
+      : [],
+  };
 }
 
 export type ApplyCreateMissingBehaviorLogImportPlanInput = {
@@ -2431,8 +2524,9 @@ async function persistImportedNoteRecord(
 
   const existing = await getImportedNoteByImportIdentity(supabase, {
     userId: input.userId,
-    importRunId: input.importRunId,
     externalId: input.note.externalId,
+    targetType: input.note.attachedToType,
+    targetExternalId: input.note.attachedToId,
   });
   const localNote =
     existing ??

@@ -208,6 +208,44 @@ describe("BehaviorLog optional notes import preview", () => {
     });
   });
 
+  it("refuses to map a reused note id to different content or attachment", () => {
+    const existingNote = {
+      id: "local-imported-note",
+      importRunId: "prior-import-run",
+      externalId: "note-1",
+      targetType: "behavior" as const,
+      targetExternalId: "behavior-brush",
+      targetLocalId: "local-behavior",
+      bodyMarkdown: "Different content.",
+      noteRole: "user" as const,
+      sensitivity: "high" as const,
+      sourceCaptureMethod: "manual_text" as const,
+      sourceConfidence: "high" as const,
+      createdAtUtc: "2026-06-08T13:12:00Z",
+      updatedAtUtc: null,
+    };
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles({ includeNote: true }),
+      existing: {
+        ...existingRecords({ occurrenceNote: null }),
+        importedNotes: [existingNote],
+        mappings: [
+          {
+            recordType: "note",
+            externalId: "note-1",
+            localId: existingNote.id,
+          },
+        ],
+      },
+    });
+
+    expect(preview.mergePreview.actions.notes[0]).toMatchObject({
+      action: "conflict_requires_decision",
+      localId: "local-imported-note",
+      conflictCodes: ["note_attachment_mismatch", "note_body_mismatch"],
+    });
+  });
+
   it("rejects unsupported note target types before planning note imports", () => {
     const preview = resolveBehaviorLogImportMergePreview({
       files: behaviorLogFiles({

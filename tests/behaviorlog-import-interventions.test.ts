@@ -83,6 +83,50 @@ describe("BehaviorLog Intervention Profile import preview", () => {
     ]);
   });
 
+  it("normalizes canonical 0.2 planned interventions for passive storage", () => {
+    const preview = resolveBehaviorLogImportPreview({
+      files: behaviorLogFiles({
+        schemaVersion: "0.2.0-draft",
+        interventions: [canonicalInterventionRecord()],
+      }),
+    });
+
+    expect(preview.valid, JSON.stringify(preview.errors, null, 2)).toBe(true);
+    expect(preview.unsupportedFields).toEqual([]);
+    expect(preview.plan.interventions).toEqual([
+      expect.objectContaining({
+        externalId: "delivery-1",
+        deliveryStatus: "pending",
+        scheduledSendAtUtc: "2026-06-08T12:45:00Z",
+        storageDecision: expect.objectContaining({
+          storedFields: expect.arrayContaining(["planned_for_utc"]),
+        }),
+      }),
+    ]);
+  });
+
+  it("rejects legacy pending status in a 0.2 intervention", () => {
+    const preview = resolveBehaviorLogImportPreview({
+      files: behaviorLogFiles({
+        schemaVersion: "0.2.0-draft",
+        interventions: [
+          canonicalInterventionRecord({ delivery_status: "pending" }),
+        ],
+      }),
+    });
+
+    expect(preview.valid).toBe(false);
+    expect(preview.plan.interventions).toHaveLength(0);
+    expect(preview.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "intervention_delivery_status_invalid",
+          message: expect.stringContaining("pending"),
+        }),
+      ]),
+    );
+  });
+
   it("reports intervention manifest hash mismatches and JSONL parse errors", () => {
     const files = replaceFileContent(
       behaviorLogFiles(),
@@ -270,6 +314,7 @@ describe("BehaviorLog Intervention Profile import preview", () => {
 
 function behaviorLogFiles(input: {
   interventions?: Array<Record<string, unknown>>;
+  schemaVersion?: "0.1.0-draft" | "0.2.0-draft";
 } = {}): BehaviorLogImportFile[] {
   const contentByPath = new Map([
     ["schema.json", "{}"],
@@ -288,7 +333,7 @@ function behaviorLogFiles(input: {
   ]);
   const manifest = {
     format: "behaviorlog.bundle",
-    schema_version: "0.1.0-draft",
+    schema_version: input.schemaVersion ?? "0.1.0-draft",
     producer: {
       name: "Cadence Tracker",
       version: "0.1.0",
@@ -301,7 +346,12 @@ function behaviorLogFiles(input: {
       contains_health_data: false,
       contains_ai_generated_content: false,
     },
-    profiles: ["core", "interventions"],
+    profiles: [
+      "core",
+      input.schemaVersion === "0.2.0-draft"
+        ? "intervention"
+        : "interventions",
+    ],
     files: [...contentByPath.entries()].map(([path, content]) => ({
       path,
       media_type: path.endsWith(".jsonl")
@@ -423,6 +473,29 @@ function interventionRecord(
     scheduled_send_at_utc: "2026-06-08T12:45:00Z",
     sent_at_utc: "2026-06-08T12:46:00Z",
     delivery_status: "sent",
+    failure_reason: null,
+    source: {
+      original_id: "delivery-1",
+      capture_method: "system_generated",
+      confidence: "high",
+    },
+    ...overrides,
+  };
+}
+
+function canonicalInterventionRecord(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    record_type: "intervention",
+    intervention_id: "delivery-1",
+    behavior_id: "behavior-brush",
+    occurrence_id: "occurrence-1",
+    intervention_type: "reminder",
+    channel: "email",
+    planned_for_utc: "2026-06-08T12:45:00Z",
+    sent_at_utc: null,
+    delivery_status: "planned",
     failure_reason: null,
     source: {
       original_id: "delivery-1",

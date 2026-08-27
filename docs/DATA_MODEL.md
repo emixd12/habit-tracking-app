@@ -265,7 +265,8 @@ create table behavior_schedules (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
-  unique (user_id, id)
+  unique (user_id, id),
+  unique (user_id, behavior_id, id)
 );
 ```
 
@@ -308,6 +309,10 @@ create table behavior_schedule_slots (
   constraint behavior_schedule_slots_schedule_owner_fkey
     foreign key (user_id, behavior_schedule_id)
     references behavior_schedules(user_id, id)
+    on delete cascade,
+  constraint behavior_schedule_slots_schedule_behavior_owner_fkey
+    foreign key (user_id, behavior_id, behavior_schedule_id)
+    references behavior_schedules(user_id, behavior_id, id)
     on delete cascade
 );
 ```
@@ -322,8 +327,10 @@ Supported range presets:
 Each schedule must have at least one time entry. A behavior can have multiple
 schedules and multiple time entries per schedule. A nullable
 `behavior_schedule_id` preserves legacy/import paths that only know flat
-behavior-level slots; new writes should set it. Occurrence generation creates
-one occurrence per matching schedule time entry, then merges candidates with
+behavior-level slots; new writes should set it. The composite foreign key
+requires linked schedules and slots to belong to the same behavior. Occurrence
+generation creates one occurrence per matching schedule time entry, then
+merges candidates with
 the same scheduled instant. The first schedule and time entry by stable sort
 order wins, matching the `(behavior_id, scheduled_for)` persistence key.
 
@@ -435,8 +442,9 @@ Timeline and single-Occurrence timing reads use the bounded arbitrary-ID RPC
 documented below. Analytics, selected-day review, and time-tracking exports use
 the joined historical RPC. Exports read sessions only when
 `include_time_tracking=1`. Stopped rows receive derived duration output;
-running rows keep null duration. Import and restore validate optional export
-data but never write it.
+running rows keep null duration. Import and restore replay safely mapped
+standard time sessions. A running session is skipped when its target Occurrence
+already has a running session.
 
 ### `occurrence_sync_state`
 
@@ -630,8 +638,12 @@ Merge-preview rules:
   timezone, active dates, and exact-time or preset range slot shape.
 - Compare occurrences by mapped behavior, mapped schedule, `scheduled_for_utc`,
   `local_date`, and timezone.
+- Reject an occurrence when its `local_date` differs from the date derived from
+  `scheduled_for_utc` in its timezone, or its schedule belongs to another
+  behavior.
 - Compare status events by mapped occurrence, external event id, recorded time,
   status, status semantics, and revision target.
+- Reject duplicate intervention ids before preview or apply.
 - Keep `status_events.jsonl` authoritative over occurrence `current_status`
   snapshots. `unresolved` remains a valid unresolved state, not a failure.
 - Treat status events as append-only history. Merge preview may identify an
@@ -832,6 +844,8 @@ create table behaviorlog_import_record_mappings (
         'schedule',
         'occurrence',
         'status_event',
+        'behavior_definition_event',
+        'time_session',
         'note',
         'intervention'
       )
@@ -922,7 +936,9 @@ review notes may have no local target. Because the attachment is polymorphic,
 the application service must only set `target_local_id` from resolver-approved
 mappings and must not use notes for status, adherence, reminder, or analytics
 calculations. Note mappings in `behaviorlog_import_record_mappings` point to
-`imported_notes.id`.
+`imported_notes.id`. Import deduplication matches the external note id,
+attachment type, and attachment external id across the account, not only the
+current import run. Different attachment or body content is a merge conflict.
 
 High and restricted sensitivity notes are allowed only after preview warnings
 and explicit apply acknowledgement. AI-generated notes are skipped in v1.

@@ -128,12 +128,12 @@ describe("getExportPageData", () => {
     );
     expect(
       bundle.behaviorLog.files.find(
-        (file) => file.path === "raw/cadence/behavior_definition_events.jsonl",
+        (file) => file.path === "data/behavior_definition_events.jsonl",
       )?.content,
-    ).toContain('"id":"definition-1"');
+    ).toContain('"event_id":"definition-1"');
   });
 
-  it("uses complete materialized histories for manifest counts above the Data API cap", async () => {
+  it("uses complete materialized standard histories above the Data API cap", async () => {
     const recordedAt = Temporal.Instant.from("2026-05-01T12:00:00Z");
     const definitionEvents = Array.from({ length: 1_001 }, (_, index) => ({
       id: uuid(index + 10_000),
@@ -178,28 +178,17 @@ describe("getExportPageData", () => {
       range: "all",
       includeTimeTracking: true,
     });
-    const manifestFile = bundle.behaviorLog.files.find(
-      (file) => file.path === "manifest.json",
+    const definitionFile = bundle.behaviorLog.files.find(
+      (file) => file.path === "data/behavior_definition_events.jsonl",
     );
-    const manifest = JSON.parse(manifestFile?.content ?? "{}") as {
-      extensions?: {
-        "app.cadence"?: {
-          behavior_definition_history?: { record_count: number };
-          occurrence_time_sessions?: { record_count: number };
-        };
-      };
-    };
+    const timeSessionFile = bundle.behaviorLog.files.find(
+      (file) => file.path === "data/time_sessions.jsonl",
+    );
 
     expect(bundle.jsonBackup.behavior_definition_events).toHaveLength(1_001);
     expect(bundle.jsonBackup.time_sessions).toHaveLength(1_001);
-    expect(
-      manifest.extensions?.["app.cadence"]?.behavior_definition_history
-        ?.record_count,
-    ).toBe(1_001);
-    expect(
-      manifest.extensions?.["app.cadence"]?.occurrence_time_sessions
-        ?.record_count,
-    ).toBe(1_001);
+    expect(definitionFile?.content.split("\n")).toHaveLength(1_001);
+    expect(timeSessionFile?.content.split("\n")).toHaveLength(1_001);
   });
 
   it("fails when a final Behavior pointer no longer matches the captured history", async () => {

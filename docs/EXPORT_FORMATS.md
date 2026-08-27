@@ -227,10 +227,11 @@ The BehaviorLog bundle is the interoperability export. It is downloaded as
 - `data/notes.jsonl` when include-notes is selected and exported occurrences
   contain notes
 - `data/interventions.jsonl` when exported occurrences have reminder deliveries
-- `raw/cadence/behavior_definition_events.jsonl`
+- `data/intervention_rules.jsonl` when at least one included Behavior has an
+  enabled reminder channel
+- `data/behavior_definition_events.jsonl`
+- `data/time_sessions.jsonl` only when time tracking is selected
 - `raw/cadence/behavior_configuration_events.jsonl`
-- `raw/cadence/occurrence_time_sessions.jsonl` only when time tracking is
-  selected
 - `csv/behaviors.csv`
 - `csv/schedules.csv`
 - `csv/occurrences.csv`
@@ -238,6 +239,11 @@ The BehaviorLog bundle is the interoperability export. It is downloaded as
 
 Core alignment rules:
 
+- `manifest.schema_version` is `0.2.0-draft`, and `schema.json` is the canonical
+  upstream schema rather than a Cadence variant.
+- `manifest.profiles` uses canonical identifiers. Notes remain optional core
+  data. Reminder rules or deliveries add `intervention`, definition events add
+  `definition_history`, and selected timing sessions add `time_tracking`.
 - Status vocabulary is `unresolved`, `completed`, and `not_completed`.
 - `occurrences.jsonl` includes `current_status` as a snapshot only.
 - `status_events.jsonl` is the status-history source of truth.
@@ -245,14 +251,11 @@ Core alignment rules:
 - UTC timestamps are used for ordering events.
 - Required files are listed in `manifest.json` with SHA-256 hashes.
 - App-specific fields live under the `app.cadence` extension namespace.
-- `raw/cadence/behavior_definition_events.jsonl` is an optional app-specific
-  BehaviorLog file. It contains the same sorted records as Full JSON
-  `behavior_definition_events`, is listed and hashed in the manifest with
-  `required: false` and `schema_ref: null`, and does not add a non-standard core
-  record type.
-- `manifest.json.extensions.app.cadence.behavior_definition_history` declares
-  the file path, record count, `recorded_at`/`id` ordering, and current
-  `export_only` import/restore support.
+- `data/behavior_definition_events.jsonl` carries the sorted definition trail
+  through the standard Definition History Profile. The first included event
+  per Behavior is a baseline; later events are revisions with full previous
+  and next title/description snapshots. The manifest declares
+  `rules.definition_history_policy: "event_sourced"`.
 - `raw/cadence/behavior_configuration_events.jsonl` is an optional, hashed
   Cadence-specific file. It contains the same deterministically sorted records
   as Full JSON `behavior_configuration_events`, with `required: false` and no
@@ -282,12 +285,17 @@ Core alignment rules:
   inactive_current_configuration_carrier`. This transports the retained current
   graph for safe inactive round-trip. It does not claim activity before history
   capture or reopen the schedule period.
-- `raw/cadence/occurrence_time_sessions.jsonl` is an optional, hashed
-  Cadence-specific JSONL file. Its records include `session_id`, occurrence and
-  behavior IDs, start/stop instants, and nullable derived duration. The manifest
-  declares its path, record count, `started_at`/`session_id` ordering, and
-  `export_only` support. It includes only sessions attached to occurrences in
-  the selected range and archived-behavior scope.
+- `data/time_sessions.jsonl` is the optional standard Time Tracking Profile
+  file. It includes only sessions attached to occurrences in the selected range
+  and archived-Behavior scope. Records contain session, occurrence, and
+  Behavior IDs plus start/stop instants. They do not contain derived duration.
+  Running sessions keep `stopped_at_utc: null`. Its presence requires
+  `privacy.contains_time_tracking: true`.
+- `data/intervention_rules.jsonl` contains one enabled reminder rule per
+  enabled Behavior channel. Rule IDs are deterministic, and
+  `offset_minutes` is the negated Cadence reminder offset. Intervention records
+  reference the matching enabled rule. Reminder flags remain duplicated under
+  `extensions.app.cadence` for backward compatibility.
 
 The upstream standard lives at:
 `https://github.com/emixd12/BehaviorLog-Bundle`
@@ -302,9 +310,11 @@ The upstream standard lives at:
   into top-level CSV columns.
 - Reminder deliveries are exported through the optional Intervention Profile as
   `data/interventions.jsonl`. Intervention records reference exported
-  `behavior_id` and `occurrence_id`, preserve reminder channel, scheduled send
-  time, sent time, delivery status, and sanitized failure reason, and keep
-  Cadence-specific delivery metadata under `extensions.app.cadence`.
+  `behavior_id` and `occurrence_id`, preserve reminder channel, planned time in
+  `planned_for_utc`, sent time, delivery status, and sanitized failure reason,
+  and keep Cadence-specific delivery metadata under `extensions.app.cadence`.
+  Cadence `pending` deliveries export as canonical `planned`; `sent`, `failed`,
+  and `cancelled` remain unchanged. Bundles never emit `pending`.
 - Intervention records must not include email bodies, push payload bodies, API
   keys, provider secrets, raw push endpoints, browser subscription keys, or other
   sensitive transport details.
@@ -334,17 +344,11 @@ Required bundle files:
 
 `data/notes.jsonl` is optional.
 
-`raw/cadence/behavior_definition_events.jsonl` is an optional Cadence export
-file. Current import, merge preview/apply, and restore preview/apply verify its
-manifest entry and hash through normal bundle validation, but do not parse or
-replay its revision records. These workflows use the current title and
-description snapshots in `data/behaviors.jsonl`: create-only and approved-merge
-creates record a local `source = import` baseline, while restore records a local
-import baseline or definition transition for the snapshot it applies. Those
-locally generated events do not reconstruct the bundle's earlier revision
-trail. Full JSON has no import or restore path. Users should retain the original
-Full JSON or BehaviorLog export when they need to preserve the complete
-revision trail outside Cadence.
+`data/behavior_definition_events.jsonl` is parsed by import, merge, and restore.
+Cadence replays the complete baseline and revision trail for created or restored
+Behaviors. A local import baseline is generated only when the bundle has no
+portable baseline for that Behavior. Unmappable events are skipped with a
+warning.
 
 `raw/cadence/behavior_configuration_events.jsonl` follows the same hash
 validation and export-only replay contract. Import and restore use only core
@@ -357,17 +361,21 @@ preset, and start/end snapshot intact and a null
 This prevents a daily-to-weekly export from becoming simultaneous daily and
 weekly schedules while preserving Occurrence portability.
 
-`raw/cadence/occurrence_time_sessions.jsonl` follows the same hash validation.
-Cadence validates its record shape and export-only declaration, but import,
-merge, restore preview, and restore apply never replay timing sessions.
+`data/time_sessions.jsonl` is parsed by import, merge, and restore. Cadence
+replays safely mapped sessions. A running session is skipped with a warning
+when the target Occurrence already has a running session.
 
 Import validation rules:
 
 - Validate `manifest.json` format, schema version, listed files, and SHA-256
   hashes for every listed file.
-- Accept the manifest-listed optional Cadence definition-history file without
-  treating it as a core record file. Its rows remain export-only in this
-  ticket.
+- Accept both `0.1.0-draft` and `0.2.0-draft`. Legacy `0.1.0-draft`
+  interventions use `scheduled_send_at_utc` and `pending`. Canonical
+  `0.2.0-draft` interventions use `planned_for_utc` and `planned`. Both forms
+  normalize to Cadence's internal scheduled timestamp and `pending` status.
+  A `0.2.0-draft` intervention that still uses `pending` is invalid.
+- Parse the standard definition-history and time-session files when present.
+  Unmappable rows become skip actions with warnings.
 - Validate JSONL parsing with file and row errors that can be shown to the user
   later.
 - Validate supported record types for behavior, schedule, occurrence,
@@ -387,6 +395,11 @@ Import validation rules:
 - Treat `occurrences.jsonl` `current_status` as a current snapshot only.
   Status history comes from `status_events.jsonl`.
 - Use `local_date` plus IANA `timezone` for day grouping and conflict preview.
+- Require each occurrence `local_date` to equal the date derived from
+  `scheduled_for_utc` in its timezone.
+- Require each occurrence schedule to belong to the same behavior as the
+  occurrence. The database enforces the same relationship for persisted slots.
+- Reject duplicate intervention ids before preview or apply.
 - Return counts, warnings, conflicts, unsupported fields, and skipped records in
   the preview.
 - Optional `data/interventions.jsonl` files are parsed for an Intervention
@@ -421,6 +434,10 @@ Import tracking rules:
 - Mapping inserts are idempotent for the same import run, record type, and
   external id. Later import phases should reuse these mappings instead of
   inventing separate provenance stores.
+- Create-only and approved-merge apply use one database transaction. A unique
+  accepted-preview fence permits one applied run, and a concurrent duplicate
+  returns that run's stored result. Failed product writes roll back before the
+  apply ledger is marked failed.
 
 Create-only apply rules:
 
@@ -455,11 +472,11 @@ Create-only apply rules:
   `imported_interventions` history with sanitized failure reasons, source
   metadata, redaction indicators, external behavior/occurrence ids, and local
   ids when known.
-- Create-only apply must not merge, overwrite, restore, delete, import optional
-  profile data, import CSV-only data, write `reminder_deliveries`, or trigger
-  notification/provider side effects. Imported intervention promotion is a
-  separate explicit selected-and-confirmed workflow after passive history
-  exists.
+- Create-only apply must not merge, overwrite, restore, delete, import CSV-only
+  data, write `reminder_deliveries`, or trigger notification/provider side
+  effects. It may replay supported standard definition-history, time-tracking,
+  and intervention-rule data. Imported intervention promotion is a separate
+  explicit selected-and-confirmed workflow after passive history exists.
 
 Merge-preview rules:
 
@@ -492,6 +509,9 @@ Merge-preview rules:
   original id, timestamps, attachment target, and a storage decision. Non-AI
   behavior, occurrence, status-event, and review notes can plan passive
   `imported_notes` rows. AI-generated notes are skipped with warnings.
+- Note identity is account-scoped by external id and attachment. A matching
+  attachment and body maps to the existing note; a different attachment or
+  body is a conflict.
 - High or restricted note sensitivity must produce a preview warning and require
   explicit privacy acknowledgement before the note can be accepted for import.
 - Import preview must distinguish an inline occurrence-note fill from a general
@@ -542,9 +562,9 @@ User-approved merge apply rules:
   claim reminders, or call notification providers. Imported intervention
   promotion remains separate from merge apply and must require its own selected
   imported-intervention ids plus explicit confirmation.
-- Merge apply must be idempotent for the same accepted run through
-  `behaviorlog_import_record_mappings`, and failed partial attempts mark the
-  import run `failed`.
+- Merge apply is idempotent for the same accepted preview. Product writes and
+  their mappings commit together, and failed attempts leave no product rows
+  before the import run is marked `failed`.
 
 User-facing import UI rules:
 
@@ -582,11 +602,10 @@ User-facing import UI rules:
   the server refusal, keep the prior preview available for review, and require
   a new preview before another apply attempt.
 - Raw uploaded bundle contents are not stored in the import-run ledger.
-- The Export & Import screen must disclose that the exported behavior
-  definition and configuration revision trails are not replayed in this
-  release. Import and restore use current Behavior snapshots, retain historical
-  Occurrences as detached snapshots, and record only the local import baseline
-  or transition needed to keep subsequent Cadence history complete.
+- The Export & Import screen must disclose that standard definition history and
+  safely mapped time sessions replay, while the Cadence configuration-history
+  extension remains export-only. Historical Occurrences remain detached from
+  inactive historical schedules.
 - Do not add full restore, destructive overwrite, generalized notes browsing, or
   intervention-to-reminder writes in this UI milestone.
 
@@ -607,8 +626,8 @@ Restore preview rules:
   product records or reminders.
 - Preview emits machine-readable create, replace, archive, delete, keep, and
   skip actions for behaviors, behavior schedule slots, occurrences, occurrence
-  status events, inline occurrence notes, passive imported notes, and passive
-  imported intervention-history records.
+  status events, definition events, time sessions, inline occurrence notes,
+  passive imported notes, and passive imported intervention-history records.
 - Each action flags whether it is destructive. Replace, archive, and delete are
   destructive.
 - Preview includes stable bundle, local-data, and preview fingerprints. A future
@@ -665,6 +684,11 @@ Restore apply rules:
 - Apply preserves append-only status history by default. Status-history
   replacement remains a policy that must be present in the accepted preview
   before local status events can be deleted.
+- Apply replays standard definition events and safely mapped time sessions.
+  Provenance mappings make both writes idempotent.
+- Apply restores categories by normalized display name, reminder settings from
+  standard intervention rules, arbitrary range slots, and shared schedule
+  parents from Cadence schedule extensions.
 - Apply may archive, replace, or delete only records represented by the accepted
   restore contract. It must preserve user ownership and Supabase RLS boundaries.
 - Apply may remove operational reminder deliveries only through normal
@@ -727,7 +751,7 @@ status-history UI or new source-capture values.
 Every Markdown summary also reports how many behavior definition events are
 included for the exported behaviors and directs agents to Full JSON
 `behavior_definition_events` or BehaviorLog
-`raw/cadence/behavior_definition_events.jsonl`. Agents should use the ordered
+`data/behavior_definition_events.jsonl`. Agents should use the ordered
 previous/next definitions when a rename or description change affects how past
 occurrences should be interpreted. The summary does not repeat the full
 historical text and definition events do not alter occurrence status or
@@ -814,9 +838,9 @@ The resolver should not query Supabase directly.
 - BehaviorLog bundle includes required files, manifest hashes, schedules,
   occurrences, status events, and notes only when include-notes is selected and
   notes exist.
-- BehaviorLog includes the optional hashed Cadence definition-history file as
-  `required: false` with no core schema reference, while remaining valid in the
-  upstream conformance harness and Cadence dry-run importer.
+- BehaviorLog includes standard definition-history and optional time-tracking
+  files that remain valid in the upstream conformance harness and Cadence
+  importer.
 - BehaviorLog includes the optional hashed Cadence configuration-history file,
   splits daily-to-weekly and active/timezone schedule periods at exact captured
   revisions, does not split category/reminder-only revisions, orders same-day
@@ -827,7 +851,7 @@ The resolver should not query Supabase directly.
   unknown historical recurrence.
 - Create-only import, approved merge, and destructive restore keep only the
   current configuration schedule graph while preserving historical Occurrences,
-  statuses, and notes with null schedule-slot linkage.
+  statuses, notes, definition events, and safely mapped time sessions.
 - Repository coverage proves keyset reads beyond 1,000 equal-timestamp rows,
   exactly 100,000 rows, a loud 100,001st-row failure, and the local PostgREST
   timestamp/ID cursor grammar.
@@ -857,6 +881,7 @@ The resolver should not query Supabase directly.
   preserving signed machine-generated values such as UTC offsets.
 - BehaviorLog Intervention Profile export emits reminder deliveries as optional
   `intervention` records, validates their references through the conformance
-  harness, represents pending/sent/failed/cancelled statuses, lists and hashes
+  harness, represents planned/sent/failed/cancelled statuses, lists and hashes
   `data/interventions.jsonl` in the manifest, and redacts sensitive transport
-  details.
+  details. Cadence import retains compatibility with pre-repair
+  `0.1.0-draft` scheduled/pending intervention records.

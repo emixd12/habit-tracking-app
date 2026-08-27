@@ -155,6 +155,7 @@ function reminderDelivery(
 }
 
 function bundleFiles(input: {
+  behaviors?: ExportBehaviorInput[];
   occurrences?: ExportOccurrenceInput[];
   statusEvents?: ExportStatusEventInput[];
   reminderDeliveries?: ExportReminderDeliveryInput[];
@@ -166,7 +167,7 @@ function bundleFiles(input: {
       subjectId: "subject_test",
     },
     categories,
-    behaviors: [behavior()],
+    behaviors: input.behaviors ?? [behavior()],
     occurrences: input.occurrences ?? [occurrence()],
     statusEvents: input.statusEvents ?? statusEvents(),
     reminderDeliveries: input.reminderDeliveries,
@@ -180,7 +181,46 @@ function bundleFiles(input: {
 }
 
 describe("resolveBehaviorLogImportPreview", () => {
-  it("validates Cadence timing files without importing timing sessions", () => {
+  it("round-trips an arbitrary range as a custom range slot", () => {
+    const preview = resolveBehaviorLogImportPreview({
+      files: bundleFiles({
+        behaviors: [
+          behavior({
+            scheduleSlots: [
+              {
+                id: "slot-brush",
+                kind: "range",
+                preset: null,
+                startTime: "07:15",
+                endTime: "09:40",
+                sortOrder: 0,
+                label: "7:15–9:40 AM",
+              },
+            ],
+          }),
+        ],
+        occurrences: [
+          occurrence({
+            scheduleKind: "range",
+            scheduleStartTime: "07:15",
+            scheduleEndTime: "09:40",
+          }),
+        ],
+      }),
+    });
+
+    expect(preview.valid).toBe(true);
+    expect(preview.plan.schedules).toEqual([
+      expect.objectContaining({
+        cadenceScheduleKind: "range",
+        cadenceSchedulePreset: null,
+        windowStartLocal: "07:15",
+        windowEndLocal: "09:40",
+      }),
+    ]);
+  });
+
+  it("plans canonical time sessions for replay", () => {
     const preview = resolveBehaviorLogImportPreview({
       files: bundleFiles({
         timeSessions: [
@@ -196,15 +236,20 @@ describe("resolveBehaviorLogImportPreview", () => {
     });
 
     expect(preview.valid).toBe(true);
-    expect(preview.plan).not.toHaveProperty("timeSessions");
-    expect(preview.warnings).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "cadence_time_sessions_export_only" }),
-      ]),
-    );
+    expect(preview.plan.timeSessions).toEqual([
+      expect.objectContaining({
+        action: "create",
+        externalId: "session-1",
+        occurrenceExternalId: "occurrence-1",
+        behaviorExternalId: "behavior-brush",
+        startedAtUtc: "2026-06-08T13:00:00Z",
+        stoppedAtUtc: null,
+      }),
+    ]);
+    expect(preview.summary.timeSessionCount).toBe(1);
   });
 
-  it("rejects an altered optional Cadence timing file through its manifest hash", () => {
+  it("rejects an altered canonical timing file through its manifest hash", () => {
     const files = replaceFileContent(
       bundleFiles({
         timeSessions: [
@@ -217,7 +262,7 @@ describe("resolveBehaviorLogImportPreview", () => {
           },
         ],
       }),
-      "raw/cadence/occurrence_time_sessions.jsonl",
+      "data/time_sessions.jsonl",
       '{"record_type":"occurrence_time_session"}',
       { updateManifestHash: false },
     );
@@ -227,12 +272,12 @@ describe("resolveBehaviorLogImportPreview", () => {
     expect(preview.errors).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "manifest_hash_mismatch" }),
-        expect.objectContaining({ code: "cadence_time_session_invalid" }),
+        expect.objectContaining({ code: "record_type_invalid" }),
       ]),
     );
   });
 
-  it("rejects an optional Cadence timing file that is absent from the manifest", () => {
+  it("warns when a canonical timing file is absent from the manifest", () => {
     const files = removeManifestEntry(
       bundleFiles({
         timeSessions: [
@@ -245,14 +290,17 @@ describe("resolveBehaviorLogImportPreview", () => {
           },
         ],
       }),
-      "raw/cadence/occurrence_time_sessions.jsonl",
+      "data/time_sessions.jsonl",
     );
     const preview = resolveBehaviorLogImportPreview({ files });
 
-    expect(preview.valid).toBe(false);
-    expect(preview.errors).toEqual(
+    expect(preview.valid).toBe(true);
+    expect(preview.warnings).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "cadence_time_sessions_not_listed" }),
+        expect.objectContaining({
+          code: "file_not_listed",
+          file: "data/time_sessions.jsonl",
+        }),
       ]),
     );
   });
@@ -263,7 +311,7 @@ describe("resolveBehaviorLogImportPreview", () => {
 
     expect(preview.valid).toBe(true);
     expect(preview.summary).toMatchObject({
-      schemaVersion: "0.1.0-draft",
+      schemaVersion: "0.2.0-draft",
       behaviorCount: 1,
       scheduleCount: 1,
       occurrenceCount: 1,
@@ -494,6 +542,53 @@ describe("resolveBehaviorLogImportPreview", () => {
         fields: ["unknown_top_level_field"],
       }),
     ]);
+  });
+
+  it("skips intervention rules that schedule after an occurrence", () => {
+    const files = replaceJsonlRecords(
+      bundleFiles(),
+      "data/intervention_rules.jsonl",
+      (records) =>
+        records.map((record) => ({
+          ...record,
+          offset_minutes: 15,
+        })),
+    );
+    const preview = resolveBehaviorLogImportPreview({ files });
+
+    expect(preview.valid).toBe(true);
+    expect(preview.plan.interventionRules).toEqual([
+      expect.objectContaining({
+        action: "skip",
+        offsetMinutes: 15,
+        skipReasons: ["positive_offset_after_occurrence"],
+      }),
+    ]);
+    expect(preview.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "intervention_rule_positive_offset_unmappable",
+          file: "data/intervention_rules.jsonl",
+        }),
+      ]),
+    );
+  });
+
+  it("distinguishes absent intervention rules from a present empty file", () => {
+    const files = bundleFiles();
+    const absent = resolveBehaviorLogImportPreview({
+      files: removeManifestEntry(files, "data/intervention_rules.jsonl").filter(
+        (file) => file.path !== "data/intervention_rules.jsonl",
+      ),
+    });
+    const empty = resolveBehaviorLogImportPreview({
+      files: replaceFileContent(files, "data/intervention_rules.jsonl", ""),
+    });
+
+    expect(absent.valid).toBe(true);
+    expect(absent.plan.interventionRules).toBeUndefined();
+    expect(empty.valid).toBe(true);
+    expect(empty.plan.interventionRules).toEqual([]);
   });
 
   it("creates stable preview bindings and changes them when bundle or local data changes", () => {

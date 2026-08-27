@@ -17,6 +17,73 @@ type ExistingRecordsFixture = Required<
 >;
 
 describe("resolveBehaviorLogImportMergePreview", () => {
+  it("rejects occurrence dates that disagree with the instant and timezone", () => {
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles({
+        occurrence: { local_date: "2026-06-07" },
+      }),
+    });
+
+    expect(preview.valid).toBe(false);
+    expect(preview.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "occurrence_local_date_mismatch",
+          file: "data/occurrences.jsonl",
+          row: 1,
+        }),
+      ]),
+    );
+  });
+
+  it("rejects an occurrence that references another behavior's schedule", () => {
+    let files = behaviorLogFiles({
+      occurrence: { behavior_id: "behavior-other" },
+      statusEvent: { behavior_id: "behavior-other" },
+    });
+    const behaviorRecord = JSON.parse(
+      files.find((file) => file.path === "data/behaviors.jsonl")!.content,
+    ) as Record<string, unknown>;
+
+    files = replaceJsonlRows(files, "data/behaviors.jsonl", [
+      behaviorRecord,
+      { ...behaviorRecord, behavior_id: "behavior-other", title: "Other" },
+    ]);
+    const preview = resolveBehaviorLogImportMergePreview({ files });
+
+    expect(preview.valid).toBe(false);
+    expect(preview.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "occurrence_schedule_behavior_mismatch",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects duplicate intervention ids", () => {
+    let files = behaviorLogFiles({ includeIntervention: true });
+    const intervention = JSON.parse(
+      files.find((file) => file.path === "data/interventions.jsonl")!.content,
+    ) as Record<string, unknown>;
+
+    files = replaceJsonlRows(files, "data/interventions.jsonl", [
+      intervention,
+      intervention,
+    ]);
+    const preview = resolveBehaviorLogImportMergePreview({ files });
+
+    expect(preview.valid).toBe(false);
+    expect(preview.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "duplicate_imported_id",
+          file: "data/interventions.jsonl",
+        }),
+      ]),
+    );
+  });
+
   it("plans create_new actions for records without local matches and previews optional records", () => {
     const preview = resolveBehaviorLogImportMergePreview({
       files: behaviorLogFiles({ includeNote: true, includeIntervention: true }),
@@ -211,7 +278,19 @@ describe("resolveBehaviorLogImportMergePreview", () => {
 
   it("emits stable conflict codes and human-readable reasons", () => {
     const preview = resolveBehaviorLogImportMergePreview({
-      files: behaviorLogFiles(),
+      files: behaviorLogFiles({
+        behavior: {
+          extensions: {
+            "app.cadence": {
+              category_name: "Grooming",
+              active: false,
+              browser_reminder_enabled: true,
+              email_reminder_enabled: false,
+              reminder_offset_minutes: 0,
+            },
+          },
+        },
+      }),
       existing: {
         behaviors: [
           {
@@ -252,6 +331,11 @@ describe("resolveBehaviorLogImportMergePreview", () => {
       "schedule_parent_behavior_conflict",
       "status_event_parent_mapping_unresolved",
     ]);
+    expect(preview.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "behavior_active_extension_ignored" }),
+      ]),
+    );
   });
 
   it("keeps status_events.jsonl authoritative over occurrence current_status snapshots", () => {
@@ -676,4 +760,30 @@ function behaviorLogFiles(
 
 function sha256(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+function replaceJsonlRows(
+  files: BehaviorLogImportFile[],
+  path: string,
+  rows: Record<string, unknown>[],
+): BehaviorLogImportFile[] {
+  const content = rows.map((row) => JSON.stringify(row)).join("\n");
+  const manifest = JSON.parse(
+    files.find((file) => file.path === "manifest.json")!.content,
+  ) as { files: Array<{ path: string; sha256: string }> };
+  const entry = manifest.files.find((file) => file.path === path);
+
+  if (!entry) {
+    throw new Error(`Missing manifest entry ${path}.`);
+  }
+
+  entry.sha256 = sha256(content);
+
+  return files.map((file) =>
+    file.path === path
+      ? { ...file, content }
+      : file.path === "manifest.json"
+        ? { ...file, content: JSON.stringify(manifest) }
+        : file,
+  );
 }

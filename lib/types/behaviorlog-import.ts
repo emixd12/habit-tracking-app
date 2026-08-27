@@ -6,6 +6,8 @@ export type BehaviorLogImportRecordType =
   | "schedule"
   | "occurrence"
   | "status_event"
+  | "behavior_definition_event"
+  | "time_session"
   | "note"
   | "intervention";
 
@@ -213,11 +215,29 @@ export type BehaviorLogExistingImportMapping = {
   localId: string;
 };
 
+export type BehaviorLogExistingDefinitionEvent = {
+  id: string;
+  behaviorId: string;
+  recordedAtUtc: string;
+  sourceOriginalId?: string | null;
+};
+
+export type BehaviorLogExistingTimeSession = {
+  id: string;
+  occurrenceId: string;
+  behaviorId: string;
+  startedAtUtc: string;
+  stoppedAtUtc: string | null;
+  sourceOriginalId?: string | null;
+};
+
 export type BehaviorLogExistingRecords = {
   behaviors?: BehaviorLogExistingBehavior[];
   schedules?: BehaviorLogExistingSchedule[];
   occurrences?: BehaviorLogExistingOccurrence[];
   statusEvents?: BehaviorLogExistingStatusEvent[];
+  definitionEvents?: BehaviorLogExistingDefinitionEvent[];
+  timeSessions?: BehaviorLogExistingTimeSession[];
   importedNotes?: BehaviorLogExistingImportedNote[];
   importedInterventions?: BehaviorLogExistingImportedIntervention[];
   mappings?: BehaviorLogExistingImportMapping[];
@@ -233,6 +253,7 @@ export type BehaviorLogImportBehaviorPlan = {
   description: string | null;
   createdAtUtc: string | null;
   archivedAtUtc: string | null;
+  active?: boolean;
   cadenceActive: boolean | null;
   cadenceBrowserReminderEnabled: boolean | null;
   cadenceEmailReminderEnabled: boolean | null;
@@ -254,6 +275,7 @@ export type BehaviorLogImportSchedulePlan = {
   windowEndLocal: string | null;
   cadenceScheduleKind: "exact" | "range" | null;
   cadenceSchedulePreset: "morning" | "afternoon" | "evening" | "night" | null;
+  cadenceBehaviorScheduleId?: string | null;
   cadenceConfigurationEventId?: string | null;
   cadenceImportRole?:
     | "current_configuration"
@@ -263,6 +285,54 @@ export type BehaviorLogImportSchedulePlan = {
   activeFromLocalDate: string;
   activeUntilLocalDate: string | null;
   sourceOriginalId?: string | null;
+  sourceConfidence: BehaviorLogSourceConfidence;
+};
+
+export type BehaviorLogImportDefinitionEventPlan = {
+  action: BehaviorLogImportPlanAction;
+  skipReasons: string[];
+  externalId: string;
+  behaviorExternalId: string;
+  eventKind: "baseline" | "revision";
+  changedFields: Array<"title" | "description">;
+  unsupportedChangedFields: string[];
+  previousTitle: string | null;
+  nextTitle: string | null;
+  previousDescription: string | null;
+  nextDescription: string | null;
+  recordedAtUtc: string;
+  reasonCode: string | null;
+  sourceCaptureMethod: BehaviorLogSourceCaptureMethod;
+  sourceConfidence: BehaviorLogSourceConfidence;
+};
+
+export type BehaviorLogImportTimeSessionPlan = {
+  action: BehaviorLogImportPlanAction;
+  skipReasons: string[];
+  externalId: string;
+  occurrenceExternalId: string;
+  behaviorExternalId: string;
+  startedAtUtc: string;
+  stoppedAtUtc: string | null;
+  sourceOriginalId?: string | null;
+  sourceCaptureMethod: BehaviorLogSourceCaptureMethod;
+  sourceConfidence: BehaviorLogSourceConfidence;
+};
+
+export type BehaviorLogImportInterventionRulePlan = {
+  action: BehaviorLogImportPlanAction;
+  skipReasons: string[];
+  externalId: string;
+  behaviorExternalId: string | null;
+  interventionType: string;
+  channel: string;
+  enabled: boolean;
+  offsetMinutes: number | null;
+  activeFromLocalDate: string | null;
+  activeUntilLocalDate: string | null;
+  timezone: string | null;
+  sourceOriginalId?: string | null;
+  sourceCaptureMethod: BehaviorLogSourceCaptureMethod;
   sourceConfidence: BehaviorLogSourceConfidence;
 };
 
@@ -342,6 +412,9 @@ export type BehaviorLogImportPlan = {
   schedules: BehaviorLogImportSchedulePlan[];
   occurrences: BehaviorLogImportOccurrencePlan[];
   statusEvents: BehaviorLogImportStatusEventPlan[];
+  definitionEvents?: BehaviorLogImportDefinitionEventPlan[];
+  timeSessions?: BehaviorLogImportTimeSessionPlan[];
+  interventionRules?: BehaviorLogImportInterventionRulePlan[];
   notes: BehaviorLogImportNotePlan[];
   interventions: BehaviorLogImportInterventionPreviewPlan[];
 };
@@ -385,6 +458,9 @@ export type BehaviorLogImportSummary = {
   interventionStoredCount: number;
   interventionSensitiveFieldDropCount: number;
   interventionRedactedFieldCount: number;
+  definitionEventCount?: number;
+  timeSessionCount?: number;
+  interventionRuleCount?: number;
   interventionCounts: BehaviorLogImportInterventionCounts;
   createCount: number;
   skipCount: number;
@@ -463,6 +539,8 @@ export type BehaviorLogImportMergePreview = {
     schedules: BehaviorLogImportMergeRecordAction[];
     occurrences: BehaviorLogImportMergeRecordAction[];
     statusEvents: BehaviorLogImportMergeRecordAction[];
+    definitionEvents?: BehaviorLogImportMergeRecordAction[];
+    timeSessions?: BehaviorLogImportMergeRecordAction[];
     notes: BehaviorLogImportMergeRecordAction[];
     interventions: BehaviorLogImportMergeRecordAction[];
   };

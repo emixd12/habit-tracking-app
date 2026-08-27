@@ -8,6 +8,7 @@ import type {
 
 export type BehaviorLogRestoreRecordType =
   | BehaviorLogImportRecordType
+  | "intervention_rule"
   | "inline_occurrence_note";
 
 export type BehaviorLogRestoreActionKind =
@@ -88,6 +89,9 @@ export type BehaviorLogRestorePreview = {
     schedules: BehaviorLogRestoreAction[];
     occurrences: BehaviorLogRestoreAction[];
     statusEvents: BehaviorLogRestoreAction[];
+    definitionEvents?: BehaviorLogRestoreAction[];
+    timeSessions?: BehaviorLogRestoreAction[];
+    interventionRules?: BehaviorLogRestoreAction[];
     inlineOccurrenceNotes: BehaviorLogRestoreAction[];
     importedNotes: BehaviorLogRestoreAction[];
     importedInterventions: BehaviorLogRestoreAction[];

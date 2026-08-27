@@ -23,16 +23,21 @@ export async function getImportedNoteByImportIdentity(
   supabase: AppSupabaseClient,
   input: {
     userId: string;
-    importRunId: string;
     externalId: string;
+    targetType: string;
+    targetExternalId: string;
   },
 ): Promise<ImportedNote | null> {
   const { data, error } = await supabase
     .from("imported_notes")
     .select("*")
     .eq("user_id", input.userId)
-    .eq("import_run_id", input.importRunId)
     .eq("external_id", input.externalId)
+    .eq("target_type", input.targetType)
+    .eq("target_external_id", input.targetExternalId)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1)
     .maybeSingle();
 
   if (error) {

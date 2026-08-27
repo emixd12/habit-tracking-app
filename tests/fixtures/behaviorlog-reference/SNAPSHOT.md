@@ -2,15 +2,16 @@
 
 Source: `https://github.com/emixd12/BehaviorLog-Bundle`
 
-Snapshot commit: `d3b3850ed6cd4fb243b091ae14baeb24fdd653e9`
+Snapshot commit: `441baa2c341ad6b7e61ed5ad31065c3a1005ba83`
 
-Commit date: `2026-06-11T18:04:28-04:00`
+Commit date: `2026-08-06T22:04:11-04:00`
 
-Vendored file:
+Vendored files:
 - `reference/validate.mjs` stored at `tests/fixtures/behaviorlog-reference/validate.mjs`
+- `schema/behaviorlog.schema.json` stored at `lib/behaviorlog.schema.json`
 
 Local adaptation:
-- Removed unused Node imports only; validation behavior is unchanged from the upstream snapshot.
+- None. Both vendored files are byte-exact upstream copies.
 
 Purpose:
 - Keep Cadence's BehaviorLog core conformance harness deterministic while the upstream draft evolves.

@@ -305,6 +305,48 @@ describe("resolveBehaviorLogRestorePreview", () => {
     expect(first.previewFingerprint).not.toBe(changed.previewFingerprint);
     expect(first.localDataFingerprint).not.toBe(changed.localDataFingerprint);
   });
+
+  it("skips a planned running session when the occurrence already has another running session", () => {
+    const importPreview = resolveBehaviorLogImportPreview({
+      files: bundleFiles({
+        timeSessions: [
+          {
+            id: "session-imported",
+            occurrenceId: "occurrence-1",
+            behaviorId: "behavior-brush",
+            startedAt: "2026-06-08T13:30:00Z",
+            stoppedAt: null,
+          },
+        ],
+      }),
+    });
+    const preview = resolveBehaviorLogRestorePreview({
+      importPreview,
+      existing: existingRecords({
+        timeSessions: [
+          {
+            id: "session-local-running",
+            occurrenceId: "occurrence-1",
+            behaviorId: "behavior-brush",
+            startedAtUtc: "2026-06-08T13:00:00Z",
+            stoppedAtUtc: null,
+          },
+        ],
+      }),
+    });
+
+    expect(preview.actions.timeSessions).toEqual([
+      expect.objectContaining({
+        externalId: "session-imported",
+        action: "skip",
+      }),
+    ]);
+    expect(preview.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "running_time_session_already_exists" }),
+      ]),
+    );
+  });
 });
 
 function behavior(
