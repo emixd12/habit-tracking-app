@@ -116,16 +116,14 @@ export function codeScanningFact(value, scope, tool) {
 
 export async function readHostedMigrationBoundary({ accessToken, projectRef, fetchImpl = fetch }) {
   if (!accessToken || !/^[a-z0-9]{20}$/.test(projectRef ?? "")) return null;
-  const response = await fetchImpl(`https://api.supabase.com/v1/projects/${projectRef}/database/query/read-only`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ query: "select version from supabase_migrations.schema_migrations order by version desc limit 1" }),
+  const response = await fetchImpl(`https://api.supabase.com/v1/projects/${projectRef}/database/migrations`, {
+    headers: { authorization: `Bearer ${accessToken}` },
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) return null;
   const rows = await response.json();
-  const boundary = Array.isArray(rows) ? rows[0]?.version : rows?.result?.[0]?.version;
-  return typeof boundary === "string" && /^20\d{12}$/.test(boundary) ? boundary : null;
+  if (!Array.isArray(rows)) return null;
+  return rows.map((row) => row?.version).filter((version) => typeof version === "string" && /^20\d{12}$/.test(version)).sort().at(-1) ?? null;
 }
 
 async function liveFacts(input) {
@@ -180,7 +178,7 @@ async function liveFacts(input) {
     const remote = await readHostedMigrationBoundary({ accessToken: process.env.SUPABASE_ACCESS_TOKEN, projectRef: process.env.SUPABASE_PROJECT_REF });
     const files = await (await import("node:fs/promises")).readdir(new URL("supabase/migrations/", ROOT));
     const boundary = files.map((name) => /^([0-9]{14})_/.exec(name)?.[1]).filter(Boolean).sort().at(-1);
-    if (remote) migration = { matched: remote === boundary, boundary, tool_version: "v1 read-only query" };
+    if (remote) migration = { matched: remote === boundary, boundary, tool_version: "v1 migration inventory" };
   }
   let rls = fixture?.rls ?? input.rls;
   if (!rls && process.env.RUN_RLS === "true") {

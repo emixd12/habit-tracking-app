@@ -21,19 +21,19 @@ describe("public Trust collector", () => {
     expect(aggregateSbom(input.fixture.sbom).sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("reads only the hosted migration boundary through the read-only Management API", async () => {
-    let request: { url?: string; query?: string } = {};
+  it("reads only the hosted migration boundary through the Management API migration inventory", async () => {
+    let request: { url?: string; method?: string } = {};
     const boundary = await readHostedMigrationBoundary({
       accessToken: "secret",
       projectRef: "abcdefghijklmnopqrst",
       fetchImpl: async (url: string, init: RequestInit) => {
-        request = { url, query: JSON.parse(String(init.body)).query };
-        return new Response(JSON.stringify([{ version: "20260825080815" }]), { status: 201 });
+        request = { url, method: init.method };
+        return new Response(JSON.stringify([{ version: "20260824080815" }, { version: "20260825080815" }]), { status: 200 });
       },
     });
     expect(boundary).toBe("20260825080815");
-    expect(request.url).toContain("/database/query/read-only");
-    expect(request.query).toContain("supabase_migrations.schema_migrations");
+    expect(request.url).toContain("/database/migrations");
+    expect(request.method).toBeUndefined();
   });
 
   it("rejects invalid project references and migration responses", async () => {

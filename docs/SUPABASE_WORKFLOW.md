@@ -542,10 +542,12 @@ Do not commit `.env`, `.env.local`, Supabase access tokens, service-role keys, o
 ## Ticket 102 public evidence collection
 
 The Public Trust workflow reads the final hosted migration version through the
-Management API read-only query endpoint. The protected environment stores a
-scoped, expiring `SUPABASE_ACCESS_TOKEN`; its variable stores the project
-reference. The fixed query cannot mutate the database. Its RLS result remains fresh for seven days. A manual authorized
+Management API migration inventory `GET` endpoint. It must not use the SQL
+query endpoint for this check. The protected environment stores a scoped,
+expiring `SUPABASE_ACCESS_TOKEN`; its variable stores the project reference.
+Its RLS result remains fresh for seven days. A manual authorized
 run may execute the existing smoke command. Scheduled runs reuse its completion
 time only while the source commit and both deployment IDs remain identical.
 Subject mismatch makes the result Not run. Deadline expiry makes it Stale.
-Cleanup failure is Failed and blocks a Passed release.
+The smoke reports success only after all three temporary users delete
+successfully. Cleanup failure is Failed and blocks a Passed release.
