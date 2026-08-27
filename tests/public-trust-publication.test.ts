@@ -1,9 +1,11 @@
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 // @ts-expect-error Operational JavaScript module intentionally has no declarations.
 import { stagePublicTrustSite } from "../scripts/publish-public-trust-evidence.mjs";
+// @ts-expect-error Operational JavaScript module intentionally has no declarations.
+import { downloadPublicTrustHistory } from "../scripts/download-public-trust-history.mjs";
 // @ts-expect-error Operational JavaScript module intentionally has no declarations.
 import { buildSnapshot } from "../scripts/collect-public-trust-evidence.mjs";
 
@@ -17,6 +19,14 @@ async function validSubject(failed = false) {
 }
 
 describe("public Trust publication", () => {
+  it("creates an empty history directory for the first Pages publication", async () => {
+    const output = path.join(await mkdtemp(path.join(os.tmpdir(), "cadence-trust-")), "history");
+    const fetcher = async () => new Response("missing", { status: 404 });
+    await expect(downloadPublicTrustHistory({ origin: "https://pages.example/project", outputDirectory: output, fetcher })).rejects.toThrow(/not authorized/);
+    expect(await downloadPublicTrustHistory({ origin: "https://pages.example/project", outputDirectory: output, fetcher, allowEmpty: true })).toBe(0);
+    await expect(stat(output)).resolves.toMatchObject({});
+  });
+
   it("does not replace latest after schema or sanitization failure", async () => {
     const output = await mkdtemp(path.join(os.tmpdir(), "cadence-trust-"));
     await mkdir(path.join(output, "trust"));

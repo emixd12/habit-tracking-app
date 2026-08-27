@@ -1175,6 +1175,9 @@ indefinitely addressable.
 Preview is a dry run. It retains the validated collection as a private Actions
 artifact and never changes GitHub Pages or the public `latest.json`. Only an
 explicit Production run or the Production schedule enters the Pages job.
+Set `initialize_empty_history` only for the first Production publication after
+confirming GitHub Pages has no successful deployment. Every later run leaves it
+false, so a missing history index stops publication instead of deleting history.
 Protected Preview deployments receive one-hour share bypasses during input
 preparation. The collector exchanges each bypass for a short-lived cookie and
 does not include either value in validated or uploaded evidence.

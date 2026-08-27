@@ -32,6 +32,10 @@ on:
         description: Run the authorized disposable-user RLS smoke
         type: boolean
         default: false
+      initialize_empty_history:
+        description: One-time authorization for the first GitHub Pages publication only
+        type: boolean
+        default: false
   schedule:
     - cron: "17 7 * * *"
 
@@ -149,7 +153,10 @@ jobs:
           name: public-trust-collection
           path: evidence
       - name: Restore immutable snapshot history
-        run: npm run public-trust:history -- --origin "${{ vars.TRUST_PAGES_ORIGIN }}" --output previous-pages
+        run: |
+          args=(--origin "${{ vars.TRUST_PAGES_ORIGIN }}" --output previous-pages)
+          if [[ "${{ inputs.initialize_empty_history }}" == "true" ]]; then args+=(--allow-empty); fi
+          npm run public-trust:history -- "${args[@]}"
       - name: Stage immutable snapshot and latest pointer
         run: npm run public-trust:publish -- --snapshot evidence/snapshot.json --details evidence/details.json --previous previous-pages --output pages
       - name: Configure GitHub Pages
