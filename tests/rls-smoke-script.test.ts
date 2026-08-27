@@ -12,6 +12,16 @@ type SmokeScriptModule = {
   PUBLIC_AUTHENTICATED_FUNCTIONS: string[];
   buildSmokePassword: (runId: string) => string;
   buildSmokeUserEmail: (runId: string, slot: string) => string;
+  cleanupTemporaryUsers: (
+    admin: {
+      auth: {
+        admin: {
+          deleteUser: (id: string) => Promise<{ error?: unknown } | undefined>;
+        };
+      };
+    },
+    users: Array<{ id: string }>,
+  ) => Promise<void>;
   readSmokeConfig: (
     env?: Record<string, string | undefined>,
     envFilePath?: string,
@@ -206,6 +216,31 @@ describe("Supabase RLS smoke script helpers", () => {
     expect(summary).toContain("RLS smoke passed");
     expect(summary).toContain("6 ownership checks");
     expect(summary).not.toContain("@");
+  });
+
+  it("fails closed unless every temporary user is deleted", async () => {
+    const deleted: string[] = [];
+    const admin = {
+      auth: {
+        admin: {
+          deleteUser: async (id: string) => {
+            deleted.push(id);
+            if (id === "user-b") {
+              return { error: new Error("provider cleanup failure") };
+            }
+          },
+        },
+      },
+    };
+
+    await expect(
+      smokeScript.cleanupTemporaryUsers(admin, [
+        { id: "user-a" },
+        { id: "user-b" },
+        { id: "user-c" },
+      ]),
+    ).rejects.toThrow("cleanup failed for 1 temporary users");
+    expect(deleted).toEqual(["user-a", "user-b", "user-c"]);
   });
 
   it("fails closed when an RPC returns a foreign, duplicate, or errored session", () => {

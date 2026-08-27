@@ -152,6 +152,18 @@ export function summarizeSmokeResult(result) {
   ].join(" ");
 }
 
+export async function cleanupTemporaryUsers(admin, users) {
+  const results = await Promise.allSettled(
+    users.map((user) => admin.auth.admin.deleteUser(user.id)),
+  );
+  const failed = results.filter(
+    (result) => result.status === "rejected" || result.value?.error,
+  );
+  if (failed.length > 0) {
+    throw new Error(`RLS smoke cleanup failed for ${failed.length} temporary users.`);
+  }
+}
+
 async function main() {
   const config = process.argv.includes("--local")
     ? readLocalSmokeConfig()
@@ -160,13 +172,18 @@ async function main() {
   const password = buildSmokePassword(runId);
   const admin = createSupabase(config.url, config.serviceRoleKey);
   const users = [];
+  let summary;
 
   try {
-    users.push(
-      await createTemporaryUser(admin, buildSmokeUserEmail(runId, "a"), password),
-      await createTemporaryUser(admin, buildSmokeUserEmail(runId, "b"), password),
-      await createTemporaryUser(admin, buildSmokeUserEmail(runId, "c"), password),
-    );
+    for (const slot of ["a", "b", "c"]) {
+      users.push(
+        await createTemporaryUser(
+          admin,
+          buildSmokeUserEmail(runId, slot),
+          password,
+        ),
+      );
+    }
 
     const userA = users[0];
     const userB = users[1];
@@ -324,18 +341,15 @@ async function main() {
       ...(await assertAnonymousTimeSessionRpcDenial(config)),
     );
 
-    console.log(
-      summarizeSmokeResult({
-        runId,
-        createdUsers: users.length,
-        checkedAssertions: assertions.length,
-      }),
-    );
+    summary = summarizeSmokeResult({
+      runId,
+      createdUsers: users.length,
+      checkedAssertions: assertions.length,
+    });
   } finally {
-    await Promise.allSettled(
-      users.map((user) => admin.auth.admin.deleteUser(user.id)),
-    );
+    await cleanupTemporaryUsers(admin, users);
   }
+  console.log(summary);
 }
 
 async function assertEveryExposedRelationRejectsCrossAccountAccess(
