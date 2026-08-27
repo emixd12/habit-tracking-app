@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans } from "next/font/google";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const ibmPlexSans = IBM_Plex_Sans({
@@ -29,7 +30,7 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${ibmPlexSans.className} ${ibmPlexSans.variable}`}
       >
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

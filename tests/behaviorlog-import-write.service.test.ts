@@ -19,6 +19,7 @@ import {
 import type {
   BehaviorLogImportFile,
   BehaviorLogImportMergePreview,
+  BehaviorLogImportMergeRecordAction,
   BehaviorLogImportMergePreviewResult,
   BehaviorLogImportPreview,
 } from "../lib/types/behaviorlog-import";
@@ -1793,16 +1794,16 @@ function createNotePlan(
 
 function mergeAction(
   input: {
-    recordType: BehaviorLogImportMergePreview["actions"][keyof BehaviorLogImportMergePreview["actions"]][number]["recordType"];
+    recordType: BehaviorLogImportMergeRecordAction["recordType"];
     externalId: string;
-    action: BehaviorLogImportMergePreview["actions"][keyof BehaviorLogImportMergePreview["actions"]][number]["action"];
+    action: BehaviorLogImportMergeRecordAction["action"];
     localId: string | null;
     conflictCodes?: string[];
     reasons?: string[];
     relatedExternalIds?: Record<string, string | null>;
     metadata?: Record<string, unknown>;
   },
-): BehaviorLogImportMergePreview["actions"][keyof BehaviorLogImportMergePreview["actions"]][number] {
+): BehaviorLogImportMergeRecordAction {
   return {
     recordType: input.recordType,
     externalId: input.externalId,

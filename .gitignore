@@ -32,6 +32,9 @@ pnpm-debug.log*
 /load-tests/**/*.py[cod]
 /.launch-safety/
 
+# Local Popmelt annotations, screenshots, threads, and Imprint
+.popmelt/
+
 # OS/editor
 .DS_Store
 .idea/

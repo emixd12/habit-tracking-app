@@ -1,3 +1,4 @@
+import { withPopmelt } from "@popmelt.com/core/next";
 import type { NextConfig } from "next";
 
 const STATIC_ASSET_CACHE = "public, max-age=86400, stale-while-revalidate=604800";
@@ -37,4 +38,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withPopmelt(nextConfig);

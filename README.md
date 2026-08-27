@@ -128,13 +128,25 @@ SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET=
 
 `NEXT_PUBLIC_SUPABASE_ANON_KEY` is still supported as a legacy fallback for older Supabase projects. Do not expose or use the service-role key in browser code.
 
-For Google OAuth, configure the Supabase provider with the app callback URL:
+For Google OAuth, add the local Supabase Auth callback to the Google OAuth
+client's authorized redirect URIs:
+
+```text
+http://localhost:55321/auth/v1/callback
+```
+
+Supabase then redirects back to the app through its separate allowed redirect:
 
 ```text
 http://localhost:3000/auth/callback
 ```
 
-For local Supabase CLI auth testing, `supabase/config.toml` reads the Google client ID and secret from the `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` environment variables.
+`npm run dev` reserves app port `3000` and fails if that port is unavailable.
+Local Supabase reserves API/Auth port `55321` in `supabase/config.toml`.
+
+For local Supabase CLI auth testing, `supabase/config.toml` reads the Google
+client ID and secret from the `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and
+`SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` environment variables.
 
 ## Important
 

@@ -39,6 +39,7 @@ import {
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import type {
   BehaviorLogImportBehaviorPlan,
+  BehaviorLogImportDefinitionEventPlan,
   BehaviorLogExistingRecords,
   BehaviorLogImportFile,
   BehaviorLogImportNotePlan,
@@ -46,6 +47,7 @@ import type {
   BehaviorLogImportRecordMappingInput,
   BehaviorLogImportRunCreateInput,
   BehaviorLogImportSchedulePlan,
+  BehaviorLogImportInterventionRulePlan,
 } from "@/lib/types/behaviorlog-import";
 import type { BehaviorLogImportRun } from "@/lib/types/database";
 import type {
@@ -112,6 +114,8 @@ type RestoreRowPrecondition = {
     | "schedule"
     | "occurrence"
     | "status_event"
+    | "behavior_definition_event"
+    | "time_session"
     | "note"
     | "intervention";
   local_id: string;
@@ -136,9 +140,12 @@ type RestoreProductPayload = {
   status_events: Array<Record<string, unknown>>;
   imported_notes: Array<Record<string, unknown>>;
   imported_interventions: Array<Record<string, unknown>>;
+  time_sessions: Array<Record<string, unknown>>;
 };
 
 type RestoreBehaviorDefinitionEventPayload = {
+  id: string;
+  external_id: string | null;
   event_kind: "baseline" | "transition";
   behavior_id: string;
   previous_title: string | null;
@@ -148,7 +155,7 @@ type RestoreBehaviorDefinitionEventPayload = {
   changed_fields: Array<"title" | "description">;
   recorded_at: string;
   source: "import";
-  reason: "behaviorlog_restore";
+  reason: string | null;
   expected_previous_title: string | null;
   expected_previous_description: string | null;
 };
@@ -638,6 +645,8 @@ function buildRestorePayload(input: {
   const scheduleIdByExternal = new Map<string, string>();
   const occurrenceIdByExternal = new Map<string, string>();
   const statusEventIdByExternal = new Map<string, string>();
+  const definitionEventIdByExternal = new Map<string, string>();
+  const timeSessionIdByExternal = new Map<string, string>();
   const noteIdByExternal = new Map<string, string>();
   const interventionIdByExternal = new Map<string, string>();
   const latestStatusEventByOccurrence = new Map<string, string>();
@@ -726,6 +735,47 @@ function buildRestorePayload(input: {
     }
   }
 
+  for (const event of input.importPreview.plan.definitionEvents ?? []) {
+    const action = actionIndex.behavior_definition_event.get(event.externalId);
+
+    if (action && action.action !== "skip") {
+      const eventId = deriveBehaviorLogRestoreLocalId(action, {
+        externalId: event.externalId,
+        label: "definition event",
+        recordType: "behavior_definition_event",
+        userId: input.userId,
+        bundleFingerprint: input.preview.bundleFingerprint,
+      });
+      definitionEventIdByExternal.set(event.externalId, eventId);
+      mappings.push(
+        restoreMapping(
+          input,
+          "behavior_definition_event",
+          event.externalId,
+          eventId,
+        ),
+      );
+    }
+  }
+
+  for (const session of input.importPreview.plan.timeSessions ?? []) {
+    const action = actionIndex.time_session.get(session.externalId);
+
+    if (action && action.action !== "skip") {
+      const sessionId = deriveBehaviorLogRestoreLocalId(action, {
+        externalId: session.externalId,
+        label: "time session",
+        recordType: "time_session",
+        userId: input.userId,
+        bundleFingerprint: input.preview.bundleFingerprint,
+      });
+      timeSessionIdByExternal.set(session.externalId, sessionId);
+      mappings.push(
+        restoreMapping(input, "time_session", session.externalId, sessionId),
+      );
+    }
+  }
+
   for (const note of input.importPreview.plan.notes) {
     const action = actionIndex.note.get(note.externalId);
 
@@ -777,13 +827,18 @@ function buildRestorePayload(input: {
   );
   const behaviorDefinitionEvents = buildRestoreBehaviorDefinitionEvents({
     behaviorPlans: input.importPreview.plan.behaviors,
+    definitionEventPlans: input.importPreview.plan.definitionEvents ?? [],
     actionIndex: actionIndex.behavior,
+    definitionEventActionIndex: actionIndex.behavior_definition_event,
     behaviorIdByExternal,
+    definitionEventIdByExternal,
     existingBehaviors: input.existing.behaviors ?? [],
     restoreRecordedAt,
+    userId: input.userId,
+    bundleFingerprint: input.preview.bundleFingerprint,
   });
-  const behaviorDefinitionEventByBehaviorId = new Map(
-    behaviorDefinitionEvents.map((event) => [event.behavior_id, event]),
+  const behaviorDefinitionEventByBehaviorId = latestDefinitionEventByBehavior(
+    behaviorDefinitionEvents,
   );
   const existingBehaviorById = new Map(
     (input.existing.behaviors ?? []).map((behavior) => [behavior.id, behavior]),
@@ -797,11 +852,14 @@ function buildRestorePayload(input: {
     statusEventIdByExternal,
     noteIdByExternal,
     interventionIdByExternal,
+    definitionEventIdByExternal,
+    timeSessionIdByExternal,
   });
   const behaviorConfigurationPayloads =
     buildRestoreBehaviorConfigurationPayloads({
       behaviorPlans: input.importPreview.plan.behaviors,
       schedulePlans: input.importPreview.plan.schedules,
+      interventionRulePlans: input.importPreview.plan.interventionRules,
       behaviorActions: input.preview.actions.behaviors,
       scheduleActions: input.preview.actions.schedules,
       behaviorActionIndex: actionIndex.behavior,
@@ -866,6 +924,10 @@ function buildRestorePayload(input: {
           const definitionEvent =
             behaviorDefinitionEventByBehaviorId.get(behaviorId);
           const existingBehavior = existingBehaviorById.get(behaviorId);
+          const reminderConfiguration = resolveRestoreReminderConfiguration(
+            behavior,
+            input.importPreview.plan.interventionRules,
+          );
 
           if (!definitionEvent && !existingBehavior) {
             throw new BehaviorLogRestoreUserError(
@@ -877,6 +939,8 @@ function buildRestorePayload(input: {
             id: behaviorId,
             external_id: behavior.externalId,
             category_id: null,
+            category_name:
+              behavior.cadenceCategoryName?.trim() || behavior.category,
             title:
               definitionEvent?.next_title ??
               existingBehavior?.title ??
@@ -890,12 +954,12 @@ function buildRestorePayload(input: {
               primarySchedule.localTime ?? primarySchedule.windowStartLocal,
             timezone: primarySchedule.timezone || DEFAULT_TIMEZONE,
             browser_reminder_enabled:
-              behavior.cadenceBrowserReminderEnabled ?? true,
-            email_reminder_enabled: behavior.cadenceEmailReminderEnabled ?? false,
-            reminder_offset_minutes: behavior.cadenceReminderOffsetMinutes ?? 0,
-            active: behavior.archivedAtUtc
-              ? false
-              : behavior.cadenceActive ?? true,
+              reminderConfiguration.browserReminderEnabled,
+            email_reminder_enabled:
+              reminderConfiguration.emailReminderEnabled,
+            reminder_offset_minutes:
+              reminderConfiguration.reminderOffsetMinutes,
+            active: behavior.archivedAtUtc === null,
             archived_at: behavior.archivedAtUtc,
             created_at:
               action?.action === "create"
@@ -909,7 +973,21 @@ function buildRestorePayload(input: {
         .filter((schedule) =>
           shouldUpsert(actionIndex.schedule.get(schedule.externalId)),
         )
-        .map((schedule, index) => ({
+        .map((schedule) => {
+          const behaviorSchedules = input.importPreview.plan.schedules.filter(
+            (candidate) =>
+              candidate.behaviorExternalId === schedule.behaviorExternalId &&
+              shouldUpsert(actionIndex.schedule.get(candidate.externalId)),
+          );
+          const groupKey = restoreScheduleGroupKey(schedule);
+          const groupKeys = Array.from(
+            new Set(behaviorSchedules.map(restoreScheduleGroupKey)),
+          );
+          const groupSchedules = behaviorSchedules.filter(
+            (candidate) => restoreScheduleGroupKey(candidate) === groupKey,
+          );
+
+          return {
           id: scheduleIdByExternal.get(schedule.externalId),
           external_id: schedule.externalId,
           behavior_id: requiredMapValue(
@@ -921,20 +999,14 @@ function buildRestorePayload(input: {
           preset: schedule.cadenceSchedulePreset,
           start_time: schedule.localTime ?? schedule.windowStartLocal,
           end_time: schedule.windowEndLocal,
-          sort_order: index,
-          configuration_sort_order: input.importPreview.plan.schedules
-            .filter(
-              (candidate) =>
-                candidate.behaviorExternalId === schedule.behaviorExternalId &&
-                shouldUpsert(
-                  actionIndex.schedule.get(candidate.externalId),
-                ),
-            )
-            .findIndex(
-              (candidate) => candidate.externalId === schedule.externalId,
-            ),
+          sort_order: groupSchedules.findIndex(
+            (candidate) => candidate.externalId === schedule.externalId,
+          ),
+          configuration_sort_order: groupKeys.indexOf(groupKey),
+          parent_group_key: groupKey,
           recurrence_rule: toCadenceRecurrenceRule(schedule),
-        })),
+          };
+        }),
       occurrences: input.importPreview.plan.occurrences
         .filter((occurrence) =>
           shouldUpsert(actionIndex.occurrence.get(occurrence.externalId)),
@@ -1028,6 +1100,39 @@ function buildRestorePayload(input: {
             : null,
           reason_code: event.reasonCode,
         })),
+      time_sessions: (input.importPreview.plan.timeSessions ?? [])
+        .filter((session) => {
+          const action = actionIndex.time_session.get(session.externalId);
+          return action?.action === "create" || action?.action === "replace";
+        })
+        .map((session) => ({
+          id: requiredMapValue(
+            timeSessionIdByExternal,
+            session.externalId,
+            "time session id",
+          ),
+          external_id: session.externalId,
+          occurrence_id: requiredMapValue(
+            occurrenceIdByExternal,
+            session.occurrenceExternalId,
+            "time session occurrence",
+          ),
+          behavior_id: requiredMapValue(
+            behaviorIdByExternal,
+            session.behaviorExternalId,
+            "time session behavior",
+          ),
+          started_at: session.startedAtUtc,
+          stopped_at: session.stoppedAtUtc,
+        }))
+        .sort((left, right) => {
+          if ((left.stopped_at === null) !== (right.stopped_at === null)) {
+            return left.stopped_at === null ? 1 : -1;
+          }
+          return `${left.started_at}:${left.id}`.localeCompare(
+            `${right.started_at}:${right.id}`,
+          );
+        }),
       imported_notes: input.importPreview.plan.notes
         .filter((note) => shouldUpsert(actionIndex.note.get(note.externalId)))
         .map((note) => ({
@@ -1101,6 +1206,8 @@ function buildRestoreRowPreconditions(input: {
   statusEventIdByExternal: Map<string, string>;
   noteIdByExternal: Map<string, string>;
   interventionIdByExternal: Map<string, string>;
+  definitionEventIdByExternal: Map<string, string>;
+  timeSessionIdByExternal: Map<string, string>;
 }): RestoreRowPrecondition[] {
   const preconditions = new Map<string, RestoreRowPrecondition>();
 
@@ -1232,6 +1339,40 @@ function buildRestoreRowPreconditions(input: {
     );
   }
 
+  for (const action of input.preview.actions.definitionEvents ?? []) {
+    if (action.action !== "create") {
+      continue;
+    }
+
+    add({
+      record_type: "behavior_definition_event",
+      local_id: requiredMapValue(
+        input.definitionEventIdByExternal,
+        action.externalId ?? "",
+        "definition event create precondition",
+      ),
+      expectation: "absent",
+      expected_updated_at: null,
+    });
+  }
+
+  for (const action of input.preview.actions.timeSessions ?? []) {
+    if (action.action !== "create") {
+      continue;
+    }
+
+    add({
+      record_type: "time_session",
+      local_id: requiredMapValue(
+        input.timeSessionIdByExternal,
+        action.externalId ?? "",
+        "time session create precondition",
+      ),
+      expectation: "absent",
+      expected_updated_at: null,
+    });
+  }
+
   for (const action of input.preview.actions.importedNotes) {
     addAction(
       action,
@@ -1259,14 +1400,16 @@ function buildRestoreRowPreconditions(input: {
 
 function buildRestoreBehaviorDefinitionEvents(input: {
   behaviorPlans: BehaviorLogImportBehaviorPlan[];
+  definitionEventPlans: BehaviorLogImportDefinitionEventPlan[];
   actionIndex: Map<string, BehaviorLogRestoreAction>;
+  definitionEventActionIndex: Map<string, BehaviorLogRestoreAction>;
   behaviorIdByExternal: Map<string, string>;
+  definitionEventIdByExternal: Map<string, string>;
   existingBehaviors: NonNullable<BehaviorLogExistingRecords["behaviors"]>;
   restoreRecordedAt: string;
+  userId: string;
+  bundleFingerprint: string;
 }): RestoreBehaviorDefinitionEventPayload[] {
-  const existingById = new Map(
-    input.existingBehaviors.map((behavior) => [behavior.id, behavior]),
-  );
   const events: RestoreBehaviorDefinitionEventPayload[] = [];
 
   for (const behavior of input.behaviorPlans) {
@@ -1281,76 +1424,108 @@ function buildRestoreBehaviorDefinitionEvents(input: {
       behavior.externalId,
       "definition event behavior",
     );
-    const nextDefinition = normalizeBehaviorDefinition({
-      title: behavior.title,
-      description: behavior.description,
-    });
-
-    if (action.action === "create") {
-      const plan = planInitialBehaviorDefinitionEvent({
-        definition: nextDefinition,
-        recordedAt: behavior.createdAtUtc ?? input.restoreRecordedAt,
-        source: "import",
-        reason: "behaviorlog_restore",
-      });
-
-      events.push(
-        toRestoreBehaviorDefinitionEventPayload({
-          behaviorId,
-          eventKind: "baseline",
-          plan,
-          expectedPreviousDefinition: null,
-        }),
-      );
-      continue;
-    }
-
-    if (action.action !== "replace") {
-      continue;
-    }
-
-    const existing = existingById.get(behaviorId);
-
-    if (!existing) {
-      throw new BehaviorLogRestoreUserError(
-        `Behavior ${behavior.externalId} cannot record restore history because its prior local definition is missing.`,
-      );
-    }
-
-    const plan = planBehaviorDefinitionChangeEvent({
-      previousDefinition: {
-        title: existing.title,
-        description: existing.description ?? null,
-      },
-      nextDefinition,
-      recordedAt: input.restoreRecordedAt,
-      source: "import",
-      reason: "behaviorlog_restore",
-    });
-
-    if (!plan) {
-      continue;
-    }
-
-    events.push(
-      toRestoreBehaviorDefinitionEventPayload({
-        behaviorId,
-        eventKind: "transition",
-        plan,
-        expectedPreviousDefinition: {
-          title: existing.title,
-          description: existing.description ?? null,
-        },
-      }),
+    const importedEvents = input.definitionEventPlans
+      .filter(
+        (event) =>
+          event.behaviorExternalId === behavior.externalId &&
+          input.definitionEventActionIndex.get(event.externalId)?.action ===
+            "create",
+      )
+      .sort(compareDefinitionEventPlans);
+    const hasImportedBaseline = input.definitionEventPlans.some(
+      (event) =>
+        event.behaviorExternalId === behavior.externalId &&
+        event.eventKind === "baseline" &&
+        input.definitionEventActionIndex.get(event.externalId)?.action !==
+          "skip",
     );
+
+    if (!hasImportedBaseline && action.action !== "keep") {
+      const nextDefinition = normalizeBehaviorDefinition({
+        title: behavior.title,
+        description: behavior.description,
+      });
+      const existingBehavior = input.existingBehaviors.find(
+        (candidate) => candidate.id === behaviorId,
+      );
+      const previousDefinition = existingBehavior
+        ? normalizeBehaviorDefinition({
+            title: existingBehavior.title,
+            description: existingBehavior.description ?? null,
+          })
+        : null;
+      const plan = previousDefinition
+        ? planBehaviorDefinitionChangeEvent({
+            previousDefinition,
+            nextDefinition,
+            recordedAt: input.restoreRecordedAt,
+            source: "import",
+            reason: "behaviorlog_restore",
+          })
+        : planInitialBehaviorDefinitionEvent({
+            definition: nextDefinition,
+            recordedAt: behavior.createdAtUtc ?? input.restoreRecordedAt,
+            source: "import",
+            reason: "behaviorlog_restore",
+          });
+
+      if (!plan) {
+        continue;
+      }
+
+      events.push({
+        ...toRestoreBehaviorDefinitionEventPayload({
+          behaviorId,
+          eventKind: previousDefinition ? "transition" : "baseline",
+          plan,
+          expectedPreviousDefinition: previousDefinition,
+        }),
+        id: deterministicRestoreUuid([
+          "behaviorlog_restore",
+          input.userId,
+          input.bundleFingerprint,
+          "synthetic_behavior_definition_event",
+          behavior.externalId,
+        ]),
+        external_id: null,
+      });
+    }
+
+    for (const event of importedEvents) {
+      events.push({
+        id: requiredMapValue(
+          input.definitionEventIdByExternal,
+          event.externalId,
+          "definition event id",
+        ),
+        external_id: event.externalId,
+        event_kind: event.eventKind === "baseline" ? "baseline" : "transition",
+        behavior_id: behaviorId,
+        previous_title: event.previousTitle,
+        next_title: event.nextTitle as string,
+        previous_description: event.previousDescription,
+        next_description: event.nextDescription,
+        changed_fields: event.changedFields,
+        recorded_at: event.recordedAtUtc,
+        source: "import",
+        reason: event.reasonCode,
+        expected_previous_title: event.previousTitle,
+        expected_previous_description: event.previousDescription,
+      });
+    }
   }
 
-  return events;
+  return events.sort((left, right) =>
+    `${left.recorded_at}:${left.id}`.localeCompare(
+      `${right.recorded_at}:${right.id}`,
+    ),
+  );
 }
 
 function buildRestoreBehaviorConfigurationPayloads(input: {
   behaviorPlans: BehaviorLogImportBehaviorPlan[];
   schedulePlans: BehaviorLogImportSchedulePlan[];
+  interventionRulePlans: BehaviorLogImportInterventionRulePlan[] | undefined;
   behaviorActions: BehaviorLogRestoreAction[];
   scheduleActions: BehaviorLogRestoreAction[];
   behaviorActionIndex: Map<string, BehaviorLogRestoreAction>;
@@ -1398,34 +1573,34 @@ function buildRestoreBehaviorConfigurationPayloads(input: {
       );
     }
 
-    const graph = schedules.map((schedule, index) => ({
-      recurrenceRule: toCadenceRecurrenceRule(schedule),
+    const graph = groupRestoreSchedules(schedules).map((group, index) => ({
+      recurrenceRule: toCadenceRecurrenceRule(group[0]),
       sortOrder: index,
-      timeEntries: [
-        {
-          id: requiredMapValue(
-            input.scheduleIdByExternal,
-            schedule.externalId,
-            "configuration history schedule",
-          ),
-          kind: schedule.cadenceScheduleKind ?? "exact",
-          preset: schedule.cadenceSchedulePreset,
-          startTime: schedule.localTime ?? schedule.windowStartLocal ?? "",
-          endTime: schedule.windowEndLocal,
-          sortOrder: 0,
-        },
-      ],
+      timeEntries: group.map((schedule, slotIndex) => ({
+        id: requiredMapValue(
+          input.scheduleIdByExternal,
+          schedule.externalId,
+          "configuration history schedule",
+        ),
+        kind: schedule.cadenceScheduleKind ?? "exact",
+        preset: schedule.cadenceSchedulePreset,
+        startTime: schedule.localTime ?? schedule.windowStartLocal ?? "",
+        endTime: schedule.windowEndLocal,
+        sortOrder: slotIndex,
+      })),
     }));
+    const reminderConfiguration = resolveRestoreReminderConfiguration(
+      behavior,
+      input.interventionRulePlans,
+    );
     const nextConfiguration = {
       categoryId: null,
       scheduleGraph: graph,
       browserReminderEnabled:
-        behavior.cadenceBrowserReminderEnabled ?? true,
-      emailReminderEnabled: behavior.cadenceEmailReminderEnabled ?? false,
-      reminderOffsetMinutes: behavior.cadenceReminderOffsetMinutes ?? 0,
-      active: behavior.archivedAtUtc
-        ? false
-        : behavior.cadenceActive ?? true,
+        reminderConfiguration.browserReminderEnabled,
+      emailReminderEnabled: reminderConfiguration.emailReminderEnabled,
+      reminderOffsetMinutes: reminderConfiguration.reminderOffsetMinutes,
+      active: behavior.archivedAtUtc === null,
       timezone: primarySchedule.timezone || DEFAULT_TIMEZONE,
     };
     const previousConfiguration =
@@ -1582,7 +1757,7 @@ function toRestoreBehaviorDefinitionEventPayload(input: {
   eventKind: "baseline" | "transition";
   plan: BehaviorDefinitionEventPlan;
   expectedPreviousDefinition: BehaviorDefinition | null;
-}): RestoreBehaviorDefinitionEventPayload {
+}): Omit<RestoreBehaviorDefinitionEventPayload, "id" | "external_id"> {
   return {
     event_kind: input.eventKind,
     behavior_id: input.behaviorId,
@@ -1600,8 +1775,97 @@ function toRestoreBehaviorDefinitionEventPayload(input: {
   };
 }
 
+function compareDefinitionEventPlans(
+  left: BehaviorLogImportDefinitionEventPlan,
+  right: BehaviorLogImportDefinitionEventPlan,
+): number {
+  return `${left.recordedAtUtc}:${left.externalId}`.localeCompare(
+    `${right.recordedAtUtc}:${right.externalId}`,
+  );
+}
+
+function latestDefinitionEventByBehavior(
+  events: RestoreBehaviorDefinitionEventPayload[],
+): Map<string, RestoreBehaviorDefinitionEventPayload> {
+  const latest = new Map<string, RestoreBehaviorDefinitionEventPayload>();
+
+  for (const event of events) {
+    latest.set(event.behavior_id, event);
+  }
+
+  return latest;
+}
+
+function restoreScheduleGroupKey(
+  schedule: BehaviorLogImportSchedulePlan,
+): string {
+  return schedule.cadenceBehaviorScheduleId?.trim() || schedule.externalId;
+}
+
+function groupRestoreSchedules(
+  schedules: BehaviorLogImportSchedulePlan[],
+): BehaviorLogImportSchedulePlan[][] {
+  const groups = new Map<string, BehaviorLogImportSchedulePlan[]>();
+
+  for (const schedule of schedules) {
+    const key = restoreScheduleGroupKey(schedule);
+    const group = groups.get(key);
+
+    if (group) {
+      group.push(schedule);
+    } else {
+      groups.set(key, [schedule]);
+    }
+  }
+
+  return [...groups.values()];
+}
+
+function resolveRestoreReminderConfiguration(
+  behavior: BehaviorLogImportBehaviorPlan,
+  interventionRules: BehaviorLogImportInterventionRulePlan[] | undefined,
+): {
+  browserReminderEnabled: boolean;
+  emailReminderEnabled: boolean;
+  reminderOffsetMinutes: number;
+} {
+  if (interventionRules === undefined) {
+    return {
+      browserReminderEnabled:
+        behavior.cadenceBrowserReminderEnabled ?? true,
+      emailReminderEnabled: behavior.cadenceEmailReminderEnabled ?? false,
+      reminderOffsetMinutes: behavior.cadenceReminderOffsetMinutes ?? 0,
+    };
+  }
+
+  const rules = interventionRules.filter(
+    (rule) =>
+      rule.action !== "skip" &&
+      rule.behaviorExternalId === behavior.externalId &&
+      rule.interventionType === "reminder",
+  );
+  const browserRule = rules.find((rule) => rule.channel === "browser_push");
+  const emailRule = rules.find((rule) => rule.channel === "email");
+  const enabledOffset = [browserRule, emailRule].find(
+    (rule) => rule?.enabled && rule.offsetMinutes !== null,
+  )?.offsetMinutes;
+
+  return {
+    browserReminderEnabled: browserRule?.enabled ?? false,
+    emailReminderEnabled: emailRule?.enabled ?? false,
+    reminderOffsetMinutes: Math.max(0, -(enabledOffset ?? 0)),
+  };
+}
+
 function indexRestoreActions(preview: BehaviorLogRestorePreview): Record<
-  "behavior" | "schedule" | "occurrence" | "status_event" | "note" | "intervention",
+  | "behavior"
+  | "schedule"
+  | "occurrence"
+  | "status_event"
+  | "behavior_definition_event"
+  | "time_session"
+  | "note"
+  | "intervention",
   Map<string, BehaviorLogRestoreAction>
 > {
   return {
@@ -1609,6 +1873,10 @@ function indexRestoreActions(preview: BehaviorLogRestorePreview): Record<
     schedule: indexByExternalId(preview.actions.schedules),
     occurrence: indexByExternalId(preview.actions.occurrences),
     status_event: indexByExternalId(preview.actions.statusEvents),
+    behavior_definition_event: indexByExternalId(
+      preview.actions.definitionEvents ?? [],
+    ),
+    time_session: indexByExternalId(preview.actions.timeSessions ?? []),
     note: indexByExternalId(preview.actions.importedNotes),
     intervention: indexByExternalId(preview.actions.importedInterventions),
   };

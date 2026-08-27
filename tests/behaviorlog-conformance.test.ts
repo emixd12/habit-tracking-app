@@ -7,6 +7,7 @@ import path from "node:path";
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, expect, it } from "vitest";
 
+import behaviorLogSchema from "../lib/behaviorlog.schema.json";
 import { resolveBehaviorLogImportPreview } from "../lib/resolvers/behaviorlog-import.resolver";
 import { resolveExportBundle } from "../lib/resolvers/export.resolver";
 import { previewBehaviorLogImportFromZip } from "../lib/services/behaviorlog-import.service";
@@ -37,7 +38,7 @@ const REQUIRED_CORE_FILES = [
   "data/status_events.jsonl",
 ] as const;
 const CADENCE_DEFINITION_HISTORY_PATH =
-  "raw/cadence/behavior_definition_events.jsonl";
+  "data/behavior_definition_events.jsonl";
 const CADENCE_CONFIGURATION_HISTORY_PATH =
   "raw/cadence/behavior_configuration_events.jsonl";
 
@@ -153,7 +154,7 @@ function conformanceBehavior(): ExportBehaviorInput {
     ],
     timezone: DEFAULT_TIMEZONE,
     browserReminderEnabled: true,
-    emailReminderEnabled: false,
+    emailReminderEnabled: true,
     reminderOffsetMinutes: 0,
     active: true,
     archivedAt: null,
@@ -313,6 +314,18 @@ function conformanceStatusEvents(): ExportStatusEventInput[] {
 function conformanceReminderDeliveries(): ExportReminderDeliveryInput[] {
   return [
     {
+      id: "delivery-planned",
+      occurrenceId: "occurrence-2",
+      channel: "browser_push",
+      scheduledSendAt: "2026-06-08T14:30:00Z",
+      sentAt: null,
+      status: "pending",
+      error: null,
+      processingStartedAt: null,
+      createdAt: "2026-06-08T12:00:00Z",
+      updatedAt: "2026-06-08T12:00:00Z",
+    },
+    {
       id: "delivery-1",
       occurrenceId: "occurrence-1",
       channel: "email",
@@ -348,14 +361,14 @@ function resolveConformanceBundle(input: {
     now: NOW,
     timezone: DEFAULT_TIMEZONE,
     range: "all",
-    includeNotes: true,
+    includeNotes: false,
     includeTimeTracking: input.includeTimeTracking,
     timeSessions: input.timeSessions,
   }).behaviorLog;
 }
 
 describe("BehaviorLog core conformance", () => {
-  it("keeps Cadence timing data optional, hashed, ZIP-packaged, and export-only", async () => {
+  it("exports standard time tracking with matching privacy and profile declarations", async () => {
     const bundle = resolveConformanceBundle({
       includeTimeTracking: true,
       timeSessions: [
@@ -370,26 +383,24 @@ describe("BehaviorLog core conformance", () => {
     });
     const filesByPath = new Map(bundle.files.map((file) => [file.path, file]));
     const manifest = parseJson(filesByPath.get("manifest.json")?.content ?? "");
-    const timingPath = "raw/cadence/occurrence_time_sessions.jsonl";
+    const timingPath = "data/time_sessions.jsonl";
     const timingFile = filesByPath.get(timingPath);
-    const cadenceExtensions = manifest.extensions as Record<
-      string,
-      Record<string, unknown>
-    >;
 
-    expect(timingFile?.content).toContain('"record_type":"occurrence_time_session"');
+    expect(timingFile?.content).toContain('"record_type":"time_session"');
+    expect(timingFile?.content).toContain('"started_at_utc"');
+    expect(timingFile?.content).not.toContain("duration_seconds");
     expect(manifest.files).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ path: timingPath, required: false }),
+        expect.objectContaining({
+          path: timingPath,
+          required: false,
+          schema_ref: "#/$defs/TimeSession",
+        }),
       ]),
     );
-    expect(cadenceExtensions["app.cadence"].occurrence_time_sessions).toEqual(
-      expect.objectContaining({
-        path: timingPath,
-        record_count: 1,
-        import_restore_support: "export_only",
-      }),
-    );
+    expect(manifest.privacy).toMatchObject({ contains_time_tracking: true });
+    expect(manifest.profiles).toContain("time_tracking");
+    expect(bundle.files.some((file) => file.path.includes("occurrence_time_sessions"))).toBe(false);
     expect(resolveBehaviorLogImportPreview({ files: bundle.files }).valid).toBe(
       true,
     );
@@ -409,6 +420,8 @@ describe("BehaviorLog core conformance", () => {
 
       expect(result.status, result.stderr || result.stdout).toBe(0);
       expect(result.stdout).toContain("BehaviorLog bundle valid:");
+      expect(result.stderr).not.toContain("Warnings:");
+      expect(result.stderr).not.toContain("Warnings:");
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -435,12 +448,12 @@ describe("BehaviorLog core conformance", () => {
 
       expect(preview.valid, JSON.stringify(preview.errors, null, 2)).toBe(true);
       expect(preview.summary).toMatchObject({
-        schemaVersion: "0.1.0-draft",
+        schemaVersion: "0.2.0-draft",
         behaviorCount: 1,
         scheduleCount: 1,
         occurrenceCount: 2,
         statusEventCount: 2,
-        noteCount: 1,
+        noteCount: 0,
         errorCount: 0,
         unsupportedFieldCount: 0,
       });
@@ -448,11 +461,23 @@ describe("BehaviorLog core conformance", () => {
         "data/interventions.jsonl",
       );
       expect(bundle.files.map((file) => file.path)).toContain(
+        "data/intervention_rules.jsonl",
+      );
+      expect(bundle.files.map((file) => file.path)).toContain(
         CADENCE_DEFINITION_HISTORY_PATH,
       );
       expect(bundle.files.map((file) => file.path)).toContain(
         CADENCE_CONFIGURATION_HISTORY_PATH,
       );
+      expect(
+        bundle.files
+          .map((file) => file.path)
+          .filter((path) => path.startsWith("raw/cadence/")),
+      ).toEqual([CADENCE_CONFIGURATION_HISTORY_PATH]);
+      expect(preview.unsupportedFields).toEqual([]);
+      expect(
+        bundle.files.find((file) => file.path === "schema.json")?.content,
+      ).toBe(`${JSON.stringify(behaviorLogSchema, null, 2)}\n`);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -474,6 +499,12 @@ describe("BehaviorLog core conformance", () => {
     const statusEvents = parseJsonl(
       fileByPath.get("data/status_events.jsonl")?.content ?? "",
     );
+    const interventions = parseJsonl(
+      fileByPath.get("data/interventions.jsonl")?.content ?? "",
+    );
+    const interventionRules = parseJsonl(
+      fileByPath.get("data/intervention_rules.jsonl")?.content ?? "",
+    );
 
     for (const path of REQUIRED_CORE_FILES) {
       expect(fileByPath.has(path), `${path} should be emitted`).toBe(true);
@@ -481,8 +512,11 @@ describe("BehaviorLog core conformance", () => {
 
     expect(manifest).toMatchObject({
       format: "behaviorlog.bundle",
-      schema_version: "0.1.0-draft",
-      profiles: ["core", "notes", "interventions"],
+      schema_version: "0.2.0-draft",
+      profiles: ["core", "intervention", "definition_history"],
+      rules: expect.objectContaining({
+        definition_history_policy: "event_sourced",
+      }),
     });
 
     const manifestFiles = readManifestFiles(manifest);
@@ -508,8 +542,15 @@ describe("BehaviorLog core conformance", () => {
       ),
     ).toEqual([
       expect.objectContaining({
-        id: "definition-brush-initial",
+        record_type: "behavior_definition_event",
+        event_id: "definition-brush-initial",
         behavior_id: "behavior-brush",
+        event_kind: "baseline",
+        previous: null,
+        next: {
+          title: "Brush teeth",
+          description: "Night brushing",
+        },
         changed_fields: ["title", "description"],
       }),
     ]);
@@ -518,6 +559,11 @@ describe("BehaviorLog core conformance", () => {
     expectUniqueIds(schedules, "schedule_id");
     expectUniqueIds(occurrences, "occurrence_id");
     expectUniqueIds(statusEvents, "event_id");
+    expectUniqueIds(interventionRules, "rule_id");
+    const interventionRuleIds = new Set(
+      interventionRules.map((rule) => String(rule.rule_id)),
+    );
+    expect(interventions.every((record) => interventionRuleIds.has(String(record.rule_id)))).toBe(true);
     expectNoUnknownTopLevelFields(behaviors, BEHAVIOR_FIELDS);
     expectNoUnknownTopLevelFields(schedules, SCHEDULE_FIELDS);
     expectNoUnknownTopLevelFields(occurrences, OCCURRENCE_FIELDS);

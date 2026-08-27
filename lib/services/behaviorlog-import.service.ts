@@ -21,9 +21,10 @@ import {
 } from "@/lib/db/behaviors.repo";
 import { listUserOccurrences } from "@/lib/db/occurrences.repo";
 import { listOccurrenceStatusEventsByOccurrenceIds } from "@/lib/db/occurrenceStatusEvents.repo";
+import { listBehaviorDefinitionEvents } from "@/lib/db/behaviorDefinitionEvents.repo";
+import { listTimeSessionsByOccurrenceIds } from "@/lib/db/timeSessions.repo";
 import {
-  applyApprovedBehaviorLogMergePlan,
-  applyCreateMissingBehaviorLogImportPlan,
+  applyAcceptedBehaviorLogImportPlanAtomically,
   createBehaviorLogImportRunFromPreview,
 } from "@/lib/services/behaviorlog-import-write.service";
 import { readCachedBehaviorLogImportRuns } from "@/lib/cache/stable-user-data.cache";
@@ -291,7 +292,7 @@ export async function applyBehaviorLogImportUploadFromFormData(
   assertImportModeCanApply(modeValue, capabilities);
   assertSensitiveNotesCanApply(formData, preview);
 
-  const importRun = await createBehaviorLogImportRunFromPreview(supabase, {
+  const result = await applyAcceptedBehaviorLogImportPlanAtomically(supabase, {
     userId,
     files: bundle.files,
     preview,
@@ -300,12 +301,6 @@ export async function applyBehaviorLogImportUploadFromFormData(
     acceptedPreviewFingerprint,
   });
   if (modeValue === "create_missing_only") {
-    const result = await applyCreateMissingBehaviorLogImportPlan(supabase, {
-      userId,
-      importRunId: importRun.id,
-      preview,
-    });
-
     return {
       status: "applied",
       message: "Create-only import applied.",
@@ -315,7 +310,7 @@ export async function applyBehaviorLogImportUploadFromFormData(
       },
       archiveFingerprint: null,
       preview,
-      previewRun: toImportRunView(importRun),
+      previewRun: toImportRunView(result.importRun),
       capabilities,
       applyResult: {
         mode: modeValue,
@@ -326,12 +321,6 @@ export async function applyBehaviorLogImportUploadFromFormData(
     };
   }
 
-  const result = await applyApprovedBehaviorLogMergePlan(supabase, {
-    userId,
-    importRunId: importRun.id,
-    preview,
-  });
-
   return {
     status: "applied",
     message: "Approved merge import applied.",
@@ -341,7 +330,7 @@ export async function applyBehaviorLogImportUploadFromFormData(
     },
     archiveFingerprint: null,
     preview,
-    previewRun: toImportRunView(importRun),
+    previewRun: toImportRunView(result.importRun),
     capabilities,
     applyResult: {
       mode: modeValue,
@@ -684,21 +673,26 @@ export async function listBehaviorLogExistingRecords(
   const [
     behaviors,
     occurrences,
+    definitionEvents,
     mappings,
     importedNotes,
     importedInterventions,
   ] = await Promise.all([
     listUserBehaviors(supabase, userId),
     listUserOccurrences(supabase, userId),
+    listBehaviorDefinitionEvents(supabase, userId),
     listBehaviorLogImportRecordMappings(supabase, userId),
     listImportedNotes(supabase, userId),
     listImportedInterventions(supabase, userId),
   ]);
-  const statusEvents = await listOccurrenceStatusEventsByOccurrenceIds(
-    supabase,
-    userId,
-    occurrences.map((occurrence) => occurrence.id),
-  );
+  const occurrenceIds = occurrences.map((occurrence) => occurrence.id);
+  const [statusEvents, timeSessions] = await Promise.all([
+    listOccurrenceStatusEventsByOccurrenceIds(supabase, userId, occurrenceIds),
+    listTimeSessionsByOccurrenceIds(supabase, {
+      userId,
+      occurrenceIds,
+    }),
+  ]);
   const behaviorById = new Map(
     behaviors.map((behavior) => [behavior.id, behavior]),
   );
@@ -710,6 +704,20 @@ export async function listBehaviorLogExistingRecords(
       toExistingOccurrence(occurrence, behaviorById.get(occurrence.behavior_id)),
     ),
     statusEvents: statusEvents.map(toExistingStatusEvent),
+    definitionEvents: definitionEvents.map((event) => ({
+      id: event.id,
+      behaviorId: event.behavior_id,
+      recordedAtUtc: event.recorded_at,
+      sourceOriginalId: event.id,
+    })),
+    timeSessions: timeSessions.map((session) => ({
+      id: session.id,
+      occurrenceId: session.occurrence_id,
+      behaviorId: session.behavior_id,
+      startedAtUtc: session.started_at,
+      stoppedAtUtc: session.stopped_at,
+      sourceOriginalId: session.id,
+    })),
     importedNotes: importedNotes.map(toExistingImportedNote),
     importedInterventions: importedInterventions.map(
       toExistingImportedIntervention,

@@ -43,6 +43,8 @@ const RECORD_TYPE_LABELS: Record<BehaviorLogImportRecordType, string> = {
   schedule: "Schedule",
   occurrence: "Occurrence",
   status_event: "Status event",
+  behavior_definition_event: "Behavior definition event",
+  time_session: "Time session",
   note: "Note",
   intervention: "Intervention",
 };

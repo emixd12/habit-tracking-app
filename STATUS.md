@@ -84,7 +84,10 @@ reset, authenticated RLS smoke coverage, real 1,001-row Data API pagination,
 typecheck, build, and repository checks passed. Hosted migration deployment
 remains unauthorized and was not performed.
 
-Tickets 079-083, 092, and 093 are `complete`; Tickets 079-083 and 093 are deployed. Tickets 084-091 are `not_started`. Ticket 094 is `complete`. Tickets 078-093
+Tickets 072-074, 077, 079-084, 086, 092, and 093 are `complete`.
+Tickets 072-074, 077, 079-084, 086, and 093 are deployed. Tickets 085 and
+087-091 are `not_started`. Ticket 092 is complete locally without a provider
+mutation. Ticket 094 is `complete`. Tickets 078-093
 were defined on 2026-08-06 from a repository-wide read-only audit across five
 independent passes (domain resolvers/services/repos, routes/auth/API,
 import/restore/export, UI/interaction, schema/marketing/ops). No fix was applied
@@ -145,7 +148,8 @@ gate, open-source license and private disclosure contract, and authorized
 GitHub publication sequence. Tickets 079-083 and 093 are deployed and verified.
 The authorized private `main` history rewrite is complete.
 
-Ticket 101 is `complete`; Ticket 102 is `in_progress`; Tickets 103-105 are `not_started`. Tickets 101-103 complete the public Trust
+Ticket 101 is `complete`; Tickets 102 and 103 are `in_progress`; Tickets 104-105
+are `not_started`. Tickets 101-103 complete the public Trust
 evidence pipeline: Ticket 101 defines the versioned evidence and freshness
 contract, Ticket 102 publishes post-deployment provenance, dependency,
 integrity, route, migration, and RLS evidence, and Ticket 103 renders normalized
@@ -6028,8 +6032,8 @@ provider mutation occurred.
 ## Post-deployment Trust verification (Ticket 102)
 
 Status: in progress. Local implementation and deterministic verification are
-complete. Provider rollout remains authorization-gated, so no public snapshot
-or `latest.json` exists yet.
+complete. The Production workflow published a valid Failed snapshot and
+`latest.json` for commit `1ca208a5b4456a43506316b8d88fa372e6967c5e`.
 
 - Added the least-privilege split Preview/Production workflow, bounded route
   and integrity registries, provenance, dependency, security-control,
@@ -6042,14 +6046,158 @@ or `latest.json` exists yet.
   agent, interaction, resolver, lint, typecheck, production dependency audit,
   marketing check/build, public-source check, and fixture publication
   simulation.
-- The current Ready application and marketing deployments name different
-  commits. GitHub Pages is not enabled. Completion requires an authorized
-  reviewed release to both existing Vercel projects, protected Actions
-  variables/secrets, Preview dispatch, one Production RLS smoke with exact
-  cleanup, Production dispatch, and unauthenticated public-evidence QA.
+- The Production run passed provenance, CodeQL, public-artifact integrity,
+  application routes, marketing routes, and the 92-check RLS isolation smoke.
+  The hosted migration boundary failed because six deployed BehaviorLog
+  migrations were not yet committed to `main`. Dependency-alert aggregation
+  and secret-scanning aggregation reported Unavailable. Completion requires
+  merging the migrations, deploying that commit to both Vercel projects,
+  rerunning Production, and reviewing any remaining unavailable checks.
 - The exact default Turbopack build remains environment-blocked by the same
   internal helper-port `EPERM`; the Webpack production build passed under
   Ticket 101.
+
+## Evidence-backed public Trust page and machine route (Ticket 103)
+
+Status: in progress. PR #27 merged the local implementation. Production
+completion depends on Ticket 102 publishing a passing current snapshot.
+
+- The public `/trust` route validates and renders all nine normalized evidence
+  checks while preserving the durable Trust commitments. The same result is
+  available from `/api/public/trust-evidence`.
+- Marketing HTML, Markdown, `llms.txt`, and `llms-full.txt` link to the
+  canonical human and machine routes.
+- Pass on PR #27: 25 focused tests, 1,061 full tests, agent, resolver,
+  interaction, and design-system checks, lint, typecheck, marketing checks and
+  build, Webpack production build, and unauthenticated desktop and 390px QA.
+- Follow-up: this consolidation records the real ticket state and advances the
+  shared marketing modification date to 2026-08-27.
+
+## Tickets 084 and 086: BehaviorLog import apply integrity
+
+Status: complete and deployed.
+
+- Ticket 084 routes accepted create-only and approved-merge imports through one
+  transactional RPC. An accepted-preview fence and transaction advisory lock
+  make concurrent retries return the first applied result. Product writes and
+  mappings roll back together before a failed ledger result is stored.
+- Ticket 086 rejects inconsistent occurrence local dates, cross-Behavior
+  schedule references, and duplicate intervention ids. Imported-note identity
+  is account-scoped and compares both attachment and body content. A composite
+  foreign key prevents schedule slots from linking across Behaviors.
+- Pass before concurrent Ticket 074/077 resolver edits: five focused import
+  suites, 46 tests; `npm run agents:check`; `npm run interactions:check`;
+  `npm run resolvers:check`; `npm run lint` with eight existing fixture
+  warnings; `npm run typecheck`; and `git diff --check`. The two isolated
+  T084/T086 source-contract suites still pass, five tests.
+- Pass through migration application and seed: `npm run supabase -- db reset`.
+  Its final Storage health probe failed because local Storage was unavailable.
+- Pass: local PostgreSQL concurrency smoke returned the same run from two
+  simultaneous applies and stored one applied ledger/result. A forced failure
+  after initial product writes left zero product and mapping rows and one
+  failed ledger row. Both disposable users were deleted.
+- Full `npm run test` reached 1,013 passes and 11 failures. Six failures belong
+  to the active Ticket 074/077 portability work; five fake-provider tests could
+  not bind localhost in the sandbox. `npm run build` hit the same sandbox port
+  restriction. A webpack build compiled, then found active Ticket 074/077 type
+  gaps outside Tickets 084 and 086. A later focused rerun also stops at the
+  active resolver's missing `limitRunningTimeSessions` function.
+- Final integrated verification superseded those concurrent-work failures:
+  1,036 tests passed with one environment-gated skip. The production webpack
+  build and the focused 19-test migration suite passed.
+
+## BehaviorLog 0.2.0-draft portability chain (Tickets 072-074 and 077)
+
+Status: complete and deployed.
+
+Scope:
+
+- Ticket 072 aligns intervention exports, canonical profiles, the embedded
+  schema, and backward-compatible import parsing with BehaviorLog
+  `0.2.0-draft`.
+- Ticket 073 moves definition history, time sessions, and reminder rules into
+  canonical profile files.
+- Ticket 074 replays standard definition history and safely mapped time
+  sessions through create, approved merge, and restore apply.
+- Ticket 077 restores custom ranges, normalized categories, standard reminder
+  rules, archive state, and shared schedule parents.
+
+Ticket 072 verification:
+
+- Pass: `npm run behaviorlog:conformance` against the byte-exact upstream
+  `0.2.0-draft` validator snapshot.
+- Pass: focused export/import compatibility suites, `npm run resolvers:check`,
+  targeted lint, `npm run typecheck`, and `git diff --check`.
+
+Ticket 073 verification:
+
+- Pass: canonical definition-history, time-session, and intervention-rule
+  profile coverage in 49 focused resolver, conformance, and UI tests.
+- Pass: `npm run behaviorlog:conformance`, targeted lint, and
+  `npm run typecheck`.
+- The Cadence configuration-history extension remains because the upstream
+  draft has no equivalent standard profile. Definition and timing raw files
+  were removed.
+
+Tickets 074 and 077 implementation:
+
+- Import and restore parse standard definition-event, time-session, and
+  intervention-rule files. Preview exposes their actions and warnings.
+- Atomic import and restore RPCs replay portable history, preserve ownership,
+  enforce one running time session per Occurrence, and store provenance for
+  idempotence.
+- Restore matches or creates normalized categories. Import and restore rebuild
+  custom range slots, reminder settings, and grouped schedule parents.
+- Key files: `lib/resolvers/behaviorlog-import.resolver.ts`,
+  `lib/resolvers/behaviorlog-restore.resolver.ts`,
+  `lib/services/behaviorlog-import-write.service.ts`,
+  `lib/services/behaviorlog-restore.service.ts`, and migrations
+  `20260827032029` and `20260827032031`.
+
+Final verification:
+
+- Pass: `npm run behaviorlog:conformance`, `npm run agents:check`,
+  `npm run interactions:check`, `npm run resolvers:check`, `npm run lint` with
+  eight upstream-validator warnings, `npm run typecheck`, and
+  `git diff --check`.
+- Pass: 1,036 tests with one environment-gated skip. Focused portability tests
+  include the exact 07:15-09:40 custom range.
+- Pass: a clean local Supabase start applied every migration and seed. Generated
+  database types matched the checked-in types. Direct import and restore RPC
+  calls compiled and reached their expected trust-boundary validation errors.
+- Pass: local RLS smoke verified 92 ownership checks and removed all three
+  temporary users. The Vitest schedule-integrity migration suite passed.
+- Pass: `npm run build`. The project build script now selects webpack
+  explicitly with `next build --webpack`.
+- The rollback-only Ticket 060 SQL smoke is stale after Ticket 095 changed the
+  atomic Behavior RPC signatures. It fails before exercising these tickets;
+  this task did not expand scope to rewrite that historical fixture.
+- Pass after consolidation on current `origin/main`: repository, interaction,
+  resolver, conformance, lint, typecheck, marketing build/check, 1,082 tests
+  with one environment-gated skip, and the Webpack production build. A clean
+  local database reset applied every migration and seed. Generated database
+  types matched the committed types. The 92-check RLS smoke removed all three
+  temporary users. Local and hosted migration histories matched.
+
+Hosted rollout:
+
+- Pushed migrations `20260827025303`, `20260827030343`, `20260827032029`,
+  `20260827032031`, corrective migration `20260827035540`, and helper-removal
+  migration `20260827041319`. Hosted and local migration histories match.
+- The corrective migration fixed SQL references, JSON path casts, configuration
+  event columns, and restore preview-variable ambiguity found by database lint.
+  The helper-removal migration drops the two unused Ticket 060 repair functions
+  without `CASCADE` or data writes. Local and hosted lint report no errors. Both
+  retain four unrelated unused-variable warnings in the BehaviorLog import
+  function.
+- Promoted Vercel deployment `dpl_7Vx5q3THc1joJmJRwV43kmSrcJSN` to production.
+  The canonical domain returned 200 for Login, redirected an unauthenticated
+  Timeline request to Login, and rejected an unauthenticated reminder request
+  with 401. The post-promotion error-log query returned no runtime errors.
+
+Remaining risk: the raw Cadence configuration-history file remains
+intentionally because BehaviorLog 0.2 has no standard configuration-history
+profile.
 
 ## Handoff notes
 

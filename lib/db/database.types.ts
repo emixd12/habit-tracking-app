@@ -205,6 +205,13 @@ export type Database = {
             referencedColumns: ["user_id", "id"]
           },
           {
+            foreignKeyName: "behavior_schedule_slots_schedule_behavior_owner_fkey"
+            columns: ["user_id", "behavior_id", "behavior_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "behavior_schedules"
+            referencedColumns: ["user_id", "behavior_id", "id"]
+          },
+          {
             foreignKeyName: "behavior_schedule_slots_schedule_owner_fkey"
             columns: ["user_id", "behavior_schedule_id"]
             isOneToOne: false
@@ -1073,6 +1080,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_behaviorlog_import: {
+        Args: { import_payload: Json }
+        Returns: Json
+      }
       apply_behaviorlog_restore: {
         Args: { restore_payload: Json }
         Returns: Json

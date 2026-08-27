@@ -36,7 +36,7 @@ const DOWNLOAD_ACTIONS = [
     format: "behaviorlog",
     label: "BehaviorLog bundle (.behaviorlog.zip)",
     description:
-      "BehaviorLog core records plus Cadence definition, schedule, reminder, and status history, manifest, and CSV views.",
+      "BehaviorLog core records, standard definition history and reminder rules, optional standard time sessions, Cadence configuration history, and CSV views.",
   },
 ] as const;
 
@@ -181,10 +181,13 @@ export function ExportPanel({
           </h3>
 
           <p className="max-w-3xl text-sm text-muted-readable">
-            Full JSON and BehaviorLog include complete prior and next behavior
-            titles and descriptions, plus schedule and reminder history, by
-            default. Historical definitions and configuration can contain
-            sensitive context.
+            BehaviorLog stores title and description history in its standard
+            definition-history file. When time tracking is selected, it stores
+            timing sessions in its standard time-session file. Schedule,
+            category, timezone, active-state, and reminder-setting history
+            remains a Cadence extension. Full JSON includes this history in
+            Cadence&apos;s app-native format. Historical definitions and
+            configuration can contain sensitive context.
           </p>
 
           <ul className="grid gap-2">
@@ -258,15 +261,14 @@ export function ExportPanel({
             confirmation.
           </p>
           <p className="mt-3 max-w-3xl text-sm text-muted-readable">
-            Exported behavior definition and configuration revisions are not
-            replayed on import or restore. Cadence uses the current title,
-            description, schedule, and reminder snapshot and records a new local
-            import baseline or transition. Historical Occurrence snapshots stay
-            portable without activating prior schedules.
+            Cadence replays standard definition history and safely mapped time
+            sessions during supported imports and restore.
           </p>
           <p className="mt-3 max-w-3xl text-sm text-muted-readable">
-            Cadence validates optional time-tracking export files and their
-            hashes, but import and restore do not replay timing sessions.
+            Cadence also validates its configuration-history extension. Import
+            and restore use its current schedule and reminder snapshot.
+            Historical Occurrence snapshots stay portable without activating
+            prior schedules.
           </p>
         </div>
         <BehaviorLogImportPanel recentRuns={importData.recentRuns} />

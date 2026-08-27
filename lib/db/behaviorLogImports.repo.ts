@@ -21,6 +21,32 @@ type RestorePayloadBindingRpcClient = {
   ) => Promise<{ data: unknown; error: Error | null }>;
 };
 
+type AtomicImportApplyRpcClient = {
+  rpc: (
+    fn: "apply_behaviorlog_import",
+    args: { import_payload: Record<string, unknown> },
+  ) => Promise<{ data: unknown; error: Error | null }>;
+};
+
+export async function applyBehaviorLogImportAtomically(
+  supabase: AppSupabaseClient,
+  importPayload: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const { data, error } = await (
+    supabase as unknown as AtomicImportApplyRpcClient
+  ).rpc("apply_behaviorlog_import", { import_payload: importPayload });
+
+  if (error) {
+    throw error;
+  }
+
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    throw new Error("BehaviorLog import apply returned an invalid result.");
+  }
+
+  return data as Record<string, unknown>;
+}
+
 export async function bindBehaviorLogRestoreApplyPayload(
   supabase: AppSupabaseClient,
   input: {

@@ -4,6 +4,8 @@ import type {
   BehaviorLogExistingRecords,
   BehaviorLogExistingSchedule,
   BehaviorLogImportBehaviorPlan,
+  BehaviorLogImportDefinitionEventPlan,
+  BehaviorLogImportInterventionRulePlan,
   BehaviorLogImportInterventionPreviewPlan,
   BehaviorLogImportIssue,
   BehaviorLogImportNotePlan,
@@ -11,6 +13,7 @@ import type {
   BehaviorLogImportRecordType,
   BehaviorLogImportSchedulePlan,
   BehaviorLogImportStatusEventPlan,
+  BehaviorLogImportTimeSessionPlan,
 } from "@/lib/types/behaviorlog-import";
 import type {
   BehaviorLogRestoreAction,
@@ -64,6 +67,8 @@ type RestoreContext = {
     schedules: Set<string>;
     occurrences: Set<string>;
     statusEvents: Set<string>;
+    definitionEvents: Set<string>;
+    timeSessions: Set<string>;
     importedNotes: Set<string>;
     importedInterventions: Set<string>;
   };
@@ -71,6 +76,8 @@ type RestoreContext = {
   mapScheduleExternalToLocal: Map<string, string>;
   mapOccurrenceExternalToLocal: Map<string, string>;
   mapStatusEventExternalToLocal: Map<string, string>;
+  mapDefinitionEventExternalToLocal: Map<string, string>;
+  mapTimeSessionExternalToLocal: Map<string, string>;
   restoreWarnings: BehaviorLogImportIssue[];
 };
 
@@ -105,6 +112,15 @@ export function resolveBehaviorLogRestorePreview(
   const statusEventActions = input.importPreview.plan.statusEvents.map((event) =>
     actionForStatusEvent(event, context, statusHistoryPolicy),
   );
+  const definitionEventActions = (
+    input.importPreview.plan.definitionEvents ?? []
+  ).map((event) => actionForDefinitionEvent(event, context));
+  const timeSessionActions = (input.importPreview.plan.timeSessions ?? []).map(
+    (session) => actionForTimeSession(session, context),
+  );
+  const interventionRuleActions = (
+    input.importPreview.plan.interventionRules ?? []
+  ).map((rule) => actionForInterventionRule(rule, context));
   const inlineOccurrenceNoteActions = [
     ...input.importPreview.plan.notes.map((note) =>
       actionForInlineOccurrenceNote(note, context),
@@ -144,6 +160,9 @@ export function resolveBehaviorLogRestorePreview(
       ...statusEventActions,
       ...actionsForUnmatchedStatusEvents(context, statusHistoryPolicy),
     ].sort(compareActions),
+    definitionEvents: definitionEventActions.sort(compareActions),
+    timeSessions: timeSessionActions.sort(compareActions),
+    interventionRules: interventionRuleActions.sort(compareActions),
     inlineOccurrenceNotes: inlineOccurrenceNoteActions.sort(compareActions),
     importedNotes: importedNoteActions.sort(compareActions),
     importedInterventions: importedInterventionActions.sort(compareActions),
@@ -540,6 +559,205 @@ function actionForStatusEvent(
   });
 }
 
+function actionForDefinitionEvent(
+  event: BehaviorLogImportDefinitionEventPlan,
+  context: RestoreContext,
+): BehaviorLogRestoreAction {
+  if (event.action === "skip") {
+    return skippedAction(
+      "behavior_definition_event",
+      event.externalId,
+      event.skipReasons,
+    );
+  }
+
+  const localBehaviorId = context.mapBehaviorExternalToLocal.get(
+    event.behaviorExternalId,
+  );
+
+  if (!localBehaviorId) {
+    return skippedAction("behavior_definition_event", event.externalId, [
+      "Definition event cannot be restored because its behavior is not safely mapped.",
+    ]);
+  }
+
+  const existing = findExisting(
+    context.existing.definitionEvents,
+    context.mapDefinitionEventExternalToLocal.get(event.externalId),
+    event.externalId,
+  );
+
+  if (!existing) {
+    context.mapDefinitionEventExternalToLocal.set(
+      event.externalId,
+      event.externalId,
+    );
+
+    return action({
+      recordType: "behavior_definition_event",
+      action: "create",
+      externalId: event.externalId,
+      localId: null,
+      reasons: ["Definition event exists in the bundle but not locally."],
+      relatedExternalIds: { behavior: event.behaviorExternalId },
+      metadata: {
+        eventKind: event.eventKind,
+        changedFields: event.changedFields,
+        recordedAtUtc: event.recordedAtUtc,
+      },
+    });
+  }
+
+  context.matched.definitionEvents.add(existing.id);
+  context.mapDefinitionEventExternalToLocal.set(event.externalId, existing.id);
+  const same =
+    existing.behaviorId === localBehaviorId &&
+    existing.recordedAtUtc === event.recordedAtUtc;
+
+  return action({
+    recordType: "behavior_definition_event",
+    action: same ? "keep" : "replace",
+    externalId: event.externalId,
+    localId: existing.id,
+    reasons: same
+      ? ["Definition event already matches its behavior and recorded time."]
+      : ["Definition event exists locally but its behavior or recorded time differs."],
+    relatedExternalIds: { behavior: event.behaviorExternalId },
+  });
+}
+
+function actionForTimeSession(
+  session: BehaviorLogImportTimeSessionPlan,
+  context: RestoreContext,
+): BehaviorLogRestoreAction {
+  if (session.action === "skip") {
+    return skippedAction("time_session", session.externalId, session.skipReasons);
+  }
+
+  const localBehaviorId = context.mapBehaviorExternalToLocal.get(
+    session.behaviorExternalId,
+  );
+  const localOccurrenceId = context.mapOccurrenceExternalToLocal.get(
+    session.occurrenceExternalId,
+  );
+
+  if (!localBehaviorId || !localOccurrenceId) {
+    return skippedAction("time_session", session.externalId, [
+      "Time session cannot be restored because its behavior or occurrence is not safely mapped.",
+    ]);
+  }
+
+  const existing = findExisting(
+    context.existing.timeSessions,
+    context.mapTimeSessionExternalToLocal.get(session.externalId),
+    session.externalId,
+  );
+
+  if (session.stoppedAtUtc === null) {
+    const otherRunningSession = context.existing.timeSessions.find(
+      (candidate) =>
+        candidate.occurrenceId === localOccurrenceId &&
+        candidate.stoppedAtUtc === null &&
+        candidate.id !== existing?.id,
+    );
+
+    if (otherRunningSession) {
+      context.restoreWarnings.push({
+        severity: "warning",
+        code: "running_time_session_already_exists",
+        message: `Time session ${session.externalId} will be skipped because occurrence ${session.occurrenceExternalId} already has running session ${otherRunningSession.id}.`,
+      });
+      return skippedAction("time_session", session.externalId, [
+        "Occurrence already has a different running time session.",
+      ]);
+    }
+  }
+
+  if (!existing) {
+    context.mapTimeSessionExternalToLocal.set(
+      session.externalId,
+      session.externalId,
+    );
+
+    return action({
+      recordType: "time_session",
+      action: "create",
+      externalId: session.externalId,
+      localId: null,
+      reasons: ["Time session exists in the bundle but not locally."],
+      relatedExternalIds: {
+        behavior: session.behaviorExternalId,
+        occurrence: session.occurrenceExternalId,
+      },
+      metadata: {
+        startedAtUtc: session.startedAtUtc,
+        stoppedAtUtc: session.stoppedAtUtc,
+      },
+    });
+  }
+
+  context.matched.timeSessions.add(existing.id);
+  context.mapTimeSessionExternalToLocal.set(session.externalId, existing.id);
+  const same =
+    existing.behaviorId === localBehaviorId &&
+    existing.occurrenceId === localOccurrenceId &&
+    existing.startedAtUtc === session.startedAtUtc &&
+    existing.stoppedAtUtc === session.stoppedAtUtc;
+
+  return action({
+    recordType: "time_session",
+    action: same ? "keep" : "replace",
+    externalId: session.externalId,
+    localId: existing.id,
+    reasons: same
+      ? ["Time session already matches the bundle."]
+      : ["Time session exists locally but its parents or time bounds differ."],
+    relatedExternalIds: {
+      behavior: session.behaviorExternalId,
+      occurrence: session.occurrenceExternalId,
+    },
+  });
+}
+
+function actionForInterventionRule(
+  rule: BehaviorLogImportInterventionRulePlan,
+  context: RestoreContext,
+): BehaviorLogRestoreAction {
+  if (rule.action === "skip") {
+    return skippedAction("intervention_rule", rule.externalId, rule.skipReasons);
+  }
+
+  if (
+    !rule.behaviorExternalId ||
+    !context.mapBehaviorExternalToLocal.has(rule.behaviorExternalId)
+  ) {
+    return skippedAction("intervention_rule", rule.externalId, [
+      "Intervention rule cannot be restored because its behavior is not safely mapped.",
+    ]);
+  }
+
+  return action({
+    recordType: "intervention_rule",
+    action: "create",
+    externalId: rule.externalId,
+    localId: null,
+    reasons: ["Intervention rule is represented as reminder configuration intent."],
+    relatedExternalIds: { behavior: rule.behaviorExternalId },
+    metadata: {
+      interventionType: rule.interventionType,
+      channel: rule.channel,
+      enabled: rule.enabled,
+      offsetMinutes: rule.offsetMinutes,
+      cadenceReminderOffsetMinutes:
+        rule.offsetMinutes === null ? 0 : -rule.offsetMinutes,
+      activeFromLocalDate: rule.activeFromLocalDate,
+      activeUntilLocalDate: rule.activeUntilLocalDate,
+      timezone: rule.timezone,
+      providerSideEffects: false,
+    },
+  });
+}
+
 function actionForInlineOccurrenceNote(
   note: BehaviorLogImportNotePlan,
   context: RestoreContext,
@@ -881,6 +1099,8 @@ function buildContext(
     schedules: [...(existing?.schedules ?? [])].sort(compareById),
     occurrences: [...(existing?.occurrences ?? [])].sort(compareById),
     statusEvents: [...(existing?.statusEvents ?? [])].sort(compareById),
+    definitionEvents: [...(existing?.definitionEvents ?? [])].sort(compareById),
+    timeSessions: [...(existing?.timeSessions ?? [])].sort(compareById),
     importedNotes: [...(existing?.importedNotes ?? [])].sort(compareById),
     importedInterventions: [...(existing?.importedInterventions ?? [])].sort(
       compareById,
@@ -898,6 +1118,8 @@ function buildContext(
       schedules: new Set(),
       occurrences: new Set(),
       statusEvents: new Set(),
+      definitionEvents: new Set(),
+      timeSessions: new Set(),
       importedNotes: new Set(),
       importedInterventions: new Set(),
     },
@@ -908,6 +1130,14 @@ function buildContext(
       "status_event",
       normalized.mappings,
     ),
+    mapDefinitionEventExternalToLocal: mapExisting(
+      "behavior_definition_event",
+      normalized.mappings,
+    ),
+    mapTimeSessionExternalToLocal: mapExisting(
+      "time_session",
+      normalized.mappings,
+    ),
     restoreWarnings: [],
   };
 
@@ -915,6 +1145,11 @@ function buildContext(
   seedIdentityMap(context.mapScheduleExternalToLocal, normalized.schedules);
   seedIdentityMap(context.mapOccurrenceExternalToLocal, normalized.occurrences);
   seedIdentityMap(context.mapStatusEventExternalToLocal, normalized.statusEvents);
+  seedIdentityMap(
+    context.mapDefinitionEventExternalToLocal,
+    normalized.definitionEvents,
+  );
+  seedIdentityMap(context.mapTimeSessionExternalToLocal, normalized.timeSessions);
 
   return context;
 }
@@ -1050,6 +1285,9 @@ function flattenActions(
     ...actions.schedules,
     ...actions.occurrences,
     ...actions.statusEvents,
+    ...(actions.definitionEvents ?? []),
+    ...(actions.timeSessions ?? []),
+    ...(actions.interventionRules ?? []),
     ...actions.inlineOccurrenceNotes,
     ...actions.importedNotes,
     ...actions.importedInterventions,

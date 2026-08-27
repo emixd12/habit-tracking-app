@@ -38,6 +38,8 @@ type RestorePayloadForTest = {
     created_at: string | null;
   }>;
   behavior_definition_events: Array<{
+    id: string;
+    external_id: string | null;
     event_kind: "baseline" | "transition";
     behavior_id: string;
     previous_title: string | null;
@@ -87,6 +89,14 @@ type RestorePayloadForTest = {
     status: "unresolved" | "completed" | "not_completed";
     status_semantics: "explicit_user_mark";
     revises_event_id: string | null;
+  }>;
+  time_sessions: Array<{
+    id: string;
+    external_id: string;
+    occurrence_id: string;
+    behavior_id: string;
+    started_at: string;
+    stopped_at: string | null;
   }>;
   mappings: Array<{
     record_type: string;
@@ -431,14 +441,14 @@ describe("BehaviorLog restore apply service", () => {
     expect(mocks.bindBehaviorLogRestoreApplyPayload).not.toHaveBeenCalled();
   });
 
-  it("accepts a valid timing extension but excludes it from restore writes", async () => {
+  it("restores a valid standard running time session", async () => {
     const zip = createStoredZip(
       bundleFiles({
         timeSessions: [
           {
             id: "session-1",
-            occurrenceId: "occurrence-1",
-            behaviorId: "behavior-brush",
+            occurrenceId: "11111111-1111-4111-8111-111111111114",
+            behaviorId: "11111111-1111-4111-8111-111111111112",
             startedAt: "2026-06-08T13:00:00Z",
             stoppedAt: null,
           },
@@ -482,9 +492,12 @@ describe("BehaviorLog restore apply service", () => {
     });
 
     expect(preview.valid).toBe(true);
-    expect(preview.warnings).toEqual(
+    expect(preview.actions.timeSessions).toEqual([
+      expect.objectContaining({ action: "create", externalId: "session-1" }),
+    ]);
+    expect(preview.warnings).not.toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "cadence_time_sessions_export_only" }),
+        expect.objectContaining({ code: "time_session_running_conflict" }),
       ]),
     );
 
@@ -494,8 +507,22 @@ describe("BehaviorLog restore apply service", () => {
     await applyBehaviorLogRestoreUploadFromFormData(applyFormData);
 
     const restorePayload = rpc.mock.calls[0]?.[1]?.restore_payload;
-    expect(JSON.stringify(restorePayload)).not.toContain("time_session");
-    expect(restorePayload).not.toHaveProperty("time_sessions");
+    expect(restorePayload.time_sessions).toEqual([
+      expect.objectContaining({
+        external_id: "session-1",
+        started_at: "2026-06-08T13:00:00Z",
+        stopped_at: null,
+      }),
+    ]);
+    expect(restorePayload.mappings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          record_type: "time_session",
+          external_id: "session-1",
+          local_id: restorePayload.time_sessions[0]?.id,
+        }),
+      ]),
+    );
   });
 
   it("returns the applied result for an exact accepted preview before recomputing changed local data", async () => {
@@ -751,6 +778,8 @@ describe("BehaviorLog restore apply service", () => {
     );
     expect(restorePayload.behavior_definition_events).toEqual([
       {
+        id: expect.stringMatching(UUID_PATTERN),
+        external_id: null,
         event_kind: "baseline",
         behavior_id: restorePayload.behaviors[0]?.id,
         previous_title: null,
@@ -1231,6 +1260,8 @@ function emptyExisting() {
     schedules: [],
     occurrences: [],
     statusEvents: [],
+    definitionEvents: [],
+    timeSessions: [],
     importedNotes: [],
     importedInterventions: [],
     mappings: [],
@@ -1386,6 +1417,20 @@ function existingRecordsFromRestorePayload(payload: RestorePayloadForTest) {
         sourceOriginalId: statusEvent.id,
       },
     ],
+    definitionEvents: payload.behavior_definition_events.map((event) => ({
+      id: event.id,
+      behaviorId: event.behavior_id,
+      recordedAtUtc: event.recorded_at,
+      sourceOriginalId: event.external_id ?? event.id,
+    })),
+    timeSessions: payload.time_sessions.map((session) => ({
+      id: session.id,
+      occurrenceId: session.occurrence_id,
+      behaviorId: session.behavior_id,
+      startedAtUtc: session.started_at,
+      stoppedAtUtc: session.stopped_at,
+      sourceOriginalId: session.external_id,
+    })),
     importedNotes: [],
     importedInterventions: [],
     mappings: payload.mappings.map((mapping) => ({
