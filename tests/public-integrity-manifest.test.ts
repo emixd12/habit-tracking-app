@@ -46,7 +46,7 @@ describe("public integrity manifest", () => {
       followRedirects: false,
       fetcher: async (url: URL, init: RequestInit) => {
         requests.push({ url: url.toString(), cookie: new Headers(init.headers).get("cookie") ?? "" });
-        if (requests.length === 1) return new Response(null, { status: 302, headers: { location: "https://preview.example/asset", "set-cookie": "_vercel_jwt=session; Path=/" } });
+        if (requests.length === 1) return new Response(null, { status: 302, headers: { location: "https://vercel.example/sso-api", "set-cookie": "_vercel_jwt=session; Path=/" } });
         return new Response("ok", { status: 200, headers: { "content-type": "text/plain" } });
       },
     });
