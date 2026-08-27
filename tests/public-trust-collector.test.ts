@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error Operational JavaScript module intentionally has no declarations.
-import { aggregateAudit, aggregateSbom, buildSnapshot, codeScanningFact, deploymentOwnsOrigin, readHostedMigrationBoundary } from "../scripts/collect-public-trust-evidence.mjs";
+import { aggregateAudit, aggregateSbom, buildSnapshot, codeqlAnalysisComplete, codeScanningFact, deploymentOwnsOrigin, readHostedMigrationBoundary } from "../scripts/collect-public-trust-evidence.mjs";
 
 const input = JSON.parse(readFileSync("tests/fixtures/public-trust-collector/input.json", "utf8"));
 
@@ -50,6 +50,21 @@ describe("public Trust collector", () => {
     const tool = { name: "GitHub CodeQL", version: "1" };
     expect(codeScanningFact({ open: 0, analysis_complete: false }, "scope", tool).status).toBe("not_run");
     expect(codeScanningFact({ open: 0, analysis_complete: true }, "scope", tool).status).toBe("passed");
+  });
+
+  it("recognizes only a complete successful CodeQL analyzer set", () => {
+    expect(codeqlAnalysisComplete([
+      { name: "Analyze (actions)", status: "completed", conclusion: "success" },
+      { name: "Analyze (javascript-typescript)", status: "completed", conclusion: "success" },
+      { name: "Analyze (python)", status: "completed", conclusion: "success" },
+    ])).toBe(true);
+    expect(codeqlAnalysisComplete([
+      { name: "Analyze (actions)", status: "completed", conclusion: "success" },
+      { name: "Analyze (python)", status: "in_progress", conclusion: null },
+    ])).toBe(false);
+    expect(codeqlAnalysisComplete([
+      { name: "verify", status: "completed", conclusion: "success" },
+    ])).toBe(false);
   });
 
   it("binds a public Production alias to the exact named Vercel deployment", () => {
