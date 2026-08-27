@@ -2,11 +2,16 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseRuntimeConfig } from "@/lib/supabase/env";
 
+const JWT_CLOCK_SKEW_RETRY_DELAY_MS = 1_000;
+
 export async function createClient() {
   const { url, publishableKey } = getSupabaseRuntimeConfig();
   const cookieStore = await cookies();
 
   return createServerClient(url, publishableKey, {
+    global: {
+      fetch: fetchWithJwtIssuedAtFutureRetry,
+    },
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -22,6 +27,42 @@ export async function createClient() {
       },
     },
   });
+}
+
+export async function fetchWithJwtIssuedAtFutureRetry(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const response = await fetch(input, init);
+
+  if (!(await isJwtIssuedAtFutureResponse(response))) {
+    return response;
+  }
+
+  await new Promise((resolve) =>
+    setTimeout(resolve, JWT_CLOCK_SKEW_RETRY_DELAY_MS),
+  );
+
+  return fetch(input, init);
+}
+
+async function isJwtIssuedAtFutureResponse(response: Response): Promise<boolean> {
+  if (response.status !== 401) {
+    return false;
+  }
+
+  try {
+    const body = (await response.clone().json()) as {
+      code?: unknown;
+      message?: unknown;
+    } | null;
+
+    return (
+      body?.code === "PGRST303" && body.message === "JWT issued at future"
+    );
+  } catch {
+    return false;
+  }
 }
 
 export async function clearSupabaseAuthCookies(): Promise<void> {
