@@ -156,7 +156,7 @@
     {
       "path": "components/behaviors/BehaviorForm.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 38,
+      "interaction_marker_count": 41,
       "interaction_ids": [
         "INT-BEHAVIOR-007",
         "INT-BEHAVIOR-008",
@@ -332,7 +332,7 @@
     {
       "path": "components/timeline/OccurrenceNoteForm.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 4,
+      "interaction_marker_count": 7,
       "interaction_ids": ["INT-TIMELINE-008"]
     },
     {
@@ -1174,7 +1174,7 @@
       "triggers": [{ "kind": "submit", "control": "Completed" }],
       "availability": "Available on unresolved rows and inside expanded correction controls; behavior date review also exposes it.",
       "success_result": "Atomically updates the occurrence snapshot, appends the status event when the choice changes, cancels pending reminders as planned, refreshes the view, and attempts the completion chime at most once for a new Completed transition.",
-      "failure_result": "Rolls back optimistic presentation and shows a factual error; no partial status write is retained.",
+      "failure_result": "Refreshes server truth after a stale-status conflict, rolls back optimistic presentation, and shows a factual error; no partial status write is retained.",
       "effects": ["database_write", "reminder_cancellation", "ui_state", "optional_audio"],
       "risk": "moderate",
       "confirmation": "none",
@@ -1200,7 +1200,7 @@
       "triggers": [{ "kind": "submit", "control": "Not Completed" }],
       "availability": "Available on unresolved rows and inside expanded correction controls; behavior date review also exposes it.",
       "success_result": "Atomically updates the occurrence snapshot, appends the status event when the choice changes, cancels pending reminders as planned, and refreshes the view without playing a completion sound.",
-      "failure_result": "Rolls back optimistic presentation and shows a factual error; no partial status write is retained.",
+      "failure_result": "Refreshes server truth after a stale-status conflict, rolls back optimistic presentation, and shows a factual error; no partial status write is retained.",
       "effects": ["database_write", "reminder_cancellation", "ui_state"],
       "risk": "moderate",
       "confirmation": "none",
@@ -1232,7 +1232,7 @@
       ],
       "availability": "Unmark is available on an expanded, just-decided Timeline occurrence; Clear decision is available inside the Review disclosure for a resolved behavior-date occurrence.",
       "success_result": "Atomically changes the occurrence to Unresolved, appends a correction event, refreshes the owning view, and restores only reminders that are still future.",
-      "failure_result": "Shows a factual error and preserves the current resolved state.",
+      "failure_result": "Refreshes server truth after a stale-status conflict, shows a factual error, and preserves the current resolved state.",
       "effects": ["database_write", "ui_state", "reminder_planning"],
       "risk": "moderate",
       "confirmation": "none",
@@ -1260,8 +1260,8 @@
         { "kind": "submit", "control": "Save note" }
       ],
       "availability": "Available inside expanded Timeline/Needs decision rows and behavior date Review disclosures.",
-      "success_result": "Updates only the occurrence Note and refreshes the owning surface without changing status timestamps or status history.",
-      "failure_result": "Shows a factual error and preserves the stored note.",
+      "success_result": "Updates only the occurrence Note and refreshes the owning surface without changing status timestamps or status history. Typing entered after the save started remains in the Note draft.",
+      "failure_result": "Rejects a stale Note draft, shows a factual conflict error, and preserves both the stored Note and the unsaved draft.",
       "effects": ["database_write", "ui_state"],
       "risk": "moderate",
       "confirmation": "none",
@@ -1297,7 +1297,7 @@
         { "kind": "submit", "control": "Stop" },
         { "kind": "submit", "control": "Reset tracked time" }
       ],
-      "availability": "Track Time is available for an active behavior's current-local-day occurrence or an occurrence still visible in Needs decision. Future occurrences, archived behaviors, and prior resolved occurrences outside the Needs decision retention window cannot start. Stop and Reset tracked time remain available for a persisted running or recorded session. Behaviors exposes Reset tracked time only inside Review for an occurrence with timing data.",
+      "availability": "Track Time is available for an active behavior's current-local-day occurrence or an occurrence still visible in Needs decision. Future occurrences, archived behaviors, and prior resolved occurrences outside the Needs decision retention window cannot start. Stop and Reset tracked time remain available for a persisted running or recorded session. Behaviors exposes Stop for a running session and Reset tracked time for any occurrence with timing data inside Review.",
       "success_result": "Persists one start or stop interval, or deletes every interval for the occurrence. Timeline and Behaviors refresh without changing occurrence status or reminders.",
       "failure_result": "Shows a factual inline error and preserves the saved timing sessions.",
       "effects": ["database_write", "ui_state"],
@@ -1309,9 +1309,10 @@
         "app/(app)/timeline/actions.ts#startTimeTrackingAction",
         "app/(app)/timeline/actions.ts#stopTimeTrackingAction",
         "app/(app)/timeline/actions.ts#resetTimeTrackingAction",
+        "app/(app)/behaviors/actions.ts#stopBehaviorReviewOccurrenceTimeTrackingAction",
         "app/(app)/behaviors/actions.ts#resetBehaviorReviewOccurrenceTimeTrackingAction"
       ],
-      "test_coverage": { "level": "direct", "references": ["tests/timeline-time-tracking-ui.test.tsx", "tests/behavior-review-ui.test.tsx"], "notes": "Timeline UI coverage renders idle, running, stopped, and Needs decision timing controls. Behaviors UI coverage renders its reset control. Timing resolver and service tests cover eligibility and idempotent persistence." }
+      "test_coverage": { "level": "direct", "references": ["tests/timeline-time-tracking-ui.test.tsx", "tests/behavior-review-ui.test.tsx"], "notes": "Timeline UI coverage renders idle, running, stopped, and Needs decision timing controls. Behaviors UI coverage renders Stop and Reset tracked time for a running selected-day occurrence. Timing resolver and service tests cover eligibility and idempotent persistence." }
     },
     {
       "id": "INT-TIMELINE-010",
@@ -1326,7 +1327,7 @@
       "journeys": ["J07"],
       "intent": "Request current Timeline data with one deliberate mobile pull gesture.",
       "triggers": [{ "kind": "gesture", "control": "Downward pull from the top of Timeline followed by release" }],
-      "availability": "Available at mobile widths while the document is at its scroll top, the gesture starts outside a status, Note, timing, navigation, or Needs decision control, and no refresh is already in flight.",
+      "availability": "Available at mobile widths while the nearest scrollable ancestor is at its top, no modal is open, the gesture starts outside a disclosure, status, Note, timing, navigation, or Needs decision control, and no refresh is already in flight.",
       "success_result": "Shows bounded pull feedback and requests current Timeline data exactly once without mutating an occurrence.",
       "failure_result": "Short, horizontal, cancelled, below-the-top, desktop, control-started, or duplicate in-flight gestures preserve the current view without refreshing.",
       "effects": ["navigation", "ui_state"],
@@ -1337,7 +1338,7 @@
         "components/timeline/mobile-pull-to-refresh.ts",
         "components/timeline/Timeline.tsx"
       ],
-      "test_coverage": { "level": "indirect", "references": ["tests/mobile-pull-to-refresh.test.ts", "tests/timeline-interactions-ui.test.tsx"], "notes": "Automated coverage proves threshold, direction lock, control exclusion, cancellation, one in-flight refresh claim, native-refresh suppression, and wrapper rendering. Physical touch dispatch and router completion remain browser QA." }
+      "test_coverage": { "level": "indirect", "references": ["tests/mobile-pull-to-refresh.test.ts", "tests/timeline-interactions-ui.test.tsx"], "notes": "Automated coverage proves threshold, direction lock, disclosure and modal exclusion, nearest-scroll-container inspection, cancellation, one in-flight refresh claim, native-refresh suppression, and wrapper rendering. Physical touch dispatch and router completion remain browser QA." }
     },
     {
       "id": "INT-BEHAVIOR-001",
@@ -1808,7 +1809,7 @@
       "triggers": [{ "kind": "submit", "control": "Save behavior in edit mode" }],
       "availability": "Available inside an opened behavior Details and Settings edit form.",
       "success_result": "Atomically updates the owner-scoped behavior graph, appends a definition event when title or description changed, marks occurrence and reminder coverage stale, and immediately attempts repair without overturning the durable save if retryable repair fails.",
-      "failure_result": "Shows field or form errors and preserves the last stored behavior graph.",
+      "failure_result": "Shows field or form errors and preserves the last stored behavior graph. A stale edit reports a conflict and retains the draft until the user deliberately reloads the current Behavior.",
       "effects": ["database_write", "occurrence_sync_stale", "occurrence_sync", "reminder_planning", "ui_state"],
       "risk": "moderate",
       "confirmation": "none",
@@ -2133,7 +2134,7 @@
         { "kind": "submit", "control": "Preview import" }
       ],
       "availability": "Available in the BehaviorLog import section for authenticated users with a .behaviorlog.zip bundle no larger than 2 MB.",
-      "success_result": "Parses and validates the bundle, gathers current owned data, persists the preview run, and renders counts, warnings, conflicts, privacy notes, fingerprints, and supported apply modes without product writes.",
+      "success_result": "Selecting a file immediately clears any prior preview. Previewing parses and validates the selected bundle, gathers current owned data, persists the preview run, and renders counts, warnings, conflicts, privacy notes, fingerprints, and supported apply modes without product writes.",
       "failure_result": "Shows validation or processing errors and exposes no apply control for an unsafe preview.",
       "effects": ["file_read", "preview_only", "audit_write", "ui_state"],
       "risk": "moderate",
@@ -2205,7 +2206,7 @@
         { "id": "create", "label": "Apply create-only import", "result": "Create supported records without mapping onto existing records." },
         { "id": "merge", "label": "Apply approved merge", "result": "Apply only supported create, map, and skip actions from the accepted merge preview." }
       ],
-      "availability": "Enabled only for a valid supported preview with exact-preview acknowledgement and any required sensitivity acknowledgement.",
+      "availability": "Enabled only for a valid supported preview of the currently selected file, with exact-preview acknowledgement and any required sensitivity acknowledgement.",
       "success_result": "Verifies the persisted preview identity and all fingerprints, writes the supported owner-scoped records, and records the applied import run and mappings.",
       "failure_result": "Rejects stale, altered, mismatched, unaccepted, unsafe, or unsupported plans without silently recomputing a replacement plan.",
       "effects": ["database_write", "audit_write", "ui_state"],
@@ -2231,7 +2232,7 @@
         { "kind": "submit", "control": "Preview restore" }
       ],
       "availability": "Available in the BehaviorLog restore section for authenticated users with a trusted .behaviorlog.zip bundle no larger than 2 MB.",
-      "success_result": "Parses and validates the bundle, gathers current owned data, persists the preview run, and renders create/replace/archive/delete/keep/skip actions, destructive counts, boundaries, warnings, and fingerprints without product writes.",
+      "success_result": "Selecting a file immediately clears any prior preview. Previewing parses and validates the selected bundle, gathers current owned data, persists the preview run, and renders create/replace/archive/delete/keep/skip actions, destructive counts, boundaries, warnings, and fingerprints without product writes.",
       "failure_result": "Shows validation or processing errors and does not enable restore apply.",
       "effects": ["file_read", "preview_only", "audit_write", "ui_state"],
       "risk": "high",
@@ -2318,7 +2319,7 @@
       "journeys": ["J17"],
       "intent": "Apply the exact accepted restore preview to owned Cadence product records.",
       "triggers": [{ "kind": "submit", "control": "Apply restore" }],
-      "availability": "Enabled only for a valid supported preview with fresh-backup acknowledgement, exact RESTORE text, and any required sensitivity acknowledgement.",
+      "availability": "Enabled only for a valid supported preview of the currently selected file, with fresh-backup acknowledgement, exact RESTORE text, and any required sensitivity acknowledgement.",
       "success_result": "Revalidates the canonical bundle and stale-row preconditions, then atomically applies create/replace/archive/delete/keep decisions, definition history, provenance, and applied ledger entries without provider calls.",
       "failure_result": "Rejects stale, altered, mismatched, skipped, unsupported, or unconfirmed restore input without partial product writes.",
       "effects": ["database_write", "audit_write", "destructive_data_change", "ui_state"],

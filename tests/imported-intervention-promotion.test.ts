@@ -644,6 +644,7 @@ function occurrenceRow(overrides: Partial<Occurrence> = {}): Occurrence {
     local_date: "2026-06-19",
     schedule_kind: "exact",
     schedule_preset: null,
+    schedule_range_identity: -1,
     schedule_start_time: "09:00:00",
     schedule_end_time: null,
     status: "unresolved",

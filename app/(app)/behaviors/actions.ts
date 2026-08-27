@@ -15,7 +15,10 @@ import {
   restoreBehaviorFromFormData,
   updateBehaviorFromFormData,
 } from "@/lib/services/behavior.service";
-import { resetOccurrenceTimeTracking } from "@/lib/services/time-tracking.service";
+import {
+  resetOccurrenceTimeTracking,
+  stopOccurrenceTimeTracking,
+} from "@/lib/services/time-tracking.service";
 import type {
   OccurrenceActionState,
   TimelineStatus,
@@ -164,6 +167,40 @@ export async function resetBehaviorReviewOccurrenceTimeTrackingAction(
     return {
       status: "error",
       message: "Unable to reset tracked time.",
+    };
+  }
+}
+
+export async function stopBehaviorReviewOccurrenceTimeTrackingAction(
+  _previousState: TimeTrackingActionState,
+  formData: FormData,
+): Promise<TimeTrackingActionState> {
+  const occurrenceId = formData.get("occurrence_id");
+
+  if (typeof occurrenceId !== "string" || occurrenceId.length === 0) {
+    return {
+      status: "error",
+      message: "Choose an occurrence before stopping tracked time.",
+    };
+  }
+
+  try {
+    const result = await stopOccurrenceTimeTracking(occurrenceId);
+    revalidatePath("/behaviors");
+    revalidatePath("/timeline");
+
+    return {
+      status: "success",
+      message: "Time tracking stopped.",
+      tracking: {
+        recordedSeconds: result.tracking.recordedSeconds,
+        runningStartedAt: result.tracking.runningSession?.startedAt ?? null,
+      },
+    };
+  } catch {
+    return {
+      status: "error",
+      message: "Unable to stop time tracking.",
     };
   }
 }

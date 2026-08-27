@@ -47,6 +47,7 @@ type BehaviorListProps = Readonly<{
   restoreAction: BehaviorFormAction;
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
+  stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
 }>;
 
@@ -100,6 +101,7 @@ export function BehaviorList({
   restoreAction,
   statusAction,
   noteAction,
+  stopTimeTrackingAction,
   resetTimeTrackingAction,
 }: BehaviorListProps) {
   const [createdBehaviorRows, setCreatedBehaviorRows] = useState<BehaviorView[]>(
@@ -196,6 +198,7 @@ export function BehaviorList({
                 lifecycleResult={lifecycleState}
                 statusAction={statusAction}
                 noteAction={noteAction}
+                stopTimeTrackingAction={stopTimeTrackingAction}
                 resetTimeTrackingAction={resetTimeTrackingAction}
               />
             ))}
@@ -350,6 +353,7 @@ function BehaviorRecord({
   lifecycleResult,
   statusAction,
   noteAction,
+  stopTimeTrackingAction,
   resetTimeTrackingAction,
 }: Readonly<{
   behavior: BehaviorView;
@@ -361,6 +365,7 @@ function BehaviorRecord({
   lifecycleResult: BehaviorLifecycleActionState;
   statusAction?: OccurrenceFormAction;
   noteAction?: OccurrenceFormAction;
+  stopTimeTrackingAction?: TimeTrackingFormAction;
   resetTimeTrackingAction?: TimeTrackingFormAction;
 }>) {
   const [hasOpenedEdit, setHasOpenedEdit] = useState(false);
@@ -477,11 +482,12 @@ function BehaviorRecord({
         </div>
       </details>
 
-      {selectedBehaviorDay && statusAction && noteAction && resetTimeTrackingAction ? (
+      {selectedBehaviorDay && statusAction && noteAction && stopTimeTrackingAction && resetTimeTrackingAction ? (
         <BehaviorDateReview
           selectedBehaviorDay={selectedBehaviorDay}
           statusAction={statusAction}
           noteAction={noteAction}
+          stopTimeTrackingAction={stopTimeTrackingAction}
           resetTimeTrackingAction={resetTimeTrackingAction}
         />
       ) : null}
@@ -639,11 +645,13 @@ function BehaviorDateReview({
   selectedBehaviorDay,
   statusAction,
   noteAction,
+  stopTimeTrackingAction,
   resetTimeTrackingAction,
 }: Readonly<{
   selectedBehaviorDay: NonNullable<AnalyticsView["selectedBehaviorDay"]>;
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
+  stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
 }>) {
   return (
@@ -688,7 +696,6 @@ function BehaviorDateReview({
                 </div>
 
                 <OccurrenceNoteForm
-                  key={`${occurrence.id}-${occurrence.note}`}
                   occurrenceId={occurrence.id}
                   note={occurrence.note}
                   action={noteAction}
@@ -697,7 +704,9 @@ function BehaviorDateReview({
                 {occurrence.trackedTime ? (
                   <BehaviorReviewTimeReset
                     occurrenceId={occurrence.id}
-                    action={resetTimeTrackingAction}
+                    isRunning={occurrence.trackedTime.isInProgress}
+                    stopAction={stopTimeTrackingAction}
+                    resetAction={resetTimeTrackingAction}
                   />
                 ) : null}
               </div>

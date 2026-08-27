@@ -20,6 +20,7 @@ import type {
   BehaviorFormAction,
   BehaviorView,
 } from "../lib/types/behavior";
+import { BEHAVIOR_FORM_FIELDS } from "../lib/types/behavior";
 import type {
   OccurrenceActionState,
   OccurrenceFormAction,
@@ -74,6 +75,8 @@ describe("behavior date review UI", () => {
     expect(createHtml).toContain(">Save behavior</button>");
 
     expect(editHtml).toContain('name="schedule_0_monthly_day"');
+    expect(editHtml).toContain('name="expected_updated_at"');
+    expect(editHtml).toContain(`value="${behaviorViewWithSchedules().updatedAt}"`);
     expect(editHtml).toContain('name="schedule_1_weekly_days"');
     expect(editHtml).toContain('name="schedule_0_time_entry_kind_0"');
     expect(editHtml).toContain('name="schedule_0_time_entry_range_preset_0"');
@@ -112,6 +115,31 @@ describe("behavior date review UI", () => {
 
     expect(dailyHtml).not.toContain('name="schedule_0_weekly_days"');
     expect(weeklyHtml.match(/name="schedule_0_weekly_days"/g)).toHaveLength(7);
+  });
+
+  it("renders recurrence errors and keeps every behavior error key surfaced", () => {
+    const html = renderToStaticMarkup(
+      <BehaviorForm
+        mode="create"
+        action={behaviorAction}
+        categories={[]}
+        initialState={{
+          status: "error",
+          message: "Check the highlighted fields.",
+          fieldErrors: { recurrence: "Choose at least one weekday." },
+        }}
+      />,
+    );
+    const source = readFileSync(
+      new URL("../components/behaviors/BehaviorForm.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Choose at least one weekday.");
+    for (const field of BEHAVIOR_FORM_FIELDS) {
+      expect(source).toContain(`fieldErrors.${field}`);
+    }
   });
 
   it("restores every controlled schedule value to the initial edit draft", () => {
@@ -239,6 +267,7 @@ describe("behavior date review UI", () => {
         restoreAction={behaviorAction}
         statusAction={occurrenceAction}
         noteAction={occurrenceAction}
+        stopTimeTrackingAction={timeTrackingAction}
         resetTimeTrackingAction={timeTrackingAction}
       />,
     );
@@ -253,6 +282,7 @@ describe("behavior date review UI", () => {
     expect(html).toContain("<span>Completed</span>");
     expect(html).toContain("<span>Not Completed</span>");
     expect(html).toContain('name="note"');
+    expect(html).toContain('name="expected_note"');
     expect(html).toContain(">Save note</button>");
     expect(html).toContain("Details and Settings");
     expect(html).toContain("Archived behaviors (1)");
@@ -276,6 +306,7 @@ describe("behavior date review UI", () => {
         restoreAction={behaviorAction}
         statusAction={occurrenceAction}
         noteAction={occurrenceAction}
+        stopTimeTrackingAction={timeTrackingAction}
         resetTimeTrackingAction={timeTrackingAction}
       />,
     );
@@ -283,7 +314,7 @@ describe("behavior date review UI", () => {
     expect(html).not.toContain("Clear decision");
   });
 
-  it("renders only recorded timing context and reset inside the selected-day review", () => {
+  it("renders Stop and Reset for a running timer inside selected-day review", () => {
     const behavior = behaviorView();
     const analytics = analyticsView(behavior);
     analytics.behaviorSummaries[0]!.averageTrackedTime = {
@@ -309,6 +340,7 @@ describe("behavior date review UI", () => {
         restoreAction={behaviorAction}
         statusAction={occurrenceAction}
         noteAction={occurrenceAction}
+        stopTimeTrackingAction={timeTrackingAction}
         resetTimeTrackingAction={timeTrackingAction}
       />,
     );
@@ -318,6 +350,7 @@ describe("behavior date review UI", () => {
     expect(html).toContain("Tracked time");
     expect(html).toContain("2m 0s");
     expect(html).toContain("In progress");
+    expect(html).toContain(">Stop</button>");
     expect(html).toContain("Reset tracked time");
   });
 

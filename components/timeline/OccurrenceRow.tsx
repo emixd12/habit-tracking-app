@@ -220,7 +220,6 @@ export function OccurrenceRow({
             ) : null}
 
             <OccurrenceNoteForm
-              key={`${visibleOccurrence.id}-${visibleOccurrence.note}`}
               occurrenceId={visibleOccurrence.id}
               note={visibleOccurrence.note}
               action={noteAction}

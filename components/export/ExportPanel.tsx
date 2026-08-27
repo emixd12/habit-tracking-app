@@ -271,8 +271,14 @@ export function ExportPanel({
             prior schedules.
           </p>
         </div>
-        <BehaviorLogImportPanel recentRuns={importData.recentRuns} />
-        <BehaviorLogRestorePanel recentRuns={restoreData.recentRuns} />
+        <BehaviorLogImportPanel
+          recentRuns={importData.recentRuns}
+          timezone={exportData.timezone}
+        />
+        <BehaviorLogRestorePanel
+          recentRuns={restoreData.recentRuns}
+          timezone={exportData.timezone}
+        />
       </section>
     </div>
   );

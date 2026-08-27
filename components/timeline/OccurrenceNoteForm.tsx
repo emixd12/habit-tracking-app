@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 
 import type {
@@ -21,6 +21,20 @@ const EMPTY_ACTION_STATE: OccurrenceActionState = {
   message: "",
 };
 
+export function reconcileSavedNoteDraft({
+  submittedDraft,
+  submittedRevision,
+  currentDraft,
+  currentRevision,
+}: Readonly<{
+  submittedDraft: string;
+  submittedRevision: number;
+  currentDraft: string;
+  currentRevision: number;
+}>): string {
+  return submittedRevision === currentRevision ? submittedDraft : currentDraft;
+}
+
 export function OccurrenceNoteForm({
   occurrenceId,
   note,
@@ -29,19 +43,44 @@ export function OccurrenceNoteForm({
 }: OccurrenceNoteFormProps) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
   const router = useRouter();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const draftRevisionRef = useRef(0);
+  const submittedDraftRef = useRef<{
+    value: string;
+    revision: number;
+  } | null>(null);
 
   useEffect(() => {
     if (state.status === "success") {
+      const textarea = textareaRef.current;
+      const submittedDraft = submittedDraftRef.current;
+
+      if (textarea && submittedDraft) {
+        textarea.value = reconcileSavedNoteDraft({
+          submittedDraft: submittedDraft.value,
+          submittedRevision: submittedDraft.revision,
+          currentDraft: textarea.value,
+          currentRevision: draftRevisionRef.current,
+        });
+      }
+
       router.refresh();
     }
-  }, [router, state.status]);
+  }, [router, state]);
 
   return (
     <form
       action={formAction}
+      onSubmit={() => {
+        submittedDraftRef.current = {
+          value: textareaRef.current?.value ?? "",
+          revision: draftRevisionRef.current,
+        };
+      }}
       className={["grid", compact ? "gap-1" : "gap-3"].join(" ")}
     >
       <input type="hidden" name="occurrence_id" value={occurrenceId} />
+      <input type="hidden" name="expected_note" value={note} />
       <label
         className={[
           "grid font-bold text-foreground",
@@ -50,8 +89,12 @@ export function OccurrenceNoteForm({
       >
         <span>Note</span>
         <textarea
+          ref={textareaRef}
           name="note"
           defaultValue={note}
+          onChange={() => {
+            draftRevisionRef.current += 1;
+          }}
           rows={3}
           className="min-h-24 resize-y border border-line bg-background px-3 py-2 text-base font-normal leading-7 text-foreground placeholder:text-muted-readable"
           placeholder="Add a note"

@@ -8,6 +8,7 @@ import type {
   Occurrence,
   OccurrenceUpdate,
 } from "@/lib/types/database";
+import type { ScheduleKind } from "@/lib/types/schedule";
 
 export async function listBehaviorOccurrencesFrom(
   supabase: AppSupabaseClient,
@@ -220,12 +221,15 @@ export async function getOccurrenceWithBehaviorTimezoneById(
   return data ? (data as unknown as OccurrenceWithBehaviorTimezone) : null;
 }
 
-export async function getOccurrenceByBehaviorAndScheduledFor(
+export async function getOccurrenceByScheduleIdentity(
   supabase: AppSupabaseClient,
   input: {
     userId: string;
     behaviorId: string;
-    scheduledFor: string;
+    localDate: string;
+    scheduleKind: ScheduleKind;
+    scheduleStartTime: string;
+    scheduleEndTime: string | null;
   },
 ): Promise<Occurrence | null> {
   const { data, error } = await supabase
@@ -233,7 +237,12 @@ export async function getOccurrenceByBehaviorAndScheduledFor(
     .select("*")
     .eq("user_id", input.userId)
     .eq("behavior_id", input.behaviorId)
-    .eq("scheduled_for", input.scheduledFor)
+    .eq("local_date", input.localDate)
+    .eq("schedule_start_time", input.scheduleStartTime)
+    .eq(
+      "schedule_range_identity",
+      resolveScheduleRangeIdentity(input.scheduleKind, input.scheduleEndTime),
+    )
     .maybeSingle();
 
   if (error) {
@@ -271,7 +280,8 @@ export async function createMissingOccurrences(
   const { error } = await supabase
     .from("occurrences")
     .upsert(occurrences, {
-      onConflict: "behavior_id,scheduled_for",
+      onConflict:
+        "behavior_id,local_date,schedule_start_time,schedule_range_identity",
       ignoreDuplicates: true,
     });
 
@@ -315,6 +325,7 @@ export async function applyOccurrenceGenerationPlan(
       })) as Json,
       occurrence_updates: input.plan.updateUnresolved.map((occurrence) => ({
         id: occurrence.id,
+        previous_scheduled_for: occurrence.previousScheduledFor,
         scheduled_for: occurrence.scheduledFor,
         local_date: occurrence.localDate,
         behavior_schedule_slot_id: occurrence.scheduleSlotId,
@@ -366,6 +377,34 @@ export async function updateOccurrenceById(
     .eq("id", occurrenceId)
     .select("*")
     .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+export async function updateOccurrenceNoteIfExpected(
+  supabase: AppSupabaseClient,
+  input: {
+    userId: string;
+    occurrenceId: string;
+    expectedNote: string | null;
+    note: string | null;
+  },
+): Promise<Occurrence | null> {
+  let query = supabase
+    .from("occurrences")
+    .update({ note: input.note })
+    .eq("user_id", input.userId)
+    .eq("id", input.occurrenceId);
+
+  query = input.expectedNote === null
+    ? query.is("note", null)
+    : query.eq("note", input.expectedNote);
+
+  const { data, error } = await query.select("*").maybeSingle();
 
   if (error) {
     throw error;
@@ -427,6 +466,26 @@ export async function updateUnresolvedOccurrenceScheduleById(
 
 function isEmptyOccurrenceNote(note: string | null): boolean {
   return (note?.trim() ?? "").length === 0;
+}
+
+function resolveScheduleRangeIdentity(
+  kind: ScheduleKind,
+  endTime: string | null,
+): number {
+  if (kind === "exact") {
+    return -1;
+  }
+
+  const match = endTime?.match(/^(\d{2}):(\d{2})(?::(\d{2}(?:\.\d{1,6})?))?$/);
+
+  if (!match) {
+    throw new Error("Range occurrence identity requires a valid end time.");
+  }
+
+  return Math.round(
+    (Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3] ?? 0)) *
+      1_000_000,
+  );
 }
 
 function readInteger(value: unknown): number {

@@ -159,6 +159,7 @@ export async function updateBehaviorFromFormData(
   const input = parseBehaviorFormData(formData, {
     mode: "update",
   });
+  const expectedUpdatedAt = getExpectedUpdatedAtFromFormData(formData);
   const existingBehavior = await getBehaviorById(
     supabase,
     userId,
@@ -225,7 +226,7 @@ export async function updateBehaviorFromFormData(
     },
     expectedNormalizedDefinition: previousDefinition,
     expectedScheduleGraph: toStoredBehaviorScheduleGraph(existingBehavior),
-    expectedUpdatedAt: existingBehavior.updated_at,
+    expectedUpdatedAt,
     definitionEventPlan: definitionEvent,
     configurationEventPlan: configurationEvent,
     schedules,
@@ -241,6 +242,16 @@ export async function updateBehaviorFromFormData(
     userId,
     "update",
   );
+}
+
+function getExpectedUpdatedAtFromFormData(formData: FormData): string {
+  const value = formData.get("expected_updated_at");
+
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error("Reload this behavior before saving changes.");
+  }
+
+  return value;
 }
 
 export async function archiveBehaviorFromFormData(

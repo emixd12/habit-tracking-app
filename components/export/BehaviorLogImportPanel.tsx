@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { submitBehaviorLogImportAction } from "@/app/(app)/export/actions";
 import type {
@@ -20,13 +20,16 @@ import type {
   BehaviorLogImportRunView,
 } from "@/lib/types/behaviorlog-import-ui";
 import { BEHAVIORLOG_IMPORT_INITIAL_STATE } from "@/lib/types/behaviorlog-import-ui";
+import { formatUserDateTime } from "@/lib/ui/date-time";
 import {
   getBehaviorLogBundleSizeError,
+  isBehaviorLogPreviewCurrent,
   readBehaviorLogBundleAsBase64,
 } from "@/lib/types/behaviorlog-bundle-ui";
 
 type BehaviorLogImportPanelProps = Readonly<{
   recentRuns: BehaviorLogImportRunView[];
+  timezone: string;
   action?: BehaviorLogImportFormAction;
   initialState?: BehaviorLogImportActionState;
 }>;
@@ -51,6 +54,7 @@ const RECORD_TYPE_LABELS: Record<BehaviorLogImportRecordType, string> = {
 
 export function BehaviorLogImportPanel({
   recentRuns,
+  timezone,
   action = submitBehaviorLogImportAction,
   initialState = BEHAVIORLOG_IMPORT_INITIAL_STATE,
 }: BehaviorLogImportPanelProps) {
@@ -58,16 +62,38 @@ export function BehaviorLogImportPanel({
     action,
     initialState,
   );
-  const preview = state.preview;
   const runs = mergeRecentRuns(recentRuns, state);
   const bundleReadVersionRef = useRef(0);
+  const submittedBundleReadVersionRef = useRef<number | null>(null);
+  const [selectedBundleReadVersion, setSelectedBundleReadVersion] = useState(0);
+  const [previewBundleReadVersion, setPreviewBundleReadVersion] = useState<
+    number | null
+  >(initialState.preview ? 0 : null);
   const [bundlePayload, setBundlePayload] = useState<string | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const [isPreparingBundle, setIsPreparingBundle] = useState(false);
+  const preview =
+    isBehaviorLogPreviewCurrent(
+      previewBundleReadVersion,
+      selectedBundleReadVersion,
+    )
+      ? state.preview
+      : null;
+
+  useEffect(() => {
+    if (
+      state.status === "previewed" &&
+      submittedBundleReadVersionRef.current === selectedBundleReadVersion
+    ) {
+      setPreviewBundleReadVersion(selectedBundleReadVersion);
+    }
+  }, [selectedBundleReadVersion, state]);
 
   async function handleBundleFileChange(file: File | null) {
     const readVersion = bundleReadVersionRef.current + 1;
     bundleReadVersionRef.current = readVersion;
+    setSelectedBundleReadVersion(readVersion);
+    setPreviewBundleReadVersion(null);
     setBundlePayload(null);
     setClientError(null);
 
@@ -141,7 +167,10 @@ export function BehaviorLogImportPanel({
           if (sizeError) {
             event.preventDefault();
             setClientError(sizeError);
+            return;
           }
+
+          submittedBundleReadVersionRef.current = bundleReadVersionRef.current;
         }}
         className="mt-5 grid gap-4"
       >
@@ -204,7 +233,7 @@ export function BehaviorLogImportPanel({
         />
       ) : null}
 
-      <ImportRunHistory runs={runs} />
+      <ImportRunHistory runs={runs} timezone={timezone} />
     </section>
   );
 }
@@ -686,8 +715,10 @@ function ApplyResult({
 
 function ImportRunHistory({
   runs,
+  timezone,
 }: Readonly<{
   runs: BehaviorLogImportRunView[];
+  timezone: string;
 }>) {
   return (
     <section className="mt-6" aria-labelledby="import-runs-title">
@@ -703,7 +734,7 @@ function ImportRunHistory({
                   {formatImportMode(run.import_mode)} · {run.status}
                 </p>
                 <p className="mt-1 text-sm font-bold text-muted-readable">
-                  Started {formatDateTime(run.started_at)}
+                  Started {formatUserDateTime(run.started_at, timezone)}
                 </p>
                 {run.failure_message ? (
                   <p className="mt-2 text-sm text-accent">{run.failure_message}</p>
@@ -713,7 +744,7 @@ function ImportRunHistory({
                 <dt className="text-sm font-bold text-foreground">Finished</dt>
                 <dd className="break-all text-sm font-bold text-muted-readable">
                   {run.completed_at
-                    ? formatDateTime(run.completed_at)
+                    ? formatUserDateTime(run.completed_at, timezone)
                     : "Still open"}
                 </dd>
               </dl>
@@ -1111,14 +1142,4 @@ function formatImportMode(mode: string): string {
     default:
       return mode;
   }
-}
-
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
 }

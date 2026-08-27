@@ -22,7 +22,7 @@ import {
 } from "@/components/timeline/mobile-pull-to-refresh";
 
 const INTERACTIVE_TARGET_SELECTOR =
-  'a, button, input, select, textarea, [role="button"], [contenteditable="true"]';
+  'a, button, input, select, summary, textarea, [role="button"], [contenteditable="true"]';
 
 type MobileTimelinePullToRefreshProps = Readonly<{
   children: ReactNode;
@@ -128,7 +128,8 @@ export function MobileTimelinePullToRefresh({
     updatePullState(
       beginPullToRefresh({
         isMobile: window.innerWidth <= MOBILE_TIMELINE_MAX_WIDTH,
-        isAtScrollTop: getPageScrollTop() <= 0,
+        isAtScrollTop: getNearestScrollTop(target) <= 0,
+        isModalOpen: document.querySelector('[role="dialog"][aria-modal="true"]') !== null,
         startedOnInteractiveElement,
         x: touch.clientX,
         y: touch.clientY,
@@ -187,4 +188,23 @@ function getPageScrollTop(): number {
     document.documentElement.scrollTop,
     document.body.scrollTop,
   );
+}
+
+function getNearestScrollTop(target: Element | null): number {
+  let element = target;
+
+  while (element && element !== document.body && element !== document.documentElement) {
+    const { overflowY } = window.getComputedStyle(element);
+
+    if (
+      /^(auto|overlay|scroll)$/.test(overflowY) &&
+      element.scrollHeight > element.clientHeight
+    ) {
+      return element.scrollTop;
+    }
+
+    element = element.parentElement;
+  }
+
+  return getPageScrollTop();
 }

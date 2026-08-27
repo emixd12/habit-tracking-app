@@ -75,6 +75,7 @@ export type PlannedOccurrenceScheduleUpdate = Omit<
   "userId" | "behaviorId" | "status" | "behaviorConfigurationEventId"
 > & {
   id: string;
+  previousScheduledFor: string;
   behaviorConfigurationEventId: string;
 };
 
@@ -244,17 +245,15 @@ function planOccurrenceGenerationForWindow(
         generationWindow,
       })
     : [];
-  const existingScheduledKeys = new Set(
-    input.existingOccurrences.map((occurrence) =>
-      normalizeInstantString(occurrence.scheduledFor),
-    ),
+  const existingOccurrenceKeys = new Set(
+    input.existingOccurrences.map(occurrenceIdentityKey),
   );
-  const desiredScheduledKeys = new Set(
-    desiredOccurrences.map((occurrence) => occurrence.scheduledFor.toString()),
+  const desiredOccurrenceKeys = new Set(
+    desiredOccurrences.map(occurrenceIdentityKey),
   );
-  const desiredByScheduledKey = new Map(
+  const desiredByOccurrenceKey = new Map(
     desiredOccurrences.map((occurrence) => [
-      occurrence.scheduledFor.toString(),
+      occurrenceIdentityKey(occurrence),
       occurrence,
     ]),
   );
@@ -263,7 +262,7 @@ function planOccurrenceGenerationForWindow(
     create: desiredOccurrences
       .filter(
         (occurrence) =>
-          !existingScheduledKeys.has(occurrence.scheduledFor.toString()),
+          !existingOccurrenceKeys.has(occurrenceIdentityKey(occurrence)),
       )
       .map((occurrence) => ({
         userId: input.behavior.userId,
@@ -291,8 +290,8 @@ function planOccurrenceGenerationForWindow(
           !occurrence.hasTimeSessions,
       )
       .flatMap((occurrence) => {
-        const desired = desiredByScheduledKey.get(
-          normalizeInstantString(occurrence.scheduledFor),
+        const desired = desiredByOccurrenceKey.get(
+          occurrenceIdentityKey(occurrence),
         );
 
         if (!desired || occurrence.behaviorConfigurationEventId === null) {
@@ -303,7 +302,9 @@ function planOccurrenceGenerationForWindow(
           input.behavior.configurationEventId;
 
         if (
-          (snapshotsMatch(occurrence, desired) &&
+          (normalizeInstantString(occurrence.scheduledFor) ===
+            desired.scheduledFor.toString() &&
+            snapshotsMatch(occurrence, desired) &&
             occurrence.behaviorConfigurationEventId ===
               behaviorConfigurationEventId)
         ) {
@@ -313,6 +314,9 @@ function planOccurrenceGenerationForWindow(
         return [
           {
             id: occurrence.id,
+            previousScheduledFor: normalizeInstantString(
+              occurrence.scheduledFor,
+            ),
             scheduledFor: desired.scheduledFor.toString(),
             localDate: desired.localDate,
             scheduleSlotId: desired.scheduleSlotId,
@@ -335,7 +339,7 @@ function planOccurrenceGenerationForWindow(
           isAfter(normalizeInstant(occurrence.scheduledFor), input.now) &&
           !hasNonEmptyNote(occurrence.note) &&
           !occurrence.hasTimeSessions &&
-          !desiredScheduledKeys.has(normalizeInstantString(occurrence.scheduledFor)),
+          !desiredOccurrenceKeys.has(occurrenceIdentityKey(occurrence)),
       )
       .map((occurrence) => ({
         id: occurrence.id,
@@ -502,11 +506,15 @@ function sortGenerationScheduleSlots(
 
 function dedupeDesiredOccurrences<T extends {
   scheduledFor: Temporal.Instant;
+  localDate: string;
+  scheduleKind: ScheduleKind;
+  scheduleStartTime: string;
+  scheduleEndTime: string | null;
 }>(occurrences: T[]): T[] {
   const occurrencesByKey = new Map<string, T>();
 
   for (const occurrence of occurrences) {
-    const key = occurrence.scheduledFor.toString();
+    const key = occurrenceIdentityKey(occurrence);
 
     if (!occurrencesByKey.has(key)) {
       occurrencesByKey.set(key, occurrence);
@@ -514,6 +522,20 @@ function dedupeDesiredOccurrences<T extends {
   }
 
   return Array.from(occurrencesByKey.values());
+}
+
+function occurrenceIdentityKey(occurrence: {
+  localDate: string;
+  scheduleKind: ScheduleKind;
+  scheduleStartTime: string;
+  scheduleEndTime: string | null;
+}): string {
+  return [
+    occurrence.localDate,
+    occurrence.scheduleStartTime,
+    occurrence.scheduleKind,
+    occurrence.scheduleEndTime ?? "",
+  ].join("|");
 }
 
 export function resolveGenerationWindow(input: {

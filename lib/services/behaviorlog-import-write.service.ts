@@ -32,7 +32,7 @@ import {
 import {
   createOccurrenceForImport,
   getOccurrenceById,
-  getOccurrenceByBehaviorAndScheduledFor,
+  getOccurrenceByScheduleIdentity,
   updateOccurrenceById,
   updateOccurrenceNoteIfEmpty,
 } from "@/lib/db/occurrences.repo";
@@ -643,12 +643,15 @@ export async function applyCreateMissingBehaviorLogImportPlan(
         continue;
       }
 
-      const existingOccurrence = await getOccurrenceByBehaviorAndScheduledFor(
+      const existingOccurrence = await getOccurrenceByScheduleIdentity(
         supabase,
         {
           userId: input.userId,
           behaviorId,
-          scheduledFor: occurrence.scheduledForUtc,
+          localDate: occurrence.localDate,
+          scheduleKind: supportedSchedule.slot.kind,
+          scheduleStartTime: supportedSchedule.slot.startTime,
+          scheduleEndTime: supportedSchedule.slot.endTime,
         },
       );
       const localOccurrence =
@@ -1268,12 +1271,15 @@ export async function applyApprovedBehaviorLogMergePlan(
         continue;
       }
 
-      const existingOccurrence = await getOccurrenceByBehaviorAndScheduledFor(
+      const existingOccurrence = await getOccurrenceByScheduleIdentity(
         supabase,
         {
           userId: input.userId,
           behaviorId,
-          scheduledFor: occurrence.scheduledForUtc,
+          localDate: occurrence.localDate,
+          scheduleKind: supportedSchedule.slot.kind,
+          scheduleStartTime: supportedSchedule.slot.startTime,
+          scheduleEndTime: supportedSchedule.slot.endTime,
         },
       );
       const localOccurrence =

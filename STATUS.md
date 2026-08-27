@@ -85,15 +85,33 @@ typecheck, build, and repository checks passed. Hosted migration deployment
 remains unauthorized and was not performed.
 
 Tickets 072-074, 077, 079-084, 086, 092, and 093 are `complete`.
-Tickets 072-074, 077, 079-084, 086, and 093 are deployed. Tickets 085 and
-087-091 are `not_started`. Ticket 092 is complete locally without a provider
+Tickets 072-074, 077, 079-084, 086, and 093 are deployed. Tickets 085, 087,
+089, and 090 are `complete` locally; Tickets 088 and 091 are `not_started`.
+Ticket 092 is complete locally without a provider
 mutation. Ticket 094 is `complete`. Tickets 078-093
 were defined on 2026-08-06 from a repository-wide read-only audit across five
 independent passes (domain resolvers/services/repos, routes/auth/API,
 import/restore/export, UI/interaction, schema/marketing/ops). No fix was applied
 during the audit and no product scope changed. Scope and acceptance criteria
 live in `docs/TICKETS.md`; the remaining suggested order starts with Ticket
-084.
+088, then Ticket 091 after its dependencies.
+
+Tickets 085, 087, 089, and 090 completed locally on 2026-08-27. Ticket 085
+adds range-aware Occurrence identity, missing-overlap backfill, idempotent
+generation and import lookup, and generated database types. Ticket 087 adds
+Behavior, status, Note, and read-cache concurrency guards. Ticket 089 preserves
+Note drafts, invalidates stale import previews, keeps Stop available after
+midnight, makes completion audio non-blocking, and excludes modal gestures from
+Timeline refresh. Ticket 090 fixes dialog focus containment, Behavior recurrence
+errors, and explicit profile-timezone timestamp formatting. Clean database
+reset, migration rerun, schedule-integrity smoke, database lint, 1,101 tests,
+an explicit populated pre-migration backfill proof, agent and interaction
+checks, lint, typecheck, design-system checks, and the production build passed.
+One environment-gated test skipped. Lint retained
+eight pre-existing fixture warnings, and database lint retained four
+pre-existing BehaviorLog warnings. Authenticated production hydration and
+physical 390px touch QA remain unverified because those browser surfaces were
+not available. Hosted migrations were not pushed.
 Ticket 094 was added on 2026-08-12 after the live 90-day Behaviors range
 produced an oversized Supabase Data API URL. It replaces Ticket 091's earlier
 chunked-table-query decision with two owner-scoped query contracts: a bounded

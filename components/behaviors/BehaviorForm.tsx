@@ -32,6 +32,7 @@ type BehaviorFormProps = Readonly<{
   behavior?: BehaviorView;
   defaultTimezone?: string;
   showActiveToggle?: boolean;
+  initialState?: BehaviorActionState;
   onSuccess?: (state: BehaviorActionState) => void;
 }>;
 
@@ -89,9 +90,10 @@ export function BehaviorForm({
   behavior,
   defaultTimezone,
   showActiveToggle = true,
+  initialState = EMPTY_ACTION_STATE,
   onSuccess,
 }: BehaviorFormProps) {
-  const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
+  const [state, formAction] = useActionState(action, initialState);
   const fieldErrors = state.fieldErrors ?? {};
   const [scheduleRows, setScheduleRows] = useState<ScheduleFormRow[]>(() =>
     initialScheduleRows(behavior),
@@ -204,11 +206,19 @@ export function BehaviorForm({
   return (
     <form action={formAction} onReset={resetFormDraft} className="grid gap-6">
       {behavior ? (
-        <input type="hidden" name="behavior_id" value={behavior.id} />
+        <>
+          <input type="hidden" name="behavior_id" value={behavior.id} />
+          <input
+            type="hidden"
+            name="expected_updated_at"
+            value={behavior.updatedAt}
+          />
+        </>
       ) : null}
       {mode === "create" && defaultTimezone ? (
         <input type="hidden" name="timezone" value={defaultTimezone} />
       ) : null}
+      <FieldError message={fieldErrors.behavior_id} />
 
       <fieldset className="grid gap-3 border-0 p-0">
         <legend className="sr-only">Behavior details</legend>
@@ -284,6 +294,7 @@ export function BehaviorForm({
           >
             Add schedule
           </button>
+          <FieldError message={fieldErrors.recurrence} />
           <FieldError message={fieldErrors.schedule} />
         </div>
       </fieldset>
@@ -311,6 +322,7 @@ export function BehaviorForm({
       {mode === "edit" && !showActiveToggle && behavior?.active ? (
         <input type="hidden" name="active" value="on" />
       ) : null}
+      <FieldError message={fieldErrors.active} />
 
       <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:gap-5">
         <SubmitButton />
@@ -320,7 +332,7 @@ export function BehaviorForm({
         >
           Cancel
         </button>
-        <ActionMessage state={state} />
+        <ActionMessage state={state} onReload={() => window.location.reload()} />
       </div>
     </form>
   );
@@ -829,21 +841,36 @@ function resizeTextarea(textarea: HTMLTextAreaElement | null) {
   textarea.style.height = `${textarea.scrollHeight}px`;
 }
 
-function ActionMessage({ state }: Readonly<{ state: BehaviorActionState }>) {
+function ActionMessage({
+  state,
+  onReload,
+}: Readonly<{
+  state: BehaviorActionState;
+  onReload: () => void;
+}>) {
   if (state.status === "idle" || !state.message) {
     return null;
   }
 
   return (
-    <p
+    <div
       className={[
         "border-t border-line pt-2 text-sm leading-6 sm:border-t-0 sm:pt-0",
         state.status === "success" ? "text-foreground" : "text-accent",
       ].join(" ")}
       role={state.status === "error" ? "alert" : "status"}
     >
-      {state.message}
-    </p>
+      <p>{state.message}</p>
+      {state.conflict ? (
+        <button
+          type="button"
+          onClick={onReload}
+          className="product-action product-action-secondary min-h-11 py-2 text-sm"
+        >
+          Reload behavior
+        </button>
+      ) : null}
+    </div>
   );
 }
 

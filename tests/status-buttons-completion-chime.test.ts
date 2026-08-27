@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   captureCompletionChimeIntent,
   createStatusSubmissionEventHandlers,
+  startCompletionChimeAndRefresh,
 } from "../components/timeline/StatusButtons";
 import {
   COMPLETION_CHIME_PLAYED_EVENT,
@@ -17,6 +20,22 @@ afterEach(() => {
 });
 
 describe("StatusButtons completion chime", () => {
+  it("refreshes server truth after conflicts and disables sibling status forms", () => {
+    const source = readFileSync(
+      new URL("../components/timeline/StatusButtons.tsx", import.meta.url),
+      "utf8",
+    );
+    const errorBranch = source.slice(
+      source.indexOf('if (state.status === "error")'),
+      source.indexOf("function prepareForSubmittedStatus"),
+    );
+
+    expect(source).toContain("const [state, formAction, isPending] = useActionState(");
+    expect(source.match(/disabled=\{disabled \|\| isPending\}/g)).toHaveLength(3);
+    expect(errorBranch.indexOf("router.refresh()"))
+      .toBeLessThan(errorBranch.indexOf("onStatusError?.()"));
+  });
+
   it("submits once and makes one media playback attempt for one mobile Completed activation", async () => {
     const { MockAudio, dispatchEvent } = installMediaMocks();
     const submissions = vi.fn();
@@ -80,6 +99,20 @@ describe("StatusButtons completion chime", () => {
     });
 
     expect(prepareChime).not.toHaveBeenCalled();
+  });
+
+  it("refreshes immediately when completion playback stalls", () => {
+    const playChime = vi.fn(() => new Promise<void>(() => undefined));
+    const refresh = vi.fn();
+
+    startCompletionChimeAndRefresh({
+      shouldChime: true,
+      playChime,
+      refresh,
+    });
+
+    expect(playChime).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 });
 

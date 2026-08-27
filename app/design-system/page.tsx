@@ -1734,6 +1734,7 @@ const previewFactories: Record<
           restoreAction={behaviorAction}
           statusAction={occurrenceAction}
           noteAction={occurrenceAction}
+          stopTimeTrackingAction={timeTrackingAction}
           resetTimeTrackingAction={timeTrackingAction}
         />
       </ProductPreview>
@@ -1768,6 +1769,7 @@ const previewFactories: Record<
       <ProductPreview maxHeight="38rem">
         <BehaviorLogImportPanel
           recentRuns={importPageFixture.recentRuns}
+          timezone={exportFixture.timezone}
           action={behaviorLogImportAction}
           initialState={behaviorLogImportStateFixture(fixtureState)}
         />
@@ -1777,6 +1779,7 @@ const previewFactories: Record<
       <ProductPreview maxHeight="38rem">
         <BehaviorLogRestorePanel
           recentRuns={restorePageFixture.recentRuns}
+          timezone={exportFixture.timezone}
           action={behaviorLogRestoreAction}
           initialState={behaviorLogRestoreStateFixture}
         />

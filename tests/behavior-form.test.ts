@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   BehaviorValidationError,
+  behaviorErrorToActionState,
   normalizeRecurrenceRule,
   parseBehaviorFormData,
   recurrenceDefaultsFromRule,
@@ -11,6 +12,19 @@ import {
 const CATEGORY_ID = "11111111-1111-4111-8111-111111111111";
 const BEHAVIOR_ID = "22222222-2222-4222-8222-222222222222";
 const categories = [{ id: CATEGORY_ID, name: "Grooming" }];
+
+it("presents a behavior edit conflict without losing the browser draft", () => {
+  expect(
+    behaviorErrorToActionState({
+      message: "Behavior schedule graph changed after it was read.",
+    }),
+  ).toEqual({
+    status: "error",
+    message:
+      "This behavior changed elsewhere. Reload it before saving again. Your draft is still here.",
+    conflict: true,
+  });
+});
 
 function formData(entries: Array<[string, string]>): FormData {
   const form = new FormData();

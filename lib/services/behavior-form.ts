@@ -304,6 +304,16 @@ export function behaviorErrorToActionState(error: unknown): BehaviorActionState 
     };
   }
 
+  const message = getErrorMessage(error);
+
+  if (message === "Behavior schedule graph changed after it was read.") {
+    return {
+      status: "error",
+      message: "This behavior changed elsewhere. Reload it before saving again. Your draft is still here.",
+      conflict: true,
+    };
+  }
+
   if (error instanceof Error) {
     return {
       status: "error",
@@ -315,6 +325,23 @@ export function behaviorErrorToActionState(error: unknown): BehaviorActionState 
     status: "error",
     message: "Something went wrong while saving this behavior.",
   };
+}
+
+function getErrorMessage(error: unknown): string | null {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return null;
 }
 
 function parseSchedulesAndLegacyFieldsFromForm(

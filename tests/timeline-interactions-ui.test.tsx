@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { Timeline } from "../components/timeline/Timeline";
+import { reconcileSavedNoteDraft } from "../components/timeline/OccurrenceNoteForm";
 import type {
   OccurrenceActionState,
   OccurrenceFormAction,
@@ -26,6 +27,25 @@ const timeTrackingAction: TimeTrackingFormAction = async (
 ) => state;
 
 describe("Timeline interaction controls", () => {
+  it("preserves note typing that happens after save starts", () => {
+    expect(
+      reconcileSavedNoteDraft({
+        submittedDraft: "Saved draft",
+        submittedRevision: 1,
+        currentDraft: "Newer typing",
+        currentRevision: 2,
+      }),
+    ).toBe("Newer typing");
+    expect(
+      reconcileSavedNoteDraft({
+        submittedDraft: "Saved draft",
+        submittedRevision: 1,
+        currentDraft: "Saved draft",
+        currentRevision: 1,
+      }),
+    ).toBe("Saved draft");
+  });
+
   it("renders the future-day, review, status, disclosure, and note interactions", () => {
     const unresolved = occurrence();
     const completed = occurrence({
@@ -64,6 +84,7 @@ describe("Timeline interaction controls", () => {
     expect(html).toContain('name="status" value="unresolved"');
     expect(html).toContain("<span>Unmark</span>");
     expect(html).toContain('name="note"');
+    expect(html).toContain('name="expected_note" value=""');
     expect(html).toContain(">Save note</button>");
 
     const statusForms = (html.match(/<form\b.*?<\/form>/g) ?? []).filter(

@@ -263,6 +263,12 @@ the already-current resolved choice does not create a duplicate event. Saving a
 Note without a status change preserves both status timestamps and status
 history.
 
+Each status submission carries the rendered status. A stale submission is
+rejected and refreshes the owning view so the row shows the server's current
+status. Status controls for one occurrence remain disabled while its request is
+in flight. Each Note save carries the previously loaded Note value; if another
+tab changed it first, Cadence reports a conflict instead of overwriting it.
+
 When browser audio is available, one successful user-initiated transition to
 Completed plays one completion chime. The mobile touch sequence and the later
 Timeline refresh must not repeat it. Not Completed, note saves, refreshes, and
@@ -345,6 +351,11 @@ present when the create or edit form opened. This includes recurrence details,
 schedule and time rows, exact times or ranges, reminder choices, and active
 state.
 
+An edit save includes the Behavior revision loaded with the form. If another
+tab changed the Behavior first, Cadence rejects the stale save, keeps the draft
+visible, and offers to reload the current Behavior. The draft remains visible
+until the user deliberately chooses Reload behavior.
+
 The recurrence editor should use segmented presets first, with advanced options below.
 
 Archived behaviors appear in a separate low-priority bottom disclosure and do
@@ -356,6 +367,11 @@ occurrence/reminder stale marker in one transaction. If either write fails,
 both roll back. Once the transaction commits, immediate reconciliation is
 best-effort and a failure remains available for background retry through the
 saved marker.
+
+The per-process Behavior read cache uses a 60-second TTL. Invalidation prevents
+an older in-flight read from writing stale data back into that process. Cache
+invalidation does not cross Vercel instances, so the TTL remains the
+cross-instance staleness bound.
 
 Active behavior rows keep Archive behavior at the end of Details and Settings
 so the collapsed row remains focused on review metrics and the behavior

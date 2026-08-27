@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { submitBehaviorLogRestoreAction } from "@/app/(app)/export/actions";
 import type {
@@ -15,13 +15,16 @@ import type {
   BehaviorLogRestoreRunView,
 } from "@/lib/types/behaviorlog-restore-ui";
 import { BEHAVIORLOG_RESTORE_INITIAL_STATE } from "@/lib/types/behaviorlog-restore-ui";
+import { formatUserDateTime } from "@/lib/ui/date-time";
 import {
   getBehaviorLogBundleSizeError,
+  isBehaviorLogPreviewCurrent,
   readBehaviorLogBundleAsBase64,
 } from "@/lib/types/behaviorlog-bundle-ui";
 
 type BehaviorLogRestorePanelProps = Readonly<{
   recentRuns: BehaviorLogRestoreRunView[];
+  timezone: string;
   action?: BehaviorLogRestoreFormAction;
   initialState?: BehaviorLogRestoreActionState;
 }>;
@@ -50,6 +53,7 @@ const RECORD_LABELS: Record<BehaviorLogRestoreRecordType, string> = {
 
 export function BehaviorLogRestorePanel({
   recentRuns,
+  timezone,
   action = submitBehaviorLogRestoreAction,
   initialState = BEHAVIORLOG_RESTORE_INITIAL_STATE,
 }: BehaviorLogRestorePanelProps) {
@@ -57,16 +61,38 @@ export function BehaviorLogRestorePanel({
     action,
     initialState,
   );
-  const preview = state.preview;
   const runs = mergeRecentRuns(recentRuns, state);
   const bundleReadVersionRef = useRef(0);
+  const submittedBundleReadVersionRef = useRef<number | null>(null);
+  const [selectedBundleReadVersion, setSelectedBundleReadVersion] = useState(0);
+  const [previewBundleReadVersion, setPreviewBundleReadVersion] = useState<
+    number | null
+  >(initialState.preview ? 0 : null);
   const [bundlePayload, setBundlePayload] = useState<string | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const [isPreparingBundle, setIsPreparingBundle] = useState(false);
+  const preview =
+    isBehaviorLogPreviewCurrent(
+      previewBundleReadVersion,
+      selectedBundleReadVersion,
+    )
+      ? state.preview
+      : null;
+
+  useEffect(() => {
+    if (
+      state.status === "previewed" &&
+      submittedBundleReadVersionRef.current === selectedBundleReadVersion
+    ) {
+      setPreviewBundleReadVersion(selectedBundleReadVersion);
+    }
+  }, [selectedBundleReadVersion, state]);
 
   async function handleBundleFileChange(file: File | null) {
     const readVersion = bundleReadVersionRef.current + 1;
     bundleReadVersionRef.current = readVersion;
+    setSelectedBundleReadVersion(readVersion);
+    setPreviewBundleReadVersion(null);
     setBundlePayload(null);
     setClientError(null);
 
@@ -141,7 +167,10 @@ export function BehaviorLogRestorePanel({
           if (sizeError) {
             event.preventDefault();
             setClientError(sizeError);
+            return;
           }
+
+          submittedBundleReadVersionRef.current = bundleReadVersionRef.current;
         }}
         className="mt-5 grid gap-4"
       >
@@ -192,7 +221,7 @@ export function BehaviorLogRestorePanel({
           isPending={isPending}
         />
       ) : null}
-      <RestoreRunHistory runs={runs} />
+      <RestoreRunHistory runs={runs} timezone={timezone} />
     </section>
   );
 }
@@ -533,8 +562,10 @@ function RestoreApplyResult({
 
 function RestoreRunHistory({
   runs,
+  timezone,
 }: Readonly<{
   runs: BehaviorLogRestoreRunView[];
+  timezone: string;
 }>) {
   return (
     <section className="mt-6" aria-labelledby="restore-runs-title">
@@ -550,14 +581,16 @@ function RestoreRunHistory({
                   {formatRunMode(run.mode)} · {run.status}
                 </p>
                 <p className="mt-1 text-sm font-bold text-muted-readable">
-                  Started {formatDateTime(run.startedAt)}
+                  Started {formatUserDateTime(run.startedAt, timezone)}
                 </p>
                 {run.failureMessage ? (
                   <p className="mt-2 text-sm text-accent">{run.failureMessage}</p>
                 ) : null}
               </div>
               <p className="break-all text-sm font-bold text-muted-readable">
-                {run.completedAt ? formatDateTime(run.completedAt) : "Still open"}
+                {run.completedAt
+                  ? formatUserDateTime(run.completedAt, timezone)
+                  : "Still open"}
               </p>
             </li>
           ))}
@@ -681,13 +714,6 @@ function mergeRecentRuns(
 
 function formatRunMode(mode: string): string {
   return mode.replace(/_/g, " ");
-}
-
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
 }
 
 function formatBytes(value: number): string {

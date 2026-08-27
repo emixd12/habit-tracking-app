@@ -382,6 +382,9 @@ Resolved occurrences can be changed later.
 
 The create/edit behavior view should be a full page accessible from the sidebar navigation.
 
+Every server validation key must have a visible error surface in the form.
+Recurrence errors appear with the Schedule recurrence controls.
+
 On the Behaviors page, the create form should sit in the page flow without an
 extra outer card border or outer padding. Inner field groups may still use
 quiet dividers where they clarify structure.

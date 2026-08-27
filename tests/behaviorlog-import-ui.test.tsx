@@ -22,6 +22,7 @@ import { resolveBehaviorLogImportMergePreview } from "../lib/resolvers/behaviorl
 import {
   BEHAVIORLOG_BUNDLE_SIZE_ERROR,
   getBehaviorLogBundleSizeError,
+  isBehaviorLogPreviewCurrent,
 } from "../lib/types/behaviorlog-bundle-ui";
 import type {
   BehaviorLogExistingRecords,
@@ -140,6 +141,12 @@ vi.mock("@/lib/services/behaviorlog-import-write.service", () => ({
 }));
 
 describe("BehaviorLog import UI workflow", () => {
+  it("invalidates a preview as soon as another bundle is selected", () => {
+    expect(isBehaviorLogPreviewCurrent(1, 1)).toBe(true);
+    expect(isBehaviorLogPreviewCurrent(null, 2)).toBe(false);
+    expect(isBehaviorLogPreviewCurrent(1, 2)).toBe(false);
+  });
+
   beforeEach(() => {
     clearUserReadCache();
     vi.clearAllMocks();
@@ -176,7 +183,7 @@ describe("BehaviorLog import UI workflow", () => {
 
   it("renders the bundle upload and Preview import interactions", () => {
     const html = renderToStaticMarkup(
-      <BehaviorLogImportPanel recentRuns={[]} />,
+      <BehaviorLogImportPanel recentRuns={[]} timezone={TIMEZONE} />,
     );
 
     expect(html).toContain('name="behaviorlog_file"');
@@ -371,6 +378,7 @@ describe("BehaviorLog import UI workflow", () => {
   it("labels recent import runs without completion timestamps as still open", () => {
     const html = renderToStaticMarkup(
       <BehaviorLogImportPanel
+        timezone={TIMEZONE}
         recentRuns={[
           {
             id: "import-run-open",

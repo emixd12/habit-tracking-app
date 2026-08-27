@@ -10,6 +10,13 @@ export function getBehaviorLogBundleSizeError(
     : null;
 }
 
+export function isBehaviorLogPreviewCurrent(
+  previewReadVersion: number | null,
+  selectedReadVersion: number,
+): boolean {
+  return previewReadVersion !== null && previewReadVersion === selectedReadVersion;
+}
+
 export async function readBehaviorLogBundleAsBase64(
   file: File,
 ): Promise<string> {

@@ -187,6 +187,11 @@ canonical-equivalent tabs or Unicode edge whitespace cannot be rewritten
 without history. Authenticated callers cannot execute the earlier
 definition-only functions.
 
+Manual edit forms submit the `updated_at` value loaded with the browser draft.
+The atomic update reports a deterministic stale draft as a non-retryable
+application error, so PostgREST returns the conflict instead of retrying it as
+a serialization failure.
+
 Create-only and approved-merge BehaviorLog imports use the same atomic create
 function with `source = 'import'`, and preserve the imported behavior
 `created_at` as the baseline `recorded_at`. The destructive restore wrapper
@@ -330,9 +335,9 @@ schedules and multiple time entries per schedule. A nullable
 behavior-level slots; new writes should set it. The composite foreign key
 requires linked schedules and slots to belong to the same behavior. Occurrence
 generation creates one occurrence per matching schedule time entry, then
-merges candidates with
-the same scheduled instant. The first schedule and time entry by stable sort
-order wins, matching the `(behavior_id, scheduled_for)` persistence key.
+merges candidates with the same behavior, local date, start time, and range
+identity. An exact entry and a range entry that share a start time remain
+distinct. Stable sort order breaks ties only when every identity field matches.
 
 Current uniqueness is enforced with partial indexes:
 
@@ -355,6 +360,12 @@ create table occurrences (
   schedule_preset text check (schedule_preset in ('morning', 'afternoon', 'evening', 'night')),
   schedule_start_time time not null,
   schedule_end_time time,
+  schedule_range_identity bigint generated always as (
+    case
+      when schedule_kind = 'exact' then -1::bigint
+      else (extract(epoch from schedule_end_time) * 1000000)::bigint
+    end
+  ) stored,
 
   status text not null default 'unresolved'
     check (status in ('unresolved', 'completed', 'not_completed')),
@@ -366,7 +377,12 @@ create table occurrences (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
-  unique (behavior_id, scheduled_for),
+  unique (
+    behavior_id,
+    local_date,
+    schedule_start_time,
+    schedule_range_identity
+  ),
   unique (user_id, id, behavior_id),
   foreign key (user_id, behavior_id, behavior_configuration_event_id)
     references behavior_configuration_events(user_id, behavior_id, id)
@@ -382,8 +398,9 @@ app-native export reads. Status history is stored separately in
 restored Occurrences whose governing event is unknown. The migration does not
 invent lineage for existing rows. New generated Occurrences store the current
 Behavior event. A linked, unresolved Occurrence strictly after the injected
-current instant may advance to a new current event only when the same scheduled
-instant remains in the new graph and Ticket 078 protections do not apply. A
+current instant may advance to a new current event only when the same local
+date, start time, and range identity remain in the new graph and Ticket 078
+protections do not apply. A
 null-lineage row never receives inferred lineage during generation.
 
 Occurrence plan writes lock the Behavior and compare the exact expected current
@@ -1251,7 +1268,7 @@ When a behavior changes:
 - Occurrences preserve schedule snapshots so historical rows still display the
   time or range that existed when they were generated.
 - Existing null-lineage Occurrences remain null. Linked future unprotected
-  same-instant Occurrences may advance to the new current configuration event.
+  same-identity Occurrences may advance to the new current configuration event.
 - The final fresh-state write takes the same per-user advisory lock as Behavior
   configuration writers. It verifies the exact Behavior/current-event set and
   the planning-start sync-state existence/version. Every sync-state update
@@ -1264,11 +1281,20 @@ When a behavior changes:
 Use:
 
 ```sql
-unique (behavior_id, scheduled_for)
+unique (
+  behavior_id,
+  local_date,
+  schedule_start_time,
+  schedule_range_identity
+)
 unique (user_id, id, behavior_id)
 ```
 
-Occurrence generation must be idempotent.
+`schedule_range_identity` is a stored generated integer. Exact entries use
+`-1`; ranges use the end time expressed as microseconds after midnight. This
+keeps exact `00:00` and ranges ending at `00:00` distinct while giving
+PostgREST a real conflict-target column. Occurrence generation must be
+idempotent.
 
 The `(user_id, id, behavior_id)` uniqueness constraint exists so status events
 can enforce same-user ownership for their occurrence and behavior snapshot.

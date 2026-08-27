@@ -11,7 +11,7 @@ import {
   applyOccurrenceGenerationPlan,
   getOccurrenceWithBehaviorTimezoneById,
   listBehaviorOccurrencesFrom,
-  updateOccurrenceById,
+  updateOccurrenceNoteIfExpected,
   type OccurrenceWithBehaviorTimezone,
 } from "@/lib/db/occurrences.repo";
 import {
@@ -806,6 +806,7 @@ export async function updateOccurrenceNoteFromFormData(
   const userId = await requireUserId(supabase);
   await updateOccurrenceNote(supabase, userId, {
     occurrenceId: getOccurrenceIdFromFormData(formData),
+    expectedNote: getExpectedNoteFromFormData(formData),
     note: getNoteFromFormData(formData),
   });
 }
@@ -815,21 +816,24 @@ export async function updateOccurrenceNote(
   userId: string,
   input: {
     occurrenceId: string;
+    expectedNote: string;
     note: string;
   },
 ): Promise<Occurrence> {
   const update = resolveNoteUpdate({
     note: input.note,
   });
-  const updatedOccurrence = await updateOccurrenceById(
-    supabase,
+  const updatedOccurrence = await updateOccurrenceNoteIfExpected(supabase, {
     userId,
-    input.occurrenceId,
-    update,
-  );
+    occurrenceId: input.occurrenceId,
+    expectedNote: input.expectedNote.length > 0 ? input.expectedNote : null,
+    note: update.note,
+  });
 
   if (!updatedOccurrence) {
-    throw new Error("Occurrence not found.");
+    throw new Error(
+      "This note changed elsewhere. Review the latest note before saving again.",
+    );
   }
 
   return updatedOccurrence;
@@ -1286,6 +1290,16 @@ function getNoteFromFormData(formData: FormData): string {
 
   if (typeof value !== "string") {
     throw new Error("Enter a note before saving.");
+  }
+
+  return value;
+}
+
+function getExpectedNoteFromFormData(formData: FormData): string {
+  const value = formData.get("expected_note");
+
+  if (typeof value !== "string") {
+    throw new Error("Refresh this occurrence before saving its note.");
   }
 
   return value;

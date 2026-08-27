@@ -56,20 +56,24 @@ export type BehaviorPageData = {
   defaultTimezone: string;
 };
 
-export type BehaviorFormField =
-  | "behavior_id"
-  | "title"
-  | "description"
-  | "category_id"
-  | "schedule"
-  | "recurrence"
-  | "reminders"
-  | "active";
+export const BEHAVIOR_FORM_FIELDS = [
+  "behavior_id",
+  "title",
+  "description",
+  "category_id",
+  "schedule",
+  "recurrence",
+  "reminders",
+  "active",
+] as const;
+
+export type BehaviorFormField = (typeof BEHAVIOR_FORM_FIELDS)[number];
 
 export type BehaviorActionState = {
   status: "idle" | "success" | "error";
   message: string;
   behavior?: BehaviorView;
+  conflict?: boolean;
   fieldErrors?: Partial<Record<BehaviorFormField, string>>;
 };
 
