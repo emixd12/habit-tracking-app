@@ -184,8 +184,16 @@ function containsSecretLikeText(value) {
 }
 
 function stripHtml(value) {
-  return value
-    .replace(/<[^>]+>/g, " ")
+  let text = "";
+  let insideTag = false;
+  for (const character of value) {
+    if (character === "<") insideTag = true;
+    else if (character === ">") {
+      insideTag = false;
+      text += " ";
+    } else if (!insideTag) text += character;
+  }
+  return text
     .replaceAll("&amp;", "&")
     .replaceAll("&quot;", '"')
     .replaceAll("&#39;", "'")
