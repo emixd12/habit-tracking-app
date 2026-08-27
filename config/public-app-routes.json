@@ -1,0 +1,18 @@
+{
+  "max_routes": 12,
+  "routes": [
+    { "path": "/login", "status": 200, "content_type": "text/html", "marker": "Decide your days. Own every record." },
+    { "path": "/privacy", "status": 200, "content_type": "text/html", "marker": "Privacy" },
+    { "path": "/terms", "status": 200, "content_type": "text/html", "marker": "Terms" },
+    { "path": "/trust", "status": 200, "content_type": "text/html", "marker": "Trust" },
+    { "path": "/timeline", "status": 307, "location": "/login?next=%2Ftimeline" },
+    { "path": "/behaviors", "status": 307, "location": "/login?next=%2Fbehaviors" },
+    { "path": "/export", "status": 307, "location": "/login?next=%2Fexport" },
+    { "path": "/settings", "status": 307, "location": "/login?next=%2Fsettings" },
+    { "path": "/analytics", "status": 307, "location": "/login?next=%2Fanalytics" }
+  ],
+  "candidates": [
+    { "path": "/dashboard", "status": 404 },
+    { "path": "/design-system", "status": 404 }
+  ]
+}

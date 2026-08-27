@@ -84,7 +84,7 @@ reset, authenticated RLS smoke coverage, real 1,001-row Data API pagination,
 typecheck, build, and repository checks passed. Hosted migration deployment
 remains unauthorized and was not performed.
 
-Tickets 079-083 and 093 are `complete` and deployed. Tickets 084-092 are `not_started`. Ticket 094 is `complete`. Tickets 078-093
+Tickets 079-083, 092, and 093 are `complete`; Tickets 079-083 and 093 are deployed. Tickets 084-091 are `not_started`. Ticket 094 is `complete`. Tickets 078-093
 were defined on 2026-08-06 from a repository-wide read-only audit across five
 independent passes (domain resolvers/services/repos, routes/auth/API,
 import/restore/export, UI/interaction, schema/marketing/ops). No fix was applied
@@ -145,7 +145,7 @@ gate, open-source license and private disclosure contract, and authorized
 GitHub publication sequence. Tickets 079-083 and 093 are deployed and verified.
 The authorized private `main` history rewrite is complete.
 
-Tickets 101-105 are `not_started`. Tickets 101-103 complete the public Trust
+Ticket 101 is `complete`; Ticket 102 is `in_progress`; Tickets 103-105 are `not_started`. Tickets 101-103 complete the public Trust
 evidence pipeline: Ticket 101 defines the versioned evidence and freshness
 contract, Ticket 102 publishes post-deployment provenance, dependency,
 integrity, route, migration, and RLS evidence, and Ticket 103 renders normalized
@@ -5989,6 +5989,67 @@ clones.
 The bounded canary variable was the only production environment mutation in
 the final check, and it is unset. No domain, secret, billing, plan, installed
 GitHub App, or real-user-data setting changed during Ticket 100.
+
+## Marketing example and agent-readability parity (Ticket 092)
+
+Status: complete locally. No deployment or provider mutation occurred.
+
+- The marketing example now uses the production export resolver and ZIP
+  service. Cadence's own import preview accepts the generated bundle with zero
+  errors and skips and creates one Behavior plus one schedule.
+- The marketing gate now compares substantive privacy and data-handling claims
+  between HTML and Markdown mirrors. Route docs now match the five implemented
+  marketing pages plus the `/cadence` and `/standard` compatibility redirects.
+- Pass: marketing build/check, agent, interaction, resolver, lint, typecheck,
+  1,026 tests with one environment-gated skip, and diff check.
+- The required default Turbopack build reached an environment-only internal
+  helper-port `EPERM` on every attempt, including the permission-enabled run.
+  The same production build passed with Webpack. No source build error was
+  reported.
+
+## Public Trust evidence contract (Ticket 101)
+
+Status: complete locally. No production check, deployment, GitHub Pages, or
+provider mutation occurred.
+
+- Added the versioned `cadence.public-trust-evidence` JSON Schema, pure
+  validator and normalizer, immutable-link and sanitization rules, fixed
+  freshness policy, five statuses, nine required checks, fixtures, tests, and
+  the `public-trust:check` command.
+- GitHub Pages evidence paths must include the workflow run and both deployment
+  IDs. Consumers derive Stale for expired or mismatched Passed results while
+  preserving Failed, Stale, Not run, and Unavailable.
+- Pass: public Trust fixture check, 15 focused tests, 1,028 full tests with one
+  environment-gated skip, agent, interaction, resolver, lint, typecheck, and a
+  Webpack production build.
+- The exact default Turbopack build has the same environment-only internal
+  helper-port `EPERM` recorded for Ticket 092.
+
+## Post-deployment Trust verification (Ticket 102)
+
+Status: in progress. Local implementation and deterministic verification are
+complete. Provider rollout remains authorization-gated, so no public snapshot
+or `latest.json` exists yet.
+
+- Added the least-privilege split Preview/Production workflow, bounded route
+  and integrity registries, provenance, dependency, security-control,
+  migration, and RLS collectors, immutable Pages retention/publication, schema
+  and detail sanitization, and deterministic failure-path tests.
+- Preview retains a private Actions artifact and cannot replace the public
+  Production pointer. Production publishes valid Failed evidence before
+  failing its gate. Invalid or sensitive evidence publishes nothing.
+- Pass: 28 focused tests, 1,040 full tests with one environment-gated skip,
+  agent, interaction, resolver, lint, typecheck, production dependency audit,
+  marketing check/build, public-source check, and fixture publication
+  simulation.
+- The current Ready application and marketing deployments name different
+  commits. GitHub Pages is not enabled. Completion requires an authorized
+  reviewed release to both existing Vercel projects, protected Actions
+  variables/secrets, Preview dispatch, one Production RLS smoke with exact
+  cleanup, Production dispatch, and unauthenticated public-evidence QA.
+- The exact default Turbopack build remains environment-blocked by the same
+  internal helper-port `EPERM`; the Webpack production build passed under
+  Ticket 101.
 
 ## Handoff notes
 

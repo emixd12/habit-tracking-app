@@ -89,7 +89,7 @@ Any current-day occurrence (or one visible in Needs decision) can carry an elaps
     includeInMarkdownMirror: true,
     markdown: `# Example BehaviorLog Bundle
 
-The example bundle uses sanitized demo behavior data. It is intended for tooling tests, agent inspection, and format review.
+The example bundle is generated from demo behavior data and is intended for format inspection, tests, and agent workflows. It contains no real account or reminder-provider data.
 
 ## Included Concepts
 
@@ -169,6 +169,12 @@ Cadence v1 is not a social habit tracker, a medical dosing app, a collaboration 
 ## Open Source
 
 The codebase is public, small by design, and structured so agents can inspect docs, tests, and export contracts directly.
+
+## Privacy Posture
+
+Single-account app data stays behind Supabase Auth and Row Level Security.
+
+No marketing cookies, analytics tags, or hidden tracking scripts are included.
 `,
   },
 ] as const satisfies MarketingRoute[];

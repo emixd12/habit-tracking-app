@@ -1,0 +1,24 @@
+{
+  "repository": "emixd12/habit-tracking-app",
+  "pages_origin": "https://emixd12.github.io/habit-tracking-app/",
+  "source_commit": "0123456789abcdef0123456789abcdef01234567",
+  "snapshot_id": "20260826T120000Z-0123456789ab",
+  "built_at": "2026-08-26T11:55:00Z",
+  "verified_at": "2026-08-26T12:00:00Z",
+  "application_deployment": { "id": "dpl_application", "url": "https://app.example.test" },
+  "marketing_deployment": { "id": "dpl_marketing", "url": "https://marketing.example.test" },
+  "workflow_run": { "id": "123456789", "url": "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789" },
+  "fixture": {
+    "audit": { "metadata": { "vulnerabilities": { "info": 0, "low": 0, "moderate": 0, "high": 0, "critical": 0, "total": 0 } } },
+    "sbom": { "components": [{ "name": "cadence" }] },
+    "github": { "code_scanning": { "open": 0 }, "dependabot": { "open": 0 }, "secret_scanning": { "open": 0, "enabled": true, "push_protection": true } },
+    "provenance": { "passed": true },
+    "routes": {
+      "application": { "status": "passed", "checked": 9, "failures": [] },
+      "marketing": { "status": "passed", "checked": 10, "failures": [] }
+    },
+    "integrity": { "status": "passed", "entries": [{ "ok": true }, { "ok": true }] },
+    "migration": { "matched": true, "boundary": "20260825080815", "tool_version": "2.105.0" },
+    "rls": { "passed": true, "assertions": 92 }
+  }
+}

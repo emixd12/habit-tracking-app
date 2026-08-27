@@ -1,0 +1,96 @@
+{
+  "schema": "cadence.public-trust-evidence",
+  "schema_version": 1,
+  "snapshot_id": "20260826T120000Z-abcdef123456",
+  "snapshot_url": "https://github.com/emixd12/habit-tracking-app/blob/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/public/trust/20260826T120000Z-abcdef123456.json",
+  "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "application_deployment": { "id": "dpl_application", "url": "https://cadence-blush-three.vercel.app" },
+  "marketing_deployment": { "id": "dpl_marketing", "url": "https://cadence-marketing-two.vercel.app" },
+  "workflow_run": { "id": "123456789", "url": "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789" },
+  "built_at": "2026-08-26T11:00:00Z",
+  "verified_at": "2026-08-26T12:00:00Z",
+  "freshness_deadline": "2026-08-27T12:00:00Z",
+  "checks": [
+    {
+      "id": "source_to_deployment_provenance", "status": "passed",
+      "scope": "Named source and production deployments.", "scope_limit": "Later configuration and provider state are outside this result.",
+      "tool": { "name": "GitHub Actions", "version": "2026-08" },
+      "completed_at": "2026-08-26T12:00:00Z", "freshness_deadline": "2026-08-27T12:00:00Z",
+      "summary": "The named source produced both named deployments.", "unavailable_reason": null,
+      "evidence_url": "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789", "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "application_deployment_id": "dpl_application", "marketing_deployment_id": "dpl_marketing"
+    },
+    {
+      "id": "production_dependency_vulnerabilities", "status": "failed",
+      "scope": "Declared production dependencies for the named source.", "scope_limit": "Tool data and declared production dependencies at completion only.",
+      "tool": { "name": "npm CLI", "version": "11.5.1" },
+      "completed_at": "2026-08-26T12:00:00Z", "freshness_deadline": "2026-09-02T12:00:00Z",
+      "summary": "The dependency policy gate did not pass; details remain in immutable evidence.", "unavailable_reason": null,
+      "evidence_url": "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789", "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "application_deployment_id": "dpl_application", "marketing_deployment_id": "dpl_marketing"
+    },
+    {
+      "id": "code_scanning", "status": "stale",
+      "scope": "Configured code analyzers for the named source.", "scope_limit": "Configured analyzers and rules only; other defects remain outside this result.",
+      "tool": { "name": "CodeQL", "version": "2.23.0" },
+      "completed_at": "2026-08-26T12:00:00Z", "freshness_deadline": "2026-09-02T12:00:00Z",
+      "summary": "The retained result is explicitly stale.", "unavailable_reason": null,
+      "evidence_url": "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789", "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "application_deployment_id": "dpl_application", "marketing_deployment_id": "dpl_marketing"
+    },
+    {
+      "id": "secret_scanning", "status": "not_run",
+      "scope": "Available repository pattern scanning for the named source.", "scope_limit": "Configured patterns and visible repository history only.",
+      "tool": { "name": "GitHub", "version": "hosted" },
+      "completed_at": null, "freshness_deadline": null,
+      "summary": "Cadence supports this check but has no completed result for the named deployments.", "unavailable_reason": null,
+      "evidence_url": "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789", "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "application_deployment_id": "dpl_application", "marketing_deployment_id": "dpl_marketing"
+    },
+    {
+      "id": "public_artifact_integrity", "status": "unavailable",
+      "scope": "Generated public artifacts for the named source.", "scope_limit": "Generated public files only; private operational records are excluded.",
+      "tool": { "name": "Cadence artifact check", "version": "1" },
+      "completed_at": null, "freshness_deadline": null,
+      "summary": "The platform cannot expose this check for the named deployment.", "unavailable_reason": "The platform does not expose an immutable result for this check.",
+      "evidence_url": "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789", "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "application_deployment_id": "dpl_application", "marketing_deployment_id": "dpl_marketing"
+    },
+    {
+      "id": "application_live_route_comparison", "status": "passed",
+      "scope": "Declared application routes on the named production deployment.", "scope_limit": "Sampled routes and responses only; authenticated workflows are excluded.",
+      "tool": { "name": "Cadence route check", "version": "1" },
+      "completed_at": "2026-08-26T12:00:00Z", "freshness_deadline": "2026-08-27T12:00:00Z",
+      "summary": "Declared application routes matched the live deployment.", "unavailable_reason": null,
+      "evidence_url": "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789", "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "application_deployment_id": "dpl_application", "marketing_deployment_id": "dpl_marketing"
+    },
+    {
+      "id": "marketing_live_route_comparison", "status": "passed",
+      "scope": "Declared marketing routes on the named production deployment.", "scope_limit": "Declared routes at completion only; external network paths are excluded.",
+      "tool": { "name": "Cadence route check", "version": "1" },
+      "completed_at": "2026-08-26T12:00:00Z", "freshness_deadline": "2026-08-27T12:00:00Z",
+      "summary": "Declared marketing routes matched the live deployment.", "unavailable_reason": null,
+      "evidence_url": "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789", "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "application_deployment_id": "dpl_application", "marketing_deployment_id": "dpl_marketing"
+    },
+    {
+      "id": "hosted_migration_boundary", "status": "passed",
+      "scope": "Hosted migration history for the named source and application deployment.", "scope_limit": "Migration-history alignment only; user-owned data correctness is excluded.",
+      "tool": { "name": "Supabase CLI", "version": "2.105.0" },
+      "completed_at": "2026-08-26T12:00:00Z", "freshness_deadline": "2026-08-27T12:00:00Z",
+      "summary": "The hosted migration boundary matched the named source.", "unavailable_reason": null,
+      "evidence_url": "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789", "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "application_deployment_id": "dpl_application", "marketing_deployment_id": "dpl_marketing"
+    },
+    {
+      "id": "cross_account_rls_isolation", "status": "passed",
+      "scope": "Tested user-owned tables through ordinary authenticated clients.", "scope_limit": "Only the tested tables and operations are covered.",
+      "tool": { "name": "Cadence RLS smoke", "version": "1" },
+      "completed_at": "2026-08-26T12:00:00Z", "freshness_deadline": "2026-09-02T12:00:00Z",
+      "summary": "The bounded cross-account isolation check passed.", "unavailable_reason": null,
+      "evidence_url": "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789", "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "application_deployment_id": "dpl_application", "marketing_deployment_id": "dpl_marketing"
+    }
+  ]
+}

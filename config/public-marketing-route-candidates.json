@@ -1,0 +1,16 @@
+{
+  "max_routes": 12,
+  "routes": [
+    { "path": "/llms.txt", "status": 200, "content_type": "text/plain", "marker": "Cadence" },
+    { "path": "/llms-full.txt", "status": 200, "content_type": "text/plain", "marker": "Cadence" },
+    { "path": "/data/route-manifest.json", "status": 200, "content_type": "application/json", "marker": "route_id" },
+    { "path": "/sitemap.xml", "status": 200, "content_type": "application/xml", "marker": "<urlset" },
+    { "path": "/robots.txt", "status": 200, "content_type": "text/plain", "marker": "User-agent" },
+    { "path": "/cadence", "status": 200, "content_type": "text/html", "marker": "Redirecting to: /" },
+    { "path": "/standard", "status": 200, "content_type": "text/html", "marker": "Redirecting to: /" }
+  ],
+  "candidates": [
+    { "path": "/dashboard", "status": 404 },
+    { "path": "/admin", "status": 404 }
+  ]
+}

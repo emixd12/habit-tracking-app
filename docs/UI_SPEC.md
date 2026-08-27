@@ -93,11 +93,13 @@ authenticated app shell.
 Launch marketing routes:
 
 - `/`
-- `/cadence`
-- `/standard`
+- `/faq`
 - `/docs`
 - `/examples`
 - `/about`
+
+`/cadence` and `/standard` remain compatibility redirects to `/`, not
+dedicated marketing pages.
 
 Primary calls to action:
 
@@ -116,14 +118,12 @@ marketing interactions unless a specific page needs them.
 Cadence should lead the homepage as the product and site brand. BehaviorLog is
 the open bundle standard and portability layer behind Cadence exports and
 imports. Keep the existing Cadence mark, use the square ledger visual system,
-and show only the Cadence logo and name in the marketing header. The stable
-route `/standard` may remain, but visible navigation should call the page
-BehaviorLog. Launch header navigation should show only Cadence and BehaviorLog
-route links plus Log in; About belongs in the footer, and Docs/Examples remain
-direct or in-page links rather than top navigation links. Marketing header
-links use the same underlined text-action convention as content buttons,
-without a divider under the header. The persistent Log in action uses the same
-primitive with stronger weight to distinguish it from the route links.
+and show only the Cadence logo and name plus Log in in the marketing header.
+About and FAQ belong in the footer. Docs and Examples remain direct or in-page
+links rather than top navigation links. Marketing header links use the same
+underlined text-action convention as content buttons, without a divider under
+the header. The persistent Log in action uses the same primitive with stronger
+weight to distinguish it from the route links.
 
 No public design-system page is launch scope. `/design-system` remains
 dev-only.

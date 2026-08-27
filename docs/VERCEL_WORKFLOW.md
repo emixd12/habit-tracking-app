@@ -413,3 +413,33 @@ read and status mutation, Export, account-deletion failure recovery, reminder
 processing, and one bounded owner-approved browser-push delivery. Do not send a
 notification or create production test data without the separate approval and
 cleanup plan required by the owning workflow.
+
+## Public Trust deployment evidence
+
+The release evidence workflow owns Trust collection after both named Vercel
+deployments report Ready. It validates output with
+`schemas/public-trust-evidence.schema.json` and
+`lib/resolvers/public-trust-evidence.resolver.ts`. Vercel deployment IDs and
+public deployment URLs are sanitized subjects, not proof by themselves.
+
+Publish each valid snapshot at an immutable commit- or workflow-run-pinned
+public URL and retain it indefinitely. A GitHub Pages snapshot path must contain
+the workflow run and both deployment IDs. A mutable `latest.json` pointer may
+name the newest snapshot only. Never overwrite a snapshot or copy an old Passed
+result into evidence for a newer application or marketing deployment.
+
+Consumers compare the snapshot's source commit and both deployment IDs with
+the current production release. A mismatch or expired deadline makes a Passed
+result Stale. The fixed policy is 24 hours for provenance, public artifact,
+application route, marketing route, and hosted migration checks. It is seven
+days for dependency, code-scanning, secret-scanning, and cross-account RLS
+checks. Ticket 101 performs no Vercel mutation or production collection.
+## Ticket 102 provenance collection
+
+The Public Trust workflow reads named deployments through the Vercel API.
+Both must report `READY`. Both public Git commit fields must equal the snapshot
+source commit. A mismatch is Failed. This evidence covers only the named
+Git-to-deployment association. It does not cover private function bundles,
+later environment changes, aliases, or provider internals. The workflow keeps
+Vercel Git deployment unchanged and needs only a protected read token plus the
+existing project and team identifiers.

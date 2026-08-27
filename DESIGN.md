@@ -353,7 +353,8 @@ A boundary's space always exceeds every boundary one level below it; header rule
 ### Astro Marketing Site
 
 - **Routes:** The marketing site lives under `apps/marketing` and implements
-  `/`, `/standard`, `/cadence`, `/examples`, `/docs`, and `/about`.
+  `/`, `/faq`, `/examples`, `/docs`, and `/about`. `/standard` and `/cadence`
+  remain compatibility redirects to `/`.
 - **Layout:** Use full-width page sections separated by 1px Ash Line rules.
   Keep hero text unboxed and leave the next section visible in the first
   viewport. Apply the shared marketing page-gutter tokens to section, header,
@@ -369,8 +370,8 @@ A boundary's space always exceeds every boundary one level below it; header rule
   and use only the Cadence logo and name in the marketing header. Do not use a
   combined BehaviorLog/Cadence lockup in top navigation. Header navigation
   links use the underlined text-action convention and no bottom divider. The
-  launch header shows only Cadence and BehaviorLog route links plus Log in.
-  About is footer-only, and Docs/Examples stay available by direct link and
+  launch header shows the Cadence brand link plus Log in. About and FAQ are
+  footer-only, and Docs/Examples stay available by direct link and
   machine-readable outputs rather than top navigation.
 - **Captures:** Product visuals are sanitized static captures of the Timeline
   and BehaviorLog bundle file set. They reuse real Cadence row language:

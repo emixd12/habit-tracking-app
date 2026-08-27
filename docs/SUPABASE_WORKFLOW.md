@@ -539,3 +539,13 @@ If hosted appears ahead or different:
 Do not commit `.env`, `.env.local`, Supabase access tokens, service-role keys, or CLI config files.
 
 `.env.example` contains names only. Real values belong in local env files, deployment secrets, or user-owned CLI auth storage.
+## Ticket 102 public evidence collection
+
+The Public Trust workflow reads the final hosted migration version through the
+Management API read-only query endpoint. The protected environment stores a
+scoped, expiring `SUPABASE_ACCESS_TOKEN`; its variable stores the project
+reference. The fixed query cannot mutate the database. Its RLS result remains fresh for seven days. A manual authorized
+run may execute the existing smoke command. Scheduled runs reuse its completion
+time only while the source commit and both deployment IDs remain identical.
+Subject mismatch makes the result Not run. Deadline expiry makes it Stale.
+Cleanup failure is Failed and blocks a Passed release.

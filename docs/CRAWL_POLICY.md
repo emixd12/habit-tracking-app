@@ -34,4 +34,13 @@ document and regenerate the marketing `robots.txt` from
 Robots rules are not access control. Private account data remains protected by
 Supabase Auth, Row Level Security, and manifest exclusion. Do not list secret,
 admin, preview, staging, or private paths in robots rules.
+## Public Trust route bounds
 
+The Public Trust route collector is not a crawler. It requests only the
+generated marketing manifest, the explicit application route registry, and
+the bounded machine-route and negative candidate registries under `config/`.
+It permits at most 32 route contracts, three same-origin redirects, two
+megabytes per response, and ten seconds per request. It never follows links
+discovered in a response. Any cross-origin redirect fails.
+Loopback, private, link-local, `.local`, and `.internal` hosts fail before a
+request starts.
