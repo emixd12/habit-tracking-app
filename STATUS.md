@@ -148,8 +148,8 @@ gate, open-source license and private disclosure contract, and authorized
 GitHub publication sequence. Tickets 079-083 and 093 are deployed and verified.
 The authorized private `main` history rewrite is complete.
 
-Ticket 101 is `complete`; Tickets 102 and 103 are `in_progress`; Tickets 104-105
-are `not_started`. Tickets 101-103 complete the public Trust
+Tickets 101-103 are `complete`; Tickets 104-105 are `not_started`. Tickets
+101-103 complete the public Trust
 evidence pipeline: Ticket 101 defines the versioned evidence and freshness
 contract, Ticket 102 publishes post-deployment provenance, dependency,
 integrity, route, migration, and RLS evidence, and Ticket 103 renders normalized
@@ -6031,9 +6031,9 @@ provider mutation occurred.
 
 ## Post-deployment Trust verification (Ticket 102)
 
-Status: in progress. Local implementation and deterministic verification are
-complete. The Production workflow published a valid Failed snapshot and
-`latest.json` for commit `1ca208a5b4456a43506316b8d88fa372e6967c5e`.
+Status: complete and deployed. Production workflow run `33044434728` published
+a current immutable snapshot and `latest.json` for commit
+`32ab2b7c18a3abd0629c328b05ac41fec16fe044`.
 
 - Added the least-privilege split Preview/Production workflow, bounded route
   and integrity registries, provenance, dependency, security-control,
@@ -6046,21 +6046,23 @@ complete. The Production workflow published a valid Failed snapshot and
   agent, interaction, resolver, lint, typecheck, production dependency audit,
   marketing check/build, public-source check, and fixture publication
   simulation.
-- The Production run passed provenance, CodeQL, public-artifact integrity,
-  application routes, marketing routes, and the 92-check RLS isolation smoke.
-  The hosted migration boundary failed because six deployed BehaviorLog
-  migrations were not yet committed to `main`. Dependency-alert aggregation
-  and secret-scanning aggregation reported Unavailable. Completion requires
-  merging the migrations, deploying that commit to both Vercel projects,
-  rerunning Production, and reviewing any remaining unavailable checks.
+- Application deployment `dpl_6WkH2VkxhgZ2J7yUQx3gcfvwq1fb` and marketing
+  deployment `dpl_EdDUq7K6KdzhMnTHTYMkzD7Lz1tS` were Ready from the named
+  commit. Provenance, CodeQL, public-artifact integrity, application routes,
+  marketing routes, the hosted migration boundary, and the 92-check RLS smoke
+  passed. The RLS smoke removed all temporary users.
+- The dependency audit reported zero vulnerabilities. Dependabot aggregation
+  and secret-scanning aggregation remain explicitly Unavailable because the
+  workflow token cannot read those provider aggregates. This matches the
+  settled provider-unavailability contract and does not infer a Passed result.
 - The exact default Turbopack build remains environment-blocked by the same
   internal helper-port `EPERM`; the Webpack production build passed under
   Ticket 101.
 
 ## Evidence-backed public Trust page and machine route (Ticket 103)
 
-Status: in progress. PR #27 merged the local implementation. Production
-completion depends on Ticket 102 publishing a passing current snapshot.
+Status: complete and deployed. PR #27 merged the implementation, and Ticket
+102 now publishes a current production snapshot consumed by both public routes.
 
 - The public `/trust` route validates and renders all nine normalized evidence
   checks while preserving the durable Trust commitments. The same result is

@@ -48,6 +48,8 @@ The public Astro marketing site is deployed separately:
 
 - Project: `cadence-marketing`
 - Current production alias: `https://cadence-marketing-two.vercel.app`
+- Git repository: `emixd12/habit-tracking-app`
+- Production branch: `main`
 - Workspace root: `apps/marketing`
 - Build command: `npm run marketing:build`
 - Node runtime setting: `24.x`
