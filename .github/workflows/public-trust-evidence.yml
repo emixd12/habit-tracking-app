@@ -64,8 +64,8 @@ jobs:
       - run: npm ci
       - name: Build deterministic marketing artifacts
         env:
-          MARKETING_SITE_URL: ${{ inputs.marketing_deployment_url || vars.MARKETING_PRODUCTION_ORIGIN }}
-          PUBLIC_CADENCE_APP_URL: ${{ inputs.application_deployment_url || vars.APPLICATION_PRODUCTION_ORIGIN }}
+          MARKETING_SITE_URL: ${{ vars.MARKETING_PRODUCTION_ORIGIN }}
+          PUBLIC_CADENCE_APP_URL: ${{ vars.APPLICATION_PRODUCTION_ORIGIN }}
         run: npm run marketing:build
       - name: Prepare bounded collection input
         env:

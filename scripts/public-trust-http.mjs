@@ -42,7 +42,8 @@ export async function boundedFetch(origin, path, options = {}) {
     });
     if (options.vercelShare && !cookie) cookie = response.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
     if (response.status >= 300 && response.status < 400 && response.headers.get("location")) {
-      if (options.followRedirects === false && !(shareHandshake && cookie)) return { response, body: Buffer.alloc(0), finalUrl: url.toString(), redirects };
+      if (shareHandshake && cookie) continue;
+      if (options.followRedirects === false) return { response, body: Buffer.alloc(0), finalUrl: url.toString(), redirects };
       url = allowedUrl(origin, new URL(response.headers.get("location"), url).toString());
       continue;
     }
