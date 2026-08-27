@@ -23,6 +23,19 @@ async function temporaryPreviewBypass(deploymentId) {
   return values[0];
 }
 
+async function verifyDeploymentOwner(deployment, projectId) {
+  const team = process.env.VERCEL_TEAM_ID ? `?teamId=${encodeURIComponent(process.env.VERCEL_TEAM_ID)}` : "";
+  const response = await fetch(`https://api.vercel.com/v13/deployments/${encodeURIComponent(deployment.id)}${team}`, {
+    headers: { authorization: `Bearer ${process.env.VERCEL_TOKEN}` },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error("Unable to verify a named Vercel deployment.");
+  const value = await response.json();
+  if (value.projectId !== projectId || new URL(deployment.url).hostname !== value.url) {
+    throw new Error("A named Vercel deployment does not belong to the expected Cadence project.");
+  }
+}
+
 async function main() {
   const value = (name) => process.argv[process.argv.indexOf(name) + 1];
   const sourceCommit = process.env.TRUST_SOURCE_COMMIT || process.env.GITHUB_SHA;
@@ -50,10 +63,14 @@ async function main() {
     marketing_deployment: marketing,
     workflow_run: { id: process.env.GITHUB_RUN_ID, url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` }
   };
-  if (process.env.TRUST_TARGET === "preview") input.preview_bypass = {
-    application: await temporaryPreviewBypass(application.id),
-    marketing: await temporaryPreviewBypass(marketing.id),
-  };
+  if (process.env.TRUST_TARGET === "preview") {
+    await verifyDeploymentOwner(application, process.env.VERCEL_APPLICATION_PROJECT_ID);
+    await verifyDeploymentOwner(marketing, process.env.VERCEL_MARKETING_PROJECT_ID);
+    input.preview_bypass = {
+      application: await temporaryPreviewBypass(application.id),
+      marketing: await temporaryPreviewBypass(marketing.id),
+    };
+  }
   await writeFile(value("--output"), `${JSON.stringify(input)}\n`, { mode: 0o600 });
 }
 
