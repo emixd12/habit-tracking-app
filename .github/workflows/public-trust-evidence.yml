@@ -79,6 +79,7 @@ jobs:
           VERCEL_MARKETING_PROJECT_ID: ${{ vars.VERCEL_MARKETING_PROJECT_ID }}
           VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          TRUST_TARGET: ${{ inputs.target || 'production' }}
         run: node scripts/prepare-public-trust-input.mjs --output .trust-input.json
       - name: Collect sanitized evidence
         env:

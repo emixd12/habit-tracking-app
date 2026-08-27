@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 // @ts-expect-error Operational JavaScript module intentionally has no declarations.
 import { buildIntegrityManifest } from "../scripts/build-public-integrity-manifest.mjs";
+// @ts-expect-error Operational JavaScript module intentionally has no declarations.
+import { boundedFetch } from "../scripts/public-trust-http.mjs";
 
 describe("public integrity manifest", () => {
   it("detects missing assets, content-type changes, and digest mismatches", async () => {
@@ -35,5 +37,21 @@ describe("public integrity manifest", () => {
 
   it("rejects private and loopback origins before fetching", async () => {
     await expect(buildIntegrityManifest({ assets: [{ surface: "application", path: "/asset", content_type: "text/plain" }], origins: { application: "https://127.0.0.1" }, fetchedAt: "2026-08-26T12:00:00Z", fetcher: async () => new Response("never") })).rejects.toThrow(/public HTTPS/);
+  });
+
+  it("uses a temporary Preview share cookie without returning the bypass value", async () => {
+    const requests: Array<{ url: string; cookie: string }> = [];
+    const result = await boundedFetch("https://preview.example", "/asset", {
+      vercelShare: "temporary-share-value",
+      followRedirects: false,
+      fetcher: async (url: URL, init: RequestInit) => {
+        requests.push({ url: url.toString(), cookie: new Headers(init.headers).get("cookie") ?? "" });
+        if (requests.length === 1) return new Response(null, { status: 302, headers: { location: "https://preview.example/asset", "set-cookie": "_vercel_jwt=session; Path=/" } });
+        return new Response("ok", { status: 200, headers: { "content-type": "text/plain" } });
+      },
+    });
+    expect(requests[0].url).toContain("_vercel_share=temporary-share-value");
+    expect(requests[1]).toEqual({ url: "https://preview.example/asset", cookie: "_vercel_jwt=session" });
+    expect(result.finalUrl).toBe("https://preview.example/asset");
   });
 });

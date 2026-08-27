@@ -30,14 +30,19 @@ export async function boundedFetch(origin, path, options = {}) {
   let url = allowedUrl(origin, path);
   const fetcher = options.fetcher ?? fetch;
   const limits = { ...HTTP_LIMITS, ...options.limits };
+  let cookie = "";
   for (let redirects = 0; redirects <= limits.maxRedirects; redirects += 1) {
-    const response = await fetcher(url, {
+    const requestUrl = new URL(url);
+    const shareHandshake = Boolean(options.vercelShare && !cookie);
+    if (shareHandshake) requestUrl.searchParams.set("_vercel_share", options.vercelShare);
+    const response = await fetcher(requestUrl, {
       redirect: "manual",
       signal: AbortSignal.timeout(limits.timeoutMs),
-      headers: { "user-agent": "Cadence-Public-Trust/1" },
+      headers: { "user-agent": "Cadence-Public-Trust/1", ...(cookie ? { cookie } : {}) },
     });
+    if (options.vercelShare && !cookie) cookie = response.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
     if (response.status >= 300 && response.status < 400 && response.headers.get("location")) {
-      if (options.followRedirects === false) return { response, body: Buffer.alloc(0), finalUrl: url.toString(), redirects };
+      if (options.followRedirects === false && !(shareHandshake && cookie)) return { response, body: Buffer.alloc(0), finalUrl: url.toString(), redirects };
       url = allowedUrl(origin, new URL(response.headers.get("location"), url).toString());
       continue;
     }

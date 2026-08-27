@@ -154,20 +154,20 @@ async function liveFacts(input) {
   const integrityConfig = JSON.parse(await readFile(new URL("config/public-integrity-assets.json", ROOT), "utf8"));
   let routes = fixture?.routes;
   if (!routes) {
-    const manifestResponse = fixture?.marketing_manifest ? null : await boundedFetch(input.marketing_deployment.url, "/data/route-manifest.json");
+    const manifestResponse = fixture?.marketing_manifest ? null : await boundedFetch(input.marketing_deployment.url, "/data/route-manifest.json", { vercelShare: input.preview_bypass?.marketing });
     const marketingManifest = fixture?.marketing_manifest ?? JSON.parse(manifestResponse.body.toString("utf8"));
     routes = {
-      application: await collectRoutes({ origin: input.application_deployment.url, routes: appConfig.routes }),
-      marketing: await collectRoutes({ origin: input.marketing_deployment.url, routes: [...marketingContracts(marketingManifest), ...marketingCandidates.routes] }),
+      application: await collectRoutes({ origin: input.application_deployment.url, routes: appConfig.routes, vercelShare: input.preview_bypass?.application }),
+      marketing: await collectRoutes({ origin: input.marketing_deployment.url, routes: [...marketingContracts(marketingManifest), ...marketingCandidates.routes], vercelShare: input.preview_bypass?.marketing }),
     };
   }
   if (!fixture?.routes) {
-    routes.application.failures.push(...await collectRouteCandidates({ origin: input.application_deployment.url, candidates: appConfig.candidates }));
-    routes.marketing.failures.push(...await collectRouteCandidates({ origin: input.marketing_deployment.url, candidates: marketingCandidates.candidates }));
+    routes.application.failures.push(...await collectRouteCandidates({ origin: input.application_deployment.url, candidates: appConfig.candidates, vercelShare: input.preview_bypass?.application }));
+    routes.marketing.failures.push(...await collectRouteCandidates({ origin: input.marketing_deployment.url, candidates: marketingCandidates.candidates, vercelShare: input.preview_bypass?.marketing }));
     routes.application.status = routes.application.failures.length ? "failed" : "passed";
     routes.marketing.status = routes.marketing.failures.length ? "failed" : "passed";
   }
-  const integrity = fixture?.integrity ?? await buildIntegrityManifest({ assets: integrityConfig.assets, maxAssets: integrityConfig.max_assets, origins: { application: input.application_deployment.url, marketing: input.marketing_deployment.url }, fetchedAt: input.verified_at });
+  const integrity = fixture?.integrity ?? await buildIntegrityManifest({ assets: integrityConfig.assets, maxAssets: integrityConfig.max_assets, origins: { application: input.application_deployment.url, marketing: input.marketing_deployment.url }, bypasses: input.preview_bypass, fetchedAt: input.verified_at });
   const provenance = fixture?.provenance ?? inspectedProvenance;
   let migration = fixture?.migration ?? input.migration;
   if (!migration && process.env.SUPABASE_ACCESS_TOKEN && process.env.SUPABASE_PROJECT_REF) {

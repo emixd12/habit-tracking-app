@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 
 import { allowedUrl, boundedFetch } from "./public-trust-http.mjs";
 
-export async function buildIntegrityManifest({ assets, origins, fetchedAt, fetcher, maxAssets = 32, localRoot = new URL("..", import.meta.url) }) {
+export async function buildIntegrityManifest({ assets, origins, bypasses = {}, fetchedAt, fetcher, maxAssets = 32, localRoot = new URL("..", import.meta.url) }) {
   if (!Array.isArray(assets) || assets.length === 0 || assets.length > maxAssets) throw new Error("Asset count is outside the bounded allowlist.");
   const entries = [];
   for (const asset of assets) {
@@ -12,7 +12,7 @@ export async function buildIntegrityManifest({ assets, origins, fetchedAt, fetch
     if (!origin) throw new Error(`Missing allowlisted origin for ${asset.surface}.`);
     const targetUrl = allowedUrl(origin, asset.path).toString();
     try {
-      const { response, body, finalUrl } = await boundedFetch(origin, asset.path, { fetcher });
+      const { response, body, finalUrl } = await boundedFetch(origin, asset.path, { fetcher, vercelShare: bypasses[asset.surface] });
       const contentType = response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "";
       const digest = createHash("sha256").update(body).digest("hex");
       const expectedDigest = asset.local_path ? createHash("sha256").update(await readFile(new URL(asset.local_path, localRoot))).digest("hex") : asset.sha256;
