@@ -43,6 +43,8 @@ describe("trust and legal UI content", () => {
     expect(html).not.toContain("draft");
     expect(html).not.toContain("not legally approved");
     expect(html).toContain("Cadence service providers and purposes");
+    expect(html).toContain("Microsoft 365");
+    expect(html).toContain("Privacy, support, and dispute correspondence");
     expect(html).toContain("Cadence retention periods");
     expect(html).toContain("<table");
     expect(html).toContain('<th scope="col"');

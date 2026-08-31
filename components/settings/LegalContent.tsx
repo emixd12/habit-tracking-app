@@ -101,6 +101,11 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
               "Optional email reminders",
               "Email address and reminder message data",
             ],
+            [
+              "Microsoft 365",
+              "Privacy, support, and dispute correspondence",
+              "Contact details and message content",
+            ],
           ],
         },
       },
