@@ -304,6 +304,27 @@ recorded as passed by this decision. The proposed retention policy must change,
 or the active provider controls must change under separate authorization,
 before the retention gate can pass.
 
+## Ticket 106 publication approval
+
+Decision date: 2026-08-31. Ticket: 106.
+
+The 2026-08-27 decision above remains a historical checkpoint. The owner later
+confirmed that active retention settings were verified, the privacy mailbox
+passed its harmless route test, legal review approved the final Privacy and
+Terms text and facts, and all publication approvals are complete.
+
+The final policy replaces the unsupported 30-day routine-log proposal with the
+verified active windows: one day for Vercel runtime logs and seven days for
+Supabase API and database logs. Supabase daily backups and deleted-account
+backup remnants retain no more than seven days. Browser-push payloads expire
+after no more than 24 hours. Support messages retain for 12 months after
+resolution. Security-incident records may be preserved for up to 90 days or
+the end of the investigation when an investigation requires preservation.
+
+Privacy and Terms are approved for publication. Public registration is
+approved. This decision changes no authentication implementation or provider
+setting.
+
 ## Local-first macOS desktop activation
 
 Decision date: 2026-08-30. Tickets: 107–113.
