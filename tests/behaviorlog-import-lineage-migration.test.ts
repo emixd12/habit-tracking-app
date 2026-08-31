@@ -7,7 +7,7 @@ describe("imported occurrence lineage migration", () => {
     const original = readFileSync("supabase/migrations/20260827025303_make_behaviorlog_import_apply_atomic.sql", "utf8");
     const target = "select current_configuration_event_id into configuration_event_id\n      from public.behaviors where user_id = current_user_id and id = behavior_id;";
     expect(original.split(target)).toHaveLength(2);
-    expect(migration).toContain(target.replace("\n", "\\n"));
+    expect(migration).toContain(target.replaceAll("\n", "\\n"));
     expect(migration).toContain("'cadence_private.apply_behaviorlog_import(jsonb)'::regprocedure");
     expect(migration).toContain("'configuration_event_id := null;'");
     expect(migration).toContain("raise exception 'Expected imported occurrence configuration assignment was not found'");
