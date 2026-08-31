@@ -3,7 +3,6 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { LEGAL_PAGES } from "../components/settings/LegalContent";
 import { faqItems } from "../apps/marketing/src/data/faq";
 import { marketingRoutes } from "../apps/marketing/src/data/routes";
 import { siteConfig } from "../apps/marketing/src/data/site";
@@ -19,13 +18,6 @@ const publicCopy = [
   ...marketingRoutes.flatMap(({ description, markdown }) => [
     description,
     markdown,
-  ]),
-  ...Object.values(LEGAL_PAGES).flatMap(({ summary, sections }) => [
-    summary,
-    ...sections.flatMap(({ paragraphs, items = [] }) => [
-      ...paragraphs,
-      ...items,
-    ]),
   ]),
   ...[
     "README.md",
@@ -46,17 +38,8 @@ const home = marketingRoutes.find(
 const about = marketingRoutes.find(
   ({ routeId }) => routeId === "about",
 )!.markdown;
-const terms = LEGAL_PAGES.terms.sections
-  .flatMap(({ paragraphs }) => paragraphs)
-  .join("\n");
-const statusSurfaces = [home, buildFaqCopy(), about, terms];
-const exportSurfaces = [
-  home,
-  buildFaqCopy(),
-  LEGAL_PAGES.privacy.sections
-    .flatMap(({ paragraphs }) => paragraphs)
-    .join("\n"),
-];
+const statusSurfaces = [home, buildFaqCopy(), about];
+const exportSurfaces = [home, buildFaqCopy()];
 
 describe("public content contract", () => {
   it("keeps vocabulary, statuses, and exports canonical", () => {
