@@ -10,6 +10,8 @@ out/
 dist/
 build/
 coverage/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
 *.tsbuildinfo
 apps/marketing/public/examples/*.behaviorlog.zip
 

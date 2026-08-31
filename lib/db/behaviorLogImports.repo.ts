@@ -171,6 +171,19 @@ export async function listBehaviorLogImportRuns(
   );
 }
 
+export async function listAppliedBehaviorLogImportRuns(
+  supabase: AppSupabaseClient,
+  userId: string,
+): Promise<BehaviorLogImportRun[]> {
+  return readAllPostgrestRows<BehaviorLogImportRun>({
+    label: "Applied BehaviorLog import runs",
+    getRowKey: (run) => run.id,
+    createQuery: () => supabase.from("behaviorlog_import_runs").select("*")
+      .eq("user_id", userId).eq("status", "applied")
+      .order("started_at", { ascending: true }).order("id", { ascending: true }),
+  });
+}
+
 export async function updateBehaviorLogImportRunStatus(
   supabase: AppSupabaseClient,
   input: BehaviorLogImportRunStatusUpdateInput,

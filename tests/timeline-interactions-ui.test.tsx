@@ -1,8 +1,10 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "./helpers/render-with-refresh";
 
 import { describe, expect, it, vi } from "vitest";
 
 import { Timeline } from "../components/timeline/Timeline";
+import { TimelineScreen } from "../apps/desktop/src/timeline-screen";
+import { reconcileSavedNoteDraft } from "../components/timeline/OccurrenceNoteForm";
 import type {
   OccurrenceActionState,
   OccurrenceFormAction,
@@ -26,6 +28,47 @@ const timeTrackingAction: TimeTrackingFormAction = async (
 ) => state;
 
 describe("Timeline interaction controls", () => {
+  it("uses shared row controls inside the desktop callback wrapper", () => {
+    const html = renderToStaticMarkup(
+      <TimelineScreen
+        timeline={timelineView([occurrence()])}
+        statusAction={occurrenceAction}
+        noteAction={occurrenceAction}
+        startTimeTrackingAction={timeTrackingAction}
+        stopTimeTrackingAction={timeTrackingAction}
+        resetTimeTrackingAction={timeTrackingAction}
+        onRefresh={vi.fn()}
+        onShowMore={vi.fn()}
+      />,
+    );
+    expect(html).toContain('name="expected_status" value="unresolved"');
+    expect(html).toContain('name="expected_note" value=""');
+    expect(html).toContain('aria-label="Open Needs decision');
+    expect(html).toContain("<span>Show more days</span></button>");
+    expect(html).not.toContain('href="/timeline');
+    expect(html).not.toContain("data-timeline-pull-to-refresh");
+    expect(html).toContain('/brand/cadence-timeline-horse-lines-dots-clear-background.png');
+  });
+
+  it("preserves note typing that happens after save starts", () => {
+    expect(
+      reconcileSavedNoteDraft({
+        submittedDraft: "Saved draft",
+        submittedRevision: 1,
+        currentDraft: "Newer typing",
+        currentRevision: 2,
+      }),
+    ).toBe("Newer typing");
+    expect(
+      reconcileSavedNoteDraft({
+        submittedDraft: "Saved draft",
+        submittedRevision: 1,
+        currentDraft: "Saved draft",
+        currentRevision: 1,
+      }),
+    ).toBe("Saved draft");
+  });
+
   it("renders the future-day, review, status, disclosure, and note interactions", () => {
     const unresolved = occurrence();
     const completed = occurrence({
@@ -64,6 +107,7 @@ describe("Timeline interaction controls", () => {
     expect(html).toContain('name="status" value="unresolved"');
     expect(html).toContain("<span>Unmark</span>");
     expect(html).toContain('name="note"');
+    expect(html).toContain('name="expected_note" value=""');
     expect(html).toContain(">Save note</button>");
 
     const statusForms = (html.match(/<form\b.*?<\/form>/g) ?? []).filter(

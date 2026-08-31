@@ -35,8 +35,13 @@ export type PublicTrustView = {
     url: string;
     source_commit: string;
     application_deployment_id: string;
+    application_deployment_url: string;
     marketing_deployment_id: string;
+    marketing_deployment_url: string;
+    workflow_url: string;
+    built_at: string;
     verified_at: string;
+    freshness_deadline: string;
   } | null;
   checks: Array<{
     id: keyof typeof PUBLIC_TRUST_CHECK_LABELS;
@@ -78,8 +83,13 @@ function toView(
       url: snapshot.snapshot_url,
       source_commit: snapshot.source_commit,
       application_deployment_id: snapshot.application_deployment.id,
+      application_deployment_url: snapshot.application_deployment.url,
       marketing_deployment_id: snapshot.marketing_deployment.id,
+      marketing_deployment_url: snapshot.marketing_deployment.url,
+      workflow_url: snapshot.workflow_run.url,
+      built_at: snapshot.built_at,
       verified_at: snapshot.verified_at,
+      freshness_deadline: snapshot.freshness_deadline,
     },
     checks: snapshot.checks.map((check) => ({
       id: check.id,

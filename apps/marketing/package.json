@@ -12,6 +12,8 @@
     "check": "astro check && node scripts/check-agent-readability.mjs"
   },
   "dependencies": {
+    "@cadence/core": "*",
+    "@cadence/ui": "*",
     "@fontsource-variable/ibm-plex-sans": "^5.2.8",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@js-temporal/polyfill": "^0.5.1",

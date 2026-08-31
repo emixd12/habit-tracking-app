@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@cadence/ui/runtime";
 import { Check, CircleDashed, X } from "lucide-react";
 
 import {
@@ -104,6 +104,22 @@ export function captureCompletionChimeIntent({
   completionChimeIntentRef.current = intent;
 }
 
+export function startCompletionChimeAndRefresh({
+  shouldChime,
+  playChime,
+  refresh,
+}: Readonly<{
+  shouldChime: boolean;
+  playChime: () => Promise<void>;
+  refresh: () => void;
+}>): void {
+  if (shouldChime) {
+    void playChime();
+  }
+
+  refresh();
+}
+
 const EMPTY_ACTION_STATE: OccurrenceActionState = {
   status: "idle",
   message: "",
@@ -123,8 +139,11 @@ export function StatusButtons({
   onStatusSuccess,
   onStatusError,
 }: StatusButtonsProps) {
-  const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
-  const router = useRouter();
+  const [state, formAction, isPending] = useActionState(
+    action,
+    EMPTY_ACTION_STATE,
+  );
+  const refresh = useRefresh();
   const completionChimeIntentRef = useRef<CompletionChimeIntent | null>(null);
   const preparedChimeForSubmitRef = useRef(false);
 
@@ -138,17 +157,15 @@ export function StatusButtons({
         },
       );
       const refreshTimeline = () => {
-        router.refresh();
+        refresh();
         onStatusSuccess?.(confirmedStatus);
       };
 
-      if (shouldChimeAfterSuccess) {
-        void playCompletionChime().finally(() => {
-          refreshTimeline();
-        });
-      } else {
-        refreshTimeline();
-      }
+      startCompletionChimeAndRefresh({
+        shouldChime: shouldChimeAfterSuccess,
+        playChime: playCompletionChime,
+        refresh: refreshTimeline,
+      });
 
       completionChimeIntentRef.current = null;
       preparedChimeForSubmitRef.current = false;
@@ -157,9 +174,10 @@ export function StatusButtons({
     if (state.status === "error") {
       completionChimeIntentRef.current = null;
       preparedChimeForSubmitRef.current = false;
+      refresh();
       onStatusError?.();
     }
-  }, [onStatusError, onStatusSuccess, router, state]);
+  }, [onStatusError, onStatusSuccess, refresh, state]);
 
   function prepareForSubmittedStatus(submittedStatus: StatusButtonValue | null) {
     captureCompletionChimeIntent({
@@ -198,7 +216,7 @@ export function StatusButtons({
           action={formAction}
           onStatusIntent={prepareForSubmittedStatus}
           onStatusSubmit={onStatusSubmit}
-          disabled={disabled}
+          disabled={disabled || isPending}
           pendingStatus={pendingStatus}
           singleLine={singleLine}
         />
@@ -210,7 +228,7 @@ export function StatusButtons({
           action={formAction}
           onStatusIntent={prepareForSubmittedStatus}
           onStatusSubmit={onStatusSubmit}
-          disabled={disabled}
+          disabled={disabled || isPending}
           pendingStatus={pendingStatus}
           singleLine={singleLine}
         />
@@ -223,7 +241,7 @@ export function StatusButtons({
             action={formAction}
             onStatusIntent={prepareForSubmittedStatus}
             onStatusSubmit={onStatusSubmit}
-            disabled={disabled}
+            disabled={disabled || isPending}
             pendingStatus={pendingStatus}
             singleLine={singleLine}
           />

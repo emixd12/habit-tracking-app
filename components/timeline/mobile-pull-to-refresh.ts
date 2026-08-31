@@ -18,17 +18,19 @@ export const IDLE_PULL_TO_REFRESH_STATE: PullToRefreshState = { phase: "idle" };
 export function beginPullToRefresh({
   isMobile,
   isAtScrollTop,
+  isModalOpen,
   startedOnInteractiveElement,
   x,
   y,
 }: Readonly<{
   isMobile: boolean;
   isAtScrollTop: boolean;
+  isModalOpen: boolean;
   startedOnInteractiveElement: boolean;
   x: number;
   y: number;
 }>): PullToRefreshState {
-  if (!isMobile || !isAtScrollTop || startedOnInteractiveElement) {
+  if (!isMobile || !isAtScrollTop || isModalOpen || startedOnInteractiveElement) {
     return IDLE_PULL_TO_REFRESH_STATE;
   }
 

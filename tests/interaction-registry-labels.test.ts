@@ -54,6 +54,7 @@ describe("interaction registry visible-control labels", () => {
     expect(triggerControls("INT-ONBOARD-001")).toEqual([
       "Dismiss setup",
       "Skip setup",
+      "Show setup guide",
     ]);
     expect(triggerControls("INT-SHELL-004")).toEqual([
       "Collapse navigation",
@@ -82,6 +83,11 @@ describe("interaction registry visible-control labels", () => {
 
     expect(triggerControls("INT-SETTINGS-005")).toEqual(expectedLabels);
     expect(variantLabels("INT-SETTINGS-005")).toEqual(expectedLabels);
+  });
+
+  it("uses the exact marketing entry labels", () => {
+    expect(triggerControls("INT-MKT-004")).toEqual(["Log in"]);
+    expect(triggerControls("INT-MKT-006")).toEqual(["Begin a record"]);
   });
 });
 

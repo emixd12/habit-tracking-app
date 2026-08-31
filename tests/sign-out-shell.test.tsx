@@ -6,6 +6,7 @@ import { AppShell, SignOutControl } from "../components/layout/AppShell";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/timeline",
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 describe("app-shell sign out control", () => {

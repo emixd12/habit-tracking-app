@@ -10,18 +10,18 @@ standard, read account information, and enter the protected app.
 1. At the first keyboard focus, use **Skip to content** to move directly to the
    main content.
 2. Use the **Cadence** brand to return to the marketing homepage.
-3. In the header, choose **Cadence** for the tracker product page,
-   **BehaviorLog** for the portable record standard, or **Log in** for the
-   Cadence sign-in screen.
-4. Use **Try Cadence** to open the Cadence product entry. Use
-   **Read BehaviorLog** to open the BehaviorLog overview.
-5. Follow contextual links such as **See how it works**, **Open Cadence docs**,
+3. In the header, use **Cadence** to return home, **Download for macOS** to
+   open the disclosed preview release, or **Log in** to open the Cadence
+   sign-in screen.
+4. Use **Begin a record** to open the Cadence product entry. Use
+   **Read the BehaviorLog specification** to open the BehaviorLog repository.
+5. Follow contextual links such as **See how the record works**, **Open Cadence docs**,
    **Read agent docs**, or other related-content links to move to the named
    section or page.
 6. Use **View on GitHub**, **View BehaviorLog repository**, or another named
    repository link to inspect the corresponding public source repository.
-7. The footer provides **Product**, **BehaviorLog**, **About**, **GitHub**,
-   **llms.txt**, **Trust**, **Privacy**, and **Terms**.
+7. The footer provides **FAQ**, **About**, **GitHub**, **llms.txt**, **Trust**,
+   **Trust evidence JSON**, **Privacy**, and **Terms**.
 
 **Result and persistence:** Page and fragment links change only the current
 location. They do not create a Cadence account or change tracker data. GitHub,
@@ -39,6 +39,28 @@ Behavior data. Do not enter private records into a public page or repository.
 Tab and Shift+Tab to reach header, content, and footer links, then Enter to
 activate. At larger text sizes or on a narrow screen, links may wrap; their
 order and labels remain the same.
+
+## Open the macOS preview download
+
+**Prerequisites:** An Apple Silicon Mac that meets the compatibility statement
+on the release page.
+
+1. Choose **Download for macOS** in the marketing header.
+2. Read the preview release disclosures before choosing an asset. The preview
+   uses ad hoc signing and is not notarized.
+3. Follow the installation and backup guidance on the release page.
+
+**Result and persistence:** The GitHub preview release opens. Cadence data does
+not change unless you later download, install, and run the desktop app.
+
+**Recovery or undo:** Use Back to return to the marketing site. Remove a
+downloaded file through the operating system if you no longer need it.
+
+**Privacy and safety:** Use only the normal preview DMG described on the release
+page. Do not install assets labeled for QA-only signature or failure tests.
+
+**Keyboard and mobile:** Focus **Download for macOS** and press Enter. The link
+opens the same disclosed release page from narrow layouts.
 
 ## Download the sanitized example bundle
 

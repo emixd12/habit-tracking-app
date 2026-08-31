@@ -27,31 +27,28 @@ The final product posture is:
 
 The first public-product implementation steps are now present: the current
 authenticated web app has been hardened for many independent users, and the
-Astro marketing site exists as a sibling app. Billing, AI, desktop, and mobile
-remain future scope unless tickets explicitly move them into active work.
+Astro marketing site exists as a sibling app. Tickets 107–114 implement the
+local-first macOS desktop track. Ticket 115 defers Apple-trusted distribution.
+Billing, AI, mobile, and live sync remain future scope.
 
 ## Surface model
 
-The target repository shape is a composable workspace:
+The scheduled desktop workspace retains the Next.js app at the repository root:
 
 ```text
+app/            authenticated Next.js web app, with components/ and lib/ at root
 apps/
-  app/          authenticated web app, current Cadence tracker
   marketing/   public Astro website for SEO, product explanation, and standard adoption
-  desktop/     future Tauri desktop app
-  mobile/      future mobile app
+  desktop/     scheduled Tauri desktop app
 
 packages/
   core/         recurrence/status/timeline/export resolver logic
-  db/           shared database types, generated clients, or adapter contracts
   ui/           shared design tokens and framework-light primitives
-  config/       shared eslint, TypeScript, Tailwind, and tooling configuration
 ```
 
-This shape is directional. Do not move the current app out of the repository
-root until a scoped restructuring ticket exists and the migration can preserve
-all current routes, tests, Supabase workflows, Vercel settings, and deployment
-behavior.
+Create shared packages incrementally after the native boundary proof. Do not
+move the current app out of the repository root. Broader restructuring,
+`packages/db`, `packages/config`, and a mobile workspace remain deferred.
 
 Preferred sequencing:
 
@@ -61,7 +58,8 @@ Preferred sequencing:
    second runtime.
 4. Extract `packages/ui` as tokens and primitives first, not full product
    components.
-5. Keep desktop/mobile as proposal-track work until explicitly scheduled.
+5. Maintain the completed desktop track under Tickets 107–114; keep Ticket 115
+   and mobile deferred.
 
 Use npm workspaces first unless build orchestration becomes painful. Turborepo
 may be added later if caching and multi-app task orchestration become
@@ -89,7 +87,7 @@ Current design-system inventory layers:
   cards.
 
 Do not force every surface to share full product components. Astro marketing,
-Next.js authenticated app UI, and future local-first desktop/mobile shells have
+Next.js authenticated app UI, the desktop shell, and future mobile shells have
 different runtime boundaries. Share tokens, primitive contracts, terminology,
 states, and presentational module specs first. Extract `packages/ui` only when
 it removes real duplication or unblocks a scheduled second runtime; keep it
@@ -101,6 +99,14 @@ when there is live UI to verify. Cross-surface catalog entries may point to
 Astro templates, CSS/token files, static captures, native component files, or
 planned implementation docs, but product usage counts must remain separated
 from bench previews.
+
+New or materially changed product/design tickets must address web, desktop,
+marketing, and future mobile explicitly. Each platform needs an implementation
+reference, a follow-up ticket, or a not-applicable reason. Extend the current
+interaction registry with applicability, implementation state, and evidence;
+reuse IDs for unchanged intent. Checks reject missing references and incomplete
+desktop parity at release. Fixtures and native QA establish semantics; catalog
+structure alone does not. Marketing consumes approved claims, not app UI.
 
 ## Marketing site
 
@@ -128,6 +134,7 @@ Primary calls to action:
 - Read BehaviorLog
 - Download Example Bundle
 - View on GitHub
+- Download for macOS
 - Log in
 
 The site is static-first and SEO-conscious from the start: semantic HTML,
@@ -142,7 +149,8 @@ Marketing posture:
 - BehaviorLog is the open bundle standard and portability layer Cadence writes
   and reads. It should be explained in the same manner as a technical base
   layer or open package, not as the primary site brand.
-- The header shows the Cadence brand link and Log in. About and FAQ are linked
+- The header shows the Cadence brand link, a Download for macOS button to the
+  dedicated disclosed preview release, and Log in. About and FAQ are linked
   from the footer. Docs and Examples stay available by direct URL,
   machine-readable mirrors, and in-page content links.
 - `/docs` should grow toward a familiar developer-docs structure: Guides,
@@ -184,7 +192,9 @@ Launch auth:
 - Google login only.
 - Supabase Auth remains the web identity provider.
 - The default route after login remains `/timeline`.
-- Public users can create accounts immediately when public launch begins.
+- Public registration remains closed until the marketing-content publication
+  gates below pass. Existing authenticated accounts may continue to use the
+  application.
 
 Simple onboarding is implemented for public launch as a thin, optional pop-up
 that links into existing app controls:
@@ -225,9 +235,50 @@ Before public launch, add standard public-product protections:
 - A privacy/trust page explaining ownership, export, reminders, and the
   BehaviorLog portability model.
 
-Data retention policy is undecided. Until it is decided, retain user data while
-the account exists, delete user-owned records on account deletion, and do not
-add background data purging beyond operational logs.
+The proposed public retention schedule is:
+
+- routine logs: 30 days;
+- security-incident logs: up to 90 days or until the investigation concludes;
+- backups: no more than 30 days, subject to verified provider capabilities;
+- deleted-account live data: immediately or within seven days, with backup
+  remnants aging out within 30 days;
+- support messages: 12 months after resolution.
+
+Specific records may be retained longer only for security investigations,
+fraud prevention, or legal preservation. These periods are publication claims,
+not verified provider capabilities. Publication remains blocked until provider
+retention is verified and recorded in sanitized form.
+
+## Marketing content and legal contract
+
+Cadence's public source is
+`https://github.com/emixd12/habit-tracking-app` under the repository MIT
+license. The application origin is the only canonical host for `/trust`,
+`/privacy`, and `/terms`; the Astro marketing site must link to those routes
+and must not publish copies.
+
+Cadence provides prepared prompts, but the user exports data and chooses any
+external AI service. Cadence does not send behavior data to an AI provider.
+Public copy names exactly five export formats: JSONL, JSON, CSV, Markdown, and
+BehaviorLog bundle.
+
+The public legal entity is Identity Scaffolding LLC, a Wyoming limited
+liability company assumed authorized in New York. Its public address is 30 N
+Gould St Ste R, Sheridan, WY 82801. The minimum age is 18. New York law
+governs, subject to nonwaivable consumer protections. Disputes use informal
+resolution first, then a court of competent jurisdiction in New York State.
+The initial Terms require neither arbitration nor a class-action waiver.
+
+Legal-copy publication and public registration require all three gates:
+
+1. Sanitized evidence verifies provider capabilities against the retention
+   schedule.
+2. `privacy@identityscaffolding.com` is created and confirmed with one harmless
+   route test.
+3. One legal review approves the final Privacy and Terms text, entity facts,
+   retention language, disclaimers, liability language, and dispute process.
+
+None of these gates is recorded as passed as of 2026-08-27.
 
 ## Source, asset, trademark, and disclosure boundaries
 
@@ -281,17 +332,44 @@ IDs so an older Passed result cannot describe a newer release.
 
 ## Desktop and mobile relationship
 
-`docs/DESKTOP_BUILD.md` remains a proposal, not scheduled work. The public
-product docs may mention desktop/mobile as future surfaces, but they are not
-part of the launch path unless tickets are added.
+`docs/DESKTOP_BUILD.md` records completed Tickets 107–114. Desktop targets
+Apple Silicon with macOS 14 as its declared minimum, using Tauri v2, Vite,
+React, and SQLite. Ticket 115 defers actual macOS 14 compatibility and Apple-
+trusted distribution. Tracking works
+without login or network under one stable local profile. Native proof precedes
+broad shared-code extraction. `docs/DESKTOP_PARITY.md` records the current
+tracking baseline and verification state.
 
-Desktop and mobile should follow the local-first direction in
-`docs/DESKTOP_BUILD.md`:
+The desktop release preserves all current tracking capabilities and includes:
 
 - usable without login,
 - local data by default,
-- optional sync later,
-- optional cloud identity only for cross-surface saving and future AI features.
+- a dormant sync scaffold only, with no cloud login or live sync,
+- native reminders targeting 30 days, nearest first, with OS-readback coverage
+  and a clearly displayed shorter horizon when OS limits require it,
+- signed/notarized artifacts and signed, user-approved updates for the original
+  final release, now explicitly deferred rather than passed.
+
+On 2026-08-31, the owner authorized an unnotarized, ad hoc signed Apple Silicon
+preview milestone within Ticket 113. Preserve Cadence, `app.cadence.desktop`,
+and existing local data. Apple enrollment, Developer ID signing, notarization,
+and final-release acceptance remain deferred; they do not block preview work.
+Prepare artifacts and a dedicated HTTPS preview feed locally for the existing
+`emixd12/habit-tracking-app` repository. Candidate-building checks must not depend
+on updater evidence that requires those candidates. Final production checks
+remain strict, and updater signing remains distinct from Apple signing.
+
+Preview publication, public uploads, and feed exposure require approval of the
+concrete files and destination. Local authorization does not publish a release
+or authorize marketing availability claims. The owner authorized the six exact
+asset hashes in `docs/qa/2026-08-30-desktop-asset-provenance.md` for distribution
+inside Cadence. MIT exclusions, third-party notices, and reserved marks remain.
+
+Mobile implementation remains deferred. Final desktop publication still requires
+its deferred parity, native, signing, and release gates. Do not add a new backend,
+CI infrastructure, background helper, email delivery, cloud login, live sync,
+cloud account controls, or duplicate public/legal pages. Ticket 113 records the
+web, desktop, marketing, and future-mobile impacts and preview acceptance.
 
 The web app remains cloud-first through Supabase. This difference is
 intentional. Future sync work must bridge local-first desktop/mobile data with

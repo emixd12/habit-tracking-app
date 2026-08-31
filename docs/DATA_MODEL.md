@@ -1,6 +1,9 @@
 # Data Model
 
-Use Supabase Postgres.
+Use Supabase Postgres for the web app. The SQL definitions and RLS requirements
+below describe its current schema. Tickets 107–114 implement a separate local
+SQLite desktop adapter under `docs/DESKTOP_BUILD.md`; desktop schema work must
+preserve the current domain contracts and document its own migrations.
 
 The web app may support many independent accounts. It is still single-player
 per account: no shared workspaces, no collaboration records, and no social data
@@ -187,6 +190,14 @@ canonical-equivalent tabs or Unicode edge whitespace cannot be rewritten
 without history. Authenticated callers cannot execute the earlier
 definition-only functions.
 
+Manual edit forms submit the `updated_at` value loaded with the browser draft.
+The atomic update reports a deterministic stale draft as a non-retryable
+application error, so PostgREST returns the conflict instead of retrying it as
+a serialization failure. The private graph writer uses the same non-retryable
+`P0001` code when a retained schedule or time-entry ID belongs to another graph.
+Migration `20260830223000` closes those two older `40001` branches without
+changing tables, grants, or function signatures.
+
 Create-only and approved-merge BehaviorLog imports use the same atomic create
 function with `source = 'import'`, and preserve the imported behavior
 `created_at` as the baseline `recorded_at`. The destructive restore wrapper
@@ -194,6 +205,20 @@ locks existing restored behaviors, requires a resolver-planned baseline for
 every new behavior and a transition for every title/description overwrite,
 then inserts those events in the same transaction as product rows, provenance
 mappings, and the applied-run ledger.
+
+Desktop parity verification also exercises that production restore transaction
+through ordinary local Supabase clients. The accepted preview's Keep actions
+exclude those rows from product writes after exact payload-digest validation.
+The full accepted schedule payload remains available for graph validation.
+Unchanged graphs retain parent IDs and timestamps; partial changes write only
+changed schedule rows. Separately accepted Note/status actions may update those
+fields on a kept Occurrence without rewriting its schedule identity.
+
+Function-only migrations `20260830223000`, `20260830224000`,
+`20260830230000`, and `20260830231000` implement these conflict/Keep corrections.
+They change no public function signatures or grants. Generated local TypeScript
+types match the existing definitions. These migrations have not been pushed to
+the hosted database by the desktop task.
 
 ### `behavior_configuration_events`
 
@@ -330,9 +355,9 @@ schedules and multiple time entries per schedule. A nullable
 behavior-level slots; new writes should set it. The composite foreign key
 requires linked schedules and slots to belong to the same behavior. Occurrence
 generation creates one occurrence per matching schedule time entry, then
-merges candidates with
-the same scheduled instant. The first schedule and time entry by stable sort
-order wins, matching the `(behavior_id, scheduled_for)` persistence key.
+merges candidates with the same behavior, local date, start time, and range
+identity. An exact entry and a range entry that share a start time remain
+distinct. Stable sort order breaks ties only when every identity field matches.
 
 Current uniqueness is enforced with partial indexes:
 
@@ -355,6 +380,12 @@ create table occurrences (
   schedule_preset text check (schedule_preset in ('morning', 'afternoon', 'evening', 'night')),
   schedule_start_time time not null,
   schedule_end_time time,
+  schedule_range_identity bigint generated always as (
+    case
+      when schedule_kind = 'exact' then -1::bigint
+      else (extract(epoch from schedule_end_time) * 1000000)::bigint
+    end
+  ) stored,
 
   status text not null default 'unresolved'
     check (status in ('unresolved', 'completed', 'not_completed')),
@@ -366,7 +397,12 @@ create table occurrences (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
-  unique (behavior_id, scheduled_for),
+  unique (
+    behavior_id,
+    local_date,
+    schedule_start_time,
+    schedule_range_identity
+  ),
   unique (user_id, id, behavior_id),
   foreign key (user_id, behavior_id, behavior_configuration_event_id)
     references behavior_configuration_events(user_id, behavior_id, id)
@@ -382,8 +418,9 @@ app-native export reads. Status history is stored separately in
 restored Occurrences whose governing event is unknown. The migration does not
 invent lineage for existing rows. New generated Occurrences store the current
 Behavior event. A linked, unresolved Occurrence strictly after the injected
-current instant may advance to a new current event only when the same scheduled
-instant remains in the new graph and Ticket 078 protections do not apply. A
+current instant may advance to a new current event only when the same local
+date, start time, and range identity remain in the new graph and Ticket 078
+protections do not apply. A
 null-lineage row never receives inferred lineage during generation.
 
 Occurrence plan writes lock the Behavior and compare the exact expected current
@@ -762,6 +799,20 @@ and start/completion timestamps. It does not mean imported product records have
 been written; `status = 'previewed'` only means the bundle was validated and
 previewed.
 
+Successful applies also retain `dry_run_summary.portability` version 1. It
+contains validated standard configuration events, source Occurrence timezone
+and lineage metadata, and the known Cadence category registry. Existing record
+mappings connect external identities to local rows on re-export. The 256 KiB
+UTF-8 limit rejects oversized metadata; it never truncates history. Preview
+ledger rows omit this metadata. No raw archive, credentials, or notification
+replay state is retained through this field.
+
+Imported historical Occurrences keep null local configuration lineage unless
+the source can prove it. Migration
+`20260831001533_preserve_unknown_imported_configuration_lineage.sql` removes
+the atomic import function's assignment of the current configuration to new
+historical Occurrences. It does not rewrite existing user records.
+
 `merge_preview` rows store the accepted bundle fingerprint, local-data
 fingerprint, and combined preview fingerprint in `dry_run_summary`. A
 create-only or user-approved merge apply must reference one persisted, accepted
@@ -958,9 +1009,14 @@ create table imported_interventions (
   occurrence_id uuid,
 
   intervention_type text,
-  channel text not null check (channel in ('browser_push', 'email')),
+  channel text not null check (channel in (
+    'browser_push', 'email', 'sms', 'mobile_push', 'in_app',
+    'calendar_notification', 'voice_assistant', 'webhook', 'other', 'none'
+  )),
   delivery_status text not null
-    check (delivery_status in ('pending', 'sent', 'failed', 'cancelled')),
+    check (delivery_status in (
+      'pending', 'sent', 'delivered', 'failed', 'cancelled', 'suppressed', 'unknown'
+    )),
   scheduled_send_at timestamptz not null,
   sent_at timestamptz,
   failure_reason text,
@@ -995,6 +1051,14 @@ channel, delivery status, scheduled/sent timestamps, sanitized failure reason,
 source metadata, and redaction indicators. It must not contain raw provider
 secrets, raw push endpoints, subscription keys, recipient identifiers, message
 bodies, or raw provider payloads.
+
+Migration `20260831014424_preserve_behaviorlog_passive_intervention_values.sql`
+retains all canonical BehaviorLog 0.3 passive channels and delivery states.
+The canonical `planned` state still maps to the existing stored `pending`
+value. Native observations use `other` and may record `delivered`; neither
+delivery nor OS verification proves user reading. This migration changes only
+the passive table's checks. Operational reminder channels, delivery states,
+RLS policies, grants, and stored rows remain unchanged.
 
 Rows are provenance and review context only. They do not create, schedule,
 send, cancel, retry, claim, or otherwise mutate operational
@@ -1251,7 +1315,7 @@ When a behavior changes:
 - Occurrences preserve schedule snapshots so historical rows still display the
   time or range that existed when they were generated.
 - Existing null-lineage Occurrences remain null. Linked future unprotected
-  same-instant Occurrences may advance to the new current configuration event.
+  same-identity Occurrences may advance to the new current configuration event.
 - The final fresh-state write takes the same per-user advisory lock as Behavior
   configuration writers. It verifies the exact Behavior/current-event set and
   the planning-start sync-state existence/version. Every sync-state update
@@ -1264,11 +1328,20 @@ When a behavior changes:
 Use:
 
 ```sql
-unique (behavior_id, scheduled_for)
+unique (
+  behavior_id,
+  local_date,
+  schedule_start_time,
+  schedule_range_identity
+)
 unique (user_id, id, behavior_id)
 ```
 
-Occurrence generation must be idempotent.
+`schedule_range_identity` is a stored generated integer. Exact entries use
+`-1`; ranges use the end time expressed as microseconds after midnight. This
+keeps exact `00:00` and ranges ending at `00:00` distinct while giving
+PostgREST a real conflict-target column. Occurrence generation must be
+idempotent.
 
 The `(user_id, id, behavior_id)` uniqueness constraint exists so status events
 can enforce same-user ownership for their occurrence and behavior snapshot.

@@ -100,4 +100,31 @@ describe("user read-through cache", () => {
       "user-read:user-two:behavior_list:default",
     ]);
   });
+
+  it("does not restore a value loaded before invalidation", async () => {
+    let finishLoad!: (value: Array<{ id: string }>) => void;
+    const staleLoad = new Promise<Array<{ id: string }>>((resolve) => {
+      finishLoad = resolve;
+    });
+    const firstRead = readUserReadThroughCache({
+      userId: "user-one",
+      bucket: "behavior_list",
+      load: () => staleLoad,
+    });
+
+    invalidateUserReadCache("user-one", ["behavior_list"]);
+    finishLoad([{ id: "archived-behavior" }]);
+    await firstRead;
+
+    const freshLoad = vi.fn().mockResolvedValue([]);
+
+    await expect(
+      readUserReadThroughCache({
+        userId: "user-one",
+        bucket: "behavior_list",
+        load: freshLoad,
+      }),
+    ).resolves.toEqual([]);
+    expect(freshLoad).toHaveBeenCalledOnce();
+  });
 });

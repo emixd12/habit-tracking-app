@@ -12,6 +12,7 @@ import {
   getOccurrenceWithBehaviorTimezoneById,
   listBehaviorOccurrencesFrom,
   updateOccurrenceById,
+  updateOccurrenceNoteIfExpected,
 } from "@/lib/db/occurrences.repo";
 import {
   applyOccurrenceStatusTransitionRpc,
@@ -81,6 +82,7 @@ vi.mock("@/lib/db/occurrences.repo", () => ({
   getOccurrenceWithBehaviorTimezoneById: vi.fn(),
   listBehaviorOccurrencesFrom: vi.fn(),
   updateOccurrenceById: vi.fn(),
+  updateOccurrenceNoteIfExpected: vi.fn(),
 }));
 
 vi.mock("@/lib/db/occurrenceStatusEvents.repo", () => ({
@@ -1249,23 +1251,36 @@ describe("updateOccurrenceNote", () => {
       note: "First line\nSecond line",
     };
 
-    vi.mocked(updateOccurrenceById).mockResolvedValue(occurrence);
+    vi.mocked(updateOccurrenceNoteIfExpected).mockResolvedValue(occurrence);
 
     await expect(
       updateOccurrenceNote(SUPABASE, "user-1", {
         occurrenceId: occurrence.id,
+        expectedNote: "First line\nSecond line",
         note: "  First line\r\nSecond line  ",
       }),
     ).resolves.toEqual(occurrence);
 
-    expect(updateOccurrenceById).toHaveBeenCalledWith(
-      SUPABASE,
-      "user-1",
-      occurrence.id,
-      { note: "First line\nSecond line" },
-    );
+    expect(updateOccurrenceNoteIfExpected).toHaveBeenCalledWith(SUPABASE, {
+      userId: "user-1",
+      occurrenceId: occurrence.id,
+      expectedNote: "First line\nSecond line",
+      note: "First line\nSecond line",
+    });
     expect(applyOccurrenceStatusTransitionRpc).not.toHaveBeenCalled();
     expect(getLatestOccurrenceStatusEventForOccurrence).not.toHaveBeenCalled();
+  });
+
+  it("reports a conflict instead of overwriting a changed note", async () => {
+    vi.mocked(updateOccurrenceNoteIfExpected).mockResolvedValue(null);
+
+    await expect(
+      updateOccurrenceNote(SUPABASE, "user-1", {
+        occurrenceId: "occurrence-1",
+        expectedNote: "Old note",
+        note: "My edit",
+      }),
+    ).rejects.toThrow("note changed elsewhere");
   });
 });
 
@@ -1368,6 +1383,7 @@ function buildOccurrence(input: {
     local_date: "2026-06-08",
     schedule_kind: "exact",
     schedule_preset: null,
+    schedule_range_identity: -1,
     schedule_start_time: input.startTime,
     schedule_end_time: null,
     status: "unresolved",

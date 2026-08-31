@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 
 type AgentReadabilityHtmlModule = {
   hasMainLandmark: (html: string) => boolean;
@@ -45,5 +46,12 @@ describe("marketing agent-readability HTML checks", () => {
     expect(
       agentReadabilityHtml.hasMainLandmark('<main id="MAIN">Content</main>'),
     ).toBe(false);
+  });
+
+  it("checks same-origin llms links against built artifacts", () => {
+    const checker = readFileSync("apps/marketing/scripts/check-agent-readability.mjs", "utf8");
+
+    expect(checker).toContain("assertSameOriginLlmsLinksExist");
+    expect(checker).toContain("llms.txt link has no generated artifact");
   });
 });

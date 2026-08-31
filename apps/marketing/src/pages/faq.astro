@@ -1,113 +1,37 @@
 ---
-import { faqItems } from "../data/faq";
+import { faqGroups, faqItems } from "../data/faq";
 import { getRouteById } from "../data/routes";
 import { primaryCtas, siteConfig } from "../data/site";
 import BaseLayout from "../layouts/BaseLayout.astro";
 
 const route = getRouteById("faq");
-const repositoryPhrase = "its own repository";
-const repositorySuffix = ` (${siteConfig.standardUrl})`;
-const faqPageItems = faqItems.map((item) => {
-  const repositoryReference = `${repositoryPhrase}${repositorySuffix}`;
-  const repositoryIndex = item.answer.indexOf(repositoryReference);
-
-  if (repositoryIndex === -1) {
-    return {
-      ...item,
-      answerBefore: item.answer,
-      answerAfter: "",
-      linkRepository: false,
-    };
+const links = new Map([
+  ["who-can-see-data", [{ text: "Privacy page", href: `${siteConfig.cadenceAppUrl}/privacy` }, { text: "Trust page", href: siteConfig.trustUrl }]],
+  ["what-is-behaviorlog", [{ text: siteConfig.standardUrl, href: siteConfig.standardUrl }]],
+]);
+const faqJsonLd = { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqGroups.flatMap((group) => group.items.map((item) => ({ "@type": "Question", name: item.question, acceptedAnswer: { "@type": "Answer", text: item.answer } }))) };
+function answerParts(item: (typeof faqItems)[number]) {
+  const parts: Array<string | { text: string; href: string }> = [item.answer];
+  for (const link of links.get(item.id) ?? []) {
+    const index = parts.findIndex((part) => typeof part === "string" && part.includes(link.text));
+    if (index < 0) continue;
+    const text = parts[index] as string;
+    const start = text.indexOf(link.text);
+    parts.splice(index, 1, text.slice(0, start), link, text.slice(start + link.text.length));
   }
-
-  return {
-    ...item,
-    answerBefore: item.answer.slice(0, repositoryIndex),
-    answerAfter: item.answer.slice(repositoryIndex + repositoryReference.length),
-    linkRepository: true,
-  };
-});
-const faqJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: faqItems.map((item) => ({
-    "@type": "Question",
-    name: item.question,
-    acceptedAnswer: {
-      "@type": "Answer",
-      text: item.answer,
-    },
-  })),
-};
+  return parts.filter((part) => typeof part !== "string" || part.length);
+}
 ---
 
 <BaseLayout route={route}>
   <script is:inline type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />
-
-  <section class="page-section faq-page" aria-labelledby="faq-title">
-    <div class="page-section__inner faq-page__inner">
-      <div class="section-heading">
-        <h1 id="faq-title">Frequently asked questions</h1>
-        <p>Short, factual answers. If something is missing, the codebase and docs are public.</p>
-      </div>
-
-      <div class="faq-list">
-        {
-          faqPageItems.map((item) => (
-            <article class="faq-item">
-              <h2>{item.question}</h2>
-              <p>
-                {item.linkRepository ? (
-                  <>
-                    {item.answerBefore}<a class="inline-link" href={siteConfig.standardUrl}>{repositoryPhrase}</a>{item.answerAfter}
-                  </>
-                ) : (
-                  item.answer
-                )}
-              </p>
-            </article>
-          ))
-        }
-      </div>
-
-      <div class="cta-row">
-        <a class="text-action text-action--primary" href={primaryCtas.tryCadence.href}>Try Cadence →</a>
-        <a class="text-action text-action--secondary" href={siteConfig.githubUrl}>View on GitHub</a>
-      </div>
-    </div>
-  </section>
+  <section class="page-section faq-page" aria-labelledby="faq-title"><div class="page-section__inner faq-page__inner">
+    <header class="faq-intro"><h1 id="faq-title">Frequently asked questions</h1><p>Detailed answers about Cadence's recording model, context, review, privacy, and portability.</p><p class="updated">Last updated <time datetime={route.lastModified}>{route.lastModified}</time></p></header>
+    <div class="faq-groups">{faqGroups.map((group) => <section class="faq-group" aria-labelledby={`${group.id}-title`}><h2 id={`${group.id}-title`}>{group.title}</h2><div class="faq-list">{group.items.map((item) => <details class="faq-item" id={item.id}><summary><span>{item.question}</span></summary><p>{answerParts(item).map((part) => typeof part === "string" ? part : <a class="inline-link" href={part.href}>{part.text}</a>)}</p></details>)}</div></section>)}</div>
+    <div class="faq-cta"><p>Start with one Behavior and let each Occurrence wait for your Decision.</p><a class="text-action" href={primaryCtas.tryCadence.href}>Begin a record →</a></div>
+  </div></section>
 </BaseLayout>
 
 <style>
-  .faq-page__inner {
-    display: grid;
-    gap: clamp(2rem, 5vw, 3.5rem);
-  }
-
-  .faq-page .section-heading { margin-block-end: 0; }
-  .faq-page .section-heading > p { max-width: 65ch; }
-
-  .faq-list { display: grid; }
-  .faq-item {
-    display: grid;
-    gap: 0.75rem;
-    padding-block: 1.75rem;
-    border-block-start: 1px solid var(--line);
-  }
-  .faq-item h2 { font-size: 1.2rem; line-height: 1.25; }
-  .faq-item p { max-width: 65ch; }
-
-  .faq-page .cta-row { gap: 2rem; }
-  .text-action {
-    font-size: 1.1rem;
-    text-decoration-line: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 4px;
-    white-space: nowrap;
-    transition: color 160ms ease-out, text-shadow 160ms ease-out;
-  }
-  .text-action:hover { text-shadow: 0.02em 0 currentColor; }
-  .text-action--primary { color: var(--primary); }
-  .text-action--secondary { color: var(--muted-readable); }
-  .text-action--secondary:hover { color: var(--foreground); }
+  .faq-page__inner{display:grid;gap:clamp(3rem,7vw,6rem)}.faq-intro{display:grid;gap:1rem;max-width:65ch}.faq-intro h1{font-size:clamp(2rem,5vw,4.5rem);line-height:1.02;text-wrap:balance}.updated{color:var(--muted-readable);font-size:.85rem}.faq-groups{display:grid;gap:clamp(3rem,6vw,5rem)}.faq-group{display:grid;grid-template-columns:minmax(10rem,.38fr) minmax(0,1fr);gap:clamp(2rem,5vw,5rem)}.faq-group>h2{font-size:1.25rem;line-height:1.25}.faq-list{border-block-start:1px solid var(--line)}.faq-item{border-block-end:1px solid var(--line);scroll-margin-top:2rem}.faq-item summary{cursor:pointer;display:flex;gap:1rem;justify-content:space-between;padding-block:1.35rem;font-size:1.1rem;line-height:1.4}.faq-item summary::after{content:"+";color:var(--primary);flex:none}.faq-item[open] summary::after{content:"−"}.faq-item summary:focus-visible{outline:2px solid var(--primary);outline-offset:4px}.faq-item p{max-width:68ch;padding:0 2rem 1.5rem 0;color:var(--muted-readable)}.faq-cta{border-block-start:1px solid var(--line);padding-block-start:2rem;display:flex;align-items:baseline;justify-content:space-between;gap:2rem}.text-action{color:var(--primary);text-decoration:underline;text-underline-offset:4px;white-space:nowrap}@media(max-width:720px){.faq-group{grid-template-columns:1fr;gap:1.25rem}.faq-cta{align-items:flex-start;flex-direction:column}}
 </style>

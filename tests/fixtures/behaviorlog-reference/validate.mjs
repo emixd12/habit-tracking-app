@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync, existsSync, statSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
 const bundlePath = process.argv[2];
 if (!bundlePath) {
@@ -31,9 +32,10 @@ const interventionChannels = new Set(["browser_push", "email", "sms", "mobile_pu
 const deliveryStatuses = new Set(["planned", "sent", "delivered", "failed", "cancelled", "suppressed", "unknown"]);
 const eventKinds = new Set(["baseline", "revision"]);
 const definitionFields = new Set(["title", "description", "category", "success_definition"]);
+const configurationFields = new Set(["category", "schedules", "intervention_rules", "active", "timezone"]);
 const metricNames = new Set(["explicit_adherence_rate", "resolution_rate", "scheduled_completion_rate", "unresolved_rate", "on_time_completion_rate", "schedule_slippage_minutes", "reminder_response_rate", "intervention_burden_index", "tracked_duration_total_seconds", "tracked_duration_mean_seconds"]);
 const reviewRoles = new Set(["user", "system", "ai_generated", "imported"]);
-const canonicalProfiles = new Set(["core", "intervention", "context", "review", "analytics", "definition_history", "time_tracking", "research"]);
+const canonicalProfiles = new Set(["core", "intervention", "context", "review", "analytics", "definition_history", "configuration_history", "time_tracking", "research"]);
 
 function readText(rel) {
   return readFileSync(join(bundlePath, rel), "utf8");
@@ -95,15 +97,151 @@ function hasDuplicateIds(records, key, label) {
   return seen;
 }
 
+function checkObject(value, allowed, required, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    errors.push(`${label} must be an object`);
+    return false;
+  }
+  checkExtensionsOnly(value, new Set(allowed), label, "");
+  checkRequiredFields(value, required, label, "");
+  if (value.extensions !== undefined && (!value.extensions || typeof value.extensions !== "object" || Array.isArray(value.extensions))) errors.push(`${label} extensions must be an object`);
+  return true;
+}
+
+function validDate(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    Number.isFinite(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+}
+
+function validTime(value) {
+  return typeof value === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,9})?)?$/.test(value);
+}
+
+function validTimestamp(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(value) &&
+    validDate(value.slice(0, 10)) && Number.isFinite(Date.parse(value));
+}
+
+function validTimezone(value) {
+  if (typeof value !== "string" || !value) return false;
+  try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; }
+}
+
+function timestampNanoseconds(value) {
+  const fraction = value.match(/\.(\d+)/)?.[1] ?? "";
+  return BigInt(Date.parse(value)) * 1_000_000n + BigInt(fraction.padEnd(9, "0").slice(3));
+}
+
+function checkCalendar(schedule, label, strict) {
+  if (!strict) {
+    if (schedule.recurrence_profile === "behaviorlog.calendar_simple.v1" && schedule.anchor_local_date === undefined && (["every_n_days", "every_n_weeks_on_weekdays"].includes(schedule.recurrence?.type) || schedule.recurrence?.interval > 1)) warnings.push(`${label} missing anchor_local_date; active_from_local_date fallback has ambiguous source phase`);
+    return;
+  }
+  if (schedule.anchor_local_date !== undefined && !validDate(schedule.anchor_local_date)) errors.push(`${label} has invalid anchor_local_date`);
+  if (!["behaviorlog.calendar_simple.v1", "behaviorlog.completion_interval.v1", "rfc5545.rrule"].includes(schedule.recurrence_profile)) errors.push(`${label} has invalid recurrence_profile`);
+  if (schedule.recurrence_profile !== "behaviorlog.calendar_simple.v1") {
+    if (!schedule.recurrence || typeof schedule.recurrence !== "object" || Array.isArray(schedule.recurrence)) errors.push(`${label} recurrence must be an object`);
+    return;
+  }
+  const recurrence = schedule.recurrence;
+  if (!checkObject(recurrence, ["type", "interval", "weekdays", "day", "fallback", "extensions"], ["type"], `${label} recurrence`)) return;
+  if (!["daily", "every_n_days", "weekly_on_weekdays", "every_n_weeks_on_weekdays", "monthly_on_day"].includes(recurrence.type)) errors.push(`${label} has invalid calendar recurrence type`);
+  const intervalRequired = ["every_n_days", "every_n_weeks_on_weekdays"].includes(recurrence.type);
+  const interval = recurrence.interval === undefined ? (intervalRequired ? undefined : 1) : recurrence.interval;
+  if (!Number.isInteger(interval) || interval < 1) errors.push(`${label} recurrence interval must be a positive integer`);
+  if ((intervalRequired || interval > 1) && schedule.anchor_local_date === undefined) {
+    errors.push(`${label} anchor_local_date is required for interval recurrence`);
+  }
+  if (["weekly_on_weekdays", "every_n_weeks_on_weekdays"].includes(recurrence.type)) {
+    if (!Array.isArray(recurrence.weekdays) || !recurrence.weekdays.length) errors.push(`${label} recurrence weekdays must be a non-empty array`);
+    else {
+      for (const day of recurrence.weekdays) if (!["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].includes(day)) errors.push(`${label} has invalid weekday ${day}`);
+      if (new Set(recurrence.weekdays).size !== recurrence.weekdays.length) errors.push(`${label} recurrence weekdays must be unique`);
+    }
+  }
+  if (recurrence.type === "monthly_on_day") {
+    if (!Number.isInteger(recurrence.day) || recurrence.day < 1 || recurrence.day > 31) errors.push(`${label} recurrence day must be an integer from 1 through 31`);
+    if (recurrence.fallback !== undefined && recurrence.fallback !== "last_day_of_month") errors.push(`${label} has invalid monthly fallback`);
+  }
+  const inappropriate = ["daily", "every_n_days"].includes(recurrence.type) ? ["weekdays", "day", "fallback"] : recurrence.type === "monthly_on_day" ? ["weekdays"] : ["day", "fallback"];
+  for (const field of inappropriate) if (Object.hasOwn(recurrence, field)) errors.push(`${label} recurrence ${recurrence.type} must not include ${field}`);
+}
+
+function checkConfigurationSnapshot(snapshot, label) {
+  const fields = [...configurationFields];
+  if (!checkObject(snapshot, [...fields, "extensions"], fields, label)) return;
+  if (snapshot.category !== null && typeof snapshot.category !== "string") errors.push(`${label} category must be a string or null`);
+  if (typeof snapshot.active !== "boolean") errors.push(`${label} active must be a boolean`);
+  if (!validTimezone(snapshot.timezone)) errors.push(`${label} has invalid timezone`);
+  if (!Array.isArray(snapshot.schedules)) errors.push(`${label} schedules must be an array`);
+  else for (const [index, schedule] of snapshot.schedules.entries()) {
+    const path = `${label} schedules[${index}]`;
+    const required = ["recurrence_profile", "recurrence", "anchor_local_date", "time_entries"];
+    if (!checkObject(schedule, [...required, "extensions"], required, path)) continue;
+    checkCalendar(schedule, path, true);
+    if (!Array.isArray(schedule.time_entries) || !schedule.time_entries.length) errors.push(`${path} time_entries must be a non-empty array`);
+    else for (const [entryIndex, entry] of schedule.time_entries.entries()) {
+      const entryPath = `${path} time_entries[${entryIndex}]`;
+      const timeFields = ["local_time", "window_start_local", "window_end_local"];
+      if (!checkObject(entry, [...timeFields, "extensions"], timeFields, entryPath)) continue;
+      if (!validTime(entry.local_time)) errors.push(`${entryPath} has invalid local_time`);
+      if ((entry.window_start_local === null) !== (entry.window_end_local === null)) errors.push(`${entryPath} window bounds must be null or present together`);
+      for (const field of timeFields.slice(1)) if (entry[field] !== null && !validTime(entry[field])) errors.push(`${entryPath} has invalid ${field}`);
+      if (validTime(entry.local_time) && validTime(entry.window_start_local) && localTimeValue(entry.local_time) !== localTimeValue(entry.window_start_local)) errors.push(`${entryPath} local_time must equal window_start_local for a range`);
+    }
+  }
+  if (!Array.isArray(snapshot.intervention_rules)) errors.push(`${label} intervention_rules must be an array`);
+  else for (const [index, rule] of snapshot.intervention_rules.entries()) {
+    const path = `${label} intervention_rules[${index}]`;
+    const required = ["intervention_type", "channel", "enabled", "offset_minutes"];
+    if (!checkObject(rule, [...required, "timezone", "extensions"], required, path)) continue;
+    if (!interventionTypes.has(rule.intervention_type)) errors.push(`${path} has invalid intervention_type`);
+    if (!interventionChannels.has(rule.channel)) errors.push(`${path} has invalid channel`);
+    if (typeof rule.enabled !== "boolean") errors.push(`${path} enabled must be a boolean`);
+    if (!Number.isInteger(rule.offset_minutes)) errors.push(`${path} offset_minutes must be an integer`);
+    if (rule.timezone !== undefined && !validTimezone(rule.timezone)) errors.push(`${path} has invalid timezone`);
+  }
+}
+
+function localTimeValue(value) {
+  const [hour, minute, second = "0"] = value.split(":");
+  const [whole, fraction = ""] = second.split(".");
+  return BigInt(Number(hour) * 3600 + Number(minute) * 60 + Number(whole)) * 1_000_000_000n + BigInt(fraction.padEnd(9, "0"));
+}
+
+function checkExchange(exchange) {
+  if (!checkObject(exchange, ["fidelity", "capabilities", "losses"], ["fidelity", "losses"], "rules.exchange")) return;
+  if (!["partial", "lossless"].includes(exchange.fidelity)) errors.push("rules.exchange has invalid fidelity");
+  if (!Array.isArray(exchange.losses)) errors.push("rules.exchange losses must be an array");
+  else {
+    if (exchange.fidelity === "lossless" && exchange.losses.length) errors.push("rules.exchange lossless fidelity requires empty losses");
+    for (const loss of exchange.losses) {
+      if (!checkObject(loss, ["path", "reason"], ["path", "reason"], "rules.exchange loss")) continue;
+      for (const field of ["path", "reason"]) if (typeof loss[field] !== "string" || !loss[field].trim()) errors.push(`rules.exchange loss ${field} must be a non-empty string`);
+    }
+  }
+  if (exchange.capabilities !== undefined && checkObject(exchange.capabilities, ["read", "preserve", "operate"], [], "rules.exchange capabilities")) {
+    for (const key of ["read", "preserve", "operate"]) {
+      if (exchange.capabilities[key] === undefined) continue;
+      if (!Array.isArray(exchange.capabilities[key]) || exchange.capabilities[key].some((value) => typeof value !== "string" || !value.trim())) errors.push(`rules.exchange capabilities.${key} must be an array of non-empty strings`);
+      else if (new Set(exchange.capabilities[key]).size !== exchange.capabilities[key].length) errors.push(`rules.exchange capabilities.${key} must be unique`);
+    }
+  }
+}
+
 for (const rel of requiredFiles) {
   if (!existsSync(join(bundlePath, rel))) errors.push(`missing required file: ${rel}`);
 }
 
 const manifest = existsSync(join(bundlePath, "manifest.json")) ? parseJson("manifest.json") : null;
+const version = String(manifest?.schema_version ?? "").match(/^(\d+)\.(\d+)/);
+const explicitCalendar = Boolean(version && (Number(version[1]) > 0 || Number(version[2]) >= 3));
 if (manifest) {
   if (manifest.format !== "behaviorlog.bundle") errors.push("manifest.format must be behaviorlog.bundle");
   if (!manifest.schema_version) errors.push("manifest.schema_version is required");
   if (!manifest.files || !Array.isArray(manifest.files)) errors.push("manifest.files must be an array");
+  if (manifest.rules?.exchange !== undefined) checkExchange(manifest.rules.exchange);
+  if (manifest.rules?.required_extensions !== undefined && (!Array.isArray(manifest.rules.required_extensions) || manifest.rules.required_extensions.some((value) => typeof value !== "string" || !value.trim()))) errors.push("rules.required_extensions must be an array of non-empty strings");
   if (manifest.privacy?.contains_context && !existsSync(join(bundlePath, "data/context_snapshots.jsonl"))) {
     warnings.push("manifest says contains_context=true but data/context_snapshots.jsonl is absent");
   }
@@ -130,6 +268,7 @@ if (manifest) {
       ["data/reviews.jsonl", "review"],
       ["data/derived_metrics.jsonl", "analytics"],
       ["data/behavior_definition_events.jsonl", "definition_history"],
+      ["data/behavior_configuration_events.jsonl", "configuration_history"],
       ["data/time_sessions.jsonl", "time_tracking"],
     ];
     for (const [rel, profile] of profileFiles) {
@@ -165,6 +304,7 @@ const contexts = parseJsonl("data/context_snapshots.jsonl", "context_snapshot");
 const reviews = parseJsonl("data/reviews.jsonl", "review");
 const metrics = parseJsonl("data/derived_metrics.jsonl", "derived_metric");
 const definitionEvents = parseJsonl("data/behavior_definition_events.jsonl", "behavior_definition_event");
+const configurationEvents = parseJsonl("data/behavior_configuration_events.jsonl", "behavior_configuration_event");
 const timeSessions = parseJsonl("data/time_sessions.jsonl", "time_session");
 
 const behaviorIds = hasDuplicateIds(behaviors, "behavior_id", "behaviors");
@@ -178,11 +318,12 @@ const snapshotIds = hasDuplicateIds(contexts, "snapshot_id", "context_snapshots"
 const reviewIds = hasDuplicateIds(reviews, "review_id", "reviews");
 const metricIds = hasDuplicateIds(metrics, "metric_id", "derived_metrics");
 const definitionEventIds = hasDuplicateIds(definitionEvents, "event_id", "behavior_definition_events");
+const configurationEventIds = hasDuplicateIds(configurationEvents, "event_id", "behavior_configuration_events");
 const sessionIds = hasDuplicateIds(timeSessions, "session_id", "time_sessions");
 
 const behaviorAllowed = new Set(["record_type","behavior_id","title","description","category","success_definition","expected_duration_minutes","created_at_utc","archived_at_utc","source","sensitivity","extensions"]);
-const scheduleAllowed = new Set(["record_type","schedule_id","behavior_id","recurrence_profile","recurrence","timezone","local_time","window_start_local","window_end_local","active_from_local_date","active_until_local_date","source","extensions"]);
-const occurrenceAllowed = new Set(["record_type","occurrence_id","behavior_id","schedule_id","scheduled_for_utc","local_date","local_time","timezone","utc_offset_at_event","due_window_start_utc","due_window_end_utc","generated_at_utc","generation_rule_id","occurrence_state","current_status","source","extensions"]);
+const scheduleAllowed = new Set(["record_type","schedule_id","behavior_id","recurrence_profile","recurrence","timezone","local_time","window_start_local","window_end_local","active_from_local_date","active_until_local_date","anchor_local_date","effective_from_utc","effective_until_utc","schedule_role","schedule_group_id","source","extensions"]);
+const occurrenceAllowed = new Set(["record_type","occurrence_id","behavior_id","schedule_id","configuration_event_id","scheduled_for_utc","local_date","local_time","timezone","utc_offset_at_event","due_window_start_utc","due_window_end_utc","generated_at_utc","generation_rule_id","occurrence_state","current_status","source","extensions"]);
 const statusAllowed = new Set(["record_type","event_id","occurrence_id","behavior_id","previous_status","status","status_semantics","recorded_at_utc","effective_at_utc","local_date","timezone","utc_offset_at_event","actor","source","note_id","revises_event_id","reason_code","extensions"]);
 const noteAllowed = new Set(["record_type","note_id","attached_to_type","attached_to_id","body_markdown","note_role","created_at_utc","updated_at_utc","sensitivity","source","extensions"]);
 const interventionAllowed = new Set(["record_type","intervention_id","behavior_id","occurrence_id","intervention_type","channel","planned_for_utc","sent_at_utc","delivery_status","cancel_reason","failure_reason","message_variant","message_body","rule_id","response_event_id","source","extensions"]);
@@ -203,6 +344,7 @@ const interventionRuleRequired = ["record_type","rule_id","intervention_type","c
 const contextRequired = ["record_type","snapshot_id","captured_at_utc","timezone","precision","source_type","consent_scope"];
 const reviewRequired = ["record_type","review_id","period_start_local_date","period_end_local_date","timezone","created_at_utc","review_role"];
 const metricRequired = ["record_type","metric_id","metric_name","period_start_local_date","period_end_local_date","timezone","behavior_ids","value","rule_id"];
+if (explicitCalendar) metricRequired.push("numerator", "denominator");
 const definitionEventRequired = ["record_type","event_id","behavior_id","event_kind","changed_fields","previous","next","recorded_at_utc","source"];
 const timeSessionRequired = ["record_type","session_id","occurrence_id","behavior_id","started_at_utc","stopped_at_utc"];
 
@@ -217,7 +359,14 @@ for (const s of schedules) {
   checkExtensionsOnly(s, scheduleAllowed, "schedules", s.schedule_id);
   checkRequiredFields(s, scheduleRequired, "schedules", s.schedule_id);
   if (!behaviorIds.has(s.behavior_id)) errors.push(`schedule ${s.schedule_id} references missing behavior ${s.behavior_id}`);
+  checkCalendar(s, `schedule ${s.schedule_id}`, explicitCalendar);
+  if (s.schedule_role !== undefined && !["generating", "historical_reference"].includes(s.schedule_role)) errors.push(`schedule ${s.schedule_id} has invalid schedule_role`);
+  if (s.schedule_group_id !== undefined && s.schedule_group_id !== null && typeof s.schedule_group_id !== "string") errors.push(`schedule ${s.schedule_id} has invalid schedule_group_id`);
+  if (s.effective_from_utc !== undefined && !validTimestamp(s.effective_from_utc)) errors.push(`schedule ${s.schedule_id} has invalid effective_from_utc`);
+  if (s.effective_until_utc !== undefined && s.effective_until_utc !== null && !validTimestamp(s.effective_until_utc)) errors.push(`schedule ${s.schedule_id} has invalid effective_until_utc`);
+  if (validTimestamp(s.effective_from_utc) && validTimestamp(s.effective_until_utc) && timestampNanoseconds(s.effective_until_utc) < timestampNanoseconds(s.effective_from_utc)) errors.push(`schedule ${s.schedule_id} effective_until_utc precedes effective_from_utc`);
 }
+const configurationEventsById = new Map(configurationEvents.map((event) => [event.event_id, event]));
 for (const o of occurrences) {
   checkExtensionsOnly(o, occurrenceAllowed, "occurrences", o.occurrence_id);
   checkRequiredFields(o, occurrenceRequired, "occurrences", o.occurrence_id);
@@ -225,6 +374,10 @@ for (const o of occurrences) {
   if (!scheduleIds.has(o.schedule_id)) errors.push(`occurrence ${o.occurrence_id} references missing schedule ${o.schedule_id}`);
   if (Object.hasOwn(o, "current_status") && !statuses.has(o.current_status)) errors.push(`occurrence ${o.occurrence_id} has invalid current_status ${o.current_status}`);
   if (Object.hasOwn(o, "occurrence_state") && !occurrenceStates.has(o.occurrence_state)) errors.push(`occurrence ${o.occurrence_id} has invalid occurrence_state ${o.occurrence_state}`);
+  if (o.configuration_event_id !== undefined && o.configuration_event_id !== null) {
+    if (!configurationEventIds.has(o.configuration_event_id)) errors.push(`occurrence ${o.occurrence_id} references missing configuration event ${o.configuration_event_id}`);
+    else if (configurationEventsById.get(o.configuration_event_id).behavior_id !== o.behavior_id) errors.push(`occurrence ${o.occurrence_id} configuration event belongs to a different behavior`);
+  }
 }
 for (const e of statusEvents) {
   checkExtensionsOnly(e, statusAllowed, "status_events", e.event_id);
@@ -315,6 +468,47 @@ for (const e of definitionEvents) {
       if (!e.previous || typeof e.previous !== "object" || !Object.hasOwn(e.previous, field)) errors.push(`definition event ${e.event_id} changed field ${field} is missing from previous`);
       if (!e.next || typeof e.next !== "object" || !Object.hasOwn(e.next, field)) errors.push(`definition event ${e.event_id} changed field ${field} is missing from next`);
     }
+  }
+}
+for (const e of configurationEvents) {
+  const label = `configuration event ${e.event_id}`;
+  const required = ["record_type", "event_id", "behavior_id", "event_kind", "previous", "next", "changed_fields", "recorded_at_utc", "effective_at_utc", "effective_local_date", "timezone", "source"];
+  checkObject(e, [...required, "reason_code", "extensions"], required, label);
+  for (const field of ["event_id", "behavior_id"]) if (typeof e[field] !== "string" || !e[field]) errors.push(`${label} ${field} must be a non-empty string`);
+  if (!behaviorIds.has(e.behavior_id)) errors.push(`${label} references missing behavior ${e.behavior_id}`);
+  if (!eventKinds.has(e.event_kind)) errors.push(`${label} has invalid event_kind`);
+  if (e.event_kind === "baseline" && e.previous !== null) errors.push(`${label} baseline must have null previous`);
+  if (e.event_kind === "revision" && e.previous === null) errors.push(`${label} revision must have non-null previous`);
+  if (e.previous !== null) checkConfigurationSnapshot(e.previous, `${label} previous`);
+  checkConfigurationSnapshot(e.next, `${label} next`);
+  if (!Array.isArray(e.changed_fields)) errors.push(`${label} changed_fields must be an array`);
+  else {
+    const changed = new Set(e.changed_fields);
+    if (changed.size !== e.changed_fields.length) errors.push(`${label} changed_fields must be unique`);
+    for (const field of changed) if (!configurationFields.has(field)) errors.push(`${label} has invalid changed_fields item ${field}`);
+    if (e.event_kind === "baseline" && !isDeepStrictEqual(e.changed_fields, [...configurationFields])) errors.push(`${label} baseline changed_fields must list every snapshot field in canonical order`);
+    if (e.event_kind === "revision" && e.changed_fields.length === 0 && (typeof e.source?.transformation_notes !== "string" || !e.source.transformation_notes.trim())) errors.push(`${label} empty changed_fields requires non-empty source.transformation_notes explaining the source-only change`);
+    if (e.event_kind === "revision" && e.previous && e.next) {
+      for (const field of configurationFields) {
+        if (!isDeepStrictEqual(e.previous[field], e.next[field]) && !changed.has(field)) errors.push(`${label} changed_fields omits changed ${field}`);
+        if (changed.has(field) && (!Object.hasOwn(e.previous, field) || !Object.hasOwn(e.next, field))) errors.push(`${label} changed_fields ${field} must appear in previous and next`);
+      }
+      const actual = [...configurationFields].filter((field) => !isDeepStrictEqual(e.previous[field], e.next[field]));
+      if (!isDeepStrictEqual(e.changed_fields, actual)) errors.push(`${label} changed_fields must match changed snapshot fields in canonical order`);
+    }
+  }
+  for (const field of ["recorded_at_utc", "effective_at_utc"]) if (!validTimestamp(e[field])) errors.push(`${label} has invalid ${field}`);
+  if (!validDate(e.effective_local_date)) errors.push(`${label} has invalid effective_local_date`);
+  if (!validTimezone(e.timezone)) errors.push(`${label} has invalid timezone`);
+  else if (validTimestamp(e.effective_at_utc)) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en", { timeZone: e.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(e.effective_at_utc)).map((part) => [part.type, part.value]));
+    if (`${parts.year}-${parts.month}-${parts.day}` !== e.effective_local_date) errors.push(`${label} effective_local_date does not match effective_at_utc in timezone`);
+  }
+  if (e.next?.timezone !== e.timezone) errors.push(`${label} timezone must match next.timezone`);
+  if (e.reason_code !== undefined && e.reason_code !== null && typeof e.reason_code !== "string") errors.push(`${label} reason_code must be a string or null`);
+  if (checkObject(e.source, ["producer", "producer_version", "original_id", "capture_method", "imported_from", "confidence", "transformation_notes"], [], `${label} source`)) {
+    if (e.source.capture_method !== undefined && !["manual_tap", "manual_text", "system_generated", "imported", "inferred", "derived", "ai_generated", "unknown"].includes(e.source.capture_method)) errors.push(`${label} source has invalid capture_method`);
+    if (e.source.confidence !== undefined && !["high", "medium", "low", "ambiguous", "unknown"].includes(e.source.confidence)) errors.push(`${label} source has invalid confidence`);
   }
 }
 const runningSessionsByOccurrence = new Map();

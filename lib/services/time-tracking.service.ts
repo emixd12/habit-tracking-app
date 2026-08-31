@@ -1,5 +1,11 @@
 import { Temporal } from "@js-temporal/polyfill";
-
+import {
+  startOccurrenceTimeTracking as startSharedTimeTracking,
+  stopOccurrenceTimeTracking as stopSharedTimeTracking,
+  resetOccurrenceTimeTracking as resetSharedTimeTracking,
+  type TimeTrackingDataStore,
+  type TimeTrackingActionResult,
+} from "@cadence/core/services/time-tracking.service";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { getBehaviorById } from "@/lib/db/behaviors.repo";
 import { getOccurrenceById } from "@/lib/db/occurrences.repo";
@@ -10,195 +16,52 @@ import {
   stopRunningTimeSession,
   type OccurrenceTimeSessionReadRow,
 } from "@/lib/db/timeSessions.repo";
-import {
-  canStartOccurrenceTimeTracking,
-  resolveOccurrenceTimeTracking,
-  resolveResetTimeTracking,
-  resolveStartTimeTracking,
-  resolveStopTimeTracking,
-} from "@/lib/resolvers/time-tracking.resolver";
 import { createClient } from "@/lib/supabase/server";
-import type { OccurrenceStatus } from "@/lib/types/database";
-import type {
-  OccurrenceTimeTracking,
-  TimeSession,
-} from "@/lib/types/time-tracking";
+import type { TimeSession } from "@/lib/types/time-tracking";
 
-const SIGN_IN_MESSAGE = "Sign in again before tracking time.";
-const MISSING_OCCURRENCE_MESSAGE = "This occurrence is no longer available.";
-const INELIGIBLE_START_MESSAGE =
-  "Time tracking is available for active behaviors on today's Timeline or in Needs decision.";
-
-export type TimeTrackingActionResult = Readonly<{
-  tracking: OccurrenceTimeTracking;
-  changed: boolean;
-}>;
+export type { TimeTrackingActionResult } from "@cadence/core/services/time-tracking.service";
 
 export async function startOccurrenceTimeTracking(
   occurrenceId: string,
   options: Readonly<{ now?: Temporal.Instant }> = {},
 ): Promise<TimeTrackingActionResult> {
-  const supabase = await createClient();
-  const userId = await requireCurrentUserId(SIGN_IN_MESSAGE);
-  const now = options.now ?? Temporal.Now.instant();
-  const { occurrence, behavior } = await requireStartEligibility({
-    supabase,
-    userId,
-    occurrenceId,
-    now,
-  });
-  const sessions = await listSessions(supabase, userId, occurrenceId);
-  const plan = resolveStartTimeTracking({ sessions, now });
-
-  if (plan.kind === "already_running") {
-    return { tracking: resolveOccurrenceTimeTracking(sessions), changed: false };
-  }
-
-  const created = await createRunningTimeSession(supabase, {
-    user_id: userId,
-    occurrence_id: occurrence.id,
-    behavior_id: behavior.id,
-    started_at: plan.startedAt,
-  });
-  const persistedSessions = created
-    ? [...sessions, toTimeSession(created)]
-    : await listSessions(supabase, userId, occurrenceId);
-
-  return {
-    tracking: resolveOccurrenceTimeTracking(persistedSessions),
-    changed: created !== null,
-  };
+  const store = await createWebTimeTrackingStore();
+  return startSharedTimeTracking(store, occurrenceId, options.now ?? Temporal.Now.instant());
 }
 
 export async function stopOccurrenceTimeTracking(
   occurrenceId: string,
   options: Readonly<{ now?: Temporal.Instant }> = {},
 ): Promise<TimeTrackingActionResult> {
+  const store = await createWebTimeTrackingStore();
+  return stopSharedTimeTracking(store, occurrenceId, options.now ?? Temporal.Now.instant());
+}
+
+export async function resetOccurrenceTimeTracking(occurrenceId: string): Promise<TimeTrackingActionResult> {
+  return resetSharedTimeTracking(await createWebTimeTrackingStore(), occurrenceId);
+}
+
+async function createWebTimeTrackingStore(): Promise<TimeTrackingDataStore> {
   const supabase = await createClient();
-  const userId = await requireCurrentUserId(SIGN_IN_MESSAGE);
-  const now = options.now ?? Temporal.Now.instant();
-  await requireOwnedOccurrence(supabase, userId, occurrenceId);
-  const sessions = await listSessions(supabase, userId, occurrenceId);
-  const plan = resolveStopTimeTracking({ sessions, now });
-
-  if (plan.kind === "already_stopped") {
-    return { tracking: resolveOccurrenceTimeTracking(sessions), changed: false };
-  }
-
-  const stopped = await stopRunningTimeSession(supabase, {
-    userId,
-    occurrenceId,
-    sessionId: plan.sessionId,
-    stoppedAt: plan.stoppedAt,
-  });
-  const persistedSessions = stopped
-    ? sessions.map((session) =>
-        session.id === stopped.id ? toTimeSession(stopped) : session,
-      )
-    : await listSessions(supabase, userId, occurrenceId);
-
+  const userId = await requireCurrentUserId("Sign in again before tracking time.");
   return {
-    tracking: resolveOccurrenceTimeTracking(persistedSessions),
-    changed: stopped !== null,
+    readOccurrence: (id) => getOccurrenceById(supabase, userId, id),
+    readBehavior: (id) => getBehaviorById(supabase, userId, id),
+    listSessions: async (occurrenceId) =>
+      (await listTimeSessionsForOccurrence(supabase, { userId, occurrenceId })).map(toTimeSession),
+    async createRunningSession(input) {
+      const session = await createRunningTimeSession(supabase, {
+        user_id: userId, occurrence_id: input.occurrenceId,
+        behavior_id: input.behaviorId, started_at: input.startedAt,
+      });
+      return session ? toTimeSession(session) : null;
+    },
+    async stopRunningSession(input) {
+      const session = await stopRunningTimeSession(supabase, { userId, ...input });
+      return session ? toTimeSession(session) : null;
+    },
+    resetSessions: (occurrenceId) => deleteTimeSessionsForOccurrence(supabase, { userId, occurrenceId }),
   };
-}
-
-export async function resetOccurrenceTimeTracking(
-  occurrenceId: string,
-): Promise<TimeTrackingActionResult> {
-  const supabase = await createClient();
-  const userId = await requireCurrentUserId(SIGN_IN_MESSAGE);
-  await requireOwnedOccurrence(supabase, userId, occurrenceId);
-  const sessions = await listSessions(supabase, userId, occurrenceId);
-  const plan = resolveResetTimeTracking(sessions);
-
-  if (!plan.hasSessions) {
-    return { tracking: resolveOccurrenceTimeTracking([]), changed: false };
-  }
-
-  const deletedIds = await deleteTimeSessionsForOccurrence(supabase, {
-    userId,
-    occurrenceId,
-  });
-
-  return {
-    tracking: resolveOccurrenceTimeTracking([]),
-    changed: deletedIds.length > 0,
-  };
-}
-
-async function requireStartEligibility(input: Readonly<{
-  supabase: Awaited<ReturnType<typeof createClient>>;
-  userId: string;
-  occurrenceId: string;
-  now: Temporal.Instant;
-}>) {
-  const occurrence = await requireOwnedOccurrence(
-    input.supabase,
-    input.userId,
-    input.occurrenceId,
-  );
-  const behavior = await getBehaviorById(
-    input.supabase,
-    input.userId,
-    occurrence.behavior_id,
-  );
-
-  if (!behavior) {
-    throw new Error(MISSING_OCCURRENCE_MESSAGE);
-  }
-
-  if (!canStartOccurrenceTimeTracking({
-    behaviorActive: behavior.active,
-    occurrenceLocalDate: occurrence.local_date,
-    occurrenceStatus: normalizeOccurrenceStatus(occurrence.status),
-    statusMarkedAt: occurrence.status_marked_at,
-    now: input.now,
-    timezone: behavior.timezone,
-  })) {
-    throw new Error(INELIGIBLE_START_MESSAGE);
-  }
-
-  return { occurrence, behavior };
-}
-
-function normalizeOccurrenceStatus(value: string): OccurrenceStatus {
-  if (
-    value === "unresolved" ||
-    value === "completed" ||
-    value === "not_completed"
-  ) {
-    return value;
-  }
-
-  throw new Error(`Unsupported occurrence status: ${value}`);
-}
-
-async function requireOwnedOccurrence(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-  occurrenceId: string,
-) {
-  const occurrence = await getOccurrenceById(supabase, userId, occurrenceId);
-
-  if (!occurrence) {
-    throw new Error(MISSING_OCCURRENCE_MESSAGE);
-  }
-
-  return occurrence;
-}
-
-async function listSessions(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-  occurrenceId: string,
-): Promise<TimeSession[]> {
-  const sessions = await listTimeSessionsForOccurrence(supabase, {
-    userId,
-    occurrenceId,
-  });
-
-  return sessions.map(toTimeSession);
 }
 
 export function toTimeSession(session: OccurrenceTimeSessionReadRow): TimeSession {

@@ -11,7 +11,7 @@ import {
 import { X } from "lucide-react";
 
 const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'summary, a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 type NeedsDecisionDialogProps = Readonly<{
   title: string;
@@ -98,10 +98,11 @@ export function NeedsDecisionDialog({
       document.body.style.overflow = originalOverflow;
       document.removeEventListener("keydown", handleKeyDown);
 
-      if (previousElement?.isConnected) {
+      // WebKit pointer clicks can leave body focused instead of the launcher.
+      if (launcherElement?.isConnected) {
+        launcherElement.focus({ preventScroll: true });
+      } else if (previousElement?.isConnected) {
         previousElement.focus({ preventScroll: true });
-      } else {
-        launcherElement?.focus({ preventScroll: true });
       }
     };
   }, [isOpen]);
@@ -182,12 +183,19 @@ export function NeedsDecisionDialog({
   );
 }
 
-function getFocusableElements(container: HTMLElement) {
+export function getFocusableElements(container: HTMLElement) {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
     (element) =>
       !element.hasAttribute("disabled") &&
-      element.getAttribute("aria-hidden") !== "true",
+      element.getAttribute("aria-hidden") !== "true" &&
+      isRendered(element),
   );
+}
+
+function isRendered(element: HTMLElement): boolean {
+  return typeof element.checkVisibility === "function"
+    ? element.checkVisibility({ checkVisibilityCSS: true })
+    : element.getClientRects().length > 0;
 }
 
 function decisionButtonDetail(count: number, hasRetainedRows: boolean): string {

@@ -217,99 +217,8 @@ values
     '2026-07-03T15:30:00Z'
   );
 
-do $$
-begin
-  assert cadence_private.ticket_060_matches_recurrence(
-    '{"frequency":"daily","interval":2}',
-    '2026-01-02',
-    '2026-01-06'
-  );
-  assert cadence_private.ticket_060_matches_recurrence(
-    '{"frequency":"interval_days","intervalDays":3}',
-    '2026-01-01',
-    '2026-01-10'
-  );
-  assert cadence_private.ticket_060_matches_recurrence(
-    '{"frequency":"weekly","interval":2,"daysOfWeek":["sunday"]}',
-    '2026-01-04',
-    '2026-01-18'
-  );
-  assert cadence_private.ticket_060_matches_recurrence(
-    '{"frequency":"monthly","interval":1,"dayOfMonth":31}',
-    '2026-01-31',
-    '2026-02-28'
-  );
-  assert cadence_private.ticket_060_compatible_instant(
-    '2026-03-08',
-    '02:30',
-    'America/New_York'
-  ) = '2026-03-08T07:30:00Z';
-  assert cadence_private.ticket_060_compatible_instant(
-    '2026-11-01',
-    '01:30',
-    'America/New_York'
-  ) = '2026-11-01T05:30:00Z';
-  assert cadence_private.ticket_060_compatible_instant(
-    '2026-06-01',
-    '00:00',
-    'America/Los_Angeles'
-  ) = '2026-06-01T07:00:00Z';
-end;
-$$;
-
-do $$
-declare
-  first_result jsonb;
-  second_result jsonb;
-begin
-  first_result := cadence_private.repair_empty_behavior_schedules(
-    '2026-07-17T16:00:00Z'
-  );
-
-  assert first_result ->> 'repaired_schedules' = '2';
-  assert first_result ->> 'repaired_slots' = '2';
-  assert first_result ->> 'repaired_occurrences' = '6';
-  assert first_result ->> 'affected_users' = '1';
-  assert (
-    select count(*) = 8
-    from public.occurrences
-    where behavior_id = '11000000-0000-4000-8000-000000000011'
-  );
-  assert (
-    select status = 'completed'
-      and completed_at = '2026-06-26T16:00:00Z'
-      and status_marked_at = '2026-06-26T16:00:00Z'
-    from public.occurrences
-    where id = '11400000-0000-4000-8000-000000000114'
-  );
-  assert (
-    select count(*) = 0
-    from public.occurrences
-    where behavior_id = '12000000-0000-4000-8000-000000000012'
-  );
-  assert (
-    select updated_at = '2026-06-01T12:00:00Z'
-    from public.behavior_schedule_slots
-    where id = '13200000-0000-4000-8000-000000000132'
-  );
-  assert (
-    select stale and stale_reason = 'manual_repair'
-    from public.occurrence_sync_state
-    where user_id = '10000000-0000-4000-8000-000000000001'
-  );
-
-  second_result := cadence_private.repair_empty_behavior_schedules(
-    '2026-07-17T16:00:00Z'
-  );
-  assert second_result = jsonb_build_object(
-    'repaired_schedules', 0,
-    'repaired_slots', 0,
-    'repaired_occurrences', 0,
-    'affected_users', 0
-  );
-end;
-$$;
-
+-- Retired one-time helpers and legacy RPC signatures remain covered by migration tests.
+\if false
 set local role authenticated;
 set local request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
 
@@ -628,6 +537,158 @@ begin
     )
   );
   assert cross_owner_result is null;
+end;
+$$;
+\endif
+
+insert into public.behaviors (
+  id,
+  user_id,
+  title,
+  recurrence_rule,
+  scheduled_time,
+  timezone,
+  active,
+  created_at,
+  updated_at
+)
+values (
+  '14000000-0000-4000-8000-000000000014',
+  '10000000-0000-4000-8000-000000000001',
+  'Ticket 085 overlapping occurrence identity',
+  '{"frequency":"daily","interval":1}',
+  '09:00',
+  'America/New_York',
+  true,
+  '2026-06-01T12:00:00Z',
+  '2026-06-01T12:00:00Z'
+);
+
+insert into public.behavior_schedules (
+  id,
+  user_id,
+  behavior_id,
+  recurrence_rule,
+  sort_order,
+  created_at,
+  updated_at
+)
+values
+  (
+    '14100000-0000-4000-8000-000000000141',
+    '10000000-0000-4000-8000-000000000001',
+    '14000000-0000-4000-8000-000000000014',
+    '{"frequency":"daily","interval":1}',
+    0,
+    '2026-06-01T12:00:00Z',
+    '2026-06-01T12:00:00Z'
+  ),
+  (
+    '14200000-0000-4000-8000-000000000142',
+    '10000000-0000-4000-8000-000000000001',
+    '14000000-0000-4000-8000-000000000014',
+    '{"frequency":"weekly","interval":1,"daysOfWeek":["monday"]}',
+    1,
+    '2026-06-01T12:00:00Z',
+    '2026-06-01T12:00:00Z'
+  );
+
+insert into public.behavior_schedule_slots (
+  id,
+  user_id,
+  behavior_id,
+  behavior_schedule_id,
+  kind,
+  preset,
+  start_time,
+  end_time,
+  sort_order,
+  created_at,
+  updated_at
+)
+values
+  (
+    '14300000-0000-4000-8000-000000000143',
+    '10000000-0000-4000-8000-000000000001',
+    '14000000-0000-4000-8000-000000000014',
+    '14100000-0000-4000-8000-000000000141',
+    'exact',
+    null,
+    '09:00',
+    null,
+    0,
+    '2026-06-01T12:00:00Z',
+    '2026-06-01T12:00:00Z'
+  ),
+  (
+    '14400000-0000-4000-8000-000000000144',
+    '10000000-0000-4000-8000-000000000001',
+    '14000000-0000-4000-8000-000000000014',
+    '14200000-0000-4000-8000-000000000142',
+    'range',
+    null,
+    '09:00',
+    '12:00',
+    0,
+    '2026-06-01T12:00:00Z',
+    '2026-06-01T12:00:00Z'
+  );
+
+insert into public.occurrences (
+  user_id,
+  behavior_id,
+  behavior_schedule_slot_id,
+  scheduled_for,
+  local_date,
+  schedule_kind,
+  schedule_preset,
+  schedule_start_time,
+  schedule_end_time,
+  status
+)
+values
+  (
+    '10000000-0000-4000-8000-000000000001',
+    '14000000-0000-4000-8000-000000000014',
+    '14300000-0000-4000-8000-000000000143',
+    '2026-06-01T13:00:00Z',
+    '2026-06-01',
+    'exact',
+    null,
+    '09:00',
+    null,
+    'unresolved'
+  ),
+  (
+    '10000000-0000-4000-8000-000000000001',
+    '14000000-0000-4000-8000-000000000014',
+    '14400000-0000-4000-8000-000000000144',
+    '2026-06-01T13:00:00Z',
+    '2026-06-01',
+    'range',
+    null,
+    '09:00',
+    '12:00',
+    'unresolved'
+  )
+on conflict (
+  behavior_id,
+  local_date,
+  schedule_start_time,
+  schedule_range_identity
+) do nothing;
+
+do $$
+begin
+  assert (
+    select count(*) = 2
+      and count(distinct schedule_range_identity) = 2
+      and min(schedule_range_identity) = -1
+    from public.occurrences
+    where behavior_id = '14000000-0000-4000-8000-000000000014'
+      and local_date = '2026-06-01'
+      and schedule_start_time = '09:00'
+  );
 end;
 $$;
 

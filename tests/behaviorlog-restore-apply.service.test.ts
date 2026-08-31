@@ -364,6 +364,10 @@ describe("BehaviorLog restore apply service", () => {
         status: "previewed",
         startedAt: expect.any(String),
         completedAt: expect.any(String),
+        dryRunSummary: expect.objectContaining({
+          archiveFingerprint: sha256Bytes(createStoredZip(bundleFiles())),
+          bundlePayloadFingerprint: sha256Bytes(createStoredZip(bundleFiles())),
+        }),
       }),
     );
   });

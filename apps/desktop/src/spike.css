@@ -1,0 +1,25 @@
+/* Operator bench chrome only; product tokens move after the native gate passes. */
+:root { font-family: Arial, Helvetica, sans-serif; color: #171717; background: #fafafa; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 960px; margin: auto; padding: 32px; }
+header { border-bottom: 1px solid #bbb; margin-bottom: 24px; }
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.25rem; }
+p { max-width: 72ch; line-height: 1.5; }
+fieldset { min-width: 0; margin: 24px 0; padding: 20px; border: 1px solid #bbb; }
+legend { padding: 0 8px; font-size: 1.15rem; }
+label { display: block; }
+input { display: block; width: 100%; margin: 8px 0 16px; padding: 10px; font: inherit; color: inherit; background: white; border: 1px solid #777; border-radius: 0; }
+button { min-height: 44px; padding: 8px 12px; font: inherit; border: 1px solid #777; border-radius: 0; background: white; color: #171717; cursor: pointer; }
+button:hover:not(:disabled) { background: #ededed; }
+button:disabled, fieldset:disabled button { color: #595959; cursor: not-allowed; }
+:focus-visible { outline: 3px solid #245d9b; outline-offset: 3px; }
+.actions, .fields { display: flex; flex-wrap: wrap; gap: 12px; }
+.fields { margin-top: 20px; }
+.fields label { flex: 1 1 200px; }
+.notice { padding: 16px; border: 1px solid #777; }
+dt { margin-top: 12px; color: #595959; }
+dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+pre { overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.5; }
+@media (max-width: 480px) { main { padding: 20px; } fieldset { padding: 12px; } .actions button { width: 100%; } }

@@ -61,19 +61,5 @@ export type ImportedNoteUpdate = TablesUpdate<"imported_notes">;
 export type ReminderDeliveryUpdate = TablesUpdate<"reminder_deliveries">;
 export type PushSubscriptionUpdate = TablesUpdate<"push_subscriptions">;
 
-export type OccurrenceStatus = "unresolved" | "completed" | "not_completed";
-export type ReminderChannel = "browser_push" | "email";
-export type ReminderDeliveryStatus = "pending" | "sent" | "failed" | "cancelled";
-
-export const DEFAULT_CATEGORY_NAMES = [
-  "Medical",
-  "Grooming",
-  "Fitness",
-  "Food / Drink",
-  "Home",
-  "Measurements",
-  "Admin",
-  "Other",
-] as const;
-
-export type DefaultCategoryName = (typeof DEFAULT_CATEGORY_NAMES)[number];
+export type { OccurrenceStatus, ReminderChannel, ReminderDeliveryStatus, DefaultCategoryName } from "@cadence/core/types/database";
+export { DEFAULT_CATEGORY_NAMES } from "@cadence/core/types/database";

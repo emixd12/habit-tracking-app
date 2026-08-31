@@ -6,9 +6,80 @@ import {
   resolveBehaviorLogImportMergePreview,
   resolveBehaviorLogImportPreview,
 } from "../lib/resolvers/behaviorlog-import.resolver";
-import type { BehaviorLogImportFile } from "../lib/types/behaviorlog-import";
+import type { BehaviorLogExistingRecords, BehaviorLogImportFile } from "../lib/types/behaviorlog-import";
+import { behaviorLog03Files } from "./helpers/behaviorlog-03-fixture";
+type PassiveIntervention = NonNullable<BehaviorLogExistingRecords["importedInterventions"]>[number];
+const passiveIntervention: PassiveIntervention = {
+  id: "local-passive-intervention", importRunId: "prior-run", externalId: "old-source-intervention",
+  behaviorExternalId: "old-source-behavior", occurrenceExternalId: "old-source-occurrence",
+  behaviorId: "local-behavior", occurrenceId: "local-occurrence", interventionType: "reminder", channel: "email",
+  deliveryStatus: "sent", scheduledSendAtUtc: "2026-06-08T12:45:00Z", sentAtUtc: "2026-06-08T12:46:00Z",
+  failureReason: null, sourceOriginalId: "delivery-1", sourceCaptureMethod: "system_generated", sourceConfidence: "high",
+};
 
 describe("BehaviorLog Intervention Profile import preview", () => {
+  it("recognizes a self-exported passive intervention local ID through mapped parents", () => {
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles({ interventions: [interventionRecord({ intervention_id: passiveIntervention.id })] }),
+      existing: interventionExisting([passiveIntervention]),
+    });
+    expect(preview.mergePreview.actions.interventions[0]).toMatchObject({ action: "map_to_existing", localId: passiveIntervention.id, conflictCodes: [] });
+  });
+
+  it.each<{ name: string; change: Partial<PassiveIntervention> }>([
+    { name: "behavior", change: { behaviorId: "other-behavior" } },
+    { name: "occurrence", change: { occurrenceId: "other-occurrence" } },
+    { name: "type", change: { interventionType: "prompt" } },
+    { name: "channel", change: { channel: "other" } },
+    { name: "status", change: { deliveryStatus: "delivered" } },
+    { name: "planned timestamp", change: { scheduledSendAtUtc: "2026-06-08T12:44:00Z" } },
+    { name: "sent timestamp", change: { sentAtUtc: null } },
+    { name: "failure reason", change: { failureReason: "delivery_failed" } },
+    { name: "source ID", change: { sourceOriginalId: "different-source" } },
+    { name: "capture method", change: { sourceCaptureMethod: "inferred" } },
+    { name: "confidence", change: { sourceConfidence: "low" } },
+  ])("conflicts on changed passive $name even with an explicit existing mapping", ({ change }) => {
+    const existing = interventionExisting([{ ...passiveIntervention, ...change }]);
+    existing.mappings = [{ recordType: "intervention", externalId: "delivery-1", localId: passiveIntervention.id }];
+    const preview = resolveBehaviorLogImportMergePreview({ files: behaviorLogFiles(), existing });
+    expect(preview.mergePreview.actions.interventions[0]).toMatchObject({ action: "conflict_requires_decision",
+      localId: passiveIntervention.id, conflictCodes: ["intervention_identity_mismatch"] });
+  });
+
+  it("keeps distinct passive intervention IDs and rejects missing or ambiguous mapping targets", () => {
+    const existing = interventionExisting([passiveIntervention]);
+    expect(resolveBehaviorLogImportMergePreview({ files: behaviorLogFiles(), existing }).mergePreview.actions.interventions[0].action).toBe("create_new");
+    existing.mappings = [{ recordType: "intervention", externalId: "delivery-1", localId: "missing-record" }];
+    expect(resolveBehaviorLogImportMergePreview({ files: behaviorLogFiles(), existing }).mergePreview.actions.interventions[0].conflictCodes).toContain("intervention_mapped_record_missing");
+    existing.mappings = [];
+    existing.importedInterventions!.push({ ...passiveIntervention, id: "another-record", externalId: passiveIntervention.id });
+    const ambiguous = resolveBehaviorLogImportMergePreview({ files: behaviorLogFiles({ interventions: [interventionRecord({ intervention_id: passiveIntervention.id })] }), existing });
+    expect(ambiguous.mergePreview.actions.interventions[0].conflictCodes).toContain("intervention_identity_ambiguous");
+  });
+
+  it("accepts its own native observation as passive 0.3 history without changing current cue policy", () => {
+    const files = behaviorLog03Files();
+    const preview = resolveBehaviorLogImportPreview({ files, reminderChannel: "other" });
+    expect(preview.errors).toEqual([]);
+    expect(preview.plan.interventions).toEqual([expect.objectContaining({ channel: "other", deliveryStatus: "delivered",
+      storageDecision: expect.objectContaining({ reminderDeliverySideEffects: false, providerSideEffects: false }) })]);
+    expect(preview.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: "portability_loss", file: "data/interventions.jsonl" })]));
+    expect(preview.plan.interventionRules).toEqual(expect.arrayContaining([expect.objectContaining({ channel: "browser_push", action: "create" })]));
+    const web = resolveBehaviorLogImportPreview({ files });
+    expect(web.errors).toEqual([]);
+    expect(web.plan.interventionRules?.filter((rule) => rule.channel === "other").every((rule) => rule.action === "skip")).toBe(true);
+  });
+
+  it.each(["sms", "mobile_push", "in_app", "calendar_notification", "voice_assistant", "webhook", "other", "none"])(
+    "preserves passive %s observations and all canonical delivery states", (channel) => {
+      const statuses = ["planned", "sent", "delivered", "failed", "cancelled", "suppressed", "unknown"];
+      const preview = resolveBehaviorLogImportPreview({ files: behaviorLogFiles({ schemaVersion: "0.3.0-draft",
+        interventions: statuses.map((delivery_status, index) => canonicalInterventionRecord({ intervention_id: `passive-${index}`, channel, delivery_status })) }) });
+      expect(preview.errors).toEqual([]);
+      expect(preview.plan.interventions.map((row) => [row.channel, row.deliveryStatus]))
+        .toEqual(statuses.map((status) => [channel, status === "planned" ? "pending" : status]));
+    });
+
   it("previews valid interventions by channel, delivery status, and linked behavior", () => {
     const preview = resolveBehaviorLogImportPreview({
       files: behaviorLogFiles({
@@ -312,9 +383,21 @@ describe("BehaviorLog Intervention Profile import preview", () => {
   });
 });
 
+function interventionExisting(importedInterventions: PassiveIntervention[]): BehaviorLogExistingRecords {
+  return {
+    behaviors: [{ id: "local-behavior", title: "Brush teeth", category: "Grooming", active: true, archivedAt: null, sourceOriginalId: "behavior-brush" }],
+    schedules: [{ id: "local-schedule", behaviorId: "local-behavior", recurrenceProfile: "behaviorlog.calendar_simple.v1", recurrence: { type: "daily", interval: 1 },
+      timezone: "America/New_York", localTime: "09:00", windowStartLocal: null, windowEndLocal: null, cadenceScheduleKind: "exact", cadenceSchedulePreset: null,
+      activeFromLocalDate: "2026-05-01", activeUntilLocalDate: null }],
+    occurrences: [{ id: "local-occurrence", behaviorId: "local-behavior", scheduleId: "local-schedule", scheduledForUtc: "2026-06-08T13:00:00Z",
+      localDate: "2026-06-08", timezone: "America/New_York", status: "unresolved" }],
+    importedInterventions,
+  };
+}
+
 function behaviorLogFiles(input: {
   interventions?: Array<Record<string, unknown>>;
-  schemaVersion?: "0.1.0-draft" | "0.2.0-draft";
+  schemaVersion?: "0.1.0-draft" | "0.2.0-draft" | "0.3.0-draft";
 } = {}): BehaviorLogImportFile[] {
   const contentByPath = new Map([
     ["schema.json", "{}"],

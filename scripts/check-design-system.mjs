@@ -126,10 +126,6 @@ function validateSurfaceCatalog() {
       mappedSurfaces.add(implementation.surfaceId);
 
       for (const source of implementation.sources ?? []) {
-        if (isPlannedSource(source)) {
-          continue;
-        }
-
         if (!existsSync(source)) {
           errors.push(`${family.id} references missing source ${source}.`);
         }
@@ -161,8 +157,4 @@ function validateSurfaceCatalog() {
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
-}
-
-function isPlannedSource(source) {
-  return source.startsWith("apps/desktop") || source.startsWith("apps/mobile");
 }

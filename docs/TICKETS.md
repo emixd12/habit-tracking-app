@@ -25,6 +25,12 @@ npm run build
 If a command does not exist yet, add it or explicitly state why it does not exist.
 For UI/design-system changes, also run `npm run design-system:check`.
 
+Every new or materially changed product/design ticket includes a Platform
+impact table for web, desktop, marketing, and future mobile. Each entry must
+name an implementation reference, a follow-up ticket, or an explicit
+not-applicable reason. Existing interaction IDs and the design-system catalog
+own shared intent and evidence; do not add a parallel decision system.
+
 ---
 
 ## Ticket 001: Initialize app
@@ -5330,8 +5336,9 @@ Out of scope:
 
 ## Future ticket: Workspace restructuring
 
-Move toward the target composable architecture only when needed by marketing,
-desktop/mobile, or shared-core work.
+Broader restructuring remains deferred. Tickets 107–114 add the desktop and
+shared core/UI workspaces while leaving Next.js at the repository root. Moving
+Next.js into `apps/app` or adding other packages still needs a separate ticket.
 
 Target shape:
 
@@ -7975,6 +7982,469 @@ Out of scope:
 
 ## Deferred work
 
-PWA caching, offline timeline access, local pending status changes, and sync conflict handling are not part of the v1 ticket sequence.
+Web PWA caching, web offline timeline access, web pending status changes, and
+live sync conflict handling remain deferred. Tickets 107–114 separately permit
+local-first desktop tracking and a dormant sync scaffold.
 
 See `/docs/FUTURE_UPDATES.md`.
+
+---
+
+## Ticket 106: Marketing content redesign and legal publication gates
+
+Reframe public content around explicit decisions, preserved context,
+longitudinal review, and portable records without exceeding implemented
+product behavior.
+
+Status: in progress.
+
+Settled contract:
+
+- Keep the public MIT source at
+  `https://github.com/emixd12/habit-tracking-app`.
+- Keep the application origin canonical for `/trust`, `/privacy`, and `/terms`.
+- State that Cadence provides prompts while users export data and choose an
+  external AI service. Cadence does not send behavior data to an AI provider.
+- Name exactly five exports: JSONL, JSON, CSV, Markdown, and BehaviorLog bundle.
+- Use Identity Scaffolding LLC, a Wyoming limited liability company assumed
+  authorized in New York, at 30 N Gould St Ste R, Sheridan, WY 82801.
+- Use a minimum age of 18, New York governing law subject to nonwaivable
+  consumer protections, informal dispute resolution first, and then a court of
+  competent jurisdiction in New York State. Do not require arbitration or a
+  class-action waiver.
+- Use the retention schedule in `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
+- Link the marketing header to the dedicated disclosed macOS preview release.
+
+Acceptance criteria:
+
+- Public copy matches the implemented product and the settled contract.
+- Provider retention is verified with sanitized evidence before retention
+  claims are published.
+- `privacy@identityscaffolding.com` is created and confirmed with one harmless
+  route test before publication.
+- One legal review approves the final legal text and facts before publication.
+- Public registration stays closed until all three gates pass.
+- The work adds no product feature, AI integration, analytics, payment flow,
+  auth flow, export format, duplicate legal route, or runtime dependency.
+
+Current gate state: the provider-retention gate fails. The mailbox and legal
+review gates remain pending. The local content implementation is complete, but
+Privacy/Terms publication and public registration remain blocked. The 2026-08-31
+desktop/nonlegal production landing explicitly excludes those legal route drafts
+and their shared component; it does not waive any gate.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+| --- | --- |
+| Web | Not applicable. The authenticated web app does not change. |
+| Desktop | Ticket 113 owns the existing preview release and its disclosures; no desktop runtime code changes. |
+| Marketing | The shared header adds the Download for macOS action through `BaseLayout.astro` and `site.ts`. |
+| Future mobile | Deferred. This change neither implements nor advertises a mobile app. |
+
+---
+
+## Ticket 107: Desktop track activation
+
+Activate the accepted macOS implementation plan without changing current web
+behavior or claiming desktop completion.
+
+Dependencies: owner approval recorded on 2026-08-30.
+
+Current state (2026-08-30): complete. Activation docs and structural platform checks pass; this does not establish product parity.
+
+Acceptance criteria:
+
+- Reconcile `AGENTS.md`, product/architecture/desktop docs, deferred work, and
+  the status ledger with the active track.
+- Record the current tracking baseline in `docs/DESKTOP_PARITY.md`, anchored
+  to existing interaction IDs, current code, and current data contracts.
+- Extend the existing interaction registry with platform applicability,
+  implementation state, and evidence; require valid references.
+- Require platform impact entries for new or materially changed product/design
+  tickets. Marketing consumes approved claims; future mobile remains deferred.
+- Schedule Tickets 108–113 with native proof before broad refactoring and
+  explicit parity, notification-coverage, and signed-release gates.
+- Preserve unrelated uncommitted work, including Ticket 106 publication gates.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Preserve current behavior; baseline in `docs/DESKTOP_PARITY.md` and `interaction-registry.json` |
+| Desktop | `docs/DESKTOP_BUILD.md`; implementation follows Tickets 108–113 |
+| Marketing | `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`; no new availability claim before approved release |
+| Future mobile | Not applicable to implementation: mobile remains deferred; shared contracts remain portable |
+
+Verification: agent, interaction, resolver, design-system, lint, typecheck,
+test, web-build, and marketing checks. Structural parity metadata is not
+semantic or native verification.
+
+---
+
+## Ticket 108: Native boundary proof
+
+Prove native storage and notification boundaries before extracting shared
+core code or porting the four product screens.
+
+Dependencies: Ticket 107 contract; precedes Tickets 109–113.
+
+Current state (2026-08-30): complete. Real native activation passed at 21:05:16Z. Evidence and remaining release checks live in `docs/qa/2026-08-30-desktop-native-boundary.md`.
+
+Acceptance criteria:
+
+- Add a minimal Tauri v2/Vite/React application under `apps/desktop`, targeting
+  macOS 14+ and Apple Silicon. Keep Next.js at the repository root.
+- Verify a persistent SQLite write survives application restart and an injected
+  transaction failure rolls back every write.
+- Verify native scheduled notification creation, cancellation, activation,
+  permission denial, and restart behavior in actual macOS/WKWebView execution.
+- Use a thin native transaction/scheduling boundary as needed. Separate calls
+  to a SQL plugin do not establish atomicity. Standard desktop notification
+  plugin delivery alone does not establish scheduling support.
+- Record native evidence and limitations. Browser simulation, compilation,
+  and unit tests do not establish OS delivery or activation.
+- Verify OS readback and nearest-first coverage under observed scheduling
+  limits. Target 30 days and clearly display a shorter verified horizon when
+  needed. Do not assume a universal cap or add a background helper.
+- Native notification activation remains a prerequisite for broad extraction;
+  the horizon decision does not complete this ticket or relax other gates.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Preserve root scripts/deployment; regression verification under this ticket |
+| Desktop | `apps/desktop`; native proof documented in `STATUS.md`; product UI follows Ticket 111 |
+| Marketing | Not applicable: developer proof adds no approved product availability claim |
+| Future mobile | Not applicable: native proof targets macOS only; no mobile implementation |
+
+Verification: native build/tests plus persistent-write, rollback, notification,
+activation, and restart checks. Run the repository verification set from Ticket
+107. Keep this ticket incomplete until required native evidence exists.
+
+---
+
+## Ticket 109: Shared core and design foundations
+
+Extract portable foundations incrementally while preserving web APIs.
+
+Dependencies: Tickets 107–108, including native proof.
+
+Current state (2026-08-30): complete. Portable core, atomic contracts, archive adapters, canonical tokens, fonts, and runtime adapters pass final BehaviorLog 0.3 checks. Web, marketing, and desktop builds pass.
+
+Acceptance criteria:
+
+- Add `packages/core` and `packages/ui` only as real implementations move.
+  Reuse types, resolvers, orchestration, tokens, and installed dependencies.
+- Preserve existing web module APIs through adapters or compatibility exports.
+  Keep Supabase Auth, RLS, caching, and provider delivery in web adapters.
+- Define operation-specific DataStore methods, including atomic Behavior,
+  status, import, and restore operations. Do not introduce generic CRUD.
+- Replace Node-only hashes without changing fingerprints. Isolate archives
+  behind an adapter and preserve every existing archive safety limit.
+- Check core imports for Next.js, Supabase, Tauri, Node-only APIs, browser
+  globals, and concrete adapters. Update existing resolver governance for
+  moved code; do not weaken resolver tests.
+- Extract canonical tokens without forcing shared product components. Extend
+  `design-system.surfaces.json` with real desktop implementations/bench
+  evidence and separate product usage from previews.
+- Establish shared domain fixtures and adapter contracts for Ticket 110.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Existing `lib/resolvers`, `lib/services`, and UI callers retain APIs through adapters |
+| Desktop | `packages/core`, `packages/ui`; consumed by Tickets 110–112 |
+| Marketing | Preserve Astro runtime; consume canonical tokens where applicable under this ticket |
+| Future mobile | Not applicable to runtime work: portable contracts support a separately scheduled future mobile ticket |
+
+Verification: full repository checks, core portability check, unchanged hash
+fixtures, existing resolver tests, and web/marketing build equivalence.
+
+---
+
+## Ticket 110: Local persistence and atomic operations
+
+Implement the current domain model in SQLite under one stable local profile.
+
+Dependencies: Tickets 108–109.
+
+Current state (2026-08-30): complete. SQLite schema 6 and ordinary authenticated Supabase contracts pass final 0.3 lifecycle, fresh replay, import/restore, stale-write, history, rollback, and restart checks. All 47 local Supabase migrations and 92 RLS checks pass. No hosted migration ran.
+
+Acceptance criteria:
+
+- Write git-tracked SQLite migrations from current data contracts, including
+  schedules/slots, timing, all histories, configuration lineage, range-aware
+  Occurrence identity, reminder records, and import provenance.
+- Seed one stable profile and current default categories once. Preserve user
+  changes and the selected timezone across restart.
+- Preserve foreign keys, owner consistency, uniqueness, stale-write guards,
+  append-only histories, Occurrence preservation, and idempotency.
+- Commit each domain mutation and its outbox records atomically. Retain
+  tombstones, cursors, stable local identity, and a no-op SyncEngine. Add no
+  live sync, remote conflict policy, cloud login, or provider delivery.
+- Implement atomic Behavior/status/import/restore operations and meaningful
+  rollback tests. Preserve accepted-preview binding and existing privacy gates.
+- Document SQLite schema/migration ownership in `docs/DATA_MODEL.md` without
+  changing hosted schema or Supabase RLS semantics.
+- Run the same operation contract suite against local Supabase and real SQLite.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Existing Supabase adapter participates in shared contract tests; no hosted migration authorized |
+| Desktop | SQLite adapter under `apps/desktop`; `docs/DATA_MODEL.md` documents implemented schema |
+| Marketing | Not applicable: persistence adds no public-copy change |
+| Future mobile | Not applicable to implementation: portable contracts remain available for future scoped work |
+
+Verification: both adapter suites, clean local migrations, rollback, restart,
+stale writes, protected Occurrences, timing restart, and the repository checks.
+
+---
+
+## Ticket 111: Desktop tracking parity
+
+Port all current tracking capabilities with the current sparse four-screen UI.
+
+Dependencies: Tickets 109–110; baseline from Ticket 107.
+
+Current state (2026-08-31): complete locally. Four screens use shared UI and
+local services. Native tracking, review, archive/restore, save/privacy,
+merge/replay, destructive restore, responsive layout, and keyboard evidence
+pass. Final 0.3 builds and adapter checks pass. The owner confirmed launching
+without networking, setting the synthetic Cadence offline QA Occurrence to Completed,
+and persistence after quit/relaunch. The supplied screenshot shows Completed.
+Before GUI inspection, SQLite independently confirmed the saved decision at
+00:28:19 EDT, with its status mutation at 00:26:04.205 and passing integrity and
+foreign-key checks. The running process started at 00:26:20, after the decision;
+the reopened native UI retained Completed before cleanup. Network disconnection
+was owner-confirmed, not independently observed. Evidence:
+`docs/qa/2026-08-30-desktop-lifecycle-release.md#offline-launch-and-persistence-passed`.
+Ticket 113's preview milestone later completed. Ticket 115 owns deferred Apple-
+trusted distribution requirements.
+
+Acceptance criteria:
+
+- Timeline preserves Needs decision, manual statuses, Notes, timing, retained
+  corrections, and completion feedback.
+- Behaviors preserves every recurrence/time-range control, multiple schedules,
+  categories, edit/archive/restore, analytics, and selected-day review.
+- Export & Import preserves all five formats, prompt tools, privacy defaults,
+  BehaviorLog import/merge, destructive restore, history, and provenance.
+- Reuse BehaviorLog import for web-to-desktop transfer. Add no Full JSON importer.
+- Local Settings preserves timezone, optional onboarding, and notification
+  controls. Omit cloud account controls, email delivery, and duplicate legal pages.
+- Use callbacks/client services instead of Server Actions. Bundle necessary
+  fonts, images, and audio for offline operation, subject to Ticket 113 rights review.
+- Update existing interaction IDs and design-system surface mappings with real
+  implementations and evidence. Keep product usage separate from bench previews.
+- Preserve keyboard access, responsive layouts, native WKWebView rendering,
+  offline launch, and restart persistence.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Shared-core consumers retain semantics; common fixtures and web regression checks |
+| Desktop | `apps/desktop`; evidence in `docs/DESKTOP_PARITY.md` and `interaction-registry.json` |
+| Marketing | Do not claim notarized or generally available desktop distribution until Ticket 115 passes |
+| Future mobile | Not applicable to implementation: responsive contracts do not authorize mobile delivery |
+
+Verification: common parity fixtures; midnight/DST, monthly fallback,
+overlapping schedules, stale edits, timing restart, Occurrence preservation,
+BehaviorLog round trips, import/restore rollback, stale previews, archive limits,
+and sensitive-data defaults. Run full repository checks and actual WKWebView QA.
+Native reminder coverage remains Ticket 112; Apple-trusted distribution is Ticket 115.
+
+---
+
+## Ticket 112: Native reminder coverage
+
+Deliver native macOS reminders with a clearly displayed, verified OS-limited
+horizon. The owner accepted this replacement for guaranteed 30-day coverage
+on 2026-08-30; 30 days remains the target.
+
+Dependencies: Tickets 108–111.
+
+Current state (2026-08-31): complete locally. Native reconciliation, readback,
+visible coverage, cancellation, fully quit delivery, and product click/focus
+are verified. Exact OS delivery history survives archival, restart, and export
+without claiming user receipt. Profile-local midnight, DST, timezone replacement,
+and wake/resume event tests pass. Actual system sleep/wake now passes: OS logs
+record sleep at 00:17:30 EDT and wake at 00:17:32. Persisted planning and coverage
+writes followed at 00:17:32.668 and 00:17:35.252, before the next minute poll and
+before GUI inspection. Settings confirmed Allowed permission, complete zero/zero
+coverage, and no errors without selecting Refresh. This establishes automatic
+post-wake reconciliation, not an exclusive wake-versus-resume callback source.
+Evidence: `docs/qa/2026-08-30-desktop-lifecycle-release.md#system-sleep-and-wake-passed`.
+
+Ticket 111 is complete locally, including owner-confirmed offline acceptance.
+Ticket 113 later completed its preview scope. Completing Tickets 111 and 112
+does not establish Ticket 115 Apple-trusted distribution readiness.
+
+Acceptance criteria:
+
+- Use a thin macOS scheduler adapter. Preserve existing TypeScript reminder
+  planning and hosted browser/email semantics.
+- Target the next 30 days and schedule nearest eligible reminders first.
+  Reconcile on launch, resume, local day change, and relevant mutations.
+- Read retained requests back from the OS. Report only contiguous coverage
+  before the first missing intended request, not the furthest retained date.
+  Show the actual scheduled-through date/time and clearly disclose a shorter
+  horizon or unavailable verification. Do not assume a universal request cap.
+- Persist native request identities. Make cancellation/replacement idempotent
+  across resolution, edits, archival, repeated reconciliation, and restart.
+- Route notification activation to the intended Timeline Occurrence.
+- Export native delivery through BehaviorLog's existing extension mechanism;
+  do not fork the schema or imply receipt from scheduling acceptance.
+- Verify permission denial, cancellation, sleep/resume, fully quit delivery,
+  and actual OS scheduling limits. Never silently truncate coverage.
+- A shorter OS-limited horizon may pass when nearest-first scheduling,
+  readback, and visible coverage agree. Unverified or overstated coverage fails.
+  Do not add a background helper. Other native and release gates remain intact.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Preserve hosted channels, services, and provider behavior through regression tests |
+| Desktop | Native adapter under `apps/desktop`; interaction and parity evidence updated here |
+| Marketing | Native reminder claims require Ticket 112 evidence; notarized or general-availability claims require Ticket 115 |
+| Future mobile | Not applicable: macOS scheduler proof does not establish mobile scheduling |
+
+Verification: native notification lifecycle/coverage matrix, shared reminder
+fixtures, cancellation idempotency, extension round trips, full repository
+checks, and actual macOS execution. Verify missing-request gaps cannot overstate
+coverage and OS-limit changes do not depend on a universal hardcoded cap.
+
+---
+
+## Ticket 113: Unnotarized Apple Silicon preview and updater acceptance
+
+Historical title: **Signed macOS release**. On 2026-08-31, the owner rescoped
+this ticket to the completed preview milestone. Apple-trusted distribution moved
+to deferred Ticket 115. This preserves the original requirement history without
+claiming Developer ID signing, notarization, or macOS 14 acceptance.
+
+Current state (2026-08-31): complete. Both `0.1.1-preview.1` and `.2` passed
+Apple Silicon packaging, sealed ad hoc signing, hardened runtime, DMG comparison,
+persistent updater-key signing, and archive verification. The approved eleven-
+asset `desktop-preview` prerelease is public. A quarantined Safari download and
+macOS per-app approval passed on macOS 26.5.2.
+
+The real HTTPS `.1` to `.2` sequence verified explicit check, install, and
+restart. Invalid signature, tampered archive, and unavailable download paths
+failed safely. The valid update preserved the stable profile, Behaviors, Notes,
+Occurrences, histories, timing, provenance, outbox baseline, cursors, reminders,
+and database integrity. All 64 applicable desktop interactions are implemented.
+
+Both preview versions use SQLite schema 6. Live shipped-migration testing is not
+applicable to this release. Existing native rollback tests remain current evidence
+for DDL/ledger rollback, preserved history/provenance/outbox, and successful
+reopen. The first future schema-changing desktop update must install an older
+version and upgrade it through the real updater after creating a protected
+database backup. Do not create a disposable migration build for Ticket 113.
+
+Ticket 113 added no backend, CI infrastructure, background helper, cloud login,
+live sync, Apple credentials, or Apple program enrollment. Evidence:
+`docs/qa/2026-08-31-desktop-preview.md`.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Not applicable: the preview installs only the native desktop app |
+| Desktop | Complete in the public preview artifacts, updater flow, and QA record |
+| Marketing | No notarized or general-availability claim; Ticket 115 owns any future claim |
+| Future mobile | Not applicable: this Apple Silicon preview does not implement mobile distribution |
+
+---
+
+## Ticket 114: BehaviorLog 0.3 minimum portability parity
+
+Current state (2026-08-30): complete locally. Canonical passive observations,
+configuration-history deduplication, exact passive replay, and accepted source
+schedule identity pass shared, SQLite, ordinary-client SQL, and native 0.3
+acceptance. Both corrective migrations passed a clean local reset. Hosted
+rollout remains separate; limits and evidence live in `STATUS.md`.
+
+Scope: standard configuration history, explicit calendar semantics, native
+Intervention mapping, category-registry preservation, saved future Occurrences,
+retained imported history, and accurate provenance/loss disclosures. Reuse the
+existing applied-import ledger. Add no raw-archive store or notification replay.
+
+Acceptance: canonical schema/validator agreement, legacy-version compatibility,
+synthetic round trips, no invented historical lineage, reviewed-loss previews,
+and existing web/desktop regression gates. Full arbitrary-extension lossless
+exchange is not claimed. Notes and time tracking retain consent gates.
+
+| Platform | Impact |
+|---|---|
+| Web | Shared contracts and export/import fixes; corrective SQL migrations verified locally; hosted rollout remains separate |
+| Desktop | Shared contracts, passive export reads, native rule mapping, and real SQLite round trips |
+| Marketing | No implementation or new public claims |
+| Future mobile | Shared contracts only; no mobile implementation |
+
+Verification and hosted migration status are recorded in `STATUS.md`.
+Only synthetic local data was used. No deployment or hosted data operation ran.
+
+---
+
+## Ticket 115: Apple-trusted macOS distribution acceptance
+
+Current state (2026-08-31): deferred. The owner cannot currently access the
+Apple Developer Program or an Apple Silicon Mac running macOS 14. Ticket 113's
+completed unnotarized preview and updater acceptance do not satisfy this ticket.
+
+Dependencies: completed Tickets 107–114, Apple Developer Program access, and a
+suitable macOS 14 Apple Silicon test system.
+
+Acceptance criteria:
+
+- Obtain owner-authorized Apple Developer Program access. Do not enroll or
+  purchase access as an automated task.
+- Use a valid Developer ID Application certificate and installed signing identity.
+- Provide one complete Apple notarization credential set and submit the production
+  app and DMG through the existing strict release workflow.
+- Verify stapled notarization for both the app and DMG.
+- Download the notarized DMG, retain quarantine, and pass Gatekeeper installation
+  and launch without disabling Gatekeeper or removing quarantine.
+- Execute the production artifact and acceptance matrix on Apple Silicon running
+  macOS 14. A declared or compiled minimum alone does not establish compatibility.
+- Keep `node apps/desktop/scripts/release.mjs check` and artifact verification
+  strict. Do not add a preview bypass or weaken Apple validation.
+- Do not claim notarized or generally available distribution before every item
+  above passes and the owner separately authorizes publication.
+
+The 2026-08-31 production check loaded the existing public updater endpoint,
+canonical public key, persistent private key path, and Keychain-held password.
+Updater configuration, tools, and all 64 desktop interactions passed. The check
+stopped only because no Developer ID Application identity or complete Apple
+notarization credential set is available. No secret was printed or regenerated.
+The first invocation mistakenly base64-encoded the already canonical public-key
+file again. Reloading its existing value directly removed that unrelated input
+error; no source or release configuration changed.
+
+Both current preview versions use SQLite schema 6, so shipped-migration testing
+is not applicable to that release. Existing native rollback tests remain current
+evidence. The first future schema-changing desktop update must test an older
+installed version upgrading through the real updater with a protected database
+backup. This requirement stays within the schema-changing release; it does not
+create a migration ticket now.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Not applicable: Apple distribution does not change the hosted web app |
+| Desktop | Owned by Ticket 115 and the strict workflow in `apps/desktop/scripts/release.mjs` |
+| Marketing | Do not claim notarized or generally available distribution until Ticket 115 passes |
+| Future mobile | Not applicable: macOS distribution does not implement mobile distribution |
+
+Deferred blockers: Apple Developer Program access, Developer ID Application
+certificate/signing identity, notarization credentials, and an Apple Silicon
+Mac running macOS 14. Do not purchase, enroll, generate credentials, notarize,
+publish, or change the existing preview release while this ticket is deferred.

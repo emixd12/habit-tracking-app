@@ -12,6 +12,7 @@ import { previewBehaviorLogImportFromZip } from "../lib/services/behaviorlog-imp
 import { createStoredZip } from "../lib/services/zip";
 import type { BehaviorLogFile } from "../lib/types/export";
 import type {
+  ExportBehaviorConfigurationEventInput,
   ExportBehaviorInput,
   ExportCategoryInput,
   ExportOccurrenceInput,
@@ -156,6 +157,7 @@ function reminderDelivery(
 
 function bundleFiles(input: {
   behaviors?: ExportBehaviorInput[];
+  behaviorConfigurationEvents?: ExportBehaviorConfigurationEventInput[];
   occurrences?: ExportOccurrenceInput[];
   statusEvents?: ExportStatusEventInput[];
   reminderDeliveries?: ExportReminderDeliveryInput[];
@@ -168,6 +170,7 @@ function bundleFiles(input: {
     },
     categories,
     behaviors: input.behaviors ?? [behavior()],
+    behaviorConfigurationEvents: input.behaviorConfigurationEvents,
     occurrences: input.occurrences ?? [occurrence()],
     statusEvents: input.statusEvents ?? statusEvents(),
     reminderDeliveries: input.reminderDeliveries,
@@ -179,6 +182,90 @@ function bundleFiles(input: {
     includeTimeTracking: Boolean(input.timeSessions),
   }).behaviorLog.files;
 }
+
+function historicalSelfExport() {
+  const morning = { id: "slot-brush", kind: "exact" as const, preset: null,
+    startTime: "09:00", endTime: null, sortOrder: 0, label: "9:00 AM" };
+  const evening = { ...morning, id: "slot-evening", startTime: "17:00", sortOrder: 1, label: "5:00 PM" };
+  const previous = { categoryId: "category-grooming", scheduleGraph: [{
+    recurrenceRule: { frequency: "daily" as const, interval: 1 }, sortOrder: 0, timeEntries: [morning] }],
+    browserReminderEnabled: true, emailReminderEnabled: false, reminderOffsetMinutes: 0, active: true, timezone: DEFAULT_TIMEZONE };
+  const baseline: ExportBehaviorConfigurationEventInput = { id: "config-morning", behaviorId: "behavior-brush", eventKind: "baseline",
+    previousConfiguration: null, nextConfiguration: previous, changedFields: ["schedule_graph"],
+    recordedAt: "2026-05-01T12:00:00Z", effectiveAt: "2026-05-01T12:00:00Z", effectiveLocalDate: "2026-05-01",
+    timezone: DEFAULT_TIMEZONE, source: "system", reasonCode: "history_capture_started" };
+  const files = bundleFiles({ behaviors: [behavior({ scheduleSlots: [morning, evening], scheduledTime: "09:00" })],
+    behaviorConfigurationEvents: [baseline, { ...baseline, id: "config-two-times", eventKind: "revision",
+      previousConfiguration: previous, nextConfiguration: { ...previous, scheduleGraph: [{ ...previous.scheduleGraph[0], timeEntries: [morning, evening] }] },
+      recordedAt: "2026-06-08T15:00:00Z", effectiveAt: "2026-06-08T15:00:00Z", effectiveLocalDate: "2026-06-08", source: "manual" }],
+    occurrences: [occurrence({ behaviorConfigurationEventId: baseline.id })],
+    timeSessions: [{ id: "session-historical", occurrenceId: "occurrence-1", behaviorId: "behavior-brush",
+      startedAt: "2026-06-08T13:00:00Z", stoppedAt: "2026-06-08T13:01:00Z" }] });
+  const imported = resolveBehaviorLogImportPreview({ files });
+  const existing = {
+    behaviors: [{ ...imported.plan.behaviors[0], id: "behavior-brush", active: true }],
+    schedules: imported.plan.schedules.filter((schedule) => schedule.action === "create").map((schedule) => ({
+      ...schedule, id: schedule.localTime === "09:00" ? morning.id : evening.id, behaviorId: "behavior-brush" })),
+    occurrences: [{ id: "occurrence-1", behaviorId: "behavior-brush", scheduleId: morning.id,
+      scheduledForUtc: "2026-06-08T13:00:00Z", localDate: "2026-06-08", timezone: DEFAULT_TIMEZONE,
+      status: "not_completed" as const, note: "Skipped before work.",
+      scheduleSnapshot: { kind: "exact" as const, preset: null, startTime: "09:00:00", endTime: null } }],
+    statusEvents: statusEvents().map((event) => ({ ...event, recordedAtUtc: event.recordedAt })),
+    timeSessions: [{ id: "session-historical", occurrenceId: "occurrence-1", behaviorId: "behavior-brush",
+      startedAtUtc: "2026-06-08T13:00:00Z", stoppedAtUtc: "2026-06-08T13:01:00Z" }],
+  };
+  return { files, existing };
+}
+
+describe("historical schedule merge identity", () => {
+  it("maps the same saved Occurrence after adding a current slot, preserving status and timing parents", () => {
+    const { files, existing } = historicalSelfExport();
+    const preview = resolveBehaviorLogImportMergePreview({ files, existing });
+    expect(preview.plan.occurrences[0].importWithDetachedScheduleSnapshot).toBe(true);
+    expect(preview.mergePreview.conflictCodes).toEqual([]);
+    expect(preview.mergePreview.actions.occurrences[0]).toMatchObject({ action: "map_to_existing", localId: "occurrence-1" });
+    expect(preview.mergePreview.actions.statusEvents.map((action) => [action.action, action.localId])).toEqual([
+      ["skip_existing", "event-1"], ["skip_existing", "event-2"],
+    ]);
+    expect(preview.mergePreview.actions.timeSessions?.[0]).toMatchObject({ action: "map_to_existing", localId: "session-historical" });
+  });
+
+  it("does not merge an unrelated attached Occurrence at the same instant", () => {
+    const { files, existing } = historicalSelfExport();
+    existing.occurrences[0].id = "another-occurrence";
+    const preview = resolveBehaviorLogImportMergePreview({ files, existing: { ...existing, statusEvents: [], timeSessions: [] } });
+    expect(preview.mergePreview.actions.occurrences[0]).toMatchObject({ action: "create_new", localId: null });
+  });
+
+  it.each(["mapping", "source"])("preserves an explicit %s to a differently named local Occurrence", (identity) => {
+    const { files, existing } = historicalSelfExport();
+    existing.occurrences[0].id = "local-occurrence";
+    if (identity === "source") Object.assign(existing.occurrences[0], { sourceOriginalId: "occurrence-1" });
+    for (const event of existing.statusEvents) event.occurrenceId = "local-occurrence";
+    existing.timeSessions[0].occurrenceId = "local-occurrence";
+    const preview = resolveBehaviorLogImportMergePreview({ files, existing: { ...existing,
+      mappings: identity === "mapping" ? [{ recordType: "occurrence", externalId: "occurrence-1", localId: "local-occurrence" }] : [],
+    } });
+    expect(preview.mergePreview.conflictCodes).toEqual([]);
+    expect(preview.mergePreview.actions.occurrences[0]).toMatchObject({ action: "map_to_existing", localId: "local-occurrence" });
+  });
+
+  it.each(["behavior", "time", "date", "timezone", "kind", "preset", "start", "end", "missing snapshot"])("rejects explicit historical identity with different %s", (field) => {
+    const { files, existing } = historicalSelfExport();
+    const candidate = existing.occurrences[0];
+    if (field === "behavior") candidate.behaviorId = "another-behavior";
+    if (field === "time") candidate.scheduledForUtc = "2026-06-08T14:00:00Z";
+    if (field === "date") candidate.localDate = "2026-06-07";
+    if (field === "timezone") candidate.timezone = "America/Los_Angeles";
+    if (field === "kind") Object.assign(candidate.scheduleSnapshot, { kind: "range" });
+    if (field === "preset") Object.assign(candidate.scheduleSnapshot, { preset: "morning" });
+    if (field === "start") candidate.scheduleSnapshot.startTime = "10:00:00";
+    if (field === "end") Object.assign(candidate.scheduleSnapshot, { endTime: "11:00:00" });
+    if (field === "missing snapshot") Reflect.deleteProperty(candidate, "scheduleSnapshot");
+    const preview = resolveBehaviorLogImportMergePreview({ files, existing });
+    expect(preview.mergePreview.conflictCodes).toContain("occurrence_identity_mismatch");
+  });
+});
 
 describe("resolveBehaviorLogImportPreview", () => {
   it("round-trips an arbitrary range as a custom range slot", () => {
@@ -311,7 +398,7 @@ describe("resolveBehaviorLogImportPreview", () => {
 
     expect(preview.valid).toBe(true);
     expect(preview.summary).toMatchObject({
-      schemaVersion: "0.2.0-draft",
+      schemaVersion: "0.3.0-draft",
       behaviorCount: 1,
       scheduleCount: 1,
       occurrenceCount: 1,
@@ -557,13 +644,14 @@ describe("resolveBehaviorLogImportPreview", () => {
     const preview = resolveBehaviorLogImportPreview({ files });
 
     expect(preview.valid).toBe(true);
-    expect(preview.plan.interventionRules).toEqual([
+    expect(preview.plan.interventionRules).toHaveLength(2);
+    expect(preview.plan.interventionRules).toEqual(expect.arrayContaining([
       expect.objectContaining({
         action: "skip",
         offsetMinutes: 15,
         skipReasons: ["positive_offset_after_occurrence"],
       }),
-    ]);
+    ]));
     expect(preview.warnings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

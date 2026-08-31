@@ -189,6 +189,7 @@ function occurrence(overrides: Partial<Occurrence> = {}): Occurrence {
     local_date: "2026-08-02",
     schedule_kind: "exact",
     schedule_preset: null,
+    schedule_range_identity: -1,
     schedule_start_time: "10:00:00",
     schedule_end_time: null,
     status: "unresolved",

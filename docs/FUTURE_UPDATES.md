@@ -15,13 +15,15 @@ Cadence's public-product direction is documented in
 
 Deferred surface work includes:
 
-- composable workspace restructuring,
-- shared `packages/core`,
-- shared tokens/primitives in `packages/ui`,
-- desktop app,
+- broader workspace restructuring or moving Next.js out of the repository root,
 - mobile app.
 
 Do not implement these without a scoped ticket.
+
+Tickets 107–114 implement the macOS desktop app and incremental extraction
+of `packages/core` and `packages/ui`. Their contract lives in
+`docs/DESKTOP_BUILD.md`. Ticket 115 defers Apple-trusted distribution. Live sync,
+cloud desktop login, Intel releases, and desktop email delivery remain deferred.
 
 Implemented surface work:
 
@@ -57,7 +59,7 @@ Billing and AI features are not launch scope. Do not add payment
 infrastructure, subscription gates, AI coaching, or speech features until
 product docs and tickets explicitly move them into scope.
 
-## PWA and offline support
+## Web PWA and offline support
 
 Future work may add:
 - Installable PWA metadata
@@ -69,9 +71,13 @@ Future work may add:
 
 Do not implement this in v1.
 
+This restriction applies to the web app. Desktop tracking uses local SQLite
+and requires offline writes. Its approved dormant mutation outbox and cursors
+do not authorize web offline work or live synchronization.
+
 ## Local pending action queue
 
-If offline status logging is added later, use a small local pending action queue rather than cookies.
+If web offline status logging is added later, use a small local pending action queue rather than cookies.
 
 Candidate storage:
 - IndexedDB

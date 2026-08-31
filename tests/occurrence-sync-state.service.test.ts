@@ -100,6 +100,7 @@ describe("occurrence sync freshness decisions", () => {
           updateUnresolved: [
             {
               id: "occurrence-1",
+              previousScheduledFor: "2026-06-09T13:00:00Z",
               scheduledFor: "2026-06-09T13:00:00Z",
               localDate: "2026-06-09",
               scheduleSlotId: "slot-1",

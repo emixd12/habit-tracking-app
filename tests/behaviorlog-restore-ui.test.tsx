@@ -9,10 +9,12 @@ import {
 } from "../components/export/BehaviorLogRestorePanel";
 import type { BehaviorLogRestorePreview } from "../lib/types/behaviorlog-restore";
 
+const TIMEZONE = "America/New_York";
+
 describe("BehaviorLog restore UI", () => {
   it("renders the trusted bundle upload and Preview restore interactions", () => {
     const html = renderToStaticMarkup(
-      <BehaviorLogRestorePanel recentRuns={[]} />,
+      <BehaviorLogRestorePanel action={async (state) => state} recentRuns={[]} timezone={TIMEZONE} />,
     );
 
     expect(html).toContain('name="restore_behaviorlog_file"');
@@ -42,7 +44,8 @@ describe("BehaviorLog restore UI", () => {
 
   it("labels recent restore runs without completion timestamps as still open", () => {
     const html = renderToStaticMarkup(
-      <BehaviorLogRestorePanel
+      <BehaviorLogRestorePanel action={async (state) => state}
+        timezone={TIMEZONE}
         recentRuns={[
           {
             id: "restore-run-open",
@@ -118,8 +121,9 @@ describe("BehaviorLog restore UI", () => {
 
     const preview = restorePreview();
     const html = renderToStaticMarkup(
-      <BehaviorLogRestorePanel
+      <BehaviorLogRestorePanel action={async (state) => state}
         recentRuns={[]}
+        timezone={TIMEZONE}
         initialState={{
           status: "previewed",
           message: "Restore preview ready.",

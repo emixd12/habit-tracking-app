@@ -17,7 +17,7 @@
   ],
   "properties": {
     "$schema": { "type": "string" },
-    "schema_version": { "const": "1.2.0" },
+    "schema_version": { "const": "1.3.0" },
     "registry_id": { "const": "cadence.user-interactions" },
     "product": { "const": "Cadence" },
     "updated": { "type": "string", "format": "date" },
@@ -147,6 +147,48 @@
         "evidence": { "$ref": "#/$defs/nonEmptyStrings" }
       }
     },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applicability", "status"],
+      "properties": {
+        "applicability": { "enum": ["applicable", "not_applicable", "deferred"] },
+        "status": { "enum": ["implemented", "planned", "not_applicable", "deferred"] },
+        "implementation": { "$ref": "#/$defs/nonEmptyStrings" },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "follow_up": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "implemented" } } },
+          "then": { "required": ["implementation", "evidence"] }
+        },
+        {
+          "if": { "properties": { "status": { "const": "planned" } } },
+          "then": { "required": ["follow_up"] }
+        },
+        {
+          "if": { "properties": { "applicability": { "enum": ["not_applicable", "deferred"] } } },
+          "then": { "required": ["reason"] }
+        }
+      ]
+    },
+    "platforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["web", "desktop", "marketing", "mobile"],
+      "properties": {
+        "web": { "$ref": "#/$defs/platform" },
+        "desktop": { "$ref": "#/$defs/platform" },
+        "marketing": { "$ref": "#/$defs/platform" },
+        "mobile": { "$ref": "#/$defs/platform" }
+      }
+    },
     "interaction": {
       "type": "object",
       "additionalProperties": false,
@@ -167,7 +209,8 @@
         "confirmation",
         "implementation",
         "user_guidance",
-        "test_coverage"
+        "test_coverage",
+        "platforms"
       ],
       "properties": {
         "id": { "$ref": "#/$defs/interactionId" },
@@ -213,7 +256,8 @@
         },
         "implementation": { "$ref": "#/$defs/nonEmptyStrings" },
         "user_guidance": { "$ref": "#/$defs/userGuidance" },
-        "test_coverage": { "$ref": "#/$defs/testCoverage" }
+        "test_coverage": { "$ref": "#/$defs/testCoverage" },
+        "platforms": { "$ref": "#/$defs/platforms" }
       }
     }
   }

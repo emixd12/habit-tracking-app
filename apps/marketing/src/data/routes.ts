@@ -1,11 +1,19 @@
 import { buildFaqMarkdown } from "./faq";
 import { siteConfig } from "./site";
+import { exportFormats, statusDefinitions } from "./vocabulary";
 
 export type MarketingRoute = {
   routeId: string;
   path: `/${string}` | "/";
   markdownPath: `/${string}.md`;
-  type: "landing" | "product" | "standard" | "documentation" | "example" | "about" | "faq";
+  type:
+    | "landing"
+    | "product"
+    | "standard"
+    | "documentation"
+    | "example"
+    | "about"
+    | "faq";
   title: string;
   navLabel: string;
   description: string;
@@ -32,24 +40,26 @@ export const marketingRoutes = [
     includeInMarkdownMirror: true,
     markdown: `# Cadence
 
-Cadence is an open-source personal behavior tracker. You define behaviors with schedules, Cadence generates scheduled occurrences on a today-first timeline, and you decide each one: Completed or Not Completed. Undecided occurrences stay Unresolved, and prior-day unresolved items surface in Needs decision; nothing is ever auto-marked missed. The full history exports as JSONL, CSV, full JSON, a Markdown summary, or a portable BehaviorLog bundle.
+Cadence is an open-source personal behavior tracker. You define Behaviors with Schedules, and Cadence generates Occurrences on a today-first timeline. ${statusDefinitions.completed} ${statusDefinitions.notCompleted} ${statusDefinitions.unresolved} Prior-day Unresolved Occurrences surface in Needs decision. The full history exports as ${exportFormats.join(", ")}.
 
 ## How Cadence Works
 
 1. Define a behavior with a title and a schedule: daily, every N days, weekly, or monthly, at exact times or time ranges. Categories, descriptions, and reminders are optional.
-2. Each scheduled slot becomes an occurrence on a today-first timeline; yesterday's undecided items collect in a small Needs decision group. Nothing is ever auto-marked missed.
-3. Mark each occurrence Completed or Not Completed, with an optional note. Undecided occurrences stay Unresolved; every decision writes an append-only status event.
+2. Each Schedule produces Occurrences on a today-first timeline. Prior-day Unresolved Occurrences collect in Needs decision.
+3. Make a Decision for each Occurrence, with an optional note. Every Decision writes an append-only status event.
 4. Review adherence across 7, 30, or 90 days on a calendar heatmap, then export the full history anytime.
 
 ## Philosophy
 
-Cadence deliberately has no streaks, badges, points, or guilt mechanics. Streaks collapse effort into one number that resets on one bad day; Cadence shows adherence across 7, 30, or 90 days instead. An undecided occurrence stays Unresolved — silence is never converted into failure. The product records facts about behavioral adherence and leaves motivation to the user.
+Cadence deliberately has no streaks, badges, points, or guilt mechanics. Streaks collapse effort into one number that resets on one bad day. Cadence shows Adherence across 7, 30, or 90 days instead. ${statusDefinitions.unresolved} Silence is never converted into failure. The product records facts about behavioral Adherence and leaves motivation to the user.
 
-Interfaces are no longer fixed: in the agentic era, an AI tool can read a personal history and build whatever view or coaching layer its owner prefers. Cadence therefore invests in the data backbone — a factual, portable record — rather than a prescribed interface.
+Interfaces are no longer fixed: in the agentic era, an AI tool can read a personal history and build whatever View or coaching layer its owner prefers. Cadence therefore invests in the data backbone, a factual and portable Record, rather than a prescribed interface.
+
+Cadence provides prepared prompts, but it does not send behavior data to an AI provider. The user exports data and chooses any external AI service.
 
 ## Time Tracking
 
-Any current-day occurrence (or one visible in Needs decision) can carry an elapsed-time timer with start, stop, and reset. Reviews show per-occurrence totals and range averages alongside adherence. Exports omit time-tracking data unless the user explicitly opts in, because exact session timestamps can reveal activity patterns.
+Any current-day Occurrence, or one visible in Needs decision, can carry an elapsed-time timer with start, stop, and reset. Reviews show per-Occurrence totals and range averages alongside Adherence. Exports omit time-tracking data unless the user explicitly opts in because exact session timestamps can reveal activity patterns.
 
 ## Read First
 
@@ -67,7 +77,7 @@ Any current-day occurrence (or one visible in Needs decision) can carry an elaps
     title: "Frequently Asked Questions",
     navLabel: "FAQ",
     description:
-      "Answers on Cadence's no-gamification philosophy, missed days, time tracking, privacy, and portable BehaviorLog exports.",
+      "Detailed answers about Cadence's recording model, context and history, review and analysis, privacy, and portability.",
     lastModified: siteConfig.lastModified,
     includeInSitemap: true,
     includeInLlms: true,
@@ -134,9 +144,15 @@ This route is optimized for coding agents, retrieval tools, and developers evalu
 
 Use status_events.jsonl as the BehaviorLog history authority. Treat occurrences.jsonl current_status as a snapshot only.
 
-## Documentation Roadmap
+Adherence includes only decided Occurrences. Unresolved Occurrences remain separate. Do not infer causes, clinical meaning, or motivation from a Record.
 
-The current docs route is intentionally small. Future documentation should grow into Guides, Reference, Examples, Agent policy, and Schema history while preserving Markdown mirrors and route-manifest data.
+## Canonical Application Pages
+
+- ${siteConfig.trustUrl} is canonical HTML for Trust.
+- ${siteConfig.cadenceAppUrl}/privacy is canonical HTML for Privacy.
+- ${siteConfig.cadenceAppUrl}/terms is canonical HTML for Terms.
+
+These application-origin pages are not marketing routes and have no marketing Markdown mirrors.
 `,
   },
   {
@@ -144,39 +160,45 @@ The current docs route is intentionally small. Future documentation should grow 
     path: "/about",
     markdownPath: "/about.md",
     type: "about",
-    title: "Project Philosophy and Governance",
+    title: "About Cadence",
     navLabel: "About",
     description:
-      "The launch route for Cadence philosophy, open-source posture, governance boundaries, and scope constraints.",
+      "Cadence's behavioral-remodeling philosophy, Record principles, current product scope, vocabulary, and implementation links.",
     lastModified: siteConfig.lastModified,
     includeInSitemap: true,
     includeInLlms: true,
     includeInMarkdownMirror: true,
-    markdown: `# Project Philosophy and Governance
+    markdown: `# About Cadence
 
-Cadence is the product surface for a simple belief: portable records should stay factual, inspectable, and user-owned. BehaviorLog is the open standard that carries those records outside the app.
+Behavioral remodeling starts with a Record the user controls. Cadence records recurring behavior through explicit Decisions, preserved Context, longitudinal review, and portable BehaviorLog data.
 
-## Philosophy
+## Behavioral Remodeling
 
-Manual truth matters. A behavior occurrence is unresolved until the user marks it. The system should not turn silence into failure.
+A Behavior can change over time. Cadence keeps its Schedule, Occurrences, Decisions, and optional Context available for review. JSON and BehaviorLog exports preserve title and description definition history; Cadence does not present a full in-app revision browser. ${statusDefinitions.completed} ${statusDefinitions.notCompleted} ${statusDefinitions.unresolved}
 
-## Governance
+## Four Record Principles
 
-The upstream BehaviorLog Bundle standard lives in its own repository. Cadence uses the standard through product workflows, export paths, import work, examples, and agent-readable docs while preserving product boundaries.
+1. Explicit Decisions: only the user declares an Occurrence Completed or Not Completed.
+2. Preserved Context: notes and elapsed time do not rewrite an earlier Decision. JSON and BehaviorLog exports preserve title and description definition history.
+3. Longitudinal review: Cadence separates Unresolved Occurrences and shows Adherence across 7, 30, or 90 days.
+4. Portable Records: export the Record as ${exportFormats.join(", ")}.
 
-## Scope Boundaries
+## Current Product Scope
 
-Cadence v1 is not a social habit tracker, a medical dosing app, a collaboration product, a payment product, or an AI coaching product.
+Cadence is a single-player web app for Behavior creation, recurring Schedules, a timeline of Occurrences, explicit Decisions, notes, reminders, basic Adherence review, elapsed-time capture, and portable exports. It is not a social tracker, collaboration product, medical dosing app, payment system, or AI coach.
 
-## Open Source
+Cadence provides prepared prompts, but the user exports data and chooses any external AI service. Cadence does not send behavior data to an AI provider.
 
-The codebase is public, small by design, and structured so agents can inspect docs, tests, and export contracts directly.
+## Cadence and BehaviorLog
 
-## Privacy Posture
+Cadence is the application where a user creates and reviews a Record. BehaviorLog is the open standard that packages behavior Records for inspection and exchange between tools.
 
-Single-account app data stays behind Supabase Auth and Row Level Security.
+## Implementation
 
-No marketing cookies, analytics tags, or hidden tracking scripts are included.
+- Cadence source: ${siteConfig.githubUrl}
+- BehaviorLog standard: ${siteConfig.standardUrl}
+- Trust: ${siteConfig.trustUrl}
+- Privacy: ${siteConfig.cadenceAppUrl}/privacy
 `,
   },
 ] as const satisfies MarketingRoute[];

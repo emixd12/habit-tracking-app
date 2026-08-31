@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { ExportPanel } from "@/components/export/ExportPanel";
+import { submitBehaviorLogImportAction, submitBehaviorLogRestoreAction } from "./actions";
 import {
   ScreenContentLoading,
   ScreenFrame,
@@ -101,6 +102,8 @@ async function ExportContent({
       exportData={exportData}
       importData={importData}
       restoreData={restoreData}
+      importAction={submitBehaviorLogImportAction}
+      restoreAction={submitBehaviorLogRestoreAction}
     />
   );
 }

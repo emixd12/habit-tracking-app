@@ -128,6 +128,7 @@ const BASE_OCCURRENCE: Occurrence = {
   scheduled_for: "2026-06-08T14:00:00Z",
   schedule_kind: "exact",
   schedule_preset: null,
+  schedule_range_identity: -1,
   schedule_start_time: "10:00:00",
   schedule_end_time: null,
   local_date: "2026-06-08",

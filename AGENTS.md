@@ -32,9 +32,11 @@ surface for the BehaviorLog Bundle standard:
 - Vitest for resolver tests
 
 Public-product surfaces are scoped in `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
-The Astro marketing site is implemented as a sibling app; future Tauri desktop,
-mobile, shared-package, and workspace-restructuring work still requires scoped
-tickets.
+The Astro marketing site is implemented as a sibling app. Tauri desktop and
+shared-package work is implemented under Tickets 107–114. Ticket 115 defers
+Apple-trusted distribution acceptance. The desktop track uses Tauri v2, Vite,
+React, and local SQLite. Next.js stays at the repository root. Mobile and
+broader workspace restructuring remain deferred.
 
 ## Agent operating model
 
@@ -57,6 +59,12 @@ Before implementing a task, read in this order:
 `STATUS.md` is a current-state ledger. Update it when a ticket starts, completes, becomes blocked, is reopened, or materially changes scope. Do not use it to expand product scope.
 
 If a user prompt conflicts with the docs, report the conflict before editing. If the user intentionally changes product direction, update the relevant docs in the same task.
+
+Every new or materially changed product/design ticket must state its impact on
+web, desktop, marketing, and future mobile. Each platform entry needs an
+implementation reference, a follow-up ticket, or an explicit not-applicable
+reason. Use the existing interaction registry and design-system catalog for
+cross-platform evidence; do not create a parallel decision inventory.
 
 ## Source-of-truth documents
 
@@ -83,6 +91,8 @@ Product and implementation docs:
 19. `/docs/VERCEL_WORKFLOW.md`
 20. `/docs/CRAWL_POLICY.md`
 21. `/docs/DESKTOP_BUILD.md`
+22. `/docs/DESKTOP_DATA_MODEL.md`
+23. `/docs/DESKTOP_PARITY.md`
 
 ## Product constraints
 
@@ -103,6 +113,7 @@ In scope:
 - Basic analytics
 - JSONL/CSV/full JSON/BehaviorLog export
 - Public Astro marketing site
+- Local-first macOS desktop tracking parity under Tickets 107–114
 - Workspace split only when explicitly ticketed
 
 Out of scope for v1:
@@ -119,10 +130,10 @@ Out of scope for v1:
 - Payment/subscription infrastructure
 - Admin dashboards
 - PWA offline cache
-- Offline writes or sync conflict handling
+- Web offline writes or live sync conflict handling
 - Automatic missed status
 - AI coaching or speech features
-- Desktop/mobile implementation unless the proposal is explicitly scheduled
+- Mobile implementation
 
 ## Domain language
 
@@ -139,7 +150,9 @@ Do not use “missed” as a stored status in v1.
 
 ## Architecture rule: resolver-first
 
-Core logic must live in `/lib/resolvers`.
+Core logic lives in `/lib/resolvers`, with incremental extraction into
+`packages/core` under Ticket 109. Preserve the existing web module APIs through
+adapters or compatibility exports. Do not duplicate domain rules per platform.
 
 Resolvers should be pure or nearly pure functions. They should not:
 - Render UI
@@ -155,6 +168,12 @@ Repositories in `/lib/db` own database access.
 Services in `/lib/services` orchestrate repositories and resolvers.
 
 UI components call services/server actions. UI components must not implement recurrence, reminder, analytics, or export logic.
+
+Desktop components use callbacks and client services instead of Server Actions.
+Operation-specific DataStore methods own atomic mutations; thin native code
+may handle SQLite transactions, files, notifications, and lifecycle. Business
+decisions remain in TypeScript. Prove native boundaries in Ticket 108 before
+broad shared-core or UI refactoring.
 
 API routes and cron/process routes must call services. They must not duplicate resolver logic.
 
@@ -242,6 +261,12 @@ Reminder delivery rules:
 - Reminder processing should be idempotent.
 - Reminder processing must avoid duplicate sends.
 
+Desktop uses native reminders under `docs/DESKTOP_BUILD.md`. Preserve hosted
+browser/email semantics. Target 30 days, prioritize nearest eligible reminders,
+and show contiguous coverage verified through OS readback. Clearly disclose a
+shorter OS-limited horizon; do not assume a universal request cap or add a
+background helper. Desktop email delivery remains inactive.
+
 ## Supabase CLI rules
 
 Supabase is CLI-first in this repo. Use `docs/SUPABASE_WORKFLOW.md` rather than rediscovering provider steps.
@@ -272,7 +297,13 @@ Exception: `profiles` uses `id` as the authenticated user's id (`auth.users.id`)
 
 All user-owned tables must have RLS policies.
 
-Even though each account is single-player, do not bypass RLS in normal app
+These Supabase ownership and RLS requirements apply to the web database.
+Desktop uses one stable local profile and a private SQLite database without
+cloud login or RLS. Preserve local ownership, constraints, history, and atomic
+mutation/outbox writes. Use current data contracts, not only the initial
+Supabase migration. See `docs/DESKTOP_BUILD.md`.
+
+Even though each account is single-player, do not bypass RLS in normal web app
 code.
 
 ## Sequenzy CLI rules
@@ -313,9 +344,11 @@ Route ownership and planned API routes live in `docs/ROUTE_MAP.md`.
 
 ## Offline and PWA rules
 
-Offline behavior and PWA caching are deferred from v1.
+Web offline behavior and PWA caching are deferred from v1.
 
-Do not implement offline mutation in v1.
+Desktop tracking must work offline without login. The desktop track includes
+tombstones, a transactional outbox, cursors, stable local identity, and a no-op
+SyncEngine only. Do not implement live sync, cloud login, or conflict resolution.
 
 Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 
@@ -413,10 +446,10 @@ Do not expand scope to solve speculative future requirements.
 
 ## Security rules
 
-- Use Supabase Auth.
-- Use Google login.
-- Restrict app data to the authenticated user.
-- Use RLS on all user-owned tables.
+- Use Supabase Auth and Google login for the web app.
+- Do not add cloud account controls or provider credentials to local desktop.
+- Restrict web data to the authenticated user and local data to its stable profile.
+- Use RLS on all user-owned web tables.
 - Never commit `.env` files or secrets.
 - Never expose service-role keys to the browser.
 - Use server-side code for privileged operations.
@@ -452,3 +485,13 @@ Recommended sequence:
 11. Email reminders
 12. Analytics
 13. Exports
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

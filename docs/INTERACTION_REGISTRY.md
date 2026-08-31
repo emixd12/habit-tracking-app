@@ -24,13 +24,21 @@ interaction IDs and implementation traceability.
 - `scripts/check-interactions.mjs`: structural, reference, coverage, and drift
   validation.
 
-The current additive schema version is `1.2.0`. Version 1.1 added required
+The current schema version is `1.3.0`. Version 1.1 added required
 `user_guidance` metadata without changing the meaning of existing interaction
 fields. Version 1.2 adds optional `effect_checks`. Each check binds one recorded
 effect to a named implementation handler and stable evidence inside that
 handler. `npm run interactions:check` fails when that evidence disappears. It
 reports entries without complete mechanical effect coverage for human review
 and never counts those entries as mechanically checked.
+
+Version 1.3 adds platform applicability, implementation status, and evidence
+for web, desktop, marketing, and future mobile. Existing interaction IDs and
+intent stay unchanged. The existing top-level fields retain the implemented
+web or marketing contract while the desktop port is pending. Desktop-only
+controls use new IDs, with explicit web/marketing exclusions and native evidence
+gates. Partial native proof belongs in the applicable intent’s notes; it does
+not establish all variants as implemented.
 
 Do not maintain a second hand-written list of interaction entries. Query or
 transform the JSON registry when another representation is needed.
@@ -58,7 +66,9 @@ The registry excludes:
 - interactions inside Google or other provider-owned pages;
 - direct API and cron invocation, because those are operator/system actions;
 - the local, dev-only design-system bench;
-- planned or deferred behavior that has no user-facing implementation.
+- new planned or deferred intents with no user-facing implementation on any
+  platform. A pending desktop implementation of an existing intent belongs in
+  that intent's platform record.
 
 ## Required entry fields
 
@@ -73,6 +83,7 @@ Each interaction records:
 - implementation references;
 - user-guidance audience and one or more task-guide references;
 - explicit test-coverage level and references.
+- a `platforms` record for web, desktop, marketing, and mobile.
 
 `implementation` references use repository-relative paths. A `#symbol` suffix
 may identify an exported action or function in that file.
@@ -105,6 +116,44 @@ implementation references, not test evidence. `direct` references must use
 `tests/*.test.*` or `tests/*.spec.*`. `indirect` references may additionally use
 repository `check-*` scripts.
 
+## Platform parity and release
+
+Each platform records `applicability` and `status`:
+
+- `applicable` uses `implemented` or `planned` status.
+- `not_applicable` uses the same status and states an explicit reason.
+- `deferred` uses the same status and states the unscheduled scope boundary.
+
+Implemented platforms cite source code in `implementation` and tests or
+recorded QA in `evidence`. Empty evidence means verification is not recorded;
+it must not imply a passed native check. Desktop implementation must include
+an `apps/desktop/` source reference. Shared code alone does not prove desktop
+usage. At least one desktop implementation reference must have a cataloged
+`source_inventory` entry for the same interaction ID. Excluded developer
+benches cannot establish parity, even with existing test references. Planned
+platforms cite an existing Markdown ticket heading in
+`follow_up`. The validator resolves code references, evidence, and ticket
+anchors. Deferred mobile applicability makes no mobile parity commitment.
+
+Run the release gate before signing or publishing a desktop release:
+
+```bash
+node scripts/check-interactions.mjs --desktop-release
+```
+
+The release gate rejects every applicable desktop interaction that remains
+planned or lacks verification evidence. Evidence must include a test or
+recorded QA under `docs/qa`; structural checks alone cannot satisfy this gate.
+The gate checks references and declared coverage. It does not prove semantic
+parity, actual WKWebView behavior, notification delivery, or signed-release
+acceptance. Those tests remain separate release requirements.
+
+The native boundary proof is a developer bench, not a tracking implementation.
+It does not complete an interaction. Ticket 111 owns tracking parity; Ticket
+112 owns native reminder intent, permission, and notification activation.
+`docs/DESKTOP_PARITY.md` records the current domain baseline without creating
+another list of interaction IDs.
+
 ## Updating the registry
 
 Update the registry in the same change whenever a user-facing interaction is
@@ -128,6 +177,9 @@ side effect, or receives materially different test coverage.
    whether automated evidence references use test or check-script paths.
 9. For UI work, also run the project-required design and full verification
    commands.
+10. Review all four platform records. Link each affected platform to its
+    implementation and evidence, a follow-up ticket, or an explicit exclusion.
+    Marketing consumes approved product claims; it does not duplicate the app.
 
 The one occurrence-time interaction also covers **Reset tracked time** inside
 the Behaviors Review disclosure. It reuses the Timing interaction ID because

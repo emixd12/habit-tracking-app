@@ -1,8 +1,18 @@
 {
   "schema_version": "1.0.0",
   "registry_id": "cadence.user-interactions",
-  "registry_schema_version": "1.2.0",
+  "registry_schema_version": "1.3.0",
   "entries": [
+    {
+      "id": "INT-DESKTOP-002",
+      "classification": "external_provider",
+      "reason": "Native signed-update downloads use a release feed, not Cadence web application routes."
+    },
+    {
+      "id": "INT-DESKTOP-001",
+      "classification": "not_load_bearing",
+      "reason": "Desktop retry opens a local SQLite profile and does not send load-testable HTTP requests."
+    },
     {
       "id": "INT-AUTH-001",
       "classification": "external_provider",
@@ -116,11 +126,6 @@
       "reason": "The static marketing deployment has a separate capacity and release boundary."
     },
     {
-      "id": "INT-MKT-003",
-      "classification": "not_load_bearing",
-      "reason": "The static marketing deployment has a separate capacity and release boundary."
-    },
-    {
       "id": "INT-MKT-004",
       "classification": "external_provider",
       "reason": "This crosses from the separate marketing hostname to the app hostname."
@@ -159,6 +164,11 @@
       "id": "INT-MKT-011",
       "classification": "not_load_bearing",
       "reason": "Static in-page and related links do not exercise the authenticated application stack."
+    },
+    {
+      "id": "INT-MKT-012",
+      "classification": "external_provider",
+      "reason": "The disclosed macOS preview release and its assets are hosted by GitHub."
     },
     {
       "id": "INT-SHELL-001",

@@ -2,7 +2,7 @@
 
 ## Notification model
 
-The app supports two reminder channels:
+The web app supports two reminder channels:
 
 1. Browser push
 2. Email through Sequenzy
@@ -18,6 +18,37 @@ The reminder processor reads the recipient from `profiles.email`. Auth
 creation and email-update triggers synchronize that value from
 `auth.users.email`. Authenticated Data API clients cannot write the profile
 email or display name; they may update only the profile timezone.
+
+## Desktop native reminders
+
+Tickets 108 and 112 add local macOS scheduling through a thin native adapter.
+Hosted browser/email behavior below remains unchanged. Desktop email delivery
+stays inactive, and native delivery uses BehaviorLog's existing extension
+mechanism without a schema fork.
+
+The owner accepted a clearly displayed OS-limited horizon on 2026-08-30:
+
+- Target 30 days and schedule the nearest eligible reminders first.
+- Read retained pending requests back from the OS. Compute coverage from the
+  contiguous intended sequence; the first missing request ends coverage.
+  A later retained request or successful callback cannot extend that proof.
+- Show the actual scheduled-through date/time. Clearly disclose a shorter
+  horizon or unavailable verification. Do not silently truncate coverage.
+- Do not hardcode a universal request limit from one device's observed cap.
+- Reconcile on launch, resume, local day change, and relevant mutations.
+- Keep persisted request identities and cancellation/replacement idempotent
+  across resolution, edits, archival, reconciliation, and restart.
+- Preserve permission-denial behavior and activation to the intended
+  Timeline Occurrence. Scheduling acceptance does not establish receipt.
+- Preserve exact OS delivery evidence from presentation, activation, or
+  delivered readback before retiring expired requests. Clicking can remove a
+  notification from Notification Center; absence afterward must not overwrite
+  observed delivery. Stale evidence for a replaced request must not mark its
+  replacement delivered. User receipt and reading remain unverified.
+- Verify sleep/resume, fully quit delivery, activation, and OS-limit behavior.
+  A shorter verified horizon may pass; overstated or unverified coverage fails.
+- Do not add a background helper. The horizon decision does not waive native
+  activation proof before broad extraction or any other release requirement.
 
 ## Browser notifications
 

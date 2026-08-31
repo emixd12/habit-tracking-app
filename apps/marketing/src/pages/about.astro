@@ -1,80 +1,28 @@
 ---
 import { getRouteById } from "../data/routes";
-import { primaryCtas } from "../data/site";
+import { siteConfig } from "../data/site";
+import { vocabulary } from "../data/vocabulary";
 import BaseLayout from "../layouts/BaseLayout.astro";
 
 const route = getRouteById("about");
+const principles = [
+  ["Explicit decisions", "Only the user declares an Occurrence Completed or Not Completed. Unresolved remains a valid absence of Decision."],
+  ["Preserved context", "Notes, elapsed time, and definition history add Context without rewriting an earlier Decision."],
+  ["Longitudinal review", "Cadence separates Unresolved Occurrences and shows Adherence across 7, 30, or 90 days."],
+  ["Portable records", "The user can export the Record in five formats and inspect it outside Cadence."],
+] as const;
 ---
 
 <BaseLayout route={route}>
-  <section class="page-section hero" aria-labelledby="about-title">
-    <div class="page-section__inner">
-      <div class="stack">
-        <h1 id="about-title">Cadence is small because the record matters.</h1>
-        <p>
-          Cadence is built around one idea: a behavior history should record explicit
-          user decisions, preserve context, and stay portable. BehaviorLog is the open
-          standard that carries that record outside the app.
-        </p>
-        <div class="cta-row">
-          <a class="button button--primary" href={primaryCtas.viewGithub.href}>
-            {primaryCtas.viewGithub.label}
-          </a>
-          <a class="button" href={primaryCtas.readStandard.href}>
-            {primaryCtas.readStandard.label}
-          </a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="page-section" aria-labelledby="philosophy-title">
-    <div class="page-section__inner">
-      <div class="split-grid">
-        <div class="ledger-row">
-          <h2 id="philosophy-title">Philosophy</h2>
-          <p>
-            Manual truth is the project boundary. A scheduled occurrence remains
-            unresolved until the user marks it Completed or Not Completed. The system
-            does not convert absence into failure.
-          </p>
-        </div>
-        <div class="ledger-row">
-          <h2>Governance</h2>
-          <p>
-            BehaviorLog lives as an open standard in its own repository. Cadence uses
-            the standard through focused product workflows, export paths, import work,
-            examples, and agent-readable docs.
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="page-section" aria-labelledby="scope-title">
-    <div class="page-section__inner section-grid">
-      <div class="stack">
-        <h2 id="scope-title">Scope boundaries</h2>
-        <p>
-          Launch scope is intentionally narrow. Cadence is not a collaboration product,
-          social tracker, medical dosing tool, productivity suite, AI coach, payments
-          system, or admin console.
-        </p>
-      </div>
-      <div class="ledger-panel">
-        <div class="ledger-row">
-          <h3>Open source posture</h3>
-          <p>Implementation docs, tests, schemas, and bundle contracts are inspectable.</p>
-        </div>
-        <div class="ledger-row">
-          <h3>Privacy posture</h3>
-          <p>Single-account app data stays behind Supabase Auth and Row Level Security.</p>
-        </div>
-        <div class="ledger-row">
-          <h3>Public site posture</h3>
-          <p>No marketing cookies, analytics tags, or hidden tracking scripts are included.</p>
-        </div>
-      </div>
-    </div>
-  </section>
+  <section class="page-section about-hero" aria-labelledby="about-title"><div class="page-section__inner about-hero__inner"><h1 id="about-title">Behavioral remodeling starts with a record you control.</h1><p>Cadence helps a person examine recurring behavior without turning silence into failure. Each scheduled Occurrence waits for an explicit Decision.</p></div></section>
+  <section class="page-section" aria-labelledby="remodeling-title"><div class="page-section__inner split-section"><h2 id="remodeling-title">What behavioral remodeling means here</h2><div class="prose-stack"><p>A Behavior can change over time. Cadence preserves title and description history in JSON and BehaviorLog exports.</p><p>The Record supports reflection without claiming to verify why something happened. The user can revise a Decision later, while its event history remains inspectable in exports.</p></div></div></section>
+  <section class="page-section" aria-labelledby="principles-title"><div class="page-section__inner"><h2 id="principles-title">Four principles for the Record</h2><div class="principles">{principles.map(([title, description]) => <article><h3>{title}</h3><p>{description}</p></article>)}</div></div></section>
+  <section class="page-section scope-section" aria-labelledby="scope-title"><div class="page-section__inner split-section"><h2 id="scope-title">Current product scope</h2><div class="prose-stack"><p>Cadence is a single-player web app for Behavior creation, recurring Schedules, a timeline of Occurrences, explicit Decisions, notes, reminders, basic Adherence review, elapsed-time capture, and portable exports.</p><p>It is not a social tracker, collaboration product, medical dosing app, payment system, or AI coach. Cadence provides prepared prompts, but the user exports data and chooses any external AI service.</p></div></div></section>
+  <section class="page-section" aria-labelledby="roles-title"><div class="page-section__inner"><h2 id="roles-title">Two roles, one portable Record</h2><div class="roles"><article><h3>Cadence</h3><p>The application where a user defines Behaviors, makes Decisions, reviews Adherence, and exports the Record.</p></article><article><h3>BehaviorLog</h3><p>The open standard that packages behavior Records for inspection and exchange between tools.</p></article></div></div></section>
+  <section class="page-section" aria-labelledby="vocabulary-title"><div class="page-section__inner vocabulary-section"><header><h2 id="vocabulary-title">Vocabulary</h2><p>These terms define the recording model across Cadence and its public documentation.</p></header><dl class="vocabulary">{vocabulary.map((entry) => <div><dt>{entry.term}</dt><dd>{entry.full}</dd></div>)}</dl></div></section>
+  <section class="page-section" aria-labelledby="implementation-title"><div class="page-section__inner implementation"><div><h2 id="implementation-title">Inspect the implementation</h2><p>Read the source and standards directly. Use the canonical policy and evidence pages for current operating details.</p></div><nav aria-label="Implementation and policy links"><a href={siteConfig.githubUrl}>Cadence source</a><a href={siteConfig.standardUrl}>BehaviorLog standard</a><a href="/docs">Technical docs</a><a href={siteConfig.trustUrl}>Trust</a><a href={`${siteConfig.cadenceAppUrl}/privacy`}>Privacy</a></nav></div></section>
 </BaseLayout>
+
+<style>
+  .about-hero__inner{min-height:min(70vh,46rem);display:grid;align-content:center;gap:2rem}.about-hero h1{max-width:14ch;font-size:clamp(2.5rem,7vw,5.75rem);line-height:.98;letter-spacing:-.025em;text-wrap:balance}.about-hero p{max-width:60ch;font-size:clamp(1.05rem,2vw,1.35rem)}.split-section,.vocabulary-section{display:grid;grid-template-columns:minmax(12rem,.65fr) minmax(0,1fr);gap:clamp(2rem,7vw,7rem)}.prose-stack{display:grid;gap:1rem;max-width:68ch}.principles{margin-block-start:2rem;border-block-start:1px solid var(--line);display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.principles article{padding:1.75rem 2rem 1.75rem 0;border-block-end:1px solid var(--line)}.principles article:nth-child(odd){border-inline-end:1px solid var(--line)}.principles article:nth-child(even){padding-inline-start:2rem}.principles h3,.roles h3{margin-block-end:.75rem;font-size:1.2rem}.principles p,.roles p{color:var(--muted-readable);max-width:55ch}.scope-section{background:var(--surface)}.roles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-block-start:2rem;border-block:1px solid var(--line)}.roles article{padding:2rem 2rem 2rem 0}.roles article+article{border-inline-start:1px solid var(--line);padding-inline:2rem 0}.vocabulary-section header{display:grid;align-content:start;gap:1rem;max-width:24rem}.vocabulary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-block-start:1px solid var(--line)}.vocabulary>div{padding:1.25rem 1.5rem 1.25rem 0;border-block-end:1px solid var(--line)}.vocabulary>div:nth-child(even){padding-inline:1.25rem 0}.vocabulary dt{margin-block-end:.5rem;color:var(--primary)}.vocabulary dd{color:var(--muted-readable)}.implementation{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2rem;align-items:end}.implementation>div{display:grid;gap:.75rem;max-width:60ch}.implementation nav{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:1rem 1.5rem}.implementation a{text-decoration:underline;text-underline-offset:4px}@media(max-width:720px){.split-section,.vocabulary-section,.implementation{grid-template-columns:1fr}.principles,.roles,.vocabulary{grid-template-columns:1fr}.principles article,.principles article:nth-child(even),.roles article,.roles article+article,.vocabulary>div,.vocabulary>div:nth-child(even){padding:1.25rem 0;border-inline:0}.implementation nav{justify-content:flex-start}}
+</style>

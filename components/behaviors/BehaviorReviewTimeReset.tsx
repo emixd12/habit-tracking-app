@@ -14,22 +14,66 @@ const IDLE_STATE: TimeTrackingActionState = {
 
 export function BehaviorReviewTimeReset({
   occurrenceId,
-  action,
+  isRunning,
+  stopAction,
+  resetAction,
 }: Readonly<{
   occurrenceId: string;
-  action: TimeTrackingFormAction;
+  isRunning: boolean;
+  stopAction: TimeTrackingFormAction;
+  resetAction: TimeTrackingFormAction;
 }>) {
-  const [state, submit, pending] = useActionState(action, IDLE_STATE);
+  const [stopState, submitStop, stopping] = useActionState(stopAction, IDLE_STATE);
+  const [resetState, submitReset, resetting] = useActionState(
+    resetAction,
+    IDLE_STATE,
+  );
+  const pending = stopping || resetting;
 
   return (
-    <form action={submit} className="grid justify-start gap-2">
+    <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+      {isRunning ? (
+        <TimeActionForm
+          occurrenceId={occurrenceId}
+          action={submitStop}
+          disabled={pending}
+          label={stopping ? "Stopping..." : "Stop"}
+          state={stopState}
+        />
+      ) : null}
+      <TimeActionForm
+        occurrenceId={occurrenceId}
+        action={submitReset}
+        disabled={pending}
+        label={resetting ? "Resetting..." : "Reset tracked time"}
+        state={resetState}
+      />
+    </div>
+  );
+}
+
+function TimeActionForm({
+  occurrenceId,
+  action,
+  disabled,
+  label,
+  state,
+}: Readonly<{
+  occurrenceId: string;
+  action: (formData: FormData) => void;
+  disabled: boolean;
+  label: string;
+  state: TimeTrackingActionState;
+}>) {
+  return (
+    <form action={action} className="grid justify-start gap-2">
       <input type="hidden" name="occurrence_id" value={occurrenceId} />
       <button
         type="submit"
-        disabled={pending}
+        disabled={disabled}
         className="product-action product-action-secondary min-h-11 py-2 text-sm"
       >
-        {pending ? "Resetting..." : "Reset tracked time"}
+        {label}
       </button>
       {state.message ? (
         <p

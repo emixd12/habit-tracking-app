@@ -10,8 +10,51 @@ import type {
 } from "../lib/types/behaviorlog-import";
 
 const TIMEZONE = "America/New_York";
+type PassiveNote = NonNullable<BehaviorLogExistingRecords["importedNotes"]>[number];
+const passiveNote: PassiveNote = {
+  id: "local-passive-note", importRunId: "prior-run", externalId: "original-note-id", targetType: "occurrence",
+  targetExternalId: "old-source-occurrence", targetLocalId: "local-occurrence", bodyMarkdown: "Skipped before work.",
+  noteRole: "user", sensitivity: "high", sourceOriginalId: "occurrence-1", sourceCaptureMethod: "manual_text",
+  sourceConfidence: "high", createdAtUtc: "2026-06-08T13:12:00Z", updatedAtUtc: null,
+};
 
 describe("BehaviorLog optional notes import preview", () => {
+  it("recognizes a self-exported passive local ID through its mapped attachment", () => {
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles({ includeNote: true, noteOverrides: { note_id: passiveNote.id } }),
+      existing: { ...existingRecords({ occurrenceNote: null }), importedNotes: [passiveNote] },
+    });
+    expect(preview.mergePreview.actions.notes[0]).toMatchObject({ action: "map_to_existing", localId: passiveNote.id, conflictCodes: [] });
+  });
+
+  it.each<{ name: string; change: Partial<PassiveNote>; code: string }>([
+    { name: "target", change: { targetLocalId: "another-occurrence" }, code: "note_attachment_mismatch" },
+    { name: "body", change: { bodyMarkdown: "Different note" }, code: "note_body_mismatch" },
+    { name: "role", change: { noteRole: "system" }, code: "note_provenance_mismatch" },
+    { name: "sensitivity", change: { sensitivity: "restricted" }, code: "note_provenance_mismatch" },
+    { name: "source ID", change: { sourceOriginalId: "other-source" }, code: "note_provenance_mismatch" },
+    { name: "capture method", change: { sourceCaptureMethod: "inferred" }, code: "note_provenance_mismatch" },
+    { name: "confidence", change: { sourceConfidence: "low" }, code: "note_provenance_mismatch" },
+    { name: "created timestamp", change: { createdAtUtc: "2026-06-08T13:13:00Z" }, code: "note_provenance_mismatch" },
+    { name: "updated timestamp", change: { updatedAtUtc: "2026-06-08T13:14:00Z" }, code: "note_provenance_mismatch" },
+  ])("conflicts when a self-exported note ID has different $name", ({ change, code }) => {
+    const preview = resolveBehaviorLogImportMergePreview({
+      files: behaviorLogFiles({ includeNote: true, noteOverrides: { note_id: passiveNote.id } }),
+      existing: { ...existingRecords({ occurrenceNote: null }), importedNotes: [{ ...passiveNote, ...change }] },
+    });
+    expect(preview.mergePreview.actions.notes[0]).toMatchObject({ action: "conflict_requires_decision", localId: passiveNote.id });
+    expect(preview.mergePreview.actions.notes[0].conflictCodes).toContain(code);
+  });
+
+  it("keeps distinct passive note IDs and rejects ambiguous ID claims", () => {
+    const existing = { ...existingRecords({ occurrenceNote: null }), importedNotes: [passiveNote] };
+    const distinct = resolveBehaviorLogImportMergePreview({ files: behaviorLogFiles({ includeNote: true }), existing });
+    expect(distinct.mergePreview.actions.notes[0].action).toBe("create_new");
+    existing.importedNotes.push({ ...passiveNote, id: "another-note", externalId: passiveNote.id });
+    const ambiguous = resolveBehaviorLogImportMergePreview({ files: behaviorLogFiles({ includeNote: true, noteOverrides: { note_id: passiveNote.id } }), existing });
+    expect(ambiguous.mergePreview.actions.notes[0].conflictCodes).toContain("note_identity_ambiguous");
+  });
+
   it("plans occurrence-attached notes as fillable only when the local occurrence note is empty", () => {
     const preview = resolveBehaviorLogImportMergePreview({
       files: behaviorLogFiles({ includeNote: true }),
@@ -187,6 +230,7 @@ describe("BehaviorLog optional notes import preview", () => {
             bodyMarkdown: "Skipped before work.",
             noteRole: "user",
             sensitivity: "high",
+            sourceOriginalId: "occurrence-1",
             sourceCaptureMethod: "manual_text",
             sourceConfidence: "high",
             createdAtUtc: "2026-06-08T13:12:00Z",
@@ -219,6 +263,7 @@ describe("BehaviorLog optional notes import preview", () => {
       bodyMarkdown: "Different content.",
       noteRole: "user" as const,
       sensitivity: "high" as const,
+      sourceOriginalId: "occurrence-1",
       sourceCaptureMethod: "manual_text" as const,
       sourceConfidence: "high" as const,
       createdAtUtc: "2026-06-08T13:12:00Z",

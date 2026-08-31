@@ -1,0 +1,23 @@
+{
+  "name": "@cadence/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./resolvers/*": "./src/resolvers/*.ts",
+    "./types/*": "./src/types/*.ts",
+    "./services/*": "./src/services/*.ts",
+    "./data-store": "./src/data-store.ts",
+    "./behavior-store": "./src/behavior-store.ts",
+    "./hash": "./src/hash.ts",
+    "./behaviorlog.schema.json": "./src/behaviorlog.schema.json",
+    "./export-prompts": "./src/export-prompts.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
+    "ohash": "2.0.11"
+  }
+}

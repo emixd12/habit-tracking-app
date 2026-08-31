@@ -1,0 +1,3 @@
+# Generated public updater configuration and local artifact verification reports.
+.release/
+__pycache__/

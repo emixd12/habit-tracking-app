@@ -258,6 +258,41 @@ describe("updateBehaviorFromFormData definition history", () => {
     expect(mocks.syncUserOccurrencesAndReminders).toHaveBeenCalledOnce();
   });
 
+  it("clears description in both the snapshot and its definition event", async () => {
+    const { updateBehaviorFromFormData } = await import(
+      "../lib/services/behavior.service"
+    );
+    await updateBehaviorFromFormData(updateFormData({ description: "" }));
+    expect(mocks.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        behavior: expect.objectContaining({ description: null }),
+        definitionEventPlan: expect.objectContaining({
+          previousDescription: "Evening routine",
+          nextDescription: null,
+          changedFields: ["description"],
+        }),
+      }),
+    );
+  });
+
+  it("passes the revision loaded by the browser to the atomic update", async () => {
+    const { updateBehaviorFromFormData } = await import(
+      "../lib/services/behavior.service"
+    );
+
+    await updateBehaviorFromFormData(
+      updateFormData({ expectedUpdatedAt: "2026-06-25T12:00:00Z" }),
+    );
+
+    expect(mocks.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        expectedUpdatedAt: "2026-06-25T12:00:00Z",
+      }),
+    );
+  });
+
   it("does not replace schedules when the atomic definition update rolls back", async () => {
     const { updateBehaviorFromFormData } = await import(
       "../lib/services/behavior.service"
@@ -306,12 +341,17 @@ function updateFormData(
   overrides: {
     title?: string;
     description?: string;
+    expectedUpdatedAt?: string;
     scheduledTime?: string;
   } = {},
 ): FormData {
   const formData = new FormData();
 
   formData.set("behavior_id", BEHAVIOR_ID);
+  formData.set(
+    "expected_updated_at",
+    overrides.expectedUpdatedAt ?? "2026-06-26T12:00:00Z",
+  );
   formData.set("title", overrides.title ?? "Brush teeth");
   formData.set("description", overrides.description ?? "Evening routine");
   formData.set("category_id", CATEGORY_ID);

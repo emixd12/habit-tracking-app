@@ -855,6 +855,7 @@ export type Database = {
           schedule_end_time: string | null
           schedule_kind: string
           schedule_preset: string | null
+          schedule_range_identity: number | null
           schedule_start_time: string
           scheduled_for: string
           status: string
@@ -874,6 +875,7 @@ export type Database = {
           schedule_end_time?: string | null
           schedule_kind?: string
           schedule_preset?: string | null
+          schedule_range_identity?: number | null
           schedule_start_time: string
           scheduled_for: string
           status?: string
@@ -893,6 +895,7 @@ export type Database = {
           schedule_end_time?: string | null
           schedule_kind?: string
           schedule_preset?: string | null
+          schedule_range_identity?: number | null
           schedule_start_time?: string
           scheduled_for?: string
           status?: string

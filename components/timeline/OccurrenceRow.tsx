@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useId, useState } from "react";
 
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
 import { StatusButtons } from "@/components/timeline/StatusButtons";
@@ -85,7 +85,8 @@ export function OccurrenceRow({
     optimisticStatus,
   );
   const visibleOccurrence = optimisticView.occurrence;
-  const detailsId = `${visibleOccurrence.id}-details`;
+  const instanceId = useId();
+  const detailsId = `${visibleOccurrence.id}-${instanceId}-details`;
   const pendingStatusLabel = optimisticStatus.pendingStatus
     ? statusLabel(optimisticStatus.pendingStatus)
     : null;
@@ -129,6 +130,7 @@ export function OccurrenceRow({
 
   return (
     <article
+      data-occurrence-id={visibleOccurrence.id}
       aria-busy={optimisticView.isPending ? "true" : undefined}
       data-optimistic-status={optimisticStatus.pendingStatus ?? undefined}
       data-visual-tone={visibleOccurrence.visualTone}
@@ -220,7 +222,6 @@ export function OccurrenceRow({
             ) : null}
 
             <OccurrenceNoteForm
-              key={`${visibleOccurrence.id}-${visibleOccurrence.note}`}
               occurrenceId={visibleOccurrence.id}
               note={visibleOccurrence.note}
               action={noteAction}

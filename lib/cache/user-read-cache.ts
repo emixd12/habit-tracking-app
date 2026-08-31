@@ -10,6 +10,12 @@ type UserReadCacheEntry = {
   value: unknown;
 };
 
+type UserReadCacheSlot = {
+  entry?: UserReadCacheEntry;
+  generation: number;
+  loading: number;
+};
+
 type ReadUserCacheInput<T> = {
   userId: string;
   bucket: UserReadCacheBucket;
@@ -21,7 +27,7 @@ type ReadUserCacheInput<T> = {
 const DEFAULT_TTL_MS = 60_000;
 const MAX_CACHE_ENTRIES = 250;
 const globalCache = globalThis as typeof globalThis & {
-  __cadenceUserReadCache?: Map<string, UserReadCacheEntry>;
+  __cadenceUserReadCache?: Map<string, UserReadCacheSlot>;
 };
 
 export function createUserReadCacheKey(input: {
@@ -42,23 +48,44 @@ export async function readUserReadThroughCache<T>(
   const cache = getCache();
   const key = createUserReadCacheKey(input);
   const now = Date.now();
-  const cached = cache.get(key);
+  const slot = cache.get(key) ?? { generation: 0, loading: 0 };
+  const cached = slot.entry;
+
+  cache.set(key, slot);
 
   if (cached && cached.expiresAt > now) {
     return cloneCachedValue(cached.value) as T;
   }
 
   if (cached) {
-    cache.delete(key);
+    delete slot.entry;
   }
 
-  const value = await input.load();
+  const generation = slot.generation;
+  slot.loading += 1;
+  let value: T;
 
-  pruneCache(cache);
-  cache.set(key, {
-    expiresAt: now + (input.ttlMs ?? DEFAULT_TTL_MS),
-    value: cloneCachedValue(value),
-  });
+  try {
+    value = await input.load();
+  } catch (error) {
+    if (slot.loading === 1 && !slot.entry) {
+      cache.delete(key);
+    }
+
+    throw error;
+  } finally {
+    slot.loading -= 1;
+  }
+
+  if (slot.generation === generation) {
+    pruneCache(cache);
+    slot.entry = {
+      expiresAt: Date.now() + (input.ttlMs ?? DEFAULT_TTL_MS),
+      value: cloneCachedValue(value),
+    };
+  } else if (slot.loading === 0 && !slot.entry) {
+    cache.delete(key);
+  }
 
   return value;
 }
@@ -71,20 +98,20 @@ export function invalidateUserReadCache(
   const userPrefix = `user-read:${encodeKeyPart(userId)}:`;
   const bucketSet = buckets ? new Set(buckets) : null;
 
-  for (const key of cache.keys()) {
+  for (const [key, slot] of cache.entries()) {
     if (!key.startsWith(userPrefix)) {
       continue;
     }
 
     if (!bucketSet) {
-      cache.delete(key);
+      invalidateSlot(cache, key, slot);
       continue;
     }
 
     const bucket = key.slice(userPrefix.length).split(":")[0];
 
     if (bucketSet.has(bucket as UserReadCacheBucket)) {
-      cache.delete(key);
+      invalidateSlot(cache, key, slot);
     }
   }
 }
@@ -94,37 +121,71 @@ export function clearUserReadCache(): void {
 }
 
 export function listUserReadCacheKeys(): string[] {
-  return Array.from(getCache().keys()).sort();
+  return Array.from(getCache().entries())
+    .filter(([, slot]) => slot.entry)
+    .map(([key]) => key)
+    .sort();
 }
 
-function getCache(): Map<string, UserReadCacheEntry> {
+function getCache(): Map<string, UserReadCacheSlot> {
   globalCache.__cadenceUserReadCache ??= new Map();
 
   return globalCache.__cadenceUserReadCache;
 }
 
-function pruneCache(cache: Map<string, UserReadCacheEntry>): void {
-  if (cache.size < MAX_CACHE_ENTRIES) {
+function pruneCache(cache: Map<string, UserReadCacheSlot>): void {
+  if (countCacheEntries(cache) < MAX_CACHE_ENTRIES) {
     return;
   }
 
   const now = Date.now();
 
-  for (const [key, entry] of cache.entries()) {
-    if (entry.expiresAt <= now) {
-      cache.delete(key);
+  for (const [key, slot] of cache.entries()) {
+    if (slot.entry && slot.entry.expiresAt <= now) {
+      removeEntry(cache, key, slot);
     }
   }
 
-  while (cache.size >= MAX_CACHE_ENTRIES) {
-    const oldestKey = cache.keys().next().value as string | undefined;
+  while (countCacheEntries(cache) >= MAX_CACHE_ENTRIES) {
+    const oldest = Array.from(cache.entries()).find(([, slot]) => slot.entry);
 
-    if (!oldestKey) {
+    if (!oldest) {
       return;
     }
 
-    cache.delete(oldestKey);
+    removeEntry(cache, oldest[0], oldest[1]);
   }
+}
+
+function countCacheEntries(cache: Map<string, UserReadCacheSlot>): number {
+  return Array.from(cache.values()).filter((slot) => slot.entry).length;
+}
+
+function invalidateSlot(
+  cache: Map<string, UserReadCacheSlot>,
+  key: string,
+  slot: UserReadCacheSlot,
+): void {
+  if (slot.loading === 0) {
+    cache.delete(key);
+    return;
+  }
+
+  slot.generation += 1;
+  delete slot.entry;
+}
+
+function removeEntry(
+  cache: Map<string, UserReadCacheSlot>,
+  key: string,
+  slot: UserReadCacheSlot,
+): void {
+  if (slot.loading === 0) {
+    cache.delete(key);
+    return;
+  }
+
+  delete slot.entry;
 }
 
 function encodeKeyPart(value: string): string {

@@ -1,0 +1,30 @@
+[package]
+name = "cadence-desktop-spike"
+version = "0.1.0"
+description = "Cadence native boundary verification"
+edition = "2021"
+publish = false
+default-run = "cadence-desktop-spike"
+
+[features]
+contract-harness = []
+
+[[bin]]
+name = "local-store-contract"
+path = "src/bin/local-store-contract.rs"
+required-features = ["contract-harness"]
+
+[lib]
+name = "cadence_desktop_spike"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+cc = "=1.4.0"
+
+[dependencies]
+tauri = { version = "=2.11.5", features = [] }
+tauri-plugin-updater = "=2.10.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "=0.40.2", features = ["bundled", "backup"] }

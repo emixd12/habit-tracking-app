@@ -16,6 +16,7 @@ const topMobilePull = () =>
   beginPullToRefresh({
     isMobile: true,
     isAtScrollTop: true,
+    isModalOpen: false,
     startedOnInteractiveElement: false,
     x: 120,
     y: 20,
@@ -52,6 +53,7 @@ describe("mobile Timeline pull-to-refresh", () => {
         beginPullToRefresh({
           isMobile: true,
           isAtScrollTop: false,
+          isModalOpen: false,
           startedOnInteractiveElement: false,
           x: 120,
           y: 20,
@@ -63,7 +65,20 @@ describe("mobile Timeline pull-to-refresh", () => {
         beginPullToRefresh({
           isMobile: true,
           isAtScrollTop: true,
+          isModalOpen: false,
           startedOnInteractiveElement: true,
+          x: 120,
+          y: 20,
+        }),
+    ],
+    [
+      "a pull while a modal is open",
+      () =>
+        beginPullToRefresh({
+          isMobile: true,
+          isAtScrollTop: true,
+          isModalOpen: true,
+          startedOnInteractiveElement: false,
           x: 120,
           y: 20,
         }),
@@ -74,6 +89,7 @@ describe("mobile Timeline pull-to-refresh", () => {
         beginPullToRefresh({
           isMobile: false,
           isAtScrollTop: true,
+          isModalOpen: false,
           startedOnInteractiveElement: false,
           x: 120,
           y: 20,
@@ -128,5 +144,8 @@ describe("mobile Timeline pull-to-refresh", () => {
       'addEventListener("touchmove", handleTouchMove, { passive: false })',
     );
     expect(component).not.toContain("onTouchMove={handleTouchMove}");
+    expect(component).toContain("summary");
+    expect(component).toContain("getNearestScrollTop(target)");
+    expect(component).toContain("[aria-modal=\"true\"]");
   });
 });

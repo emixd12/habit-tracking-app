@@ -4,6 +4,7 @@ import type { NextConfig } from "next";
 const STATIC_ASSET_CACHE = "public, max-age=86400, stale-while-revalidate=604800";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["@cadence/core", "@cadence/ui"],
   experimental: {
     serverActions: {
       // A 2 MB ZIP is about 2.7 MB after base64 encoding, leaving margin

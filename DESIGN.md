@@ -140,9 +140,9 @@ surface may implement those contracts in its native runtime:
 - **Astro marketing site:** static Astro templates and CSS that share Cadence
   tokens, section rhythm, marks, CTAs, and product-capture vocabulary without
   importing authenticated React components.
-- **Desktop and mobile:** future local-first surfaces that should reuse tokens,
-  primitive contracts, presentational module specs, and resolver-fed view
-  models when those tracks are scheduled.
+- **Desktop:** Tauri consumes shared foundations and product UI across all four
+  screens. Native parity remains under verification; the operator bench is separate.
+- **Mobile:** future local-first surface; implementation remains deferred.
 
 `design-system.surfaces.json` is the machine-readable cross-surface catalog.
 It groups tokens, primitives, navigation, layouts, patterns, and product
@@ -153,6 +153,53 @@ different language or framework as long as it satisfies the shared contract.
 Shared code should start at tokens and framework-light primitives. Do not
 extract full product modules into `packages/ui` until another scheduled runtime
 needs them and the extraction removes real duplication.
+
+Ticket 109 moves canonical CSS variables to `packages/ui/tokens.css`, exported
+as `@cadence/ui/tokens.css`. The web and marketing styles import that file.
+The web retains its Tailwind directives and product classes; marketing keeps
+its existing accent value, typography, layout tokens, and surface exceptions.
+Token values and existing font loaders remain unchanged by extraction.
+
+`@cadence/ui/fonts.css` supplies optional offline IBM Plex Sans through the
+existing Fontsource 5.2.8 package. Its OFL notice ships as
+`packages/ui/LICENSE.fonts.txt`. Desktop bundles and renders the font in actual
+WKWebView. The web font loader remains unchanged. This package contains no visual
+components, shells, or copied brand/audio assets. On 2026-08-31 the owner
+authorized the six exact asset hashes for distribution inside Cadence; see
+`docs/qa/2026-08-30-desktop-asset-provenance.md`. Third-party notices, MIT
+exclusions, and reserved marks remain unchanged. Ticket 113's ad hoc preview is
+in progress; original final-release acceptance remains deferred.
+
+`@cadence/ui/runtime` supplies required refresh and link providers.
+`WebRuntimeProvider` connects the web app and its bench to Next navigation.
+Desktop `TimelineScreen` supplies local callbacks and reuses `TimelineGroup`,
+`OccurrenceRow`, and `NeedsDecisionDialog`. `BehaviorsScreen` reuses the web
+form, list, and review controls with a local review-link adapter. Desktop
+reminder controls preserve dormant email intent without offering delivery.
+`DesktopApp` retains the rail and mobile drawer structure; all four product screens
+are wired. Its available-screen contract keeps unavailable screens disabled. The product entry connects these components to local services.
+Native interaction and visual verification remain in progress.
+
+`DesktopScreenFrame` preserves the existing page banner and content spacing.
+Desktop Settings reuses `TimezonePanel` and adds native permission and readback
+coverage controls. Complete, limited, and unverified states use factual text;
+readback failure suppresses verified coverage claims. The desktop setup guide
+reuses the existing checklist model and local dismissal preference. Settings
+can reopen the guide without changing tracking data or requesting permission.
+
+`ExportScreen` reuses the Export panel, range selector, Markdown actions, prompt
+library, import panel, and restore panel. Runtime callbacks replace only option
+submission, download transport, and import/restore actions. Web passes its
+existing server actions explicitly. Notes and time tracking remain off by
+default. File preparation, save cancellation, and errors use existing text
+status patterns. Native save/cancel, privacy choices, merge/replay, and restore
+workflows passed on the original 0.2 build. The 0.3 build also verifies native
+archive saving, privacy defaults, explicit Note/time inclusion, and import
+validation with loss warnings. Representative native keyboard
+navigation, Escape dismissal, and launcher focus also passed. The interaction
+registry and native QA records retain remaining lifecycle/release gates.
+Current 0.3 integration evidence lives in
+`docs/qa/2026-08-30-desktop-0.3-acceptance.md`.
 
 ## 2. Colors
 
@@ -370,7 +417,8 @@ A boundary's space always exceeds every boundary one level below it; header rule
   and use only the Cadence logo and name in the marketing header. Do not use a
   combined BehaviorLog/Cadence lockup in top navigation. Header navigation
   links use the underlined text-action convention and no bottom divider. The
-  launch header shows the Cadence brand link plus Log in. About and FAQ are
+  launch header shows the Cadence brand link, a compact Download for macOS
+  button to the disclosed preview release, and Log in. About and FAQ are
   footer-only, and Docs/Examples stay available by direct link and
   machine-readable outputs rather than top navigation.
 - **Captures:** Product visuals are sanitized static captures of the Timeline
@@ -378,7 +426,7 @@ A boundary's space always exceeds every boundary one level below it; header rule
   scheduled time, behavior title, Completed, Not Completed, Needs decision,
   Note, and status-history authority. They do not render real account data.
   The homepage hero layers the trajectory-horse backplate with sanitized Timeline and behavior-row captures positioned in CSS. The composition must stay quiet, keep the captures readable, and fit the available lane without colliding with the headline or clipping offscreen at any viewport width.
-- **CTAs:** The launch marketing site uses filled-button CTAs rather than the app's underlined text actions: a Monolith Blue filled primary (Try Cadence), a 1px-bordered secondary, and underlined ghost links for tertiary actions. The header Log in renders as a compact bordered button. This is a deliberate marketing-register exception; the authenticated app keeps its underlined text-action vocabulary.
+- **CTAs:** The launch marketing site uses filled-button CTAs rather than the app's underlined text actions: a Monolith Blue filled primary (Try Cadence), a 1px-bordered secondary, and underlined ghost links for tertiary actions. The header uses a compact Monolith Blue Download for macOS button and keeps Log in as an underlined text action. This is a deliberate marketing-register exception; the authenticated app keeps its underlined text-action vocabulary.
 - **Docs route:** `/docs` is agent-first and developer-familiar. It links to
   Markdown mirrors, `llms.txt`, `llms-full.txt`, `/data/route-manifest.json`,
   sitemap, robots, and the example bundle. Use tables for machine file indexes
@@ -390,8 +438,9 @@ A boundary's space always exceeds every boundary one level below it; header rule
   descriptions, Open Graph/Twitter metadata, JSON-LD, one H1, semantic
   landmarks, and Markdown alternate links.
 - **Marketing boundaries:** No marketing cookies, analytics scripts,
-  client-side tracking, desktop/mobile teaser, billing teaser, or AI coaching
-  copy appears in the launch site.
+  client-side tracking, mobile teaser, billing teaser, or AI coaching copy
+  appears in the launch site. The header may link to the disclosed macOS
+  preview release without implying notarization or broad compatibility.
 - **Marketing register exceptions:** The marketing site shares the Cadence palette and IBM Plex Sans, and may additionally use: border radii (12px cards, 8px controls, pill chips), a sticky header with backdrop blur, font weights 400 to 600, a subtle two-hue page gradient, and IBM Plex Mono strictly for file names, file trees, and code samples. Decorative shadows remain banned on both surfaces. The square, flat, all-400, shadow-free rules elsewhere in this document bind the product app, not the marketing site.
 
 ## 6. Do's and Don'ts
@@ -417,7 +466,20 @@ A boundary's space always exceeds every boundary one level below it; header rule
 - **Don't** use quantified-self analytics sprawl.
 - **Don't** use multi-user SaaS administration patterns.
 - **Don't** use calendar-sync or task-manager complexity.
-- **Don't** use offline or PWA mutation flows in v1.
+- **Don't** add web offline or PWA mutation flows without a scoped ticket. Desktop local writes are active under Tickets 107–113.
 - **Don't** add rounded cards, soft shadows, blurred panels, gradients, glass effects, or decorative stripes.
 - **Don't** use missed, failed, or punitive language for Not Completed.
 - **Don't** copy the reference screen content, sample habits, route labels, or flows.
+
+Native notification activation reuses the Timeline row. Visible feed targets
+expand in place; other stored targets appear in a quiet Opened reminder section.
+Per-instance disclosure IDs avoid collisions with Needs decision. Explicit
+primary navigation resets scroll; refresh and day review preserve it. Setup
+anchors wait for asynchronous content. Native product click/focus passed: the
+intended row expanded and received focus, and Tab reached its Track Time control.
+Evidence: `docs/qa/2026-08-30-desktop-lifecycle-release.md#product-notification-click-passed`.
+
+Desktop Settings includes an optional App updates section. The local build
+shows unavailable text until signed release configuration exists. Check,
+install, and restart remain separate user actions. The unconfigured state
+passed WKWebView QA; signed update installation remains pending.

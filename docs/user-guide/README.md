@@ -10,6 +10,9 @@ automatically mark an Occurrence as missed.
 These guides describe the current web app and public marketing site. Control
 names are written exactly as they appear in the interface.
 
+The separate [local desktop preview notes](desktop-local.md) describe the
+development build. They do not establish desktop release readiness.
+
 ## Start with the path that fits your task
 
 The persona names below are navigation aids, not account types. Every guide is
