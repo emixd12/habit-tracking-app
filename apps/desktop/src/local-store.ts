@@ -71,7 +71,7 @@ export type LocalCommandMap = {
   readBehaviorGraphs: { input: Owned; result: (LocalBehaviorGraph & { revision: number })[] };
   readOccurrence: { input: Owned & { occurrenceId: string }; result: OccurrenceRecord | null };
   readOccurrences: {
-    input: Owned & { startLocalDate: string; endLocalDate: string; behaviorId?: string };
+    input: Owned & { startLocalDate: string; endLocalDate: string; behaviorId?: string; status?: OccurrenceRecord["status"] };
     result: OccurrenceRecord[];
   };
   readOccurrenceHistory: {

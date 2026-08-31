@@ -10,11 +10,14 @@ export async function loadLocalTimeline(futureDays = 7, now = Temporal.Now.insta
   await ensureLocalOccurrencesFresh(profile, now);
   const profileId = profile.id;
   const window = resolveGenerationWindow({ now, timezone: profile.timezone, horizonDays: 30 });
-  const [graphs, categories, occurrences] = await Promise.all([
+  const priorDate = Temporal.PlainDate.from(window.startLocalDate).subtract({ days: 1 }).toString();
+  const [graphs, categories, visibleOccurrences, priorUnresolved] = await Promise.all([
     localCommand("readBehaviorGraphs", { profileId }),
     localCommand("readCategories", { profileId }),
-    localCommand("readOccurrences", { profileId, startLocalDate: "0001-01-01", endLocalDate: window.endLocalDate }),
+    localCommand("readOccurrences", { profileId, startLocalDate: window.startLocalDate, endLocalDate: window.endLocalDate }),
+    localCommand("readOccurrences", { profileId, startLocalDate: "0001-01-01", endLocalDate: priorDate, status: "unresolved" }),
   ]);
+  const occurrences = [...priorUnresolved, ...visibleOccurrences];
   const history = await localCommand("readOccurrenceHistory", { profileId, occurrenceIds: occurrences.map(({ id }) => id) });
   const behaviors = graphs.map((graph) => toLocalBehaviorGraphRecord(graph, categories));
   return { profile, behaviors, categories,

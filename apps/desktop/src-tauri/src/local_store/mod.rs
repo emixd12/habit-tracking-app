@@ -151,6 +151,7 @@ pub enum Request {
         start_local_date: String,
         end_local_date: String,
         behavior_id: Option<String>,
+        status: Option<String>,
     },
     ReadOccurrenceHistory {
         profile_id: String,
@@ -396,6 +397,7 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
             start_local_date,
             end_local_date,
             behavior_id,
+            status,
         } => {
             db::owner(&tx, profile_id)?;
             occurrence::read_occurrences(
@@ -404,6 +406,7 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
                 start_local_date,
                 end_local_date,
                 behavior_id.as_deref(),
+                status.as_deref(),
             )?
         }
         Request::ReadOccurrenceHistory {

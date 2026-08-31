@@ -13,15 +13,17 @@ export async function getLocalBehaviorsPageData(profile: Profile,
   await ensureLocalOccurrencesFresh(profile, now);
   const profileId = profile.id;
   const range = resolveAnalyticsDateRange({ now, timezone: profile.timezone, rangeDays: options.rangeDays });
-  const [graphs, categories, rows] = await Promise.all([
+  const priorDate = Temporal.PlainDate.from(range.startLocalDate).subtract({ days: 1 }).toString();
+  const [graphs, categories, rows, priorUnresolved] = await Promise.all([
     localCommand("readBehaviorGraphs", { profileId }),
     localCommand("readCategories", { profileId }),
-    // Needs decision includes unresolved occurrences preceding the selected range.
-    localCommand("readOccurrences", { profileId, startLocalDate: "0001-01-01", endLocalDate: range.endLocalDate }),
+    localCommand("readOccurrences", { profileId, startLocalDate: range.startLocalDate, endLocalDate: range.endLocalDate }),
+    localCommand("readOccurrences", { profileId, startLocalDate: "0001-01-01", endLocalDate: priorDate, status: "unresolved" }),
   ]);
   const behaviors = graphs.map((graph) => toLocalBehaviorGraphRecord(graph, categories));
   const occurrences = rows.filter((row) => row.local_date >= range.startLocalDate);
-  const needsDecisionOccurrences = rows.filter((row) => row.status === "unresolved" && row.local_date < range.endLocalDate);
+  const needsDecisionOccurrences = [...priorUnresolved,
+    ...rows.filter((row) => row.status === "unresolved" && row.local_date < range.endLocalDate)];
   const history = await localCommand("readOccurrenceHistory", { profileId, occurrenceIds: occurrences.map(({ id }) => id) });
   const page = assembleBehaviorPageData({ behaviors, categories, profileTimezone: profile.timezone });
   return {

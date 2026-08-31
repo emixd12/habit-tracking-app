@@ -13,6 +13,7 @@ pub fn read_occurrences(
     start: &str,
     end: &str,
     behavior_id: Option<&str>,
+    status: Option<&str>,
 ) -> Result<Value> {
     db::valid_date(start)?;
     db::valid_date(end)?;
@@ -22,7 +23,10 @@ pub fn read_occurrences(
     if let Some(id) = behavior_id {
         db::valid_id(id)?;
     }
-    Ok(json!(db::read::<Occurrence>(db,"SELECT * FROM occurrences WHERE user_id=?1 AND local_date>=?2 AND local_date<=?3 AND (?4 IS NULL OR behavior_id=?4) ORDER BY local_date,scheduled_for,id", &[profile_id.to_string().into(),start.to_string().into(),end.to_string().into(),behavior_id.map_or(rusqlite::types::Value::Null,|value|value.to_string().into())])?))
+    if status.is_some_and(|value| !valid_status(value)) {
+        return Err("Invalid occurrence status filter.".into());
+    }
+    Ok(json!(db::read::<Occurrence>(db,"SELECT * FROM occurrences WHERE user_id=?1 AND local_date>=?2 AND local_date<=?3 AND (?4 IS NULL OR behavior_id=?4) AND (?5 IS NULL OR status=?5) ORDER BY local_date,scheduled_for,id", &[profile_id.to_string().into(),start.to_string().into(),end.to_string().into(),behavior_id.map_or(rusqlite::types::Value::Null,|value|value.to_string().into()),status.map_or(rusqlite::types::Value::Null,|value|value.to_string().into())])?))
 }
 
 pub fn read_history(db: &Connection, profile_id: &str, occurrence_ids: &[String]) -> Result<Value> {

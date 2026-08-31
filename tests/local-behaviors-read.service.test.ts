@@ -26,15 +26,18 @@ beforeEach(() => {
   vi.resetAllMocks();
   const { category, schedules, schedule_slots, ...behavior } = stored;
   void category;
-  mocks.command.mockImplementation(async (operation: string) => {
+  mocks.command.mockImplementation(async (operation: string,
+    input?: { startLocalDate?: string; endLocalDate?: string; status?: string }) => {
     if (operation === "readBehaviorGraphs") return [{ behavior, revision: 17, slots: schedule_slots,
       schedules: schedules!.map(({ schedule_slots: entries, ...row }) => { void entries; return row; }) }];
     if (operation === "readCategories") return [];
-    if (operation === "readOccurrences") return [
-      occurrence("completed", "2026-08-30", "completed"), occurrence("no", "2026-08-30", "not_completed"),
-      occurrence("open", "2026-08-30", "unresolved"), occurrence("old", "2026-08-01", "unresolved"),
-      occurrence("excluded", "2026-08-01", "completed"),
-    ];
+    if (operation === "readOccurrences") {
+      const rows = [occurrence("completed", "2026-08-30", "completed"),
+        occurrence("no", "2026-08-30", "not_completed"), occurrence("open", "2026-08-30", "unresolved"),
+        occurrence("old", "2026-08-01", "unresolved"), occurrence("excluded", "2026-08-01", "completed")];
+      return rows.filter((row) => row.local_date >= input!.startLocalDate! && row.local_date <= input!.endLocalDate!
+        && (input?.status === undefined || row.status === input.status));
+    }
     if (operation === "readOccurrenceHistory") return { statusEvents: [], timeSessions: [
       { id: "timer", user_id: "owner", occurrence_id: "completed", behavior_id: "behavior",
         started_at: "2026-08-30T14:00:00Z", stopped_at: "2026-08-30T14:02:00Z" },
