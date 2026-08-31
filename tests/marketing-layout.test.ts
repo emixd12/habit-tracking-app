@@ -14,4 +14,22 @@ describe("marketing base layout", () => {
     );
     expect(source).toContain('<main id="main" tabindex="-1">');
   });
+
+  it("keeps the header and footer minimal", () => {
+    const source = readFileSync("apps/marketing/src/layouts/BaseLayout.astro", "utf8");
+
+    expect(source).toContain("primaryCtas.logIn.label");
+    expect(source).toContain("primaryCtas.downloadMac.label");
+    expect(source).toContain('aria-label="Project links"');
+    expect(source).toContain('aria-label="Trust and legal links"');
+    expect(source).toContain("siteConfig.trustUrl");
+    expect(source).toContain("siteConfig.cadenceAppUrl}/privacy");
+  });
+
+  it("links the header macOS download to the disclosed preview release", () => {
+    const site = readFileSync("apps/marketing/src/data/site.ts", "utf8");
+
+    expect(site).toContain("Download for macOS");
+    expect(site).toContain("releases/tag/desktop-preview");
+  });
 });

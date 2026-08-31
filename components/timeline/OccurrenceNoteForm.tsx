@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@cadence/ui/runtime";
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -42,7 +42,7 @@ export function OccurrenceNoteForm({
   compact = false,
 }: OccurrenceNoteFormProps) {
   const [state, formAction] = useActionState(action, EMPTY_ACTION_STATE);
-  const router = useRouter();
+  const refresh = useRefresh();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const draftRevisionRef = useRef(0);
   const submittedDraftRef = useRef<{
@@ -64,9 +64,9 @@ export function OccurrenceNoteForm({
         });
       }
 
-      router.refresh();
+      refresh();
     }
-  }, [router, state]);
+  }, [refresh, state]);
 
   return (
     <form

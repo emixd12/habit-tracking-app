@@ -40,7 +40,7 @@ function walk(relativePath) {
 
     if (stat.isDirectory()) {
       for (const child of fs.readdirSync(current)) {
-        if (["node_modules", ".git", ".next", ".supabase", "dist", "coverage"].includes(child)) {
+        if (["node_modules", ".git", ".next", ".supabase", "dist", "coverage", "target"].includes(child)) {
           continue;
         }
         stack.push(path.join(current, child));
@@ -166,6 +166,7 @@ const requiredScripts = [
   "agents:check",
   "interactions:check",
   "resolvers:check",
+  "core:check",
   "load:install",
   "load:manifest:check",
   "load:python:test",
@@ -363,6 +364,13 @@ assert(
     interactionCheck.stderr || interactionCheck.stdout || "Unknown error"
   ).trim()}`,
 );
+
+const coreCheck = spawnSync(process.execPath, [filePath("scripts/check-core-portability.mjs")], {
+  cwd: root, encoding: "utf8",
+});
+assert(coreCheck.status === 0, `Core portability validation failed:\n${(
+  coreCheck.stderr || coreCheck.stdout || "Unknown error"
+).trim()}`);
 
 const loadInteractionCheck = spawnSync(
   process.execPath,

@@ -1,62 +1,39 @@
-export const faqItems: ReadonlyArray<{ question: string; answer: string }> = [
-  {
-    question: "What is Cadence?",
-    answer:
-      "Cadence is an open-source tracker for recurring behaviors. You define a behavior and its schedule, each scheduled slot becomes an occurrence on a today-first timeline, and you mark each one Completed or Not Completed. The full history exports as plain files any tool can read.",
-  },
-  {
-    question: "Why are there no streaks, badges, or points?",
-    answer:
-      "We think gamification gets in the way of honest records. A streak makes the number the goal, and one bad day turns into a reason to quit. Cadence shows adherence over 7, 30, or 90 days and leaves motivation to you. The record is the product.",
-  },
-  {
-    question: "What happens if I miss a day?",
-    answer:
-      "Nothing is marked for you. An occurrence you did not decide stays Unresolved, and prior-day unresolved items collect in a small Needs decision group until you settle them. Cadence never converts silence into failure.",
-  },
-  {
-    question: "Can I track how long a behavior takes?",
-    answer:
-      "Yes. Any of today's occurrences — or one still waiting in Needs decision — can carry a timer: start it when you begin, stop it when you finish, reset it if you need a clean slate. Reviews show totals and averages alongside adherence.",
-  },
-  {
-    question: "Is tracked time included in my exports?",
-    answer:
-      "Only if you ask for it. Exact session timestamps can reveal your daily patterns, so every export leaves timing data out by default. When you do include it, the download filename says so.",
-  },
-  {
-    question: "Who can see my data?",
-    answer:
-      "Cadence is single-player by design. Your account is private, and there is no social feed, no sharing, and no coaching layer reading your history. The marketing site carries no analytics.",
-  },
-  {
-    question: "Can I leave and take everything with me?",
-    answer:
-      "Anytime. Export your full history as JSONL, CSV, a complete JSON snapshot, a Markdown summary, or a BehaviorLog bundle — plain files with a manifest and checksums that open without Cadence.",
-  },
-  {
-    question: "What is BehaviorLog?",
-    answer:
-      "BehaviorLog is the open record format behind Cadence's portability. A bundle is plain JSONL files plus a manifest, a schema, and SHA-256 checksums, so another tool — or an AI agent — can read your history without access to your account. The standard lives in its own repository (https://github.com/emixd12/BehaviorLog-Bundle).",
-  },
-  {
-    question: "Is Cadence free?",
-    answer:
-      "Yes. The code is public and open source, and the app has no paid plans or payment features.",
-  },
+import { exportFormats, statusDefinitions } from "./vocabulary";
+
+export type FaqItem = { id: string; question: string; answer: string };
+export type FaqGroup = { id: string; title: string; items: readonly FaqItem[] };
+
+export const faqGroups: readonly FaqGroup[] = [
+  { id: "recording-model", title: "Recording model", items: [
+    { id: "what-is-cadence", question: "What is Cadence?", answer: `Cadence is an open-source tracker for recurring behaviors. You define a Behavior and its Schedule, and Cadence creates each Occurrence on a today-first timeline. ${statusDefinitions.completed} ${statusDefinitions.notCompleted} ${statusDefinitions.unresolved}` },
+    { id: "what-happens-without-a-decision", question: "What happens if I do not make a decision?", answer: `${statusDefinitions.unresolved} Prior-day Unresolved Occurrences collect in Needs decision until you decide them. Cadence never converts silence into failure.` },
+    { id: "why-no-streaks", question: "Why are there no streaks, badges, or points?", answer: "Cadence keeps the Record focused on explicit Decisions. It shows Adherence over 7, 30, or 90 days without turning a streak or score into the goal." },
+  ] },
+  { id: "context-and-history", title: "Context and history", items: [
+    { id: "track-elapsed-time", question: "Can I track how long a behavior takes?", answer: "Yes. An Occurrence scheduled for today, or one still in Needs decision, can carry elapsed time. Start, stop, and reset the timer. Reviews show totals and averages alongside Adherence." },
+    { id: "preserve-definition-history", question: "What happens when I rename or redefine a Behavior?", answer: "Cadence preserves title and description revision history in JSON and BehaviorLog exports. The current app does not provide a full revision browser." },
+    { id: "add-context", question: "What Context can I add?", answer: "You can add an optional note and elapsed time to an Occurrence. Context does not decide whether the Occurrence is Completed or Not Completed." },
+  ] },
+  { id: "review-and-analysis", title: "Review and analysis", items: [
+    { id: "how-adherence-works", question: "How does Adherence work?", answer: "Cadence shows Adherence across 7, 30, or 90 days. Adherence is the share of decided Occurrences marked Completed. Unresolved Occurrences remain separate from final calculations." },
+    { id: "use-external-ai", question: "Can I analyze my Record with an AI service?", answer: "Cadence provides prepared prompts. You export the data and choose an external AI service. Cadence does not send behavior data to an AI provider." },
+  ] },
+  { id: "privacy-and-portability", title: "Privacy and portability", items: [
+    { id: "who-can-see-data", question: "Who can see my data?", answer: "Cadence is single-player by design. There is no social feed or collaboration layer. Read the Privacy page for the current data practices and the Trust page for bounded operational evidence." },
+    { id: "export-formats", question: "Can I leave and take my Record with me?", answer: `Yes. Export your history as ${exportFormats.join(", ")}. These files can be inspected without Cadence.` },
+    { id: "timing-in-exports", question: "Is tracked time included in my exports?", answer: "Only when you choose to include it. Exports omit timing data by default because exact session timestamps can reveal activity patterns." },
+    { id: "what-is-behaviorlog", question: "What is BehaviorLog?", answer: "BehaviorLog is the open portability standard used by Cadence. A bundle contains plain JSONL files, a manifest, schemas, and SHA-256 checksums. The standard lives at https://github.com/emixd12/BehaviorLog-Bundle." },
+    { id: "current-price", question: "What does Cadence cost?", answer: "Cadence is currently available without charge." },
+  ] },
 ];
 
+export const faqItems = faqGroups.flatMap((group) => group.items);
+
 export function buildFaqMarkdown(): string {
-  const lines = [
-    "# Frequently Asked Questions",
-    "",
-    "Short, factual answers. If something is missing, the codebase and docs are public.",
-    "",
-  ];
-
-  for (const item of faqItems) {
-    lines.push(`## ${item.question}`, "", item.answer, "");
+  const lines = ["# Frequently Asked Questions", "", "Detailed answers about Cadence's recording model, context, review, privacy, and portability.", ""];
+  for (const group of faqGroups) {
+    lines.push(`## ${group.title}`, "");
+    for (const item of group.items) lines.push(`### ${item.question}`, "", item.answer, "");
   }
-
   return lines.join("\n").trimEnd();
 }

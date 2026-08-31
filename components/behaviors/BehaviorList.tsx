@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { RuntimeLink as Link } from "@cadence/ui/runtime";
 import type { CSSProperties, ReactNode } from "react";
 import { useActionState, useCallback, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -49,6 +49,7 @@ type BehaviorListProps = Readonly<{
   noteAction: OccurrenceFormAction;
   stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
+  reminderRuntime?: "web" | "desktop";
 }>;
 
 const EMPTY_ACTION_STATE: BehaviorActionState = {
@@ -103,6 +104,7 @@ export function BehaviorList({
   noteAction,
   stopTimeTrackingAction,
   resetTimeTrackingAction,
+  reminderRuntime = "web",
 }: BehaviorListProps) {
   const [createdBehaviorRows, setCreatedBehaviorRows] = useState<BehaviorView[]>(
     [],
@@ -190,6 +192,7 @@ export function BehaviorList({
               <BehaviorRecord
                 key={behavior.id}
                 behavior={behavior}
+                reminderRuntime={reminderRuntime}
                 categories={categories}
                 analytics={analytics}
                 behaviorAnalytics={behaviorAnalyticsById.get(behavior.id) ?? null}
@@ -209,6 +212,7 @@ export function BehaviorList({
       <CategoryCounts analytics={analytics} />
 
       <ArchivedBehaviorDisclosure
+        reminderRuntime={reminderRuntime}
         archivedBehaviors={archivedBehaviors}
         categories={categories}
         updateAction={updateAction}
@@ -355,6 +359,7 @@ function BehaviorRecord({
   noteAction,
   stopTimeTrackingAction,
   resetTimeTrackingAction,
+  reminderRuntime,
 }: Readonly<{
   behavior: BehaviorView;
   categories: CategoryOption[];
@@ -367,6 +372,7 @@ function BehaviorRecord({
   noteAction?: OccurrenceFormAction;
   stopTimeTrackingAction?: TimeTrackingFormAction;
   resetTimeTrackingAction?: TimeTrackingFormAction;
+  reminderRuntime?: "web" | "desktop";
 }>) {
   const [hasOpenedEdit, setHasOpenedEdit] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -448,6 +454,7 @@ function BehaviorRecord({
               {behavior.active ? (
                 <div className="relative grid gap-4">
                   <BehaviorForm
+                    reminderRuntime={reminderRuntime}
                     key={`${behavior.id}-${behavior.updatedAt}`}
                     mode="edit"
                     action={updateAction}
@@ -469,6 +476,7 @@ function BehaviorRecord({
                 </div>
               ) : (
                 <BehaviorForm
+                  reminderRuntime={reminderRuntime}
                   key={`${behavior.id}-${behavior.updatedAt}`}
                   mode="edit"
                   action={updateAction}
@@ -833,12 +841,14 @@ function ArchivedBehaviorDisclosure({
   updateAction,
   lifecycleFormAction,
   lifecycleResult,
+  reminderRuntime,
 }: Readonly<{
   archivedBehaviors: BehaviorView[];
   categories: CategoryOption[];
   updateAction: BehaviorFormAction;
   lifecycleFormAction: BehaviorLifecycleFormAction;
   lifecycleResult: BehaviorLifecycleActionState;
+  reminderRuntime?: "web" | "desktop";
 }>) {
   return (
     <section className="border-t border-line pt-4" aria-labelledby="archived-behaviors-title">
@@ -861,6 +871,7 @@ function ArchivedBehaviorDisclosure({
           <div className="mt-4 divide-y divide-line border-t border-line">
             {archivedBehaviors.map((behavior) => (
               <BehaviorRecord
+                reminderRuntime={reminderRuntime}
                 key={behavior.id}
                 behavior={behavior}
                 categories={categories}

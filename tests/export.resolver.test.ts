@@ -1905,7 +1905,7 @@ describe("resolveExportBundle", () => {
     ]);
     expect(manifest).toMatchObject({
       format: "behaviorlog.bundle",
-      schema_version: "0.2.0-draft",
+      schema_version: "0.3.0-draft",
       subject: {
         subject_id: "subject_test",
         timezone_default: DEFAULT_TIMEZONE,
@@ -2209,14 +2209,12 @@ describe("resolveExportBundle", () => {
       interventions.find(
         (intervention) => intervention.intervention_id === "delivery-pending",
       ),
-    ).toMatchObject({
-      rule_id: "rule_reminder_behavior-brush_browser_push",
-    });
+    ).not.toHaveProperty("rule_id");
     expect(
       interventions.find(
         (intervention) => intervention.intervention_id === "delivery-sent",
       ),
-    ).toMatchObject({ rule_id: "rule_reminder_behavior-brush_email" });
+    ).not.toHaveProperty("rule_id");
 
     for (const intervention of interventions) {
       expect(occurrenceIds.has(intervention.occurrence_id)).toBe(true);

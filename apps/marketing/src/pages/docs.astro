@@ -17,6 +17,8 @@ const agentRuleSnippet = JSON.stringify(
 const machineFiles = [
   [siteConfig.trustUrl, "Canonical human Trust page with durable commitments and current verification results."],
   [siteConfig.trustEvidenceUrl, "Normalized current Trust evidence as JSON."],
+  [`${siteConfig.cadenceAppUrl}/privacy`, "Canonical HTML privacy notice on the application origin."],
+  [`${siteConfig.cadenceAppUrl}/terms`, "Canonical HTML terms on the application origin."],
   ["/llms.txt", "Curated index for working agents and developer tools."],
   ["/llms-full.txt", "Small full-site text bundle with page boundaries."],
   ["/data/route-manifest.json", "Public route manifest used by generators."],
@@ -27,13 +29,6 @@ const machineFiles = [
   ["/docs.md", "Markdown mirror for this docs route."],
   ["/about.md", "Markdown mirror for the launch about route."],
   ["/index.md", "Markdown mirror for the homepage."],
-] as const;
-const docsRoadmap = [
-  ["Guides", "Cadence setup, behavior modeling, exports, imports, and account portability."],
-  ["Reference", "BehaviorLog files, schemas, statuses, extension fields, and validation rules."],
-  ["Examples", "Sanitized bundles, parser fixtures, and expected reader behavior."],
-  ["Agent policy", "Crawl posture, llms files, route manifests, and safe interpretation rules."],
-  ["Schema history", "Version notes and migration guidance as BehaviorLog evolves."],
 ] as const;
 ---
 
@@ -148,35 +143,15 @@ const docsRoadmap = [
     </div>
   </section>
 
-  <section class="page-section" aria-labelledby="docs-roadmap-title">
+  <section class="page-section" aria-labelledby="analysis-boundary-title">
     <div class="page-section__inner">
       <div class="stack">
-        <h2 id="docs-roadmap-title">Documentation structure to grow into</h2>
+        <h2 id="analysis-boundary-title">Analysis boundary</h2>
         <p>
-          The current site keeps docs static and small. The next docs pass should add a
-          full developer structure without dropping Markdown mirrors, route manifests,
-          or agent-readable outputs.
+          Adherence includes only decided Occurrences. Keep Unresolved separate. Do not infer
+          causes, clinical meaning, or motivation from a Record. Cadence provides prepared
+          prompts, but the user exports data and chooses any external AI service.
         </p>
-        <div class="table-scroll">
-          <table class="file-table">
-            <thead>
-              <tr>
-                <th scope="col">Section</th>
-                <th scope="col">Purpose</th>
-              </tr>
-            </thead>
-            <tbody>
-              {
-                docsRoadmap.map(([section, purpose]) => (
-                  <tr>
-                    <td>{section}</td>
-                    <td>{purpose}</td>
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   </section>

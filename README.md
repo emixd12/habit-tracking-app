@@ -1,12 +1,28 @@
 # Cadence
 
-This repository contains Cadence, a public, open-source personal behavior tracker. The implemented surfaces are the authenticated Next.js web app and the sibling Astro marketing site under `apps/marketing`.
+Cadence is a public, open-source personal behavior tracker for explicit decisions, preserved context, longitudinal review, and portable records. It is an authenticated Next.js app with a sibling Astro marketing site under `apps/marketing`.
+
+Cadence generates scheduled Occurrences for recurring Behaviors. The user marks each Occurrence Completed or Not Completed. Unresolved remains separate and never becomes an automatic failure. Cadence is currently available without charge.
 
 Canonical source: <https://github.com/emixd12/habit-tracking-app>
 
 Future agents should treat the docs as source-of-truth and use `STATUS.md` to understand what has actually been implemented.
 
-## How to use
+## Implemented product
+
+- Google login for independent single-player accounts
+- Behavior and category management with daily, interval, weekly, and monthly Schedules
+- A timeline with Completed, Not Completed, Unresolved, and derived Needs decision groups
+- Notes and start, stop, and reset elapsed-time capture
+- Browser reminders and optional email reminders
+- Adherence review across 7, 30, or 90 days
+- Title and description definition history in JSON and BehaviorLog exports
+- JSONL, JSON, CSV, Markdown, and BehaviorLog bundle exports
+- Prepared analysis prompts; users export data and choose an external AI service
+
+Cadence does not send behavior data to an AI provider. It is not a collaboration product, social tracker, medical dosing app, payment system, or AI coach.
+
+## Repository workflow
 
 1. Start the coding agent from this repository root.
 2. Have the agent read `AGENTS.md`, then `STATUS.md`, then `docs/OPERATIONS.md`, then the relevant files under `docs/`.
@@ -19,24 +35,6 @@ If these bootstrap files are copied into a new repository, copy the full project
 Cadence requires Node.js 24.x. Use Node.js 24 for local release
 verification so local builds match the Vercel runtime. Install the locked
 workspace with `npm ci`.
-
-## Intended product
-
-A sparse personal behavior tracker product:
-
-- Google login
-- Recurring behaviors
-- Timeline-first interface
-- Manual statuses: `unresolved`, `completed`, `not_completed`
-- Prior unresolved items grouped under **Needs decision**
-- Browser reminders on by default
-- Optional email reminders per behavior through Sequenzy
-- JSONL/CSV/full JSON and BehaviorLog bundle export for AI-readable history
-- An Astro marketing site for Cadence and the BehaviorLog Bundle standard
-- Future free open-source desktop and mobile apps
-
-Cadence remains single-player per account. It is not a collaboration product,
-social tracker, or general productivity platform.
 
 The target public-product architecture is documented in
 `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.

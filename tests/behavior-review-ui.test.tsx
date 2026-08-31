@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "./helpers/render-with-refresh";
 
 import { describe, expect, it, vi } from "vitest";
 

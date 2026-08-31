@@ -98,10 +98,11 @@ export function NeedsDecisionDialog({
       document.body.style.overflow = originalOverflow;
       document.removeEventListener("keydown", handleKeyDown);
 
-      if (previousElement?.isConnected) {
+      // WebKit pointer clicks can leave body focused instead of the launcher.
+      if (launcherElement?.isConnected) {
+        launcherElement.focus({ preventScroll: true });
+      } else if (previousElement?.isConnected) {
         previousElement.focus({ preventScroll: true });
-      } else {
-        launcherElement?.focus({ preventScroll: true });
       }
     };
   }, [isOpen]);

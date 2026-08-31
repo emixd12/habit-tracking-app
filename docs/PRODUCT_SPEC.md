@@ -20,10 +20,10 @@ collaboration product. It does not need shared workspaces, role management,
 social features, public profiles, admin dashboards, or productivity-suite
 sprawl.
 
-The first public-product step is to harden the existing web app for many
-independent users with simple Google auth. Billing, desktop, mobile, sync, and
-AI speech features are future scope unless tickets explicitly move them into
-active work.
+The web app supports independent users with Google auth. Tickets 107–114
+implement local-first macOS tracking with one local profile and no login.
+Ticket 115 defers Apple-trusted desktop distribution acceptance.
+Billing, mobile, live sync, and AI speech features remain future scope.
 
 ## Product surfaces
 
@@ -32,13 +32,13 @@ Target surfaces:
 1. Authenticated web app: current Next.js app.
 2. Marketing site: Astro app under `apps/marketing` for Cadence, BehaviorLog,
    docs links, and example bundles.
-3. Desktop app: future local-first Tauri app, documented as a proposal in
-   `docs/DESKTOP_BUILD.md`.
+3. Desktop app: active local-first Tauri v2, Vite, React, and SQLite track in
+   `docs/DESKTOP_BUILD.md`, targeting macOS 14+ on Apple Silicon.
 4. Mobile app: future local-first app following the desktop direction.
 
-The product should eventually live in a composable workspace, but repository
-restructuring is not implied by this document alone. See
-`docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
+The desktop track adds `apps/desktop`, `packages/core`, and `packages/ui`
+incrementally. Next.js stays at the repository root. Broader restructuring
+remains deferred. See `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
 
 ## Core screens
 
@@ -355,15 +355,17 @@ snapshot formats.
 
 Historical definitions and configuration can be sensitive. The Export & Import
 screen must disclose their default inclusion. Current BehaviorLog import and
-restore do not replay revision trails. They create the current schedule graph
-only and preserve historical Occurrences as detached schedule snapshots, so old
-and current recurrence graphs never become simultaneously active.
+restore replay definition history. Configuration history remains export
+context. They create the current schedule graph only and preserve historical
+Occurrences as detached schedule snapshots, so old and current recurrence
+graphs never become simultaneously active.
 
 Time tracking is excluded from exports by default because exact timestamps can
 reveal activity patterns. The Export & Import option uses
 `include_time_tracking=1` only after explicit selection. Enabled exports scope
 sessions to included occurrences and archived-behavior rules. Import and restore
-validate the optional Cadence timing file but do not replay sessions.
+replay safely mapped standard time sessions. A conflicting running session is
+skipped with a warning. `docs/EXPORT_FORMATS.md` owns these portability rules.
 
 Account deletion and export should be first-class before broad public launch,
 consistent with the BehaviorLog portability posture.
@@ -385,7 +387,20 @@ message bodies.
 
 ## Offline and PWA behavior
 
-Offline support, offline writes, and PWA caching are deferred from v1.
+Web offline support, offline writes, and PWA caching remain deferred.
+
+Desktop tracking works offline against SQLite without an account. The desktop
+track preserves the four screens and current tracking/portability behavior.
+Local Settings exposes timezone, onboarding, and native reminder readiness;
+cloud account controls and duplicate public/legal pages do not apply.
+
+Desktop native reminders target 30 days and schedule nearest eligible reminders
+first. Show the actual contiguous coverage verified through OS readback and
+clearly disclose a shorter OS-limited horizon or unavailable verification.
+Do not assume a universal request cap. Reconcile on launch, resume, local day
+change, and relevant mutations. No background helper is authorized. Desktop
+email delivery and live sync are out of scope. The dormant sync scaffold does
+not authorize network synchronization or cloud sign-in.
 
 Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 
@@ -408,6 +423,8 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - Privacy-safe monitoring/error reporting
 - Repeatable many-user RLS smoke QA
 - Public Astro marketing site when explicitly ticketed
+- Local-first macOS tracking parity under Tickets 107–114
+- Incremental shared domain code and design tokens, with preserved web APIs
 
 ## Out of scope
 
@@ -420,11 +437,11 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - AI coaching
 - Calendar sync
 - PWA offline cache
-- Offline writes
+- Web offline writes
 - Payment/subscription infrastructure
 - Admin dashboard
 - Automatic missed status
 - Any third manual completion status beyond Completed and Not Completed
 - AI coaching or speech features in the launch web app
 - Marketing/product emails at launch
-- Desktop/mobile implementation until proposal work is explicitly scheduled
+- Intel desktop releases, live sync, cloud desktop login, and desktop email delivery

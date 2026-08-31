@@ -1,15 +1,11 @@
+@import "@cadence/ui/tokens.css";
+
 :root {
-  --background: oklch(99.16% 0.0017 67.8);
-  --foreground: oklch(14.89% 0.0027 248.1);
-  --surface: oklch(96.97% 0.0017 247.8);
   --surface-strong: oklch(93.2% 0.003 248);
-  --primary: #3572b3;
   --primary-strong: #2f669f;
   --primary-soft: #eef6ff;
   --primary-soft-strong: #e8f2ff;
-  --muted-readable: oklch(52.59% 0.0187 245.3);
   --accent: #c84a31;
-  --line: oklch(83% 0.006 248);
   --line-strong: oklch(74% 0.01 248);
   --ink: #0f1e33;
   --ink-raised: #172a44;
@@ -20,7 +16,6 @@
   --radius-control: 8px;
   --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", Arial, Helvetica, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --focus: oklch(57.69% 0.1656 33.1);
   --max-width: 1180px;
   --wide-width: 1500px;
   --page-gutter: clamp(1.25rem, 4.5vw, 4.5rem);
@@ -35,7 +30,7 @@
 html {
   min-height: 100%;
   background: var(--background);
-  scroll-padding-top: 5rem;
+  scroll-padding-top: 3.75rem;
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
 }
@@ -220,7 +215,7 @@ pre code {
 
 .site-header__inner {
   display: flex;
-  min-height: 5rem;
+  min-height: 3.75rem;
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
@@ -318,6 +313,14 @@ pre code {
 
 .site-header__login:hover {
   text-shadow: 0.02em 0 currentColor;
+}
+
+.button.site-header__download {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 .page-section {
@@ -1076,18 +1079,14 @@ html.js-reveal [data-reveal].is-visible {
   }
 
   .site-header__nav-area {
-    display: contents;
+    grid-column: 2;
+    grid-row: 1;
+    gap: 0.6rem;
   }
 
   .brand-lockup {
     grid-column: 1;
     grid-row: 1;
-  }
-
-  .site-header__login {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
   }
 
   .site-nav {
@@ -1166,6 +1165,10 @@ html.js-reveal [data-reveal].is-visible {
 }
 
 @media (width < 520px) {
+  .button.site-header__download {
+    padding-inline: 0.65rem;
+  }
+
   .site-nav a {
     min-height: 2.35rem;
     padding: 0.5rem 0;

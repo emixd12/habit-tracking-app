@@ -23,6 +23,7 @@ import {
   type AppNavHref,
 } from "@/lib/navigation";
 import { readCurrentBrowserPushEndpoint } from "@/lib/push/browser";
+import { WebRuntimeProvider } from "@/components/layout/WebRuntimeProvider";
 
 const navIcons: Record<AppNavHref, LucideIcon> = {
   "/timeline": CalendarDays,
@@ -640,7 +641,7 @@ export function AppShell({
           aria-label="Open navigation"
           aria-expanded={isMobileOpen}
           aria-controls="mobile-navigation"
-          onClick={() => setIsMobileOpen(true)}
+          onClick={(event) => { event.currentTarget.focus(); setIsMobileOpen(true); }}
           className="flex h-16 w-16 items-center justify-center transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           <Menu aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
@@ -803,7 +804,7 @@ export function AppShell({
             isDesktopSidebarOpen ? "lg:pl-64" : "lg:pl-16",
           ].join(" ")}
         >
-          {children}
+          <WebRuntimeProvider>{children}</WebRuntimeProvider>
         </main>
       </div>
     </div>

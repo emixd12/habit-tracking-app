@@ -46,73 +46,106 @@ function walk(relativePath) {
 const resolverRegistry = [
   {
     domain: "recurrence",
-    resolver: "lib/resolvers/recurrence.resolver.ts",
+    resolver: "packages/core/src/resolvers/recurrence.resolver.ts",
+    compatibility: "lib/resolvers/recurrence.resolver.ts",
     test: "tests/recurrence.resolver.test.ts",
     source: "docs/RECURRENCE_RULES.md",
   },
   {
     domain: "occurrence",
-    resolver: "lib/resolvers/occurrence.resolver.ts",
+    resolver: "packages/core/src/resolvers/occurrence.resolver.ts",
+    compatibility: "lib/resolvers/occurrence.resolver.ts",
     test: "tests/occurrence.resolver.test.ts",
     source: "docs/DATA_MODEL.md",
   },
   {
     domain: "behavior definition history",
-    resolver: "lib/resolvers/behavior-definition.resolver.ts",
+    resolver: "packages/core/src/resolvers/behavior-definition.resolver.ts",
+    compatibility: "lib/resolvers/behavior-definition.resolver.ts",
     test: "tests/behavior-definition.resolver.test.ts",
     source: "docs/DATA_MODEL.md",
   },
   {
     domain: "timeline",
-    resolver: "lib/resolvers/timeline.resolver.ts",
+    resolver: "packages/core/src/resolvers/timeline.resolver.ts",
+    compatibility: "lib/resolvers/timeline.resolver.ts",
     test: "tests/timeline.resolver.test.ts",
     source: "docs/UI_SPEC.md",
   },
   {
+    domain: "behavior configuration history",
+    resolver: "packages/core/src/resolvers/behavior-configuration.resolver.ts",
+    compatibility: "lib/resolvers/behavior-configuration.resolver.ts",
+    test: "tests/behavior-configuration.resolver.test.ts",
+    source: "docs/DATA_MODEL.md",
+  },
+  {
+    domain: "optimistic timeline status",
+    resolver: "packages/core/src/resolvers/timeline-optimistic-status.resolver.ts",
+    compatibility: "lib/resolvers/timeline-optimistic-status.resolver.ts",
+    test: "tests/timeline-optimistic-status.test.ts",
+    source: "docs/UI_SPEC.md",
+  },
+  {
     domain: "occurrence time tracking",
-    resolver: "lib/resolvers/time-tracking.resolver.ts",
+    resolver: "packages/core/src/resolvers/time-tracking.resolver.ts",
+    compatibility: "lib/resolvers/time-tracking.resolver.ts",
     test: "tests/time-tracking.resolver.test.ts",
     source: "docs/DATA_MODEL.md",
   },
   {
     domain: "status",
-    resolver: "lib/resolvers/status.resolver.ts",
+    resolver: "packages/core/src/resolvers/status.resolver.ts",
+    compatibility: "lib/resolvers/status.resolver.ts",
     test: "tests/status.resolver.test.ts",
     source: "docs/USER_FLOWS.md",
   },
   {
     domain: "reminder",
-    resolver: "lib/resolvers/reminder.resolver.ts",
+    resolver: "packages/core/src/resolvers/reminder.resolver.ts",
+    compatibility: "lib/resolvers/reminder.resolver.ts",
     test: "tests/reminder.resolver.test.ts",
     source: "docs/NOTIFICATION_SPEC.md",
   },
   {
+    domain: "native reminder coverage",
+    resolver: "packages/core/src/resolvers/native-reminder.resolver.ts",
+    compatibility: "lib/resolvers/native-reminder.resolver.ts",
+    test: "tests/native-reminder.resolver.test.ts",
+    source: "docs/DESKTOP_BUILD.md",
+  },
+  {
     domain: "analytics",
-    resolver: "lib/resolvers/analytics.resolver.ts",
+    resolver: "packages/core/src/resolvers/analytics.resolver.ts",
+    compatibility: "lib/resolvers/analytics.resolver.ts",
     test: "tests/analytics.resolver.test.ts",
     source: "docs/UI_SPEC.md",
   },
   {
     domain: "export",
-    resolver: "lib/resolvers/export.resolver.ts",
+    resolver: "packages/core/src/resolvers/export.resolver.ts",
+    compatibility: "lib/resolvers/export.resolver.ts",
     test: "tests/export.resolver.test.ts",
     source: "docs/EXPORT_FORMATS.md",
   },
   {
     domain: "behaviorlog import",
-    resolver: "lib/resolvers/behaviorlog-import.resolver.ts",
+    resolver: "packages/core/src/resolvers/behaviorlog-import.resolver.ts",
+    compatibility: "lib/resolvers/behaviorlog-import.resolver.ts",
     test: "tests/behaviorlog-import.resolver.test.ts",
     source: "docs/EXPORT_FORMATS.md",
   },
   {
     domain: "behaviorlog restore preview",
-    resolver: "lib/resolvers/behaviorlog-restore.resolver.ts",
+    resolver: "packages/core/src/resolvers/behaviorlog-restore.resolver.ts",
+    compatibility: "lib/resolvers/behaviorlog-restore.resolver.ts",
     test: "tests/behaviorlog-restore.resolver.test.ts",
     source: "docs/EXPORT_FORMATS.md",
   },
   {
     domain: "imported intervention promotion",
-    resolver: "lib/resolvers/imported-intervention-promotion.resolver.ts",
+    resolver: "packages/core/src/resolvers/imported-intervention-promotion.resolver.ts",
+    compatibility: "lib/resolvers/imported-intervention-promotion.resolver.ts",
     test: "tests/imported-intervention-promotion.test.ts",
     source: "docs/NOTIFICATION_SPEC.md",
   },
@@ -133,6 +166,13 @@ for (const entry of resolverRegistry) {
   assert(guide.includes(entry.resolver), `Resolver registry must mention ${entry.resolver}.`);
   assert(guide.includes(entry.test), `Resolver registry must mention ${entry.test}.`);
   assert(guide.includes(entry.source), `Resolver registry must mention ${entry.source}.`);
+  if (entry.compatibility) {
+    const moduleName = path.basename(entry.resolver, ".ts");
+    assert(
+      read(entry.compatibility).trim() === `export * from "@cadence/core/resolvers/${moduleName}";`,
+      `${entry.compatibility} must remain a compatibility export for ${entry.resolver}.`,
+    );
+  }
 
   if (exists(entry.resolver)) {
     assert(exists(entry.test), `${entry.resolver} exists but paired test is missing: ${entry.test}`);
@@ -149,11 +189,15 @@ for (const entry of resolverRegistry) {
       assert(!pattern.test(content), `${entry.resolver} must not use ${label}; move orchestration to services/repositories.`);
     }
   } else {
-    notes.push(`${entry.resolver} not implemented yet; registry check is documentation-only for ${entry.domain}.`);
+    failures.push(`Missing required resolver implementation: ${entry.resolver}.`);
   }
 }
 
-const occurrenceResolver = read("lib/resolvers/occurrence.resolver.ts");
+for (const file of walk("packages/core/src/resolvers")) {
+  assert(resolverRegistry.some((entry) => entry.resolver === file), `${file} needs a registry entry and paired test.`);
+}
+
+const occurrenceResolver = read("packages/core/src/resolvers/occurrence.resolver.ts");
 const occurrenceService = read("lib/services/occurrence.service.ts");
 assert(
   occurrenceResolver.includes("export function normalizeOccurrenceScheduleGraph"),

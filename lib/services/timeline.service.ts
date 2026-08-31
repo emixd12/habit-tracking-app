@@ -11,20 +11,13 @@ import {
 } from "@/lib/db/occurrences.repo";
 import {
   listTimeSessionsByOccurrenceIds,
-  type OccurrenceTimeSessionReadRow,
 } from "@/lib/db/timeSessions.repo";
 import { resolveGenerationWindow } from "@/lib/resolvers/occurrence.resolver";
 import {
   TIMELINE_MAX_FUTURE_DAYS,
-  resolveTimeline,
 } from "@/lib/resolvers/timeline.resolver";
-import { resolveOccurrenceTimeTracking } from "@/lib/resolvers/time-tracking.resolver";
-import {
-  normalizeRecurrenceRule,
-  normalizeScheduledTime,
-  summarizeRecurrenceRule,
-} from "@/lib/services/behavior-form";
-import { formatCompactOccurrenceScheduleLabel } from "@/lib/services/schedule";
+import { resolvePersistedTimeline } from "@cadence/core/services/timeline.service";
+import { toTimeSession } from "@/lib/services/time-tracking.service";
 import { createFirstRunOnboardingState } from "@/lib/services/onboarding.service";
 import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
 import { readOccurrenceSyncState } from "@/lib/services/occurrence-sync-state.service";
@@ -36,11 +29,8 @@ import {
   readCachedUserBehaviors,
 } from "@/lib/cache/stable-user-data.cache";
 import type { Occurrence } from "@/lib/types/database";
-import type { TimeSession } from "@/lib/types/time-tracking";
 import type { FirstRunOnboardingState } from "@/lib/types/onboarding";
 import type {
-  TimelineOccurrenceInput,
-  TimelineStatus,
   TimelineView,
 } from "@/lib/types/timeline";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
@@ -162,11 +152,6 @@ async function getTimelineViewForUser(input: {
       timelineWindow.endLocalDate,
     ),
   ]);
-  const activeBehaviorById = new Map(
-    behaviors
-      .filter((behavior) => behavior.active)
-      .map((behavior) => [behavior.id, behavior]),
-  );
   const occurrenceRows = [
     ...dedupeOccurrences([
       ...priorUnresolvedOccurrences,
@@ -178,24 +163,11 @@ async function getTimelineViewForUser(input: {
     userId,
     occurrenceIds: occurrenceRows.map((occurrence) => occurrence.id),
   });
-  const timeSessionsByOccurrenceId = groupTimeSessionsByOccurrenceId(timeSessions);
-  const occurrences = occurrenceRows
-    .map((occurrence) =>
-      toTimelineOccurrenceInput(
-        occurrence,
-        activeBehaviorById,
-        timeSessionsByOccurrenceId.get(occurrence.id) ?? [],
-      ),
-    )
-    .filter((occurrence): occurrence is TimelineOccurrenceInput =>
-      Boolean(occurrence),
-    );
-
-  return resolveTimeline({
-    occurrences,
-    now,
-    timezone,
-    futureDays: input.futureDays,
+  return resolvePersistedTimeline({
+    behaviors,
+    occurrences: occurrenceRows,
+    timeSessions: timeSessions.map(toTimeSession),
+    now, timezone, futureDays: input.futureDays,
   });
 }
 
@@ -203,69 +175,6 @@ async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
   void supabase;
 
   return requireCurrentUserId("Sign in again before viewing the timeline.");
-}
-
-function toTimelineOccurrenceInput(
-  occurrence: Occurrence,
-  activeBehaviorById: Map<string, BehaviorWithCategory>,
-  timeSessions: TimeSession[],
-): TimelineOccurrenceInput | null {
-  const behavior = activeBehaviorById.get(occurrence.behavior_id);
-
-  if (!behavior) {
-    return null;
-  }
-
-  const recurrenceRule = normalizeRecurrenceRule(behavior.recurrence_rule);
-  const tracking = resolveOccurrenceTimeTracking(timeSessions);
-
-  return {
-    id: occurrence.id,
-    behaviorId: occurrence.behavior_id,
-    title: behavior.title,
-    description: behavior.description ?? "",
-    categoryName: behavior.category?.name ?? "No category",
-    scheduleSummary: summarizeRecurrenceRule(recurrenceRule),
-    scheduledFor: occurrence.scheduled_for,
-    scheduledTimeLabel: formatCompactOccurrenceScheduleLabel({
-      scheduleKind: normalizeScheduleKind(occurrence.schedule_kind),
-      schedulePreset: normalizeSchedulePreset(occurrence.schedule_preset),
-      scheduleStartTime: normalizeScheduledTime(occurrence.schedule_start_time),
-      scheduleEndTime: occurrence.schedule_end_time
-        ? normalizeScheduledTime(occurrence.schedule_end_time)
-        : null,
-    }),
-    localDate: occurrence.local_date,
-    status: normalizeTimelineStatus(occurrence.status),
-    statusMarkedAt: occurrence.status_marked_at,
-    note: occurrence.note ?? "",
-    timeTracking: {
-      recordedSeconds: tracking.recordedSeconds,
-      runningStartedAt: tracking.runningSession?.startedAt ?? null,
-    },
-    canStartTimeTracking: behavior.active,
-  };
-}
-
-function groupTimeSessionsByOccurrenceId(
-  sessions: OccurrenceTimeSessionReadRow[],
-): Map<string, TimeSession[]> {
-  const byOccurrenceId = new Map<string, TimeSession[]>();
-
-  for (const session of sessions) {
-    const groupedSessions = byOccurrenceId.get(session.occurrence_id) ?? [];
-    groupedSessions.push({
-      id: session.id,
-      userId: session.user_id,
-      occurrenceId: session.occurrence_id,
-      behaviorId: session.behavior_id,
-      startedAt: session.started_at,
-      stoppedAt: session.stopped_at,
-    });
-    byOccurrenceId.set(session.occurrence_id, groupedSessions);
-  }
-
-  return byOccurrenceId;
 }
 
 function resolveLocalDayInstantWindow(
@@ -293,36 +202,4 @@ function dedupeOccurrences(occurrences: Occurrence[]): Occurrence[] {
   }
 
   return Array.from(occurrenceById.values());
-}
-
-function normalizeScheduleKind(value: string): "exact" | "range" {
-  if (value === "exact" || value === "range") {
-    return value;
-  }
-
-  throw new Error(`Unsupported schedule kind: ${value}.`);
-}
-
-function normalizeSchedulePreset(
-  value: string | null,
-): "morning" | "afternoon" | "evening" | "night" | null {
-  if (
-    value === null ||
-    value === "morning" ||
-    value === "afternoon" ||
-    value === "evening" ||
-    value === "night"
-  ) {
-    return value;
-  }
-
-  throw new Error(`Unsupported schedule preset: ${value}.`);
-}
-
-function normalizeTimelineStatus(value: string): TimelineStatus {
-  if (value === "unresolved" || value === "completed" || value === "not_completed") {
-    return value;
-  }
-
-  throw new Error(`Unsupported occurrence status: ${value}.`);
 }

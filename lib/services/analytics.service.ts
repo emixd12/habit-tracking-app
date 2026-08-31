@@ -1,8 +1,8 @@
+import { assembleAnalyticsView } from "@cadence/core/services/analytics";
 import { Temporal } from "@js-temporal/polyfill";
 
 import type {
   AppSupabaseClient,
-  BehaviorWithCategory,
 } from "@/lib/db/behaviors.repo";
 import {
   listOccurrencesBetweenLocalDates,
@@ -10,11 +10,9 @@ import {
 } from "@/lib/db/occurrences.repo";
 import { listTimeSessionHistory } from "@/lib/db/timeSessions.repo";
 import {
-  resolveAnalytics,
   resolveAnalyticsDateRange,
-} from "@/lib/resolvers/analytics.resolver";
+} from "@cadence/core/resolvers/analytics.resolver";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
-import { formatOccurrenceScheduleLabel } from "@/lib/services/schedule";
 import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
 import { readOccurrenceSyncState } from "@/lib/services/occurrence-sync-state.service";
 import { createClient } from "@/lib/supabase/server";
@@ -23,11 +21,8 @@ import {
   readCachedUserBehaviors,
 } from "@/lib/cache/stable-user-data.cache";
 import type {
-  AnalyticsOccurrenceInput,
-  AnalyticsTimeSessionInput,
   AnalyticsView,
 } from "@/lib/types/analytics";
-import type { Occurrence, OccurrenceStatus } from "@/lib/types/database";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 
 export type GetAnalyticsPageDataOptions = {
@@ -76,9 +71,6 @@ export async function getAnalyticsPageData(
       dateRange.endLocalDate,
     ),
   ]);
-  const behaviorById = new Map(
-    behaviors.map((behavior) => [behavior.id, behavior]),
-  );
   const timeSessions = await listTimeSessionHistory(supabase, {
     userId,
     startLocalDate: dateRange.startLocalDate,
@@ -87,111 +79,16 @@ export async function getAnalyticsPageData(
     throughStartedAt: now.toString(),
   });
 
-  return resolveAnalytics({
-    occurrences: occurrences
-      .map((occurrence) => toAnalyticsOccurrenceInput(occurrence, behaviorById))
-      .filter((occurrence): occurrence is AnalyticsOccurrenceInput =>
-        Boolean(occurrence),
-      ),
-    needsDecisionOccurrences: needsDecisionOccurrences
-      .map((occurrence) => toAnalyticsOccurrenceInput(occurrence, behaviorById))
-      .filter((occurrence): occurrence is AnalyticsOccurrenceInput =>
-        Boolean(occurrence),
-      ),
-    timeSessions: timeSessions.map(toAnalyticsTimeSessionInput),
-    now,
-    timezone,
+  return assembleAnalyticsView({
+    behaviors, occurrences, needsDecisionOccurrences, timeSessions, now, timezone,
     rangeDays: dateRange.rangeDays,
     selectedBehaviorId: options.selectedBehaviorId,
     selectedDayLocalDate: options.selectedDayLocalDate,
   });
 }
 
-function toAnalyticsTimeSessionInput(
-  session: {
-    id: string;
-    user_id: string;
-    occurrence_id: string;
-    behavior_id: string;
-    started_at: string;
-    stopped_at: string | null;
-  },
-): AnalyticsTimeSessionInput {
-  return {
-    id: session.id,
-    userId: session.user_id,
-    occurrenceId: session.occurrence_id,
-    behaviorId: session.behavior_id,
-    startedAt: session.started_at,
-    stoppedAt: session.stopped_at,
-  };
-}
-
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
   void supabase;
 
   return requireCurrentUserId("Sign in again before viewing analytics.");
-}
-
-function toAnalyticsOccurrenceInput(
-  occurrence: Occurrence,
-  behaviorById: Map<string, BehaviorWithCategory>,
-): AnalyticsOccurrenceInput | null {
-  const behavior = behaviorById.get(occurrence.behavior_id);
-
-  if (!behavior) {
-    return null;
-  }
-
-  return {
-    id: occurrence.id,
-    behaviorId: occurrence.behavior_id,
-    behaviorTitle: behavior.title,
-    behaviorActive: behavior.active,
-    behaviorCreatedAt: behavior.created_at,
-    categoryName: behavior.category?.name ?? "No category",
-    scheduledFor: occurrence.scheduled_for,
-    scheduledTimeLabel: formatOccurrenceScheduleLabel({
-      scheduleKind: normalizeScheduleKind(occurrence.schedule_kind),
-      schedulePreset: normalizeSchedulePreset(occurrence.schedule_preset),
-      scheduleStartTime: occurrence.schedule_start_time,
-      scheduleEndTime: occurrence.schedule_end_time,
-    }),
-    localDate: occurrence.local_date,
-    status: normalizeOccurrenceStatus(occurrence.status),
-    note: occurrence.note ?? "",
-    timezone: behavior.timezone || DEFAULT_TIMEZONE,
-  };
-}
-
-function normalizeScheduleKind(value: string): "exact" | "range" {
-  if (value === "exact" || value === "range") {
-    return value;
-  }
-
-  throw new Error(`Unsupported schedule kind: ${value}.`);
-}
-
-function normalizeSchedulePreset(
-  value: string | null,
-): "morning" | "afternoon" | "evening" | "night" | null {
-  if (
-    value === null ||
-    value === "morning" ||
-    value === "afternoon" ||
-    value === "evening" ||
-    value === "night"
-  ) {
-    return value;
-  }
-
-  throw new Error(`Unsupported schedule preset: ${value}.`);
-}
-
-function normalizeOccurrenceStatus(value: string): OccurrenceStatus {
-  if (value === "unresolved" || value === "completed" || value === "not_completed") {
-    return value;
-  }
-
-  throw new Error(`Unsupported occurrence status: ${value}.`);
 }

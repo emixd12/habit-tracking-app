@@ -503,13 +503,13 @@ recipient or credential fields.
 The following server-only variables default to empty and preserve normal
 product behavior:
 
-| Variable | Stops | Preserves |
-|---|---|---|
-| `CADENCE_DISABLE_EMAIL_SENDS=1` | Sequenzy sends before due email rows are read or claimed | Browser push, pending email rows, Timeline, status, Notes, exports |
-| `CADENCE_DISABLE_BROWSER_PUSH_SENDS=1` | Web Push sends before due push rows are read or claimed | Email, pending push rows, core tracking |
-| `CADENCE_DISABLE_REMINDER_BATCHES=1` | The protected reminder batch before any channel work | Pending rows and all ordinary app access |
-| `CADENCE_DISABLE_OCCURRENCE_SYNC_BATCHES=1` | The protected background occurrence batch before writes | On-demand owner-scoped freshness and ordinary decisions |
-| `CADENCE_DISABLE_EXPORT_DOWNLOADS=1` | Structured export downloads before export reads | Export page review, Timeline, status, Notes, account access |
+| Variable                                    | Stops                                                    | Preserves                                                          |
+| ------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------ |
+| `CADENCE_DISABLE_EMAIL_SENDS=1`             | Sequenzy sends before due email rows are read or claimed | Browser push, pending email rows, Timeline, status, Notes, exports |
+| `CADENCE_DISABLE_BROWSER_PUSH_SENDS=1`      | Web Push sends before due push rows are read or claimed  | Email, pending push rows, core tracking                            |
+| `CADENCE_DISABLE_REMINDER_BATCHES=1`        | The protected reminder batch before any channel work     | Pending rows and all ordinary app access                           |
+| `CADENCE_DISABLE_OCCURRENCE_SYNC_BATCHES=1` | The protected background occurrence batch before writes  | On-demand owner-scoped freshness and ordinary decisions            |
+| `CADENCE_DISABLE_EXPORT_DOWNLOADS=1`        | Structured export downloads before export reads          | Export page review, Timeline, status, Notes, account access        |
 
 Set `CADENCE_LAUNCH_BREAKER_REASON_CODE` to one of `abuse`,
 `application_regression`, `cost_surge`, `operator_drill`, or
@@ -1145,6 +1145,7 @@ publication.
 Update `STATUS.md` when a ticket starts, completes, becomes blocked, is reopened, or materially changes scope. Record verification commands with real pass/fail results.
 
 Do not use `STATUS.md` to expand v1 product scope. Put future ideas in `docs/FUTURE_UPDATES.md` unless the user explicitly changes v1 scope.
+
 ## Ticket 102 Public Trust publication
 
 For a release that changes the Trust consumer, deploy marketing first. Set the
@@ -1195,3 +1196,142 @@ produce valid sanitized evidence. Otherwise the prior Pages deployment stays
 active. Roll Pages back by redeploying the last valid Pages artifact. Never
 delete an immutable snapshot. After rollback, verify `trust/latest.json` in an
 unauthenticated browser before resuming the schedule.
+
+## Ticket 106 marketing-content publication gates
+
+Ticket 106 changes public content only after three hard gates pass:
+
+1. Inspect active provider capabilities and record sanitized evidence that the
+   proposed retention schedule is supportable. Do not infer capability from a
+   policy target or publish private provider payloads.
+2. Create `privacy@identityscaffolding.com` and confirm it with one harmless
+   route test. A documented address alone does not prove the mailbox exists.
+3. Obtain one legal review of the final Privacy and Terms text, entity facts,
+   retention language, disclaimers, liability language, and dispute process.
+
+The proposed schedule is 30 days for routine logs; up to 90 days or the end of
+an investigation for security-incident logs; no more than 30 days for backups;
+immediately or within seven days for deleted-account live data, with backup
+remnants aging out within 30 days; and 12 months after resolution for support
+messages. Longer retention is limited to security investigations, fraud
+prevention, or legal preservation.
+
+### Sanitized retention audit, 2026-08-27
+
+The read-only audit found the following active capabilities. It retained no
+credentials, user data, message content, private provider payloads, or resource
+identifiers:
+
+| Surface                     | Sanitized finding                                                                                                                                                      | Target result                                                                                                            | Official reference                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Vercel                      | The team uses Pro and both Cadence projects were Ready. No Observability Plus entitlement or Log Drain was evidenced. Default Pro runtime-log retention is one day.    | Does not support 30-day routine logs or 90-day incident logs.                                                            | <https://vercel.com/docs/observability/runtime-logs>, <https://vercel.com/docs/drains> |
+| Supabase                    | The Cadence project was `ACTIVE_HEALTHY` in a Pro organization. Pro API and database logs retain seven days.                                                           | Does not support 30-day routine logs or 90-day incident logs.                                                            | <https://supabase.com/docs/guides/platform/logs>                                       |
+| Supabase backups            | Pro daily backups retain seven days.                                                                                                                                   | Supports the maximum 30-day backup and backup-remnant targets.                                                           | <https://supabase.com/docs/guides/platform/backups>                                    |
+| Account deletion            | The implemented path deletes the Supabase Auth user and user-owned rows use `ON DELETE CASCADE`. No destructive production deletion test was performed for this audit. | The implementation supports immediate live-data removal when deletion succeeds; the audit did not independently test it. | <https://supabase.com/docs/reference/javascript/auth-admin-deleteuser>                 |
+| Google sign-in              | Cadence uses Google through Supabase Auth. No separate Google retention setting was evidenced in this audit.                                                           | Not independently verified.                                                                                              | <https://supabase.com/docs/guides/auth/social-login/auth-google>                       |
+| Sequenzy                    | Transactional message retention was not established from the available account evidence or documentation.                                                              | Not verified.                                                                                                            | <https://sequenzy.com/>                                                                |
+| Browser push                | Retention by browser-vendor push intermediaries was not established.                                                                                                   | Not verified.                                                                                                            | <https://developer.mozilla.org/en-US/docs/Web/API/Push_API>                            |
+| Privacy and support mailbox | `privacy@identityscaffolding.com` was not route-confirmed. A 12-month support-message retention control was not evidenced.                                             | Mailbox and retention gates fail.                                                                                        | No provider capability was verified.                                                   |
+
+The proposed routine-log and incident-log claims are unsupported. Do not add a
+Log Drain, change a provider plan, or change retention settings without a
+separate authorized task and cost review. Backups and deleted-account backup
+remnants fit within the proposed 30-day maximum. Sequenzy, browser-push, and
+support-message retention remain unknown.
+
+Provider-retention verification therefore fails. The privacy mailbox is not
+confirmed, and legal review has not occurred. Keep the Privacy and Terms drafts
+unpublished and public registration closed. Existing authenticated accounts
+remain available.
+
+## Desktop implementation and release gates
+
+Tickets 107–114 implement the macOS track in `docs/DESKTOP_BUILD.md`. Ticket 115
+defers Apple-trusted distribution acceptance. Preserve unrelated working-tree
+edits and both current deployments. Next.js stays at the repository root.
+
+Use Node.js 24.x and the pinned desktop dependencies. Native builds also need
+Rust, macOS/Xcode tooling, and the configured Apple Silicon target. Record
+missing tools or credentials explicitly; do not report frontend builds or
+browser mocks as macOS execution.
+
+Desktop commands introduced by Ticket 108:
+
+```bash
+npm run desktop:dev
+npm run desktop:dev:web
+npm run desktop:build
+npm run desktop:typecheck
+npm run desktop:native:test
+npm run desktop:native:build
+```
+
+`desktop:build` verifies frontend output. `desktop:native:build` produces
+an ad hoc signed development app with a bound bundle identity; it does not
+satisfy Developer ID signing, notarization, or final-release gates. The local
+signing config must not be used for final release builds. Ticket 113's separate
+ad hoc preview procedure is recorded in `docs/DESKTOP_RELEASE.md`.
+`desktop:dev:web` exposes the
+developer bench without claiming native APIs work in a browser. For Codex local QA, select the first free port
+in 4321–4330 and bind loopback. Never let the server choose outside that pool.
+Open a Codex browser session scoped to the selected origin.
+
+Run the standard repository checks, `npm run interactions:check`,
+`npm run design-system:check`, `npm run marketing:check`, and
+`npm run marketing:build` throughout the track. The strict
+`npm run desktop:parity:check` must fail until applicable interactions have
+implementation and required evidence. It now passes all 64 applicable desktop
+interactions; structural success alone does not satisfy Ticket 115.
+Preview candidate-building checks must be separate from updater acceptance that
+requires those candidates. Do not falsify registry evidence or relax production
+release checks to build a preview.
+
+Run real adapter contracts separately from the default test suite:
+
+```bash
+npm run desktop:contract:test
+SUPABASE_TELEMETRY_DISABLED=1 CADENCE_SUPABASE_CONTRACT=1 npx vitest run tests/behavior-store-supabase.contract.test.ts
+```
+
+The Supabase contract accepts only the isolated local API on port 55321. It
+captures local CLI credentials internally, uses ordinary sessions for domain
+operations, and limits admin access to synthetic account setup and cleanup.
+It compares shared Behavior and portability plans with the production SQL
+adapter. Never point it at hosted data. Do not accept request timeouts as proof
+of rollback: deterministic stale writes must return application conflicts.
+
+Before broad extraction, verify persistent SQLite writes, atomic rollback,
+native scheduling/cancellation, notification activation, and restart behavior.
+Before a production release, verify the shared local-Supabase/real-SQLite
+contract suite, full tracking parity, offline launch, actual WKWebView rendering,
+upgrade preservation, and accurate verified native reminder coverage. For the
+first schema-changing desktop update, also test an older installed version
+upgrading through the real updater with a protected database backup.
+
+Native reminders target the next 30 days and prioritize nearest eligible
+reminders. The owner accepted a clearly displayed OS-limited horizon on
+2026-08-30. Read pending requests back from the OS and verify contiguous
+coverage before the first missing intended request. Display the actual
+scheduled-through date/time and clearly disclose shorter or unverified
+coverage. Successful callbacks and the furthest retained request are not proof.
+Do not assume the observed 100-request retention is a universal cap.
+
+Reconcile on launch, resume, local day change, and relevant mutations. Exercise
+permission denial, cancellation, sleep/resume, fully quit delivery, activation,
+and OS limits. Shorter verified coverage may pass; inaccurate coverage fails.
+Do not silently truncate the schedule or install a background helper. Native
+activation proof before broad extraction and every other release gate remain
+required; the horizon decision does not complete Ticket 108.
+
+Keep signing/updater credentials out of source, logs, and browser code. Ticket
+113's ad hoc Apple Silicon preview and updater acceptance are complete. Ticket
+115 defers Apple Developer Program access, Developer ID signing, notarization,
+stapled app/DMG verification, quarantined notarized-DMG Gatekeeper acceptance,
+and Apple Silicon macOS 14 execution. See `docs/DESKTOP_RELEASE.md`.
+
+The owner authorized Cadence distribution of the six exact asset hashes in
+`docs/qa/2026-08-30-desktop-asset-provenance.md`. Keep MIT exclusions, reserved
+marks, and third-party notices unchanged. The approved preview feed is public.
+Any production publication, uploads, hosted migrations, deployments, and
+provider changes remain separate explicit actions. Ticket 106
+legal/public-registration gates remain unchanged.

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://behaviorlog.org/schema/behaviorlog.bundle/0.2.0-draft",
-  "title": "BehaviorLog Bundle 0.2.0-draft",
+  "$id": "https://behaviorlog.org/schema/behaviorlog.bundle/0.3.0-draft",
+  "title": "BehaviorLog Bundle 0.3.0-draft",
   "description": "Core schema definitions for BehaviorLog Bundle records and manifest.",
   "type": "object",
   "oneOf": [
@@ -40,6 +40,9 @@
     },
     {
       "$ref": "#/$defs/BehaviorDefinitionEvent"
+    },
+    {
+      "$ref": "#/$defs/BehaviorConfigurationEvent"
     },
     {
       "$ref": "#/$defs/TimeSession"
@@ -173,7 +176,7 @@
     },
     "LocalTime": {
       "type": "string",
-      "pattern": "^[0-9]{2}:[0-9]{2}(:[0-9]{2})?$"
+      "pattern": "^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\\.[0-9]{1,9})?)?$"
     },
     "Timestamp": {
       "type": "string",
@@ -328,6 +331,14 @@
                 "type": "object",
                 "additionalProperties": true
               }
+            },
+            "required_extensions": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "exchange": {
+              "$ref": "#/$defs/ExchangeDeclaration"
             }
           }
         },
@@ -418,6 +429,33 @@
     "Schedule": {
       "type": "object",
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "recurrence_profile": { "const": "behaviorlog.calendar_simple.v1" } },
+            "required": ["recurrence_profile"]
+          },
+          "then": {
+            "properties": { "recurrence": { "$ref": "#/$defs/CalendarSimpleRecurrence" } },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "recurrence": {
+                      "anyOf": [
+                        { "properties": { "type": { "enum": ["every_n_days", "every_n_weeks_on_weekdays"] } }, "required": ["type"] },
+                        { "properties": { "interval": { "minimum": 2 } }, "required": ["interval"] }
+                      ]
+                    }
+                  },
+                  "required": ["recurrence"]
+                },
+                "then": { "required": ["anchor_local_date"] }
+              }
+            ]
+          }
+        }
+      ],
       "required": [
         "record_type",
         "schedule_id",
@@ -437,6 +475,13 @@
         "schedule_id": {
           "type": "string"
         },
+        "anchor_local_date": { "$ref": "#/$defs/LocalDate" },
+        "effective_from_utc": { "$ref": "#/$defs/Timestamp" },
+        "effective_until_utc": {
+          "anyOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }]
+        },
+        "schedule_role": { "enum": ["generating", "historical_reference"] },
+        "schedule_group_id": { "type": ["string", "null"] },
         "behavior_id": {
           "type": "string"
         },
@@ -527,6 +572,7 @@
         "occurrence_id": {
           "type": "string"
         },
+        "configuration_event_id": { "type": ["string", "null"] },
         "behavior_id": {
           "type": "string"
         },
@@ -1224,6 +1270,153 @@
         }
       }
     },
+    "CalendarSimpleRecurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["daily", "every_n_days", "weekly_on_weekdays", "every_n_weeks_on_weekdays", "monthly_on_day"] },
+        "interval": { "type": "integer", "minimum": 1 },
+        "weekdays": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] }
+        },
+        "day": { "type": "integer", "minimum": 1, "maximum": 31 },
+        "fallback": { "const": "last_day_of_month" },
+        "extensions": { "$ref": "#/$defs/Extensions" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "enum": ["every_n_days", "every_n_weeks_on_weekdays"] } } },
+          "then": { "required": ["interval"] }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["weekly_on_weekdays", "every_n_weeks_on_weekdays"] } } },
+          "then": { "required": ["weekdays"], "not": { "anyOf": [{ "required": ["day"] }, { "required": ["fallback"] }] } }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["daily", "every_n_days"] } } },
+          "then": { "not": { "anyOf": [{ "required": ["weekdays"] }, { "required": ["day"] }, { "required": ["fallback"] }] } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "monthly_on_day" } } },
+          "then": { "required": ["day"], "not": { "required": ["weekdays"] } }
+        }
+      ]
+    },
+    "ConfigurationTimeEntry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["local_time", "window_start_local", "window_end_local"],
+      "properties": {
+        "local_time": { "$ref": "#/$defs/LocalTime" },
+        "window_start_local": { "anyOf": [{ "$ref": "#/$defs/LocalTime" }, { "type": "null" }] },
+        "window_end_local": { "anyOf": [{ "$ref": "#/$defs/LocalTime" }, { "type": "null" }] },
+        "extensions": { "$ref": "#/$defs/Extensions" }
+      },
+      "oneOf": [
+        { "properties": { "window_start_local": { "type": "null" }, "window_end_local": { "type": "null" } } },
+        { "properties": { "window_start_local": { "$ref": "#/$defs/LocalTime" }, "window_end_local": { "$ref": "#/$defs/LocalTime" } } }
+      ]
+    },
+    "ConfigurationSchedule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["recurrence_profile", "recurrence", "anchor_local_date", "time_entries"],
+      "properties": {
+        "recurrence_profile": { "$ref": "#/$defs/Schedule/properties/recurrence_profile" },
+        "recurrence": { "type": "object" },
+        "anchor_local_date": { "$ref": "#/$defs/LocalDate" },
+        "time_entries": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/ConfigurationTimeEntry" } },
+        "extensions": { "$ref": "#/$defs/Extensions" }
+      },
+      "allOf": [{
+        "if": { "properties": { "recurrence_profile": { "const": "behaviorlog.calendar_simple.v1" } } },
+        "then": { "properties": { "recurrence": { "$ref": "#/$defs/CalendarSimpleRecurrence" } } }
+      }]
+    },
+    "ConfigurationInterventionRule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["intervention_type", "channel", "enabled", "offset_minutes"],
+      "properties": {
+        "intervention_type": { "$ref": "#/$defs/InterventionRule/properties/intervention_type" },
+        "channel": { "$ref": "#/$defs/InterventionRule/properties/channel" },
+        "enabled": { "type": "boolean" },
+        "offset_minutes": { "type": "integer" },
+        "timezone": { "$ref": "#/$defs/Timezone" },
+        "extensions": { "$ref": "#/$defs/Extensions" }
+      }
+    },
+    "ConfigurationSnapshot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["category", "schedules", "intervention_rules", "active", "timezone"],
+      "properties": {
+        "category": { "type": ["string", "null"] },
+        "schedules": { "type": "array", "items": { "$ref": "#/$defs/ConfigurationSchedule" } },
+        "intervention_rules": { "type": "array", "items": { "$ref": "#/$defs/ConfigurationInterventionRule" } },
+        "active": { "type": "boolean" },
+        "timezone": { "$ref": "#/$defs/Timezone" },
+        "extensions": { "$ref": "#/$defs/Extensions" }
+      }
+    },
+    "BehaviorConfigurationEvent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["record_type", "event_id", "behavior_id", "event_kind", "previous", "next", "changed_fields", "recorded_at_utc", "effective_at_utc", "effective_local_date", "timezone", "source"],
+      "properties": {
+        "record_type": { "const": "behavior_configuration_event" },
+        "event_id": { "type": "string", "minLength": 1 },
+        "behavior_id": { "type": "string", "minLength": 1 },
+        "event_kind": { "enum": ["baseline", "revision"] },
+        "previous": { "anyOf": [{ "$ref": "#/$defs/ConfigurationSnapshot" }, { "type": "null" }] },
+        "next": { "$ref": "#/$defs/ConfigurationSnapshot" },
+        "changed_fields": {
+          "type": "array", "uniqueItems": true,
+          "items": { "enum": ["category", "schedules", "intervention_rules", "active", "timezone"] }
+        },
+        "recorded_at_utc": { "$ref": "#/$defs/Timestamp" },
+        "effective_at_utc": { "$ref": "#/$defs/Timestamp" },
+        "effective_local_date": { "$ref": "#/$defs/LocalDate" },
+        "timezone": { "$ref": "#/$defs/Timezone" },
+        "source": { "$ref": "#/$defs/Source" },
+        "reason_code": { "type": ["string", "null"] },
+        "extensions": { "$ref": "#/$defs/Extensions" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "event_kind": { "const": "baseline" } } },
+          "then": { "properties": { "previous": { "type": "null" }, "changed_fields": { "minItems": 5, "maxItems": 5 } } },
+          "else": { "properties": { "previous": { "$ref": "#/$defs/ConfigurationSnapshot" } } }
+        },
+        {
+          "if": { "properties": { "changed_fields": { "maxItems": 0 } } },
+          "then": { "properties": { "source": { "required": ["transformation_notes"], "properties": { "transformation_notes": { "type": "string", "minLength": 1 } } } } }
+        }
+      ]
+    },
+    "ExchangeDeclaration": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fidelity", "losses"],
+      "properties": {
+        "fidelity": { "enum": ["partial", "lossless"] },
+        "capabilities": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "read": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+            "preserve": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+            "operate": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+          }
+        },
+        "losses": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["path", "reason"],
+            "properties": { "path": { "type": "string", "minLength": 1 }, "reason": { "type": "string", "minLength": 1 } }
+          }
+        }
+      },
+      "allOf": [{
+        "if": { "properties": { "fidelity": { "const": "lossless" } } },
+        "then": { "properties": { "losses": { "maxItems": 0 } } }
+      }]
+    },
     "DefinitionSnapshot": {
       "type": "object",
       "additionalProperties": false,
@@ -1430,6 +1623,8 @@
         "period_end_local_date",
         "timezone",
         "behavior_ids",
+        "numerator",
+        "denominator",
         "value",
         "rule_id"
       ],

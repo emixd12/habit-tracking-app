@@ -38,6 +38,8 @@ const mocks = vi.hoisted(() => ({
   listUserOccurrences: vi.fn(),
   listOccurrenceStatusEventsByOccurrenceIds: vi.fn(),
   listBehaviorDefinitionEvents: vi.fn(),
+  listBehaviorConfigurationEvents: vi.fn(),
+  listAppliedBehaviorLogImportRuns: vi.fn(),
   listTimeSessionsByOccurrenceIds: vi.fn(),
   listBehaviorLogImportRecordMappings: vi.fn(),
   listBehaviorLogImportRuns: vi.fn(),
@@ -100,6 +102,10 @@ vi.mock("@/lib/db/timeSessions.repo", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/db/behaviorConfigurationEvents.repo", () => ({
+  listBehaviorConfigurationEvents: mocks.listBehaviorConfigurationEvents,
+}));
+
 vi.mock("@/lib/db/behaviorLogImports.repo", async (importOriginal) => {
   const original = await importOriginal<object>();
 
@@ -108,6 +114,7 @@ vi.mock("@/lib/db/behaviorLogImports.repo", async (importOriginal) => {
     listBehaviorLogImportRecordMappings:
       mocks.listBehaviorLogImportRecordMappings,
     listBehaviorLogImportRuns: mocks.listBehaviorLogImportRuns,
+    listAppliedBehaviorLogImportRuns: mocks.listAppliedBehaviorLogImportRuns,
     getBehaviorLogImportRunById: mocks.getBehaviorLogImportRunById,
   };
 });
@@ -166,6 +173,8 @@ describe("BehaviorLog import UI workflow", () => {
     mocks.listUserOccurrences.mockResolvedValue([]);
     mocks.listOccurrenceStatusEventsByOccurrenceIds.mockResolvedValue([]);
     mocks.listBehaviorDefinitionEvents.mockResolvedValue([]);
+    mocks.listBehaviorConfigurationEvents.mockResolvedValue([]);
+    mocks.listAppliedBehaviorLogImportRuns.mockResolvedValue([]);
     mocks.listTimeSessionsByOccurrenceIds.mockResolvedValue([]);
     mocks.listBehaviorLogImportRecordMappings.mockResolvedValue([]);
     mocks.listBehaviorLogImportRuns.mockResolvedValue([]);
@@ -183,7 +192,7 @@ describe("BehaviorLog import UI workflow", () => {
 
   it("renders the bundle upload and Preview import interactions", () => {
     const html = renderToStaticMarkup(
-      <BehaviorLogImportPanel recentRuns={[]} timezone={TIMEZONE} />,
+      <BehaviorLogImportPanel action={async (state) => state} recentRuns={[]} timezone={TIMEZONE} />,
     );
 
     expect(html).toContain('name="behaviorlog_file"');
@@ -303,6 +312,10 @@ describe("BehaviorLog import UI workflow", () => {
       behavior_schedule_slot_id: null,
       scheduled_for: "2026-06-08T12:00:00Z",
       local_date: "2026-06-08",
+      schedule_kind: "exact",
+      schedule_preset: null,
+      schedule_start_time: "08:00:00",
+      schedule_end_time: null,
       status: "unresolved",
       note: null,
       updated_at: "2026-06-08T12:00:00Z",
@@ -377,7 +390,7 @@ describe("BehaviorLog import UI workflow", () => {
 
   it("labels recent import runs without completion timestamps as still open", () => {
     const html = renderToStaticMarkup(
-      <BehaviorLogImportPanel
+      <BehaviorLogImportPanel action={async (state) => state}
         timezone={TIMEZONE}
         recentRuns={[
           {

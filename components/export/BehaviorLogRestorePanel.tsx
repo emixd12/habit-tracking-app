@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 
-import { submitBehaviorLogRestoreAction } from "@/app/(app)/export/actions";
 import type {
   BehaviorLogRestoreAction,
   BehaviorLogRestoreActionKind,
@@ -25,7 +24,7 @@ import {
 type BehaviorLogRestorePanelProps = Readonly<{
   recentRuns: BehaviorLogRestoreRunView[];
   timezone: string;
-  action?: BehaviorLogRestoreFormAction;
+  action: BehaviorLogRestoreFormAction;
   initialState?: BehaviorLogRestoreActionState;
 }>;
 
@@ -54,7 +53,7 @@ const RECORD_LABELS: Record<BehaviorLogRestoreRecordType, string> = {
 export function BehaviorLogRestorePanel({
   recentRuns,
   timezone,
-  action = submitBehaviorLogRestoreAction,
+  action,
   initialState = BEHAVIORLOG_RESTORE_INITIAL_STATE,
 }: BehaviorLogRestorePanelProps) {
   const [state, formAction, isPending] = useActionState(
@@ -202,6 +201,16 @@ export function BehaviorLogRestorePanel({
           </button>
         </div>
       </form>
+
+      {isPreparingBundle || isPending || bundlePayload ? (
+        <p role="status" aria-live="polite" className="mt-5 text-sm text-muted-readable">
+          {isPreparingBundle
+            ? "Preparing the selected file…"
+            : isPending
+              ? "Processing the BehaviorLog bundle…"
+              : "Selected file is ready for preview."}
+        </p>
+      ) : null}
 
       {clientError ? (
         <p className="mt-5 text-sm font-bold text-accent" role="alert">

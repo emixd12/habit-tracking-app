@@ -43,6 +43,214 @@ When updating a ticket row:
 
 ## Current repository state
 
+Ticket 113 is complete and Ticket 115 is deferred (2026-08-31). The owner
+rescoped Ticket 113 to the unnotarized Apple Silicon preview and updater-
+acceptance milestone. Apple-trusted distribution now belongs to Ticket 115.
+The approved eleven-asset `desktop-preview` prerelease is public at release ID
+`380047141`, targeting existing remote commit
+`02a69374122f6492e5fb6414e76a9fb34b040aef`. No source push ran. GitHub asset
+digests match the approved packet, and the valid `.2` feed is public. Safari
+download quarantine, macOS per-app approval, three expected failure paths, the
+valid `.1` to `.2` installation, separate restart, and current-version check
+passed. The updater interaction is implemented. Ticket 113 does not claim
+Developer ID signing, notarization, or macOS 14 compatibility.
+
+The strict production check loaded the existing public endpoint, canonical
+public key, persistent updater key path, and Keychain-held password without
+printing or regenerating secrets. Updater configuration, tools, and all 64
+desktop interactions passed. It stopped only on the unavailable Developer ID
+Application identity and complete Apple notarization credentials. Ticket 115 is
+deferred because the owner also lacks an Apple Silicon Mac running macOS 14.
+
+Both tested previews use SQLite schema 6. Live shipped-migration testing is not
+applicable to Ticket 113. Existing native rollback tests remain current evidence.
+The first future schema-changing desktop update must upgrade an older installed
+version through the real updater after a protected database backup.
+
+Ticket 113 preview preparation passed (2026-08-31). Two Apple Silicon candidates,
+`0.1.1-preview.1` and `.2`, passed sealed ad hoc signing, hardened runtime,
+arm64/minimum-OS checks, DMG verification, persistent-key signature verification,
+and full archive comparison. Candidate builds no longer require final updater
+acceptance first; production readiness and Apple artifact checks remain strict.
+The encrypted updater key stays outside the repository; its password is in login
+Keychain. The six exact asset authorizations are recorded without relicensing.
+
+Preview `.1` installed from its local verified DMG to `/Applications/Cadence.app`
+and launched with the expected version. The database backup and post-install
+comparison preserved profile, Behaviors, Notes, history, provenance, and reminder
+delivery evidence. Only routine reminder verification timestamps/coverage and
+appended outbox entries changed. Integrity and foreign-key checks passed.
+The unpublished-feed check failed safely with its retry control available.
+This does not count as downloaded installation or live updater acceptance.
+
+The concrete public-hosting packet is
+`apps/desktop/.release/preview/hosting/APPROVAL.md`. It lists eleven assets,
+five controlled feed stages, and the dedicated `desktop-preview` prerelease in
+`emixd12/habit-tracking-app`. It discloses uncommitted build inputs and the
+baseline tag/source-archive mismatch. The owner approved it and the corrected
+remote tag target. Publication and controlled feed testing passed. Apple Program
+access, Developer ID, notarization, quarantined notarized-DMG Gatekeeper testing,
+and macOS 14 execution moved to deferred Ticket 115.
+
+Checks passed: agents, interactions, resolvers, core, design system, lint,
+web/desktop TypeScript, web build, and both native preview builds. The full suite
+passed 1,374 tests with 17 skips; 41 Rust tests and 15 real SQLite contracts passed.
+Both real preview archives passed tamper and invalid-signature rejection through
+the release verifier. Independent tooling/packet review passed. Seven existing
+lint warnings and the desktop chunk-size warning remain. Evidence and key handoff:
+`docs/qa/2026-08-31-desktop-preview.md` and `docs/DESKTOP_RELEASE.md`.
+
+Ticket 113 preview milestone started (2026-08-31). The owner authorized an
+Apple Silicon preview with ad hoc signing, without Apple credentials or
+notarization. Apple enrollment, Developer ID signing, notarization, and original
+signed-release acceptance are explicitly deferred, not passed. Preserve Cadence,
+`app.cadence.desktop`, existing local data, and declared macOS 14 minimum;
+compatibility is verified only on tested systems. Candidate construction will
+no longer require the final updater interaction to have already passed.
+Production release-readiness checks remain strict. The owner also authorized
+one persistent protected updater key pair after checking for an existing key,
+and distribution of the six exact Cadence image/audio assets. Their MIT
+exclusions, trademark reservations, and third-party notices remain unchanged.
+Prepare two preview versions and a dedicated prerelease feed in the existing
+`emixd12/habit-tracking-app` repository. Public artifacts, releases, and feed
+exposure require approval of the concrete files and destination. No publishing,
+key generation, or preview build had occurred at that starting checkpoint.
+
+Persistent updater key preparation passed (2026-08-31). One encrypted pair now
+exists outside the repository with owner-only access. Its generated password is
+retained in login Keychain. Real Tauri signing and Minisign verification passed;
+an empty password failed. Public fingerprint and secure backup instructions are
+in `docs/DESKTOP_RELEASE.md#persistent-updater-key-handoff`. GitHub authentication
+and the existing public repository were verified read-only. Nothing was published.
+Candidate tooling and two preview builds subsequently passed as recorded above.
+
+Offline launch and persistence passed (2026-08-31). The owner confirmed the
+disconnected-network test and supplied the Completed screenshot. A read-only
+SQLite snapshot confirmed the status mutation at 00:26:04 EDT. The running app
+started at 00:26:20, after that write, and displayed Completed. Network
+disconnection is owner-confirmed; saved status and relaunch were independently
+verified. The native UI archived the synthetic Behavior without changing its
+Completed history. Settings verified zero pending/eligible reminders; integrity
+and foreign-key checks passed. Tickets 107–112 and 114 are complete locally.
+Ticket 113 later completed its preview milestone; Apple-trusted distribution
+moved to deferred Ticket 115.
+Evidence: `docs/qa/2026-08-30-desktop-lifecycle-release.md#offline-launch-and-persistence-passed`.
+
+System sleep/wake passed (2026-08-31): macOS logged Software Sleep at 00:17:30
+EDT and Wake at 00:17:32. Cadence reconciled reminders during wake and committed
+coverage at 00:17:35, before its next minute poll. A read-only SQLite snapshot
+captured automatic renewal before any GUI inspection. Settings showed Allowed,
+complete coverage, zero pending/eligible reminders, and no error. Integrity and
+foreign-key checks passed. Ticket 112 is complete locally; its tracking
+implementation dependency is fulfilled. Ticket 111's subsequent offline launch
+and persistence acceptance also passed. Apple release gates later moved to
+Ticket 115. Runtime code
+and the verified app/DMG are unchanged. Evidence:
+`docs/qa/2026-08-30-desktop-lifecycle-release.md#system-sleep-and-wake-passed`.
+
+Offline cleanup is complete: `Cadence offline QA` is archived with its Completed
+2026-08-31 Occurrence preserved. Native reminders stayed disabled. The private
+baseline and backup are under `/private/tmp/cadence-native-qa/offline-before.*`;
+the verified result and cleanup are in `offline-after-owner.json` and
+`offline-cleanup.json`. Cadence remains open in Settings. No active synthetic
+Behavior or active native reminder intent remains.
+
+Native product click passed (2026-08-30): the owner clicked the 22:41
+`Cadence lifecycle QA` notification after the app fully quit. Computer Use
+confirmed Cadence already running before inspection. Timeline expanded and
+focused the exact target `2688533a-7c7d-4450-9e2f-8ad640022a33`; the earlier
+22:30 row stayed collapsed. Tab moved focus to that target's Track Time.
+The UI then archived the synthetic Behavior. Settings confirmed zero pending
+and zero eligible reminders at 22:48:33. The registry now marks native
+notification activation implemented. System sleep/wake and offline launch
+subsequently passed. Evidence:
+`docs/qa/2026-08-30-desktop-lifecycle-release.md#product-notification-click-passed`.
+
+Delivery-history correction verified: the same native click exposed an
+export defect. macOS removed the clicked notification from delivered readback;
+expiry cleanup then stored `cancelled`, which canonical export repeated despite
+the observed click. The bounded fix preserves exact OS delivery evidence before
+cleanup without claiming user receipt or reading. Callback and readback proofs
+survive failed writes and settlement races. The fix passes 1,364 tests with
+17 environment-gated skips, 41 Rust tests, and 15 real SQLite contracts.
+Repository checks, TypeScript, lint, and web/desktop builds pass. No schema changed.
+The corrected app recorded the real 23:10 EDT macOS delivery automatically.
+The record survived archival and a full restart. Native BehaviorLog export kept
+`delivered` with user receipt unverified and passed the pinned reference validator.
+The old callback already drained by the preceding build was not reconstructed.
+
+Acceptance continuation (2026-08-30): Tickets 111–113 resumed for native
+lifecycle proof, real updater-signature checks with disposable test keys, and
+asset provenance review. The earlier completed tickets remain complete. No
+hosted rollout, publication, or production credential changes are authorized.
+
+The lifecycle audit fixed the missing precise profile-local midnight refresh.
+Product tests verify Needs decision regrouping, reminder repair, DST, timezone
+replacement, cleanup, and existing wake/resume event handling. Real Minisign
+tests now exercise the release command's verifier and reject altered archives,
+keys, signatures, trusted comments, and malformed envelopes. Private fixture
+keys stay in memory. The delivery-history continuation above records the latest
+test counts. Repository checks, TypeScript, lint, and web/desktop builds pass.
+Six image/audio permissions lacked evidence at that checkpoint; the owner authorized their distribution on 2026-08-31. Details and remaining native
+gates: `docs/qa/2026-08-30-desktop-lifecycle-release.md`.
+
+The updated ad hoc app/DMG passed strict signature, arm64/minimum-OS, and
+read-only DMG manifest checks at 23:07 EDT. Native launch and Settings passed;
+zero pending reminders remain after synthetic archive cleanup. The earlier
+owner-assisted product notification click/focus passed. After the delivery fix,
+the app remained open in Settings for the subsequent passing sleep/wake check.
+Offline launch and persistence subsequently passed in the owner-assisted check.
+
+Desktop continuation (2026-08-30): Tickets 109, 110, and 114 are complete
+locally. Ticket 112 subsequently completed its native lifecycle checks.
+Ticket 111 subsequently completed disconnected-network acceptance.
+Ticket 113 was blocked at that checkpoint. Its 2026-08-31 preview milestone now
+defers Apple credentials and final signed-release acceptance; asset authorization
+is recorded and persistent updater key preparation passed.
+
+Integrated acceptance fixed canonical passive Intervention storage, repeated
+configuration-history export, exact passive Note/Intervention matching, and
+current-versus-imported schedule identity. Accepted source fingerprints permit
+safe older-bundle replay only while the owned current schedule and phase match.
+Unknown legacy source dates remain conflicts rather than inferred history.
+
+Final verification: 1,336 Vitest tests passed with 16 environment-gated skips;
+all 14 real SQLite contracts and the ordinary-client Supabase contract passed
+separately. Forty Rust tests and formatting passed. Repository, interaction,
+resolver, core, and design-system checks passed, as did lint, web/desktop
+TypeScript, web/marketing builds, and native app/DMG packaging. The desktop
+release gate rejected only the then-planned signed-updater interaction after
+the subsequent native click/focus proof. The public preview later completed it.
+
+The local clean reset applied all 47 migrations through `20260831014424`.
+Both corrective 0.3 migrations passed real SQL execution. The 92-check RLS
+smoke passed, generated database types matched, and exact cleanup removed all
+synthetic accounts and product data. No hosted migration or deployment ran.
+
+The actual app upgraded its existing SQLite database from schema 5 to schema 6.
+All 20 domain tables matched the pre-launch backup. Integrity and foreign-key
+checks passed. Actual WKWebView export produced valid 0.3 archives with privacy
+defaults and explicit Note/time inclusion. The pinned reference validator passed.
+The native self-import preview exposed the passive Note identity defect before
+Apply; no duplicate domain record was written during that preview.
+
+The standard and Cadence share the Configuration History Profile, explicit
+calendar semantics, and a byte-exact schema/validator snapshot. The applied-import
+ledger preserves validated configuration history, source Occurrence timezone
+and lineage, category registries, and accepted schedule identity. Unsupported
+required extensions block apply; omitted optional fields produce loss warnings.
+Imported history never invents local capture or replays notifications.
+Full arbitrary-extension lossless exchange is not claimed.
+
+Current acceptance evidence and remaining native/release gates live in
+`docs/qa/2026-08-30-desktop-0.3-acceptance.md`. Earlier 0.2 test counts and artifacts
+are historical checkpoints. Seven existing vendored-validator lint warnings
+remain. Developer ID signing and notarization remain unavailable. The public
+preview later proved signed updates, and the owner authorized the exact assets.
+
+Platform scope: web and desktop share portable contracts; marketing has no new
+interaction; future mobile inherits those contracts without implementation.
+
 The numbered implementation sequence is complete through Ticket 065. Ticket
 066 continues the Locust infrastructure stress-testing roadmap with an
 approval-gated hosted capacity run. Ticket 067 is `blocked`; its local
@@ -61,9 +269,10 @@ cohorts, bounded local baseline/ramp/recovery, integrity gates, and exact
 cleanup are also implemented and verified. The only
 human-gated interaction-audit item at this frontier is IA-024, which needs a
 product decision before onboarding dismissal can change from origin-global
-browser storage to account-specific storage. Workspace restructuring,
-desktop/mobile, PWA/offline, billing, and AI/speech work remain deferred or
-unticketed.
+browser storage to account-specific storage. Broader workspace restructuring,
+mobile, web PWA/offline, billing, and AI/speech work remain deferred or
+unticketed. Tickets 107–114 implement the local-first macOS desktop track;
+Ticket 115 defers Apple-trusted distribution.
 
 Ticket 071 is complete. Mobile Timeline now supports a guarded pull-to-refresh,
 one confirmed transition to Completed makes one completion-chime playback
@@ -178,6 +387,61 @@ Ticket 102 depends on Tickets 092 and 098-101. Ticket 103 depends on Tickets
 100-102. Tickets 104 and 105 depend only on their named completed evidence
 tickets and may proceed independently of the Trust evidence pipeline.
 
+Ticket 106 is `in_progress`. It records the marketing content contract,
+retention targets, entity and dispute facts, and three hard publication gates.
+The local redesign, canonical vocabulary, machine outputs, Trust presentation,
+and blocked Privacy and Terms drafts are implemented and verified. Provider
+retention fails the proposed routine-log and incident-log targets. The privacy
+mailbox remains unconfirmed. Legal review has not occurred. Legal-copy
+publication and public registration remain closed until all three gates pass.
+The owner authorized the completed desktop/nonlegal release to land. Privacy,
+Terms, and their shared legal component remain excluded from this production
+commit. No gate is waived, and public registration stays closed.
+
+Ticket 106 now includes the owner-requested marketing annotations and a header
+link to the live, disclosed macOS preview release. Web and desktop runtime code
+remain unchanged; future mobile remains deferred. Marketing build/check,
+repository contracts, interaction and design-system checks, lint, typecheck,
+1,369 tests, the web build, and desktop/390px browser QA pass. Lint retains
+seven existing validator warnings.
+
+Tickets 107–110 and 114 are complete locally under the owner's desktop plan.
+Next.js stays at the repository root. Desktop uses shared core/UI over SQLite;
+mobile, live sync, cloud desktop login, and desktop email delivery stay deferred.
+
+Actual WKWebView QA covers tracking, Notes, timing across restart, review,
+archive/restore, export privacy, approved merge, and representative keyboard
+workflows. The final 0.3 build re-imported its own archive without duplicating
+its passive Note. Its two native observations became passive history only.
+Re-export retained the same ten configuration records; the next native preview
+proposed zero creates, fifteen mappings, zero conflicts, and zero reminder writes.
+Settings reported zero eligible and zero retained reminders after that merge.
+
+The final arm64 app and DMG were verified on 2026-08-30 at 22:13 EDT. The app
+has a sealed ad hoc signature and hardened runtime; the DMG is unsigned.
+Read-only DMG contents match the app. These are local artifacts, not a signed
+or notarized public release. The minimum declared and compiled OS is macOS 14;
+execution on macOS 14 remains unverified.
+
+Tickets 111 and 112 are complete after the 2026-08-31 disconnected-network and
+system sleep/wake checks. Product fully quit delivery
+and owner-assisted notification click/focus pass independently of the original spike.
+Ticket 113 later completed the preview milestone; Ticket 115 owns deferred
+Apple-trusted distribution. Ticket 106
+publication gates and unrelated changes remain intact. Full evidence lives in
+`docs/qa/2026-08-30-desktop-0.3-acceptance.md`.
+
+Ticket 106 local verification passed `agents:check`, `interactions:check`,
+`resolvers:check`, `design-system:check`, lint, typecheck, 1,108 tests, the
+application build, `marketing:check`, the marketing build,
+`public-trust:check`, and `git diff --check`. Lint retained eight existing
+warnings in the BehaviorLog reference validator and reported no errors.
+Browser QA passed for the homepage, FAQ, About, Trust, Privacy, and Terms at
+390px and desktop widths. The checks covered headings, FAQ keyboard behavior,
+focus visibility, reduced motion, status text, table containment, alt text,
+horizontal overflow, links, and browser errors. No deployment or production
+verification occurred because the publication gates remain closed.
+
 No remediated finding from Tickets 079-083 or 093 remains local-only. Their
 hosted migrations and application changes are deployed and verified.
 
@@ -247,12 +511,10 @@ fresh post-sync horizon without past reminder deliveries.
 Product posture update: Cadence is now scoped as a public, open-source
 single-account personal behavior tracker product. The current implemented
 surfaces are the authenticated Next.js web app and a sibling Astro marketing
-site under `apps/marketing`; future surfaces are a Tauri desktop app proposal
-and a future mobile app. The first public-product implementation steps are
-hardening the current web app for many independent Google-auth users and
-launching the static marketing surface, not billing, AI, desktop, or mobile
-work. The target composable workspace and public marketing scope live in
-`docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
+site under `apps/marketing`. Tickets 107–114 implement a Tauri desktop app with
+local tracking parity; mobile remains future work. The existing web app and
+marketing deployment remain intact. The scheduled workspace and public
+marketing scope live in `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
 
 Current evidence:
 
@@ -6221,6 +6483,118 @@ profile.
 
 ## Handoff notes
 
+### Desktop implementation (Tickets 107–115)
+
+Owner authorization: 2026-08-30. Current requirements live in
+`docs/DESKTOP_BUILD.md`; the parity baseline lives in `docs/DESKTOP_PARITY.md`.
+
+| Ticket | Status | Current note |
+|---|---|---|
+| 107: Desktop track activation | complete | Owning docs, 88 existing interaction IDs with platform metadata, 63 planned desktop intents, strict references, and required checks pass. |
+| 108: Native boundary proof | complete | SQLite commit/rollback/restart, scheduling/replacement/cancellation, denied permission, fully quit delivery, and real notification activation pass. The owner accepted visible OS-limited coverage. System sleep/wake subsequently passed under Ticket 112; macOS 14 remains a release check. |
+| 109: Shared core and design foundations | complete | Portable core, atomic contracts, tokens, fonts, runtime callbacks, final 0.3 regression checks, and web/marketing builds pass. |
+| 110: Local persistence and atomic operations | complete | SQLite schema 6, stable seed, atomic outbox/history writes, migration preservation, and both final 0.3 adapter contracts pass. Clean local Supabase reset replayed 47 migrations; 92 RLS checks pass. |
+| 111: Desktop tracking parity | complete | Four screens and native tracking/export/import/replay/keyboard workflows pass. Final 0.3 artifacts are verified. The owner confirmed disconnected-network launch and status persistence; SQLite, process-start, and native UI evidence independently confirm saved completion survived relaunch. The synthetic Behavior is archived with history preserved. |
+| 112: Native reminder coverage | complete | Product scheduling, coverage readback, cancellation, fully quit delivery, click/focus, and preserved delivery export pass. Precise profile-midnight, DST, and wake/resume tests pass. Actual 2026-08-31 system sleep/wake renewed coverage before GUI inspection. Ticket 111's dependency is complete. |
+| 113: Unnotarized Apple Silicon preview and updater acceptance | complete | The approved preview prerelease is public. Downloaded launch, three updater failure paths, valid .1 to .2 installation, separate restart, and data preservation pass. Both versions use schema 6, so shipped-migration testing is not applicable to this release. |
+| 114: BehaviorLog 0.3 portability parity | complete | Canonical passive observations, retained configuration identity, exact passive replay, and accepted source schedule fingerprints pass real SQLite/SQL and native export/import acceptance. Hosted rollout remains separate. |
+| 115: Apple-trusted macOS distribution acceptance | deferred | Apple Developer Program access, Developer ID signing, notarization, stapled artifact verification, quarantined notarized-DMG Gatekeeper acceptance, and Apple Silicon macOS 14 execution remain unavailable. The strict production check reaches only these Apple blockers. |
+
+Final 0.3 verification supersedes the earlier 0.2 checkpoints. The clean local
+reset replayed all 47 migrations through `20260831014424`, with every published
+Cadence port on loopback. The final Supabase contract exercised fresh original-
+bundle replay, self-export merge, and restore through ordinary authenticated
+clients. It created no duplicate domain/history rows. Captured Occurrence
+fields remained unchanged; fresh merge may advance concurrency `updated_at`.
+Exact cleanup left zero Auth users, public product rows, Storage data, or Vault
+secrets. Generated types match. No hosted migration or deployment ran.
+
+The final suite passed 1,336 tests; fourteen SQLite contracts and the SQL
+contract passed separately. Forty Rust tests, both TypeScript targets, lint,
+web/marketing builds, app/DMG packaging, and repository checks passed. The
+registry now retains 64 implemented desktop intents and no planned intents.
+Native 0.3 evidence and
+artifact hashes are in `docs/qa/2026-08-30-desktop-0.3-acceptance.md`.
+
+The following activation checkpoint is historical. The current table and the
+opening ledger supersede its implementation state and test counts.
+
+Activation changes: `AGENTS.md`, `docs/DESKTOP_BUILD.md`,
+`docs/PRODUCT_SPEC.md`, `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`,
+`docs/DATA_MODEL.md`, `docs/DECISIONS.md`, `docs/FUTURE_UPDATES.md`,
+`docs/TICKETS.md`, and `docs/OPERATIONS.md`. The Data Model header scopes
+Supabase/RLS rules to web; it does not claim a SQLite schema exists.
+
+The desktop contract replaces the old Full JSON importer, initial-migration
+baseline, SQL-plugin-only transaction assumption, optional cloud login, and
+blanket last-writer-wins proposal. Product summaries now match existing
+BehaviorLog definition-history and time-session replay. No native QA or
+release success is claimed by these documentation changes.
+
+Implementation adds `apps/desktop` with a Vite/React operator bench, a narrow
+Tauri command boundary, real SQLite transactions, and a thin macOS
+UserNotifications adapter. The separate spike identity/database cannot read
+web accounts. Native commands validate input and never accept SQL or arbitrary
+file paths. No permission request or notification occurs automatically.
+The native gate now passes. `packages/core` contains 15 tracking resolvers,
+portable types/hash, and shared Behavior/status/note/timing orchestration.
+`packages/ui` provides canonical tokens and bundled font CSS. CSS declaration
+parity and focused tests pass. Desktop adapters and Timeline UI are in progress;
+no production tracking screen is yet claimed as implemented.
+
+The existing interaction registry is now version 1.3. Its release mode rejects
+the 63 desktop intents planned at activation, missing references, and developer-bench sources
+masquerading as interaction implementations. The design surface catalog records
+the operator bench separately from product usage. The design checker no longer
+skips missing desktop/mobile source references.
+
+Verification passed with Node 24: `agents:check`, `interactions:check`,
+`resolvers:check`, `design-system:check`, lint (eight existing fixture warnings),
+typecheck, 1,121 tests with one environment-gated skip, web build,
+`marketing:check`, marketing build, desktop frontend build/typecheck, three native
+Rust tests, Rust formatting, debug application packaging, and `git diff --check`.
+The first sandboxed web-test run could not bind the existing fake-provider
+loopback server; the authorized rerun passed. The parity release gate fails as
+expected and does not indicate readiness.
+
+Native UI proof passed actual WKWebView rendering, synthetic SQLite commit,
+changed-input rollback, and persistence after quitting/reopening. Permission
+readback passed authorized and denied states. Denial blocked scheduling while
+SQLite remained usable. Stable-ID rescheduling kept one pending request.
+Cancellation and fully quit delivery passed OS readback. Native keyboard Tab reached the commit action.
+Browser preview passed 390px/1280px containment and console checks. The local
+ad hoc build now binds the bundle identity and resources and passes strict
+signature verification; this is not Developer ID signing or notarization.
+See `docs/qa/2026-08-30-desktop-native-boundary.md` for evidence limits.
+
+Resolved coverage decision: a 128-request, 24-hour probe retained only 100 requests and
+reported 28 missing IDs despite zero scheduling errors. Restart preserved the
+100 requests. The host's OS log recorded exactly 28 evictions. Four daily
+Behaviors need 120 requests for 30 days with one request per Occurrence.
+The owner accepted a clearly displayed OS-limited horizon on 2026-08-30.
+Thirty days remains the target. Schedule nearest eligible reminders first and
+derive coverage from actual OS readback without skipping gaps. Shorter or
+unverified coverage must remain visible. No background helper or silent
+truncation was introduced. Native activation subsequently
+passed before shared extraction began.
+
+The revised coverage probe verified the nearest 100 of 128 requests and showed
+the shorter horizon and first unscheduled instant. It uses the pure native
+reminder resolver and a bounded operator-only repair; the product scheduler
+remains Ticket 112 work. All capacity probes were cancelled.
+
+The user clicked **Cadence native reminder test** from fully quit. The native
+callback recorded `notificationActivated` for `cadence-spike.1` at
+`2026-08-30T21:05:16Z`. Cleanup and independent readback verified zero pending
+and zero delivered notifications.
+The Cadence-only notification setting remains enabled. The owner
+authorized these changes and similar local verification; do not request that
+permission again. Sleep/wake and macOS 14 remain
+unverified on this macOS 26.5.2 host. No hosted data changed and no public
+release occurred. Preserve all unrelated Ticket 106 edits.
+
+### Existing handoff context
+
 - For the next coding agent: production browser push subscription is now
   verified in Chrome as permission granted with an active FCM subscription, and
   browser-push production delivery has been verified with a safe temporary due
@@ -6234,9 +6608,11 @@ profile.
 - Ticket 025 is now split into 025A restore preview and 025B restore apply/UI.
   Implement 025A first, verify it fully, then implement 025B. Ticket 025B is
   intentionally more destructive than the current import/create/merge paths.
-- Do not start deferred offline/PWA, workspace restructuring, desktop/mobile, billing, or AI work unless the relevant docs and tickets move that work into active scope.
+- Tickets 107–114 are complete. Keep Ticket 115 deferred until its Apple access
+  and macOS 14 blockers change. Do not start web offline/PWA, broader workspace
+  restructuring, mobile, billing, or AI work without scoped authorization.
 - Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.
 - Run `npm run design-system:check` after changing reusable UI, the bench route, or design-system manifest/usage/config files.
 - Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.
-- Keep v1 small. Do not implement deferred PWA/offline behavior from `docs/FUTURE_UPDATES.md` unless the active docs are updated first.
+- Keep v1 small. Web PWA/offline work remains deferred; desktop local writes are required under `docs/DESKTOP_BUILD.md`.
 - Preserve the resolver-first architecture: core logic belongs in `lib/resolvers`, database access in `lib/db`, orchestration in `lib/services`, and UI/API routes should not duplicate resolver logic.

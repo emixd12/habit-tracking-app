@@ -7,7 +7,7 @@ import path from "node:path";
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, expect, it } from "vitest";
 
-import behaviorLogSchema from "../lib/behaviorlog.schema.json";
+import behaviorLogSchema from "../packages/core/src/behaviorlog.schema.json";
 import { resolveBehaviorLogImportPreview } from "../lib/resolvers/behaviorlog-import.resolver";
 import { resolveExportBundle } from "../lib/resolvers/export.resolver";
 import { previewBehaviorLogImportFromZip } from "../lib/services/behaviorlog-import.service";
@@ -72,6 +72,11 @@ const SCHEDULE_FIELDS = new Set([
   "window_end_local",
   "active_from_local_date",
   "active_until_local_date",
+  "anchor_local_date",
+  "effective_from_utc",
+  "effective_until_utc",
+  "schedule_role",
+  "schedule_group_id",
   "source",
   "extensions",
 ]);
@@ -82,6 +87,7 @@ const OCCURRENCE_FIELDS = new Set([
   "behavior_id",
   "schedule_id",
   "scheduled_for_utc",
+  "configuration_event_id",
   "local_date",
   "local_time",
   "timezone",
@@ -448,7 +454,7 @@ describe("BehaviorLog core conformance", () => {
 
       expect(preview.valid, JSON.stringify(preview.errors, null, 2)).toBe(true);
       expect(preview.summary).toMatchObject({
-        schemaVersion: "0.2.0-draft",
+        schemaVersion: "0.3.0-draft",
         behaviorCount: 1,
         scheduleCount: 1,
         occurrenceCount: 2,
@@ -512,8 +518,8 @@ describe("BehaviorLog core conformance", () => {
 
     expect(manifest).toMatchObject({
       format: "behaviorlog.bundle",
-      schema_version: "0.2.0-draft",
-      profiles: ["core", "intervention", "definition_history"],
+      schema_version: "0.3.0-draft",
+      profiles: ["core", "intervention", "definition_history", "configuration_history"],
       rules: expect.objectContaining({
         definition_history_policy: "event_sourced",
       }),
@@ -563,7 +569,8 @@ describe("BehaviorLog core conformance", () => {
     const interventionRuleIds = new Set(
       interventionRules.map((rule) => String(rule.rule_id)),
     );
-    expect(interventions.every((record) => interventionRuleIds.has(String(record.rule_id)))).toBe(true);
+    expect(interventions.every((record) => record.rule_id == null ||
+      interventionRuleIds.has(String(record.rule_id)))).toBe(true);
     expectNoUnknownTopLevelFields(behaviors, BEHAVIOR_FIELDS);
     expectNoUnknownTopLevelFields(schedules, SCHEDULE_FIELDS);
     expectNoUnknownTopLevelFields(occurrences, OCCURRENCE_FIELDS);

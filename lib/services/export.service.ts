@@ -1,95 +1,26 @@
-import { createHash } from "node:crypto";
-
+import { buildExportDownload } from "@cadence/core/services/export-download";
 import { Temporal } from "@js-temporal/polyfill";
-
-import type {
-  AppSupabaseClient,
-  BehaviorWithCategory,
-} from "@/lib/db/behaviors.repo";
-import {
-  readExportPageBundle,
-  type ExportPageBehaviorRow,
-  type ExportPageCategoryRow,
-  type ExportPageOccurrenceRow,
-  type ExportPageReminderDeliveryRow,
-  type ExportPageStatusEventRow,
-  type ExportPageSyncStateRow,
-} from "@/lib/db/exportPageRead.repo";
+import { assembleExportBundle, type ExportOptions } from "@cadence/core/services/export-assembly";
+export type { ExportOptions } from "@cadence/core/services/export-assembly";
+import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import { readExportPageBundle, type ExportPageSyncStateRow } from "@/lib/db/exportPageRead.repo";
 import { listBehaviorDefinitionEvents } from "@/lib/db/behaviorDefinitionEvents.repo";
-import {
-  listBehaviorConfigurationEvents,
-} from "@/lib/db/behaviorConfigurationEvents.repo";
-import type { Json } from "@/lib/db/database.types";
+import { listBehaviorConfigurationEvents } from "@/lib/db/behaviorConfigurationEvents.repo";
 import { consumeExportDownloadRateLimit } from "@/lib/db/launchRateLimits.repo";
 import { listTimeSessionHistory } from "@/lib/db/timeSessions.repo";
-import {
-  resolveExportBundle,
-  resolveExportDateRange,
-} from "@/lib/resolvers/export.resolver";
+import { listAppliedBehaviorLogImportRuns, listBehaviorLogImportRecordMappings } from "@/lib/db/behaviorLogImports.repo";
+import { listImportedNotes } from "@/lib/db/notes.repo";
+import { listImportedInterventions } from "@/lib/db/importedInterventions.repo";
+import { exportReadEndLocalDate, resolveExportDateRange } from "@/lib/resolvers/export.resolver";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { assertLaunchCircuitBreakerClosed } from "@/lib/security/launch-circuit-breakers";
-import {
-  normalizeRecurrenceRule,
-  recurrenceDefaultsFromRule,
-  normalizeScheduledTime,
-  summarizeRecurrenceRule,
-} from "@/lib/services/behavior-form";
 import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
-import {
-  compareScheduleSlots,
-  formatScheduleSlotsSummary,
-  formatOccurrenceScheduleLabel,
-  toScheduleSlotView,
-} from "@/lib/services/schedule";
 import { createStoredZip } from "@/lib/services/zip";
 import { createClient } from "@/lib/supabase/server";
-import {
-  readCachedProfileTimezone,
-  readCachedUserBehaviors,
-} from "@/lib/cache/stable-user-data.cache";
-import type {
-  ExportBehaviorDefinitionEventInput,
-  ExportBehaviorConfigurationEventInput,
-  ExportBehaviorConfigurationSnapshot,
-  ExportBehaviorInput,
-  ExportBundle,
-  ExportCategoryInput,
-  ExportOccurrenceInput,
-  ExportOccurrenceStatus,
-  ExportReminderDeliveryChannel,
-  ExportReminderDeliveryInput,
-  ExportReminderDeliveryStatus,
-  ExportStatusEventInput,
-  ExportTimeSessionInput,
-} from "@/lib/types/export";
-import type {
-  BehaviorConfigurationEvent,
-  BehaviorDefinitionEvent,
-  OccurrenceSyncState,
-} from "@/lib/types/database";
-import {
-  BEHAVIOR_CONFIGURATION_CHANGED_FIELDS,
-  type BehaviorConfigurationChangedField,
-  type BehaviorConfigurationEventSource,
-} from "@/lib/types/behavior-configuration-event";
-import type {
-  BehaviorDefinitionChangedField,
-  BehaviorDefinitionEventSource,
-} from "@/lib/types/behavior-definition-event";
+import { readCachedProfileTimezone, readCachedUserBehaviors } from "@/lib/cache/stable-user-data.cache";
+import type { ExportBundle } from "@/lib/types/export";
+import type { OccurrenceSyncState } from "@/lib/types/database";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
-import type {
-  BehaviorScheduleView,
-  ScheduleKind,
-  TimeRangePreset,
-} from "@/lib/types/schedule";
-
-export type ExportOptions = {
-  now?: Temporal.Instant;
-  range?: string | number | null;
-  includeArchived?: boolean;
-  includeNotes?: boolean;
-  includeTimeTracking?: boolean;
-};
 
 export type ExportDownloadFormat = "jsonl" | "csv" | "json" | "behaviorlog";
 
@@ -138,37 +69,12 @@ export async function getExportDownload(
     enforceDownloadGuardrails: true,
   });
 
-  switch (format) {
-    case "jsonl":
-      return {
-        content: bundle.jsonl,
-        contentType: "application/x-ndjson; charset=utf-8",
-        fileName: `${bundle.fileBaseName}.jsonl`,
-      };
-    case "csv":
-      return {
-        content: bundle.csv,
-        contentType: "text/csv; charset=utf-8",
-        fileName: `${bundle.fileBaseName}.csv`,
-      };
-    case "json":
-      return {
-        content: bundle.json,
-        contentType: "application/json; charset=utf-8",
-        fileName: `${bundle.fileBaseName}.json`,
-      };
-    case "behaviorlog": {
-      const zipBytes = Uint8Array.from(
-        createStoredZip(bundle.behaviorLog.files),
-      );
-
-      return {
-        content: new Blob([zipBytes], { type: "application/zip" }),
-        contentType: "application/zip",
-        fileName: bundle.behaviorLog.fileName,
-      };
-    }
-  }
+  const payload = await buildExportDownload(bundle, format, createStoredZip);
+  return {
+    content: payload.text ?? new Blob([Uint8Array.from(payload.bytes!)], { type: payload.mimeType }),
+    contentType: payload.mimeType,
+    fileName: payload.filename,
+  };
 }
 
 async function getUserExportBundle(
@@ -206,9 +112,15 @@ async function getUserExportBundle(
     timezone,
     range: options.range,
   });
+  const endLocalDate = exportReadEndLocalDate(range);
+  const [importRuns, importMappings, importedNotes, importedInterventions] = await Promise.all([
+    listAppliedBehaviorLogImportRuns(supabase, userId), listBehaviorLogImportRecordMappings(supabase, userId),
+    options.includeNotes ? listImportedNotes(supabase, userId) : Promise.resolve([]),
+    listImportedInterventions(supabase, userId),
+  ]);
   const initialRead = await readExportPageBundle(supabase, {
     startLocalDate: range.startLocalDate,
-    endLocalDate: range.endLocalDate,
+    endLocalDate,
   });
 
   const syncResult = await ensureUserOccurrencesFresh(supabase, userId, {
@@ -221,729 +133,40 @@ async function getUserExportBundle(
   const exportRead = syncResult.synced
     ? await readExportPageBundle(supabase, {
         startLocalDate: range.startLocalDate,
-        endLocalDate: range.endLocalDate,
+        endLocalDate,
       })
     : initialRead;
   const timeSessions = options.includeTimeTracking
     ? await listTimeSessionHistory(supabase, {
         userId,
         startLocalDate: range.startLocalDate,
-        endLocalDate: range.endLocalDate,
+        endLocalDate,
         includeArchived: options.includeArchived ?? false,
         throughStartedAt: now.toString(),
       })
     : [];
   const finalRead = await readExportPageBundle(supabase, {
     startLocalDate: range.startLocalDate,
-    endLocalDate: range.endLocalDate,
+    endLocalDate,
   });
 
-  assertConfigurationHistoryStable({
-    behaviors: cachedBehaviors,
-    configurationEvents: behaviorConfigurationEvents,
+  return assembleExportBundle({
+    ...options, now, userId, timezone, range: range.key,
+    categories: exportRead.categories, behaviors: cachedBehaviors,
+    behaviorDefinitionEvents, behaviorConfigurationEvents,
+    occurrences: exportRead.occurrences, statusEvents: exportRead.statusEvents,
+    reminderDeliveries: exportRead.reminderDeliveries, timeSessions,
     finalBehaviors: finalRead.behaviors,
-    occurrences: exportRead.occurrences,
+    importRuns, importMappings, importedNotes, importedInterventions,
   });
-
-  return resolveExportBundle({
-    profile: {
-      timezone,
-      subjectId: pseudonymousSubjectId(userId),
-      locale: "en-US",
-      producerName: "Cadence Tracker",
-      producerVersion: "0.1.0",
-    },
-    categories: exportRead.categories.map(toExportCategoryInput),
-    behaviors: cachedBehaviors.map(toExportBehaviorInput),
-    behaviorDefinitionEvents: behaviorDefinitionEvents.map(
-      toExportBehaviorDefinitionEventInput,
-    ),
-    behaviorConfigurationEvents: behaviorConfigurationEvents.map(
-      toExportBehaviorConfigurationEventInput,
-    ),
-    occurrences: exportRead.occurrences.map(toExportOccurrenceInput),
-    statusEvents: exportRead.statusEvents.map(toExportStatusEventInput),
-    reminderDeliveries: exportRead.reminderDeliveries.map(
-      toExportReminderDeliveryInput,
-    ),
-    timeSessions: timeSessions.map(toExportTimeSessionInput),
-    now,
-    timezone,
-    range: range.key,
-    includeArchived: options.includeArchived,
-    includeNotes: options.includeNotes,
-    includeTimeTracking: options.includeTimeTracking,
-  });
-}
-
-function toExportTimeSessionInput(
-  session: Awaited<ReturnType<typeof listTimeSessionHistory>>[number],
-): ExportTimeSessionInput {
-  return {
-    id: session.id,
-    occurrenceId: session.occurrence_id,
-    behaviorId: session.behavior_id,
-    startedAt: session.started_at,
-    stoppedAt: session.stopped_at,
-  };
-}
-
-function toExportBehaviorDefinitionEventInput(
-  event: BehaviorDefinitionEvent,
-): ExportBehaviorDefinitionEventInput {
-  return {
-    id: event.id,
-    behaviorId: event.behavior_id,
-    previousTitle: event.previous_title,
-    nextTitle: event.next_title,
-    previousDescription: event.previous_description,
-    nextDescription: event.next_description,
-    changedFields: normalizeBehaviorDefinitionChangedFields(
-      event.changed_fields,
-    ),
-    recordedAt: event.recorded_at,
-    source: normalizeBehaviorDefinitionEventSource(event.source),
-    reason: event.reason,
-    createdAt: event.created_at,
-    updatedAt: event.updated_at,
-  };
-}
-
-function toExportBehaviorConfigurationEventInput(
-  event: BehaviorConfigurationEvent,
-): ExportBehaviorConfigurationEventInput {
-  return {
-    id: event.id,
-    behaviorId: event.behavior_id,
-    eventKind: normalizeConfigurationEventKind(event.event_kind),
-    previousConfiguration:
-      event.previous_configuration === null
-        ? null
-        : parseConfigurationSnapshot(event.previous_configuration),
-    nextConfiguration: parseConfigurationSnapshot(event.next_configuration),
-    changedFields: normalizeBehaviorConfigurationChangedFields(
-      event.changed_fields,
-    ),
-    recordedAt: event.recorded_at,
-    effectiveAt: event.effective_at,
-    effectiveLocalDate: event.effective_local_date,
-    timezone: event.timezone,
-    source: normalizeBehaviorConfigurationEventSource(event.source),
-    reasonCode: event.reason_code,
-    createdAt: event.created_at,
-  };
-}
-
-function parseConfigurationSnapshot(
-  value: Json,
-): ExportBehaviorConfigurationSnapshot {
-  const snapshot = requireJsonObject(value, "configuration snapshot");
-  const scheduleGraph = requireJsonArray(
-    snapshot.schedule_graph,
-    "configuration schedule_graph",
-  ).map((scheduleValue) => {
-    const schedule = requireJsonObject(
-      scheduleValue,
-      "configuration schedule",
-    );
-
-    return {
-      recurrenceRule: normalizeRecurrenceRule(
-        requireJsonObject(
-          schedule.recurrence_rule,
-          "configuration recurrence_rule",
-        ),
-      ),
-      sortOrder: requireInteger(
-        schedule.sort_order,
-        "configuration schedule sort_order",
-      ),
-      timeEntries: requireJsonArray(
-        schedule.time_entries,
-        "configuration time_entries",
-      ).map((entryValue) => {
-        const entry = requireJsonObject(
-          entryValue,
-          "configuration time entry",
-        );
-
-        return {
-          kind: normalizeScheduleKind(
-            requireString(entry.kind, "configuration schedule kind"),
-          ),
-          preset: normalizeSchedulePreset(
-            requireNullableString(
-              entry.preset,
-              "configuration schedule preset",
-            ),
-          ),
-          startTime: normalizeScheduledTime(
-            requireString(
-              entry.start_time,
-              "configuration schedule start_time",
-            ),
-          ),
-          endTime:
-            requireNullableString(
-              entry.end_time,
-              "configuration schedule end_time",
-            ) === null
-              ? null
-              : normalizeScheduledTime(
-                  requireString(
-                    entry.end_time,
-                    "configuration schedule end_time",
-                  ),
-                ),
-          sortOrder: requireInteger(
-            entry.sort_order,
-            "configuration time entry sort_order",
-          ),
-        };
-      }),
-    };
-  });
-
-  return {
-    categoryId: requireNullableString(
-      snapshot.category_id,
-      "configuration category_id",
-    ),
-    scheduleGraph,
-    browserReminderEnabled: requireBoolean(
-      snapshot.browser_reminder_enabled,
-      "configuration browser_reminder_enabled",
-    ),
-    emailReminderEnabled: requireBoolean(
-      snapshot.email_reminder_enabled,
-      "configuration email_reminder_enabled",
-    ),
-    reminderOffsetMinutes: requireInteger(
-      snapshot.reminder_offset_minutes,
-      "configuration reminder_offset_minutes",
-    ),
-    active: requireBoolean(snapshot.active, "configuration active"),
-    timezone: requireString(snapshot.timezone, "configuration timezone"),
-  };
-}
-
-function normalizeConfigurationEventKind(
-  value: string,
-): ExportBehaviorConfigurationEventInput["eventKind"] {
-  if (value === "baseline" || value === "revision") {
-    return value;
-  }
-
-  throw new Error(`Unsupported behavior configuration event kind: ${value}.`);
-}
-
-function normalizeBehaviorConfigurationChangedFields(
-  values: string[],
-): BehaviorConfigurationChangedField[] {
-  const fields = BEHAVIOR_CONFIGURATION_CHANGED_FIELDS.filter((field) =>
-    values.includes(field),
-  );
-
-  if (
-    fields.length === 0 ||
-    fields.length !== values.length ||
-    new Set(values).size !== values.length
-  ) {
-    throw new Error("Unsupported behavior configuration changed fields.");
-  }
-
-  return fields;
-}
-
-function normalizeBehaviorConfigurationEventSource(
-  value: string,
-): BehaviorConfigurationEventSource {
-  if (value === "manual" || value === "import" || value === "system") {
-    return value;
-  }
-
-  throw new Error(`Unsupported behavior configuration event source: ${value}.`);
-}
-
-function requireJsonObject(value: Json | undefined, label: string): {
-  [key: string]: Json | undefined;
-} {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    return value;
-  }
-
-  throw new Error(`Invalid ${label}.`);
-}
-
-function requireJsonArray(value: Json | undefined, label: string): Json[] {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  throw new Error(`Invalid ${label}.`);
-}
-
-function requireString(value: Json | undefined, label: string): string {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  throw new Error(`Invalid ${label}.`);
-}
-
-function requireNullableString(
-  value: Json | undefined,
-  label: string,
-): string | null {
-  if (value === null || typeof value === "string") {
-    return value;
-  }
-
-  throw new Error(`Invalid ${label}.`);
-}
-
-function requireInteger(value: Json | undefined, label: string): number {
-  if (typeof value === "number" && Number.isInteger(value)) {
-    return value;
-  }
-
-  throw new Error(`Invalid ${label}.`);
-}
-
-function requireBoolean(value: Json | undefined, label: string): boolean {
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-  throw new Error(`Invalid ${label}.`);
-}
-
-function normalizeBehaviorDefinitionChangedFields(
-  values: string[],
-): BehaviorDefinitionChangedField[] {
-  const fields: BehaviorDefinitionChangedField[] = [];
-
-  if (values.includes("title")) {
-    fields.push("title");
-  }
-
-  if (values.includes("description")) {
-    fields.push("description");
-  }
-
-  if (
-    fields.length === 0 ||
-    fields.length !== values.length ||
-    new Set(values).size !== values.length
-  ) {
-    throw new Error("Unsupported behavior definition changed fields.");
-  }
-
-  return fields;
-}
-
-function normalizeBehaviorDefinitionEventSource(
-  value: string,
-): BehaviorDefinitionEventSource {
-  if (value === "manual" || value === "import" || value === "system") {
-    return value;
-  }
-
-  throw new Error(`Unsupported behavior definition event source: ${value}.`);
-}
-
-function toExportReminderDeliveryInput(
-  delivery: ExportPageReminderDeliveryRow,
-): ExportReminderDeliveryInput {
-  return {
-    id: delivery.id,
-    occurrenceId: delivery.occurrence_id,
-    channel: normalizeReminderChannel(delivery.channel),
-    scheduledSendAt: delivery.scheduled_send_at,
-    sentAt: delivery.sent_at,
-    status: normalizeReminderDeliveryStatus(delivery.status),
-    error: delivery.error,
-    processingStartedAt: delivery.processing_started_at,
-    createdAt: delivery.created_at,
-    updatedAt: delivery.updated_at,
-  };
 }
 
 async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
   void supabase;
-
-  try {
-    return await requireCurrentUserId("Sign in again before exporting data.");
-  } catch {
-    throw new ExportAuthError();
-  }
+  try { return await requireCurrentUserId("Sign in again before exporting data."); }
+  catch { throw new ExportAuthError(); }
 }
 
-function toExportCategoryInput(
-  category: ExportPageCategoryRow,
-): ExportCategoryInput {
-  return {
-    id: category.id,
-    name: category.name,
-    sortOrder: category.sort_order,
-    createdAt: category.created_at,
-    updatedAt: category.updated_at,
-  };
-}
-
-function toExportBehaviorInput(
-  behavior: BehaviorWithCategory,
-): ExportBehaviorInput {
-  const recurrenceRule = normalizeRecurrenceRule(behavior.recurrence_rule);
-  const scheduledTime = normalizeScheduledTime(behavior.scheduled_time);
-  const schedules = toExportBehaviorSchedules(
-    behavior,
-    recurrenceRule,
-    scheduledTime,
-  );
-
-  return {
-    id: behavior.id,
-    categoryId: behavior.category_id,
-    categoryName: behavior.category?.name ?? null,
-    title: behavior.title,
-    description: behavior.description,
-    recurrenceRule,
-    scheduledTime,
-    schedules,
-    scheduleSlots: schedules.flatMap((schedule) => schedule.timeEntries),
-    timezone: behavior.timezone || DEFAULT_TIMEZONE,
-    browserReminderEnabled: behavior.browser_reminder_enabled,
-    emailReminderEnabled: behavior.email_reminder_enabled,
-    reminderOffsetMinutes: behavior.reminder_offset_minutes,
-    active: behavior.active,
-    archivedAt: behavior.archived_at,
-    createdAt: behavior.created_at,
-    updatedAt: behavior.updated_at,
-  };
-}
-
-function toExportBehaviorSchedules(
-  behavior: BehaviorWithCategory,
-  fallbackRecurrenceRule: ExportBehaviorInput["recurrenceRule"],
-  fallbackScheduledTime: string,
-): BehaviorScheduleView[] {
-  const schedules = behavior.schedules ?? [];
-
-  if (schedules.length > 0) {
-    return schedules
-      .map((schedule) => {
-        const recurrenceRule = normalizeRecurrenceRule(
-          schedule.recurrence_rule,
-        );
-        const timeEntries = schedule.schedule_slots
-          .map((slot) =>
-            toScheduleSlotView({
-              id: slot.id,
-              scheduleId: slot.behavior_schedule_id ?? schedule.id,
-              kind: normalizeScheduleKind(slot.kind),
-              preset: normalizeSchedulePreset(slot.preset),
-              startTime: slot.start_time,
-              endTime: slot.end_time,
-              sortOrder: slot.sort_order,
-            }),
-          )
-          .sort(compareScheduleSlots);
-
-        return {
-          id: schedule.id,
-          recurrenceRule,
-          recurrenceSummary: summarizeRecurrenceRule(recurrenceRule),
-          recurrenceDefaults: recurrenceDefaultsFromRule(recurrenceRule),
-          timeEntries,
-          timeSummary: formatScheduleSlotsSummary(timeEntries),
-          sortOrder: schedule.sort_order,
-        };
-      })
-      .sort((left, right) => left.sortOrder - right.sortOrder);
-  }
-
-  const timeEntries =
-    behavior.schedule_slots.length > 0
-      ? behavior.schedule_slots
-          .map((slot) =>
-            toScheduleSlotView({
-              id: slot.id,
-              scheduleId: slot.behavior_schedule_id,
-              kind: normalizeScheduleKind(slot.kind),
-              preset: normalizeSchedulePreset(slot.preset),
-              startTime: slot.start_time,
-              endTime: slot.end_time,
-              sortOrder: slot.sort_order,
-            }),
-          )
-          .sort(compareScheduleSlots)
-      : [
-          toScheduleSlotView({
-            id: "",
-            scheduleId: null,
-            kind: "exact",
-            preset: null,
-            startTime: fallbackScheduledTime,
-            endTime: null,
-            sortOrder: 0,
-          }),
-        ];
-
-  return [
-    {
-      id: "",
-      recurrenceRule: fallbackRecurrenceRule,
-      recurrenceSummary: summarizeRecurrenceRule(fallbackRecurrenceRule),
-      recurrenceDefaults: recurrenceDefaultsFromRule(fallbackRecurrenceRule),
-      timeEntries,
-      timeSummary: formatScheduleSlotsSummary(timeEntries),
-      sortOrder: 0,
-    },
-  ];
-}
-
-function toExportOccurrenceInput(
-  occurrence: ExportPageOccurrenceRow,
-): ExportOccurrenceInput {
-  return {
-    id: occurrence.id,
-    behaviorId: occurrence.behavior_id,
-    behaviorScheduleSlotId: occurrence.behavior_schedule_slot_id,
-    behaviorConfigurationEventId:
-      occurrence.behavior_configuration_event_id,
-    scheduledFor: occurrence.scheduled_for,
-    scheduledTimeLabel: formatOccurrenceScheduleLabel({
-      scheduleKind: normalizeScheduleKind(occurrence.schedule_kind),
-      schedulePreset: normalizeSchedulePreset(occurrence.schedule_preset),
-      scheduleStartTime: normalizeScheduledTime(occurrence.schedule_start_time),
-      scheduleEndTime: occurrence.schedule_end_time
-        ? normalizeScheduledTime(occurrence.schedule_end_time)
-        : null,
-    }),
-    scheduleKind: normalizeScheduleKind(occurrence.schedule_kind),
-    schedulePreset: normalizeSchedulePreset(occurrence.schedule_preset),
-    scheduleStartTime: normalizeScheduledTime(occurrence.schedule_start_time),
-    scheduleEndTime: occurrence.schedule_end_time
-      ? normalizeScheduledTime(occurrence.schedule_end_time)
-      : null,
-    localDate: occurrence.local_date,
-    status: normalizeOccurrenceStatus(occurrence.status),
-    completedAt: occurrence.completed_at,
-    statusMarkedAt: occurrence.status_marked_at,
-    note: occurrence.note,
-    createdAt: occurrence.created_at,
-    updatedAt: occurrence.updated_at,
-  };
-}
-
-function toExportStatusEventInput(
-  event: ExportPageStatusEventRow,
-): ExportStatusEventInput {
-  return {
-    id: event.id,
-    occurrenceId: event.occurrence_id,
-    behaviorId: event.behavior_id,
-    previousStatus: normalizeNullableOccurrenceStatus(event.previous_status),
-    status: normalizeOccurrenceStatus(event.status),
-    statusSemantics: normalizeStatusSemantics(event.status_semantics),
-    recordedAt: event.recorded_at,
-    effectiveAt: event.effective_at,
-    localDate: event.local_date,
-    timezone: event.timezone || DEFAULT_TIMEZONE,
-    sourceCaptureMethod: normalizeSourceCaptureMethod(
-      event.source_capture_method,
-    ),
-    sourceConfidence: normalizeSourceConfidence(event.source_confidence),
-    revisesEventId: event.revises_event_id,
-    reasonCode: event.reason_code,
-    createdAt: event.created_at,
-    updatedAt: event.updated_at,
-  };
-}
-
-function normalizeScheduleKind(value: string): ScheduleKind {
-  if (value === "exact" || value === "range") {
-    return value;
-  }
-
-  throw new Error(`Unsupported schedule kind: ${value}.`);
-}
-
-function normalizeSchedulePreset(value: string | null): TimeRangePreset | null {
-  if (
-    value === null ||
-    value === "morning" ||
-    value === "afternoon" ||
-    value === "evening" ||
-    value === "night"
-  ) {
-    return value;
-  }
-
-  throw new Error(`Unsupported schedule preset: ${value}.`);
-}
-
-function normalizeOccurrenceStatus(value: string): ExportOccurrenceStatus {
-  if (
-    value === "unresolved" ||
-    value === "completed" ||
-    value === "not_completed"
-  ) {
-    return value;
-  }
-
-  throw new Error(`Unsupported occurrence status: ${value}.`);
-}
-
-function normalizeNullableOccurrenceStatus(
-  value: string | null,
-): ExportOccurrenceStatus | null {
-  return value ? normalizeOccurrenceStatus(value) : null;
-}
-
-function normalizeStatusSemantics(
-  value: string,
-): ExportStatusEventInput["statusSemantics"] {
-  if (
-    value === "explicit_user_mark" ||
-    value === "explicit_user_correction" ||
-    value === "imported_explicit" ||
-    value === "system_rule_declared" ||
-    value === "ambiguous_import"
-  ) {
-    return value;
-  }
-
-  throw new Error(`Unsupported status semantics: ${value}.`);
-}
-
-function normalizeSourceCaptureMethod(
-  value: string,
-): ExportStatusEventInput["sourceCaptureMethod"] {
-  if (
-    value === "manual_tap" ||
-    value === "manual_text" ||
-    value === "system_generated" ||
-    value === "imported" ||
-    value === "inferred" ||
-    value === "derived" ||
-    value === "ai_generated" ||
-    value === "unknown"
-  ) {
-    return value;
-  }
-
-  throw new Error(`Unsupported source capture method: ${value}.`);
-}
-
-function normalizeSourceConfidence(
-  value: string,
-): ExportStatusEventInput["sourceConfidence"] {
-  if (
-    value === "high" ||
-    value === "medium" ||
-    value === "low" ||
-    value === "ambiguous" ||
-    value === "unknown"
-  ) {
-    return value;
-  }
-
-  throw new Error(`Unsupported source confidence: ${value}.`);
-}
-
-function normalizeReminderChannel(
-  value: string,
-): ExportReminderDeliveryChannel {
-  if (value === "browser_push" || value === "email") {
-    return value;
-  }
-
-  throw new Error(`Unsupported reminder channel: ${value}.`);
-}
-
-function normalizeReminderDeliveryStatus(
-  value: string,
-): ExportReminderDeliveryStatus {
-  if (
-    value === "pending" ||
-    value === "sent" ||
-    value === "failed" ||
-    value === "cancelled"
-  ) {
-    return value;
-  }
-
-  throw new Error(`Unsupported reminder delivery status: ${value}.`);
-}
-
-function pseudonymousSubjectId(userId: string): string {
-  return `subject_${createHash("sha256").update(userId).digest("hex").slice(0, 16)}`;
-}
-
-function toSyncState(
-  syncState: ExportPageSyncStateRow | null,
-  userId: string,
-): OccurrenceSyncState | null {
+function toSyncState(syncState: ExportPageSyncStateRow | null, userId: string): OccurrenceSyncState | null {
   return syncState ? { ...syncState, user_id: userId } : null;
-}
-
-function assertConfigurationHistoryStable(input: {
-  behaviors: BehaviorWithCategory[];
-  configurationEvents: BehaviorConfigurationEvent[];
-  finalBehaviors: ExportPageBehaviorRow[];
-  occurrences: ExportPageOccurrenceRow[];
-}): void {
-  const eventById = new Map(
-    input.configurationEvents.map((event) => [event.id, event]),
-  );
-  const expectedByBehaviorId = new Map(
-    input.behaviors.map((behavior) => [behavior.id, behavior]),
-  );
-
-  if (input.finalBehaviors.length !== input.behaviors.length) {
-    throw new Error(
-      "Behavior configuration changed during export. Try the export again.",
-    );
-  }
-
-  for (const finalBehavior of input.finalBehaviors) {
-    const behavior = expectedByBehaviorId.get(finalBehavior.id);
-
-    if (
-      !behavior ||
-      finalBehavior.current_configuration_event_id !==
-        behavior.current_configuration_event_id ||
-      finalBehavior.updated_at !== behavior.updated_at
-    ) {
-      throw new Error(
-        "Behavior configuration changed during export. Try the export again.",
-      );
-    }
-
-    const currentEvent = finalBehavior.current_configuration_event_id
-      ? eventById.get(finalBehavior.current_configuration_event_id)
-      : null;
-
-    if (!currentEvent || currentEvent.behavior_id !== finalBehavior.id) {
-      throw new Error(
-        "Behavior configuration history is incomplete. Try the export again.",
-      );
-    }
-  }
-
-  for (const occurrence of input.occurrences) {
-    if (!occurrence.behavior_configuration_event_id) {
-      continue;
-    }
-
-    const event = eventById.get(occurrence.behavior_configuration_event_id);
-
-    if (!event || event.behavior_id !== occurrence.behavior_id) {
-      throw new Error(
-        "Occurrence configuration history is incomplete. Try the export again.",
-      );
-    }
-  }
 }

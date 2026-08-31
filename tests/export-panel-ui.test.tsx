@@ -7,17 +7,24 @@ import {
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ExportPanel } from "../components/export/ExportPanel";
 import { ExportRangeSelector } from "../components/export/ExportRangeSelector";
+import { MarkdownSummaryActions } from "../components/export/MarkdownSummaryActions";
+import { BehaviorLogImportPanel } from "../components/export/BehaviorLogImportPanel";
+import { BehaviorLogRestorePanel } from "../components/export/BehaviorLogRestorePanel";
 import { EXPORT_PROMPT_TEMPLATES } from "../lib/export-prompts";
 import type { ExportBundle } from "../lib/types/export";
+import type { BehaviorLogImportFormAction } from "../lib/types/behaviorlog-import-ui";
+import type { BehaviorLogRestoreFormAction } from "../lib/types/behaviorlog-restore-ui";
 
 describe("Export panel UI", () => {
   it("renders export options and every structured download interaction", () => {
     const html = renderToStaticMarkup(
       <ExportPanel
+        importAction={async (state) => state}
+        restoreAction={async (state) => state}
         exportData={exportBundle()}
         importData={{ recentRuns: [] }}
         restoreData={{ recentRuns: [] }}
@@ -47,6 +54,8 @@ describe("Export panel UI", () => {
   it("keeps the time-tracking option and download parameter off by default", () => {
     const html = renderToStaticMarkup(
       <ExportPanel
+        importAction={async (state) => state}
+        restoreAction={async (state) => state}
         exportData={exportBundle()}
         importData={{ recentRuns: [] }}
         restoreData={{ recentRuns: [] }}
@@ -63,6 +72,8 @@ describe("Export panel UI", () => {
     bundle.timeSessionCount = 2;
     const html = renderToStaticMarkup(
       <ExportPanel
+        importAction={async (state) => state}
+        restoreAction={async (state) => state}
         exportData={bundle}
         importData={{ recentRuns: [] }}
         restoreData={{ recentRuns: [] }}
@@ -83,6 +94,8 @@ describe("Export panel UI", () => {
   it("explains standard BehaviorLog files and supported replay", () => {
     const html = renderToStaticMarkup(
       <ExportPanel
+        importAction={async (state) => state}
+        restoreAction={async (state) => state}
         exportData={exportBundle()}
         importData={{ recentRuns: [] }}
         restoreData={{ recentRuns: [] }}
@@ -101,7 +114,7 @@ describe("Export panel UI", () => {
     );
     expect(html).toContain("BehaviorLog bundle (.behaviorlog.zip)");
     expect(html).toContain(
-      "BehaviorLog core records, standard definition history and reminder rules, optional standard time sessions, Cadence configuration history",
+      "BehaviorLog core records, standard definition and configuration history, reminder rules, optional standard time sessions",
     );
     expect(html).toContain(
       "BehaviorLog stores title and description history in its standard definition-history file.",
@@ -110,7 +123,7 @@ describe("Export panel UI", () => {
       "When time tracking is selected, it stores timing sessions in its standard time-session file.",
     );
     expect(html).toContain(
-      "reminder-setting history remains a Cadence extension.",
+      "reminder-setting history uses the standard configuration-history file.",
     );
     expect(html).toContain(
       "Historical definitions and configuration can contain sensitive context.",
@@ -119,7 +132,7 @@ describe("Export panel UI", () => {
       "Cadence replays standard definition history and safely mapped time sessions during supported imports and restore.",
     );
     expect(html).toContain(
-      "Cadence also validates its configuration-history extension.",
+      "Cadence preserves standard configuration history for re-export.",
     );
     expect(html).toContain("use its current schedule and reminder snapshot");
     expect(html).toContain(
@@ -133,6 +146,8 @@ describe("Export panel UI", () => {
   it("renders the analysis prompt library after the AI summary", () => {
     const html = renderToStaticMarkup(
       <ExportPanel
+        importAction={async (state) => state}
+        restoreAction={async (state) => state}
         exportData={exportBundle()}
         importData={{ recentRuns: [] }}
         restoreData={{ recentRuns: [] }}
@@ -155,6 +170,8 @@ describe("Export panel UI", () => {
 
   it("resets range-control state when navigation supplies a different selected range", () => {
     const thirtyDayPanel = ExportPanel({
+      importAction: async (state) => state,
+      restoreAction: async (state) => state,
       exportData: exportBundle(),
       importData: { recentRuns: [] },
       restoreData: { recentRuns: [] },
@@ -170,6 +187,8 @@ describe("Export panel UI", () => {
     };
 
     const ninetyDayPanel = ExportPanel({
+      importAction: async (state) => state,
+      restoreAction: async (state) => state,
       exportData: ninetyDayData,
       importData: { recentRuns: [] },
       restoreData: { recentRuns: [] },
@@ -198,7 +217,75 @@ describe("Export panel UI", () => {
     expect(ninetyDayInput).toContain('checked=""');
     expect(thirtyDayInput).not.toContain('checked=""');
   });
+
+  it("routes desktop downloads and form actions through supplied transports", () => {
+    const onDownload = vi.fn();
+    const importAction = vi.fn<BehaviorLogImportFormAction>(async (state) => state);
+    const restoreAction = vi.fn<BehaviorLogRestoreFormAction>(async (state) => state);
+    const panel = ExportPanel({
+      exportData: exportBundle(),
+      importData: { recentRuns: [] },
+      restoreData: { recentRuns: [] },
+      importAction,
+      restoreAction,
+      onDownload,
+    });
+    const html = renderToStaticMarkup(panel);
+    expect(html).not.toContain('href="/api/export/');
+    expect(html).toContain('name="include_notes"');
+    expect(onDownload).not.toHaveBeenCalled();
+
+    for (const button of findElementsByType(panel, "button")) {
+      const props = button.props as { "aria-label"?: string; onClick?: () => void };
+      if (props["aria-label"]?.startsWith("Download ")) props.onClick?.();
+    }
+    const markdown = findElementByType(panel, MarkdownSummaryActions);
+    (markdown?.props as { onDownload: () => void }).onDownload();
+    expect(onDownload.mock.calls).toEqual([
+      ["jsonl"], ["csv"], ["json"], ["behaviorlog"], ["markdown"],
+    ]);
+    expect((findElementByType(panel, BehaviorLogImportPanel)?.props as { action: unknown }).action).toBe(importAction);
+    expect((findElementByType(panel, BehaviorLogRestorePanel)?.props as { action: unknown }).action).toBe(restoreAction);
+    expect(importAction).not.toHaveBeenCalled();
+    expect(restoreAction).not.toHaveBeenCalled();
+  });
+
+  it("reports native save cancellation and errors while gating busy exports", () => {
+    const onApplyOptions = vi.fn();
+    const panel = ExportPanel({
+      exportData: exportBundle(),
+      importData: { recentRuns: [] },
+      restoreData: { recentRuns: [] },
+      importAction: async (state) => state,
+      restoreAction: async (state) => state,
+      onApplyOptions,
+      onDownload: vi.fn(),
+      busy: true,
+      downloadStatus: "Save cancelled. No file was written.",
+      error: "Cadence could not save the export.",
+    });
+    const html = renderToStaticMarkup(panel);
+    expect(html).toContain("Save cancelled. No file was written.");
+    expect(html).toContain('role="alert"');
+    for (const button of findElementsByType(panel, "button")) {
+      expect((button.props as { disabled?: boolean }).disabled).toBe(true);
+    }
+    const preventDefault = vi.fn();
+    const form = findElementByType(panel, "form");
+    (form?.props as { onSubmit: (event: { preventDefault: () => void }) => void }).onSubmit({ preventDefault });
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(onApplyOptions).not.toHaveBeenCalled();
+  });
 });
+
+function findElementsByType(node: ReactNode, type: ElementType): ReactElement[] {
+  if (!isValidElement(node)) return [];
+  const children = Children.toArray((node.props as { children?: ReactNode }).children);
+  return [
+    ...(node.type === type ? [node] : []),
+    ...children.flatMap((child) => findElementsByType(child, type)),
+  ];
+}
 
 function findElementByType(
   node: ReactNode,

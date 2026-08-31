@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 
-import { submitBehaviorLogImportAction } from "@/app/(app)/export/actions";
 import type {
   BehaviorLogImportConflict,
   BehaviorLogImportIssue,
@@ -30,7 +29,7 @@ import {
 type BehaviorLogImportPanelProps = Readonly<{
   recentRuns: BehaviorLogImportRunView[];
   timezone: string;
-  action?: BehaviorLogImportFormAction;
+  action: BehaviorLogImportFormAction;
   initialState?: BehaviorLogImportActionState;
 }>;
 
@@ -55,7 +54,7 @@ const RECORD_TYPE_LABELS: Record<BehaviorLogImportRecordType, string> = {
 export function BehaviorLogImportPanel({
   recentRuns,
   timezone,
-  action = submitBehaviorLogImportAction,
+  action,
   initialState = BEHAVIORLOG_IMPORT_INITIAL_STATE,
 }: BehaviorLogImportPanelProps) {
   const [state, formAction, isPending] = useActionState(
@@ -202,6 +201,16 @@ export function BehaviorLogImportPanel({
           </button>
         </div>
       </form>
+
+      {isPreparingBundle || isPending || bundlePayload ? (
+        <p role="status" aria-live="polite" className="mt-5 text-sm text-muted-readable">
+          {isPreparingBundle
+            ? "Preparing the selected file…"
+            : isPending
+              ? "Processing the BehaviorLog bundle…"
+              : "Selected file is ready for preview."}
+        </p>
+      ) : null}
 
       {clientError ? (
         <p className="mt-5 text-sm font-bold text-accent" role="alert">

@@ -1,6 +1,6 @@
 ---
-// "How Cadence works" — guided walkthrough with real interface elements
-// (BehaviorForm fields, OccurrenceRow tones, Needs decision group,
+// "How Cadence works": guided walkthrough with real interface elements
+// (BehaviorForm fields, OccurrenceRow tones,
 // OverallAdherence + legend), per the approved landing design.
 ---
 
@@ -8,7 +8,6 @@
   <div class="page-section__inner">
     <div class="section-heading">
       <h2 id="how-title">How Cadence works</h2>
-      <p>Four steps from a behavior you define to a record you own — shown with the actual interface.</p>
     </div>
 
     <div class="hw-steps">
@@ -16,8 +15,8 @@
         <div class="hw-copy">
           <span class="hw-num" aria-hidden="true">01</span>
           <div>
-            <h3>Define a behavior</h3>
-            <p>Give it a title and a schedule: daily, every N days, weekly, or monthly, at exact times or ranges like Morning and Evening. Add a category, a description, and reminders if you want them.</p>
+            <h3>Define a Behavior and Schedule</h3>
+            <p>Name the Behavior, then set its Schedule: daily, every N days, weekly, or monthly, at exact times or ranges.</p>
           </div>
         </div>
         <div class="hw-visual hw-form" aria-label="Create behavior form, as in the app">
@@ -46,11 +45,11 @@
         <div class="hw-copy">
           <span class="hw-num" aria-hidden="true">02</span>
           <div>
-            <h3>Occurrences land on your timeline</h3>
-            <p>Each scheduled slot becomes a dated entry on a today-first timeline. Yesterday's undecided items collect in a small Needs decision group — nothing is ever auto-marked missed.</p>
+            <h3>Each Schedule creates an Occurrence</h3>
+            <p>Each Schedule produces a dated Occurrence. Prior-day Unresolved Occurrences collect under Needs decision.</p>
           </div>
         </div>
-        <div class="hw-visual hw-timeline" aria-label="Timeline with needs decision group, as in the app">
+        <div class="hw-visual hw-timeline" aria-label="Timeline with current-day and prior-day occurrences, as in the app">
           <div class="hw-timeline__head">
             <span class="hw-quiet">Current day</span>
             <span class="hw-timeline__date">Tuesday, June 30</span>
@@ -59,9 +58,6 @@
             <span class="hw-occ__time">Evening</span>
             <span class="hw-occ__title">Evening reset</span>
             <span class="hw-occ__actions"><span class="status-action"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg><u>Completed</u></span><span class="status-action"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg><u>Not Completed</u></span></span>
-          </div>
-          <div class="hw-timeline__group">
-            <span class="hw-quiet">Needs decision</span>
           </div>
           <div class="hw-occ hw-occ--needs">
             <span class="hw-occ__time hw-occ__time--strong">Yesterday</span>
@@ -75,8 +71,8 @@
         <div class="hw-copy">
           <span class="hw-num" aria-hidden="true">03</span>
           <div>
-            <h3>You make the call</h3>
-            <p>Mark each occurrence Completed or Not Completed, and attach a note for context. Undecided items simply stay Unresolved — each decision writes an append-only status event.</p>
+            <h3>You make the Decision</h3>
+            <p>Choose Completed or Not Completed. Add an optional note for Context. Without a Decision, the Occurrence stays Unresolved.</p>
           </div>
         </div>
         <div class="hw-visual" aria-label="Occurrence rows in each status tone, as in the app">
@@ -102,8 +98,8 @@
         <div class="hw-copy">
           <span class="hw-num" aria-hidden="true">04</span>
           <div>
-            <h3>Review, then take it with you</h3>
-            <p>Follow adherence across 7, 30, or 90 days on a calendar heatmap. Export the whole history whenever you want — JSONL, CSV, JSON, Markdown, or a BehaviorLog bundle.</p>
+            <h3>Review and export the Record</h3>
+            <p>Review adherence across 7, 30, or 90 days. Export the Record as JSONL, JSON, CSV, Markdown, or a BehaviorLog bundle.</p>
           </div>
         </div>
         <div class="hw-visual hw-review" aria-label="Overall adherence review, as in the app">
@@ -149,7 +145,7 @@
     padding-block: 3rem;
     border-block-start: 1px solid var(--line);
   }
-  .hw-step:last-child { border-block-end: 1px solid var(--line); }
+  .hw-step:first-child { border-block-start: 0; }
 
   .hw-copy {
     display: grid;
@@ -171,7 +167,7 @@
 
   .hw-quiet { color: var(--muted-readable); font-size: 0.75rem; }
 
-  /* step 01 — create form */
+  /* step 01: create form */
   .hw-form { padding: 1.25rem 1.4rem; display: grid; gap: 1.1rem; }
   .hw-form__row--head {
     display: grid;
@@ -221,14 +217,12 @@
   }
   .hw-form__actions { display: flex; gap: 1.25rem; align-items: baseline; }
 
-  /* steps 02/03 — occurrence rows */
+  /* steps 02/03: occurrence rows */
   .hw-timeline__head {
     padding: 0.75rem 1rem 0.6rem;
     border-block-end: 1px solid var(--line);
   }
   .hw-timeline__date { display: block; font-size: 1.15rem; }
-  .hw-timeline__group { padding: 0.6rem 1rem 0.5rem; border-block-start: 1px solid var(--line); }
-
   .hw-occ {
     display: grid;
     grid-template-columns: 5.75rem minmax(0, 1fr) auto;
@@ -263,7 +257,7 @@
   .hw-occ--not-completed { background: var(--accent); color: var(--background); }
   .hw-occ--not-completed .hw-occ__time { color: inherit; }
 
-  /* step 04 — adherence review */
+  /* step 04: adherence review */
   .hw-review { padding: 1.25rem 1.4rem; display: grid; gap: 0.875rem; }
   .hw-review__title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.75rem; }
   .hw-review__title span { font-size: 1.25rem; white-space: nowrap; }

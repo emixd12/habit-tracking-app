@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@cadence/ui/runtime";
 import { Check, CircleDashed, X } from "lucide-react";
 
 import {
@@ -143,7 +143,7 @@ export function StatusButtons({
     action,
     EMPTY_ACTION_STATE,
   );
-  const router = useRouter();
+  const refresh = useRefresh();
   const completionChimeIntentRef = useRef<CompletionChimeIntent | null>(null);
   const preparedChimeForSubmitRef = useRef(false);
 
@@ -157,7 +157,7 @@ export function StatusButtons({
         },
       );
       const refreshTimeline = () => {
-        router.refresh();
+        refresh();
         onStatusSuccess?.(confirmedStatus);
       };
 
@@ -174,10 +174,10 @@ export function StatusButtons({
     if (state.status === "error") {
       completionChimeIntentRef.current = null;
       preparedChimeForSubmitRef.current = false;
-      router.refresh();
+      refresh();
       onStatusError?.();
     }
-  }, [onStatusError, onStatusSuccess, router, state]);
+  }, [onStatusError, onStatusSuccess, refresh, state]);
 
   function prepareForSubmittedStatus(submittedStatus: StatusButtonValue | null) {
     captureCompletionChimeIntent({

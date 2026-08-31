@@ -86,6 +86,16 @@ const BASE_IMPORTED_INTERVENTION: ImportedInterventionPromotionRecord = {
 };
 
 describe("resolveImportedInterventionPromotion", () => {
+  it.each(["sms", "mobile_push", "in_app", "calendar_notification", "voice_assistant", "webhook", "other", "none"])(
+    "keeps pending %s history passive even after explicit promotion confirmation", (channel) => {
+      const record = candidate(); record.importedIntervention.channel = channel;
+      const result = resolveImportedInterventionPromotion({ now: NOW,
+        selectedImportedInterventionIds: [IMPORTED_INTERVENTION_ID], confirmPromotion: true,
+        candidates: [record], existingReminderDeliveries: [] });
+      expect(result.deliveryPlans).toEqual([]);
+      expect(result.decisions).toEqual([expect.objectContaining({ eligible: false, reason: "disabled_channel" })]);
+    });
+
   it("plans a future pending reminder intervention that matches current reminder settings", () => {
     const result = resolveImportedInterventionPromotion({
       now: NOW,

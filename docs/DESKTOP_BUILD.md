@@ -1,352 +1,283 @@
-# Desktop Build Proposal
+# Desktop Build
 
-A forward-looking architecture proposal for shipping Cadence Tracker as a
-downloadable, signed macOS desktop application, built so the same core can later
-run as an iOS app and gain optional multi-device sync.
+The owner activated the local-first macOS track on 2026-08-30. Tickets 107–114
+are complete. Ticket 115 separately owns deferred Apple-trusted distribution.
+This document replaces the earlier unscheduled proposal. `STATUS.md` records
+implementation and verification.
 
-Cadence's public-product posture now treats desktop and mobile as future free
-open-source surfaces. This document remains a proposal, not scheduled work, but
-it is the source of truth for the intended local-first desktop direction.
+## Scope and defaults
 
-## Status and scope
+Build tracking parity with the current web application using Tauri v2, Vite,
+React, and SQLite. Tracking requires no login or network. Target Apple Silicon
+first, with macOS 14 as the declared minimum. Runtime compatibility is verified
+only on tested systems; macOS 14 execution remains unverified. Preserve the
+existing web deployment and Astro marketing site. Mobile implementation remains
+deferred.
 
-- **This is a proposal, not scheduled work.** It captures durable architectural
-  decisions and direction. It is not a commitment to a timeline.
-- **No tickets are defined here.** When this track is scheduled, author tickets
-  in `docs/TICKETS.md` following the existing format, and update `STATUS.md` as
-  usual. This document deliberately stops short of acceptance criteria.
-- **UI specifics are intentionally omitted.** The UI is under active
-  development. Nothing here pins screen layouts, component inventories, routes,
-  or visual structure. UI guidance in this document is expressed only as
-  durable *architectural invariants* (see "UI migration — principles only").
-- **This document does not override active product docs.** The desktop track
-  revisits several constraints currently locked for v1 (see "Relationship to
-  current v1 constraints"). Those constraints remain in force until a refactor
-  is actually scheduled and the relevant docs in `AGENTS.md` / `docs/` are
-  updated in the same task that begins the work.
-- **The public web app remains cloud-first.** The desktop/mobile direction is
-  intentionally local-first with optional sync later. A future sync bridge
-  should merge local data with hosted Supabase only when the user opts in.
+Use one stable local profile. The default timezone remains America/New_York,
+with local timezone selection. Seed the current default categories: Medical,
+Grooming, Fitness, Food / Drink, Home, Measurements, Admin, and Other.
 
-Precedence: while unscheduled, treat this file as lower precedence than every
-source-of-truth doc listed in `AGENTS.md`. It is closest in spirit to
-`docs/FUTURE_UPDATES.md` — direction that is not yet v1 scope.
+Tracking parity and Ticket 113's ad hoc, unnotarized preview/updater acceptance
+are complete. Apple Developer Program access, Developer ID signing, notarization,
+and Apple Silicon macOS 14 acceptance remain deferred under Ticket 115, not
+passed. Exclude Intel releases, live sync, cloud login, email
+delivery, cloud account controls, duplicated public/legal pages, billing, and
+AI integrations. Keep imported email configuration as data without sending.
 
-## Goal
+## Current parity baseline
 
-Produce a macOS app a user can download and run that is:
+`docs/DESKTOP_PARITY.md` records the current implementation baseline and its
+evidence. `interaction-registry.json` remains the canonical interaction
+inventory. Preserve current behavior rather than recreating an earlier v1:
 
-1. **Local-first.** Works fully offline against a local database. No login
-   required to use the app.
-2. **Efficient and always-on friendly.** Low idle CPU and memory, since users
-   are expected to keep it open continuously.
-3. **Sync-ready.** Multi-device sync is not built in v1, but the data model,
-   identity, and a sync seam are scaffolded so sync can be added later without a
-   schema migration or a UI/core rewrite.
-4. **iOS-portable.** The portable core, the UI, and the platform adapters are
-   structured so an iOS build reuses them with minimal change.
-
-The desktop/mobile apps are intended to be free and open source. Future paid
-features, if added, belong to hosted cross-surface saving and future
-speech-to-speech AI capabilities, not basic local tracking.
-
-## Locked decisions
-
-These were chosen deliberately and are the stable foundation of this proposal.
-
-| Decision | Choice | Rationale |
+| Capability | Existing contract | Desktop requirement |
 |---|---|---|
-| Shell / runtime | **Tauri v2** | Uses the OS-native webview (WebKit/WKWebView) instead of bundling Chromium, so idle footprint is small — important for an always-open app. Supports iOS, and macOS + iOS both render on WebKit, so the UI behaves consistently across Apple targets. The same JavaScript adapters (SQLite, notifications) run on desktop and iOS. |
-| UI runtime | **Vite + React SPA** | Lean, no server runtime, no React Server Component / Server Action constraints. Pairs naturally with Tauri's static frontend model. Reuses the existing React components and Tailwind design tokens. |
-| Auth / identity | **Optional pluggable sign-in** | App runs fully local under an anonymous local profile with no login. A cloud identity provider (Supabase Auth) is wired behind an `Identity` port and used only when the user opts into sync. |
-| Data | **Local-first SQLite + sync scaffold** | Local SQLite via Tauri's SQL plugin. Sync metadata (tombstones, change log, cursor) is added up front so a sync engine can be dropped in later. |
+| Timeline | `docs/UI_SPEC.md`, `docs/USER_FLOWS.md` | Today/future grouping, Needs decision retention, manual statuses, Notes, timing, correction, and completion feedback |
+| Behaviors | `docs/PRODUCT_SPEC.md`, `docs/RECURRENCE_RULES.md` | Multiple schedules/time entries, exact/custom/preset ranges, recurrence, categories, edit/archive/restore, analytics, selected-day review |
+| History and identity | `docs/DATA_MODEL.md` | Definition/configuration history, status events, timing sessions, configuration lineage, range-aware Occurrence identity, stale-write guards, and protected Occurrences |
+| Portability | `docs/EXPORT_FORMATS.md` | All five formats, prompt tools, privacy defaults, BehaviorLog import/merge, destructive restore, and provenance |
+| Settings | `docs/USER_FLOWS.md`, `docs/NOTIFICATION_SPEC.md` | Local timezone, optional onboarding, native notification permission/readiness, and scheduled-through coverage |
 
-Cost accepted with Tauri: **Rust enters the stack.** It is contained to the
-thin `src-tauri/` shell (plugin registration and migration definitions).
-Business logic never lives in Rust — it stays in the TypeScript core (enforced
-by a boundary check; see "Agentic development guardrails").
+Definition-history and safely mapped time-session replay already exist in the
+BehaviorLog import/restore contract. Configuration history remains export
+context; imports construct only the current generating schedule graph and keep
+historical Occurrences detached. Do not regress these distinctions.
 
-## Relationship to current v1 constraints
+## Workspace and shared core
 
-`AGENTS.md` currently lists several items this track intentionally revisits.
-None of these change today. They change only when the desktop track is
-scheduled and the owning docs are updated in the same task.
+Add only the scheduled workspaces:
 
-| Currently locked (v1) | Desktop track direction | When it changes |
-|---|---|---|
-| "Native mobile apps" out of scope | iOS is a future target of the same core | Only when the iOS phase is scheduled |
-| "PWA offline cache" / "Offline writes or sync conflict handling" out of scope | Local-first is the desktop foundation; sync conflict policy is defined here | When the desktop track is scheduled |
-| Supabase Auth + Google login required; data restricted to authenticated user | Auth becomes optional; local anonymous profile is the default | When the desktop track is scheduled |
-| RLS required on all user-owned tables; do not bypass | Local SQLite has no RLS (single local DB, single local profile). RLS returns on the *server* side if/when sync lands | When the local data layer is built |
-| Vercel deployment + hourly cron reminder processing | Replaced by OS-scheduled local notifications | When the notification phase is scheduled |
-
-`docs/FUTURE_UPDATES.md` already anticipates local pending queues and offline
-work; this document supersedes the speculative parts of it for the desktop
-track and makes the storage choice concrete (SQLite + change log).
-
-## Target architecture
-
-The shape moves from "server-rendered app in a wrapper" to "portable client
-core + thin native shell," using a ports-and-adapters (hexagonal) structure.
-This is an extension of the existing resolver-first rule, not a replacement:
-resolvers stay pure; database access moves behind a port interface instead of
-calling Supabase directly.
-
-```
-+-- lib/core  (pure TypeScript, ZERO platform / DOM / DB / network imports) ----+
-|   - resolvers/*        reused as-is (recurrence, timeline, status, ...)       |
-|   - types/*            reused                                                  |
-|   - services/*         orchestration, depends ONLY on the ports below         |
-|   - ports/             interfaces: DataStore, Identity, Notifier, SyncEngine, |
-|                        Clock                                                   |
-+-------------------------------------------------------------------------------+
-        ^                  ^                 ^                  ^
-   DataStore adapter  Identity adapter  Notifier adapter  SyncEngine adapter
-   ----------------   ----------------  ----------------  -----------------
-   Local SQLite       Local anon id +   OS local          No-op (v1)
-   (Tauri SQL plugin) optional cloud    notifications     -> real backend (v2)
-        ^
-+-- UI: Vite + React SPA (reuses existing components + Tailwind tokens) --------+
-|   data flows through hooks -> services -> ports; no direct adapter imports    |
-+-------------------------------------------------------------------------------+
-        ^                                          ^
-   Desktop shell (macOS, signed/notarized)   iOS shell (later, same core + UI)
+```text
+app/, components/, lib/   existing Next.js web app, retained at repository root
+apps/marketing/          existing Astro marketing site
+apps/desktop/            Tauri v2 + Vite + React
+packages/core/           incrementally extracted portable domain code
+packages/ui/             canonical tokens and framework-light primitives
 ```
 
-### Reuse map
+Ticket 108 must prove native boundaries before Ticket 109 performs broad
+extraction. Do not create packages solely to reserve names. Keep npm workspaces
+and current web APIs; no app-root move, new task orchestrator, or unrelated
+`packages/db`/`packages/config` extraction is required.
 
-- **Reused as-is:** `lib/resolvers/*`, `lib/types/*`, the React component
-  inventory, Tailwind tokens / `globals.css`, the `reminder_deliveries`
-  planning model, export logic.
-- **Refactored:** services drop the `requireUserId()` Supabase calls and the
-  injected Supabase client; they depend on ports instead. Pages stop being
-  Server Components / Server Actions and become client code that calls services
-  through hooks.
-- **Replaced:** `lib/db/*.repo.ts` → `DataStore` SQLite adapter;
-  `lib/supabase/*` + `proxy.ts` + the auth routes → optional `Identity`
-  adapter; web push + service worker + Vercel cron + `/api/reminders/process` →
-  OS local-notification scheduler.
-- **Dropped:** `push_subscriptions` table, RLS policies (local DB), the
-  `handle_new_user` Postgres trigger (replaced by app-level first-run seeding).
+Move portable domain types, resolvers, and orchestration incrementally.
+Resolvers remain pure and receive `now`; Temporal owns local dates and DST.
+Compatibility exports and web adapters preserve existing callers while code
+moves. Supabase Auth, RLS, caching, server routes, and provider delivery remain
+web adapter responsibilities.
 
-## Portable core principle
+Define operation-specific `DataStore` methods for actual consumers. Behavior
+create/update/archive/restore, status changes, import, and restore need atomic
+operations with their existing preconditions. Avoid a generic CRUD interface.
+Use one shared adapter contract suite against local Supabase and real SQLite.
 
-`lib/core/*` must not import anything platform-specific: no DOM, no
-`@tauri-apps/*`, no `@supabase/*`, no `next`, no concrete adapter. This is the
-single most important rule in this document, because it is what makes the same
-core run unchanged on macOS and iOS. It is enforced by a deterministic check
-(see guardrails) so an agent cannot silently break portability.
+The shared core cannot import Next.js, Supabase, Tauri, concrete adapters,
+Node-only APIs, or browser globals. Ticket 109 adds a deterministic portability
+check and keeps existing resolver checks aware of moved implementations.
+Structural checks detect boundary drift; common fixtures and adapter tests
+establish behavioral evidence.
 
-This also preserves the existing resolver rules in `AGENTS.md`: resolvers stay
-pure, `now` is injected (via the `Clock` port), and no resolver reads I/O.
+Replace Node-only hashing with portable hashing that preserves exact existing
+fingerprints. Isolate ZIP handling behind an archive adapter. Retain the
+existing file-count, size, decompression, ratio, path, and preview-binding
+safety limits from `docs/EXPORT_FORMATS.md`.
 
-## Ports
+## Local persistence
 
-Defined as TypeScript interfaces in the core. Exact method signatures are an
-implementation detail to be settled when the work is scheduled; the durable part
-is the *responsibility boundary* of each port.
+Translate the **current** data model and all applicable migrations, not only
+`20260607204951_create_database_schema.sql`. Include schedules, schedule slots,
+timing, definition/configuration/status history, configuration lineage,
+Occurrence freshness state, reminder records, import runs/mappings, imported
+Notes/interventions, and export-relevant provenance.
 
-- **DataStore** — reads and writes domain records (profiles, categories,
-  behaviors, occurrences, reminder deliveries). The only thing that knows about
-  SQL. Repository function shapes from today's `lib/db` are the natural starting
-  point for its interface.
-- **Identity** — returns the current user id and exposes optional sign-in /
-  sign-out / link-local-data-to-cloud-identity. Default implementation returns a
-  stable local anonymous id.
-- **Notifier** — schedules, cancels, and reschedules OS local notifications;
-  reports permission state. Backed by the Tauri notification plugin on both
-  desktop and iOS.
-- **SyncEngine** — pushes outbox changes and pulls remote changes. v1 ships a
-  no-op local implementation.
-- **Clock** — supplies `now` (a `Temporal.Instant`) to services and resolvers,
-  consistent with the existing "inject now" rule in `docs/DATETIME_STRATEGY.md`.
+Use text UUIDs and canonical temporal strings. Preserve explicit local dates
+and UTC instants. Enable SQLite foreign-key enforcement and preserve owner,
+range-aware uniqueness, append-only history, idempotency, stale-edit guards,
+and Occurrence preservation rules. First-run seeding must not replace the
+profile or recreate removed categories on every launch.
 
-A shared **DataStore contract test suite** should accompany the port: one
-executable spec that every adapter (local SQLite now, sync-backed later) must
-satisfy.
+The local database lives in the application data directory. Git-tracked
+SQLite migrations must support existing databases, rollback on failure, and
+recovery evidence before release. Supabase migrations and generated web types
+remain independent; desktop work does not authorize hosted schema changes.
 
-## Local data model and sync readiness
+Use a thin native transaction boundary when required. Do not assume separate
+SQL-plugin calls share a connection or transaction. Business decisions stay in
+TypeScript; native code may execute validated operations atomically, manage
+files, schedule notifications, and handle lifecycle events.
 
-This is the most detailed and durable part of the proposal, because the schema
-must be sync-ready from the start to avoid a later migration.
+Retain the explicitly requested dormant sync scaffold:
 
-Translation from the current Postgres schema
-(`supabase/migrations/20260607204951_create_database_schema.sql`):
+- tombstones for syncable deletions;
+- a mutation outbox committed in the same transaction as the domain mutation;
+- persisted cursors and stable local identity;
+- a no-op `SyncEngine` with no network delivery.
 
-- `uuid` → `TEXT` (generate ids in TypeScript with `crypto.randomUUID()`).
-- `jsonb` (e.g. `recurrence_rule`) → `TEXT` holding JSON. The app already treats
-  it as JSON.
-- `timestamptz` / `time` / `date` → `TEXT` (ISO-8601). The code already passes
-  ISO strings, so this is low-friction.
-- Drop all RLS policies and grants (single local database, single local
-  profile).
-- Replace the `auth.users` foreign keys and `handle_new_user` trigger with
-  app-level first-run seeding: ensure one local profile and the default
-  categories exist on first launch.
-- Drop `push_subscriptions` (web-push only; not used by local notifications).
+The scaffold must preserve current deletion, history, and uniqueness semantics.
+It does not implement a remote backend, cloud identity linking, or conflict
+resolution. Future sync needs its own contract; the old blanket
+last-writer-wins proposal does not override current concurrency protections.
 
-Sync scaffold added now (dormant until a sync engine exists):
+## UI and cross-platform cascade
 
-- **Tombstones:** a `deleted_at` column on every syncable table. Deletes are
-  soft, never hard, so deletions can propagate.
-- **Change log / outbox:** a table recording every local mutation
-  (`op`, `table`, `row_id`, `payload`, `ts`, `synced`). The SyncEngine drains it.
-- **Sync cursor:** a `sync_state` table holding the per-table pull cursor and
-  last-synced timestamp.
-- **Stable keys:** keep `user_id` on every row (already present) so local rows
-  can be claimed by a cloud identity at sign-in without rewriting keys.
+Keep the current sparse design and four-screen structure: Timeline, Behaviors,
+Export & Import, and Settings. Desktop uses callbacks and client services
+instead of Server Actions. Product components must not own domain rules or
+database/native calls.
 
-Conflict policy (decided now, documented in `docs/DATA_MODEL.md` when built):
-**last-writer-wins by `updated_at` per row; a tombstone wins over a concurrent
-update.** This matches the app's "manual truth / latest explicit user action
-wins" stance and is simple enough for a single human's devices.
+Extract canonical tokens into `packages/ui` incrementally. Keep runtime-specific
+shells and product components. Bundle fonts, images, and completion audio for
+offline use, subject to redistribution-rights verification before release.
+Use BehaviorLog import for web-to-desktop transfer; do not add a Full JSON
+importer.
 
-Migrations run through the Tauri SQL plugin's migration mechanism, kept
-git-tracked, mirroring the discipline already used for Supabase migrations.
+Extend `design-system.surfaces.json` with desktop implementations and native
+bench evidence. Keep product usage counts separate from bench previews.
+Extend the existing interaction registry with platform applicability,
+implementation status, and evidence. Reuse interaction IDs when the intent
+does not change. Do not create a second interaction or decision registry.
 
-## Identity and optional sign-in
+Each new or materially changed product/design ticket must address web, desktop,
+marketing, and future mobile. Each entry must link implementation, identify a
+follow-up ticket, or explain why it is not applicable. Marketing consumes
+approved product claims; it does not duplicate application UI. Mobile stays
+deferred even when it benefits from portable contracts.
 
-- Default: an anonymous local profile id generated on first run. The app is
-  fully usable with no account and no network.
-- Optional: the user can sign in (Supabase Auth) to enable sync. Sign-in links
-  existing local data to the cloud identity rather than discarding it; because
-  every row already carries `user_id`, this is a claim/update, not a rewrite.
-- Desktop/mobile OAuth uses a deep-link / custom-URL-scheme redirect (Tauri's
-  deep-link plugin), not the cookie-based SSR flow used by the web app today.
-- v1 may ship the local anonymous provider only and stub the cloud provider
-  behind the same `Identity` port.
+Existing checks must reject missing references. The desktop release check must
+reject incomplete applicable interaction parity. Neither check alone proves
+semantic or visual parity; fixture, adapter, and WKWebView evidence remains
+required.
 
-## Notifications and reminders
+Candidate-building prerequisites must be separate from final release readiness.
+A planned updater interaction may require candidate artifacts for its acceptance
+test. It must not block their creation or be falsely promoted to implemented.
+Keep the existing production release checks strict. Preview candidates retain
+applicable signature, archive/content, and data-protection checks.
 
-The reminder planning logic is reused: `lib/resolvers/reminder.resolver.ts` and
-the `reminder_deliveries` model already compute when a reminder should fire.
+## Native reminders
 
-- Instead of an hourly server cron polling `/api/reminders/process`, reminders
-  are **pre-scheduled with the OS**: compute upcoming deliveries, register them
-  as OS local notifications at their fire time, and cancel/reschedule when the
-  underlying occurrence is resolved, edited, or archived.
-- This is efficient (no background polling loop) and is the model iOS requires
-  (apps cannot run background loops; the OS fires scheduled local
-  notifications). The same approach works on desktop while the app is open.
-- The `reminder_deliveries` table remains the source of truth for what is
-  scheduled; notification ids map back to delivery rows so they can be cancelled.
-- **Email reminders are deferred** on this track. Email cannot be sent safely
-  from a client, so it becomes a server/sync-era feature. The `email` channel
-  stays in the data model but is inactive in the local-only build.
-- Validate macOS behavior when the app is fully quit; for the always-open
-  desktop case this is not a concern, and iOS handles OS-scheduled notifications
-  natively.
+Preserve hosted browser/email reminder semantics. Desktop schedules local
+notifications through a thin macOS adapter. The standard Tauri desktop
+notification implementation does not provide scheduled delivery; see its
+[implementation](https://raw.githubusercontent.com/tauri-apps/plugins-workspace/v2/plugins/notification/src/desktop.rs).
 
-## Desktop packaging and distribution
+Target the next 30 days, scheduling the nearest eligible reminders first.
+The owner accepted a clearly displayed OS-limited horizon on 2026-08-30;
+30 days is a target, not guaranteed coverage. Verify retained pending requests
+through OS readback and derive coverage from the contiguous intended sequence.
+The first missing request ends verified coverage; a later retained request
+cannot extend it. Show the actual scheduled-through date/time and clearly
+disclose shorter coverage or unavailable verification. Successful scheduling
+callbacks alone do not prove coverage. Do not hardcode a universal request cap.
 
-- Build `.app` / `.dmg` with `tauri build`.
-- **Apple Developer ID required.** Configure Developer ID Application signing,
-  notarization, the hardened runtime, and a notification entitlement. Without
-  notarization, Gatekeeper warns users; with it, the app opens cleanly. The same
-  Apple account is reused for the eventual iOS App Store build.
-- **Auto-update** via Tauri's updater plugin with signed update artifacts
-  (e.g. published to GitHub Releases).
-- **Data location:** the SQLite file lives in the Tauri app data directory. The
-  existing full-JSON export is the backup story.
-- **Data import:** provide a one-time import that seeds the local database from
-  the existing full-JSON export, so current cloud data can move into the desktop
-  app.
+Reconcile on launch, resume, local day change, and relevant mutations. Persist
+native request identifiers and map activation back to the intended Timeline
+Occurrence. Cancellation and replacement must remain idempotent after
+resolution, edits, archival, repeated reconciliation, and restart.
 
-## UI migration — principles only
+Native delivery uses BehaviorLog's existing extension mechanism. Do not fork
+the upstream schema or change the hosted delivery channels. Do not imply that
+OS acceptance proves the user received or read a notification.
 
-The UI is changing and is **not** scoped here. Do not read this section as a
-plan for specific screens. These are the only durable UI invariants for the
-desktop track; anything else about the UI is owned by ongoing UI work and
-`DESIGN.md`.
+The desktop adapter allows up to 850 ms for each pending/delivered readback
+phase to settle. One stable incomplete readback may trigger nearest-request
+repair. It counts occupied desired identifiers separately from exact content
+matches and preserves matching nearest requests. Unstable readback remains
+limited; it never establishes a universal OS capacity. Archival, resolution,
+and deletion also cancel and verify delivered-only Notification Center entries.
+Already delivered entries for unresolved active Occurrences remain available.
 
-- Components stay **presentational**: they take data and callbacks as props and
-  do not implement recurrence, reminder, analytics, or export logic (the
-  existing resolver-first rule in `AGENTS.md` still holds).
-- Data is read and written through **hooks → services → ports**. The UI never
-  imports a concrete adapter (`@tauri-apps/*`, SQLite, Supabase) directly.
-- No Server Components and no Server Actions (there is no server). Page-level
-  data fetching becomes client data fetching; a client cache/invalidation
-  approach may be introduced, kept minimal per the "no unnecessary
-  state-management libraries" style rule.
-- Tailwind tokens / `globals.css` carry over; the design system is reused.
-- Whatever the screen structure becomes, it must remain mobile-responsive so the
-  same components are reusable in the iOS shell.
+Verify permission denial, scheduled delivery, cancellation, replacement,
+activation, sleep/resume, fully quit delivery, and OS scheduling limits on
+macOS. A shorter OS-limited horizon is acceptable only when coverage is verified
+and clearly displayed. Unverified or overstated coverage still fails the gate.
+Do not silently truncate coverage or add a background helper.
 
-When the UI stabilizes and this track is scheduled, the then-current UI is what
-gets ported — not any layout implied by this document.
+The initial native probe found that macOS 26.5.2 retained 100 of 128 requests
+and evicted 28 without scheduling callback errors. This is observed evidence,
+not a universal 100-request limit. The owner's 2026-08-30 horizon decision
+replaces the guaranteed 30-day requirement. It does not complete Ticket 108 or
+waive native activation proof before broad refactoring. See
+[native evidence](qa/2026-08-30-desktop-native-boundary.md).
 
-## Agentic development guardrails
+## Implementation sequence
 
-This track is intended to be built by coding agents in small, independently
-verifiable slices. To keep agents from drifting across the new boundaries, add
-deterministic checks alongside the existing `agents:check` / `resolvers:check`:
+| Phase | Ticket | Completion requirement |
+|---|---|---|
+| Activate | 107 | Owning docs, current parity baseline, and cross-platform contract are recorded; unrelated changes survive |
+| Native proof | 108 | Persistent SQLite writes, atomic rollback, scheduling/cancellation, activation, and restart evidence pass before broad refactoring |
+| Shared foundations | 109 | Portable core/tokens move incrementally with preserved web APIs, fingerprints, and green checks |
+| Local persistence | 110 | Current schema, stable seed, atomic operations/outbox, and both adapter contracts pass |
+| Tracking parity | 111 | Four screens and all current tracking/portability interactions pass offline and WKWebView QA |
+| Native reminders | 112 | Nearest-first reconciliation, verified OS-limited coverage, visible horizon, and lifecycle evidence pass |
+| Preview and updater acceptance | 113 | Authorized ad hoc preview, public feed, failure paths, explicit update/restart, and data preservation pass |
+| Apple-trusted distribution | 115 | Deferred until Developer Program access, Developer ID, notarization, stapled artifacts, quarantined-DMG Gatekeeper, and Apple Silicon macOS 14 acceptance are available |
 
-- **`core:check`** — fails if anything in `lib/core/*` imports the DOM,
-  `@tauri-apps/*`, `@supabase/*`, `next`, or a concrete adapter. Protects iOS
-  portability.
-- **`ports:check`** — fails if UI or services import a concrete adapter instead
-  of a port interface.
-- **DataStore contract test suite** — a single spec run against every adapter, so
-  a new adapter has an executable target.
+## Completed unnotarized preview milestone
 
-Working approach:
+The 2026-08-31 owner decision authorized Ticket 113. The completed milestone
+preserved Cadence, `app.cadence.desktop`, and existing local data. It produced
+Apple Silicon artifacts with ad hoc signing and no Apple credentials or
+notarization. It added no backend, CI infrastructure, background helper, cloud
+login, or live sync.
 
-- **Strangler, always-green.** Introduce ports first, migrate the data layer
-  behind today's function shapes, validate as a plain web app against SQLite,
-  then swap the shell. Every slice keeps `lint` / `typecheck` / `test` / `build`
-  and the new checks green, so there is always a verifiable baseline.
-- **Rust is contained and reviewed.** `src-tauri/` holds plugin registration and
-  migration definitions only. Treat changes there as rare and review-worthy; the
-  `core:check` boundary keeps logic out of Rust.
-- **Per-slice `STATUS.md` updates** continue as the current-state ledger, per
-  `AGENTS.md`.
+The completed milestone uses the existing `emixd12/habit-tracking-app`
+repository, clearly labeled preview files, and a dedicated HTTPS preview feed.
+It does not depend on the latest-release pointer. Repository credentials remain
+outside the app and feed. The owner approved the concrete published packet.
 
-## Migration phases (dependency order, not a schedule, not tickets)
+Ticket 113 checked existing updater keys before generating one persistent pair.
+The password-protected private key remains outside the repository with owner-
+only access. Exact key paths, password-manager backup steps, secure password
+retention, and the public fingerprint are documented without secrets. Updater
+integrity signing does not replace Apple signing.
 
-These are capability milestones in dependency order, to show what must precede
-what. They are **not** work items and carry no acceptance criteria; tickets are
-authored only when the track is scheduled. UI is intentionally a single fluid
-phase rather than a per-screen breakdown.
+Testing on the current laptop used a protected database backup. Two preview
+versions passed real HTTPS update, downloaded DMG launch, explicit install and
+restart, invalid-signature/tamper rejection, unavailable-download recovery,
+preserved local identity/history, and reminder reconciliation. Both versions
+use schema 6, so shipped-migration testing is not applicable to Ticket 113.
+Existing native rollback tests remain current evidence. The first future schema-
+changing desktop update must upgrade an older installed version through the real
+updater with a protected database backup.
 
-1. **Spike.** A bare Tauri + Vite + React app that reads/writes a SQLite row via
-   the SQL plugin and fires one scheduled notification. De-risks the stack,
-   including WebKit/WKWebView differences, before any refactor.
-2. **Core extraction.** Define the ports; refactor services onto them; add
-   `core:check` / `ports:check`. Keep the current app runnable during the
-   transition (strangler).
-3. **Local data layer.** SQLite schema with tombstones, change log, and sync
-   cursor; first-run seeding; local DataStore adapter; contract tests.
-4. **UI to SPA.** Move to the Vite + React SPA, reusing components and tokens,
-   replacing server-rendered data flow with client hooks. Fluid; tracks the
-   then-current UI.
-5. **Notifications.** Notifier adapter + OS-scheduled reminders reusing the
-   reminder resolver; email channel inactive.
-6. **Desktop shell + distribution.** Tauri shell, Apple signing/notarization,
-   auto-update, data import from export.
-7. **Sync scaffold + identity.** No-op SyncEngine wired; optional Supabase
-   identity behind the sign-in path; conflict policy documented.
-8. **iOS (later).** `tauri ios` target reusing core + UI + adapters; Apple
-   provisioning; notification capabilities; WKWebView validation.
+Document expected macOS security warnings and use Apple's per-app approval
+workflow where needed. Do not disable Gatekeeper globally or remove quarantine
+to claim an installation passed. The exact six asset hashes in
+[`the asset record`](qa/2026-08-30-desktop-asset-provenance.md) now carry the
+owner's Cadence bundling authorization. Preserve third-party notices, MIT asset
+exclusions, and reserved trademark rights; no broader relicensing is authorized.
 
-## Risks and open questions
+## Verification and release
 
-- **WebKit/WKWebView is not Chromium.** Some web APIs differ; the spike exists to
-  surface this before screens are converted.
-- **Rust in the stack.** Accepted and contained, but it is a second language;
-  pin Tauri/plugin versions and keep `src-tauri/` thin.
-- **Tauri iOS is comparatively new.** Expect rough edges at the iOS phase; none
-  of the seams in this plan block it.
-- **Notification-while-quit on macOS.** Fine for the always-open case; validate
-  the quit case if it matters.
-- **Sync backend is not chosen.** The scaffold is deliberately backend-agnostic
-  (LWW + outbox + cursor). Candidate backends (Supabase-backed sync, or a
-  local-first engine such as PowerSync / ElectricSQL / Turso embedded replicas)
-  are evaluated only when sync is scheduled.
-- **Email reminders** require a server and are out of the local-only build.
+Run agent, interaction, resolver, design-system, lint, typecheck, test, web-build,
+and marketing checks throughout the track. Add native build/test and core
+portability checks when their implementations exist. Record unavailable checks
+explicitly; do not claim native runtime proof from browser simulation.
 
-## Out of scope for this track
+Required evidence includes:
 
-- Multi-device sync implementation (only the scaffold is built).
-- Email reminder delivery (server/sync-era feature).
-- Any UI specification (owned by ongoing UI work and `DESIGN.md`).
-- Android (not requested; the architecture does not preclude it later).
+- shared adapter contracts against local Supabase and real SQLite;
+- midnight/DST, monthly fallback, overlapping schedules, stale edits, timing
+  restart, and protected Occurrence preservation;
+- import/restore rollback, stale-preview rejection, archive limits,
+  sensitive-data defaults, and BehaviorLog round trips;
+- offline launch, restart persistence, keyboard access, responsive layouts,
+  and actual WKWebView rendering;
+- native notification permissions, cancellation, activation, sleep/resume,
+  fully quit delivery, contiguous OS-readback coverage, and visible shorter horizons;
+- Ticket 113 updater signatures, local-data-preserving upgrades, and bundled-
+  asset redistribution rights;
+- Ticket 115 Developer ID signing, notarization, stapled app/DMG validation,
+  quarantined notarized-DMG Gatekeeper acceptance, and Apple Silicon macOS 14.
+
+Ticket 115 owns the deferred Developer ID signed and notarized `.app` and `.dmg`
+artifacts. Tauri requires [signed updater artifacts](https://v2.tauri.app/plugin/updater/).
+Local commands, signing requirements, and installed-upgrade evidence live in
+[`DESKTOP_RELEASE.md`](DESKTOP_RELEASE.md).
+
+Apple access and credentials remain unavailable, and the current host does not
+run macOS 14. Keep Ticket 115 deferred. Public production publication remains an
+explicit owner-authorized action; do not publish or change providers as a side
+effect.

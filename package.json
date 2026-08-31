@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "dev": "popmelt wrap -- next dev --port 3000",
@@ -12,6 +13,13 @@
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "desktop:dev": "npm --workspace apps/desktop run dev",
+    "desktop:dev:web": "npm --workspace apps/desktop run dev:web",
+    "desktop:build": "npm --workspace apps/desktop run build",
+    "desktop:typecheck": "npm --workspace apps/desktop run typecheck",
+    "desktop:native:test": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml",
+    "desktop:native:build": "npm --workspace apps/desktop run tauri -- build --debug --bundles app --config src-tauri/tauri.local.conf.json",
+    "desktop:parity:check": "node scripts/check-interactions.mjs --desktop-release",
     "marketing:dev": "npm --workspace apps/marketing run dev",
     "marketing:build": "npm --workspace apps/marketing run build",
     "marketing:check": "npm --workspace apps/marketing run check",
@@ -20,6 +28,7 @@
     "agents:check": "node scripts/check-agents.mjs",
     "interactions:check": "node scripts/check-interactions.mjs",
     "resolvers:check": "node scripts/check-resolvers.mjs",
+    "core:check": "node scripts/check-core-portability.mjs",
     "behaviorlog:conformance": "vitest run tests/behaviorlog-conformance.test.ts",
     "public-source:check": "node scripts/check-public-source-boundary.mjs source",
     "public-artifacts:check": "node scripts/check-public-source-boundary.mjs artifacts",
@@ -67,9 +76,12 @@
     "agentmail": "node scripts/agentmail-cli.mjs",
     "agentmail:version": "node scripts/agentmail-cli.mjs --version",
     "supabase": "supabase",
-    "sequenzy": "npm exec --yes --package=@sequenzy/cli@0.0.34 -- sequenzy"
+    "sequenzy": "npm exec --yes --package=@sequenzy/cli@0.0.34 -- sequenzy",
+    "desktop:contract:test": "cargo build --offline --manifest-path apps/desktop/src-tauri/Cargo.toml --features contract-harness --bin local-store-contract && CADENCE_SQLITE_CONTRACT=1 vitest run tests/desktop-store-contract.test.ts tests/desktop-portability-contract.test.ts"
   },
   "dependencies": {
+    "@cadence/core": "*",
+    "@cadence/ui": "*",
     "@js-temporal/polyfill": "^0.5.1",
     "@popmelt.com/core": "^0.16.0",
     "@supabase/ssr": "^0.10.3",
@@ -89,6 +101,7 @@
     "agentmail-cli": "^0.7.14",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "jsdom": "29.0.0",
     "supabase": "^2.105.0",
     "tailwindcss": "^4",
     "typescript": "^5",

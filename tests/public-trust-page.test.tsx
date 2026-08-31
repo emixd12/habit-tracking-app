@@ -38,8 +38,32 @@ describe("public Trust page evidence", () => {
     }
     expect(html).toContain("Source to deployment provenance");
     expect(html).toContain("Public artifact integrity");
+    expect(html).toContain("Build and supply chain");
+    expect(html).toContain("Public route integrity");
+    expect(html).toContain("Hosted data boundaries");
+    expect(html).toContain(fixture.application_deployment.url);
+    expect(html).toContain(fixture.marketing_deployment.url);
+    expect(html).toContain("Build time");
+    expect(html).toContain("Snapshot fresh until");
+    expect(html).toContain("Verification workflow");
+    for (const dependency of ["Vercel", "Supabase", "Google Auth", "Browser push", "Sequenzy"]) {
+      expect(html).toContain(dependency);
+    }
     expect(html).toContain("Open immutable evidence for");
     expect(html).not.toContain("dangerouslySetInnerHTML");
+  });
+
+  it("keeps the normalized machine view additive and schema-version compatible", async () => {
+    const evidence = await getPublicTrustEvidence({ fetcher: () => response(fixture), current, now });
+
+    expect(evidence.schema_version).toBe(1);
+    expect(evidence.snapshot).toMatchObject({
+      application_deployment_url: fixture.application_deployment.url,
+      marketing_deployment_url: fixture.marketing_deployment.url,
+      workflow_url: fixture.workflow_run.url,
+      built_at: fixture.built_at,
+      freshness_deadline: fixture.freshness_deadline,
+    });
   });
 
   it.each([

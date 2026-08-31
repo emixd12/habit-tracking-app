@@ -11,7 +11,16 @@
     "support": "none",
     "requiredWhenDetected": false
   },
+  "tokens": {
+    "sources": [
+      "packages/ui/tokens.css",
+      "app/globals.css",
+      "apps/marketing/src/styles/global.css"
+    ]
+  },
   "excludeFromInventory": [
+    "packages/ui/runtime.tsx",
+    "components/layout/WebRuntimeProvider.tsx",
     "lib/ui/**",
     "components/timeline/mobile-pull-to-refresh.ts"
   ],

@@ -2,7 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const registryPath = "interaction-registry.json";
+const arguments_ = process.argv.slice(2);
+const desktopRelease = arguments_.includes("--desktop-release");
+const registryArgument = arguments_.indexOf("--registry");
+const registryPath = registryArgument === -1
+  ? "interaction-registry.json"
+  : path.relative(root, path.resolve(arguments_[registryArgument + 1] ?? ""));
 const schemaPath = "interaction-registry.schema.json";
 const journeyPath = "docs/UX_JOURNEY_INVENTORY.md";
 const userGuideDirectory = "docs/user-guide";
@@ -10,6 +15,16 @@ const internalQaInteractionIds = new Set(["INT-AUTH-002", "INT-SHELL-007"]);
 const failures = [];
 const mechanicallyCheckedEntries = [];
 const humanReviewEntries = [];
+const platforms = ["web", "desktop", "marketing", "mobile"];
+
+for (let index = 0; index < arguments_.length; index += 1) {
+  const argument = arguments_[index];
+  if (argument === "--registry" && arguments_[index + 1]) {
+    index += 1;
+  } else if (argument !== "--desktop-release") {
+    failures.push(`Unknown or incomplete argument: ${argument}.`);
+  }
+}
 
 function assert(condition, message) {
   if (!condition) failures.push(message);
@@ -187,6 +202,109 @@ function markdownHeadingAnchors(relativePath) {
   return anchors;
 }
 
+function inspectPlatformRecords(interaction) {
+  const records = interaction.platforms;
+  assert(
+    records && typeof records === "object" && !Array.isArray(records),
+    `${interaction.id} needs platform applicability and implementation status.`,
+  );
+  if (!records || typeof records !== "object" || Array.isArray(records)) return;
+  assert(
+    Object.keys(records).length === platforms.length &&
+      Object.keys(records).every((platform) => platforms.includes(platform)),
+    `${interaction.id} platforms must contain web, desktop, marketing, and mobile.`,
+  );
+
+  for (const platform of platforms) {
+    const record = records[platform];
+    const label = `${interaction.id} ${platform}`;
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      failures.push(`${label} needs a platform record.`);
+      continue;
+    }
+    assert(
+      ["applicable", "not_applicable", "deferred"].includes(record.applicability),
+      `${label} has invalid applicability.`,
+    );
+    if (record.applicability === "applicable") {
+      assert(
+        ["implemented", "planned"].includes(record.status),
+        `${label} applicable status must be implemented or planned.`,
+      );
+    } else {
+      assert(record.status === record.applicability, `${label} status must match its applicability.`);
+      assert(isNonEmptyString(record.reason), `${label} needs an explicit applicability reason.`);
+    }
+    if (record.status === "implemented") {
+      assert(isNonEmptyStringArray(record.implementation), `${label} needs implementation references.`);
+      assert(Array.isArray(record.evidence), `${label} needs an evidence array.`);
+      if (platform === "desktop") {
+        assert(Array.isArray(record.implementation) && record.implementation.some((reference) =>
+          isNonEmptyString(reference) && reference.startsWith("apps/desktop/")),
+          `${label} needs a desktop implementation reference; shared or web code alone does not prove desktop usage.`);
+        assert(Array.isArray(record.implementation) && record.implementation.some((reference) => {
+          if (!isNonEmptyString(reference)) return false;
+          const { file } = splitReference(reference);
+          return file.startsWith("apps/desktop/") && sourceInventory.some((source) =>
+            source.path === file && source.classification === "cataloged" &&
+            source.interaction_ids?.includes(interaction.id));
+        }), `${label} needs a cataloged desktop source linked to this interaction; a developer bench cannot establish parity.`);
+      }
+    } else {
+      assert(record.implementation === undefined && record.evidence === undefined,
+        `${label} must not claim implementation or evidence before implementation.`);
+    }
+    if (record.status === "planned") {
+      assert(isNonEmptyString(record.follow_up), `${label} needs a follow-up ticket reference.`);
+    }
+    const references = [
+      ...(Array.isArray(record.implementation) ? record.implementation : []),
+      ...(Array.isArray(record.evidence) ? record.evidence : []),
+      ...(isNonEmptyString(record.follow_up) ? [record.follow_up] : []),
+    ];
+    for (const reference of references) {
+      if (!isNonEmptyString(reference)) {
+        failures.push(`${label} has an invalid reference.`);
+        continue;
+      }
+      const { file, symbol } = splitReference(reference);
+      const safePath = !path.isAbsolute(file) && !file.split("/").includes("..");
+      assert(safePath, `${label} references must stay repository-relative.`);
+      if (!safePath) continue;
+      assert(exists(file), `${label} reference does not exist: ${file}.`);
+      if (exists(file) && symbol) {
+        assert(
+          file.endsWith(".md") ? markdownHeadingAnchors(file).has(symbol) : read(file).includes(symbol),
+          `${label} reference does not resolve: ${reference}.`,
+        );
+      }
+      if (reference === record.follow_up) {
+        assert(file === "docs/TICKETS.md" && /^ticket-\d{3}\b/.test(symbol), `${label} follow-up must reference an existing ticket heading.`);
+      }
+      if (Array.isArray(record.implementation) && record.implementation.includes(reference)) {
+        assert(/\.(?:[cm]?[jt]sx?|astro|rs|swift|m)$/.test(file), `${label} implementation must reference source code: ${file}.`);
+      }
+      if (Array.isArray(record.evidence) && record.evidence.includes(reference)) {
+        assert(
+          isCoverageEvidenceReference(file) || /^docs\/qa\/.+\.md$/.test(file),
+          `${label} evidence must reference tests, checks, or recorded QA: ${file}.`,
+        );
+      }
+    }
+    if (desktopRelease && platform === "desktop" && record.applicability === "applicable") {
+      assert(record.status === "implemented", `${label} is incomplete for desktop release (${record.status}).`);
+      if (record.status === "implemented") {
+        assert(isNonEmptyStringArray(record.evidence), `${label} needs verification evidence for desktop release.`);
+        assert(Array.isArray(record.evidence) && record.evidence.some((reference) => {
+          if (!isNonEmptyString(reference)) return false;
+          const { file } = splitReference(reference);
+          return isAutomatedTestReference(file) || /^docs\/qa\/.+\.md$/.test(file);
+        }), `${label} needs test or recorded QA evidence; structural checks alone do not prove desktop parity.`);
+      }
+    }
+  }
+}
+
 function walk(directory) {
   const files = [];
   for (const entry of fs.readdirSync(absolute(directory), {
@@ -205,6 +323,7 @@ function walk(directory) {
 
 function interactiveSourceFiles() {
   const roots = ["app", "components", "apps/marketing/src", "public"];
+  if (exists("apps/desktop/src")) roots.push("apps/desktop/src");
 
   return roots
     .flatMap(walk)
@@ -239,8 +358,8 @@ assert(
   `${registryPath} must reference ./interaction-registry.schema.json.`,
 );
 assert(
-  registry.schema_version === "1.2.0",
-  `${registryPath} schema_version must be 1.2.0.`,
+  registry.schema_version === "1.3.0" && schema.properties.schema_version.const === "1.3.0",
+  `${registryPath} and schema schema_version must be 1.3.0.`,
 );
 assert(
   registry.registry_id === "cadence.user-interactions",
@@ -334,6 +453,7 @@ for (const interaction of interactions) {
   );
   assert(!interactionIds.has(label), `Duplicate interaction id: ${label}.`);
   interactionIds.add(label);
+  inspectPlatformRecords(interaction);
   assert(isNonEmptyString(interaction.name), `${label} needs a name.`);
   assert(
     allowedStatuses.has(interaction.status),

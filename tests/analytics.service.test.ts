@@ -39,7 +39,7 @@ vi.mock("@/lib/db/timeSessions.repo", () => ({
   listTimeSessionHistory: mocks.listTimeSessionHistory,
   listTimeSessionsByOccurrenceIds: mocks.listTimeSessionsByOccurrenceIds,
 }));
-vi.mock("@/lib/resolvers/analytics.resolver", () => ({
+vi.mock("@cadence/core/resolvers/analytics.resolver", () => ({
   resolveAnalyticsDateRange: mocks.resolveAnalyticsDateRange,
   resolveAnalytics: mocks.resolveAnalytics,
 }));

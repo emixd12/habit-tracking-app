@@ -7,9 +7,13 @@ type CopyStatus = "idle" | "copied" | "failed";
 export function MarkdownSummaryActions({
   summary,
   fileName,
+  onDownload,
+  downloadBusy = false,
 }: Readonly<{
   summary: string;
   fileName: string;
+  onDownload?: () => void;
+  downloadBusy?: boolean;
 }>) {
   const [copyStatus, setCopyStatus] = useState<CopyStatus>("idle");
 
@@ -23,6 +27,10 @@ export function MarkdownSummaryActions({
   }
 
   function handleDownload() {
+    if (onDownload) {
+      onDownload();
+      return;
+    }
     const blob = new Blob([summary], {
       type: "text/markdown;charset=utf-8",
     });
@@ -49,6 +57,7 @@ export function MarkdownSummaryActions({
       <button
         type="button"
         onClick={handleDownload}
+        disabled={downloadBusy}
         className="product-action product-action-primary min-h-11 py-2 text-sm font-bold"
       >
         Download .md

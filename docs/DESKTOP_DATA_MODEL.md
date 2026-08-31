@@ -1,0 +1,365 @@
+# Desktop data model
+
+Ticket 110 implements the local SQLite boundary. This document describes
+implemented storage and explicit gaps. It does not establish complete desktop
+parity or replace the web contract in `DATA_MODEL.md`.
+
+## Database and migrations
+
+`apps/desktop/src-tauri/src/local_store` owns `cadence.sqlite3` in Tauri's
+application data directory. The earlier `native-boundary-spike.sqlite3`
+remains separate. Its `spike_read` and `spike_write` commands remain available.
+
+The database uses foreign keys, WAL, a five-second busy timeout, and owner-only
+file permissions on Unix. One transaction applies pending migrations and
+records their version, name, exact source, and application time. A failed
+migration rolls back its DDL and ledger writes. An altered applied migration or
+newer database version stops opening; the application does not delete or reset
+the database. Recovery and backup UI remain release work.
+
+Migration `0001_current_local_model.sql` translates the current web Row
+contracts through the August 2026 migrations. It does not replay only the
+initial June schema. SQLite stores UUIDs and temporal values as text, booleans
+as constrained integers, and JSON as validated text. Native IPC returns JSON
+objects, arrays, booleans, and nullable values matching current web Row types.
+Migration `0002_native_reminder_coverage.sql` adds durable verification receipts
+without altering the already applied first migration.
+Migration `0003_bound_behaviorlog_plans.sql` stores reviewed portability plans.
+Migration `0004_status_history_cascade.sql` permits SQLite's revision-link cleanup
+only while deleting an entire owning Occurrence. Direct history updates still
+fail. Migration `0005_domain_preview_revision.sql` tracks actual domain changes
+independently of reminder receipts and preview ledgers.
+Migration `0006_passive_intervention_channels.sql` accepts the standard
+BehaviorLog 0.3 Intervention channels and delivery statuses in passive imported
+history. The shared importer still maps `planned` to stored `pending`.
+The migration preserves existing rows, operational provenance links, domain
+revision, and outbox entries. It keeps foreign keys enabled throughout its
+transaction. Browser/email operational delivery constraints remain unchanged;
+imported Interventions never schedule native requests.
+
+Instants use UTC ISO strings ending in `Z`, with up to nine fractional digits.
+Native comparisons preserve nanoseconds. Local dates use `YYYY-MM-DD`.
+Wall times use `HH:mm:ss` with optional microseconds and no trailing fractional
+zeroes. These canonical keys prevent equivalent textual times from defeating
+uniqueness. TypeScript and Temporal own recurrence, timezone conversion,
+normalization, duration arithmetic, and eligibility decisions.
+
+## Local identity
+
+Initialization commits one generated profile UUID, the current default
+categories, an initial stale Occurrence sync state, and an initialization outbox
+entry. Reopening preserves the UUID and does not recreate removed categories.
+The single-profile unique index prevents a second local profile.
+
+The profile keeps the current web Row shape. `email` is an empty string and
+`display_name` is null on initialization. These fields do not represent cloud
+identity or a notification recipient. The default timezone is
+`America/New_York`. Defaults are Medical, Grooming, Fitness, Food / Drink,
+Home, Measurements, Admin, and Other.
+
+Every owned table has `user_id` referencing this profile. Composite foreign
+keys also preserve Behavior, schedule, Occurrence, and history ownership.
+Every IPC operation checks the supplied profile against the stable local
+profile. SQLite has no Supabase Auth or RLS; those remain web responsibilities.
+
+When the final native identifier is `app.cadence.desktop`, startup can adopt
+`cadence.sqlite3` from its fixed `app.cadence.desktop-spike` Application Support
+sibling. This is a one-time prototype identity transition. Startup leaves an
+existing final database untouched. Both paths remain native; no IPC command
+accepts an adoption source or destination.
+
+Adoption holds a read snapshot and uses the SQLite online backup API, including
+committed WAL pages. It validates database integrity, foreign keys, and the
+single stable profile. It applies tracked migrations to a private staging copy,
+checkpoints the copy, and publishes a complete file without replacing an
+existing destination. The file uses owner-only permissions. The original
+database remains available. Interrupted staging cannot become an empty new
+profile; startup retries from the original database. Corruption, an invalid
+profile, or a partial destination stops startup instead of silently seeding.
+SQLite documents snapshot semantics in its [online backup API](https://www.sqlite.org/backup.html).
+
+OS notification permission and requests do not migrate with the database.
+The prototype app must cancel its requests before the identity transition.
+The final app must obtain its own permission and reconcile actual OS readback.
+
+## Stored tables
+
+| Tables | Contract |
+|---|---|
+| `profiles`, `categories` | Stable local identity and current default category Rows |
+| `behaviors`, `behavior_schedules`, `behavior_schedule_slots` | Full current Behavior graph, compatibility fields, custom and preset ranges, retained IDs and creation instants |
+| `behavior_definition_events` | Definition history; updates cannot rewrite events |
+| `behavior_configuration_events` | Configuration snapshots and deferred current-event pointer ownership |
+| `occurrences` | Schedule snapshots, nullable configuration lineage, status snapshot, note, explicit local date |
+| `occurrence_status_events` | Status history, predecessor references, provenance, timestamps |
+| `occurrence_time_sessions` | Start/stop instants and at most one running session per Occurrence |
+| `occurrence_sync_state` | Versioned local generation freshness and covered local-date range |
+| `reminder_deliveries` | Existing browser/email contract and import provenance, without provider delivery |
+| `native_reminder_state`, `native_reminder_coverage` | Desired native requests, retained cancellation intent, and explicit coverage receipts |
+| `behaviorlog_import_runs`, `behaviorlog_import_record_mappings` | Current preview/apply metadata, accepted preview links, and record provenance |
+| `imported_notes`, `imported_interventions` | Current passive imported context; no implicit reminder delivery |
+| `behavior_revisions` | Native monotonic graph revision, outside the portable Behavior Row |
+| `mutation_outbox`, `tombstones`, `sync_cursors` | Dormant sync scaffold; no network or conflict-resolution implementation |
+| `behaviorlog_local_previews`, `local_data_revision` | Stored reviewed import plans and domain-only preview concurrency guard |
+
+Hosted-only Auth, push subscription, provider, and launch-rate-limit tables are
+not copied. Import operations accept shared, explicit write plans. They do not
+implement provider delivery or replay native reminder requests from exports.
+
+Occurrence uniqueness is `(behavior_id, local_date, schedule_start_time,
+schedule_range_identity)`. SQLite generates the range identity as `-1` for an
+exact time and end-time microseconds for a range. Exact entries and ranges with
+the same start remain distinct. Parent-slot start-time uniqueness matches the
+current web schema.
+
+## Native command
+
+`local_store({ request })` accepts a typed, unknown-field-rejecting request.
+Operation names and envelope fields use camelCase. Domain Rows use the current
+snake_case web names. No request accepts SQL, a table name, or a file path.
+
+Read operations execute within a consistent read transaction. Reads reject a
+result above 100,000 rows instead of returning a partial result.
+
+| Operation | Arguments after `operation` | Result |
+|---|---|---|
+| `readProfile` | none | `Profile` |
+| `readCategories` | `profileId` | `Category[]` |
+| `readBehaviorGraphs` | `profileId` | `{ behavior, schedules, slots, revision }[]` |
+| `readOccurrence` | `profileId`, `occurrenceId` | `Occurrence` or null |
+| `readOccurrences` | `profileId`, `startLocalDate`, `endLocalDate`, optional `behaviorId` | `Occurrence[]` |
+| `readOccurrenceHistory` | `profileId`, `occurrenceIds` | `{ statusEvents, timeSessions }` |
+| `readSyncState` | `profileId` | `OccurrenceSyncState` |
+| `readExportSnapshot` | `profileId`, nullable `startLocalDate`, `endLocalDate`, `includeTimeTracking`, `throughStartedAt` | Categories, all Behavior graphs and definition/configuration histories, range Occurrences and linked status/reminder/time/native-reminder Rows |
+| `readNativeReminderState` | `profileId` | `{ revision, reminders, coverage }` |
+| `readImportSnapshot` | `profileId` | Consistent full domain/provenance Rows and domain `revision` |
+| `readImportRuns` | `profileId`, `limit` from 1 through 100, optional `kind: import \| restore` | Recent full import-run Rows, filtered before limiting, descending by start instant and ID |
+
+Every mutation also requires `profileId`, `mutationId`, and `now`. IDs and
+planned row timestamps come from TypeScript. The native transaction checks
+preconditions, applies the operation, and writes its request and result to the
+outbox before committing. Repeating the same mutation ID and exact request
+returns its previous result. Reusing an ID with a different plan fails.
+
+| Operation | Additional arguments | Result |
+|---|---|---|
+| `createBehaviorGraph` | `graph`, `definitionEvent`, `configurationEvent` | Saved graph plus revision |
+| `updateBehaviorGraph` | `graph`, `expectedRevision`, `expectedNormalizedDefinition`, nullable `definitionEvent`, nullable `configurationEvent` | Saved graph plus revision |
+| `applyOccurrenceGeneration` | `behaviorId`, `expectedConfigurationEventId`, `create`, `update`, `delete` | Inserted, updated, and deleted counts |
+| `applyStatusTransition` | `occurrenceId`, `expectedStatus`, `expectedLatestEventId`, next `status`, `completedAt`, `statusMarkedAt`, `cancelPendingReminders`, nullable full `event` Row | `{ statusChanged, concurrentDuplicate, occurrence, statusEvent }` |
+| `updateOccurrenceNote` | `occurrenceId`, `expectedNote`, `note` | Saved Occurrence |
+| `startTimeSession` | full `session` Row | Session or null when another session already runs |
+| `stopTimeSession` | `occurrenceId`, `sessionId`, `stoppedAt` | Session or null when already stopped |
+| `resetTimeSessions` | `occurrenceId`, full `expectedSessions` Rows | `{ deletedIds }` |
+| `commitSyncState` | `expectedVersion`, full `state` Row | Saved state with native-incremented version |
+| `updateProfileTimezone` | `expectedTimezone`, `expectedSyncVersion`, `timezone`, full active-graph `updates` | Saved Profile |
+| `commitNativeReminderPlan` | `expectedRevision`, full `reminders` Rows, `cancelIds` | `{ revision, reminders, coverage }` |
+| `recordNativeReminderCoverage` | `expectedRevision`, explicit `coverage`, `observed` results | `{ revision, reminders, coverage }` |
+| `prepareBehaviorLogImport` | `expectedRevision`, full `previewRun`, nullable typed `plan` | `{ previewRun, revision }` |
+| `applyBehaviorLogImport` | `previewRunId`, `importMode`, `previewFingerprint`, `localDataFingerprint`, `bundleFingerprint`, nullable `bundlePayloadFingerprint` | Status, full `importRun`, result or error, and `alreadyApplied` |
+
+Mutation `graph` is `{ behavior: Behavior, schedules: BehaviorSchedule[],
+slots: BehaviorScheduleSlot[] }`. It contains no nested slot arrays or revision.
+Read results add the revision separately. `expectedNormalizedDefinition` is
+`{ title, description }`; the shared resolver supplies it. This preserves the
+web distinction between exact stored predecessor bytes and normalized history
+text without duplicating JavaScript whitespace rules in Rust.
+
+Generation `create` contains full planned Occurrence Rows. `update` contains
+`{ expected: Occurrence, next: Occurrence }` pairs. `delete` contains the full
+expected Rows. SQLite computes `schedule_range_identity`; clients cannot write
+the generated value.
+
+## Atomic guarantees
+
+Graph revisions reject stale and ABA edits. A write validates owned parents,
+nonempty schedule graphs, definition expectations, complete prior/next
+configuration projections, and retained creation history. TypeScript owns
+changed-field planning and normalization. A null definition event preserves
+the exact stored title and description bytes. Retained time entries can swap
+times or move to a retained/new parent without losing historical Occurrence
+links. Retired entries receive tombstones. Every graph mutation marks
+Occurrence sync state stale and increments its version.
+
+Generation checks the exact current configuration event. It rejects changed
+expected rows and duplicate inserts atomically. It preserves resolved rows,
+rows at or before the injected instant, nonblank notes, timing history, and
+unknown lineage on update. Updates preserve range identity and historical
+creation/status/note fields. Generation itself does not change the sync-state
+version. Final freshness commits compare the captured version, so an
+intervening graph mutation cannot be hidden by a late successful sync.
+
+Status writes compare both the current status and latest event ID. An immediate
+concurrent duplicate follows the existing web result contract; a later ABA
+history fails. Event, status snapshot, pending reminder cancellation intent,
+and outbox write commit together. SQLite cancellation does not prove macOS
+notification cancellation; the native reconciliation service must perform and
+verify that external action. Note edits use exact expected-note comparison and
+preserve configuration lineage.
+
+Timing writes preserve status and reminder state. A partial unique index
+prevents two running sessions for one Occurrence. Stop validates instant order.
+Reset compares the full expected session set and commits deletion tombstones
+with its outbox entry.
+
+Timezone changes include every active Behavior exactly once. Each update is
+`{ graph, expectedRevision, configurationEvent }`. The command checks the
+profile timezone, sync version, graph revisions, and exact schedule/definition
+preservation. A null event is valid only for an unchanged graph already using
+the target timezone. Profile, changed Behavior rows, configuration history,
+one sync-state invalidation, and outbox entry commit together. Archived
+Behaviors and historical Occurrences remain unchanged. TypeScript validates
+timezone semantics and plans later Occurrence regeneration.
+
+Export reads hold one transaction across every returned collection. Definition
+and configuration histories remain complete even when the requested Occurrence
+range excludes their dates. Linked status, delivery, and native reminder rows
+follow the Occurrence range. Optional time sessions must start at or before the
+injected `throughStartedAt`; comparison preserves nanoseconds. Archived graphs
+remain available for shared export filtering.
+
+All-time export reads include every saved future Occurrence without generating
+a new future horizon. Export snapshots also include passive imported notes,
+passive interventions, applied import runs, and provenance mappings. Notes
+still require the export option. Applied-run portability metadata retains
+validated source configuration history, Occurrence timezone/lineage, and known
+category registry values. Its 256 KiB limit rejects overflow. Preview ledgers
+omit this metadata; retained history never becomes an OS notification request.
+
+The native save command keeps the user-selected destination outside frontend
+IPC. It writes an owner-only temporary file, synchronizes its contents,
+replaces the destination atomically, and synchronizes the parent directory.
+A directory synchronization failure reports that the new file was already
+written; it does not claim that the previous file survived the replacement.
+
+## Native reminder intent and coverage
+
+`native_reminder_state` Rows contain `user_id`, `id`, `occurrence_id`,
+`request_id`, `fire_at`, `title`, `body`, `status`, `error`, `verified_at`,
+`created_at`, and `updated_at`. Request IDs use
+`cadence.local.<occurrence UUID>`. The OS adapter accepts and enumerates this
+owned namespace alongside the separate `cadence-spike.` test namespace.
+
+The plan command requires future whole-second UTC instants, unverified
+`planned` state, unresolved Occurrences, and enabled active Behaviors. The
+shared resolver rounds future deadlines upward before submission. A plan
+contains the entire desired set. Existing planned, scheduled, or failed Rows
+must remain in the plan or appear in `cancelIds`. Cancellation IDs are local
+reminder Row UUIDs; unknown UUIDs are idempotent no-ops. Cancelled rows remain
+stored for retry. A failed OS cancellation preserves `cancelled` intent and
+records its error. A plan commit never records successful OS scheduling.
+
+Reminder reads expose the latest profile outbox sequence as `revision`.
+Every plan and receipt compares `expectedRevision` under the write lock.
+Every intervening data mutation invalidates existing coverage. An OS result
+arriving after a data change cannot publish a stale successful receipt.
+Idempotent mutation retries return their original result and revision.
+
+Coverage Rows contain `user_id`, `status`, `target_through`,
+`scheduled_through`, `first_unscheduled_at`, `expected_count`,
+`scheduled_count`, `missing_ids`, `reason`, `verified_at`, `updated_at`, and
+native-managed `dataset_revision`. Initial coverage is null. Status is
+`complete`, `limited`, or `unverified`. The receipt argument omits `user_id`,
+`updated_at`, and `dataset_revision`. Complete or limited receipts require an
+explicit verification instant equal to the mutation's injected `now`;
+unverified receipts require null. Shared TypeScript owns coverage assessment
+from actual OS readback, including the earliest unscheduled deadline. Native
+checks count/boundary consistency without deriving scheduling policy.
+
+Receipt `observed` entries contain `{ id, status, error, delivery? }`, where
+`id` is the local reminder Row UUID. A delivered observation requires exact
+`delivery` evidence: `requestId`, `fireAt`, `title`, `body`, and `deliveredAt`.
+Other observation statuses reject that evidence field. SQLite checks it
+against the owned current Row and the receipt instant before committing.
+Allowed observations are `scheduled`, `cancelled`,
+`failed`, and `delivered`. Observations cannot reschedule cancelled intent.
+Exact OS delivery evidence may correct a retired request to `delivered` for
+history only, including when an earlier refresh retired it before the native
+event drain. The desktop adapter validates the request identity, fire time,
+content, and delivery instant against the current owned Row before writing
+that observation. A replaced request's stale evidence must not match.
+Failed persistence retains pending evidence for retry before expiry cleanup;
+it must not silently discard the observation or claim user receipt/reading.
+Readback or cancellation errors leave coverage unverified. SQLite cannot make
+an OS action atomic with a data transaction; reconciliation and subsequent
+readback remain necessary. Deleting an Occurrence cascades its native state
+Rows. Reconciliation must also cancel enumerated product requests absent from
+the desired set, including requests without a remaining SQLite Row.
+
+## Reviewed import and restore plans
+
+`readImportSnapshot` returns profile, categories, flat graphs with revisions,
+definition/configuration/status histories, Occurrences, time sessions, reminder
+Rows, import runs, provenance mappings, passive notes, and passive interventions
+from one transaction. Each collection retains the 100,000-row rejection limit.
+`readImportRuns` provides the smaller recent-ledger read used by page summaries.
+
+Preview preparation writes only the preview ledger, plan binding, and outbox.
+It never writes tracking records. The stored plan uses the shared
+`LocalImportWritePlan` type: explicit graph writes, new definition/status events,
+expected/next Occurrence and time-session Rows, category creates, passive
+note/intervention writes and deletes, mappings, and a result summary. Graph
+writes include a configuration-event chain ending at the exact final graph.
+Native validation rejects unknown fields and accepts no SQL or table names.
+
+An import preview may initially store a null plan while the user chooses a mode.
+One later binding may replace null with a typed plan. That binding requires
+identical preview ledger bytes and unchanged domain revision. A nonnull plan
+cannot be changed or cleared. Apply accepts only the stored preview identity,
+mode, and fingerprints; it cannot substitute another write payload. A missing
+plan fails before any apply ledger or outbox write.
+
+Domain revision advances through triggers on actual profile, category, graph,
+Occurrence, history, timing, passive-context, and mapping changes. Reminder
+intent, coverage receipts, sync-freshness metadata, preview bindings, and outbox
+writes do not advance this revision. The reminder API separately retains its
+global outbox revision. Background reminder reconciliation therefore does not
+stale a reviewed import, while tracking changes still do. Shared TypeScript
+computes the content fingerprints and plans from the captured snapshot.
+
+Native apply checks exact expected Rows, graph revisions, parent ownership,
+configuration lineage, current graph/event agreement, provenance targets, and
+status predecessor cycles. Create-only cannot rewrite existing tracking data.
+Merge can append schedules and accepted status/note effects, but cannot delete
+tracking records or overwrite nonblank notes. Restore permits its explicit
+typed replacements and deletes. Native validates destructive target IDs and
+provenance mappings against stored restore actions. History Rows remain
+append-only; deleting an accepted Occurrence may cascade its dependent history,
+with deletion tombstones recorded in the same transaction.
+
+Product writes run within a savepoint inside the operation transaction. A late
+failure rolls back product changes, then records the failed apply ledger and
+outbox result. A successful apply commits the ledger, mappings, tombstones,
+domain changes, sync invalidation, and outbox together. Reapplying a stored
+successful preview returns the original result. Failed plans require a new
+preview before another attempt. Reviewed row timestamps stay fixed; the native
+adapter records the actual apply ledger start/completion instants separately.
+
+Imported interventions stay passive. Native reminder export extensions are not
+accepted write-plan fields. Apply does not call an OS notification API, email
+provider, or push provider. The desktop service must reconcile current native
+reminder intent after an accepted tracking change.
+
+## Verification and remaining work
+
+Rust tests exercise real temporary SQLite databases, restart persistence,
+outbox failure rollback, migration DDL rollback, graph revisions, range
+uniqueness, status ABA and duplicate behavior, note protection, timing restart,
+atomic reset tombstones, timezone transaction rollback, reminder revision races,
+failed cancellation persistence, and export timestamp boundaries. The
+feature-gated `local-store-contract` binary
+provides a JSON-lines transport for real TypeScript adapter tests against this
+same native boundary. It accepts a temporary database path only and is excluded
+from normal builds. It does not expose a SQL operation.
+
+`tests/desktop-store-contract.test.ts` exercises actual shared planning and
+desktop adapters against the runner. Full shared local-Supabase/SQLite contract
+coverage remains required before Ticket 110 completes.
+
+Native accepted-plan import/merge/restore transactions are implemented. Shared
+planner integration and actual TypeScript-to-SQLite parity tests remain required
+before those user flows are complete. TypeScript reminder reconciliation
+requires integration and OS lifecycle verification. Migration
+recovery UI, full offline product QA, and signed release remain separate
+gates. No provider calls, cloud identity, live sync, or background helper were
+added.

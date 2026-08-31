@@ -1,16 +1,32 @@
+"use client";
+
 import { BehaviorLogImportPanel } from "@/components/export/BehaviorLogImportPanel";
 import { BehaviorLogRestorePanel } from "@/components/export/BehaviorLogRestorePanel";
 import { ExportRangeSelector } from "@/components/export/ExportRangeSelector";
 import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActions";
 import { PromptLibraryPanel } from "@/components/export/PromptLibraryPanel";
-import type { BehaviorLogImportPageData } from "@/lib/types/behaviorlog-import-ui";
-import type { BehaviorLogRestorePageData } from "@/lib/types/behaviorlog-restore-ui";
+import type {
+  BehaviorLogImportFormAction,
+  BehaviorLogImportPageData,
+} from "@/lib/types/behaviorlog-import-ui";
+import type {
+  BehaviorLogRestoreFormAction,
+  BehaviorLogRestorePageData,
+} from "@/lib/types/behaviorlog-restore-ui";
 import type { ExportBundle } from "@/lib/types/export";
+import type { ExportDownloadFormat } from "@cadence/core/services/export-download";
 
-type ExportPanelProps = Readonly<{
+export type ExportPanelProps = Readonly<{
   exportData: ExportBundle;
   importData: BehaviorLogImportPageData;
   restoreData: BehaviorLogRestorePageData;
+  importAction: BehaviorLogImportFormAction;
+  restoreAction: BehaviorLogRestoreFormAction;
+  onApplyOptions?: (formData: FormData) => void;
+  onDownload?: (format: ExportDownloadFormat) => void;
+  busy?: boolean;
+  downloadStatus?: string;
+  error?: string;
 }>;
 
 const DOWNLOAD_ACTIONS = [
@@ -36,7 +52,7 @@ const DOWNLOAD_ACTIONS = [
     format: "behaviorlog",
     label: "BehaviorLog bundle (.behaviorlog.zip)",
     description:
-      "BehaviorLog core records, standard definition history and reminder rules, optional standard time sessions, Cadence configuration history, and CSV views.",
+      "BehaviorLog core records, standard definition and configuration history, reminder rules, optional standard time sessions, and CSV views.",
   },
 ] as const;
 
@@ -44,15 +60,19 @@ export function ExportPanel({
   exportData,
   importData,
   restoreData,
+  importAction,
+  restoreAction,
+  onApplyOptions,
+  onDownload,
+  busy = false,
+  downloadStatus,
+  error,
 }: ExportPanelProps) {
   return (
     <div className="grid gap-12">
       <section className="grid gap-8" aria-labelledby="export-section-title">
         <div className="border-b border-line pb-4">
-          <h2
-            id="export-section-title"
-            className="text-2xl leading-tight"
-          >
+          <h2 id="export-section-title" className="text-2xl leading-tight">
             Export
           </h2>
           <p className="mt-3 max-w-3xl text-sm text-muted-readable">
@@ -65,18 +85,29 @@ export function ExportPanel({
           className="bg-background py-1"
           aria-labelledby="export-options-title"
         >
-          <h3
-            id="export-options-title"
-            className="text-xl leading-tight"
-          >
+          <h3 id="export-options-title" className="text-xl leading-tight">
             Options
           </h3>
 
-          <form method="get" className="mt-4 grid gap-5">
+          <form
+            key={`${exportData.range.key}:${exportData.includeArchived}:${exportData.includeNotes}:${exportData.includeTimeTracking}`}
+            method="get"
+            onSubmit={
+              onApplyOptions
+                ? (event) => {
+                    event.preventDefault();
+                    if (!busy)
+                      onApplyOptions(new FormData(event.currentTarget));
+                  }
+                : undefined
+            }
+            className="mt-4 grid gap-5"
+          >
             <ExportRangeSelector
               key={exportData.range.key}
               rangeOptions={exportData.rangeOptions}
               selectedRangeKey={exportData.range.key}
+              disabled={busy}
             />
 
             <div className="grid gap-3">
@@ -117,6 +148,7 @@ export function ExportPanel({
                   name="include_archived"
                   value="1"
                   defaultChecked={exportData.includeArchived}
+                  disabled={busy}
                   className="mt-0.5 h-5 w-5 accent-foreground"
                 />
                 <span>Include archived behaviors</span>
@@ -128,6 +160,7 @@ export function ExportPanel({
                   name="include_notes"
                   value="1"
                   defaultChecked={exportData.includeNotes}
+                  disabled={busy}
                   className="mt-0.5 h-5 w-5 shrink-0 accent-foreground"
                 />
                 <span>
@@ -145,6 +178,7 @@ export function ExportPanel({
                   name="include_time_tracking"
                   value="1"
                   defaultChecked={exportData.includeTimeTracking}
+                  disabled={busy}
                   className="mt-0.5 h-5 w-5 shrink-0 accent-foreground"
                 />
                 <span>
@@ -161,6 +195,7 @@ export function ExportPanel({
             <div>
               <button
                 type="submit"
+                disabled={busy}
                 className="product-action product-action-primary min-h-11 py-2 text-sm font-bold"
               >
                 Apply export options
@@ -173,10 +208,7 @@ export function ExportPanel({
           className="grid gap-4"
           aria-labelledby="export-downloads-title"
         >
-          <h3
-            id="export-downloads-title"
-            className="text-xl leading-tight"
-          >
+          <h3 id="export-downloads-title" className="text-xl leading-tight">
             Downloads
           </h3>
 
@@ -185,7 +217,7 @@ export function ExportPanel({
             definition-history file. When time tracking is selected, it stores
             timing sessions in its standard time-session file. Schedule,
             category, timezone, active-state, and reminder-setting history
-            remains a Cadence extension. Full JSON includes this history in
+            uses the standard configuration-history file. Full JSON includes this history in
             Cadence&apos;s app-native format. Historical definitions and
             configuration can contain sensitive context.
           </p>
@@ -204,16 +236,42 @@ export function ExportPanel({
                     {action.description}
                   </span>
                 </span>
-                <a
-                  href={downloadHref(action.format, exportData)}
-                  className="product-action product-action-primary min-h-6 w-fit text-sm font-bold"
-                  aria-label={`Download ${action.label}`}
-                >
-                  Download
-                </a>
+                {onDownload ? (
+                  <button
+                    type="button"
+                    onClick={() => onDownload(action.format)}
+                    disabled={busy}
+                    className="product-action product-action-primary min-h-6 w-fit text-sm font-bold"
+                    aria-label={`Download ${action.label}`}
+                  >
+                    Download
+                  </button>
+                ) : (
+                  <a
+                    href={downloadHref(action.format, exportData)}
+                    className="product-action product-action-primary min-h-6 w-fit text-sm font-bold"
+                    aria-label={`Download ${action.label}`}
+                  >
+                    Download
+                  </a>
+                )}
               </li>
             ))}
           </ul>
+          {downloadStatus ? (
+            <p
+              role="status"
+              aria-live="polite"
+              className="text-sm text-muted-readable"
+            >
+              {downloadStatus}
+            </p>
+          ) : null}
+          {error ? (
+            <p role="alert" className="text-sm text-accent">
+              {error}
+            </p>
+          ) : null}
         </section>
 
         <section
@@ -222,10 +280,7 @@ export function ExportPanel({
         >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h3
-                id="export-summary-title"
-                className="text-xl leading-tight"
-              >
+              <h3 id="export-summary-title" className="text-xl leading-tight">
                 AI summary
               </h3>
               <p className="mt-2 max-w-3xl text-sm text-muted-readable">
@@ -236,6 +291,8 @@ export function ExportPanel({
             <MarkdownSummaryActions
               summary={exportData.markdownSummary}
               fileName={exportData.markdownFileName}
+              onDownload={onDownload ? () => onDownload("markdown") : undefined}
+              downloadBusy={busy}
             />
           </div>
 
@@ -249,10 +306,7 @@ export function ExportPanel({
 
       <section className="grid gap-8" aria-labelledby="import-section-title">
         <div className="border-b border-line pb-4">
-          <h2
-            id="import-section-title"
-            className="text-2xl leading-tight"
-          >
+          <h2 id="import-section-title" className="text-2xl leading-tight">
             Import
           </h2>
           <p className="mt-3 max-w-3xl text-sm text-muted-readable">
@@ -265,7 +319,7 @@ export function ExportPanel({
             sessions during supported imports and restore.
           </p>
           <p className="mt-3 max-w-3xl text-sm text-muted-readable">
-            Cadence also validates its configuration-history extension. Import
+            Cadence preserves standard configuration history for re-export. Import
             and restore use its current schedule and reminder snapshot.
             Historical Occurrence snapshots stay portable without activating
             prior schedules.
@@ -274,10 +328,12 @@ export function ExportPanel({
         <BehaviorLogImportPanel
           recentRuns={importData.recentRuns}
           timezone={exportData.timezone}
+          action={importAction}
         />
         <BehaviorLogRestorePanel
           recentRuns={restoreData.recentRuns}
           timezone={exportData.timezone}
+          action={restoreAction}
         />
       </section>
     </div>

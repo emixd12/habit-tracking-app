@@ -1,4 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
+import { toExistingOccurrenceForGeneration } from "@cadence/core/services/occurrence-generation";
 
 import {
   type AppSupabaseClient,
@@ -12,7 +13,6 @@ import {
   getOccurrenceWithBehaviorTimezoneById,
   listBehaviorOccurrencesFrom,
   updateOccurrenceNoteIfExpected,
-  type OccurrenceWithBehaviorTimezone,
 } from "@/lib/db/occurrences.repo";
 import {
   applyOccurrenceStatusTransitionRpc,
@@ -24,20 +24,17 @@ import {
   normalizeOccurrenceScheduleGraph,
   planOccurrenceGeneration,
   resolveGenerationWindow,
-  type ExistingOccurrenceForGeneration,
   type OccurrenceGenerationSchedule,
   type OccurrenceGenerationScheduleSlot,
   type OccurrenceGenerationPlan,
 } from "@/lib/resolvers/occurrence.resolver";
-import { resolveReminderDeliveryCancellation } from "@/lib/resolvers/reminder.resolver";
 import { listProfileOccurrenceSyncTargets } from "@/lib/db/profiles.repo";
 import { listOccurrenceIdsWithTimeSessions } from "@/lib/db/timeSessions.repo";
 import {
-  resolveNoteUpdate,
-  resolveStatusEvent,
-  resolveStatusTransition,
-  type StatusResolverOccurrence,
-} from "@/lib/resolvers/status.resolver";
+  applyOccurrenceStatusTransition as applySharedStatusTransition,
+  updateOccurrenceNote as updateSharedOccurrenceNote,
+  normalizeOccurrenceStatus, parseOccurrenceId, parseOccurrenceStatus, parseOccurrenceNote,
+} from "@cadence/core/services/occurrence.service";
 import {
   normalizeRecurrenceRule,
   normalizeScheduledTime,
@@ -112,8 +109,7 @@ export type ProcessOccurrenceSyncHorizonsResult = {
 
 const DEFAULT_OCCURRENCE_SYNC_PROCESS_LIMIT = 25;
 const MAX_OCCURRENCE_SYNC_PROCESS_LIMIT = 100;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 
 export async function syncUserOccurrences(
   supabase: AppSupabaseClient,
@@ -693,54 +689,20 @@ export async function applyOccurrenceStatusTransition(
     now: Temporal.Instant;
   },
 ): Promise<ApplyOccurrenceStatusTransitionRpcResult> {
-  const [occurrence, latestStatusEvent] = await Promise.all([
-    getRequiredOccurrenceWithBehaviorTimezone(
-      supabase,
-      userId,
-      input.occurrenceId,
-    ),
-    getLatestOccurrenceStatusEventForOccurrence(
-      supabase,
-      userId,
-      input.occurrenceId,
-    ),
-  ]);
-  const statusOccurrence = toStatusResolverOccurrence(occurrence);
-
-  if (
-    input.expectedStatus !== undefined &&
-    input.expectedStatus !== statusOccurrence.status
-  ) {
-    throw new Error(
-      "Occurrence status changed. Review the latest status and try again.",
-    );
-  }
-
-  const update = resolveStatusTransition({
-    occurrence: statusOccurrence,
-    nextStatus: input.nextStatus,
-    now: input.now,
-  });
-  const eventPlan = resolveStatusEvent({
-    occurrence: statusOccurrence,
-    nextStatus: input.nextStatus,
-    now: input.now,
-    hasPriorStatusEvent: latestStatusEvent !== null,
-    update,
-  });
-  const reminderCancellation = resolveReminderDeliveryCancellation({
-    occurrence: { status: update.status },
-  });
-  const result = await applyOccurrenceStatusTransitionRpc(supabase, {
-    occurrenceId: occurrence.id,
-    expectedStatus: statusOccurrence.status,
-    expectedLatestEventId: latestStatusEvent?.id ?? null,
-    status: update.status,
-    completedAt: update.completedAt,
-    statusMarkedAt: update.statusMarkedAt,
-    cancelPendingReminders: reminderCancellation.cancelPending,
-    event: eventPlan,
-  });
+  const { result, timezone } = await applySharedStatusTransition({
+    async readStatusContext(occurrenceId) {
+      const [occurrence, latestStatusEvent] = await Promise.all([
+        getOccurrenceWithBehaviorTimezoneById(supabase, userId, occurrenceId),
+        getLatestOccurrenceStatusEventForOccurrence(supabase, userId, occurrenceId),
+      ]);
+      return occurrence ? {
+        occurrence,
+        latestStatusEventId: latestStatusEvent?.id ?? null,
+        timezone: occurrence.behavior?.timezone ?? DEFAULT_TIMEZONE,
+      } : null;
+    },
+    applyStatusTransition: (plan) => applyOccurrenceStatusTransitionRpc(supabase, plan),
+  }, input);
 
   if (
     input.nextStatus === "unresolved" &&
@@ -748,7 +710,7 @@ export async function applyOccurrenceStatusTransition(
   ) {
     await repairClearedDecisionReminderCoverage(supabase, userId, {
       occurrence: result.occurrence,
-      timezone: occurrence.behavior?.timezone ?? DEFAULT_TIMEZONE,
+      timezone,
       now: input.now,
     });
   }
@@ -820,23 +782,9 @@ export async function updateOccurrenceNote(
     note: string;
   },
 ): Promise<Occurrence> {
-  const update = resolveNoteUpdate({
-    note: input.note,
-  });
-  const updatedOccurrence = await updateOccurrenceNoteIfExpected(supabase, {
-    userId,
-    occurrenceId: input.occurrenceId,
-    expectedNote: input.expectedNote.length > 0 ? input.expectedNote : null,
-    note: update.note,
-  });
-
-  if (!updatedOccurrence) {
-    throw new Error(
-      "This note changed elsewhere. Review the latest note before saving again.",
-    );
-  }
-
-  return updatedOccurrence;
+  return updateSharedOccurrenceNote({
+    updateOccurrenceNote: (plan) => updateOccurrenceNoteIfExpected(supabase, { userId, ...plan }),
+  }, input);
 }
 
 export function occurrenceErrorToActionState(
@@ -848,29 +796,6 @@ export function occurrenceErrorToActionState(
       error instanceof Error
         ? error.message
         : "Unable to update this occurrence.",
-  };
-}
-
-function toExistingOccurrenceForGeneration(
-  occurrence: Occurrence,
-  timeSessionOccurrenceIds: ReadonlySet<string>,
-): ExistingOccurrenceForGeneration {
-  return {
-    id: occurrence.id,
-    scheduledFor: occurrence.scheduled_for,
-    localDate: occurrence.local_date,
-    status: normalizeOccurrenceStatus(occurrence.status),
-    scheduleSlotId: occurrence.behavior_schedule_slot_id,
-    scheduleKind: normalizeScheduleKind(occurrence.schedule_kind),
-    schedulePreset: normalizeSchedulePreset(occurrence.schedule_preset),
-    scheduleStartTime: normalizeScheduledTime(occurrence.schedule_start_time),
-    scheduleEndTime: occurrence.schedule_end_time
-      ? normalizeScheduledTime(occurrence.schedule_end_time)
-      : null,
-    note: occurrence.note,
-    hasTimeSessions: timeSessionOccurrenceIds.has(occurrence.id),
-    behaviorConfigurationEventId:
-      occurrence.behavior_configuration_event_id,
   };
 }
 
@@ -1214,105 +1139,22 @@ async function requireUserId(supabase: AppSupabaseClient): Promise<string> {
   return requireCurrentUserId("Sign in again before updating occurrences.");
 }
 
-async function getRequiredOccurrenceWithBehaviorTimezone(
-  supabase: AppSupabaseClient,
-  userId: string,
-  occurrenceId: string,
-): Promise<OccurrenceWithBehaviorTimezone> {
-  const occurrence = await getOccurrenceWithBehaviorTimezoneById(
-    supabase,
-    userId,
-    occurrenceId,
-  );
-
-  if (!occurrence) {
-    throw new Error("Occurrence not found.");
-  }
-
-  return occurrence;
-}
-
-function toStatusResolverOccurrence(
-  occurrence: Occurrence,
-): StatusResolverOccurrence {
-  return {
-    status: normalizeOccurrenceStatus(occurrence.status),
-    completedAt: occurrence.completed_at,
-    statusMarkedAt: occurrence.status_marked_at,
-    note: occurrence.note,
-  };
-}
-
 function getOccurrenceIdFromFormData(formData: FormData): string {
-  const value = formData.get("occurrence_id");
-
-  if (typeof value !== "string" || !value) {
-    throw new Error("Choose an occurrence to update.");
-  }
-
-  if (!UUID_PATTERN.test(value)) {
-    throw new Error("Choose a valid occurrence to update.");
-  }
-
-  return value;
+  return parseOccurrenceId(formData.get("occurrence_id"));
 }
 
 function getStatusFromFormData(formData: FormData): OccurrenceStatus {
-  const value = formData.get("status");
-
-  if (
-    value === "unresolved" ||
-    value === "completed" ||
-    value === "not_completed"
-  ) {
-    return value;
-  }
-
-  throw new Error("Choose a valid occurrence status.");
+  return parseOccurrenceStatus(formData.get("status"));
 }
 
 function getExpectedStatusFromFormData(formData: FormData): OccurrenceStatus {
-  const value = formData.get("expected_status");
-
-  if (
-    value === "unresolved" ||
-    value === "completed" ||
-    value === "not_completed"
-  ) {
-    return value;
-  }
-
-  throw new Error("Refresh this occurrence and try again.");
+  return parseOccurrenceStatus(formData.get("expected_status"), true);
 }
 
 function getNoteFromFormData(formData: FormData): string {
-  const value = formData.get("note");
-
-  if (typeof value !== "string") {
-    throw new Error("Enter a note before saving.");
-  }
-
-  return value;
+  return parseOccurrenceNote(formData.get("note"));
 }
 
 function getExpectedNoteFromFormData(formData: FormData): string {
-  const value = formData.get("expected_note");
-
-  if (typeof value !== "string") {
-    throw new Error("Refresh this occurrence before saving its note.");
-  }
-
-  return value;
-}
-
-function normalizeOccurrenceStatus(value: string): OccurrenceStatus {
-  if (
-    value === "unresolved" ||
-    value === "completed" ||
-    value === "not_completed"
-  ) {
-    return value;
-  }
-
-  throw new Error(`Unsupported occurrence status: ${value}.`);
+  return parseOccurrenceNote(formData.get("expected_note"), true);
 }

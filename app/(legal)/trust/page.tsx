@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Trust",
   description:
-    "Cadence trust information for manual statuses, account isolation, portability, and reminders.",
+    "Current, bounded deployment, route, supply-chain, and hosted-data evidence for Cadence.",
 };
 
 export default async function TrustPage() {

@@ -15,6 +15,7 @@ type BehaviorCreateSectionProps = Readonly<{
   categories: CategoryOption[];
   defaultTimezone: string;
   defaultOpen: boolean;
+  reminderRuntime?: "web" | "desktop";
 }>;
 
 export function BehaviorCreateSection({
@@ -22,6 +23,7 @@ export function BehaviorCreateSection({
   categories,
   defaultTimezone,
   defaultOpen,
+  reminderRuntime = "web",
 }: BehaviorCreateSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [successMessage, setSuccessMessage] = useState("");
@@ -69,6 +71,7 @@ export function BehaviorCreateSection({
         </summary>
         <div className="py-4 pl-4">
           <BehaviorForm
+            reminderRuntime={reminderRuntime}
             key={formKey}
             mode="create"
             action={action}

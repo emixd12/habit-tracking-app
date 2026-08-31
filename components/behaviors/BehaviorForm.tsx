@@ -34,6 +34,7 @@ type BehaviorFormProps = Readonly<{
   showActiveToggle?: boolean;
   initialState?: BehaviorActionState;
   onSuccess?: (state: BehaviorActionState) => void;
+  reminderRuntime?: "web" | "desktop";
 }>;
 
 export type TimeEntryRow = {
@@ -92,6 +93,7 @@ export function BehaviorForm({
   showActiveToggle = true,
   initialState = EMPTY_ACTION_STATE,
   onSuccess,
+  reminderRuntime = "web",
 }: BehaviorFormProps) {
   const [state, formAction] = useActionState(action, initialState);
   const fieldErrors = state.fieldErrors ?? {};
@@ -301,6 +303,7 @@ export function BehaviorForm({
 
       <div>
         <ReminderEditor
+          runtime={reminderRuntime}
           browserReminderEnabled={behavior?.browserReminderEnabled ?? true}
           emailReminderEnabled={behavior?.emailReminderEnabled ?? false}
           reminderOffsetMinutes={behavior?.reminderOffsetMinutes ?? 0}

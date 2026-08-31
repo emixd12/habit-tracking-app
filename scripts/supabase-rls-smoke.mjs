@@ -776,6 +776,7 @@ async function assertOccurrenceConfigurationLineage(input) {
       occurrence_updates: [
         {
           id: generatedOccurrence.id,
+          previous_scheduled_for: generatedScheduledFor,
           scheduled_for: generatedScheduledFor,
           local_date: "2099-01-01",
           behavior_schedule_slot_id: null,

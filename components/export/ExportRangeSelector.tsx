@@ -7,11 +7,13 @@ import type { ExportRangeKey, ExportRangeOption } from "@/lib/types/export";
 type ExportRangeSelectorProps = Readonly<{
   rangeOptions: ExportRangeOption[];
   selectedRangeKey: ExportRangeKey;
+  disabled?: boolean;
 }>;
 
 export function ExportRangeSelector({
   rangeOptions,
   selectedRangeKey,
+  disabled = false,
 }: ExportRangeSelectorProps) {
   const [activeRangeKey, setActiveRangeKey] = useState(selectedRangeKey);
 
@@ -29,6 +31,7 @@ export function ExportRangeSelector({
                 name="range"
                 value={option.key}
                 checked={isActive}
+                disabled={disabled}
                 onChange={() => setActiveRangeKey(option.key)}
                 className="peer sr-only"
               />

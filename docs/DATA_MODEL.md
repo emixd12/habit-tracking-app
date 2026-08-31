@@ -1,6 +1,9 @@
 # Data Model
 
-Use Supabase Postgres.
+Use Supabase Postgres for the web app. The SQL definitions and RLS requirements
+below describe its current schema. Tickets 107–114 implement a separate local
+SQLite desktop adapter under `docs/DESKTOP_BUILD.md`; desktop schema work must
+preserve the current domain contracts and document its own migrations.
 
 The web app may support many independent accounts. It is still single-player
 per account: no shared workspaces, no collaboration records, and no social data
@@ -190,7 +193,10 @@ definition-only functions.
 Manual edit forms submit the `updated_at` value loaded with the browser draft.
 The atomic update reports a deterministic stale draft as a non-retryable
 application error, so PostgREST returns the conflict instead of retrying it as
-a serialization failure.
+a serialization failure. The private graph writer uses the same non-retryable
+`P0001` code when a retained schedule or time-entry ID belongs to another graph.
+Migration `20260830223000` closes those two older `40001` branches without
+changing tables, grants, or function signatures.
 
 Create-only and approved-merge BehaviorLog imports use the same atomic create
 function with `source = 'import'`, and preserve the imported behavior
@@ -199,6 +205,20 @@ locks existing restored behaviors, requires a resolver-planned baseline for
 every new behavior and a transition for every title/description overwrite,
 then inserts those events in the same transaction as product rows, provenance
 mappings, and the applied-run ledger.
+
+Desktop parity verification also exercises that production restore transaction
+through ordinary local Supabase clients. The accepted preview's Keep actions
+exclude those rows from product writes after exact payload-digest validation.
+The full accepted schedule payload remains available for graph validation.
+Unchanged graphs retain parent IDs and timestamps; partial changes write only
+changed schedule rows. Separately accepted Note/status actions may update those
+fields on a kept Occurrence without rewriting its schedule identity.
+
+Function-only migrations `20260830223000`, `20260830224000`,
+`20260830230000`, and `20260830231000` implement these conflict/Keep corrections.
+They change no public function signatures or grants. Generated local TypeScript
+types match the existing definitions. These migrations have not been pushed to
+the hosted database by the desktop task.
 
 ### `behavior_configuration_events`
 
@@ -779,6 +799,20 @@ and start/completion timestamps. It does not mean imported product records have
 been written; `status = 'previewed'` only means the bundle was validated and
 previewed.
 
+Successful applies also retain `dry_run_summary.portability` version 1. It
+contains validated standard configuration events, source Occurrence timezone
+and lineage metadata, and the known Cadence category registry. Existing record
+mappings connect external identities to local rows on re-export. The 256 KiB
+UTF-8 limit rejects oversized metadata; it never truncates history. Preview
+ledger rows omit this metadata. No raw archive, credentials, or notification
+replay state is retained through this field.
+
+Imported historical Occurrences keep null local configuration lineage unless
+the source can prove it. Migration
+`20260831001533_preserve_unknown_imported_configuration_lineage.sql` removes
+the atomic import function's assignment of the current configuration to new
+historical Occurrences. It does not rewrite existing user records.
+
 `merge_preview` rows store the accepted bundle fingerprint, local-data
 fingerprint, and combined preview fingerprint in `dry_run_summary`. A
 create-only or user-approved merge apply must reference one persisted, accepted
@@ -975,9 +1009,14 @@ create table imported_interventions (
   occurrence_id uuid,
 
   intervention_type text,
-  channel text not null check (channel in ('browser_push', 'email')),
+  channel text not null check (channel in (
+    'browser_push', 'email', 'sms', 'mobile_push', 'in_app',
+    'calendar_notification', 'voice_assistant', 'webhook', 'other', 'none'
+  )),
   delivery_status text not null
-    check (delivery_status in ('pending', 'sent', 'failed', 'cancelled')),
+    check (delivery_status in (
+      'pending', 'sent', 'delivered', 'failed', 'cancelled', 'suppressed', 'unknown'
+    )),
   scheduled_send_at timestamptz not null,
   sent_at timestamptz,
   failure_reason text,
@@ -1012,6 +1051,14 @@ channel, delivery status, scheduled/sent timestamps, sanitized failure reason,
 source metadata, and redaction indicators. It must not contain raw provider
 secrets, raw push endpoints, subscription keys, recipient identifiers, message
 bodies, or raw provider payloads.
+
+Migration `20260831014424_preserve_behaviorlog_passive_intervention_values.sql`
+retains all canonical BehaviorLog 0.3 passive channels and delivery states.
+The canonical `planned` state still maps to the existing stored `pending`
+value. Native observations use `other` and may record `delivered`; neither
+delivery nor OS verification proves user reading. This migration changes only
+the passive table's checks. Operational reminder channels, delivery states,
+RLS policies, grants, and stored rows remain unchanged.
 
 Rows are provenance and review context only. They do not create, schedule,
 send, cancel, retry, claim, or otherwise mutate operational

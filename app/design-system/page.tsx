@@ -28,6 +28,7 @@ import { MarkdownSummaryActions } from "@/components/export/MarkdownSummaryActio
 import { PromptCopyAction } from "@/components/export/PromptCopyAction";
 import { PromptLibraryPanel } from "@/components/export/PromptLibraryPanel";
 import { AppShell } from "@/components/layout/AppShell";
+import { WebRuntimeProvider } from "@/components/layout/WebRuntimeProvider";
 import {
   CadencePageBanner,
   ScreenContentLoading,
@@ -374,19 +375,21 @@ export default async function DesignSystemPage({
   const previews = buildPreviews(selectedPreviewId, selectedFixtureState);
 
   return (
-    <main
-      className="min-h-dvh bg-neutral-100 text-neutral-950"
-      style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
-    >
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-6 sm:px-6 lg:px-8">
-        <BenchHeader />
-        <BenchNav />
-        <Foundations />
-        <SurfaceModel />
-        <CanonicalInventory />
-        <TraceInventory usageByComponent={usageByComponent} previews={previews} />
-      </div>
-    </main>
+    <WebRuntimeProvider>
+      <main
+        className="min-h-dvh bg-neutral-100 text-neutral-950"
+        style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+      >
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-6 sm:px-6 lg:px-8">
+          <BenchHeader />
+          <BenchNav />
+          <Foundations />
+          <SurfaceModel />
+          <CanonicalInventory />
+          <TraceInventory usageByComponent={usageByComponent} previews={previews} />
+        </div>
+      </main>
+    </WebRuntimeProvider>
   );
 }
 
@@ -1762,6 +1765,8 @@ const previewFactories: Record<
           exportData={exportFixture}
           importData={importPageFixture}
           restoreData={restorePageFixture}
+          importAction={behaviorLogImportAction}
+          restoreAction={behaviorLogRestoreAction}
         />
       </ProductPreview>
     ),
@@ -1927,8 +1932,13 @@ const trustEvidenceFixture: PublicTrustView = {
     url: "https://example.com/immutable-evidence",
     source_commit: "1ca208a5b4456a43506316b8d88fa372e6967c5e",
     application_deployment_id: "dpl_application",
+    application_deployment_url: "https://cadence-blush-three.vercel.app",
     marketing_deployment_id: "dpl_marketing",
+    marketing_deployment_url: "https://cadence-marketing-two.vercel.app",
+    workflow_url: "https://github.com/emixd12/habit-tracking-app/actions/runs/123456789",
+    built_at: "2026-08-27T04:35:10Z",
     verified_at: "2026-08-27T04:41:10Z",
+    freshness_deadline: "2026-08-28T04:41:10Z",
   },
   checks: ["passed", "failed", "stale", "not_run", "unavailable", "passed", "passed", "failed", "passed"].map((status, index) => ({
     id: ["source_to_deployment_provenance", "production_dependency_vulnerabilities", "code_scanning", "secret_scanning", "public_artifact_integrity", "application_live_route_comparison", "marketing_live_route_comparison", "hosted_migration_boundary", "cross_account_rls_isolation"][index] as PublicTrustView["checks"][number]["id"],

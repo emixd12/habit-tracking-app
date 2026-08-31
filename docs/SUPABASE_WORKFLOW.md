@@ -52,6 +52,40 @@ npm run supabase -- start --network-id local-network
 
 Never expose the local Supabase stack publicly.
 
+Local verification on 2026-08-30 found that CLI 2.105 recreates the database
+container during `db reset`, losing an existing loopback binding and custom
+network unless those settings accompany container creation. A Docker network
+binding default alone did not enforce loopback on this version. Use the
+reviewed project-scoped Docker create proxy and the explicit network for this
+local stack; never change global Docker settings or other projects. Verify
+published bindings after startup/reset and stop Cadence's database immediately
+if it exposes `0.0.0.0` or `::`. A completed migration replay does not excuse a
+failed or unsafe container restart.
+
+CLI 2.105 also creates unnamed schema-initialization jobs. A name-only proxy
+rejects those jobs after dropping the database. The verified local reset used
+a separate temporary proxy with a narrow exception: both exact Cadence project
+labels, the `cadence-local` network, no published ports or host mounts, and the
+exact pinned Realtime, Storage, and Auth images and migration commands. It also
+validated the Cadence database host in each job's environment without logging
+credentials. Do not allow arbitrary unnamed containers. The successful reset
+on 2026-08-30 applied all 45 migrations and kept every published Cadence port
+on `127.0.0.1`. The operator preserved the original proxy and other projects.
+
+The BehaviorLog 0.3 verification repeated this reset with all 47 migrations,
+through `20260831014424`. Before resetting, aggregate reads proved zero Auth
+users, public rows, Storage buckets/objects, and Vault secrets. The reset kept
+all published ports on loopback. The subsequent RLS smoke passed 92 ownership
+checks and cleaned its three temporary users. Generated database types matched
+the checked-in types. The temporary initialization proxy stopped after the
+reset; the original proxy and local stack remained running.
+The real authenticated SQL contract also passed after the reset. Its four
+temporary users exercised Behavior writes, cross-account isolation, import,
+restore, and BehaviorLog 0.3 history roundtrips. Re-export preserved complete
+configuration records and IDs after restore. Passive imported observations
+accepted the canonical channel/status vocabulary without creating operational
+reminders. Final aggregate cleanup again found no user or application data.
+
 ## Schema change workflow
 
 All schema work must be represented by migration files under `supabase/migrations/`.
@@ -115,6 +149,12 @@ When the local stack is running, generate types from local schema:
 mkdir -p lib/db
 npm run supabase -- gen types typescript --local > lib/db/database.types.ts
 ```
+
+When the local stack uses a custom Docker network, pass the same network to
+type generation. The 2026-08-30 isolated desktop verification stack uses
+`--network-id cadence-local`. Without that flag, CLI 2.105's temporary type
+generator cannot resolve `db`. Generate into a temporary file first and replace
+the checked-in types only after generation succeeds.
 
 When a hosted project is intentionally being inspected, generate hosted types with an explicit project ref:
 

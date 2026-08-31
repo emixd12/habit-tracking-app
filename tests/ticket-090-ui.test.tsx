@@ -56,7 +56,7 @@ describe("Ticket 090 UI regressions", () => {
 
   it("passes the profile timezone through both Export history panels", () => {
     const importHtml = renderToStaticMarkup(
-      <BehaviorLogImportPanel
+      <BehaviorLogImportPanel action={async (state) => state}
         timezone="America/New_York"
         recentRuns={[
           {
@@ -71,7 +71,7 @@ describe("Ticket 090 UI regressions", () => {
       />,
     );
     const restoreHtml = renderToStaticMarkup(
-      <BehaviorLogRestorePanel
+      <BehaviorLogRestorePanel action={async (state) => state}
         timezone="America/New_York"
         recentRuns={[
           {

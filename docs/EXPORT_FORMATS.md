@@ -1,6 +1,69 @@
 # Export Formats
 
-## Goals
+## BehaviorLog 0.3 parity contract
+
+BehaviorLog exports now use `0.3.0-draft`. Readers retain compatibility with
+`0.1.0-draft` and `0.2.0-draft`; older-version examples remain compatibility
+fixtures, not declarations of the current writer version.
+
+- `data/behavior_configuration_events.jsonl` carries the app-neutral
+  Configuration History Profile. Import/restore preserve validated history
+  without applying old configurations or replaying notifications.
+- Schedule anchors are independent of configuration-period starts. Exact
+  effective bounds, historical-reference roles, parent grouping, and captured
+  occurrence lineage use standard fields. Unknown lineage remains unknown.
+- Export preserves stored seconds and fractional seconds. Import retains
+  precise history but skips unsupported subminute schedule execution with a
+  warning. Unsupported independent interval anchors and generating bounds
+  also produce explicit skips instead of silent schedule changes.
+- All-time archives read every saved occurrence, including future dates and
+  already-recorded decisions, notes, and selected time sessions. Export does
+  not generate a new future horizon. Date-limited exports remain bounded.
+- Imported passive notes and interventions retain their original attribution
+  and timestamps on re-export. Current inline notes remain a separate surface.
+- Passive Intervention history accepts the standard channel and delivery-status
+  values, including native `other` / `delivered`. Stored `pending` still exports
+  as standard `planned`. Import discloses omitted extension metadata, including
+  native scheduler identifiers. None of these records schedules a notification.
+- Native notification observations use Intervention records with `channel:
+  other` and a native-channel extension. OS identifiers and verification
+  metadata remain extensions. Neither observation nor verification proves
+  user reading.
+- Current reminder rules preserve disabled intent. Historical deliveries do
+  not link to incompatible current offsets.
+- Desktop recognizes current native reminder rules only with the explicit
+  `app.cadence.native_notification` hint. Web skips those unsupported rules.
+  Neither adapter replays historical native Interventions.
+- Category registries remain a manifest extension, including unused source
+  category names and ordering.
+- Synthesized success definitions and approximate note timestamps carry
+  explicit transformation notes and appropriate source confidence.
+- `rules.exchange` declares partial fidelity and known limits. Cadence does
+  not claim arbitrary lossless profile/extension support. Unsupported optional
+  data produces preview loss warnings; unsupported required extensions block
+  operational import.
+
+The existing applied-import ledger preserves only bounded, validated portable
+configuration records, source occurrence metadata, and fingerprints of captured
+schedule fields. Replaying original schedule dates requires an applied ledger,
+owned Behavior and slot mappings, an exact captured schedule fingerprint, and
+unchanged current recurrence, anchor, timezone, time shape, and active state.
+Current configuration-period dates remain the normal comparison. Legacy
+ledgers without this proof cannot establish a date alias; mismatches remain
+explicit conflicts. The ledger does not store raw
+archive bytes. The 256 KiB metadata limit fails explicitly instead of
+truncating history. Notes retain the existing user-consent gates. Original
+history is preservation-only; it does not become invented local capture history.
+
+Repeated export/import/restore recognizes earlier exchanged configuration IDs
+only when the mapped Behavior and complete captured content/provenance agree.
+Occurrence lineage follows the retained ID. Independent source IDs remain
+distinct, and conflicting captures that reuse a source ID are both preserved.
+
+The Cadence raw configuration file remains a compatibility view, not
+the portable source of truth. Native OS registrations remain non-replayable.
+
+## Goals and export surfaces
 
 Exports should be easy to read by:
 - ChatGPT or another AI assistant
@@ -239,11 +302,12 @@ The BehaviorLog bundle is the interoperability export. It is downloaded as
 
 Core alignment rules:
 
-- `manifest.schema_version` is `0.2.0-draft`, and `schema.json` is the canonical
+- `manifest.schema_version` is `0.3.0-draft`, and `schema.json` is the canonical
   upstream schema rather than a Cadence variant.
 - `manifest.profiles` uses canonical identifiers. Notes remain optional core
   data. Reminder rules or deliveries add `intervention`, definition events add
-  `definition_history`, and selected timing sessions add `time_tracking`.
+  `definition_history`, configuration events add `configuration_history`, and
+  selected timing sessions add `time_tracking`.
 - Status vocabulary is `unresolved`, `completed`, and `not_completed`.
 - `occurrences.jsonl` includes `current_status` as a snapshot only.
 - `status_events.jsonl` is the status-history source of truth.
@@ -263,12 +327,12 @@ Core alignment rules:
   `recorded_at`/`id` ordering, and `export_only` history-replay support.
 - Core schedules are segmented only when `schedule_graph`, `timezone`, or
   `active` changes. Reminder-only and category-only revisions remain in the
-  Cadence history file and do not split schedule periods.
+  configuration history files and do not split schedule periods.
 - Historical schedule IDs use the configuration event that started the period
   plus semantic schedule and time-entry positions. Core period bounds remain
-  local dates. Exact effective instants, configuration-event IDs, semantic
-  positions, lineage confidence, and import role live only under
-  `extensions.app.cadence`.
+  local dates. Exact effective instants, anchors, schedule roles, grouping,
+  and occurrence configuration-event IDs use standard fields. Cadence semantic
+  positions and lineage confidence remain under `extensions.app.cadence`.
 - Occurrences with captured lineage reference the schedule period that governed
   their configuration event. Every exported `schedule_id` resolves to a core
   schedule record. Legacy null-lineage Occurrences reference a one-local-date,
@@ -350,14 +414,20 @@ Behaviors. A local import baseline is generated only when the bundle has no
 portable baseline for that Behavior. Unmappable events are skipped with a
 warning.
 
-`raw/cadence/behavior_configuration_events.jsonl` follows the same hash
-validation and export-only replay contract. Import and restore use only core
+`data/behavior_configuration_events.jsonl` preserves validated configuration
+history through the applied-run ledger. The optional raw Cadence view retains
+its hash validation and export-only replay contract. Import and restore use only core
 schedules marked `extensions.app.cadence.import_role:
 current_configuration` to build the current Behavior schedule graph. They skip
-`historical_reference_only` schedules as generating schedules. Dependent
-historical Occurrences still import or restore with their schedule kind,
+`historical_reference_only` schedules as generating schedules. New dependent
+historical Occurrences import or restore with their schedule kind,
 preset, and start/end snapshot intact and a null
 `behavior_schedule_slot_id`; their status history and notes remain attached.
+Merge preserves an existing Occurrence's slot link when an explicit record ID,
+source ID, or accepted mapping identifies it and its saved kind, preset, and
+start/end snapshot match the historical schedule. Behavior, UTC instant, local
+date, and timezone must still match. Same-time records alone cannot establish
+this historical identity, and missing saved snapshots cannot authorize it.
 This prevents a daily-to-weekly export from becoming simultaneous daily and
 weekly schedules while preserving Occurrence portability.
 
@@ -369,11 +439,11 @@ Import validation rules:
 
 - Validate `manifest.json` format, schema version, listed files, and SHA-256
   hashes for every listed file.
-- Accept both `0.1.0-draft` and `0.2.0-draft`. Legacy `0.1.0-draft`
+- Accept `0.1.0-draft`, `0.2.0-draft`, and `0.3.0-draft`. Legacy `0.1.0-draft`
   interventions use `scheduled_send_at_utc` and `pending`. Canonical
-  `0.2.0-draft` interventions use `planned_for_utc` and `planned`. Both forms
+  `0.2.0-draft` and `0.3.0-draft` interventions use `planned_for_utc` and `planned`. Both forms
   normalize to Cadence's internal scheduled timestamp and `pending` status.
-  A `0.2.0-draft` intervention that still uses `pending` is invalid.
+  A `0.2.0-draft` or `0.3.0-draft` intervention that still uses `pending` is invalid.
 - Parse the standard definition-history and time-session files when present.
   Unmappable rows become skip actions with warnings.
 - Validate JSONL parsing with file and row errors that can be shown to the user
@@ -603,8 +673,9 @@ User-facing import UI rules:
   a new preview before another apply attempt.
 - Raw uploaded bundle contents are not stored in the import-run ledger.
 - The Export & Import screen must disclose that standard definition history and
-  safely mapped time sessions replay, while the Cadence configuration-history
-  extension remains export-only. Historical Occurrences remain detached from
+  safely mapped time sessions replay. Standard configuration history is retained
+  passively; raw Cadence configuration history remains export-only.
+  Historical Occurrences remain detached from
   inactive historical schedules.
 - Do not add full restore, destructive overwrite, generalized notes browsing, or
   intervention-to-reminder writes in this UI milestone.
@@ -784,6 +855,62 @@ By category:
 - Medical: 30 completed, 1 not completed, 0 unresolved
 ```
 
+## Desktop export adapter
+
+Desktop BehaviorLog exports map native reminder observations to standard
+Interventions with `channel: other`. They may also add
+`raw/cadence/native_reminders.jsonl` as a compatibility view.
+The manifest declares its path, count, ordering, and export-only support under
+`extensions.app.cadence.native_reminders`. Each record contains stable reminder,
+Occurrence, and request IDs, the planned UTC instant, native state, and
+verification/creation/update instants. Records follow the selected Occurrence
+range and archived-Behavior option. Empty native history adds no file.
+
+Native state describes OS scheduling or observation. It never proves that the
+user received or read a notification. The manifest declares user receipt
+unverified. Exact OS delivery evidence survives notification activation and
+later cleanup; a clicked notification leaving OS readback must not turn its
+known delivered history into a cancellation. The extension omits owner IDs,
+notification title/body, and raw
+errors. It does not add hosted reminder channels or modify the core schema.
+JSONL, CSV, Full JSON, and Markdown keep their current schemas.
+
+Desktop ZIP encoding uses `fflate/browser`. Web and desktop share the existing
+ZIP directory checks, size/entry/ratio limits, and CRC validation. Desktop
+decompression uses a fixed declared-size buffer plus one overflow-detection
+byte; forged short declarations cannot silently accept truncated data.
+ZIP byte encoding may differ by runtime; uncompressed file bytes and manifest
+hashes remain authoritative.
+
+## Desktop import and restore
+
+Desktop uses the existing import/merge and destructive restore previews. The
+current-record projection and production restore payload builder live in
+`@cadence/core`. Desktop materializes those reviewed actions into full local
+rows; SQLite owns the atomic commit, append-only history, ownership checks,
+provenance mappings, stale marker and outbox entry.
+
+The native preview ledger binds the exact archive bytes, bundle fingerprint,
+local-data fingerprint and preview fingerprint. Import mode selection binds a
+previously unbound preview once. Native apply consumes only that stored plan;
+it accepts no replacement rows. Repeated applies return the prior result.
+Domain changes invalidate the preview. OS reminder readback and synchronization
+bookkeeping alone do not invalidate it.
+
+Restore keeps the existing backup acknowledgement, typed `RESTORE` confirmation,
+and high/restricted-note acknowledgement. Import keeps the existing apply and
+note-sensitivity acknowledgements. Imported intervention records remain passive.
+Standard native Interventions remain passive on import and re-export.
+Native reminder extension records do not restore OS requests or delivery receipts.
+Normal occurrence/reminder repair runs separately after a
+successful product commit.
+
+The web production import RPC still plans rows in the August 27 SQL functions.
+The desktop projection mirrors those functions and uses the same resolver
+matching decisions. Common SQL/SQLite fixture checks track this remaining
+projection duplication. The desktop does not call the legacy tests-only
+TypeScript write loops.
+
 ## Prompt library
 
 The Export screen includes a UI-only library of static prompt templates after
@@ -841,7 +968,8 @@ The resolver should not query Supabase directly.
 - BehaviorLog includes standard definition-history and optional time-tracking
   files that remain valid in the upstream conformance harness and Cadence
   importer.
-- BehaviorLog includes the optional hashed Cadence configuration-history file,
+- BehaviorLog includes standard configuration history and the optional hashed
+  Cadence compatibility file,
   splits daily-to-weekly and active/timezone schedule periods at exact captured
   revisions, does not split category/reminder-only revisions, orders same-day
   revisions deterministically, and keeps every Occurrence schedule reference
@@ -852,6 +980,14 @@ The resolver should not query Supabase directly.
 - Create-only import, approved merge, and destructive restore keep only the
   current configuration schedule graph while preserving historical Occurrences,
   statuses, notes, definition events, and safely mapped time sessions.
+- Restore Keep actions preserve exact stored rows, including category nulls,
+  schedule parents, and timestamps. A separately accepted Note or status-history
+  action can change those fields on a kept Occurrence. SQL validates the full
+  accepted payload before separating kept records from actual writes.
+- Portable instant comparisons normalize equivalent UTC encodings, including
+  PostgREST `+00:00` and exported `Z`, while stale-write guards retain exact
+  stored row timestamps. Existing previews may require a fresh preview after
+  this normalization update; stale previews must not write data.
 - Repository coverage proves keyset reads beyond 1,000 equal-timestamp rows,
   exactly 100,000 rows, a loud 100,001st-row failure, and the local PostgREST
   timestamp/ID cursor grammar.

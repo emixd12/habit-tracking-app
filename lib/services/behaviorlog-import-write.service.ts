@@ -282,7 +282,7 @@ export async function applyAcceptedBehaviorLogImportPlanAtomically(
       producer_version: manifest.producerVersion,
       subject_id_strategy: manifest.subjectIdStrategy,
       privacy_redaction_level: manifest.privacyRedactionLevel,
-      dry_run_summary: toDryRunSummarySnapshot(input.preview),
+      dry_run_summary: { ...toDryRunSummarySnapshot(input.preview), ...(input.preview.portability ? { portability: input.preview.portability } : {}) },
     },
     preview: input.preview,
   });

@@ -74,6 +74,7 @@ async function checkBuiltOutput() {
   const llmsSize = statSync(join(dist, "llms.txt")).size;
   assert(llmsSize > 0, "llms.txt must not be empty.");
   assert(llmsSize < 50_000, "llms.txt must stay under 50 KB.");
+  assertSameOriginLlmsLinksExist(read("llms.txt"));
 
   for (const markdownFile of ["index.md", "examples.md", "docs.md", "about.md", "faq.md"]) {
     const size = statSync(join(dist, markdownFile)).size;
@@ -124,6 +125,21 @@ async function checkBuiltOutput() {
   const bundleSize = statSync(join(dist, "examples/cadence-demo.behaviorlog.zip")).size;
   assert(bundleSize > 0, "Example BehaviorLog bundle must not be empty.");
   await assertExampleBundleImports();
+}
+
+function assertSameOriginLlmsLinksExist(llms) {
+  for (const [, href] of llms.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
+    const url = new URL(href, "https://marketing.invalid");
+    if (url.origin !== "https://marketing.invalid") continue;
+    const path = decodeURIComponent(url.pathname).replace(/^\//, "");
+    const artifact =
+      path === "" || path.endsWith("/")
+        ? `${path}index.html`
+        : path.split("/").at(-1).includes(".")
+          ? path
+          : `${path}/index.html`;
+    assert(existsSync(join(dist, artifact)), `llms.txt link has no generated artifact: ${href}`);
+  }
 }
 
 async function assertExampleBundleImports() {

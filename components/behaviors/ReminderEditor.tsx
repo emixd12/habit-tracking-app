@@ -3,6 +3,7 @@ type ReminderEditorProps = Readonly<{
   emailReminderEnabled: boolean;
   reminderOffsetMinutes: number;
   error?: string;
+  runtime?: "web" | "desktop";
 }>;
 
 const COMPACT_UNDERLINED_FIELD_CONTROL_CLASS =
@@ -13,13 +14,20 @@ export function ReminderEditor({
   emailReminderEnabled,
   reminderOffsetMinutes,
   error,
+  runtime = "web",
 }: ReminderEditorProps) {
   return (
     <fieldset className="grid gap-3 border-0 p-0">
       <legend className="mb-1 text-lg leading-tight">Reminders</legend>
 
       <div className="grid gap-2">
-        <div className="grid gap-2 lg:grid-cols-[max-content_max-content_minmax(16rem,1fr)] lg:items-center lg:gap-x-5">
+        <div
+          className={
+            runtime === "desktop"
+              ? "grid gap-2 lg:grid-cols-[max-content_minmax(16rem,1fr)] lg:items-center lg:gap-x-5"
+              : "grid gap-2 lg:grid-cols-[max-content_max-content_minmax(16rem,1fr)] lg:items-center lg:gap-x-5"
+          }
+        >
           <label className="flex min-h-11 items-center gap-2 py-1 text-sm">
             <input
               type="checkbox"
@@ -27,18 +35,28 @@ export function ReminderEditor({
               defaultChecked={browserReminderEnabled}
               className="h-4 w-4 accent-[var(--primary)]"
             />
-            Browser notifications
+            {runtime === "desktop"
+              ? "Native reminders"
+              : "Browser notifications"}
           </label>
 
-          <label className="flex min-h-11 items-center gap-2 py-1 text-sm">
+          {runtime === "desktop" ? (
             <input
-              type="checkbox"
+              type="hidden"
               name="email_reminder"
-              defaultChecked={emailReminderEnabled}
-              className="h-4 w-4 accent-[var(--primary)]"
+              value={emailReminderEnabled ? "on" : ""}
             />
-            Email reminder
-          </label>
+          ) : (
+            <label className="flex min-h-11 items-center gap-2 py-1 text-sm">
+              <input
+                type="checkbox"
+                name="email_reminder"
+                defaultChecked={emailReminderEnabled}
+                className="h-4 w-4 accent-[var(--primary)]"
+              />
+              Email reminder
+            </label>
+          )}
 
           <label className="grid gap-1 text-sm lg:ml-auto lg:flex lg:min-h-11 lg:w-full lg:items-center lg:gap-3">
             <span className="shrink-0">Reminder offset</span>
@@ -57,9 +75,20 @@ export function ReminderEditor({
         </div>
 
         <p className="text-sm leading-6 text-muted-readable">
-          Browser reminders use devices that are enabled in Settings. If this
-          device is not enabled or browser notifications are blocked, the
-          behavior is still tracked.
+          {runtime === "desktop" ? (
+            <>
+              Native reminders require macOS notification permission and
+              verified reminder coverage. Tracking works without notification
+              permission. Email reminder intent is preserved but email delivery
+              is unavailable in the local profile.
+            </>
+          ) : (
+            <>
+              Browser reminders use devices that are enabled in Settings. If
+              this device is not enabled or browser notifications are blocked,
+              the behavior is still tracked.
+            </>
+          )}
         </p>
       </div>
 

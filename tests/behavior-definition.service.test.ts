@@ -258,6 +258,24 @@ describe("updateBehaviorFromFormData definition history", () => {
     expect(mocks.syncUserOccurrencesAndReminders).toHaveBeenCalledOnce();
   });
 
+  it("clears description in both the snapshot and its definition event", async () => {
+    const { updateBehaviorFromFormData } = await import(
+      "../lib/services/behavior.service"
+    );
+    await updateBehaviorFromFormData(updateFormData({ description: "" }));
+    expect(mocks.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        behavior: expect.objectContaining({ description: null }),
+        definitionEventPlan: expect.objectContaining({
+          previousDescription: "Evening routine",
+          nextDescription: null,
+          changedFields: ["description"],
+        }),
+      }),
+    );
+  });
+
   it("passes the revision loaded by the browser to the atomic update", async () => {
     const { updateBehaviorFromFormData } = await import(
       "../lib/services/behavior.service"

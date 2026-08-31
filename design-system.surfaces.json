@@ -15,7 +15,11 @@
       "name": "Authenticated web app",
       "status": "implemented",
       "runtime": "Next.js App Router / React",
-      "sourceRoots": ["app", "components", "lib"],
+      "sourceRoots": [
+        "app",
+        "components",
+        "lib"
+      ],
       "nativeBench": "/design-system",
       "inventory": "design-system.manifest.json",
       "notes": "Primary live harness today. It renders fixture-backed React components and verifies product usages through design-system.usage.json."
@@ -25,7 +29,9 @@
       "name": "Astro marketing site",
       "status": "implemented",
       "runtime": "Astro static site",
-      "sourceRoots": ["apps/marketing/src"],
+      "sourceRoots": [
+        "apps/marketing/src"
+      ],
       "nativeBench": null,
       "inventory": null,
       "notes": "Shares Cadence tokens, voice, square ledger marks, CTAs, sections, and product captures, but does not share the authenticated app shell or React component source."
@@ -33,19 +39,23 @@
     {
       "id": "desktop",
       "name": "Desktop app",
-      "status": "proposal",
-      "runtime": "Future Tauri / local-first React SPA",
-      "sourceRoots": ["apps/desktop"],
-      "nativeBench": null,
+      "status": "in_progress",
+      "runtime": "Tauri v2 / Vite / React",
+      "sourceRoots": [
+        "apps/desktop"
+      ],
+      "nativeBench": "apps/desktop/src/main.tsx",
       "inventory": null,
-      "notes": "Proposal-track surface. It should reuse tokens and presentational patterns while avoiding Next server components and server actions."
+      "notes": "The product uses shared tokens and UI across Timeline, Behaviors, Export & Import, and Settings over local services. Actual native create/status/Note/timer and Settings readback proof is recorded. Full native parity remains under verification. The operator bench remains separate."
     },
     {
       "id": "mobile",
       "name": "Mobile app",
       "status": "proposal",
       "runtime": "Future local-first mobile shell",
-      "sourceRoots": ["apps/mobile"],
+      "sourceRoots": [
+        "apps/mobile"
+      ],
       "nativeBench": null,
       "inventory": null,
       "notes": "Proposal-track surface following the desktop local-first direction. Shared contracts should bias toward tokens, primitives, and presentational module specs."
@@ -68,31 +78,46 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["app/globals.css", "DESIGN.md"],
+          "sources": [
+            "packages/ui/tokens.css",
+            "app/globals.css",
+            "DESIGN.md"
+          ],
           "implementationIds": [],
-          "notes": "Tailwind v4 CSS variables and product classes are the current canonical token implementation."
+          "notes": "packages/ui/tokens.css owns canonical CSS variables. app/globals.css imports them and retains the Tailwind adapter and product classes. The existing Next font loader remains unchanged."
         },
         {
           "surfaceId": "marketing",
           "status": "implemented",
           "parity": "adapted",
-          "sources": ["apps/marketing/src/styles/global.css", "DESIGN.md"],
+          "sources": [
+            "packages/ui/tokens.css",
+            "apps/marketing/src/styles/global.css",
+            "DESIGN.md"
+          ],
           "implementationIds": [],
-          "notes": "Astro uses matching CSS variables and section vocabulary, with marketing-specific hero and route styles."
+          "notes": "Astro imports canonical variables and keeps marketing-specific tokens, the existing accent value, fonts, hero, and route styles local."
         },
         {
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "packages/ui/tokens.css",
+            "packages/ui/fonts.css",
+            "apps/desktop/src/timeline.css",
+            "docs/qa/2026-08-30-desktop-native-boundary.md"
+          ],
           "implementationIds": [],
-          "notes": "Carry over Tailwind tokens or generated token outputs when the desktop track starts."
+          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Use the same token names and semantic meanings even if native platform values are generated."
         }
@@ -115,15 +140,24 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["app/globals.css", "components/timeline/TimeTracker.tsx"],
-          "implementationIds": ["module.status-buttons", "module.time-tracker", "composite.occurrence-note-form"],
+          "sources": [
+            "app/globals.css",
+            "components/timeline/TimeTracker.tsx"
+          ],
+          "implementationIds": [
+            "module.status-buttons",
+            "module.time-tracker",
+            "composite.occurrence-note-form"
+          ],
           "notes": "Implemented through product-action variants, timeline-status-action, and contrast-aware Timeline timing actions. The timing action becomes a static label only while running."
         },
         {
           "surfaceId": "marketing",
           "status": "implemented",
           "parity": "adapted",
-          "sources": ["apps/marketing/src/styles/global.css"],
+          "sources": [
+            "apps/marketing/src/styles/global.css"
+          ],
           "implementationIds": [],
           "notes": "Implemented by .button, .button--primary, .inline-link, and CTA rows."
         },
@@ -131,15 +165,22 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "app/globals.css",
+            "components/timeline/TimeTracker.tsx",
+            "apps/desktop/src/timeline-screen.tsx",
+            "docs/qa/2026-08-30-desktop-native-boundary.md"
+          ],
           "implementationIds": [],
-          "notes": "Should be a presentational primitive in the SPA/native shell."
+          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Native implementation must preserve tap-target and focus/active affordance equivalents."
         }
@@ -162,15 +203,27 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["app/globals.css", "components/behaviors/BehaviorForm.tsx", "components/settings/SettingsPanels.tsx"],
-          "implementationIds": ["composite.behavior-form", "module.reminder-editor", "module.export-range-selector", "module.timezone-panel", "flow.account-deletion-panel"],
+          "sources": [
+            "app/globals.css",
+            "components/behaviors/BehaviorForm.tsx",
+            "components/settings/SettingsPanels.tsx"
+          ],
+          "implementationIds": [
+            "composite.behavior-form",
+            "module.reminder-editor",
+            "module.export-range-selector",
+            "module.timezone-panel",
+            "flow.account-deletion-panel"
+          ],
           "notes": "Current field patterns are visible through behavior, settings, export, import, restore, and note fixtures. Behavior schedule controls use line-led fields; longer notes and confirmation fields keep functional enclosure."
         },
         {
           "surfaceId": "marketing",
           "status": "not-applicable",
           "parity": "not-applicable",
-          "sources": ["apps/marketing/src/styles/global.css"],
+          "sources": [
+            "apps/marketing/src/styles/global.css"
+          ],
           "implementationIds": [],
           "notes": "Marketing has links and tables, but no launch-scope data-entry forms."
         },
@@ -178,15 +231,22 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "components/behaviors/BehaviorForm.tsx",
+            "components/settings/TimezonePanel.tsx",
+            "apps/desktop/src/settings-screen.tsx",
+            "docs/qa/2026-08-30-desktop-native-boundary.md"
+          ],
           "implementationIds": [],
-          "notes": "Use presentational form controls over local-first hooks/services."
+          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Use native-friendly field sizing and platform keyboard behavior while preserving token semantics."
         }
@@ -207,31 +267,46 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["lib/navigation.ts", "components/layout/AppShell.tsx"],
-          "implementationIds": ["navigation.primary-app-nav", "layout.app-shell"],
+          "sources": [
+            "lib/navigation.ts",
+            "components/layout/AppShell.tsx"
+          ],
+          "implementationIds": [
+            "navigation.primary-app-nav",
+            "layout.app-shell"
+          ],
           "notes": "Fixed desktop rail and mobile drawer render from APP_NAV_ITEMS. The expanded Cadence brand mark/name links to Timeline with 70% opacity feedback, the collapsed desktop brand cell is an expand-only button that reveals the open-sidebar icon on hover, and the sticky mobile header fades in its bottom divider as the page scrolls."
         },
         {
           "surfaceId": "marketing",
           "status": "implemented",
           "parity": "adapted",
-          "sources": ["apps/marketing/src/layouts/BaseLayout.astro", "apps/marketing/src/data/routes.ts"],
+          "sources": [
+            "apps/marketing/src/layouts/BaseLayout.astro",
+            "apps/marketing/src/data/routes.ts"
+          ],
           "implementationIds": [],
-          "notes": "Marketing header renders a Cadence-only brand lockup, Cadence and BehaviorLog route links, footer links including About, and a persistent login action."
+          "notes": "Marketing header renders a Cadence-only brand lockup, a compact macOS preview-download button, and a persistent login action. Footer links carry supporting Cadence, BehaviorLog, trust, and legal routes."
         },
         {
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "apps/desktop/src/desktop-app.tsx",
+            "apps/desktop/src/product.tsx",
+            "docs/qa/2026-08-30-desktop-native-boundary.md"
+          ],
           "implementationIds": [],
-          "notes": "Reuse the few-route structure, adapted to local-first shell constraints."
+          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "May use native/mobile navigation primitives but must preserve the same screen model."
         }
@@ -252,15 +327,27 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/layout/AppShell.tsx", "components/layout/ScreenFrame.tsx", "app/(app)/layout.tsx", "public/brand/cadence-page-banner-lines-dots.png"],
-          "implementationIds": ["layout.app-shell", "layout.cadence-page-banner", "layout.screen-frame"],
+          "sources": [
+            "components/layout/AppShell.tsx",
+            "components/layout/ScreenFrame.tsx",
+            "app/(app)/layout.tsx",
+            "public/brand/cadence-page-banner-lines-dots.png"
+          ],
+          "implementationIds": [
+            "layout.app-shell",
+            "layout.cadence-page-banner",
+            "layout.screen-frame"
+          ],
           "notes": "Authenticated shell owns app navigation, route framing, the Timeline banner, and the shared full-width decorative page banner for ScreenFrame-backed pages."
         },
         {
           "surfaceId": "marketing",
           "status": "implemented",
           "parity": "adapted",
-          "sources": ["apps/marketing/src/layouts/BaseLayout.astro", "apps/marketing/src/styles/global.css"],
+          "sources": [
+            "apps/marketing/src/layouts/BaseLayout.astro",
+            "apps/marketing/src/styles/global.css"
+          ],
           "implementationIds": [],
           "notes": "Static document shell owns marketing metadata, header, footer, and page-section rhythm."
         },
@@ -268,15 +355,21 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "apps/desktop/src/desktop-app.tsx",
+            "apps/desktop/src/desktop-screen-frame.tsx",
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
-          "notes": "The shell should be a client SPA shell without Next server assumptions."
+          "notes": "The local shell and frame preserve the web rail, mobile drawer, banner, and page spacing. Unavailable screens remain disabled; native visual QA remains in progress."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Mobile shell may be native or webview, but should keep screen structure compact and task-first."
         }
@@ -300,15 +393,27 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["app/globals.css", "components/behaviors/BehaviorCreateSection.tsx", "components/behaviors/BehaviorList.tsx", "components/timeline/OccurrenceRow.tsx"],
-          "implementationIds": ["module.behavior-create-section", "module.behavior-list", "composite.occurrence-row"],
+          "sources": [
+            "app/globals.css",
+            "components/behaviors/BehaviorCreateSection.tsx",
+            "components/behaviors/BehaviorList.tsx",
+            "components/timeline/OccurrenceRow.tsx"
+          ],
+          "implementationIds": [
+            "module.behavior-create-section",
+            "module.behavior-list",
+            "composite.occurrence-row"
+          ],
           "notes": "Behavior creation, settings editing, archived behavior access, behavior date review, and Timeline row details use native details/summary. Timeline rows omit a separate disclosure icon by contract; the row summary itself is the trigger."
         },
         {
           "surfaceId": "marketing",
           "status": "adapted",
           "parity": "adapted",
-          "sources": ["apps/marketing/src/pages/docs.astro", "apps/marketing/src/styles/global.css"],
+          "sources": [
+            "apps/marketing/src/pages/docs.astro",
+            "apps/marketing/src/styles/global.css"
+          ],
           "implementationIds": [],
           "notes": "Marketing uses static sections and tables rather than app-style editable disclosures."
         },
@@ -316,7 +421,9 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "A shared presentational disclosure pattern is a good candidate for packages/ui later."
         },
@@ -324,7 +431,9 @@
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Disclosure must preserve mobile tap targets and avoid nested modal flows."
         }
@@ -346,8 +455,13 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/onboarding/FirstRunOnboardingPanel.tsx", "app/(app)/timeline/page.tsx"],
-          "implementationIds": ["flow.first-run-onboarding-panel"],
+          "sources": [
+            "components/onboarding/FirstRunOnboardingPanel.tsx",
+            "app/(app)/timeline/page.tsx"
+          ],
+          "implementationIds": [
+            "flow.first-run-onboarding-panel"
+          ],
           "notes": "The Timeline route renders the setup pop-up only when the onboarding model says required setup remains."
         },
         {
@@ -362,15 +476,21 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "apps/desktop/src/onboarding-guide.tsx",
+            "apps/desktop/src/settings-screen.tsx",
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
-          "notes": "Desktop setup should reuse the same completion semantics once that surface is scheduled."
+          "notes": "The local guide reuses the existing checklist model, dismissal preference, and task navigation. Settings can reopen it; native interaction QA remains in progress."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Mobile setup may use native placement but must avoid a blocking wizard."
         }
@@ -393,15 +513,30 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/timeline/Timeline.tsx", "components/timeline/MobileTimelinePullToRefresh.tsx", "components/timeline/TimelineGroup.tsx", "components/timeline/OccurrenceRow.tsx", "components/timeline/TimeTracker.tsx"],
-          "implementationIds": ["module.timeline", "module.mobile-timeline-pull-to-refresh", "module.timeline-group", "composite.occurrence-row", "module.time-tracker"],
+          "sources": [
+            "components/timeline/Timeline.tsx",
+            "components/timeline/MobileTimelinePullToRefresh.tsx",
+            "components/timeline/TimelineGroup.tsx",
+            "components/timeline/OccurrenceRow.tsx",
+            "components/timeline/TimeTracker.tsx"
+          ],
+          "implementationIds": [
+            "module.timeline",
+            "module.mobile-timeline-pull-to-refresh",
+            "module.timeline-group",
+            "composite.occurrence-row",
+            "module.time-tracker"
+          ],
           "notes": "Live fixture-backed Timeline modules are rendered in the current bench. The mobile wrapper owns threshold feedback, native-refresh suppression, and one in-flight route refresh."
         },
         {
           "surfaceId": "marketing",
           "status": "implemented-static",
           "parity": "adapted",
-          "sources": ["apps/marketing/src/components/ProductCapture.astro", "apps/marketing/src/components/HeroVisual.astro"],
+          "sources": [
+            "apps/marketing/src/components/ProductCapture.astro",
+            "apps/marketing/src/components/HeroVisual.astro"
+          ],
           "implementationIds": [],
           "notes": "Marketing uses sanitized static captures to communicate the same row vocabulary; the homepage uses the supplied exported hero image with the Timeline capture in the MacBook visual."
         },
@@ -409,15 +544,22 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "apps/desktop/src/timeline-screen.tsx",
+            "components/timeline/TimelineGroup.tsx",
+            "components/timeline/OccurrenceRow.tsx",
+            "docs/qa/2026-08-30-desktop-native-boundary.md"
+          ],
           "implementationIds": [],
-          "notes": "Likely reusable as presentational React components after removing server-action assumptions."
+          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Mobile should preserve current mobile row structure and safe-area Needs decision action."
         }
@@ -439,15 +581,24 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/timeline/NeedsDecisionDialog.tsx", "components/timeline/TimelineGroup.tsx"],
-          "implementationIds": ["module.needs-decision-dialog", "module.timeline-group"],
+          "sources": [
+            "components/timeline/NeedsDecisionDialog.tsx",
+            "components/timeline/TimelineGroup.tsx"
+          ],
+          "implementationIds": [
+            "module.needs-decision-dialog",
+            "module.timeline-group"
+          ],
           "notes": "Implemented as fixed button plus modal/sheet with accessible dialog labeling."
         },
         {
           "surfaceId": "marketing",
           "status": "implemented-static",
           "parity": "adapted",
-          "sources": ["apps/marketing/src/components/ProductCapture.astro", "apps/marketing/src/data/routes.ts"],
+          "sources": [
+            "apps/marketing/src/components/ProductCapture.astro",
+            "apps/marketing/src/data/routes.ts"
+          ],
           "implementationIds": [],
           "notes": "Marketing references Needs decision through sanitized copy and captures only."
         },
@@ -455,15 +606,21 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "components/timeline/NeedsDecisionDialog.tsx",
+            "apps/desktop/src/timeline-screen.tsx",
+            "docs/qa/2026-08-30-desktop-native-boundary.md"
+          ],
           "implementationIds": [],
-          "notes": "Reuse the derived-state contract through local services/resolvers."
+          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Likely a native/full-height sheet equivalent with the same date grouping."
         }
@@ -485,8 +642,13 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/behaviors/BehaviorList.tsx", "app/globals.css"],
-          "implementationIds": ["module.behavior-list"],
+          "sources": [
+            "components/behaviors/BehaviorList.tsx",
+            "app/globals.css"
+          ],
+          "implementationIds": [
+            "module.behavior-list"
+          ],
           "notes": "Live Behaviors fixture owns current heatmap and behavior date review behavior."
         },
         {
@@ -501,15 +663,21 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "apps/desktop/src/behaviors-screen.tsx",
+            "components/behaviors/BehaviorList.tsx",
+            "docs/qa/2026-08-30-desktop-native-boundary.md"
+          ],
           "implementationIds": [],
-          "notes": "Should be portable once resolver-fed view models are available in the local-first shell."
+          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "May need denser or horizontally scroll-free cell sizing while preserving status semantics."
         }
@@ -532,8 +700,19 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["app/(app)/settings/page.tsx", "components/settings/TimezonePanel.tsx", "components/settings/NotificationPermissionPanel.tsx", "components/settings/SettingsPanels.tsx", "components/settings/AccountDeletionPanel.tsx"],
-          "implementationIds": ["module.timezone-panel", "module.notification-permission-panel", "module.trust-and-legal-panel", "flow.account-deletion-panel"],
+          "sources": [
+            "app/(app)/settings/page.tsx",
+            "components/settings/TimezonePanel.tsx",
+            "components/settings/NotificationPermissionPanel.tsx",
+            "components/settings/SettingsPanels.tsx",
+            "components/settings/AccountDeletionPanel.tsx"
+          ],
+          "implementationIds": [
+            "module.timezone-panel",
+            "module.notification-permission-panel",
+            "module.trust-and-legal-panel",
+            "flow.account-deletion-panel"
+          ],
           "notes": "Settings modules are fixture-backed in the bench with bench-only actions for mutable controls."
         },
         {
@@ -548,15 +727,21 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "apps/desktop/src/settings-screen.tsx",
+            "components/settings/TimezonePanel.tsx",
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
-          "notes": "Desktop settings should separate local storage concerns from hosted account controls."
+          "notes": "The local screen reuses timezone controls and reports native permission, actual retained requests, contiguous coverage, target, and readback time. Native workflow QA remains in progress."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Mobile settings should keep destructive account operations explicit and hard to trigger accidentally."
         }
@@ -578,8 +763,17 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/behaviors/BehaviorCreateSection.tsx", "components/behaviors/BehaviorForm.tsx", "components/behaviors/BehaviorList.tsx"],
-          "implementationIds": ["module.behavior-create-section", "composite.behavior-form", "module.behavior-list", "module.reminder-editor"],
+          "sources": [
+            "components/behaviors/BehaviorCreateSection.tsx",
+            "components/behaviors/BehaviorForm.tsx",
+            "components/behaviors/BehaviorList.tsx"
+          ],
+          "implementationIds": [
+            "module.behavior-create-section",
+            "composite.behavior-form",
+            "module.behavior-list",
+            "module.reminder-editor"
+          ],
           "notes": "Current live behavior management modules are fixture-backed in the bench."
         },
         {
@@ -594,15 +788,21 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "apps/desktop/src/behaviors-screen.tsx",
+            "components/behaviors/BehaviorForm.tsx",
+            "docs/qa/2026-08-30-desktop-native-boundary.md"
+          ],
           "implementationIds": [],
-          "notes": "Should extract presentational pieces only after desktop work is scheduled."
+          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Likely needs native-friendly slot editing while preserving recurrence semantics."
         }
@@ -624,15 +824,29 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["components/export/ExportPanel.tsx", "components/export/BehaviorLogImportPanel.tsx", "components/export/BehaviorLogRestorePanel.tsx"],
-          "implementationIds": ["module.export-panel", "module.export-range-selector", "module.behavior-log-import-panel", "module.behavior-log-restore-panel", "module.markdown-summary-actions"],
+          "sources": [
+            "components/export/ExportPanel.tsx",
+            "components/export/BehaviorLogImportPanel.tsx",
+            "components/export/BehaviorLogRestorePanel.tsx"
+          ],
+          "implementationIds": [
+            "module.export-panel",
+            "module.export-range-selector",
+            "module.behavior-log-import-panel",
+            "module.behavior-log-restore-panel",
+            "module.markdown-summary-actions"
+          ],
           "notes": "Current export/import/restore modules are in the web app manifest and bench."
         },
         {
           "surfaceId": "marketing",
           "status": "implemented-static",
           "parity": "adapted",
-          "sources": ["apps/marketing/src/components/ProductCapture.astro", "apps/marketing/src/pages/examples.astro", "apps/marketing/src/pages/docs.astro"],
+          "sources": [
+            "apps/marketing/src/components/ProductCapture.astro",
+            "apps/marketing/src/pages/examples.astro",
+            "apps/marketing/src/pages/docs.astro"
+          ],
           "implementationIds": [],
           "notes": "Marketing renders BehaviorLog bundle captures, docs tables, and example download links."
         },
@@ -640,15 +854,21 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "apps/desktop/src/export-screen.tsx",
+            "components/export/ExportPanel.tsx",
+            "docs/qa/2026-08-30-desktop-native-boundary.md"
+          ],
           "implementationIds": [],
-          "notes": "Desktop import/export should bridge local storage and existing full JSON/BehaviorLog outputs."
+          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Mobile export affordances may differ, but warnings and explicitness stay canonical."
         }
@@ -669,15 +889,25 @@
           "surfaceId": "web-app",
           "status": "implemented",
           "parity": "adapted",
-          "sources": ["app/icon.png", "app/apple-icon.png", "components/layout/AppShell.tsx"],
-          "implementationIds": ["layout.app-shell"],
+          "sources": [
+            "app/icon.png",
+            "app/apple-icon.png",
+            "components/layout/AppShell.tsx"
+          ],
+          "implementationIds": [
+            "layout.app-shell"
+          ],
           "notes": "Web app uses the Cadence app mark and compact shell branding."
         },
         {
           "surfaceId": "marketing",
           "status": "implemented",
           "parity": "canonical",
-          "sources": ["apps/marketing/src/components/BrandMarks.astro", "apps/marketing/src/components/HeroVisual.astro", "apps/marketing/public/brand/cadence-logo.png"],
+          "sources": [
+            "apps/marketing/src/components/BrandMarks.astro",
+            "apps/marketing/src/components/HeroVisual.astro",
+            "apps/marketing/public/brand/cadence-logo.png"
+          ],
           "implementationIds": [],
           "notes": "Marketing uses the Cadence mark and name in the header plus the supplied trajectory horse and MacBook capture image in the homepage hero; BehaviorLog is represented through page copy, bundle captures, and the BehaviorLog route."
         },
@@ -685,7 +915,9 @@
           "surfaceId": "desktop",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Desktop app icon and shell branding should derive from this family."
         },
@@ -693,7 +925,9 @@
           "surfaceId": "mobile",
           "status": "planned",
           "parity": "planned",
-          "sources": ["docs/DESKTOP_BUILD.md"],
+          "sources": [
+            "docs/DESKTOP_BUILD.md"
+          ],
           "implementationIds": [],
           "notes": "Mobile app icon and splash/launch marks should derive from this family when scheduled."
         }
