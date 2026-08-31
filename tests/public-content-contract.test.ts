@@ -11,6 +11,7 @@ import {
   statusDefinitions,
   vocabulary,
 } from "../apps/marketing/src/data/vocabulary";
+import { LEGAL_PAGES } from "../components/settings/LegalContent";
 
 const publicCopy = [
   siteConfig.description,
@@ -19,6 +20,7 @@ const publicCopy = [
     description,
     markdown,
   ]),
+  JSON.stringify(LEGAL_PAGES),
   ...[
     "README.md",
     "apps/marketing/src/layouts/BaseLayout.astro",
@@ -38,8 +40,18 @@ const home = marketingRoutes.find(
 const about = marketingRoutes.find(
   ({ routeId }) => routeId === "about",
 )!.markdown;
-const statusSurfaces = [home, buildFaqCopy(), about];
-const exportSurfaces = [home, buildFaqCopy()];
+const statusSurfaces = [
+  home,
+  buildFaqCopy(),
+  about,
+  JSON.stringify(LEGAL_PAGES.terms),
+];
+const exportSurfaces = [
+  home,
+  buildFaqCopy(),
+  JSON.stringify(LEGAL_PAGES.privacy),
+  JSON.stringify(LEGAL_PAGES.terms),
+];
 
 describe("public content contract", () => {
   it("keeps vocabulary, statuses, and exports canonical", () => {

@@ -1,11 +1,21 @@
 import type { ReactNode } from "react";
 
+import {
+  exportFormats,
+  statusDefinitions,
+} from "../../apps/marketing/src/data/vocabulary";
+
 export type LegalPageKey = "privacy" | "terms" | "trust";
 
 type LegalSection = Readonly<{
   title: string;
   paragraphs: readonly string[];
   items?: readonly string[];
+  table?: Readonly<{
+    caption: string;
+    headers: readonly string[];
+    rows: readonly (readonly string[])[];
+  }>;
 }>;
 
 type LegalPage = Readonly<{
@@ -25,35 +35,161 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
   privacy: {
     title: "Privacy",
     summary:
-      "Cadence stores the account and behavior data needed to run a private recurring-behavior tracker.",
-    updated: "June 19, 2026",
+      "Privacy policy for the Cadence marketing site and hosted personal behavior tracker.",
+    updated: "August 31, 2026",
     sections: [
       {
-        title: "Data Cadence stores",
+        title: "Scope and operator",
         paragraphs: [
-          "Cadence stores the email from Google sign-in when available, profile timezone, categories, behaviors, schedules, reminders, occurrences, statuses, notes, exports, imports, push subscription records, and reminder delivery records.",
-          "Behavior and occurrence notes are free text. Treat them as personal records and avoid storing details you do not want in the app.",
+          "This policy describes the Cadence marketing site and hosted personal behavior tracker operated by Identity Scaffolding LLC, a Wyoming limited liability company assumed authorized in New York, at 30 N Gould St Ste R, Sheridan, WY 82801.",
+          "The public marketing site presents product information. It does not use marketing analytics, advertising pixels, payment tracking, or social tracking. Hosting infrastructure may still process ordinary request data such as an IP address, browser details, requested path, and request time.",
         ],
       },
       {
-        title: "How data is used",
+        title: "Account and behavior data",
         paragraphs: [
-          "The app uses account data to authenticate the user, generate scheduled occurrences, show the Timeline, save manual Completed or Not Completed decisions, send configured reminders, build basic analytics, and create exports.",
-          "Unresolved occurrences are left unresolved until the user acts. Cadence does not automatically mark a prior occurrence as missed or failed.",
+          "Google sign-in can provide an account identifier, email address, and profile information. Cadence stores the profile timezone and the records needed to operate the account.",
+          "Those records can include categories, Behaviors, Schedules, reminders, Occurrences, Decisions, notes, optional timing data, definition and Decision history, imports, export activity, push subscriptions, and reminder delivery records.",
+          "Notes are free text. Users should not enter information they do not want stored in Cadence.",
         ],
       },
       {
-        title: "Service providers",
+        title: "Exports and external AI services",
         paragraphs: [
-          "Cadence uses Supabase for authentication and database storage, Vercel for the deployed web app, browser push APIs for browser reminders, and Sequenzy only when email reminders are enabled.",
-          "The launch app does not include marketing analytics, advertising pixels, payment tracking, or social tracking.",
+          `Cadence provides ${exportFormats.join(", ")} exports. The user chooses when and where to download or share an export.`,
+          "Cadence provides prepared prompts, but it does not send behavior data to an AI provider. If a user shares an export or prompt with an external AI service, that service's terms and privacy policy govern its processing.",
         ],
       },
       {
-        title: "Portability and deletion",
+        title: "How Cadence uses data",
         paragraphs: [
-          "The Export screen provides portable JSONL, CSV, full JSON, Markdown, and BehaviorLog bundle downloads.",
-          "The Settings screen provides account deletion. Export records before deleting an account because deletion is permanent.",
+          "Cadence uses data to authenticate accounts, generate scheduled Occurrences, display records, save explicit Decisions and notes, provide optional timing, send configured reminders, calculate basic analytics, create exports, secure the service, prevent abuse, diagnose failures, and respond to requests.",
+          "Cadence does not sell personal information or share it for cross-context behavioral advertising. Cadence does not automatically turn an Unresolved Occurrence into a failure.",
+        ],
+      },
+      {
+        title: "Processors",
+        paragraphs: [
+          "Cadence uses the following service providers for the stated purposes. A provider processes data under its own service terms and the operator's configuration.",
+        ],
+        table: {
+          caption: "Cadence service providers and purposes",
+          headers: ["Provider", "Purpose", "Data involved"],
+          rows: [
+            [
+              "Vercel",
+              "Application and marketing hosting",
+              "Request and runtime data",
+            ],
+            [
+              "Supabase",
+              "Google authentication and database storage",
+              "Account and Cadence records",
+            ],
+            [
+              "Google",
+              "User-selected Google sign-in",
+              "Google account and authentication data",
+            ],
+            [
+              "Browser push services",
+              "Optional browser reminders",
+              "Push endpoint and reminder delivery data",
+            ],
+            [
+              "Sequenzy",
+              "Optional email reminders",
+              "Email address and reminder message data",
+            ],
+          ],
+        },
+      },
+      {
+        title: "Retention",
+        paragraphs: [
+          "Cadence uses the retention periods below. A provider may delete data sooner. Specific records may be kept longer when required for a security investigation, fraud prevention, or legal preservation.",
+          "Provider settings and published capabilities were verified before this policy took effect.",
+        ],
+        table: {
+          caption: "Cadence retention periods as of August 31, 2026",
+          headers: ["Record", "Retention period", "Active control"],
+          rows: [
+            [
+              "Routine logs",
+              "No more than 7 days",
+              "Vercel Pro runtime logs: 1 day; Supabase Pro API and database logs: 7 days",
+            ],
+            [
+              "Security-incident logs",
+              "Up to 90 days or the end of the investigation",
+              "Records are preserved only when needed for an active investigation",
+            ],
+            [
+              "Backups",
+              "No more than 7 days",
+              "Supabase Pro daily backups: 7 days",
+            ],
+            [
+              "Deleted-account live data",
+              "Immediately or within 7 days",
+              "Auth deletion and database cascades remove live account data immediately when deletion succeeds",
+            ],
+            [
+              "Deleted-account backup remnants",
+              "No more than 7 days",
+              "Supabase daily backups: 7 days",
+            ],
+            [
+              "Browser-push payloads",
+              "No more than 24 hours after send",
+              "Cadence sends a 24-hour TTL; the push service may retain the payload for less",
+            ],
+            [
+              "Sequenzy transactional data",
+              "Under Sequenzy's active service terms and controls",
+              "Subscriber data remains while the account is active and is deleted within 30 days after account termination",
+            ],
+            [
+              "Support messages",
+              "12 months after resolution",
+              "Microsoft 365 mailbox retention is configured for this period",
+            ],
+          ],
+        },
+      },
+      {
+        title: "Security",
+        paragraphs: [
+          "Cadence uses Google sign-in through Supabase Auth, account-scoped database Row Level Security, server-side privileged operations, secret scanning, and export and account-deletion controls.",
+          "No internet service is completely secure. Users should protect their Google account, sign out on shared devices, and avoid placing sensitive information in free-text notes.",
+        ],
+      },
+      {
+        title: "User choices and deletion",
+        paragraphs: [
+          `Users can export records as ${exportFormats.join(", ")}, manage reminder choices, edit their records, and delete their account in Settings. Export needed records before deletion because account deletion is permanent.`,
+          "A user can deny browser notification permission or leave optional email reminders disabled. Required account and service processing cannot be disabled while using the hosted tracker.",
+        ],
+      },
+      {
+        title: "Children and international access",
+        paragraphs: [
+          "Cadence is only for people age 18 or older. Cadence is not directed to children and does not knowingly permit anyone under 18 to register.",
+          "Cadence operates from the United States. A person who accesses Cadence from another country understands that data may be processed in the United States and other places where the listed providers operate, subject to applicable law.",
+        ],
+      },
+      {
+        title: "California disclosures",
+        paragraphs: [
+          "Cadence does not sell personal information or share it for cross-context behavioral advertising. Cadence has no actual knowledge that it sells or shares personal information of people under 16.",
+          "Subject to applicable law, California residents may request access, correction, deletion, or a copy of personal information and may exercise privacy rights without discriminatory treatment. Cadence may verify a request before acting.",
+        ],
+      },
+      {
+        title: "Changes and contact",
+        paragraphs: [
+          "Identity Scaffolding LLC may update this policy when Cadence, its providers, or legal requirements change. A material update will receive a new date and any notice required by law.",
+          "Privacy questions and requests may be sent to privacy@identityscaffolding.com or mailed to Identity Scaffolding LLC, 30 N Gould St Ste R, Sheridan, WY 82801.",
         ],
       },
     ],
@@ -61,35 +197,99 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
   terms: {
     title: "Terms",
     summary:
-      "Cadence is a public, open-source personal behavior tracker for one independent account at a time.",
-    updated: "June 19, 2026",
+      "Terms for the hosted Cadence personal behavior tracker.",
+    updated: "August 31, 2026",
     sections: [
       {
-        title: "Use of the app",
+        title: "Acceptance and operator",
         paragraphs: [
-          "Cadence is for recording personal recurring behaviors, scheduled occurrences, manual statuses, notes, reminders, analytics, and exports.",
-          "Each account is single-player. Do not use Cadence for shared workspaces, social tracking, public profiles, or administration of other people.",
+          "These Terms govern access to the hosted Cadence service operated by Identity Scaffolding LLC, a Wyoming limited liability company assumed authorized in New York, at 30 N Gould St Ste R, Sheridan, WY 82801.",
+          "By creating an account or using the hosted service, the user agrees to these Terms and the Privacy Policy. A person who does not agree must not use the hosted service.",
         ],
       },
       {
-        title: "Manual record",
+        title: "Product model and user declarations",
         paragraphs: [
-          "Completed and Not Completed are explicit user decisions. Unresolved means no decision has been recorded.",
+          "Cadence is a general-purpose personal behavior record for one independent account at a time. It records recurring Behaviors, scheduled Occurrences, explicit Decisions, optional Context, reminders, analytics, and exports.",
+          `${statusDefinitions.completed} ${statusDefinitions.notCompleted} ${statusDefinitions.unresolved}`,
           "Needs decision is a UI group for prior unresolved occurrences. It is not a stored status and should not be treated as an automatic failure.",
+          "The user supplies and controls their declarations. Cadence does not verify that a declaration is accurate and does not infer completion, failure, diagnosis, or treatment.",
         ],
       },
       {
-        title: "Boundaries",
+        title: "Eligibility and accounts",
         paragraphs: [
-          "Cadence is not an emergency system, clinical decision tool, medication dosing system, supply or refill tracker, or calendar sync product.",
-          "The user is responsible for deciding whether the app is appropriate for a specific personal workflow.",
+          "A user must be at least 18 and legally able to accept these Terms. Each user must provide accurate account information and use only an account they are authorized to use.",
+          "Sign-in uses Google through Supabase Auth. The user is responsible for securing the Google account and device, signing out on shared devices, and promptly reporting suspected unauthorized access.",
         ],
       },
       {
-        title: "Account and data",
+        title: "General-purpose recordkeeping",
         paragraphs: [
-          "Sign-in uses Google through Supabase Auth. Keep the Google account secure and sign out on shared devices.",
-          "Cadence provides exports for account portability. The Settings screen provides account deletion for the signed-in account.",
+          "Cadence is not an emergency system, medical device, clinical decision tool, medication dosing system, supply or refill tracker, professional advice service, or guaranteed reminder service.",
+          "The user decides whether Cadence is suitable for a personal workflow. The user must not rely on Cadence to prevent injury, diagnose or treat a condition, meet a legal deadline, or perform another safety-critical task.",
+        ],
+      },
+      {
+        title: "Exports and external prompts",
+        paragraphs: [
+          `Cadence provides ${exportFormats.join(", ")} exports. The user is responsible for safeguarding downloaded files and deciding whether to share them.`,
+          "Cadence may provide prepared prompts. The user selects any external AI service and sends data independently. Cadence does not send behavior data to an AI provider, and external services operate under their own terms and privacy policies.",
+        ],
+      },
+      {
+        title: "Acceptable use",
+        paragraphs: [
+          "A user must not break the law; harm another person; access another account; probe, disrupt, overload, or bypass service protections; upload malicious code; scrape the service at unreasonable volume; impersonate another person; or use Cadence to administer records for someone without authority.",
+          "A user retains responsibility for account content and must have the rights needed to submit it. Each account remains single-player; Cadence does not provide shared workspaces, social tracking, or public profiles.",
+        ],
+      },
+      {
+        title: "Source license and other rights",
+        paragraphs: [
+          "Owner-controlled source code, repository documentation, and synthetic sample content are available under the MIT license in the public repository at github.com/emixd12/habit-tracking-app. The repository license governs only material within its stated scope.",
+          "The hosted service, production credentials, Cadence names and logos, site content outside the repository license, tracked binary assets excluded by the repository license notice, and user-owned data are governed separately. The MIT license grants no trademark right or right to access the hosted service.",
+        ],
+      },
+      {
+        title: "Availability, changes, and suspension",
+        paragraphs: [
+          "Cadence is currently available without charge. Identity Scaffolding LLC does not promise permanent free service, uninterrupted availability, error-free operation, reminder delivery, or preservation of every record.",
+          "Identity Scaffolding LLC may change, limit, suspend, or discontinue the hosted service and may suspend or terminate access for a Terms violation, security risk, legal requirement, abuse, or threat to the service or others. When practical, users should export records they wish to keep.",
+        ],
+      },
+      {
+        title: "Disclaimers",
+        paragraphs: [
+          "To the fullest extent permitted by law, the hosted service is provided “as is” and “as available.” Identity Scaffolding LLC disclaims warranties of merchantability, fitness for a particular purpose, title, noninfringement, accuracy, availability, and that reminders or records will meet a user's requirements.",
+          "Nothing in these Terms excludes a warranty or right that applicable law does not allow the parties to exclude.",
+        ],
+      },
+      {
+        title: "Limitation of liability",
+        paragraphs: [
+          "To the fullest extent permitted by law, Identity Scaffolding LLC and its members, managers, officers, employees, and agents will not be liable for indirect, incidental, special, consequential, exemplary, or punitive damages, or for lost profits, data, goodwill, or business interruption arising from the hosted service.",
+          "To the fullest extent permitted by law, their total liability for all claims arising from the hosted service will not exceed the greater of 100 US dollars or the amount the user paid Identity Scaffolding LLC for the hosted service during the 12 months before the event giving rise to the claim. Nonwaivable consumer rights remain unaffected.",
+        ],
+      },
+      {
+        title: "Governing law and disputes",
+        paragraphs: [
+          "New York law governs these Terms, without regard to conflict-of-law rules, subject to nonwaivable consumer protections.",
+          "Before filing a claim, the user and Identity Scaffolding LLC will try in good faith to resolve it informally through written notice to the contact below. If the dispute is not resolved, either party may proceed in a court of competent jurisdiction in New York State. These Terms require neither arbitration nor a waiver of class-action rights.",
+        ],
+      },
+      {
+        title: "Severability and changes",
+        paragraphs: [
+          "If a court finds part of these Terms unenforceable, the remaining parts remain in effect, and the unenforceable part will apply to the maximum extent permitted by law. A failure to enforce a provision is not a waiver.",
+          "Identity Scaffolding LLC may update these Terms when the service or law changes. A material update will receive a new date and any notice required by law. Continued use after an update takes effect constitutes acceptance where permitted by law.",
+        ],
+      },
+      {
+        title: "Contact",
+        paragraphs: [
+          "Questions, privacy requests, and informal dispute notices may be sent to privacy@identityscaffolding.com or mailed to Identity Scaffolding LLC, 30 N Gould St Ste R, Sheridan, WY 82801.",
         ],
       },
     ],
@@ -97,35 +297,28 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
   trust: {
     title: "Trust",
     summary:
-      "The app is designed around manual truth, account isolation, portability, and small product scope.",
+      "Current, bounded evidence for one named Cadence source commit and its production deployments.",
     updated: "August 27, 2026",
     sections: [
       {
-        title: "Manual truth",
+        title: "Data boundaries",
         paragraphs: [
-          "The system does not infer completion or failure. A record changes only when the signed-in user marks an occurrence Completed or Not Completed.",
-          "Prior unresolved occurrences are brought forward for decision without changing their stored status.",
+          "Cadence stores account and behavior records in Supabase. Row Level Security scopes user-owned records to the authenticated account.",
+          "Cadence does not send exported behavior data to an AI provider. Users choose whether to share an export with an external service.",
         ],
       },
       {
-        title: "Account isolation",
+        title: "Public source and license",
         paragraphs: [
-          "Cadence is built for many independent single-account users. Supabase Auth identifies the signed-in account, and Row Level Security policies scope user-owned records to that authenticated user.",
-          "The app does not include shared workspaces, public profiles, social features, or admin-heavy product surfaces.",
+          "Cadence source code is public at github.com/emixd12/habit-tracking-app under the repository's MIT license.",
+          "The public source lets anyone inspect the implementation. It does not independently verify a hosted deployment.",
         ],
       },
       {
-        title: "Portability",
+        title: "Limits of verification",
         paragraphs: [
-          "Export is a first-class part of the product. The app supports machine-readable downloads and BehaviorLog bundle export so the user can keep a portable record.",
-          "Account deletion should be paired with export access so a user can leave with a copy of their history.",
-        ],
-      },
-      {
-        title: "Reminder boundaries",
-        paragraphs: [
-          "Browser notifications depend on browser permission and push subscription support. Email reminders are optional per behavior.",
-          "If reminders are unavailable, denied, or delayed, the tracker still works as a manual record.",
+          "Each result covers only its named scope, source commit, deployments, and verification time. A Passed result is not a certification or a guarantee that defects are absent.",
+          "Provider configuration, later changes, untested workflows, and private operational records remain outside a result unless its scope states otherwise.",
         ],
       },
     ],
@@ -199,6 +392,45 @@ export function LegalPageContent({
                   ))}
                 </ul>
               ) : null}
+              {section.table ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[36rem] border-collapse text-left text-sm leading-6">
+                    <caption className="sr-only">
+                      {section.table.caption}
+                    </caption>
+                    <thead>
+                      <tr className="border-b border-line">
+                        {section.table.headers.map((header) => (
+                          <th
+                            key={header}
+                            scope="col"
+                            className="px-3 py-2 font-semibold text-ink first:pl-0"
+                          >
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {section.table.rows.map((row) => (
+                        <tr
+                          key={row.join("|")}
+                          className="border-b border-line align-top last:border-0"
+                        >
+                          {row.map((cell, index) => (
+                            <td
+                              key={`${index}-${cell}`}
+                              className="px-3 py-3 first:pl-0"
+                            >
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
             </div>
           </section>
         ))}
@@ -211,10 +443,7 @@ export function LegalPageContent({
         >
           Cadence overview
         </a>
-        <a
-          href="/login"
-          className="product-action product-action-primary py-2"
-        >
+        <a href="/login" className="product-action product-action-primary py-2">
           Sign in
         </a>
         <a
