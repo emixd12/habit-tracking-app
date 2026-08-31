@@ -2,17 +2,18 @@
 
 The owner activated the local-first macOS track on 2026-08-30. Tickets 107–114
 are complete. Ticket 115 separately owns deferred Apple-trusted distribution.
-This document replaces the earlier unscheduled proposal. `STATUS.md` records
-implementation and verification.
+Tickets 116–122 plan optional Google account linking and offline-capable
+synchronization. This document replaces the earlier unscheduled proposal.
+`STATUS.md` records implementation and verification.
 
 ## Scope and defaults
 
 Build tracking parity with the current web application using Tauri v2, Vite,
-React, and SQLite. Tracking requires no login or network. Target Apple Silicon
-first, with macOS 14 as the declared minimum. Runtime compatibility is verified
-only on tested systems; macOS 14 execution remains unverified. Preserve the
-existing web deployment and Astro marketing site. Mobile implementation remains
-deferred.
+React, and SQLite. Local mode requires no login or network. Optional account
+mode keeps SQLite as the offline working copy. Target Apple Silicon first, with
+macOS 14 as the declared minimum. Runtime compatibility is verified only on
+tested systems; macOS 14 execution remains unverified. Preserve the existing
+web deployment and Astro marketing site. Mobile implementation remains deferred.
 
 Use one stable local profile. The default timezone remains America/New_York,
 with local timezone selection. Seed the current default categories: Medical,
@@ -21,9 +22,10 @@ Grooming, Fitness, Food / Drink, Home, Measurements, Admin, and Other.
 Tracking parity and Ticket 113's ad hoc, unnotarized preview/updater acceptance
 are complete. Apple Developer Program access, Developer ID signing, notarization,
 and Apple Silicon macOS 14 acceptance remain deferred under Ticket 115, not
-passed. Exclude Intel releases, live sync, cloud login, email
-delivery, cloud account controls, duplicated public/legal pages, billing, and
-AI integrations. Keep imported email configuration as data without sending.
+passed. Tickets 116–122 add optional account synchronization. Exclude Intel
+releases, desktop email delivery, duplicated public/legal pages, billing, AI
+integrations, and closed-app background synchronization. Keep imported email
+configuration as data without sending.
 
 ## Current parity baseline
 
@@ -107,7 +109,7 @@ SQL-plugin calls share a connection or transaction. Business decisions stay in
 TypeScript; native code may execute validated operations atomically, manage
 files, schedule notifications, and handle lifecycle events.
 
-Retain the explicitly requested dormant sync scaffold:
+The implemented local-only release retains this synchronization scaffold:
 
 - tombstones for syncable deletions;
 - a mutation outbox committed in the same transaction as the domain mutation;
@@ -115,9 +117,33 @@ Retain the explicitly requested dormant sync scaffold:
 - a no-op `SyncEngine` with no network delivery.
 
 The scaffold must preserve current deletion, history, and uniqueness semantics.
-It does not implement a remote backend, cloud identity linking, or conflict
-resolution. Future sync needs its own contract; the old blanket
-last-writer-wins proposal does not override current concurrency protections.
+Tickets 116–122 activate it through a typed snapshot, saved common baseline,
+three-way merge, authenticated hosted apply, and conflict review. The old
+blanket last-writer-wins proposal does not override current concurrency
+protections.
+
+## Planned account mode
+
+Account-free local mode remains complete. Optional account mode uses the
+existing Cadence Google account and synchronizes web plus multiple desktop
+working copies while each app runs with connectivity. It adds no closed-app
+background helper.
+
+First link detects recognized local data and requires Import local data into
+the account or Ignore local data and use account data. Both paths reuse the
+portability snapshot, fingerprint, preview, conflict-action, and atomic-plan
+architecture. Ignore creates a protected local backup before replacement.
+
+The live database stays in the app-managed Application Support location.
+Settings shows the exact path and offers Reveal in Finder, Back Up, and Restore.
+Raw database Restore is local-mode only. Disconnect offers Keep a local copy,
+with its exact path, or Remove account data from this Mac.
+
+Use system-browser PKCE, Keychain session storage, the user's JWT, and hosted
+RLS. Synchronize typed product data and reminder preferences. Keep tokens,
+browser push subscriptions, native notification requests/coverage, and other
+device state local. Start with complete typed snapshots and a measured ceiling;
+do not add a hosted change journal until needed.
 
 ## UI and cross-platform cascade
 
@@ -213,6 +239,13 @@ waive native activation proof before broad refactoring. See
 | Native reminders | 112 | Nearest-first reconciliation, verified OS-limited coverage, visible horizon, and lifecycle evidence pass |
 | Preview and updater acceptance | 113 | Authorized ad hoc preview, public feed, failure paths, explicit update/restart, and data preservation pass |
 | Apple-trusted distribution | 115 | Deferred until Developer Program access, Developer ID, notarization, stapled artifacts, quarantined-DMG Gatekeeper, and Apple Silicon macOS 14 acceptance are available |
+| Account-sync contract | 116 | Product, data, security, offline, and merge boundaries agree before runtime work |
+| Local database controls | 117 | Exact path, Finder reveal, consistent backup, and protected local-only restore pass native QA |
+| Desktop authentication | 118 | System-browser PKCE, deep link, Keychain storage, and one-account session pass |
+| First account link | 119 | Recognized local data takes the explicit protected import-or-ignore path |
+| Two-way synchronization | 120 | Typed three-way merge, outbox/cursor activation, RLS-safe atomic apply, and offline retry pass |
+| Conflict review and disconnect | 121 | Conflict cue/review and both path-disclosed disconnect outcomes pass |
+| Migration and release acceptance | 122 | Real-updater schema migration and web-plus-two-desktop matrix pass before claims |
 
 ## Completed unnotarized preview milestone
 

@@ -1247,8 +1247,9 @@ remain available.
 ## Desktop implementation and release gates
 
 Tickets 107–114 implement the macOS track in `docs/DESKTOP_BUILD.md`. Ticket 115
-defers Apple-trusted distribution acceptance. Preserve unrelated working-tree
-edits and both current deployments. Next.js stays at the repository root.
+defers Apple-trusted distribution acceptance. Tickets 116–122 plan optional
+desktop account synchronization. Preserve unrelated working-tree edits and both
+current deployments. Next.js stays at the repository root.
 
 Use Node.js 24.x and the pinned desktop dependencies. Native builds also need
 Rust, macOS/Xcode tooling, and the configured Apple Silicon target. Record
@@ -1285,6 +1286,12 @@ interactions; structural success alone does not satisfy Ticket 115.
 Preview candidate-building checks must be separate from updater acceptance that
 requires those candidates. Do not falsify registry evidence or relax production
 release checks to build a preview.
+
+Tickets 118–122 may require Supabase auth configuration, migrations, and hosted
+RLS verification. Follow `docs/SUPABASE_WORKFLOW.md`. Do not change hosted auth,
+schema, or deployments without explicit owner authorization. Ticket 122 must
+upgrade an older installed desktop version through the real updater after a
+protected database backup; unit migration tests do not replace that gate.
 
 Run real adapter contracts separately from the default test suite:
 

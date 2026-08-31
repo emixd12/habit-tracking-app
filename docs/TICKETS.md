@@ -7982,9 +7982,10 @@ Out of scope:
 
 ## Deferred work
 
-Web PWA caching, web offline timeline access, web pending status changes, and
-live sync conflict handling remain deferred. Tickets 107–114 separately permit
-local-first desktop tracking and a dormant sync scaffold.
+Web PWA caching, web offline timeline access, and web pending status changes
+remain deferred. Tickets 107–114 implement local-first desktop tracking;
+Tickets 116–122 plan optional desktop account synchronization and conflict
+handling.
 
 See `/docs/FUTURE_UPDATES.md`.
 
@@ -8448,3 +8449,442 @@ Deferred blockers: Apple Developer Program access, Developer ID Application
 certificate/signing identity, notarization credentials, and an Apple Silicon
 Mac running macOS 14. Do not purchase, enroll, generate credentials, notarize,
 publish, or change the existing preview release while this ticket is deferred.
+
+---
+
+## Ticket 116: Desktop account-sync product and architecture contract
+
+Status: planned.
+
+Define the optional account mode before adding authentication or network
+behavior. Preserve account-free local mode as a complete product path.
+
+Dependencies: completed Tickets 107–114. Ticket 115 remains independent and
+deferred.
+
+Settled contract:
+
+- The desktop app starts and remains usable without an account or network.
+- A user may sign in with the existing Cadence Google account. Signed-in web
+  and desktop clients synchronize the same single-player account.
+- SQLite remains the desktop working copy while signed in. Desktop writes stay
+  available offline and synchronize when the app next runs with connectivity.
+- Synchronize profile timezone, categories, Behaviors, schedules, Occurrences,
+  status and configuration history, Notes, time sessions, import provenance,
+  imported interventions/observations, and hosted reminder-delivery history.
+- Synchronize browser/email reminder preferences. Keep browser push
+  subscriptions, native notification requests/coverage, authentication tokens,
+  and other device capabilities device-local.
+- Reuse the existing typed portability rows, canonical fingerprints, preview
+  actions, and atomic write plans. Do not serialize a BehaviorLog ZIP for every
+  background synchronization pass.
+- Start with complete typed account snapshots, a saved common baseline, and a
+  three-way merge. Add a hosted change journal only after measurements show the
+  snapshot ceiling is insufficient.
+- Keep one signed-in account per desktop installation. Do not add an account
+  switcher, billing gate, background helper, web PWA writes, or mobile client.
+- Update resolver governance for a pure synchronization planner. Network,
+  Keychain, SQLite, and Supabase access remain in adapters and services.
+
+Acceptance criteria:
+
+- Product, data, security, offline, and reminder boundaries agree across the
+  source-of-truth documents.
+- The contract defines synchronized and device-local fields without weakening
+  Supabase RLS or SQLite atomicity.
+- The contract defines snapshot limits, retry/idempotency rules, first-link
+  ownership, and conflict ownership for Tickets 117–121.
+- No runtime, schema, provider, or hosted environment changes occur in this
+  ticket.
+
+Implementation ownership:
+
+- `AGENTS.md`
+- `docs/PRODUCT_SPEC.md`
+- `docs/DESKTOP_BUILD.md`
+- `docs/DECISIONS.md`
+- `docs/FUTURE_UPDATES.md`
+- `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+- `docs/AGENT_RESOLVERS.md`
+- `docs/TICKETS.md`
+- `STATUS.md`
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Preserve current Google auth and Supabase data behavior; Ticket 120 adds synchronization access through existing RLS contracts |
+| Desktop | Owns the account/local-mode boundary and the implementation sequence in Tickets 117–122 |
+| Marketing | No new claim in this ticket; Ticket 122 gates any approved synchronization claim |
+| Future mobile | Not applicable: the contract keeps portable data semantics but authorizes no mobile implementation |
+
+Verification: run `npm run agents:check`, `npm run interactions:check`,
+`npm run resolvers:check`, and `git diff --check`.
+
+---
+
+## Ticket 117: Desktop local database controls
+
+Status: planned.
+
+Make the app-managed local-data location visible and recoverable before account
+linking can replace or preserve a working copy.
+
+Dependencies: Ticket 116.
+
+Acceptance criteria:
+
+- Store the live SQLite database in the app-managed macOS Application Support
+  location. Settings displays its exact absolute path.
+- Add Reveal in Finder, Back Up, and Restore actions to Settings. Use native
+  file dialogs and platform reveal behavior. Do not allow an arbitrary live
+  database location.
+- Back Up creates a consistent SQLite online backup, validates integrity and
+  foreign keys, and writes the selected destination atomically.
+- Restore validates the selected backup and schema compatibility before any
+  replacement. Create a protected pre-restore backup, replace atomically, and
+  reopen successfully or leave the original database intact.
+- Raw database Restore is available only in local mode. A signed-in user must
+  disconnect through Ticket 121 first.
+- Show actionable errors without exposing unrelated files or accepting an
+  arbitrary native command path.
+- Add the three interactions to `interaction-registry.json` and update the
+  implemented Settings surface evidence. Run the project-local impeccable
+  workflow before editing the UI.
+
+Implementation ownership:
+
+- `apps/desktop/src/settings-screen.tsx`
+- `apps/desktop/src/local-store.ts`
+- `apps/desktop/src-tauri/src/files.rs`
+- `apps/desktop/src-tauri/src/lib.rs`
+- `apps/desktop/src-tauri/capabilities/`
+- `interaction-registry.json`
+- `docs/DESKTOP_DATA_MODEL.md`
+- `docs/DESKTOP_BUILD.md`
+- `STATUS.md`
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Not applicable: browser storage and hosted backups do not change |
+| Desktop | Implements visible Application Support storage, reveal, backup, and local-only restore |
+| Marketing | No claim until the actions pass native acceptance; later copy may describe local-data control |
+| Future mobile | Not applicable: Finder and Application Support behavior are macOS-specific |
+
+Verification: unit/native rollback tests, corrupt/incompatible backup rejection,
+integrity and foreign-key checks, actual Finder reveal, restart persistence,
+`npm run interactions:check`, desktop checks, and the standard repository checks.
+
+---
+
+## Ticket 118: Desktop Google authentication and account session
+
+Status: planned.
+
+Add optional Google authentication without weakening local mode or placing
+privileged credentials in the desktop app.
+
+Dependencies: Tickets 116–117.
+
+Acceptance criteria:
+
+- Use Supabase Auth PKCE in the system browser and a registered desktop deep
+  link for callback. Validate state, exchange each authorization code once,
+  and handle cancellation, denial, stale callbacks, and duplicate callbacks.
+- Use only the public Supabase configuration and the signed-in user's JWT.
+  Never package a service-role key or provider credential.
+- Store refresh/session secrets in macOS Keychain. Store no authentication
+  token in SQLite, frontend storage, logs, exports, or backups.
+- Persist only non-secret account-link metadata needed to reconnect the local
+  working copy. Keep the stable local profile identity distinct from the hosted
+  account identity.
+- Support one signed-in account at a time. A different account requires the
+  Ticket 121 disconnect flow first.
+- Do not upload, delete, or replace product data during authentication. Hand
+  successful sessions to Ticket 119 for the first-link decision.
+- Update deep-link allowlists and hosted auth configuration only through an
+  explicit, owner-authorized operation during implementation.
+- Register the account interactions and run the project-local impeccable
+  workflow before editing Settings or onboarding UI.
+
+Implementation ownership:
+
+- `apps/desktop/src/account/`
+- `apps/desktop/src/settings-screen.tsx`
+- `apps/desktop/src-tauri/src/lib.rs`
+- `apps/desktop/src-tauri/capabilities/`
+- `apps/desktop/src-tauri/tauri.conf.json`
+- `interaction-registry.json`
+- `docs/SUPABASE_WORKFLOW.md`
+- `docs/DESKTOP_BUILD.md`
+- `STATUS.md`
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Reuses the existing Supabase Google account; web login behavior remains unchanged |
+| Desktop | Adds system-browser PKCE, Keychain session storage, and one-account linking |
+| Marketing | No account-sync availability claim before Ticket 122 passes |
+| Future mobile | Not applicable: no mobile callback, credential store, or client is implemented |
+
+Verification: PKCE/deep-link unit tests, installed-app browser round trip,
+cancel/deny/replay/state-mismatch cases, Keychain persistence/removal, secret
+scans of SQLite/logs/exports/backups, RLS smoke, and standard checks.
+
+---
+
+## Ticket 119: First desktop account-link data choice
+
+Status: planned.
+
+Resolve local and hosted data ownership explicitly on the first successful
+desktop sign-in.
+
+Dependencies: Tickets 116–118.
+
+Acceptance criteria:
+
+- Detect recognized local data before linking. User-created or edited product
+  data, timezone/category changes, histories, provenance, or imported records
+  count. An untouched seeded profile and default categories do not.
+- When recognized local data exists, require one choice: Import local data into
+  the account, or Ignore local data and use account data.
+- Import uses the existing typed portability snapshot, fingerprint, preview,
+  conflict-action, and atomic write-plan architecture. It uploads no archive
+  blob and commits no partial merge.
+- Ignore uploads nothing. Before replacing the working copy, create and verify
+  a protected local backup and show its exact path.
+- When no recognized local data exists, hydrate the local working copy from the
+  account without showing a false conflict choice.
+- Cancellation leaves the local database and hosted account unchanged and
+  removes any incomplete link state.
+- An accepted choice records the synchronized baseline only after the hosted
+  commit and local atomic apply both succeed. Retries are idempotent.
+- Route irreconcilable merges to Ticket 121. Do not silently pick a winner.
+- Add first-link interactions and update the Settings/onboarding surface under
+  the project-local impeccable workflow.
+
+Implementation ownership:
+
+- `packages/core/src/services/behaviorlog-preview.ts`
+- `packages/core/src/services/behaviorlog-import-plan.ts`
+- `packages/core/src/services/behaviorlog-write-plan.ts`
+- `packages/core/src/types/portability-rows.ts`
+- `apps/desktop/src/local-import.service.ts`
+- `apps/desktop/src/account/`
+- `interaction-registry.json`
+- `docs/USER_FLOWS.md`
+- `docs/DESKTOP_BUILD.md`
+- `STATUS.md`
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Receives an authorized import into the existing account through RLS-safe server contracts |
+| Desktop | Adds the protected import-or-ignore first-link flow and local hydration |
+| Marketing | No claim; the flow is product UI and remains gated by Ticket 122 |
+| Future mobile | Not applicable: shared planning may be reusable, but no mobile first-link flow is authorized |
+
+Verification: empty/default/recognized local detection, import/ignore/cancel,
+empty/nonempty hosted accounts, injected local/remote failures, retry
+idempotency, protected-backup proof, actual native UI QA, and standard checks.
+
+---
+
+## Ticket 120: Offline-capable two-way desktop synchronization
+
+Status: planned.
+
+Activate the existing outbox and cursors with a bounded, testable sync engine.
+
+Dependencies: Tickets 116–119.
+
+Acceptance criteria:
+
+- Add a pure planner that compares the current local snapshot, current hosted
+  snapshot, and saved common baseline. It emits typed conflicts and one atomic
+  local/hosted write plan.
+- Use complete typed snapshots and canonical fingerprints for the first
+  release. Set and test an explicit size/time ceiling. Do not add a hosted
+  change journal until measurements require it.
+- Trigger synchronization on launch, foreground/resume, connectivity recovery,
+  relevant local mutations, and an explicit Sync now action. Do not add a
+  closed-app helper or promise realtime synchronization.
+- Upload local offline mutations and tombstones. Download hosted web or other
+  desktop changes. Acknowledge outbox entries and advance the saved baseline or
+  cursor only after the hosted commit and local atomic apply succeed.
+- Preserve all histories, provenance, protected Occurrences, referential
+  integrity, and stale-write guards. Retries and repeated snapshots are
+  idempotent.
+- Use authenticated, bounded, `SECURITY INVOKER` database functions where an
+  atomic multi-table hosted apply is required. Preserve RLS and never use a
+  desktop service-role client or blind unrestricted upserts.
+- Synchronize only the Ticket 116 data boundary. Device-specific tokens,
+  subscriptions, native delivery state, and native reminder coverage stay
+  local.
+- Surface offline, syncing, current, failed, and conflict states without adding
+  a fifth primary screen. Update interaction registry entries for user actions.
+
+Implementation ownership:
+
+- `packages/core/src/resolvers/account-sync.resolver.ts`
+- `packages/core/src/services/`
+- `apps/desktop/src/sync-engine.ts`
+- `apps/desktop/src/local-store.ts`
+- `lib/db/`
+- `lib/services/`
+- `supabase/migrations/`
+- `tests/account-sync.resolver.test.ts`
+- `docs/AGENT_RESOLVERS.md`
+- `docs/DATA_MODEL.md`
+- `interaction-registry.json`
+- `STATUS.md`
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Existing web writes remain online-only; authenticated hosted changes become desktop sync input through RLS-safe contracts |
+| Desktop | Implements automatic eventual synchronization while preserving offline SQLite writes |
+| Marketing | No synchronized-product claim until Ticket 122 passes the multi-client matrix |
+| Future mobile | Not applicable: no mobile adapter, queue, or release is authorized |
+
+Verification: pure three-way merge fixtures; real SQLite/local-Supabase
+contracts; two desktop working copies plus web; offline edits; create/update/
+delete/history/provenance cases; crash and retry injection at each commit
+boundary; RLS cross-account rejection; snapshot ceiling; native status UI; and
+all required repository checks. Hosted migration deployment requires separate
+owner authorization.
+
+---
+
+## Ticket 121: Sync conflict review and account disconnect
+
+Status: planned.
+
+Give users an explicit recovery path for irreconcilable changes and for leaving
+account mode.
+
+Dependencies: Ticket 120.
+
+Acceptance criteria:
+
+- Auto-merge independent changes and append-only histories when invariants
+  hold. Emit conflicts only when the planner cannot preserve both intentions.
+- Pause the accepted synchronization plan when any conflict remains. Do not
+  apply the nonconflicting subset against an unresolved baseline.
+- Show a persistent shell cue, a conflict count in Settings, and a Review
+  conflicts panel within the existing four-screen model.
+- Each conflict explains the two values and offers Use account version, Use
+  this Mac version, and Keep both only when the resolver can produce a valid
+  duplicate without breaking identity or history.
+- Recompute fingerprints and reject stale conflict decisions when either side
+  changed during review.
+- Disconnect offers Keep a local copy or Remove account data from this Mac.
+  Keep a local copy removes secrets/link state, preserves the current SQLite
+  data, and shows its exact Application Support path.
+- Remove account data creates a protected safety backup, removes account data
+  and secrets from the working location, and returns to a fresh local profile.
+  It does not delete hosted account data.
+- Raw database Restore requires disconnect first. Expired/revoked sessions stop
+  synchronization safely and direct the user to reconnect or disconnect.
+- Register every cue, review action, and disconnect action. Run the project-
+  local impeccable workflow before UI changes.
+
+Implementation ownership:
+
+- `packages/core/src/resolvers/account-sync.resolver.ts`
+- `apps/desktop/src/sync-engine.ts`
+- `apps/desktop/src/settings-screen.tsx`
+- `apps/desktop/src/product.tsx`
+- `apps/desktop/src/account/`
+- `interaction-registry.json`
+- `docs/UI_SPEC.md`
+- `docs/USER_FLOWS.md`
+- `docs/DESKTOP_BUILD.md`
+- `STATUS.md`
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | No conflict UI change; web edits remain one input to the shared account state |
+| Desktop | Implements the conflict cue/review panel and both explicit disconnect outcomes |
+| Marketing | No claim until Ticket 122; later copy must not imply that conflicts are impossible |
+| Future mobile | Not applicable: no mobile conflict or disconnect UI is implemented |
+
+Verification: every conflict class and resolution action, stale review,
+accessibility/keyboard/responsive UI, keep/remove disconnect, revoked session,
+secret removal, backup/path disclosure, actual native QA, interaction checks,
+and the standard repository checks.
+
+---
+
+## Ticket 122: Account-sync migration and release acceptance
+
+Status: planned.
+
+Prove the schema-changing account-sync release through the real updater and a
+multi-client acceptance matrix before making availability claims.
+
+Dependencies: Tickets 117–121. Ticket 115 remains independent and deferred;
+this ticket does not weaken Apple-trusted distribution gates.
+
+Acceptance criteria:
+
+- Install an older published Cadence desktop version with representative local
+  data. Create and verify a protected database backup before updating.
+- Upgrade through the real signed Cadence updater to the schema-changing build.
+  Verify every migration, application reopen, rollback/failure path, and data
+  preservation requirement. A disposable migration build does not count.
+- Preserve stable local identity, account-link metadata, Behaviors,
+  Occurrences, histories, Notes, timing, provenance, outbox entries, cursors,
+  reminders, and database integrity across the update.
+- Run the full web plus two independent desktop working-copy matrix. Cover
+  first-link import and ignore, offline edits, deletes, concurrent edits,
+  conflicts, retries, revoked sessions, disconnect choices, backup, and restore.
+- Verify RLS account isolation with ordinary authenticated users. Verify no
+  service-role key or session secret appears in the app bundle, SQLite, logs,
+  export, or backup.
+- Deploy hosted migrations or auth/provider configuration only after explicit
+  owner authorization and through the documented workflows.
+- Update public and marketing copy only after the product matrix passes. State
+  eventual synchronization and offline/closed-app limits plainly. Do not claim
+  notarization or general availability while Ticket 115 remains deferred.
+- Record immutable versions, hashes, updater feed, test systems, backup path,
+  hosted migration boundary, and remaining limitations in QA evidence.
+
+Implementation ownership:
+
+- `apps/desktop/scripts/release.mjs`
+- `apps/desktop/src-tauri/migrations/`
+- `apps/desktop/.release/`
+- `docs/DESKTOP_RELEASE.md`
+- `docs/OPERATIONS.md`
+- `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`
+- `docs/qa/`
+- `STATUS.md`
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Participates in ordinary-user RLS and cross-client acceptance; web offline/PWA behavior remains deferred |
+| Desktop | Owns real-updater migration, multi-client synchronization, backup, and release acceptance |
+| Marketing | May publish only the precise accepted sync/local-mode claim; Apple-trusted distribution remains gated by Ticket 115 |
+| Future mobile | Not applicable: release evidence covers web and macOS desktop only |
+
+Verification: the Ticket 117–121 matrices, real updater migration with protected
+backup, artifact/secret scans, local and authorized hosted RLS smoke, native
+macOS execution, `npm run agents:check`, `npm run interactions:check`,
+`npm run resolvers:check`, `npm run design-system:check`, `npm run lint`,
+`npm run typecheck`, `npm run test`, `npm run build`, desktop checks, marketing
+checks, and `git diff --check`.
+
+Out of scope: Apple enrollment or trust-gate changes, Intel release, billing,
+web PWA/offline writes, realtime closed-app synchronization, background helper,
+desktop email delivery, mobile implementation, and arbitrary live database paths.

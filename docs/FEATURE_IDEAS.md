@@ -119,6 +119,69 @@ Scope guardrails:
 Do not add telephony, recurring automated calls, or provider billing until the
 feature is explicitly scoped and reviewed.
 
+## Behavior-Scoped Recurring Note Suggestions
+
+Status: idea.
+
+Why:
+Users may repeatedly type the same explanation for one Behavior. For example,
+a user may complete brushing their teeth but repeatedly note that they did not
+wear their Invisalign. Recognizing that pattern could make later logging faster
+and help the user notice recurring context without requiring a broad coaching
+feature.
+
+Possible shape:
+
+- An opt-in agent periodically reviews recent Notes for one Behavior only.
+- The agent identifies recurring, concrete note patterns and proposes short
+  reusable choices, such as `Did not wear Invisalign`.
+- The Note editor shows accepted suggestions as compact quick-fill choices or
+  small cards. Selecting one fills or appends text for the user to review before
+  saving.
+- The user can accept, edit, dismiss, or remove a suggestion and disable the
+  feature for that Behavior. A global off control may also be useful.
+- Suggestions can evolve as the Behavior's Notes change. Cadence should require
+  repeated evidence and avoid treating one Note as a pattern.
+- Evaluate a small, low-cost model during ticketing. Do not lock a provider or
+  model before testing privacy, structured-output reliability, latency, and
+  cost.
+
+Implementation constraints:
+
+- Keep analysis and suggestions scoped to the authenticated user and one
+  Behavior. Do not mix Notes across Behaviors or accounts.
+- Treat model output as a proposed text shortcut. It must not change an
+  Occurrence status, save a Note, or trigger another product action without the
+  user's explicit choice.
+- Use structured output with length and count limits. Ignore unsupported or
+  unsafe output rather than rendering arbitrary model content.
+- Define the Note history window, minimum recurrence threshold, analysis
+  trigger, provider retention, deletion, and provenance rules before
+  implementation.
+- Preserve the user's original Notes. Removing a suggestion must not rewrite
+  historical Occurrences.
+- Notes may contain sensitive information. The feature needs clear consent,
+  factual privacy copy, server-only credentials, and a non-AI fallback.
+
+Open questions:
+
+- Should Cadence analyze only Notes attached to Not Completed Occurrences, or
+  all Notes for the Behavior?
+- Should selecting a suggestion replace the draft, append to it, or offer both?
+- Should suggestions remain private UI shortcuts, or also appear in exports
+  with their provenance?
+- Where should the global and per-Behavior controls live?
+- Should analysis run on demand, after a minimum number of new Notes, or on a
+  bounded schedule?
+- How should dismissed suggestions affect future recommendations?
+- Should web and desktop share accepted suggestions through account sync while
+  keeping account-free desktop analysis local?
+
+Scope guardrails:
+This remains outside current launch scope. Keep it to user-approved Note-entry
+shortcuts. Do not turn it into AI coaching, diagnosis, automatic status changes,
+or open-ended chat.
+
 ## Home Camera Or Image Recognition Evidence
 
 Status: deferred.

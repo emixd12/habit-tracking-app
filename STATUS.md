@@ -43,6 +43,14 @@ When updating a ticket row:
 
 ## Current repository state
 
+Tickets 116–122 are planned (2026-08-31). They add app-managed local database
+controls, optional desktop Google sign-in, an explicit first-link data choice,
+offline-capable two-way synchronization, conflict review, disconnect choices,
+and real-updater migration acceptance. No implementation, hosted migration,
+auth configuration, provider operation, or marketing publication has started.
+Account-free local mode remains complete. Ticket 115 remains independently
+deferred and its Apple-trust gates are unchanged.
+
 Ticket 113 is complete and Ticket 115 is deferred (2026-08-31). The owner
 rescoped Ticket 113 to the unnotarized Apple Silicon preview and updater-
 acceptance milestone. Apple-trusted distribution now belongs to Ticket 115.
@@ -6483,7 +6491,7 @@ profile.
 
 ## Handoff notes
 
-### Desktop implementation (Tickets 107–115)
+### Desktop implementation (Tickets 107–122)
 
 Owner authorization: 2026-08-30. Current requirements live in
 `docs/DESKTOP_BUILD.md`; the parity baseline lives in `docs/DESKTOP_PARITY.md`.
@@ -6499,6 +6507,13 @@ Owner authorization: 2026-08-30. Current requirements live in
 | 113: Unnotarized Apple Silicon preview and updater acceptance | complete | The approved preview prerelease is public. Downloaded launch, three updater failure paths, valid .1 to .2 installation, separate restart, and data preservation pass. Both versions use schema 6, so shipped-migration testing is not applicable to this release. |
 | 114: BehaviorLog 0.3 portability parity | complete | Canonical passive observations, retained configuration identity, exact passive replay, and accepted source schedule fingerprints pass real SQLite/SQL and native export/import acceptance. Hosted rollout remains separate. |
 | 115: Apple-trusted macOS distribution acceptance | deferred | Apple Developer Program access, Developer ID signing, notarization, stapled artifact verification, quarantined notarized-DMG Gatekeeper acceptance, and Apple Silicon macOS 14 execution remain unavailable. The strict production check reaches only these Apple blockers. |
+| 116: Desktop account-sync product and architecture contract | not_started | Defines optional account mode, synchronized/device-local data, snapshot merge, and security boundaries before runtime work. |
+| 117: Desktop local database controls | not_started | Plans exact Application Support path disclosure, Reveal in Finder, consistent backup, and protected local-only restore. |
+| 118: Desktop Google authentication and account session | not_started | Plans system-browser PKCE, deep-link callback, Keychain secrets, and one signed-in account. |
+| 119: First desktop account-link data choice | not_started | Plans explicit import-or-ignore handling for recognized local data with a protected backup. |
+| 120: Offline-capable two-way desktop synchronization | not_started | Plans typed three-way merge, outbox/cursor activation, RLS-safe hosted apply, and eventual synchronization while the app runs. |
+| 121: Sync conflict review and account disconnect | not_started | Plans shell/Settings conflict review and Keep local copy or Remove account data disconnect outcomes. |
+| 122: Account-sync migration and release acceptance | not_started | Plans the first real-updater schema migration after backup and the web-plus-two-desktop acceptance matrix. |
 
 Final 0.3 verification supersedes the earlier 0.2 checkpoints. The clean local
 reset replayed all 47 migrations through `20260831014424`, with every published
@@ -6609,8 +6624,10 @@ release occurred. Preserve all unrelated Ticket 106 edits.
   Implement 025A first, verify it fully, then implement 025B. Ticket 025B is
   intentionally more destructive than the current import/create/merge paths.
 - Tickets 107–114 are complete. Keep Ticket 115 deferred until its Apple access
-  and macOS 14 blockers change. Do not start web offline/PWA, broader workspace
-  restructuring, mobile, billing, or AI work without scoped authorization.
+  and macOS 14 blockers change. Tickets 116–122 are planned; start with Ticket
+  116 and require explicit authorization before hosted changes. Do not start web
+  offline/PWA, broader workspace restructuring, mobile, billing, or AI work
+  without scoped authorization.
 - Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.
 - Run `npm run design-system:check` after changing reusable UI, the bench route, or design-system manifest/usage/config files.
 - Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.

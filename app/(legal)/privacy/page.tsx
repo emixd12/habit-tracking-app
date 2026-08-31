@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import { LegalPageContent } from "@/components/settings/LegalContent";
 
 export const metadata: Metadata = {
-  title: "Privacy",
+  title: "Privacy Policy Draft",
   description:
-    "Privacy information for Cadence account, behavior, reminder, and export data.",
+    "Draft Cadence privacy policy covering account data, processors, retention, exports, choices, and contact information.",
 };
 
 export default function PrivacyPage() {

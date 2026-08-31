@@ -22,8 +22,9 @@ Do not implement these without a scoped ticket.
 
 Tickets 107–114 implement the macOS desktop app and incremental extraction
 of `packages/core` and `packages/ui`. Their contract lives in
-`docs/DESKTOP_BUILD.md`. Ticket 115 defers Apple-trusted distribution. Live sync,
-cloud desktop login, Intel releases, and desktop email delivery remain deferred.
+`docs/DESKTOP_BUILD.md`. Ticket 115 defers Apple-trusted distribution. Tickets
+116–122 plan optional Google account linking and offline-capable desktop
+synchronization. Intel releases and desktop email delivery remain deferred.
 
 Implemented surface work:
 
@@ -51,8 +52,9 @@ agent-commerce protocols without a scoped ticket and privacy review.
 
 Future commercial work may add:
 
-- paid web/shared-account access for cross-surface saving,
-- optional cloud sync for desktop/mobile,
+- paid product capabilities that do not gate the account synchronization
+  planned in Tickets 116–122,
+- optional cloud sync for a future mobile client,
 - future speech-to-speech AI behavior-review features.
 
 Billing and AI features are not launch scope. Do not add payment
@@ -72,8 +74,8 @@ Future work may add:
 Do not implement this in v1.
 
 This restriction applies to the web app. Desktop tracking uses local SQLite
-and requires offline writes. Its approved dormant mutation outbox and cursors
-do not authorize web offline work or live synchronization.
+and requires offline writes. Tickets 116–122 may activate its mutation outbox
+and cursors without authorizing web offline work.
 
 ## Local pending action queue
 
