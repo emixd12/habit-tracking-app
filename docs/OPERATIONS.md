@@ -1245,6 +1245,27 @@ confirmed, and legal review has not occurred. Keep the Privacy and Terms drafts
 unpublished and public registration closed. Existing authenticated accounts
 remain available.
 
+### Ticket 106 completion attestation, 2026-08-31
+
+The preceding audit remains the historical read-only checkpoint. The owner
+later confirmed that active retention settings were verified against the final
+policy, `privacy@identityscaffolding.com` passed its harmless route test, legal
+review approved the final Privacy and Terms text and facts, and all publication
+approvals are complete. This attestation contains no credentials, user data,
+message content, private provider payloads, or resource identifiers.
+
+The final policy follows the verified active windows. Routine logs retain for
+no more than seven days: Vercel runtime logs retain one day and Supabase API and
+database logs retain seven days. Supabase daily backups and deleted-account
+backup remnants retain no more than seven days. Browser-push payloads expire
+after no more than 24 hours. Support messages retain for 12 months after
+resolution. Security-incident records may be preserved for up to 90 days or
+the end of the investigation when an investigation requires preservation.
+
+All three publication gates pass. Privacy and Terms may publish, and public
+registration is approved. The completion changes no authentication provider
+setting.
+
 ## Desktop implementation and release gates
 
 Tickets 107–114 implement the macOS track in `docs/DESKTOP_BUILD.md`. Ticket 115
@@ -1354,4 +1375,4 @@ The owner authorized Cadence distribution of the six exact asset hashes in
 marks, and third-party notices unchanged. The approved preview feed is public.
 Any production publication, uploads, hosted migrations, deployments, and
 provider changes remain separate explicit actions. Ticket 106
-legal/public-registration gates remain unchanged.
+legal/public-registration gates passed under the completion attestation above.

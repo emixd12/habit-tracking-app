@@ -19,8 +19,9 @@ The final product posture is:
 - Free open-source desktop and mobile apps.
 - A web app that can support many independent accounts through simple Google
   authentication.
-- Future paid capabilities that do not gate the account synchronization planned
-  in Tickets 116–122, plus separately scoped speech-to-speech AI features.
+- Future paid capabilities that do not gate the account synchronization
+  implemented in Tickets 116–122, plus separately scoped speech-to-speech AI
+  features.
 - A practical reference implementation and demonstration surface for the
   BehaviorLog Bundle standard:
   `https://github.com/emixd12/BehaviorLog-Bundle`.
@@ -59,9 +60,8 @@ Preferred sequencing:
    second runtime.
 4. Extract `packages/ui` as tokens and primitives first, not full product
    components.
-5. Maintain the completed desktop track under Tickets 107–114; keep Ticket 115
-   and mobile deferred. Implement optional desktop account synchronization only
-   through Tickets 116–122.
+5. Maintain the completed desktop track under Tickets 107–114 and 116–122;
+   keep Ticket 115 and mobile deferred.
 
 Use npm workspaces first unless build orchestration becomes painful. Turborepo
 may be added later if caching and multi-app task orchestration become
@@ -237,28 +237,22 @@ Before public launch, add standard public-product protections:
 - A privacy/trust page explaining ownership, export, reminders, and the
   BehaviorLog portability model.
 
-The proposed public retention schedule is:
+The approved public retention schedule is:
 
-- routine logs: 30 days;
-- security-incident logs: up to 90 days or until the investigation concludes;
-- backups: no more than 30 days, subject to verified provider capabilities;
-- deleted-account live data: immediately or within seven days, with backup
-  remnants aging out within 30 days;
+- routine logs: no more than seven days, with Vercel runtime logs retained one
+  day and Supabase API and database logs retained seven days;
+- security-incident records: up to 90 days or until the investigation
+  concludes when an investigation requires preservation;
+- backups: no more than seven days;
+- deleted-account live data: immediately when deletion succeeds, with backup
+  remnants aging out within seven days;
+- browser-push payloads: no more than 24 hours;
 - support messages: 12 months after resolution.
 
 Specific records may be retained longer only for security investigations,
-fraud prevention, or legal preservation. These periods are publication claims,
-not verified provider capabilities. Publication remains blocked until provider
-retention is verified and recorded in sanitized form.
-
-The 2026-08-31 sanitized recheck confirms one-day Vercel Pro runtime logs,
-seven-day Supabase Pro API/database logs, seven-day Supabase Pro daily backups,
-and a 24-hour maximum queue lifetime for browser-push payloads. Sequenzy does
-not publish a transactional-message window, browser vendors do not publish an
-operational-log window for this integration, and the Microsoft 365 support
-mailbox retention policy is unavailable because the mailbox route is not yet
-confirmed. `docs/OPERATIONS.md` owns the evidence. The retention gate remains
-failed.
+fraud prevention, or legal preservation. The owner confirmed verification of
+the active settings against this schedule on 2026-08-31. Sanitized evidence and
+the completion attestation live in `docs/OPERATIONS.md`.
 
 ## Marketing content and legal contract
 
@@ -289,7 +283,10 @@ Legal-copy publication and public registration require all three gates:
 3. One legal review approves the final Privacy and Terms text, entity facts,
    retention language, disclaimers, liability language, and dispute process.
 
-None of these gates is recorded as passed as of 2026-08-31.
+All three gates passed on 2026-08-31. The owner confirmed the active retention
+settings, the privacy mailbox route test, legal review, and publication
+approvals. The canonical Privacy and Terms routes may publish, and public
+registration is approved.
 
 ## Source, asset, trademark, and disclosure boundaries
 

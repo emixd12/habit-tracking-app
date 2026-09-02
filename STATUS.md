@@ -541,22 +541,15 @@ Ticket 102 depends on Tickets 092 and 098-101. Ticket 103 depends on Tickets
 100-102. Tickets 104 and 105 depend only on their named completed evidence
 tickets and may proceed independently of the Trust evidence pipeline.
 
-Ticket 106 is `in_progress`. It records the marketing content contract,
-retention targets, entity and dispute facts, and three hard publication gates.
-The local redesign, canonical vocabulary, machine outputs, Trust presentation,
-and blocked Privacy and Terms drafts are implemented and verified. Provider
-retention fails the proposed routine-log and incident-log targets. The
-2026-08-31 recheck confirms one-day Vercel runtime logs, seven-day Supabase
-API/database logs and daily backups, and a 24-hour browser-push payload maximum.
-Sequenzy transactional retention, browser-vendor operational-log retention,
-and support-message retention remain unverified. The privacy mailbox remains
-unconfirmed. Legal review has not occurred. Legal-copy
-publication and public registration remain closed until all three gates pass.
-The owner authorized the completed desktop/nonlegal release to land. Privacy,
-Terms, and their shared legal component remain excluded from this production
-commit. No gate is waived, and public registration stays closed.
+Ticket 106 is complete (2026-08-31). The owner confirmed that active retention
+settings were verified, the privacy mailbox passed its route test, legal review
+approved the final Privacy and Terms text, and all publication approvals are
+complete. The final policy uses the active one-day Vercel and seven-day
+Supabase routine-log windows instead of the unsupported 30-day proposal.
+Privacy and Terms are approved for publication. Public registration is
+approved without changing the existing authentication implementation.
 
-Ticket 106 now includes the owner-requested marketing annotations and a header
+Ticket 106 includes the owner-requested marketing annotations and a header
 link to the live, disclosed macOS preview release. Web and desktop runtime code
 remain unchanged; future mobile remains deferred. Marketing build/check,
 repository contracts, interaction and design-system checks, lint, typecheck,
@@ -586,19 +579,16 @@ system sleep/wake checks. Product fully quit delivery
 and owner-assisted notification click/focus pass independently of the original spike.
 Ticket 113 later completed the preview milestone; Ticket 115 owns deferred
 Apple-trusted distribution. Ticket 106
-publication gates and unrelated changes remain intact. Full evidence lives in
+publication approval remains independent of desktop distribution. Full evidence lives in
 `docs/qa/2026-08-30-desktop-0.3-acceptance.md`.
 
-Ticket 106 local verification passed `agents:check`, `interactions:check`,
-`resolvers:check`, `design-system:check`, lint, typecheck, 1,108 tests, the
+Ticket 106 verification passed `agents:check`, `interactions:check`,
+`resolvers:check`, `design-system:check`, lint, typecheck, 1,370 tests, the
 application build, `marketing:check`, the marketing build,
-`public-trust:check`, and `git diff --check`. Lint retained eight existing
-warnings in the BehaviorLog reference validator and reported no errors.
-Browser QA passed for the homepage, FAQ, About, Trust, Privacy, and Terms at
-390px and desktop widths. The checks covered headings, FAQ keyboard behavior,
-focus visibility, reduced motion, status text, table containment, alt text,
-horizontal overflow, links, and browser errors. No deployment or production
-verification occurred because the publication gates remain closed.
+`public-trust:check`, focused legal/public-copy tests, and `git diff --check`.
+Lint retained seven existing warnings in the BehaviorLog reference validator
+and reported no errors. Browser QA passed Privacy and Terms at 390px and
+desktop widths with no horizontal overflow, draft labels, or browser errors.
 
 No remediated finding from Tickets 079-083 or 093 remains local-only. Their
 hosted migrations and application changes are deployed and verified.
@@ -6773,11 +6763,10 @@ release occurred. Preserve all unrelated Ticket 106 edits.
 - Ticket 025 is now split into 025A restore preview and 025B restore apply/UI.
   Implement 025A first, verify it fully, then implement 025B. Ticket 025B is
   intentionally more destructive than the current import/create/merge paths.
-- Tickets 107–114 are complete. Keep Ticket 115 deferred until its Apple access
-  and macOS 14 blockers change. Tickets 116–122 are planned; start with Ticket
-  116 and require explicit authorization before hosted changes. Do not start web
-  offline/PWA, broader workspace restructuring, mobile, billing, or AI work
-  without scoped authorization.
+- Tickets 107–114 and 116–122 are complete. Keep Ticket 115 deferred until its
+  Apple access and macOS 14 blockers change. Do not start web offline/PWA,
+  broader workspace restructuring, mobile, billing, or AI work without scoped
+  authorization.
 - Run `npm run agents:check` and `npm run resolvers:check` before standard lint/typecheck/test/build verification.
 - Run `npm run design-system:check` after changing reusable UI, the bench route, or design-system manifest/usage/config files.
 - Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.

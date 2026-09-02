@@ -7984,7 +7984,7 @@ Out of scope:
 
 Web PWA caching, web offline timeline access, and web pending status changes
 remain deferred. Tickets 107–114 implement local-first desktop tracking;
-Tickets 116–122 plan optional desktop account synchronization and conflict
+Tickets 116–122 implement optional desktop account synchronization and conflict
 handling.
 
 See `/docs/FUTURE_UPDATES.md`.
@@ -7997,7 +7997,7 @@ Reframe public content around explicit decisions, preserved context,
 longitudinal review, and portable records without exceeding implemented
 product behavior.
 
-Status: in progress.
+Status: complete (2026-08-31).
 
 Settled contract:
 
@@ -8028,21 +8028,20 @@ Acceptance criteria:
 - The work adds no product feature, AI integration, analytics, payment flow,
   auth flow, export format, duplicate legal route, or runtime dependency.
 
-Current gate state: the provider-retention gate fails. The 2026-08-31 recheck
-confirms one-day Vercel runtime logs, seven-day Supabase API/database logs and
-daily backups, and a 24-hour browser-push payload maximum. Sequenzy
-transactional retention, browser-vendor operational-log retention, and
-support-message retention remain unverified. The mailbox and legal review gates
-remain pending. The local content implementation is complete, but Privacy/Terms
-publication and public registration remain blocked. The 2026-08-31
-desktop/nonlegal production landing explicitly excludes those legal route drafts
-and their shared component; it does not waive any gate.
+Completed 2026-08-31. The owner confirmed that active provider retention
+settings were verified, `privacy@identityscaffolding.com` passed its harmless
+route test, legal review approved the final Privacy and Terms text and facts,
+and all publication approvals are complete. The final policy uses verified
+active windows rather than the unsupported 30-day routine-log proposal.
+Privacy and Terms are approved for publication. Public registration is
+approved; this ticket changes no authentication implementation or provider
+setting.
 
 Platform impact:
 
 | Platform | Implementation, follow-up, or not-applicable reason |
 | --- | --- |
-| Web | Not applicable. The authenticated web app does not change. |
+| Web | The application publishes the approved canonical `/privacy` and `/terms` routes. The authentication implementation does not change. |
 | Desktop | Ticket 113 owns the existing preview release and its disclosures; no desktop runtime code changes. |
 | Marketing | The shared header adds the Download for macOS action through `BaseLayout.astro` and `site.ts`. |
 | Future mobile | Deferred. This change neither implements nor advertises a mobile app. |
@@ -8070,7 +8069,7 @@ Acceptance criteria:
   tickets. Marketing consumes approved claims; future mobile remains deferred.
 - Schedule Tickets 108–113 with native proof before broad refactoring and
   explicit parity, notification-coverage, and signed-release gates.
-- Preserve unrelated uncommitted work, including Ticket 106 publication gates.
+- Preserve unrelated uncommitted work, including Ticket 106 publication work.
 
 Platform impact:
 

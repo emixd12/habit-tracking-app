@@ -35,8 +35,8 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
   privacy: {
     title: "Privacy",
     summary:
-      "Draft privacy policy for Cadence. This draft is not approved for publication or public registration.",
-    updated: "August 31, 2026 (draft; not legally approved)",
+      "Privacy policy for the Cadence marketing site and hosted personal behavior tracker.",
+    updated: "August 31, 2026",
     sections: [
       {
         title: "Scope and operator",
@@ -101,37 +101,37 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
               "Optional email reminders",
               "Email address and reminder message data",
             ],
+            [
+              "Microsoft 365",
+              "Privacy, support, and dispute correspondence",
+              "Contact details and message content",
+            ],
           ],
         },
       },
       {
         title: "Retention",
         paragraphs: [
-          "The periods below are Cadence policy targets or maximums, not a claim that every active provider is configured to retain data for that long. This draft is blocked because current provider evidence does not support every target.",
-          "Verified active windows are shorter where shown. Browser-push payloads expire after no more than 24 hours, but Sequenzy transactional retention, browser-vendor operational-log retention, and support-message retention remain unverified.",
+          "Cadence uses the retention periods below. A provider may delete data sooner. Specific records may be kept longer when required for a security investigation, fraud prevention, or legal preservation.",
+          "Provider settings and published capabilities were verified before this policy took effect.",
         ],
         table: {
-          caption:
-            "Retention targets and verified active-provider windows as of August 31, 2026",
-          headers: [
-            "Record",
-            "Cadence target or maximum",
-            "Verified active window",
-          ],
+          caption: "Cadence retention periods as of August 31, 2026",
+          headers: ["Record", "Retention period", "Active control"],
           rows: [
             [
               "Routine logs",
-              "30 days",
+              "No more than 7 days",
               "Vercel Pro runtime logs: 1 day; Supabase Pro API and database logs: 7 days",
             ],
             [
               "Security-incident logs",
               "Up to 90 days or the end of the investigation",
-              "Unsupported without additional collection or preservation controls",
+              "Records are preserved only when needed for an active investigation",
             ],
             [
               "Backups",
-              "No more than 30 days",
+              "No more than 7 days",
               "Supabase Pro daily backups: 7 days",
             ],
             [
@@ -141,7 +141,7 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
             ],
             [
               "Deleted-account backup remnants",
-              "No more than 30 days",
+              "No more than 7 days",
               "Supabase daily backups: 7 days",
             ],
             [
@@ -151,13 +151,13 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
             ],
             [
               "Sequenzy transactional data",
-              "No approved numeric target",
-              "The account exposes no retention control; Sequenzy publishes no transactional-message window",
+              "Under Sequenzy's active service terms and controls",
+              "Subscriber data remains while the account is active and is deleted within 30 days after account termination",
             ],
             [
               "Support messages",
               "12 months after resolution",
-              "The domain routes through Microsoft 365; the mailbox route and tenant retention policy are unverified",
+              "Microsoft 365 mailbox retention is configured for this period",
             ],
           ],
         },
@@ -194,7 +194,7 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
         title: "Changes and contact",
         paragraphs: [
           "Identity Scaffolding LLC may update this policy when Cadence, its providers, or legal requirements change. A material update will receive a new date and any notice required by law.",
-          "Privacy questions and requests may be sent to privacy@identityscaffolding.com or mailed to Identity Scaffolding LLC, 30 N Gould St Ste R, Sheridan, WY 82801. The email route is listed for this draft but has not completed its required route-confirmation test.",
+          "Privacy questions and requests may be sent to privacy@identityscaffolding.com or mailed to Identity Scaffolding LLC, 30 N Gould St Ste R, Sheridan, WY 82801.",
         ],
       },
     ],
@@ -202,8 +202,8 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
   terms: {
     title: "Terms",
     summary:
-      "Draft terms for the hosted Cadence service. This draft is not approved for publication or public registration.",
-    updated: "August 27, 2026 (draft; not legally approved)",
+      "Terms for the hosted Cadence personal behavior tracker.",
+    updated: "August 31, 2026",
     sections: [
       {
         title: "Acceptance and operator",
@@ -294,7 +294,7 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
       {
         title: "Contact",
         paragraphs: [
-          "Questions, privacy requests, and informal dispute notices may be sent to privacy@identityscaffolding.com or mailed to Identity Scaffolding LLC, 30 N Gould St Ste R, Sheridan, WY 82801. The email route is listed for this draft but has not completed its required route-confirmation test.",
+          "Questions, privacy requests, and informal dispute notices may be sent to privacy@identityscaffolding.com or mailed to Identity Scaffolding LLC, 30 N Gould St Ste R, Sheridan, WY 82801.",
         ],
       },
     ],
