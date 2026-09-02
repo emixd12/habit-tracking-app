@@ -43,11 +43,157 @@ When updating a ticket row:
 
 ## Current repository state
 
-Tickets 116–122 are planned (2026-08-31). They add app-managed local database
+Tickets 116–122 are complete (2026-09-02). Ticket 119 completed after the owner
+selected first-hydration compatibility handling for existing same-status
+branched hosted history and installed preview.19 hydrated the owner account.
+Hosted migrations are deployed and congruent through `20260902052213`.
+Hosted account-sync smoke passed, and hosted RLS passed 92 checks. The final
+QA A and QA B binary hashes are
+`051b963faf26e262dba241e8e96a21b8304c94d165d5d3719514830ee5c9873c`
+and `317ff0a011d0e92ad56e9b270e52ca1fcc214e008eea6d84b7bdf0c7bfb4d598`.
+The hydration revision fix passed native QA. A later status-sync failure exposed
+Occurrence configuration-lineage clearing as the next root cause. Migration
+`20260901200000` added the initial broad guard; scoped correction
+`20260901203000` preserves unchanged lineage only for account-sync scheduling
+fields. Native status transition then converged, and branched status history was
+rejected before review.
+
+The installed two-copy conflict and disconnect matrix now passes the verified
+paths. Concurrent Behavior conflicts showed the shell cue and panel. A stale
+decision was rejected. Both Mac and account decisions applied, while Keep both
+remained unavailable. The final two-copy baseline is
+`6911d097b519e00f1f05487aaefda5d36ccb630c3d078178dd7a5d4586c7037b`
+with zero pending changes. Keep-local disconnect removed Keychain, link, and
+baseline state while preserving the complete local working copy. Local-mode
+Restore from `/private/tmp/cadence-ticket122-qa-b-pre-conflict.sqlite3` passed
+and protected the prior database at the app's owner-only Backups location.
+Remove account data created the mode-600 backup
+the app's owner-only Backups location,
+created a fresh profile and default categories, removed product/link/baseline
+state, and removed the Keychain session. Published preview.3 remains unchanged.
+Preview.7 built and passed review but is superseded by later migration, test,
+and documentation changes. Native first-link Ignore and Import now pass. Ignore
+kept the hosted copy and protected the discarded local copy. Import preserved
+both the local and hosted Behaviors and converged with zero pending changes.
+Preview.8 and preview.9 are superseded local-only candidates. Neither was
+published or installed. The post-classifier completion matrix passes: 1,463
+Vitest tests passed, 23 skipped, all 59 native tests passed, and every required
+check and build passed with only the existing lint and chunk-size warnings. A
+fresh `Cadence QA Revoked` app uses bundle ID
+`app.cadence.desktop.qa-revoked`; strict deep code-sign verification passed,
+the corrected classifier is embedded, and its executable SHA-256 is
+`7a28021b858cbc37702d0655bdf1e4fa70b7cf7a4ec917c051ff7ee988081d60`.
+The unique native revoked-session path now passes. Cadence showed, “The account
+session expired or was revoked. Reconnect or disconnect the account.” Sync now
+preserved that state, baseline `ccbb6584…`, pending local mutations, and hosted
+counts. Keep a local copy then disconnected the account, retained two Behaviors
+and 64 Occurrences with integrity `ok` and zero foreign-key violations, cleared
+link and baseline rows, and removed the isolated Keychain item. Tickets 119–122
+were still in progress at that checkpoint. Preview.10 is published,
+installed-defective, superseded,
+and retained. Installed acceptance exposed missing public Supabase
+configuration. Its three remote assets remain immutable. Preview.11 must pass
+the new release preflight and corrected updater acceptance before the final feed
+moves forward. Preview.11 is local-only, superseded, unpublished, and retained:
+Vite omitted both public values because the source read `import.meta.env`
+dynamically as a whole object. Preview.12 is local-only, superseded,
+unpublished, and retained. Its release orchestration lost both reviewed public
+values at Tauri's nested frontend-build boundary. Release tooling now owns that
+frontend build and rejects fresh frontend output missing either public marker.
+Preview.13 failed during configuration-only local verification because its raw
+staged-app scan could not inspect Tauri-compressed assets. It produced no
+immutable bundle. The guard now checks fresh frontend output before Tauri runs;
+native configured-state acceptance was the packaging/runtime gate.
+Preview.14 completed final release acceptance. Its explicit frontend build
+and exact fresh-output public-marker guard passed before Tauri ran with the
+nested `beforeBuildCommand` disabled. Archive, signature, DMG, application
+parity, updater signature, feed fixtures, and secret scans passed. Its three
+immutable assets were published to the existing prerelease. The invalid-
+signature, unavailable-download, and final-valid updater stages passed with
+remote readback. The real updater installed and restarted preview.14, migrated
+schema 9 to 10, preserved stable identity and owner data, exposed configured
+Google sign-in, and passed postinstall integrity and secret acceptance. The
+final feed SHA-256 is
+`98cd47d6c3cda522331474f370ba3a00089f931eb48b4e8cb806c0c2e860b649`.
+The release remains prerelease and not latest. Hosted fixture user
+`92402e46-1abb-46b0-b957-337fda7b8990`, its owned rows, and the exact QA-A and
+QA-B legacy Keychain items were removed and verified absent. Tickets 119–122
+completed their controlled acceptance matrix.
+Preview.15 supersedes preview.14. The installed preview.14 failed Google sign-in
+because its ad hoc signature has no Keychain access-group entitlement while the
+binary selected the Data Protection Keychain path. Preview builds now select
+the existing legacy login-Keychain path and verify its compiled marker; Apple-
+signed production builds remain unchanged. Preview.15 passed artifact checks,
+installed, completed Google PKCE with the owner's account, and became the final-
+valid updater feed. Its archive, signature, and DMG passed independent remote
+hash readback. The GitHub release remains prerelease and not latest. At that
+checkpoint, the production marketing site linked directly to the preview.15 DMG.
+
+The owner account first stopped safely before hydration because its hosted
+snapshot contains pre-existing same-status branch history. The owner chose
+compatibility handling. Preview.16 through
+preview.18 remained unpublished local-only diagnostics: retry gating, status-
+revision order, and import-run order failed in sequence. Preview.19 applies
+both history dependency chains before their children. Installed hydration then
+saved one baseline, cleared the pending attempt, reached Account data is
+current, and retained the complete owner-scoped account snapshot unchanged.
+SQLite integrity and foreign-key checks passed. The release assets and final feed passed remote
+hash readback. The release remains prerelease and not latest. Production
+marketing deployment `dpl_Euzkkoi8VZraWNJ37y5bAvUXk8Wo` links to the
+preview.19 DMG.
+The final pre-commit review closed additional safety gaps. Hosted account-sync
+apply now serializes each account, locks cross-account entity identities before
+ownership checks, and stores bounded receipt metadata. The new migration
+`20260902052213_serialize_and_bound_account_sync_apply.sql` is deployed. The
+expanded hosted account-sync smoke passed same-account and cross-account races,
+bounded receipt replay, and cleanup. Hosted RLS passed all 92 checks. Native
+restore, disconnect, schema validation, dependency ordering, and collection
+limits passed 65 Rust tests. Desktop authentication now preserves linked state
+during reconnect, and first-link reconciliation applies the reviewed planner.
+Ticket 119 has exact untouched-seed detection,
+the explicit responsive import/ignore/cancel choice, incomplete-link cleanup,
+and a validated owner-only protected-backup command that returns its exact path.
+The authenticated desktop adapter now reads complete RLS-scoped hosted rows,
+imports through the existing atomic BehaviorLog RPC, hydrates through one local
+restore-plan apply, and records schema-8 common-baseline state only after both
+commits. Deterministic attempt identities support retry; conflicts write neither
+copy. The final post-classifier matrix passed 1,463 Vitest tests with 23 skipped,
+all 59 native tests, and every required check and build. The isolated native bundle exposed all three
+choices and completed cancel. The corrected Ignore case converged on fingerprint
+`6911d097b519e00f1f05487aaefda5d36ccb630c3d078178dd7a5d4586c7037b`,
+kept only `Matrix account winner` live, protected `Ignore me local`, left zero
+pending changes, and did not change hosted data. After a fresh Remove, Import
+kept `Import me local` and `Matrix account winner`, saved baseline prefix
+`ccbb658424a3`, and left zero pending changes. See
+`docs/qa/2026-09-01-desktop-first-account-link.md`.
+Ticket 117 implements the exact Application Support database path, native
+Finder reveal, consistent online backup, and protected local-only restore.
+Native Finder reveal, backup, protected restore, database validation, quit,
+and restart passed against the built app. The live and protected databases
+passed integrity, foreign-key, schema 6, and owner-only permission checks.
+Evidence: `docs/qa/2026-08-31-desktop-local-database-controls.md` and
+`docs/qa/2026-08-31-desktop-authentication.md`.
+
+Tickets 116–122 add app-managed local database
 controls, optional desktop Google sign-in, an explicit first-link data choice,
 offline-capable two-way synchronization, conflict review, disconnect choices,
-and real-updater migration acceptance. No implementation, hosted migration,
-auth configuration, provider operation, or marketing publication has started.
+and real-updater migration acceptance. Ticket 116 aligned the synchronized and
+device-local field boundary, RLS/SQLite ownership, snapshot ceilings, pure merge
+planner, idempotent two-commit retry, and first-link/conflict ownership across
+the source-of-truth documents. It made no runtime, schema, provider, hosted, or
+marketing change. Checks passed: agents, interactions, resolvers, and diff.
+Ticket 118 added local authentication runtime with the official Tauri deep-link
+plugin, query state, fixed Keychain slots, and nonsecret SQLite link metadata.
+The owner-approved temporary legacy-Keychain QA app completed Google PKCE,
+native callback delivery, exact-once token exchange, restart persistence, and
+replay rejection. Production Data Protection Keychain acceptance remains with
+Apple-signed release work under Tickets 115/122. The complete account-sync
+migration chain through `20260902052213` is hosted and congruent. Ticket 122
+accepted preview.19, and marketing links directly to its disclosed unnotarized
+DMG. Installed preview.10 is
+superseded because its bundle omitted public Supabase configuration. Release
+preflight now requires the HTTPS desktop Supabase URL and a public publishable
+or legacy anon key before building another account-sync preview.
 Account-free local mode remains complete. Ticket 115 remains independently
 deferred and its Apple-trust gates are unchanged.
 
@@ -399,8 +545,12 @@ Ticket 106 is `in_progress`. It records the marketing content contract,
 retention targets, entity and dispute facts, and three hard publication gates.
 The local redesign, canonical vocabulary, machine outputs, Trust presentation,
 and blocked Privacy and Terms drafts are implemented and verified. Provider
-retention fails the proposed routine-log and incident-log targets. The privacy
-mailbox remains unconfirmed. Legal review has not occurred. Legal-copy
+retention fails the proposed routine-log and incident-log targets. The
+2026-08-31 recheck confirms one-day Vercel runtime logs, seven-day Supabase
+API/database logs and daily backups, and a 24-hour browser-push payload maximum.
+Sequenzy transactional retention, browser-vendor operational-log retention,
+and support-message retention remain unverified. The privacy mailbox remains
+unconfirmed. Legal review has not occurred. Legal-copy
 publication and public registration remain closed until all three gates pass.
 The owner authorized the completed desktop/nonlegal release to land. Privacy,
 Terms, and their shared legal component remain excluded from this production
@@ -6507,13 +6657,13 @@ Owner authorization: 2026-08-30. Current requirements live in
 | 113: Unnotarized Apple Silicon preview and updater acceptance | complete | The approved preview prerelease is public. Downloaded launch, three updater failure paths, valid .1 to .2 installation, separate restart, and data preservation pass. Both versions use schema 6, so shipped-migration testing is not applicable to this release. |
 | 114: BehaviorLog 0.3 portability parity | complete | Canonical passive observations, retained configuration identity, exact passive replay, and accepted source schedule fingerprints pass real SQLite/SQL and native export/import acceptance. Hosted rollout remains separate. |
 | 115: Apple-trusted macOS distribution acceptance | deferred | Apple Developer Program access, Developer ID signing, notarization, stapled artifact verification, quarantined notarized-DMG Gatekeeper acceptance, and Apple Silicon macOS 14 execution remain unavailable. The strict production check reaches only these Apple blockers. |
-| 116: Desktop account-sync product and architecture contract | not_started | Defines optional account mode, synchronized/device-local data, snapshot merge, and security boundaries before runtime work. |
-| 117: Desktop local database controls | not_started | Plans exact Application Support path disclosure, Reveal in Finder, consistent backup, and protected local-only restore. |
-| 118: Desktop Google authentication and account session | not_started | Plans system-browser PKCE, deep-link callback, Keychain secrets, and one signed-in account. |
-| 119: First desktop account-link data choice | not_started | Plans explicit import-or-ignore handling for recognized local data with a protected backup. |
-| 120: Offline-capable two-way desktop synchronization | not_started | Plans typed three-way merge, outbox/cursor activation, RLS-safe hosted apply, and eventual synchronization while the app runs. |
-| 121: Sync conflict review and account disconnect | not_started | Plans shell/Settings conflict review and Keep local copy or Remove account data disconnect outcomes. |
-| 122: Account-sync migration and release acceptance | not_started | Plans the first real-updater schema migration after backup and the web-plus-two-desktop acceptance matrix. |
+| 116: Desktop account-sync product and architecture contract | complete | `AGENTS.md`, `docs/PRODUCT_SPEC.md`, `docs/DESKTOP_BUILD.md`, `docs/DECISIONS.md`, `docs/FUTURE_UPDATES.md`, `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`, `docs/AGENT_RESOLVERS.md`, and `docs/TICKETS.md` define the optional account boundary, 100,000-row/64-MiB/30-second snapshot ceilings, planner and retry ownership, and security rules. `npm run agents:check`, `npm run interactions:check`, `npm run resolvers:check`, and `git diff --check` passed. No runtime, schema, provider, or hosted changes. |
+| 117: Desktop local database controls | complete | Exact Application Support path disclosure, Finder reveal, consistent online backup, protected local-only restore, validation, rollback contracts, and native restart acceptance pass. |
+| 118: Desktop Google authentication and account session | complete | Official Tauri deep-link delivery, query-state validation, exact-once Google PKCE exchange, fixed Keychain storage, distinct SQLite metadata, one-account enforcement, restart persistence, replay rejection, and secret scans pass. Installed preview.15 completed the owner Google round trip through the preview-only legacy login-Keychain path. Production Data Protection Keychain acceptance remains under Apple-signed Ticket 115. See `docs/qa/2026-08-31-desktop-authentication.md`. |
+| 119: First desktop account-link data choice | complete | The planner preserves same-status hosted branches only during automatic first hydration of an untouched profile; divergent, local-only, cross-copy, and post-baseline branches remain rejected. Installed preview.19 hydrated the complete owner-scoped account snapshot, preserved pre-existing same-status branches, saved one baseline, cleared the pending attempt, and reached Account data is current. |
+| 120: Offline-capable two-way desktop synchronization | complete | Final QA A/B matrices, status transition, branched-history rejection, offline/retry behavior, and hosted/RLS contracts passed. The deployed final hardening serializes same-account plans and cross-account entity identities and bounds receipt storage. Preview.15 preserved the branched-history safety gate with real owner data. |
+| 121: Sync conflict review and account disconnect | complete | Conflict cue/review, stale rejection, Mac/account decisions, Keep-local, Remove-account-data, Restore, and revoked-session native paths passed. Keep both remains safely withheld. |
+| 122: Account-sync migration and release acceptance | complete | Preview.19 supersedes preview.15. Its installed owner-account hydration, immutable publication, remote hash readback, final-valid updater feed, and production marketing link passed. Migration `20260902052213` and expanded hosted account-sync/RLS smoke also passed. The release remains prerelease and not latest. |
 
 Final 0.3 verification supersedes the earlier 0.2 checkpoints. The clean local
 reset replayed all 47 migrations through `20260831014424`, with every published

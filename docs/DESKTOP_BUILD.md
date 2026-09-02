@@ -134,16 +134,151 @@ the account or Ignore local data and use account data. Both paths reuse the
 portability snapshot, fingerprint, preview, conflict-action, and atomic-plan
 architecture. Ignore creates a protected local backup before replacement.
 
+Ticket 119 recognizes local data from the typed portability snapshot. It ignores
+only the untouched seeded profile and exact default-category set. Its native
+protected-backup command creates, validates, and returns the exact owner-only
+backup path without a save dialog. The account choice UI exposes import, ignore,
+and cancel separately. Desktop reads complete RLS-scoped hosted rows through the
+signed-in Supabase client, imports through `public.apply_behaviorlog_import`,
+hydrates through the shared BehaviorLog restore plan and one local atomic apply,
+then saves the common baseline. It uses deterministic attempt, preview, apply,
+and planned row IDs so an incomplete two-commit attempt can retry safely. It
+routes an irreconcilable preview to Ticket 121 without writing either copy.
+
 The live database stays in the app-managed Application Support location.
 Settings shows the exact path and offers Reveal in Finder, Back Up, and Restore.
 Raw database Restore is local-mode only. Disconnect offers Keep a local copy,
 with its exact path, or Remove account data from this Mac.
 
+Ticket 117 implements those local database controls through fixed native
+commands. No command accepts a live database path. Backup uses a consistent
+online SQLite snapshot and atomic destination replacement. Restore requires the
+typed confirmation, validates exact schema compatibility, creates a protected
+pre-restore snapshot, replaces the managed database atomically, and reopens it.
+Ticket 121 must connect the native local-mode gate to account disconnect state.
+
+Ticket 118 implements the local authentication boundary. Settings starts
+Google PKCE in the system browser, and the installed app registers
+`cadence://auth/callback`. Native code installs its callback handler before the
+Tauri window starts. Tauri's official deep-link plugin delivers cold-launch
+and running-app callbacks for only the `cadence` scheme. Native code opens only
+HTTPS URLs and exposes fixed Keychain slots. The client validates origin, state, and age,
+consumes state before code exchange, and rejects denial, cancellation, replay,
+and malformed callbacks. SQLite stores only the stable-local-profile to hosted
+user mapping, email, and authentication time. A successful session changes no
+product row and remains Ticket 119 input. The hosted redirect allowlist and
+installed-app round trip remain acceptance gates. The exact hosted entry is now
+verified. The configured ad hoc bundle builds and verifies its signature, but
+macOS rejects Data Protection Keychain writes without a valid signed access
+group. Apple-signed production builds use the Data Protection Keychain path.
+Ad hoc public previews use the existing login-Keychain path and must contain its
+compiled release-verification marker. Preview.15 completed the installed Google
+round trip through that preview-only path. See
+`docs/qa/2026-08-31-desktop-authentication.md`.
+
+The hosted Auth redirect allowlist requires the narrow dynamic-query entry
+`cadence://auth/callback?state=*`. The base `cadence://auth/callback` remains
+the registered native callback and should stay allow-listed only if native
+registration or provider denial proves it necessary. Do not use the broad
+`cadence://auth/callback*` pattern. Cadence requires state, authorization code,
+and provider errors in the callback query.
+
 Use system-browser PKCE, Keychain session storage, the user's JWT, and hosted
-RLS. Synchronize typed product data and reminder preferences. Keep tokens,
-browser push subscriptions, native notification requests/coverage, and other
-device state local. Start with complete typed snapshots and a measured ceiling;
-do not add a hosted change journal until needed.
+RLS. Never put authentication secrets in SQLite, frontend storage, logs,
+exports, or backups. Hosted apply uses ordinary-user, bounded,
+`SECURITY INVOKER` contracts where one atomic multi-table commit is required.
+Local domain writes, tombstones, and outbox entries remain one SQLite
+transaction. A successful network write never weakens either boundary.
+
+### Synchronized and device-local data
+
+The synchronized account snapshot contains the current typed contracts for:
+
+- profile timezone and account-owned categories;
+- Behaviors, schedules, schedule time entries, definition history, and
+  configuration history;
+- Occurrences, status history, Notes, and time sessions;
+- import runs, provenance mappings, passive imported Notes, passive imported
+  interventions/observations, and their retained configuration context;
+- browser and email reminder preferences; and
+- hosted browser/email reminder-delivery history.
+
+The snapshot excludes authentication tokens, PKCE state, Keychain records,
+browser push subscriptions and endpoints, native notification requests,
+native reminder coverage and delivery evidence, OS permission state, local
+file paths and backups, updater state, local preview ledgers, UI preferences,
+and device health or capability data. Desktop email delivery remains inactive.
+Synchronized reminder preferences may produce native intent only through the
+existing desktop reminder planner; hosted delivery history never proves native
+delivery or user receipt.
+
+The hosted account owns hosted row ownership through its authenticated user ID.
+The stable local profile owns the SQLite working copy. Account-link metadata
+maps those identities without rewriting historical IDs or storing a token.
+First-link classification, choice, backup, hydration, and baseline creation
+belong to Ticket 119. Ticket 117 owns database path and backup controls;
+Ticket 118 owns authentication; Ticket 121 owns conflict review and disconnect.
+
+### Snapshot and merge boundary
+
+Each side is read as one internally consistent typed snapshot. A snapshot fails
+closed when any collection exceeds 100,000 rows, its canonical UTF-8 JSON
+exceeds 64 MiB, or the complete read, validation, fingerprint, and planning
+attempt exceeds 30 seconds. No truncated snapshot may synchronize. Ticket 120
+must measure these limits with representative and ceiling fixtures before
+release. It canonicalizes top-level UTC instant columns to PostgreSQL microsecond precision
+with half-even rounding. Snapshot entities and nested object keys use Unicode code-point
+order, matching PostgreSQL `COLLATE "C"` UTF-8 byte order. Semantic comparison and fingerprints include
+`scheduled_for` plus every `*_at` column except top-level `updated_at`. Local
+dates, local times, and nested JSON provenance remain byte-for-byte domain values. Top-level `updated_at` remains in
+snapshots and compare-and-set guards, but equality and fingerprints exclude it
+because hosted triggers replace it with server time. Exceeding a limit leaves both
+copies and the saved baseline unchanged,
+reports an actionable error, and records no successful synchronization state.
+A hosted change journal requires a later measured ticket; it is not a fallback
+inside Tickets 116–122.
+
+The pure synchronization planner compares local, hosted, and saved common
+baseline snapshots. It returns a deterministic typed plan, conflicts, and
+canonical input fingerprints. It auto-merges independent changes and valid
+append-only history. It never silently uses last-writer-wins. One unresolved
+conflict rejects the whole accepted plan; Ticket 121 owns the user's resolution
+and stale-decision checks. Network, Supabase, SQLite, Keychain, clocks, retry
+scheduling, and UI stay outside the planner.
+
+The native SQLite apply orders parent rows before children. It also orders
+status-event revisions by `revises_event_id` and import runs by
+`accepted_preview_run_id`; UUID order is not a dependency order. Cycles fail
+before any write.
+
+Ticket 121 implements that review in Settings and keeps a persistent shell cue
+while the whole plan is paused. A reviewed plan must match the saved baseline,
+local, and hosted fingerprints captured for the review. Mutable-row conflicts
+offer the account or Mac value. Keep both remains unavailable because no current
+synchronized conflict can duplicate its complete identity graph safely.
+Append-only ID collisions and new branches fail before user review. During the
+first automatic hydration of an untouched local profile only, the planner may
+preserve a hosted same-status branch when every local event in that branch is
+already one of the hosted events. Divergent statuses and cross-copy branches
+still fail. A one-sided deletion of protected history is repaired from the
+retained copy.
+
+Disconnect clears Keychain secrets before native link-state mutation. Keep a
+local copy preserves product rows and returns the exact live path. Remove account
+data creates and validates a protected backup, replaces the linked working copy
+with a fresh local profile, and returns both exact paths. Native restore derives
+account mode from SQLite and rejects linked mode before opening its file picker.
+
+Every synchronization attempt has a stable idempotency key derived from the
+account link, baseline fingerprint, and accepted input fingerprints. Repeating
+an attempt returns the same committed result or safely replans after a changed
+input. Hosted commit and local apply may not share a transaction, so services
+retry the incomplete side and advance the baseline, cursor, and outbox
+acknowledgements only after both commits succeed. Failures use bounded backoff
+with jitter while the app runs; launch, resume, connectivity recovery, relevant
+mutation, and **Sync now** may retry. Offline writes remain available. No retry
+may duplicate histories, resurrect tombstones, discard newer changes, or apply
+an unreviewed conflict decision.
 
 ## UI and cross-platform cascade
 

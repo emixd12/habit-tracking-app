@@ -115,6 +115,12 @@ const resolverRegistry = [
     source: "docs/DESKTOP_BUILD.md",
   },
   {
+    domain: "desktop account synchronization",
+    resolver: "packages/core/src/resolvers/account-sync.resolver.ts",
+    test: "tests/account-sync.resolver.test.ts",
+    source: "docs/DESKTOP_BUILD.md",
+  },
+  {
     domain: "analytics",
     resolver: "packages/core/src/resolvers/analytics.resolver.ts",
     compatibility: "lib/resolvers/analytics.resolver.ts",

@@ -23,6 +23,32 @@ After schema changes, regenerate TypeScript database types from Supabase CLI out
 
 ## Tables
 
+### `account_sync_apply_receipts`
+
+Ticket 120 stores one immutable hosted receipt per authenticated user and
+idempotency key. The receipt binds the request, baseline, local, hosted, and
+result fingerprints to the exact returned snapshot. Authenticated clients may
+select their own receipts. They cannot insert, update, or delete receipts.
+
+`read_account_sync_snapshot()` is a `SECURITY INVOKER` function. It returns one
+owner-scoped, canonical snapshot of the synchronized tables. It rejects any
+collection above 100,000 rows or a result above 64 MiB.
+
+`apply_account_sync_plan(jsonb)` is a `SECURITY INVOKER` function. Its private
+writer repeats authentication and exact payload validation before using its
+elevated boundary. It compares every expected row before writing, preserves
+append-only history and provenance, rejects protected Occurrence deletion,
+applies typed writes in dependency order, and stores the receipt in the same
+transaction. The function accepts the adapter's exact `writes`,
+`mergedFingerprint`, and `conflicts` plan. It does not
+stage BehaviorLog import or restore runs.
+
+The desktop planner preserves existing same-status hosted status-event branches
+only while automatically hydrating an untouched local profile for the first
+time. It copies every event unchanged and saves them in the first common
+baseline. Divergent-status, local-only, cross-copy, and later branches remain
+invalid. This compatibility rule changes no hosted row or schema.
+
 ### `profiles`
 
 ```sql
@@ -1111,6 +1137,21 @@ before-update guard prevents non-`service_role` callers from moving `sent` or
 `processing_started_at`. Server-only reminder processing retains the
 `service_role` exception for provider-result recording and claim maintenance.
 
+### `account_sync_apply_receipts`
+
+Ticket 120 adds an immutable owner-scoped receipt for desktop account-sync
+idempotency. Its primary key is `(user_id, idempotency_key)`. It binds the
+request, baseline, local, hosted, and result fingerprints to the exact result
+JSON. Authenticated clients may select only their own receipts. They receive no
+insert, update, or delete grant. The authenticated-only atomic apply function
+writes the receipt in the same transaction as accepted hosted product changes.
+
+The hosted snapshot function reads the Ticket 116 boundary in one transaction,
+orders typed entities deterministically, rejects more than 100,000 rows in any
+collection, and rejects a complete result above 64 MiB. It excludes Auth
+secrets, push subscriptions, occurrence-generation state, and device-local
+native notification state.
+
 ### `launch_rate_limits`
 
 ```sql
@@ -1347,6 +1388,30 @@ The `(user_id, id, behavior_id)` uniqueness constraint exists so status events
 can enforce same-user ownership for their occurrence and behavior snapshot.
 
 ## Database functions
+
+### `public.read_account_sync_snapshot()` and `public.apply_account_sync_plan(jsonb)`
+
+`read_account_sync_snapshot` is a stable `SECURITY INVOKER` authenticated read.
+It preserves ordinary owner RLS and returns one canonical typed snapshot.
+Canonical object keys and entity kind/ID pairs use explicit `COLLATE "C"` byte order.
+Clients use matching Unicode code-point order and half-even microsecond rounding.
+
+`apply_account_sync_plan` verifies `auth.uid()`, exact payload fields, bounds,
+canonical fingerprints, the current hosted snapshot, zero unresolved
+conflicts, row preconditions, and idempotency before applying any write. It
+uses the existing owner-validating BehaviorLog restore boundary for graph,
+history, provenance, and protected-Occurrence changes. It applies profile
+timezone and reminder-delivery supplemental writes with compare-and-swap
+checks. The product writes and immutable receipt share one transaction. Public,
+anonymous, and service-role execution remain revoked; only `authenticated` may
+execute it. This narrow `SECURITY DEFINER` boundary avoids granting direct
+authenticated writes to protected history and graph tables.
+
+The apply boundary serializes plans per account and locks each written entity
+identity before its ownership check. Immutable receipts retain fingerprints,
+not duplicated account snapshots. A replay reconstructs its response only
+while the receipt result still matches the current hosted snapshot; otherwise,
+the client must replan.
 
 ### `public.consume_launch_rate_limit(p_action text)`
 

@@ -29,8 +29,8 @@ The first public-product implementation steps are now present: the current
 authenticated web app has been hardened for many independent users, and the
 Astro marketing site exists as a sibling app. Tickets 107–114 implement the
 local-first macOS desktop track. Ticket 115 defers Apple-trusted distribution.
-Tickets 116–122 plan optional Google account linking and offline-capable desktop
-synchronization. Billing, AI, and mobile remain future scope.
+Tickets 116–122 implement optional Google account linking and offline-capable
+desktop synchronization. Billing, AI, and mobile remain future scope.
 
 ## Surface model
 
@@ -136,7 +136,7 @@ Primary calls to action:
 - Read BehaviorLog
 - Download Example Bundle
 - View on GitHub
-- Download for macOS
+- Download unnotarized macOS preview
 - Log in
 
 The site is static-first and SEO-conscious from the start: semantic HTML,
@@ -151,8 +151,8 @@ Marketing posture:
 - BehaviorLog is the open bundle standard and portability layer Cadence writes
   and reads. It should be explained in the same manner as a technical base
   layer or open package, not as the primary site brand.
-- The header shows the Cadence brand link, a Download for macOS button to the
-  dedicated disclosed preview release, and Log in. About and FAQ are linked
+- The header shows the Cadence brand link, a Download unnotarized macOS preview
+  button to the current preview DMG, and Log in. About and FAQ are linked
   from the footer. Docs and Examples stay available by direct URL,
   machine-readable mirrors, and in-page content links.
 - `/docs` should grow toward a familiar developer-docs structure: Guides,
@@ -251,6 +251,15 @@ fraud prevention, or legal preservation. These periods are publication claims,
 not verified provider capabilities. Publication remains blocked until provider
 retention is verified and recorded in sanitized form.
 
+The 2026-08-31 sanitized recheck confirms one-day Vercel Pro runtime logs,
+seven-day Supabase Pro API/database logs, seven-day Supabase Pro daily backups,
+and a 24-hour maximum queue lifetime for browser-push payloads. Sequenzy does
+not publish a transactional-message window, browser vendors do not publish an
+operational-log window for this integration, and the Microsoft 365 support
+mailbox retention policy is unavailable because the mailbox route is not yet
+confirmed. `docs/OPERATIONS.md` owns the evidence. The retention gate remains
+failed.
+
 ## Marketing content and legal contract
 
 Cadence's public source is
@@ -280,7 +289,7 @@ Legal-copy publication and public registration require all three gates:
 3. One legal review approves the final Privacy and Terms text, entity facts,
    retention language, disclaimers, liability language, and dispute process.
 
-None of these gates is recorded as passed as of 2026-08-27.
+None of these gates is recorded as passed as of 2026-08-31.
 
 ## Source, asset, trademark, and disclosure boundaries
 
@@ -346,7 +355,7 @@ The desktop release preserves all current tracking capabilities and includes:
 
 - usable without login,
 - local data by default,
-- planned optional account synchronization with explicit first-link and
+- optional account synchronization with explicit first-link and
   disconnect choices,
 - native reminders targeting 30 days, nearest first, with OS-readback coverage
   and a clearly displayed shorter horizon when OS limits require it,
@@ -376,7 +385,12 @@ release acceptance.
 
 The web app remains cloud-first through Supabase. Desktop account mode bridges
 its local-first data with hosted Supabase only when the user opts in. Account-
-free desktop mode remains complete.
+free desktop mode remains complete. Hosted access keeps existing ordinary-user
+RLS. SQLite stays authoritative for the device working copy and keeps atomic
+domain mutation, tombstone, and outbox writes. Credentials and device-specific
+notification state do not enter the synchronized account snapshot. Ticket 122
+accepted the current account-sync preview. Marketing must still identify it as
+an unnotarized preview while Ticket 115 remains deferred.
 
 ## Pricing and future AI
 

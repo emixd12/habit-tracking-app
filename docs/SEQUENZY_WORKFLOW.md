@@ -228,6 +228,17 @@ history or existing clones. If that history has been published or distributed,
 the repository owner should separately assess whether a coordinated history
 rewrite is appropriate; do not copy the recipient into new QA records.
 
+## Retention verification
+
+The 2026-08-31 read-only audit confirmed that the authenticated account remains
+reachable and exposes no retention setting through `account --json`.
+Sequenzy's public Privacy Policy says subscriber data remains while the account
+is active and is deleted within 30 days after account termination. It does not
+state how long transactional message content or delivery history remains.
+Treat transactional retention as unverified. Do not publish a numeric Sequenzy
+window until the provider supplies one in account settings, documentation, or a
+written response.
+
 ## Launch cost and send containment
 
 Sequenzy's public pricing was rechecked on 2026-08-01. Pricing is based on

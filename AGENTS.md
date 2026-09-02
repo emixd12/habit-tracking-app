@@ -177,6 +177,11 @@ may handle SQLite transactions, files, notifications, and lifecycle. Business
 decisions remain in TypeScript. Prove native boundaries in Ticket 108 before
 broad shared-core or UI refactoring.
 
+Desktop synchronization planning follows the same boundary. A pure planner
+compares typed local, hosted, and saved common-baseline snapshots. Services own
+network, Keychain, SQLite, Supabase, retries, and atomic apply. See
+`docs/DESKTOP_BUILD.md#planned-account-mode`.
+
 API routes and cron/process routes must call services. They must not duplicate resolver logic.
 
 Run `npm run resolvers:check` after resolver, service, API route, cron/process, or UI logic changes.

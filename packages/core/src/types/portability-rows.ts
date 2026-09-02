@@ -159,6 +159,7 @@ export type PortabilitySnapshot = {
   mappings: PortabilityMappingRow[];
   importedNotes: PortabilityNoteRow[];
   importedInterventions: PortabilityInterventionRow[];
+  reminderDeliveries?: import("./json").Json[];
 };
 export type PortabilityRowWrite<T> = { expected: T | null; next: T };
 export type LocalImportWritePlan = {

@@ -3,5 +3,5 @@
   "identifier": "main",
   "description": "The local window observes lifecycle events and explicitly checks or installs configured signed updates. No generic filesystem, shell, or HTTP access.",
   "windows": ["main"],
-  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten", "core:resources:allow-close", "updater:allow-check", "updater:allow-download-and-install"]
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten", "core:resources:allow-close", "deep-link:allow-get-current", "updater:allow-check", "updater:allow-download-and-install"]
 }

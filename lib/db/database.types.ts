@@ -34,6 +34,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_sync_apply_receipts: {
+        Row: {
+          baseline_fingerprint: string
+          created_at: string
+          hosted_fingerprint: string
+          idempotency_key: string
+          local_fingerprint: string
+          request_fingerprint: string
+          result_fingerprint: string
+          result_json: Json
+          user_id: string
+        }
+        Insert: {
+          baseline_fingerprint: string
+          created_at?: string
+          hosted_fingerprint: string
+          idempotency_key: string
+          local_fingerprint: string
+          request_fingerprint: string
+          result_fingerprint: string
+          result_json: Json
+          user_id: string
+        }
+        Update: {
+          baseline_fingerprint?: string
+          created_at?: string
+          hosted_fingerprint?: string
+          idempotency_key?: string
+          local_fingerprint?: string
+          request_fingerprint?: string
+          result_fingerprint?: string
+          result_json?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       behavior_configuration_events: {
         Row: {
           behavior_id: string
@@ -1083,6 +1119,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_account_sync_plan: {
+        Args: { sync_payload: Json }
+        Returns: Json
+      }
       apply_behaviorlog_import: {
         Args: { import_payload: Json }
         Returns: Json
@@ -1109,6 +1149,10 @@ export type Database = {
           target_behavior_id: string
           target_user_id: string
         }
+        Returns: Json
+      }
+      read_account_sync_snapshot: {
+        Args: Record<PropertyKey, never>
         Returns: Json
       }
       apply_occurrence_status_transition: {

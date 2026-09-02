@@ -41,12 +41,24 @@ describe("desktop release preparation", () => {
       APPLE_CERTIFICATE: "secret-certificate", APPLE_API_KEY_PATH: "/private/key", APPLE_SIGNING_IDENTITY: "Developer ID Application: Example",
       TAURI_SIGNING_PRIVATE_KEY: "updater-private-key", TAURI_SIGNING_PRIVATE_KEY_PASSWORD: "updater-password", TAURI_CONFIG: "unreviewed", TAURI_BUNDLER_DMG_IGNORE_CI: "true" };
     expect(createPreviewBuildEnvironment(caller)).toEqual({ PATH: "/release/tools", CI: "true", TAURI_BUNDLER_DMG_IGNORE_CI: "false",
-      TAURI_SIGNING_PRIVATE_KEY: "updater-private-key", TAURI_SIGNING_PRIVATE_KEY_PASSWORD: "updater-password" });
+      CADENCE_LEGACY_KEYCHAIN_QA: "1", TAURI_SIGNING_PRIVATE_KEY: "updater-private-key", TAURI_SIGNING_PRIVATE_KEY_PASSWORD: "updater-password" });
     expect(caller.APPLE_PASSWORD).toBe("secret-password");
-    expect(validatePreviewBuildEnvironment({ TAURI_SIGNING_PRIVATE_KEY: "updater-key" })).toEqual([]);
+    const publicAuth = { VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" };
+    expect(validatePreviewBuildEnvironment({ TAURI_SIGNING_PRIVATE_KEY: "updater-key", ...publicAuth })).toEqual([]);
     expect(validatePreviewBuildEnvironment({}).join(" ")).toContain("TAURI_SIGNING_PRIVATE_KEY");
     expect(validatePreviewBuildEnvironment(caller).join(" ")).toContain("TAURI_CONFIG");
-    expect(validateSigningEnvironment({ TAURI_SIGNING_PRIVATE_KEY: "updater-key" })).toHaveLength(2);
+    expect(validateSigningEnvironment({ TAURI_SIGNING_PRIVATE_KEY: "updater-key" }).join(" ")).toContain("VITE_SUPABASE_URL");
+  });
+  it("refuses account-sync preview builds without public Supabase configuration", () => {
+    const signing = { TAURI_SIGNING_PRIVATE_KEY: "updater-key" };
+    const anonPayload = Buffer.from(JSON.stringify({ role: "anon" })).toString("base64url");
+    expect(validatePreviewBuildEnvironment({ ...signing, VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_ANON_KEY: `x.${anonPayload}.x` })).toEqual([]);
+    for (const candidate of [
+      signing,
+      { ...signing, VITE_SUPABASE_URL: "http://project.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" },
+      { ...signing, VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "sb_secret_private" },
+      { ...signing, VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_ANON_KEY: `x.${Buffer.from(JSON.stringify({ role: "service_role" })).toString("base64url")}.x` },
+    ]) expect(validatePreviewBuildEnvironment(candidate).length).toBeGreaterThan(0);
   });
   it("disables Finder scripting even when the caller environment overrides CI defaults", () => {
     const caller = { CI: "false", TAURI_BUNDLER_DMG_IGNORE_CI: "true", PATH: "/release/tools" };
@@ -81,8 +93,9 @@ describe("desktop release preparation", () => {
     expect(validateReleaseConfiguration({ ...base, bundle: { macOS: { minimumSystemVersion: "13.0", hardenedRuntime: false } } }, good).length).toBeGreaterThan(0);
   });
   it("requires real signing and one complete notarization credential set without printing values", () => {
-    expect(validateSigningEnvironment({})).toHaveLength(3);
-    const credentials = { APPLE_SIGNING_IDENTITY: "Developer ID Application: Test (ABCDEFGHIJ)", TAURI_SIGNING_PRIVATE_KEY: "test-key", APPLE_ID: "private@example.org", APPLE_PASSWORD: "private-password", APPLE_TEAM_ID: "ABCDEFGHIJ" };
+    expect(validateSigningEnvironment({})).toHaveLength(5);
+    const credentials = { APPLE_SIGNING_IDENTITY: "Developer ID Application: Test (ABCDEFGHIJ)", TAURI_SIGNING_PRIVATE_KEY: "test-key", APPLE_ID: "private@example.org", APPLE_PASSWORD: "private-password", APPLE_TEAM_ID: "ABCDEFGHIJ",
+      VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" };
     expect(validateSigningEnvironment(credentials)).toEqual([]);
     expect(validateSigningEnvironment({ ...credentials, APPLE_SIGNING_IDENTITY: "-" })).toHaveLength(1);
     expect(validateSigningEnvironment({ ...credentials, APPLE_PASSWORD: "" }).join(" ")).not.toContain("private@example.org");

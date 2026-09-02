@@ -39,7 +39,7 @@ describe("trust and legal UI content", () => {
   it("renders the blocked Privacy draft with semantic processor and retention tables", () => {
     const html = renderToStaticMarkup(<LegalPageContent pageKey="privacy" />);
 
-    expect(html).toContain("August 27, 2026 (draft; not legally approved)");
+    expect(html).toContain("August 31, 2026 (draft; not legally approved)");
     expect(html).toContain(
       "not approved for publication or public registration",
     );
@@ -51,7 +51,10 @@ describe("trust and legal UI content", () => {
     expect(html).toContain('<th scope="col"');
     expect(html).toContain("Vercel Pro runtime logs: 1 day");
     expect(html).toContain("Supabase Pro API and database logs: 7 days");
-    expect(html).toContain("Sequenzy transactional retention");
+    expect(html).toContain("Browser-push payloads");
+    expect(html).toContain("24-hour TTL");
+    expect(html).toContain("Sequenzy publishes no transactional-message window");
+    expect(html).toContain("domain routes through Microsoft 365");
     expect(html).toContain("privacy@identityscaffolding.com");
     expect(html).toContain("California disclosures");
     expect(html).toContain("only for people age 18 or older");

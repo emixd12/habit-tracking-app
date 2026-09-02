@@ -24,11 +24,22 @@ An interaction stays planned until its actual acceptance evidence exists.
 
 The preview commands are `preview-check <version>`, `preview-build <version>`,
 and `preview-verify <version> <bundle-directory>` in `release.mjs`. Preview
-verification requires a sealed ad hoc app, arm64, declared/compiled macOS 14
+builds require `VITE_SUPABASE_URL` and either the public
+`VITE_SUPABASE_PUBLISHABLE_KEY` or legacy `VITE_SUPABASE_ANON_KEY`; preflight
+rejects missing, non-HTTPS, and secret/service-role configuration before Tauri runs.
+The release helper builds the frontend with that reviewed environment, disables
+Tauri's nested `beforeBuildCommand`, and rejects fresh frontend output that
+omits either public value before Tauri runs. Native staged-app configured-state
+acceptance remains the packaging and runtime gate.
+Preview verification requires a sealed ad hoc app, arm64, declared/compiled macOS 14
 minimum, DMG integrity and matching contents, and a correctly signed updater
 archive matching the verified app. Its report must state that Apple trust,
 notarization, downloaded launch, live updater behavior, and untested macOS
 versions are not established by local artifact checks.
+Ad hoc preview builds must select the existing macOS login-Keychain session
+path and contain its compiled verification marker. Production candidates must
+not inherit that preview-only build flag; Apple-signed production uses the Data
+Protection Keychain path.
 
 The completed milestone uses the existing `emixd12/habit-tracking-app`
 repository and dedicated prerelease tag `desktop-preview`, with a static feed:

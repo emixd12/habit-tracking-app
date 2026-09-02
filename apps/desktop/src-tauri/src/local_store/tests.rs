@@ -412,12 +412,12 @@ fn failed_migration_rolls_back_ddl_and_ledger_without_changing_profile() {
     let original = db::profile(&fixture.db).unwrap();
     let mut migrations = db::MIGRATIONS.to_vec();
     migrations.push((
-        7,
+        10,
         "broken",
         "CREATE TABLE must_rollback(id INTEGER); INSERT INTO no_such_table VALUES (1);",
     ));
     assert!(db::migrate(&mut fixture.db, &migrations).is_err());
-    assert_eq!(fixture.count("schema_migrations"), 6);
+    assert_eq!(fixture.count("schema_migrations"), 10);
     assert_eq!(db::profile(&fixture.db).unwrap(), original);
     let exists: bool = fixture
         .db
@@ -1008,7 +1008,7 @@ fn passive_intervention_migration_preserves_history_provenance_and_revision_afte
     .is_err());
 
     db::migrate(&mut fixture.db, db::MIGRATIONS).unwrap();
-    assert_eq!(fixture.count("schema_migrations"), 6);
+    assert_eq!(fixture.count("schema_migrations"), 10);
     assert_eq!(
         import::snapshot(&fixture.db, &fixture.profile).unwrap(),
         before

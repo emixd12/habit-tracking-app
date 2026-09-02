@@ -26,6 +26,11 @@ of `packages/core` and `packages/ui`. Their contract lives in
 116–122 plan optional Google account linking and offline-capable desktop
 synchronization. Intel releases and desktop email delivery remain deferred.
 
+Ticket 116's contract is active product architecture, not a future idea.
+Tickets 117–122 own its implementation. A hosted change journal remains future
+work unless Ticket 120 measurements prove the bounded snapshot design
+insufficient.
+
 Implemented surface work:
 
 - Astro marketing site under `apps/marketing`.

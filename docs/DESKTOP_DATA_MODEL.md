@@ -1,5 +1,23 @@
 # Desktop data model
 
+Schema version 10 adds the durable pre-attempt account snapshot to
+`account_first_link_attempts`. Schema version 9 added the table after version 8 added
+`account_sync_baselines` and schema version 7 added `account_link_metadata`.
+The pending row preserves the attempt identity, pre-commit fingerprints, and
+actual pre-attempt account snapshot through restart, retry, or cancellation.
+This snapshot prevents a retry from confusing a post-attempt deletion with
+preexisting absence. The baseline row stores the completed first-link
+choice, deterministic idempotency key, local/hosted/common fingerprints, exact
+canonical hosted snapshot, optional protected-backup path, and completion time.
+It is written only after hosted commit and local atomic apply succeed. Exact
+retries return the saved result; another baseline is rejected.
+
+The local-profile-owned account metadata row maps
+the stable local profile to one hosted user ID and may retain email and
+authentication time. It stores no access token, refresh token, PKCE verifier,
+pending state, provider credential, or synchronization choice. Ticket 121 owns
+removal during disconnect.
+
 Ticket 110 implements the local SQLite boundary. This document describes
 implemented storage and explicit gaps. It does not establish complete desktop
 parity or replace the web contract in `DATA_MODEL.md`.
@@ -15,7 +33,16 @@ file permissions on Unix. One transaction applies pending migrations and
 records their version, name, exact source, and application time. A failed
 migration rolls back its DDL and ledger writes. An altered applied migration or
 newer database version stops opening; the application does not delete or reset
-the database. Recovery and backup UI remain release work.
+the database.
+
+Ticket 117 exposes the exact `cadence.sqlite3` Application Support path without
+allowing relocation. Native backup uses SQLite's online backup API, validates
+integrity, foreign keys, stable profile, and exact migration history, then
+atomically publishes the selected destination. Raw restore is local-mode only.
+It validates and stages the selected snapshot, creates an owner-only protected
+pre-restore backup under `Backups`, checkpoints and closes the live connection,
+removes stale WAL/SHM sidecars, atomically replaces the main file, and reopens it.
+Any replacement or reopen failure rolls back to the original database.
 
 Migration `0001_current_local_model.sql` translates the current web Row
 contracts through the August 2026 migrations. It does not replay only the
@@ -101,6 +128,7 @@ The final app must obtain its own permission and reconcile actual OS readback.
 | `behavior_revisions` | Native monotonic graph revision, outside the portable Behavior Row |
 | `mutation_outbox`, `tombstones`, `sync_cursors` | Dormant sync scaffold; no network or conflict-resolution implementation |
 | `behaviorlog_local_previews`, `local_data_revision` | Stored reviewed import plans and domain-only preview concurrency guard |
+| `account_link_metadata`, `account_first_link_attempts`, `account_sync_baselines` | Nonsecret hosted identity mapping, pending first-link retry identity plus bounded pre-attempt snapshot, and completed common baseline; no authentication token |
 
 Hosted-only Auth, push subscription, provider, and launch-rate-limit tables are
 not copied. Import operations accept shared, explicit write plans. They do not

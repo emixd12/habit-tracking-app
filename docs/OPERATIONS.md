@@ -1216,7 +1216,7 @@ remnants aging out within 30 days; and 12 months after resolution for support
 messages. Longer retention is limited to security investigations, fraud
 prevention, or legal preservation.
 
-### Sanitized retention audit, 2026-08-27
+### Sanitized retention audit, 2026-08-31
 
 The read-only audit found the following active capabilities. It retained no
 credentials, user data, message content, private provider payloads, or resource
@@ -1224,20 +1224,21 @@ identifiers:
 
 | Surface                     | Sanitized finding                                                                                                                                                      | Target result                                                                                                            | Official reference                                                                     |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| Vercel                      | The team uses Pro and both Cadence projects were Ready. No Observability Plus entitlement or Log Drain was evidenced. Default Pro runtime-log retention is one day.    | Does not support 30-day routine logs or 90-day incident logs.                                                            | <https://vercel.com/docs/observability/runtime-logs>, <https://vercel.com/docs/drains> |
-| Supabase                    | The Cadence project was `ACTIVE_HEALTHY` in a Pro organization. Pro API and database logs retain seven days.                                                           | Does not support 30-day routine logs or 90-day incident logs.                                                            | <https://supabase.com/docs/guides/platform/logs>                                       |
-| Supabase backups            | Pro daily backups retain seven days.                                                                                                                                   | Supports the maximum 30-day backup and backup-remnant targets.                                                           | <https://supabase.com/docs/guides/platform/backups>                                    |
+| Vercel                      | An authenticated read-only check confirmed the team uses Pro. The Observability Plus configuration endpoint was unavailable. Two team Log Drains existed, but neither covered a Cadence project. Default Pro runtime-log retention is one day. | Does not support 30-day routine logs or 90-day incident logs.                                                            | <https://vercel.com/docs/observability/runtime-logs>, <https://vercel.com/docs/drains> |
+| Supabase                    | Connected read-only project and organization checks confirmed the Cadence project is `ACTIVE_HEALTHY` in a Pro organization. Pro API and database logs retain seven days. | Does not support 30-day routine logs or 90-day incident logs.                                                            | <https://supabase.com/docs/guides/monitoring-and-debugging/logs>, <https://supabase.com/pricing> |
+| Supabase backups            | The active organization remains Pro. Pro daily backups retain seven days; the prior account audit found daily backups rather than PITR.                                | Supports the maximum 30-day backup and backup-remnant targets.                                                           | <https://supabase.com/docs/guides/platform/backups>                                    |
 | Account deletion            | The implemented path deletes the Supabase Auth user and user-owned rows use `ON DELETE CASCADE`. No destructive production deletion test was performed for this audit. | The implementation supports immediate live-data removal when deletion succeeds; the audit did not independently test it. | <https://supabase.com/docs/reference/javascript/auth-admin-deleteuser>                 |
 | Google sign-in              | Cadence uses Google through Supabase Auth. No separate Google retention setting was evidenced in this audit.                                                           | Not independently verified.                                                                                              | <https://supabase.com/docs/guides/auth/social-login/auth-google>                       |
-| Sequenzy                    | Transactional message retention was not established from the available account evidence or documentation.                                                              | Not verified.                                                                                                            | <https://sequenzy.com/>                                                                |
-| Browser push                | Retention by browser-vendor push intermediaries was not established.                                                                                                   | Not verified.                                                                                                            | <https://developer.mozilla.org/en-US/docs/Web/API/Push_API>                            |
-| Privacy and support mailbox | `privacy@identityscaffolding.com` was not route-confirmed. A 12-month support-message retention control was not evidenced.                                             | Mailbox and retention gates fail.                                                                                        | No provider capability was verified.                                                   |
+| Sequenzy                    | An authenticated account check exposed no retention setting. Sequenzy says subscriber data remains while an account is active and is deleted within 30 days after account termination, but it gives no transactional-message or delivery-history window. | Partially verified; transactional retention remains unknown.                                                            | <https://www.sequenzy.com/privacy>                                                      |
+| Browser push                | Cadence sends each payload with a 24-hour TTL. RFC 8030 permits a push service to retain it for that period or less and forbids delivery after expiry. Browser-vendor operational-log retention remains undisclosed. | The queued payload has a verified one-day maximum; intermediary operational logs remain unverified.                    | <https://www.rfc-editor.org/rfc/rfc8030.html#section-5.2>                              |
+| Privacy and support mailbox | DNS routes the domain through Microsoft 365. `privacy@identityscaffolding.com` was not route-confirmed, and no tenant retention policy was available to the audit.       | Mailbox and 12-month retention gates fail.                                                                               | <https://learn.microsoft.com/en-us/purview/retention-policies-exchange>                |
 
 The proposed routine-log and incident-log claims are unsupported. Do not add a
-Log Drain, change a provider plan, or change retention settings without a
-separate authorized task and cost review. Backups and deleted-account backup
-remnants fit within the proposed 30-day maximum. Sequenzy, browser-push, and
-support-message retention remain unknown.
+Cadence Log Drain, change a provider plan, or change retention settings without
+a separate authorized task and cost review. Backups and deleted-account backup
+remnants fit within the proposed 30-day maximum. Browser-push payload storage is
+bounded to one day. Sequenzy transactional retention, browser-vendor
+operational-log retention, and support-message retention remain unknown.
 
 Provider-retention verification therefore fails. The privacy mailbox is not
 confirmed, and legal review has not occurred. Keep the Privacy and Terms drafts
@@ -1286,6 +1287,18 @@ interactions; structural success alone does not satisfy Ticket 115.
 Preview candidate-building checks must be separate from updater acceptance that
 requires those candidates. Do not falsify registry evidence or relax production
 release checks to build a preview.
+
+`preview-build` also requires `VITE_SUPABASE_URL` plus either
+`VITE_SUPABASE_PUBLISHABLE_KEY` or the legacy `VITE_SUPABASE_ANON_KEY`.
+The URL must use HTTPS, and the key must be public. The release preflight rejects
+missing configuration, service-role keys, and secret-key formats before Tauri runs.
+Release tooling runs the desktop frontend build with the reviewed environment,
+disables Tauri's nested frontend build, and verifies both public values exist in
+the fresh frontend output before Tauri runs. Native staged-app configured-state
+acceptance remains the packaging and runtime gate.
+Ad hoc preview builds also select the legacy macOS login-Keychain path and fail
+verification when its compiled marker is absent. Production candidates do not
+inherit this preview-only flag and retain the Data Protection Keychain path.
 
 Tickets 118–122 may require Supabase auth configuration, migrations, and hosted
 RLS verification. Follow `docs/SUPABASE_WORKFLOW.md`. Do not change hosted auth,

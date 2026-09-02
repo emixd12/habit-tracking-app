@@ -37,11 +37,16 @@ if(tool==='lipo') process.stdout.write('arm64\\n');
 if(tool==='codesign'&&args.includes('--display')) process.stderr.write('Signature=adhoc\\nflags=0x10002(adhoc,runtime)\\nInfo.plist entries=14\\nSealed Resources version=2 rules=13 files=1\\n');
 if(tool==='minisign'&&args.includes('-V')&&process.env.TEST_SIGNATURE_FAILURE==='1') process.exit(3);
 if(tool==='npm') {
+ if(args[0]==='run'&&args[1]==='build') {
+  const dist=path.join(process.cwd(),'dist/assets');fs.mkdirSync(dist,{recursive:true});
+  fs.writeFileSync(path.join(dist,'index.js'),(process.env.TEST_OMIT_PUBLIC_AUTH==='url'?'':process.env.VITE_SUPABASE_URL||'')+' '+(process.env.TEST_OMIT_PUBLIC_AUTH==='key'?'':process.env.VITE_SUPABASE_PUBLISHABLE_KEY||process.env.VITE_SUPABASE_ANON_KEY||''));
+  return;
+ }
  const config=JSON.parse(fs.readFileSync(args[args.indexOf('--config')+1],'utf8'));
  const bundle=path.join(process.cwd(),'src-tauri/target/aarch64-apple-darwin/release/bundle');
  const app=path.join(bundle,'macos/Cadence.app');fs.mkdirSync(path.join(app,'Contents/MacOS'),{recursive:true});fs.mkdirSync(path.join(bundle,'dmg'),{recursive:true});
  fs.writeFileSync(path.join(app,'Contents/Info.plist'),'<?xml version="1.0"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>app.cadence.desktop</string><key>CFBundleShortVersionString</key><string>'+(config.version||'0.1.0')+'</string><key>LSMinimumSystemVersion</key><string>14.0</string><key>CFBundleExecutable</key><string>cadence</string></dict></plist>');
- fs.writeFileSync(path.join(app,'Contents/MacOS/cadence'),'synthetic '+(config.version||'0.1.0'),{mode:0o755});
+ fs.writeFileSync(path.join(app,'Contents/MacOS/cadence'),'synthetic '+(config.version||'0.1.0')+' '+(process.env.CADENCE_LEGACY_KEYCHAIN_QA==='1'?'app.cadence.desktop.auth.legacy-qa':''),{mode:0o755});
  fs.writeFileSync(app+'.tar.gz','synthetic archive');fs.writeFileSync(app+'.tar.gz.sig',Buffer.from('synthetic signature').toString('base64'));
  fs.writeFileSync(path.join(bundle,'dmg/Cadence_aarch64.dmg'),'synthetic image');
 }
@@ -70,12 +75,16 @@ if(tool==='npm') {
     const missingKey = run(["preview-build", "0.1.1-preview.1"]);
     expect(missingKey.status).toBe(1);
     expect(missingKey.stderr).toContain("TAURI_SIGNING_PRIVATE_KEY");
+    const missingPublicAuth = run(["preview-build", "0.1.1-preview.1"], { ...environment, TAURI_SIGNING_PRIVATE_KEY: "synthetic-key" });
+    expect(missingPublicAuth.status).toBe(1);
+    expect(missingPublicAuth.stderr).toContain("VITE_SUPABASE_URL");
     expect(calls().some(({ tool }) => tool === "npm")).toBe(false);
   });
 
   it("keeps final production parity strict while candidate construction still reaches strict Apple artifact checks", () => {
     const production = { ...environment, APPLE_SIGNING_IDENTITY: "Developer ID Application: Test (ABCDEFGHIJ)", APPLE_ID: "test@example.invalid",
-      APPLE_PASSWORD: "synthetic-password", APPLE_TEAM_ID: "ABCDEFGHIJ", TAURI_SIGNING_PRIVATE_KEY: "synthetic-key" };
+      APPLE_PASSWORD: "synthetic-password", APPLE_TEAM_ID: "ABCDEFGHIJ", TAURI_SIGNING_PRIVATE_KEY: "synthetic-key",
+      VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" };
     const readiness = run(["check"], production);
     expect(readiness.status).toBe(1);
     expect(readiness.stderr).toContain("updater interaction is still planned");
@@ -87,9 +96,19 @@ if(tool==='npm') {
     expect(existsSync(path.join(desktop, ".release", "artifact-verification.json"))).toBe(false);
   });
 
+  it("rejects a production build before frontend construction when public Supabase configuration is absent", () => {
+    const production = { ...environment, APPLE_SIGNING_IDENTITY: "Developer ID Application: Test (ABCDEFGHIJ)", APPLE_ID: "test@example.invalid",
+      APPLE_PASSWORD: "synthetic-password", APPLE_TEAM_ID: "ABCDEFGHIJ", TAURI_SIGNING_PRIVATE_KEY: "synthetic-key" };
+    const result = run(["build"], production);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("VITE_SUPABASE_URL");
+    expect(calls().some(({ tool }) => tool === "npm")).toBe(false);
+  });
+
   it("stages two verified previews separately, strips Apple secrets, and refuses to replace existing evidence", () => {
     const buildEnvironment = { ...environment, APPLE_ID: "must-not-inherit", APPLE_PASSWORD: "must-not-inherit", APPLE_SIGNING_IDENTITY: "must-not-inherit",
-      TAURI_SIGNING_PRIVATE_KEY: "synthetic-updater-key", TAURI_SIGNING_PRIVATE_KEY_PASSWORD: "synthetic-updater-password", TAURI_SIGNING_PRIVATE_KEY_PATH: "/synthetic/key" };
+      TAURI_SIGNING_PRIVATE_KEY: "synthetic-updater-key", TAURI_SIGNING_PRIVATE_KEY_PASSWORD: "synthetic-updater-password", TAURI_SIGNING_PRIVATE_KEY_PATH: "/synthetic/key",
+      VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" };
     const first = run(["preview-build", "0.1.1-preview.1"], buildEnvironment);
     expect(first.status, first.stderr).toBe(0);
     const reportPath = path.join(previewPath(), "artifact-verification.json");
@@ -105,7 +124,13 @@ if(tool==='npm') {
     const repeated = run(["preview-build", "0.1.1-preview.1"], buildEnvironment);
     expect(repeated.status).toBe(1);
     expect(repeated.stderr).toContain("existing evidence was not replaced");
-    expect(calls().filter(({ tool }) => tool === "npm")).toHaveLength(2);
+    const npmCalls = calls().filter(({ tool }) => tool === "npm");
+    expect(npmCalls).toHaveLength(4);
+    expect(npmCalls.filter(({ args }) => args.slice(0, 2).join(" ") === "run build")).toHaveLength(2);
+    for (const call of npmCalls.filter(({ args }) => args.includes("--config"))) {
+      const config = JSON.parse(readFileSync(call.args[call.args.indexOf("--config") + 1], "utf8"));
+      expect(config.build.beforeBuildCommand).toBe("");
+    }
     expect(calls().filter(({ tool }) => tool !== "interactions").every(({ appleKeys }) => appleKeys?.length === 0)).toBe(true);
     expect(calls().filter(({ tool }) => tool !== "npm").every(({ privateKey }) => !privateKey)).toBe(true);
     expect(calls().some(({ tool }) => tool === "spctl")).toBe(false);
@@ -117,10 +142,31 @@ if(tool==='npm') {
   });
 
   it("never publishes staged evidence after updater signature verification fails", () => {
-    const result = run(["preview-build", "0.1.1-preview.1"], { ...environment, TAURI_SIGNING_PRIVATE_KEY: "synthetic-key", TEST_SIGNATURE_FAILURE: "1" });
+    const result = run(["preview-build", "0.1.1-preview.1"], { ...environment, TAURI_SIGNING_PRIVATE_KEY: "synthetic-key", TEST_SIGNATURE_FAILURE: "1",
+      VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("signature verification failed");
     expect(existsSync(path.join(previewPath(), "bundle"))).toBe(false);
     expect(existsSync(path.join(previewPath(), "artifact-verification.json"))).toBe(false);
+  });
+
+  it.each(["url", "key"])("refuses to invoke Tauri or stage when the frontend omits the public auth %s", (missing) => {
+    const result = run(["preview-build", `0.1.1-preview.${missing === "url" ? "1" : "2"}`], { ...environment, TAURI_SIGNING_PRIVATE_KEY: "synthetic-key", TEST_OMIT_PUBLIC_AUTH: missing,
+      VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("freshly built desktop frontend omits its reviewed public Supabase configuration");
+    expect(calls().filter(({ tool, args }) => tool === "npm" && args[0] === "exec")).toHaveLength(0);
+    expect(existsSync(path.join(previewPath(`0.1.1-preview.${missing === "url" ? "1" : "2"}`), "bundle"))).toBe(false);
+    expect(existsSync(path.join(previewPath(`0.1.1-preview.${missing === "url" ? "1" : "2"}`), "artifact-verification.json"))).toBe(false);
+  });
+
+  it("rejects a production build when the fresh frontend omits reviewed public auth", () => {
+    const production = { ...environment, APPLE_SIGNING_IDENTITY: "Developer ID Application: Test (ABCDEFGHIJ)", APPLE_ID: "test@example.invalid",
+      APPLE_PASSWORD: "synthetic-password", APPLE_TEAM_ID: "ABCDEFGHIJ", TAURI_SIGNING_PRIVATE_KEY: "synthetic-key", TEST_OMIT_PUBLIC_AUTH: "key",
+      VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" };
+    const result = run(["build"], production);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("freshly built desktop frontend omits its reviewed public Supabase configuration");
+    expect(calls().filter(({ tool, args }) => tool === "npm" && args[0] === "exec")).toHaveLength(0);
   });
 });

@@ -8028,9 +8028,13 @@ Acceptance criteria:
 - The work adds no product feature, AI integration, analytics, payment flow,
   auth flow, export format, duplicate legal route, or runtime dependency.
 
-Current gate state: the provider-retention gate fails. The mailbox and legal
-review gates remain pending. The local content implementation is complete, but
-Privacy/Terms publication and public registration remain blocked. The 2026-08-31
+Current gate state: the provider-retention gate fails. The 2026-08-31 recheck
+confirms one-day Vercel runtime logs, seven-day Supabase API/database logs and
+daily backups, and a 24-hour browser-push payload maximum. Sequenzy
+transactional retention, browser-vendor operational-log retention, and
+support-message retention remain unverified. The mailbox and legal review gates
+remain pending. The local content implementation is complete, but Privacy/Terms
+publication and public registration remain blocked. The 2026-08-31
 desktop/nonlegal production landing explicitly excludes those legal route drafts
 and their shared component; it does not waive any gate.
 
@@ -8454,7 +8458,7 @@ publish, or change the existing preview release while this ticket is deferred.
 
 ## Ticket 116: Desktop account-sync product and architecture contract
 
-Status: planned.
+Status: complete.
 
 Define the optional account mode before adding authentication or network
 behavior. Preserve account-free local mode as a complete product path.
@@ -8521,11 +8525,17 @@ Platform impact:
 Verification: run `npm run agents:check`, `npm run interactions:check`,
 `npm run resolvers:check`, and `git diff --check`.
 
+Completed 2026-08-31. `docs/DESKTOP_BUILD.md#planned-account-mode` records the
+field boundary, 100,000-row/64-MiB/30-second snapshot ceilings, pure three-way
+planner ownership, stable idempotency key, two-commit retry rule, and Ticket
+117–121 ownership. This ticket changed no runtime, schema, provider, or hosted
+environment.
+
 ---
 
 ## Ticket 117: Desktop local database controls
 
-Status: planned.
+Status: complete (2026-08-31).
 
 Make the app-managed local-data location visible and recoverable before account
 linking can replace or preserve a working copy.
@@ -8581,7 +8591,13 @@ integrity and foreign-key checks, actual Finder reveal, restart persistence,
 
 ## Ticket 118: Desktop Google authentication and account session
 
-Status: planned.
+Status: complete. Local and installed-app acceptance pass with query state,
+the official Tauri deep-link plugin, exact-once Google PKCE exchange, restart
+persistence, replay rejection, one-account enforcement, and secret scans. The
+installed round trip used the owner-authorized temporary legacy-Keychain QA
+build. Production Data Protection Keychain and Apple signing remain release
+acceptance under Tickets 115/122. See
+`docs/qa/2026-08-31-desktop-authentication.md`.
 
 Add optional Google authentication without weakening local mode or placing
 privileged credentials in the desktop app.
@@ -8638,7 +8654,10 @@ scans of SQLite/logs/exports/backups, RLS smoke, and standard checks.
 
 ## Ticket 119: First desktop account-link data choice
 
-Status: planned.
+Status: complete 2026-09-02. Controlled Import, Ignore, Cancel, retry,
+protected-backup, conflict-routing, and installed owner-account hydration
+acceptance passed. Preview.19 preserved the hosted same-status branches and
+reached one current common baseline.
 
 Resolve local and hosted data ownership explicitly on the first successful
 desktop sign-in.
@@ -8659,10 +8678,15 @@ Acceptance criteria:
   a protected local backup and show its exact path.
 - When no recognized local data exists, hydrate the local working copy from the
   account without showing a false conflict choice.
+- During that first automatic hydration only, preserve pre-existing hosted
+  same-status status-event branches unchanged. Reject divergent-status,
+  local-only, cross-copy, and post-baseline branches.
 - Cancellation leaves the local database and hosted account unchanged and
   removes any incomplete link state.
 - An accepted choice records the synchronized baseline only after the hosted
   commit and local atomic apply both succeed. Retries are idempotent.
+- The pending attempt durably retains its bounded pre-attempt account snapshot,
+  so restart retry preserves later deletions and never infers absence as a winner.
 - Route irreconcilable merges to Ticket 121. Do not silently pick a winner.
 - Add first-link interactions and update the Settings/onboarding surface under
   the project-local impeccable workflow.
@@ -8675,6 +8699,7 @@ Implementation ownership:
 - `packages/core/src/types/portability-rows.ts`
 - `apps/desktop/src/local-import.service.ts`
 - `apps/desktop/src/account/`
+- `apps/desktop/src-tauri/migrations/0010_first_link_attempt_baseline.sql`
 - `interaction-registry.json`
 - `docs/USER_FLOWS.md`
 - `docs/DESKTOP_BUILD.md`
@@ -8687,7 +8712,7 @@ Platform impact:
 | Web | Receives an authorized import into the existing account through RLS-safe server contracts |
 | Desktop | Adds the protected import-or-ignore first-link flow and local hydration |
 | Marketing | No claim; the flow is product UI and remains gated by Ticket 122 |
-| Future mobile | Not applicable: shared planning may be reusable, but no mobile first-link flow is authorized |
+| Future mobile | No implementation is authorized; a future account-link flow must inherit the first-hydration history policy through shared planning |
 
 Verification: empty/default/recognized local detection, import/ignore/cancel,
 empty/nonempty hosted accounts, injected local/remote failures, retry
@@ -8697,7 +8722,7 @@ idempotency, protected-backup proof, actual native UI QA, and standard checks.
 
 ## Ticket 120: Offline-capable two-way desktop synchronization
 
-Status: planned.
+Status: complete 2026-09-01. The corrected hosted contract, two-copy matrix, offline/retry behavior, and native status UI passed.
 
 Activate the existing outbox and cursors with a bounded, testable sync engine.
 
@@ -8764,7 +8789,7 @@ owner authorization.
 
 ## Ticket 121: Sync conflict review and account disconnect
 
-Status: planned.
+Status: complete 2026-09-01. Conflict review, stale-decision rejection, both disconnect outcomes, Restore gating, and revoked-session recovery passed native acceptance.
 
 Give users an explicit recovery path for irreconcilable changes and for leaving
 account mode.
@@ -8826,7 +8851,9 @@ and the standard repository checks.
 
 ## Ticket 122: Account-sync migration and release acceptance
 
-Status: planned.
+Status: complete 2026-09-02. Preview.19 passed publication, remote hash
+readback, real-updater installation, schema migration, owner-account hydration,
+data preservation, configured-state, and secret acceptance.
 
 Prove the schema-changing account-sync release through the real updater and a
 multi-client acceptance matrix before making availability claims.

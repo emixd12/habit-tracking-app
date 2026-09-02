@@ -280,6 +280,9 @@ Browser notifications:
   owning user through the server-only VAPID configuration.
 - One delivery reads and sends to at most 20 active subscriptions. Provider
   calls run through a fixed four-worker pool, so fan-out concurrency is bounded.
+- Send each payload with a 24-hour TTL. Under RFC 8030, the push service may
+  retain it for that period or less and must stop delivery after expiry. This
+  limit does not establish the browser vendor's operational-log retention.
 - If a push service reports a subscription as gone or not found, mark that
   subscription inactive.
 - If no active subscription exists, or browser push sending is not configured,

@@ -72,6 +72,9 @@ function verify(bundleDirectory) {
   const executableName = value("CFBundleExecutable");
   if (!/^[A-Za-z0-9_.-]+$/.test(executableName) || [".", ".."].includes(executableName)) throw new Error("The app executable name is invalid.");
   const executable = path.join(app, "Contents", "MacOS", executableName);
+  if (preview && !fs.readFileSync(executable).includes(Buffer.from("app.cadence.desktop.auth.legacy-qa"))) {
+    throw new Error("The ad hoc preview must use the legacy macOS login Keychain path.");
+  }
   if (value("LSMinimumSystemVersion") !== "14.0") throw new Error("The app does not declare macOS 14.0 minimum.");
   const signing = spawnSync("codesign", ["--display", "--verbose=4", app], { env: verificationEnvironment, encoding: "utf8" });
   if (signing.status !== 0 || !/flags=0x[0-9a-f]+\([^)]*\bruntime\b[^)]*\)/i.test(signing.stderr)
@@ -98,7 +101,7 @@ function verify(bundleDirectory) {
   run("python3", [path.join(desktop, "scripts", "verify-updater-archive.py"), archive, app]);
   return { milestone: preview ? "unnotarized preview" : "production candidate", identifier: RELEASE_IDENTIFIER, version, target: RELEASE_TARGET, checkedAt: new Date().toISOString(),
     checks: ["strict codesign", "hardened runtime", "bound Info.plist", "sealed resources", "arm64", "compiled macOS 14 minimum", "read-only DMG contents match app", "updater signature", "updater archive contents match app",
-      ...(preview ? ["ad hoc app signature"] : ["Developer ID authority", "Gatekeeper", "stapled notarization"])],
+      ...(preview ? ["ad hoc app signature", "legacy macOS login Keychain"] : ["Developer ID authority", "Gatekeeper", "stapled notarization"])],
     artifacts: [dmg, archive, signatureFile].map((file) => ({ file, sha256: createHash("sha256").update(fs.readFileSync(file)).digest("hex") })),
     binarySha256: createHash("sha256").update(fs.readFileSync(executable)).digest("hex"),
     appleTrust: preview ? "Developer ID, notarization, and Gatekeeper acceptance deferred; not verified" : "artifact checks passed; downloaded launch remains unverified",
@@ -133,6 +136,24 @@ function stagePreview(bundleDirectory, directory) {
   } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
 }
 
+function containsBytes(directory, value) {
+  const expected = Buffer.from(value);
+  return fs.readdirSync(directory, { withFileTypes: true }).some((entry) => {
+    const candidate = path.join(directory, entry.name);
+    return entry.isDirectory() ? containsBytes(candidate, value)
+      : entry.isFile() && fs.readFileSync(candidate).includes(expected);
+  });
+}
+
+function verifyBuiltPublicAuth(env) {
+  const url = env.VITE_SUPABASE_URL.trim();
+  const key = (env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || env.VITE_SUPABASE_ANON_KEY.trim());
+  const dist = path.join(desktop, "dist");
+  if (!containsBytes(dist, url) || !containsBytes(dist, key)) {
+    throw new Error("The freshly built desktop frontend omits its reviewed public Supabase configuration.");
+  }
+}
+
 function buildCandidate() {
   preflight({ build: true });
   const directory = preview ? path.join(releaseDirectory, "preview", version) : releaseDirectory;
@@ -140,8 +161,11 @@ function buildCandidate() {
   fs.mkdirSync(directory, { recursive: true });
   const config = path.join(directory, preview ? "tauri.preview.conf.json" : "tauri.release.conf.json");
   fs.writeFileSync(config, `${JSON.stringify(overlay, null, 2)}\n`);
+  const buildEnvironment = preview ? createPreviewBuildEnvironment(process.env) : createReleaseBuildEnvironment(process.env);
+  run("npm", ["run", "build"], desktop, buildEnvironment);
+  verifyBuiltPublicAuth(buildEnvironment);
   run("npm", ["exec", "--", "tauri", "build", "--ci", "--target", RELEASE_TARGET, "--config", config], desktop,
-    preview ? createPreviewBuildEnvironment(process.env) : createReleaseBuildEnvironment(process.env));
+    buildEnvironment);
   const bundle = path.join(native, "target", RELEASE_TARGET, "release", "bundle");
   if (preview) stagePreview(bundle, directory);
   else writeReport(verify(bundle), directory);

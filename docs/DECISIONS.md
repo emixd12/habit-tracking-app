@@ -367,6 +367,12 @@ and show a shell cue plus Settings conflict review when intent cannot be
 preserved automatically. Do not add a hosted change journal until measurements
 show the snapshot ceiling is insufficient.
 
+Reject rather than truncate a snapshot when a collection exceeds 100,000 rows,
+canonical JSON exceeds 64 MiB, or a complete attempt exceeds 30 seconds. Advance
+the baseline and acknowledge the local outbox only after hosted and local atomic
+commits both succeed. Stable idempotency keys make retries safe. The exact
+synchronized and device-local fields live in `docs/DESKTOP_BUILD.md`.
+
 Store the live database in the app-managed Application Support location.
 Settings shows the exact path and offers Reveal in Finder, Back Up, and Restore.
 Raw database Restore is local-mode only. Disconnect offers Keep a local copy,
@@ -380,6 +386,30 @@ delivery, mobile implementation, or an account switcher.
 The first schema-changing desktop release in this track must upgrade an older
 installed version through the real updater after a protected database backup.
 Ticket 115 remains a separate deferred Apple-trust gate.
+
+## Preserve same-status hosted history during first hydration
+
+Decision date: 2026-09-02. Ticket: 119.
+
+The owner chose compatibility handling instead of rewriting pre-existing hosted
+status-event rows. The desktop planner preserves a hosted branch when every
+event has the same status and Cadence is automatically hydrating an untouched
+local profile for the first time. It copies every event unchanged into the
+local working copy and first common baseline.
+
+The exception does not apply to recognized local data, local-only branches,
+cross-copy branches, divergent statuses, or branches added after a common
+baseline exists. Those cases continue to fail before writes. The policy changes
+no hosted row and creates no schema migration.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | No implementation change; existing hosted history remains unchanged |
+| Desktop | `account-sync.resolver.ts` and the first-link service own the narrow hydration exception |
+| Marketing | Not applicable; this is data-preservation behavior, not a new product claim |
+| Future mobile | No implementation is authorized; reuse the shared planner policy if mobile account linking is later approved |
 
 ## Unnotarized desktop preview and asset authorization
 

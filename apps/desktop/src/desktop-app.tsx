@@ -15,9 +15,10 @@ import { getFocusableElements } from "@/components/timeline/NeedsDecisionDialog"
 export type DesktopScreen = "timeline" | "behaviors" | "export" | "settings";
 export type DesktopAppProps = Readonly<{
   activeScreen: DesktopScreen;
-  onNavigate: (screen: DesktopScreen) => void;
+  onNavigate: (screen: DesktopScreen, anchor?: string) => void;
   children: ReactNode;
   availableScreens?: readonly DesktopScreen[];
+  conflictCount?: number;
 }>;
 const INITIAL_SCREENS: readonly DesktopScreen[] = ["timeline", "behaviors"];
 const ICONS = {
@@ -32,6 +33,7 @@ export function DesktopApp({
   onNavigate,
   children,
   availableScreens = INITIAL_SCREENS,
+  conflictCount = 0,
 }: DesktopAppProps) {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     try {
@@ -86,10 +88,10 @@ export function DesktopApp({
     };
   }, [mobileOpen]);
 
-  function navigate(screen: DesktopScreen) {
+  function navigate(screen: DesktopScreen, anchor?: string) {
     if (!availableScreens.includes(screen)) return;
     setMobileOpen(false);
-    onNavigate(screen);
+    onNavigate(screen, anchor);
   }
 
   function toggleSidebar() {
@@ -241,6 +243,11 @@ export function DesktopApp({
           sidebarOpen ? "lg:pl-64" : "lg:pl-16",
         ].join(" ")}
       >
+        {conflictCount > 0 ? <div className="sticky top-16 z-20 flex justify-end border-b border-line bg-background p-2 lg:top-0">
+          <button type="button" onClick={() => navigate("settings", "account-conflicts")} className="border border-accent bg-background px-4 py-3 text-sm text-accent focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-2">
+            Review {conflictCount} sync conflict{conflictCount === 1 ? "" : "s"}
+          </button>
+        </div> : null}
         {children}
       </main>
     </div>

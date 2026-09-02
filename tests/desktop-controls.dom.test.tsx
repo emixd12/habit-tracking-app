@@ -229,6 +229,18 @@ describe("desktop preference and dialog side effects", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it("keeps the conflict cue in a sticky flow banner and navigates to conflict review", async () => {
+    const navigate = vi.fn();
+    await render(<DesktopApp activeScreen="timeline" availableScreens={["timeline", "behaviors", "export", "settings"]} conflictCount={2} onNavigate={navigate}>Content</DesktopApp>);
+    const cue = button("Review 2 sync conflicts");
+    expect(cue.parentElement?.className).toContain("sticky");
+    expect(cue.parentElement?.className).toContain("top-16");
+    expect(cue.parentElement?.className).toContain("z-20");
+    expect(cue.className).not.toContain("fixed");
+    await click(cue);
+    expect(navigate).toHaveBeenCalledExactlyOnceWith("settings", "account-conflicts");
+  });
+
   it("restores narrow-navigation focus after a pointer click and Escape", async () => {
     await render(<DesktopApp activeScreen="timeline" onNavigate={vi.fn()}>Content</DesktopApp>);
     const launcher = button("Open navigation");
@@ -268,7 +280,7 @@ describe("desktop preference and dialog side effects", () => {
     const resolvedOptions = Intl.DateTimeFormat().resolvedOptions();
     vi.spyOn(Intl, "DateTimeFormat").mockReturnValue({ resolvedOptions: () => ({ ...resolvedOptions, timeZone: "Europe/London" }) } as Intl.DateTimeFormat);
     const save = vi.fn(async (state) => state);
-    await render(<SettingsScreen currentTimezone={timezone} updateTimezoneAction={save} permission="denied" coverage={null} busy={false}
+    await render(<SettingsScreen currentTimezone={timezone} accountConnected={false} updateTimezoneAction={save} permission="denied" coverage={null} busy={false}
       onRequestPermission={vi.fn()} onReconcile={vi.fn()} onShowOnboarding={vi.fn()} />);
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)); });
     await click(button("Use detected timezone"));

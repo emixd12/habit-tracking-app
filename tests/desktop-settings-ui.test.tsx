@@ -6,6 +6,7 @@ import {
   type SettingsScreenProps,
 } from "../apps/desktop/src/settings-screen";
 import { DesktopOnboardingGuide } from "../apps/desktop/src/onboarding-guide";
+import { LocalDatabaseSection } from "../apps/desktop/src/local-database-controls";
 
 const complete: NativeSettingsCoverage = {
   status: "complete",
@@ -21,6 +22,7 @@ const complete: NativeSettingsCoverage = {
 function settings(overrides: Partial<SettingsScreenProps> = {}) {
   const props: SettingsScreenProps = {
     currentTimezone: "America/New_York",
+    accountConnected: false,
     updateTimezoneAction: async (state) => state,
     permission: "authorized",
     coverage: complete,
@@ -93,6 +95,12 @@ describe("native Settings coverage", () => {
     expect(denied).toContain("Refresh reminder coverage");
     expect(settings({ busy: true }).html).toContain('disabled=""');
   });
+
+  it("describes SQLite as an offline working copy only in account mode", () => {
+    expect(settings({ accountConnected: true }).html).toContain("offline working copy");
+    expect(settings({ accountConnected: true }).html).toContain("Account changes synchronize");
+    expect(settings({ accountConnected: false }).html).toContain("No cloud account");
+  });
 });
 
 describe("native setup guide", () => {
@@ -119,5 +127,26 @@ describe("native setup guide", () => {
     expect(html).toContain("Dismiss setup");
     expect(html).toContain("Skip setup");
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("local database controls", () => {
+  it("discloses the exact path and protects local restore", () => {
+    const html = renderToStaticMarkup(<LocalDatabaseSection
+      info={{ path: "/Users/test/Library/Application Support/app.cadence.desktop/cadence.sqlite3", localMode: true }}
+      confirmation="" busy={false} message="" onConfirmationChange={vi.fn()} onReveal={vi.fn()} onBackup={vi.fn()} onRestore={vi.fn()} />);
+    expect(html).toContain("/Users/test/Library/Application Support/app.cadence.desktop/cadence.sqlite3");
+    expect(html).toContain("Reveal in Finder");
+    expect(html).toContain("Back Up");
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Restore local database/);
+    expect(html).toContain("protects the current database");
+  });
+
+  it("hides raw restore outside local mode", () => {
+    const html = renderToStaticMarkup(<LocalDatabaseSection
+      info={{ path: "/Application Support/cadence.sqlite3", localMode: false }} confirmation="RESTORE"
+      busy={false} message="" onConfirmationChange={vi.fn()} onReveal={vi.fn()} onBackup={vi.fn()} onRestore={vi.fn()} />);
+    expect(html).toContain("Disconnect the account before restoring");
+    expect(html).not.toContain("Restore local database");
   });
 });

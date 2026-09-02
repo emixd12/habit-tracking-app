@@ -11,7 +11,7 @@ standard, read account information, and enter the protected app.
    main content.
 2. Use the **Cadence** brand to return to the marketing homepage.
 3. In the header, use **Cadence** to return home, **Download for macOS** to
-   open the disclosed preview release, or **Log in** to open the Cadence
+   download the current Apple Silicon preview DMG, or **Log in** to open the Cadence
    sign-in screen.
 4. Use **Begin a record** to open the Cadence product entry. Use
    **Read the BehaviorLog specification** to open the BehaviorLog repository.
@@ -42,25 +42,25 @@ order and labels remain the same.
 
 ## Open the macOS preview download
 
-**Prerequisites:** An Apple Silicon Mac that meets the compatibility statement
-on the release page.
+**Prerequisites:** An Apple Silicon Mac running the supported macOS version.
 
 1. Choose **Download for macOS** in the marketing header.
-2. Read the preview release disclosures before choosing an asset. The preview
-   uses ad hoc signing and is not notarized.
-3. Follow the installation and backup guidance on the release page.
+2. Confirm that the browser downloads the current Cadence preview DMG. The
+   preview uses ad hoc signing and is not notarized.
+3. Open the DMG and follow its installation guidance. Back up existing Cadence
+   data before replacing an installed version.
 
-**Result and persistence:** The GitHub preview release opens. Cadence data does
-not change unless you later download, install, and run the desktop app.
+**Result and persistence:** The browser stores the current Cadence preview DMG.
+Cadence data does not change unless you install and run the desktop app.
 
-**Recovery or undo:** Use Back to return to the marketing site. Remove a
-downloaded file through the operating system if you no longer need it.
+**Recovery or undo:** Remove the downloaded DMG through the operating system if
+you no longer need it.
 
-**Privacy and safety:** Use only the normal preview DMG described on the release
-page. Do not install assets labeled for QA-only signature or failure tests.
+**Privacy and safety:** The marketing button targets the normal preview DMG, not
+an updater archive or a QA-only failure asset.
 
 **Keyboard and mobile:** Focus **Download for macOS** and press Enter. The link
-opens the same disclosed release page from narrow layouts.
+starts the same DMG download from narrow layouts.
 
 ## Download the sanitized example bundle
 

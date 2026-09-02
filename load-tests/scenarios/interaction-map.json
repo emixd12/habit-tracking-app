@@ -852,6 +852,76 @@
       "reason": "Notification clicks, same-origin tab focus, and navigation require a service worker and browser."
     },
     {
+      "id": "INT-DATABASE-001",
+      "classification": "not_load_bearing",
+      "reason": "Finder reveal is a local native action with no HTTP traffic."
+    },
+    {
+      "id": "INT-DATABASE-002",
+      "classification": "not_load_bearing",
+      "reason": "Local SQLite backup and its native save dialog send no HTTP traffic."
+    },
+    {
+      "id": "INT-DATABASE-003",
+      "classification": "destructive_serial_only",
+      "reason": "Local SQLite replacement is destructive, native-only, and excluded from concurrent load profiles."
+    },
+    {
+      "id": "INT-AUTH-004",
+      "classification": "not_load_bearing",
+      "reason": "Desktop PKCE uses provider-owned browser redirects and one local native session, not Cadence route load."
+    },
+    {
+      "id": "INT-AUTH-005",
+      "classification": "not_load_bearing",
+      "reason": "Cancelling desktop PKCE removes local Keychain state and sends no Cadence HTTP traffic."
+    },
+    {
+      "id": "INT-AUTH-006",
+      "classification": "destructive_serial_only",
+      "reason": "First-link import is a user-reviewed atomic migration and is excluded from concurrent load profiles."
+    },
+    {
+      "id": "INT-AUTH-007",
+      "classification": "destructive_serial_only",
+      "reason": "First-link replacement requires a protected native backup and isolated acceptance testing."
+    },
+    {
+      "id": "INT-AUTH-008",
+      "classification": "not_load_bearing",
+      "reason": "Cancelling first link clears only local session and metadata state."
+    },
+    {
+      "id": "INT-AUTH-009",
+      "classification": "destructive_serial_only",
+      "reason": "Two-way synchronization mutates authenticated hosted and local state and requires isolated idempotency and conflict verification."
+    },
+    {
+      "id": "INT-AUTH-010",
+      "classification": "not_load_bearing",
+      "reason": "The persistent conflict cue performs only local desktop navigation."
+    },
+    {
+      "id": "INT-AUTH-011",
+      "classification": "destructive_serial_only",
+      "reason": "Reviewed conflict apply mutates authenticated hosted and local state and requires isolated stale-decision verification."
+    },
+    {
+      "id": "INT-AUTH-012",
+      "classification": "not_load_bearing",
+      "reason": "Keep local copy clears native Keychain and SQLite link state without Cadence HTTP traffic."
+    },
+    {
+      "id": "INT-AUTH-013",
+      "classification": "destructive_serial_only",
+      "reason": "Removing linked local data creates a protected native backup and fresh SQLite profile in isolated acceptance testing."
+    },
+    {
+      "id": "INT-AUTH-014",
+      "classification": "not_load_bearing",
+      "reason": "Desktop reconnection uses provider-owned OAuth and one local Keychain session rather than Cadence route load."
+    },
+    {
       "id": "INT-TIMELINE-009",
       "classification": "not_load_bearing",
       "reason": "Elapsed-time capture and review reset are user-paced and duration-dependent; ordinary Timeline and Behaviors document reads cover their shared route capacity."

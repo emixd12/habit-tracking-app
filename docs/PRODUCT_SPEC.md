@@ -395,6 +395,11 @@ Desktop tracking works offline against SQLite with or without an account. Local
 mode remains complete and requires no login. Tickets 116–122 add optional
 Google account linking, automatic eventual synchronization while the app runs,
 conflict review, and explicit disconnect choices within the four-screen model.
+Account mode synchronizes product records, histories, provenance, hosted
+delivery history, and browser/email reminder preferences. It keeps credentials,
+push subscriptions, native reminder state, OS capabilities, and local files
+device-local. `docs/DESKTOP_BUILD.md#planned-account-mode` owns the complete
+field, snapshot, retry, first-link, and conflict contract.
 Local Settings exposes the exact Application Support data path, Reveal in
 Finder, Back Up, Restore, account, timezone, onboarding, and native reminder
 controls. Raw database Restore remains local-mode only.
