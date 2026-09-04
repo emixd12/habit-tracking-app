@@ -184,6 +184,35 @@ Rules:
 - Use `supabase migration list` before hosted deployment when there is any doubt about state.
 - Do not run `supabase db push --include-seed` unless the ticket explicitly authorizes hosted seed data.
 
+### Desktop Google authentication
+
+Ticket 118 uses only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
+in the installed macOS app. The legacy public anon key remains a compatibility
+fallback. Never package a service-role key or Google provider credential.
+
+The registered callback base is `cadence://auth/callback`. Add the narrow query
+glob `cadence://auth/callback?state=*` to the intended project's Auth redirect
+allowlist before native acceptance. Keep the base callback only when native
+registration or a provider-denial path proves it is required. Do not use the
+broader `cadence://auth/callback*` pattern. Cadence keeps dynamic state in the
+query because Supabase resolves provider callbacks using the full allow-listed
+`redirect_to` value. That hosted change requires explicit authorization for
+the exact project.
+
+Cadence starts PKCE with `skipBrowserRedirect`, opens the returned HTTPS URL in
+the system browser, and validates callback origin, state, and the five-minute
+lifetime. It consumes pending state before `exchangeCodeForSession`. Session,
+refresh, verifier, and pending-state values use fixed macOS Keychain entries,
+not SQLite, web storage, logs, exports, or backups. Accept any successful 2xx
+token response; Supabase changed its OAuth token endpoint from 201 to 200 on
+2026-06-01.
+
+Installed macOS acceptance also requires a real Apple Development or Developer
+ID signature with a valid Keychain access group. Ad hoc signing can verify the
+bundle but cannot authorize Data Protection Keychain storage. Do not silently
+fall back to the legacy login Keychain; temporary legacy QA requires an
+explicit owner choice and manual macOS login keychain password entry.
+
 ## Many-user RLS smoke QA
 
 Use the project smoke command when a ticket calls for hosted or local

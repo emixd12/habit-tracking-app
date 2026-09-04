@@ -599,6 +599,39 @@ When exposed, it must require explicit selection of stored
 `reminder_deliveries` rows are created or linked. It should not be added to the
 Export & Import screen unless a scoped UI ticket calls for it.
 
+## Desktop first account link
+
+After Google authentication, Cadence reads one typed local portability snapshot.
+An untouched seeded profile with the exact default categories hydrates from the
+account without a choice. Recognized product data, history, profile/category
+changes, or import provenance requires Import local data into the account or
+Ignore local data and use account data. Cancel removes the incomplete link and
+changes neither copy. Ignore first creates and verifies an owner-only protected
+backup and shows its exact path. An irreconcilable preview moves to conflict
+review; Cadence never silently chooses a copy. The common baseline advances only
+after hosted commit and local atomic apply succeed. Retry reuses the same
+first-link identities. First automatic hydration preserves pre-existing hosted
+same-status status-event branches without rewriting them. Divergent-status,
+local-only, cross-copy, and post-baseline branches remain invalid.
+
+## Desktop conflict review and disconnect
+
+When the planner emits a mutable-row conflict, Cadence pauses the entire plan
+and keeps a shell cue visible. Settings shows both values. The user selects the
+account or Mac version for every item and applies the decisions. Cadence rereads
+the baseline, local, and hosted fingerprints. A changed fingerprint rejects the
+review without writing either copy. Invalid append-only collisions and new
+branches stop before review; the first-hydration compatibility case above is the
+only branch exception. One-sided protected-row deletion repairs from the
+retained copy.
+
+The user can disconnect after a normal, expired, or revoked session. Keep a
+local copy removes Keychain secrets and account-link state, retains product
+rows, and shows the live database path. Remove account data requires typed
+`REMOVE`, creates a protected backup, clears the linked working copy, seeds a
+fresh local profile, and shows both paths. Hosted data remains unchanged. Native
+raw restore checks SQLite link state and remains blocked until disconnect.
+
 ## Settings flow
 
 Settings includes:

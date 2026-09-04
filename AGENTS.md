@@ -34,9 +34,10 @@ surface for the BehaviorLog Bundle standard:
 Public-product surfaces are scoped in `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`.
 The Astro marketing site is implemented as a sibling app. Tauri desktop and
 shared-package work is implemented under Tickets 107–114. Ticket 115 defers
-Apple-trusted distribution acceptance. The desktop track uses Tauri v2, Vite,
-React, and local SQLite. Next.js stays at the repository root. Mobile and
-broader workspace restructuring remain deferred.
+Apple-trusted distribution acceptance. Tickets 116–122 plan optional Google
+account linking and offline-capable desktop synchronization. The desktop track
+uses Tauri v2, Vite, React, and local SQLite. Next.js stays at the repository
+root. Mobile and broader workspace restructuring remain deferred.
 
 ## Agent operating model
 
@@ -114,6 +115,7 @@ In scope:
 - JSONL/CSV/full JSON/BehaviorLog export
 - Public Astro marketing site
 - Local-first macOS desktop tracking parity under Tickets 107–114
+- Optional desktop Google account linking and synchronization under Tickets 116–122
 - Workspace split only when explicitly ticketed
 
 Out of scope for v1:
@@ -130,7 +132,7 @@ Out of scope for v1:
 - Payment/subscription infrastructure
 - Admin dashboards
 - PWA offline cache
-- Web offline writes or live sync conflict handling
+- Web offline writes or PWA conflict handling
 - Automatic missed status
 - AI coaching or speech features
 - Mobile implementation
@@ -174,6 +176,11 @@ Operation-specific DataStore methods own atomic mutations; thin native code
 may handle SQLite transactions, files, notifications, and lifecycle. Business
 decisions remain in TypeScript. Prove native boundaries in Ticket 108 before
 broad shared-core or UI refactoring.
+
+Desktop synchronization planning follows the same boundary. A pure planner
+compares typed local, hosted, and saved common-baseline snapshots. Services own
+network, Keychain, SQLite, Supabase, retries, and atomic apply. See
+`docs/DESKTOP_BUILD.md#planned-account-mode`.
 
 API routes and cron/process routes must call services. They must not duplicate resolver logic.
 
@@ -298,10 +305,12 @@ Exception: `profiles` uses `id` as the authenticated user's id (`auth.users.id`)
 All user-owned tables must have RLS policies.
 
 These Supabase ownership and RLS requirements apply to the web database.
-Desktop uses one stable local profile and a private SQLite database without
-cloud login or RLS. Preserve local ownership, constraints, history, and atomic
-mutation/outbox writes. Use current data contracts, not only the initial
-Supabase migration. See `docs/DESKTOP_BUILD.md`.
+Desktop uses one stable local profile and a private SQLite database in local
+mode. Tickets 116–122 may link that working copy to one authenticated account.
+Use the user's JWT and hosted RLS; never put a service-role key in desktop or
+authentication tokens in SQLite. Preserve local ownership, constraints,
+history, and atomic mutation/outbox writes. Use current data contracts, not
+only the initial Supabase migration. See `docs/DESKTOP_BUILD.md`.
 
 Even though each account is single-player, do not bypass RLS in normal web app
 code.
@@ -346,9 +355,10 @@ Route ownership and planned API routes live in `docs/ROUTE_MAP.md`.
 
 Web offline behavior and PWA caching are deferred from v1.
 
-Desktop tracking must work offline without login. The desktop track includes
-tombstones, a transactional outbox, cursors, stable local identity, and a no-op
-SyncEngine only. Do not implement live sync, cloud login, or conflict resolution.
+Desktop tracking must work offline with or without login. Local mode requires
+no account. Tickets 116–122 activate tombstones, the transactional outbox, and
+cursors for optional account synchronization. Do not add a closed-app
+background helper or web PWA synchronization.
 
 Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 
@@ -446,9 +456,13 @@ Do not expand scope to solve speculative future requirements.
 
 ## Security rules
 
-- Use Supabase Auth and Google login for the web app.
-- Do not add cloud account controls or provider credentials to local desktop.
-- Restrict web data to the authenticated user and local data to its stable profile.
+- Use Supabase Auth and Google login for the web app and optional desktop
+  account mode under Tickets 116–122.
+- Add desktop account controls only within Tickets 116–122. Never package a
+  service-role key or Google provider credential.
+- Keep desktop session secrets in Keychain, not SQLite, browser storage, logs,
+  exports, or backups.
+- Restrict hosted data to the authenticated user and local data to its stable profile.
 - Use RLS on all user-owned web tables.
 - Never commit `.env` files or secrets.
 - Never expose service-role keys to the browser.

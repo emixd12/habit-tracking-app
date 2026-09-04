@@ -10,6 +10,7 @@ import type {
   OccurrenceRecord, OccurrenceStatusEventRecord, StatusTransitionResult,
   StatusTransitionCommit,
 } from "@cadence/core/data-store";
+import type { AccountSyncWrite } from "@cadence/core/resolvers/account-sync.resolver";
 
 export type LocalBehaviorGraph = {
   behavior: Behavior;
@@ -31,6 +32,9 @@ export type NativeCoverageRow = {
 };
 export type NativeReminderState = { revision: number; reminders: NativeReminderRow[]; coverage: NativeCoverageRow | null };
 export type LocalCommandMap = {
+  applyAccountSync: { input: Owned & { writes: AccountSyncWrite[] }; result: { appliedCount: number } };
+  applyFirstLinkAccountSync: { input: Owned & { hostedUserId: string; choice: "import" | "ignore" | "hydrate"; attemptId: string; localFingerprint: string; hostedFingerprint: string;
+    expectedRevision: number; idempotencyKey: string; baselineFingerprint: string; baselineJson: string; backupPath: string | null; completedAt: string; writes: AccountSyncWrite[] }; result: { appliedCount: number } };
   readImportRuns: { input: Owned & { limit: number; kind?: "import" | "restore" }; result: PortabilityImportRunRow[] };
   readImportSnapshot: { input: Owned; result: PortabilitySnapshot };
   prepareBehaviorLogImport: {

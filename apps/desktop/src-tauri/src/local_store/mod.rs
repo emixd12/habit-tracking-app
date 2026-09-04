@@ -7,6 +7,7 @@ mod import_write;
 mod occurrence;
 mod reminder;
 pub mod rows;
+mod sync_apply;
 #[cfg(test)]
 mod tests;
 
@@ -24,6 +25,61 @@ pub fn adopt_previous_identity(directory: &Path) -> Result<()> {
 }
 pub fn open(path: &Path) -> Result<LocalStore> {
     Ok(LocalStore(Mutex::new(db::open(path)?)))
+}
+
+pub fn is_local_mode(db: &Connection) -> Result<bool> {
+    db.query_row(
+        "SELECT NOT EXISTS(SELECT 1 FROM account_link_metadata)",
+        [],
+        |row| row.get(0),
+    )
+    .map_err(error)
+}
+
+pub fn require_local_mode(db: &Connection) -> Result<()> {
+    if is_local_mode(db)? {
+        Ok(())
+    } else {
+        Err("Disconnect the account before restoring a database.".into())
+    }
+}
+
+pub fn backup_database(store: &LocalStore, live_path: &Path, destination: &Path) -> Result<()> {
+    let source = store.0.lock().map_err(|_| "SQLite lock is unavailable.")?;
+    db::backup(&source, live_path, destination)
+}
+
+pub fn protected_backup_database(
+    store: &LocalStore,
+    live_path: &Path,
+) -> Result<std::path::PathBuf> {
+    let source = store.0.lock().map_err(|_| "SQLite lock is unavailable.")?;
+    db::protected_backup(&source, live_path)
+}
+
+pub fn disconnect_keep_local_copy(store: &LocalStore) -> Result<String> {
+    let mut db = store.0.lock().map_err(|_| "SQLite lock is unavailable.")?;
+    db::disconnect_keep_local_copy(&mut db)
+}
+
+pub fn disconnect_remove_account_data(
+    store: &LocalStore,
+    live_path: &Path,
+) -> Result<(std::path::PathBuf, String)> {
+    let mut db = store.0.lock().map_err(|_| "SQLite lock is unavailable.")?;
+    let backup = db::protected_backup(&db, live_path)?;
+    let profile_id = db::disconnect_remove_account_data(&mut db)?;
+    Ok((backup, profile_id))
+}
+
+pub fn restore_database(
+    store: &LocalStore,
+    live_path: &Path,
+    source: &Path,
+) -> Result<std::path::PathBuf> {
+    let mut live = store.0.lock().map_err(|_| "SQLite lock is unavailable.")?;
+    require_local_mode(&live)?;
+    db::restore(&mut live, live_path, source)
 }
 
 // Explicitly gated test transport. Production builds expose only the typed Tauri command.
@@ -119,6 +175,16 @@ pub struct ReminderObservation {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AccountSyncWrite {
+    pub kind: sync_apply::AccountSyncEntityKind,
+    pub id: String,
+    pub operation: sync_apply::AccountSyncOperation,
+    pub expected: Option<Value>,
+    pub value: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NativeDeliveryProof {
     pub request_id: String,
     pub fire_at: String,
@@ -196,6 +262,25 @@ pub enum Request {
         local_data_fingerprint: String,
         bundle_fingerprint: String,
         bundle_payload_fingerprint: Option<String>,
+    },
+    ApplyAccountSync {
+        profile_id: String,
+        writes: Vec<AccountSyncWrite>,
+    },
+    ApplyFirstLinkAccountSync {
+        profile_id: String,
+        hosted_user_id: String,
+        choice: String,
+        attempt_id: String,
+        local_fingerprint: String,
+        hosted_fingerprint: String,
+        expected_revision: i64,
+        idempotency_key: String,
+        baseline_fingerprint: String,
+        baseline_json: String,
+        backup_path: Option<String>,
+        completed_at: String,
+        writes: Vec<AccountSyncWrite>,
     },
     UpdateProfileTimezone {
         profile_id: String,
@@ -311,6 +396,69 @@ pub async fn local_store(store: State<'_, LocalStore>, request: Request) -> Resu
 }
 
 pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
+    if let Request::ApplyFirstLinkAccountSync {
+        profile_id,
+        hosted_user_id,
+        choice,
+        attempt_id,
+        local_fingerprint,
+        hosted_fingerprint,
+        expected_revision,
+        idempotency_key,
+        baseline_fingerprint,
+        baseline_json,
+        backup_path,
+        completed_at,
+        writes,
+    } = &request
+    {
+        let tx = db
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(error)?;
+        db::owner(&tx, profile_id)?;
+        let pending: Option<(String,String,String,String)> = tx.query_row("SELECT hosted_user_id,choice,attempt_id,local_fingerprint FROM account_first_link_attempts WHERE local_profile_id=?1", [profile_id], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?))).optional().map_err(error)?;
+        if pending.as_ref()
+            != Some(&(
+                hosted_user_id.clone(),
+                choice.clone(),
+                attempt_id.clone(),
+                local_fingerprint.clone(),
+            ))
+            || import::domain_revision(&tx, profile_id)? != *expected_revision
+        {
+            return Err("Local data changed after first-link planning. Cancel the account link and start it again.".into());
+        }
+        if [idempotency_key, baseline_fingerprint, hosted_fingerprint]
+            .iter()
+            .any(|value| value.len() != 64)
+            || baseline_json.len() > 64 * 1024 * 1024
+            || serde_json::from_str::<Value>(baseline_json).is_err()
+        {
+            return Err("Account baseline is invalid.".into());
+        }
+        let outbox_high_water: i64 = tx.query_row("SELECT coalesce(max(sequence),0) FROM mutation_outbox WHERE user_id=?1 AND synced_at IS NULL", [profile_id], |row| row.get(0)).map_err(error)?;
+        sync_apply::apply_first_link(&tx, profile_id, writes)?;
+        tx.execute("INSERT INTO account_sync_baselines(local_profile_id,hosted_user_id,choice,idempotency_key,local_fingerprint,hosted_fingerprint,baseline_fingerprint,baseline_json,backup_path,completed_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)", params![profile_id,hosted_user_id,choice,idempotency_key,local_fingerprint,hosted_fingerprint,baseline_fingerprint,baseline_json,backup_path,completed_at]).map_err(error)?;
+        tx.execute("UPDATE mutation_outbox SET synced_at=?2 WHERE user_id=?1 AND sequence<=?3 AND synced_at IS NULL", params![profile_id,completed_at,outbox_high_water]).map_err(error)?;
+        tx.execute("DELETE FROM tombstones WHERE user_id=?1 AND mutation_id IN (SELECT mutation_id FROM mutation_outbox WHERE user_id=?1 AND sequence<=?2 AND synced_at IS NOT NULL)", params![profile_id,outbox_high_water]).map_err(error)?;
+        tx.execute("INSERT INTO sync_cursors(user_id,name,value,updated_at) VALUES(?1,'account-sync',?2,?3) ON CONFLICT(user_id,name) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at", params![profile_id,baseline_fingerprint,completed_at]).map_err(error)?;
+        tx.execute(
+            "DELETE FROM account_first_link_attempts WHERE local_profile_id=?1",
+            [profile_id],
+        )
+        .map_err(error)?;
+        tx.commit().map_err(error)?;
+        return Ok(json!({"appliedCount": writes.len()}));
+    }
+    if let Request::ApplyAccountSync { profile_id, writes } = &request {
+        let tx = db
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(error)?;
+        db::owner(&tx, profile_id)?;
+        sync_apply::apply(&tx, profile_id, writes)?;
+        tx.commit().map_err(error)?;
+        return Ok(json!({"appliedCount": writes.len()}));
+    }
     if let Some((profile_id, mutation_id, now)) = request.mutation_context() {
         db::valid_id(mutation_id)?;
         db::instant_key(now)?;

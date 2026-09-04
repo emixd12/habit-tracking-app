@@ -725,15 +725,18 @@
         },
         {
           "surfaceId": "desktop",
-          "status": "planned",
-          "parity": "planned",
+          "status": "implemented",
+          "parity": "adapted",
           "sources": [
             "apps/desktop/src/settings-screen.tsx",
+            "apps/desktop/src/account/account-panel.tsx",
+            "apps/desktop/src/local-database-controls.tsx",
             "components/settings/TimezonePanel.tsx",
-            "docs/DESKTOP_BUILD.md"
+            "docs/DESKTOP_BUILD.md",
+            "tests/desktop-settings-ui.test.tsx"
           ],
           "implementationIds": [],
-          "notes": "The local screen reuses timezone controls and reports native permission, actual retained requests, contiguous coverage, target, and readback time. Native workflow QA remains in progress."
+          "notes": "The local screen reuses timezone controls, reports native reminder coverage, exposes database controls, and presents the first account-link data choice. Automated account-choice and native protected-backup checks pass; live hosted first-link acceptance remains in progress."
         },
         {
           "surfaceId": "mobile",

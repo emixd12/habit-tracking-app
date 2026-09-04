@@ -23,7 +23,9 @@ sprawl.
 The web app supports independent users with Google auth. Tickets 107–114
 implement local-first macOS tracking with one local profile and no login.
 Ticket 115 defers Apple-trusted desktop distribution acceptance.
-Billing, mobile, live sync, and AI speech features remain future scope.
+Tickets 116–122 plan optional use of the same Google account with offline-
+capable desktop synchronization. Billing, mobile, and AI speech features remain
+future scope.
 
 ## Product surfaces
 
@@ -389,18 +391,26 @@ message bodies.
 
 Web offline support, offline writes, and PWA caching remain deferred.
 
-Desktop tracking works offline against SQLite without an account. The desktop
-track preserves the four screens and current tracking/portability behavior.
-Local Settings exposes timezone, onboarding, and native reminder readiness;
-cloud account controls and duplicate public/legal pages do not apply.
+Desktop tracking works offline against SQLite with or without an account. Local
+mode remains complete and requires no login. Tickets 116–122 add optional
+Google account linking, automatic eventual synchronization while the app runs,
+conflict review, and explicit disconnect choices within the four-screen model.
+Account mode synchronizes product records, histories, provenance, hosted
+delivery history, and browser/email reminder preferences. It keeps credentials,
+push subscriptions, native reminder state, OS capabilities, and local files
+device-local. `docs/DESKTOP_BUILD.md#planned-account-mode` owns the complete
+field, snapshot, retry, first-link, and conflict contract.
+Local Settings exposes the exact Application Support data path, Reveal in
+Finder, Back Up, Restore, account, timezone, onboarding, and native reminder
+controls. Raw database Restore remains local-mode only.
 
 Desktop native reminders target 30 days and schedule nearest eligible reminders
 first. Show the actual contiguous coverage verified through OS readback and
 clearly disclose a shorter OS-limited horizon or unavailable verification.
 Do not assume a universal request cap. Reconcile on launch, resume, local day
 change, and relevant mutations. No background helper is authorized. Desktop
-email delivery and live sync are out of scope. The dormant sync scaffold does
-not authorize network synchronization or cloud sign-in.
+email delivery remains out of scope. Tickets 116–122 activate the current
+outbox/cursor scaffold for optional synchronization.
 
 Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 
@@ -424,6 +434,7 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - Repeatable many-user RLS smoke QA
 - Public Astro marketing site when explicitly ticketed
 - Local-first macOS tracking parity under Tickets 107–114
+- Optional desktop Google account linking and synchronization under Tickets 116–122
 - Incremental shared domain code and design tokens, with preserved web APIs
 
 ## Out of scope
@@ -444,4 +455,4 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - Any third manual completion status beyond Completed and Not Completed
 - AI coaching or speech features in the launch web app
 - Marketing/product emails at launch
-- Intel desktop releases, live sync, cloud desktop login, and desktop email delivery
+- Intel desktop releases, desktop email delivery, and closed-app background synchronization

@@ -26,10 +26,12 @@ describe("marketing base layout", () => {
     expect(source).toContain("siteConfig.cadenceAppUrl}/privacy");
   });
 
-  it("links the header macOS download to the disclosed preview release", () => {
+  it("links the header macOS download to the current preview DMG", () => {
     const site = readFileSync("apps/marketing/src/data/site.ts", "utf8");
 
-    expect(site).toContain("Download for macOS");
-    expect(site).toContain("releases/tag/desktop-preview");
+    expect(site).toContain('label: "Download unnotarized macOS preview"');
+    expect(site).toContain(
+      "releases/download/desktop-preview/Cadence_0.1.1-preview.19_aarch64.dmg",
+    );
   });
 });

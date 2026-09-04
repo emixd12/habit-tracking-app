@@ -19,6 +19,7 @@ export type NativeSettingsCoverage = NativeReminderCoverage &
   Readonly<{ targetThrough: string; checkedAt: string | null }>;
 export type SettingsScreenProps = Readonly<{
   currentTimezone: string;
+  accountConnected: boolean;
   updateTimezoneAction: TimezoneUpdateAction;
   permission: NativeNotificationPermission;
   coverage: NativeSettingsCoverage | null;
@@ -28,6 +29,8 @@ export type SettingsScreenProps = Readonly<{
   onReconcile: () => void;
   onShowOnboarding: () => void;
   updates?: ReactNode;
+  databaseControls?: ReactNode;
+  accountControls?: ReactNode;
 }>;
 
 const PERMISSION_LABELS: Record<NativeNotificationPermission, string> = {
@@ -42,6 +45,7 @@ const PERMISSION_LABELS: Record<NativeNotificationPermission, string> = {
 
 export function SettingsScreen({
   currentTimezone,
+  accountConnected,
   updateTimezoneAction,
   permission,
   coverage,
@@ -51,6 +55,8 @@ export function SettingsScreen({
   onReconcile,
   onShowOnboarding,
   updates,
+  databaseControls,
+  accountControls,
 }: SettingsScreenProps) {
   const hasPermission =
     permission === "authorized" || permission === "provisional";
@@ -68,14 +74,17 @@ export function SettingsScreen({
         <section className="bg-background pb-4">
           <h2 className="text-xl leading-tight">Local profile</h2>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-readable">
-            Tracking data stays on this Mac. No cloud account or email delivery
-            is connected.
+            {accountConnected
+              ? "Tracking data uses this Mac’s SQLite database as an offline working copy. Account changes synchronize while Cadence runs with connectivity. Native reminders stay on this Mac, and desktop email delivery remains inactive."
+              : "Tracking data stays on this Mac. No cloud account or email delivery is connected."}
           </p>
         </section>
+        {accountControls}
         <TimezonePanel
           currentTimezone={currentTimezone}
           updateTimezoneAction={updateTimezoneAction}
         />
+        {databaseControls}
         <section
           id="notifications"
           aria-busy={busy}

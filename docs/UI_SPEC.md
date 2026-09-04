@@ -764,6 +764,16 @@ Show:
 - Trust, Privacy, and Terms links for public-product account context
 - Account deletion with export acknowledgement and typed confirmation
 
+Desktop Settings additionally shows linked-account synchronization state,
+conflict count and review, and disconnect choices. A conflict also exposes one
+persistent shell cue that opens Settings. Conflict rows show the Mac and account
+values with radio controls for Use account version and Use this Mac version.
+Keep both appears only when the resolver proves a complete identity-preserving
+duplicate; no current conflict class qualifies. Disconnect offers Keep a local
+copy and typed-`REMOVE` Remove account data. Results disclose exact local and
+protected-backup paths. Revoked sessions direct the user to reconnect or
+disconnect without blocking local tracking.
+
 The public `/trust` page keeps durable product commitments separate from current verification evidence. It always shows all nine checks with text and symbols, exact UTC timestamps, scope, limits, and immutable evidence links. Passed requires a valid, fresh snapshot for the current source commit and both deployments. Feed failures show a validated cached copy as Stale, or Unavailable when no validated copy exists.
 
 Timezone detection should use the browser/OS timezone exposed by `Intl.DateTimeFormat().resolvedOptions().timeZone`; do not request geolocation or location permission. Settings should present one native select of IANA timezones whose selected value is the stored timezone; the select is the only "current timezone" display, with no separate stored or browser-detected value rows. When the detected browser timezone differs from the current selection, show a single quiet Detected line with an inline Use detected timezone action; when they match or detection is unavailable, show nothing. If the browser cannot enumerate timezones, fall back to manual IANA timezone entry. Before submit, Settings should state that saving a timezone updates the profile and active behavior schedules, then resyncs future unresolved occurrences while preserving past and resolved history.

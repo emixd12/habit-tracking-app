@@ -19,8 +19,9 @@ The final product posture is:
 - Free open-source desktop and mobile apps.
 - A web app that can support many independent accounts through simple Google
   authentication.
-- A future paid web/shared-account tier for cross-surface saving and future
-  speech-to-speech AI features.
+- Future paid capabilities that do not gate the account synchronization
+  implemented in Tickets 116–122, plus separately scoped speech-to-speech AI
+  features.
 - A practical reference implementation and demonstration surface for the
   BehaviorLog Bundle standard:
   `https://github.com/emixd12/BehaviorLog-Bundle`.
@@ -29,7 +30,8 @@ The first public-product implementation steps are now present: the current
 authenticated web app has been hardened for many independent users, and the
 Astro marketing site exists as a sibling app. Tickets 107–114 implement the
 local-first macOS desktop track. Ticket 115 defers Apple-trusted distribution.
-Billing, AI, mobile, and live sync remain future scope.
+Tickets 116–122 implement optional Google account linking and offline-capable
+desktop synchronization. Billing, AI, and mobile remain future scope.
 
 ## Surface model
 
@@ -58,8 +60,8 @@ Preferred sequencing:
    second runtime.
 4. Extract `packages/ui` as tokens and primitives first, not full product
    components.
-5. Maintain the completed desktop track under Tickets 107–114; keep Ticket 115
-   and mobile deferred.
+5. Maintain the completed desktop track under Tickets 107–114 and 116–122;
+   keep Ticket 115 and mobile deferred.
 
 Use npm workspaces first unless build orchestration becomes painful. Turborepo
 may be added later if caching and multi-app task orchestration become
@@ -134,7 +136,7 @@ Primary calls to action:
 - Read BehaviorLog
 - Download Example Bundle
 - View on GitHub
-- Download for macOS
+- Download unnotarized macOS preview
 - Log in
 
 The site is static-first and SEO-conscious from the start: semantic HTML,
@@ -149,8 +151,8 @@ Marketing posture:
 - BehaviorLog is the open bundle standard and portability layer Cadence writes
   and reads. It should be explained in the same manner as a technical base
   layer or open package, not as the primary site brand.
-- The header shows the Cadence brand link, a Download for macOS button to the
-  dedicated disclosed preview release, and Log in. About and FAQ are linked
+- The header shows the Cadence brand link, a Download unnotarized macOS preview
+  button to the current preview DMG, and Log in. About and FAQ are linked
   from the footer. Docs and Examples stay available by direct URL,
   machine-readable mirrors, and in-page content links.
 - `/docs` should grow toward a familiar developer-docs structure: Guides,
@@ -341,16 +343,17 @@ IDs so an older Passed result cannot describe a newer release.
 `docs/DESKTOP_BUILD.md` records completed Tickets 107–114. Desktop targets
 Apple Silicon with macOS 14 as its declared minimum, using Tauri v2, Vite,
 React, and SQLite. Ticket 115 defers actual macOS 14 compatibility and Apple-
-trusted distribution. Tracking works
-without login or network under one stable local profile. Native proof precedes
-broad shared-code extraction. `docs/DESKTOP_PARITY.md` records the current
-tracking baseline and verification state.
+trusted distribution. Tracking works without login or network under one stable
+local profile. Tickets 116–122 add optional use of the existing Google account;
+SQLite remains the offline working copy. `docs/DESKTOP_PARITY.md` records the
+current tracking baseline and verification state.
 
 The desktop release preserves all current tracking capabilities and includes:
 
 - usable without login,
 - local data by default,
-- a dormant sync scaffold only, with no cloud login or live sync,
+- optional account synchronization with explicit first-link and
+  disconnect choices,
 - native reminders targeting 30 days, nearest first, with OS-readback coverage
   and a clearly displayed shorter horizon when OS limits require it,
 - signed/notarized artifacts and signed, user-approved updates for the original
@@ -371,15 +374,20 @@ or authorize marketing availability claims. The owner authorized the six exact
 asset hashes in `docs/qa/2026-08-30-desktop-asset-provenance.md` for distribution
 inside Cadence. MIT exclusions, third-party notices, and reserved marks remain.
 
-Mobile implementation remains deferred. Final desktop publication still requires
-its deferred parity, native, signing, and release gates. Do not add a new backend,
-CI infrastructure, background helper, email delivery, cloud login, live sync,
-cloud account controls, or duplicate public/legal pages. Ticket 113 records the
-web, desktop, marketing, and future-mobile impacts and preview acceptance.
+Mobile implementation remains deferred. Final Apple-trusted desktop publication
+still requires Ticket 115. Do not add CI infrastructure, a background helper,
+desktop email delivery, billing, or duplicate public/legal pages. Tickets
+116–122 own account controls, synchronization, conflict handling, and their
+release acceptance.
 
-The web app remains cloud-first through Supabase. This difference is
-intentional. Future sync work must bridge local-first desktop/mobile data with
-hosted Supabase only when the user opts in.
+The web app remains cloud-first through Supabase. Desktop account mode bridges
+its local-first data with hosted Supabase only when the user opts in. Account-
+free desktop mode remains complete. Hosted access keeps existing ordinary-user
+RLS. SQLite stays authoritative for the device working copy and keeps atomic
+domain mutation, tombstone, and outbox writes. Credentials and device-specific
+notification state do not enter the synchronized account snapshot. Ticket 122
+accepted the current account-sync preview. Marketing must still identify it as
+an unnotarized preview while Ticket 115 remains deferred.
 
 ## Pricing and future AI
 

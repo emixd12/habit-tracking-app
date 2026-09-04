@@ -1,3 +1,4 @@
+mod auth;
 mod files;
 mod local_store;
 mod notifications;
@@ -33,6 +34,7 @@ pub fn run() {
     // Install the delegate before AppKit finishes launch, including notification launches.
     notifications::initialize();
     tauri::Builder::default()
+        .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             let directory = app.path().app_data_dir()?;
             std::fs::create_dir_all(&directory)?;
@@ -53,10 +55,28 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             spike_read,
             spike_write,
+            auth::auth_open_url,
+            auth::auth_secret_get,
+            auth::auth_secret_set,
+            auth::auth_secret_remove,
+            auth::auth_account_metadata,
+            auth::auth_record_account_metadata,
+            auth::auth_clear_account_metadata,
+            auth::auth_first_link_baseline,
+            auth::auth_account_sync_context,
+            auth::auth_complete_account_sync,
+            auth::auth_begin_first_link,
             notifications::native_notifications,
             notifications::native_events,
             local_store::local_store,
             files::save_export,
+            files::local_database_info,
+            files::reveal_local_database,
+            files::backup_local_database,
+            files::create_protected_local_backup,
+            files::disconnect_keep_local_copy,
+            files::disconnect_remove_account_data,
+            files::restore_local_database,
             updates::read_update_configuration,
             updates::restart_after_update
         ])

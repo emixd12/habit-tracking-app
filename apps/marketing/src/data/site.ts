@@ -16,9 +16,9 @@ export const siteConfig = {
   standardUrl: "https://github.com/emixd12/BehaviorLog-Bundle",
   githubUrl: "https://github.com/emixd12/habit-tracking-app",
   desktopPreviewUrl:
-    "https://github.com/emixd12/habit-tracking-app/releases/tag/desktop-preview",
+    "https://github.com/emixd12/habit-tracking-app/releases/download/desktop-preview/Cadence_0.1.1-preview.19_aarch64.dmg",
   exampleBundlePath: "/examples/cadence-demo.behaviorlog.zip",
-  lastModified: "2026-08-31",
+  lastModified: "2026-09-02",
   trustUrl: `${env.PUBLIC_CADENCE_APP_URL ?? "https://cadence-blush-three.vercel.app"}/trust`,
   trustEvidenceUrl: `${env.PUBLIC_CADENCE_APP_URL ?? "https://cadence-blush-three.vercel.app"}/api/public/trust-evidence`,
 } as const;
@@ -37,7 +37,7 @@ export const primaryCtas = {
     href: `${siteConfig.cadenceAppUrl}/login`,
   },
   downloadMac: {
-    label: "Download for macOS",
+    label: "Download unnotarized macOS preview",
     href: siteConfig.desktopPreviewUrl,
   },
   readStandard: {
