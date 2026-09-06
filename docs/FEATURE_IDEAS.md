@@ -241,7 +241,17 @@ management.
 
 ## User-Defined Category Context
 
-Status: candidate.
+Status: promoted to Tickets 123–124; complete locally with browser and native acceptance.
+
+Promoted tickets:
+
+- Ticket 123: User-defined categories and descriptions.
+- Ticket 124: Behaviors category filtering and sorting.
+
+`docs/TICKETS.md` now owns the implementation scope and acceptance criteria.
+The original idea below is retained for context. Ticket 123 chooses deletion
+to No category and simple reordering; a separate category archive state is not
+part of that ticket.
 
 Why:
 Cadence ships with base categories, but users should eventually be able to add

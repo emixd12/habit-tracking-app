@@ -1021,3 +1021,22 @@ The resolver should not query Supabase directly.
   `data/interventions.jsonl` in the manifest, and redacts sensitive transport
   details. Cadence import retains compatibility with pre-repair
   `0.1.0-draft` scheduled/pending intervention records.
+
+## Web page preparation (Ticket 091)
+
+Opening Export reads counts only. It does not serialize artifacts, read full
+history, or consume the download rate limit. Generate summary requests the
+existing Markdown artifact through `/api/export/markdown` with the same
+authentication, six-per-minute account limit, and circuit breaker as structured
+downloads. Copy and save become available after generation. Applying different
+options clears the generated summary. Desktop keeps its local summary and
+native save callbacks. Artifact content and filenames remain unchanged.
+
+
+## Category controls (Tickets 123–124)
+
+Category descriptions are optional in category JSONL/full JSON records and the
+Cadence BehaviorLog category registry. Markdown summaries include category context.
+Older bundles remain valid. Restore copies descriptions into new categories.
+Create-only import retains the category registry and its existing matching policy.
+Neither path overwrites existing category descriptions. CSV columns are unchanged.

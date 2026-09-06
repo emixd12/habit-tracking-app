@@ -3,7 +3,7 @@ import type { OccurrenceRecord, OccurrenceStatusEventRecord } from "../data-stor
 import type { Json } from "./json";
 
 export type ExportPageBehaviorRow = Pick<BehaviorGraphRecord, "id" | "current_configuration_event_id" | "updated_at">;
-export type ExportPageCategoryRow = { id: string; name: string; sort_order: number; created_at: string; updated_at: string };
+export type ExportPageCategoryRow = { description?: string | null; id: string; name: string; sort_order: number; created_at: string; updated_at: string };
 export type ExportPageOccurrenceRow = Omit<OccurrenceRecord, "user_id" | "schedule_range_identity">;
 export type ExportPageStatusEventRow = Omit<OccurrenceStatusEventRecord, "user_id">;
 export type ExportPageReminderDeliveryRow = {

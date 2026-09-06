@@ -32,6 +32,12 @@ export type NativeCoverageRow = {
 };
 export type NativeReminderState = { revision: number; reminders: NativeReminderRow[]; coverage: NativeCoverageRow | null };
 export type LocalCommandMap = {
+  manageCategories: { input: Mutation & {
+    expectedCategories: import("@cadence/core/services/category.service").ManagedCategory[];
+    nextCategories: import("@cadence/core/services/category.service").ManagedCategory[];
+    updates: { graph: LocalBehaviorGraph; expectedRevision: number; configurationEvent: BehaviorConfigurationEvent | null }[];
+  }; result: null };
+
   applyAccountSync: { input: Owned & { writes: AccountSyncWrite[] }; result: { appliedCount: number } };
   applyFirstLinkAccountSync: { input: Owned & { hostedUserId: string; choice: "import" | "ignore" | "hydrate"; attemptId: string; localFingerprint: string; hostedFingerprint: string;
     expectedRevision: number; idempotencyKey: string; baselineFingerprint: string; baselineJson: string; backupPath: string | null; completedAt: string; writes: AccountSyncWrite[] }; result: { appliedCount: number } };

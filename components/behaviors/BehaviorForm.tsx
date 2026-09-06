@@ -89,12 +89,12 @@ export function BehaviorForm({
   action,
   categories,
   behavior,
-  defaultTimezone,
   showActiveToggle = true,
   initialState = EMPTY_ACTION_STATE,
   onSuccess,
   reminderRuntime = "web",
 }: BehaviorFormProps) {
+  const [selectedCategory, setSelectedCategory] = useState(behavior?.categoryId ?? "");
   const [state, formAction] = useActionState(action, initialState);
   const fieldErrors = state.fieldErrors ?? {};
   const [scheduleRows, setScheduleRows] = useState<ScheduleFormRow[]>(() =>
@@ -202,6 +202,7 @@ export function BehaviorForm({
   }
 
   function resetFormDraft() {
+    setSelectedCategory(behavior?.categoryId ?? "");
     setScheduleRows((rows) => resetBehaviorScheduleDraft(rows, behavior));
   }
 
@@ -216,9 +217,6 @@ export function BehaviorForm({
             value={behavior.updatedAt}
           />
         </>
-      ) : null}
-      {mode === "create" && defaultTimezone ? (
-        <input type="hidden" name="timezone" value={defaultTimezone} />
       ) : null}
       <FieldError message={fieldErrors.behavior_id} />
 
@@ -238,7 +236,8 @@ export function BehaviorForm({
             label="Category"
             labelClassName="pl-1"
             name="category_id"
-            defaultValue={behavior?.categoryId ?? ""}
+            value={selectedCategory}
+            onChange={setSelectedCategory}
             error={fieldErrors.category_id}
           >
             <option value="">No category</option>
@@ -248,6 +247,7 @@ export function BehaviorForm({
               </option>
             ))}
           </SelectField>
+          {categories.find((category) => category.id === selectedCategory)?.description ? <p className="break-words text-sm text-muted-readable">{categories.find((category) => category.id === selectedCategory)?.description}</p> : null}
         </div>
 
         <DescriptionField
@@ -760,7 +760,7 @@ function SelectField({
   children: ReactNode;
 }>) {
   return (
-    <label className="grid gap-1 text-sm">
+    <label className="grid min-w-0 gap-1 text-sm">
       <span className={labelClassName}>{label}</span>
       <select
         name={name}
@@ -768,7 +768,7 @@ function SelectField({
         value={value}
         onChange={(event) => onChange?.(event.currentTarget.value)}
         aria-invalid={error ? "true" : undefined}
-        className={controlClassName}
+        className={`min-w-0 max-w-full ${controlClassName}`}
       >
         {children}
       </select>
@@ -803,7 +803,7 @@ function NumberField({
           step={1}
           className="min-h-8 w-16 border-0 border-b border-line bg-background px-0 py-1 text-sm text-foreground"
         />
-        {suffix ? <span className="text-sm text-muted-readable">{suffix}</span> : null}
+        {suffix ? <span className="break-words text-sm text-muted-readable">{suffix}</span> : null}
       </span>
     </label>
   );

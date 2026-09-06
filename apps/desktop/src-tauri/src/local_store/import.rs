@@ -75,7 +75,7 @@ pub fn domain_revision(db: &Connection, profile_id: &str) -> Result<i64> {
 pub fn snapshot(db: &Connection, profile_id: &str) -> Result<Value> {
     Ok(json!({
         "revision":domain_revision(db,profile_id)?,"profile":db::profile(db)?,
-        "categories":db::owned::<Category>(db,profile_id)?,"graphs":behavior::read_graphs(db,profile_id)?,
+        "categories":db::read::<Category>(db,"SELECT * FROM categories WHERE user_id=?1 ORDER BY id",&[profile_id.to_string().into()])?,"graphs":behavior::read_graphs(db,profile_id)?,
         "definitionEvents":db::owned::<BehaviorDefinitionEvent>(db,profile_id)?,
         "configurationEvents":db::owned::<BehaviorConfigurationEvent>(db,profile_id)?,
         "occurrences":db::owned::<Occurrence>(db,profile_id)?,"statusEvents":db::owned::<OccurrenceStatusEvent>(db,profile_id)?,

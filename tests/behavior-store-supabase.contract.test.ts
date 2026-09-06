@@ -1,3 +1,4 @@
+import { exerciseCategorySqlContract } from "./helpers/category-sql-contract";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
@@ -111,6 +112,8 @@ describe.skipIf(process.env.CADENCE_SUPABASE_CONTRACT !== "1")("BehaviorDataStor
       trace("verifying 0.3 preserved lineage and passive observations");
       authenticatedRuntime.client = users[3].client;
       await exerciseBehaviorLog03SqlContract(users[3].client!, users[3].id);
+      authenticatedRuntime.client = client;
+      await exerciseCategorySqlContract(client, owner.id, stranger.client!);
     } finally {
       trace("cleaning temporary accounts");
       let cleanupFailures = 0;

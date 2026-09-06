@@ -1,5 +1,6 @@
 mod adoption;
 mod behavior;
+mod category;
 mod db;
 mod export;
 mod import;
@@ -281,6 +282,10 @@ pub enum Request {
         backup_path: Option<String>,
         completed_at: String,
         writes: Vec<AccountSyncWrite>,
+    },
+    ManageCategories {
+        profile_id: String, mutation_id: String, now: String,
+        expected_categories: Vec<Value>, next_categories: Vec<Value>, updates: Vec<TimezoneGraphUpdate>,
     },
     UpdateProfileTimezone {
         profile_id: String,
@@ -614,6 +619,7 @@ fn apply(db: &Connection, request: &Request) -> Result<Value> {
     match request {
         Request::PrepareBehaviorLogImport { .. } => import::prepare(db, request),
         Request::ApplyBehaviorLogImport { .. } => import::apply(db, request),
+        Request::ManageCategories { .. } => category::apply(db, request),
         Request::UpdateProfileTimezone { .. } => behavior::update_timezone(db, request),
         Request::CommitNativeReminderPlan { .. } => reminder::plan(db, request),
         Request::RecordNativeReminderCoverage { .. } => reminder::record(db, request),
@@ -718,6 +724,7 @@ impl Request {
                 now,
                 ..
             }
+            | Self::ManageCategories { profile_id, mutation_id, now, .. }
             | Self::UpdateProfileTimezone {
                 profile_id,
                 mutation_id,

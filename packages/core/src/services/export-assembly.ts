@@ -380,6 +380,7 @@ function toExportCategoryInput(
     id: category.id,
     name: category.name,
     sortOrder: category.sort_order,
+    description: category.description ?? null,
     createdAt: category.created_at,
     updatedAt: category.updated_at,
   };

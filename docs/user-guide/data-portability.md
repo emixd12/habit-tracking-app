@@ -94,6 +94,10 @@ find or remove the artifact.
 
 ## Copy or download the Markdown AI summary
 
+On the web, select **Generate summary** after applying your options. The
+summary loads on request. Changing options clears the previous summary.
+
+
 **Prerequisites:** Apply the intended export options and review the rendered
 **AI summary**.
 

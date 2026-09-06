@@ -77,6 +77,7 @@ create table categories (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
+  description text, -- nullable, maximum 2,000 characters
   sort_order int not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -94,9 +95,15 @@ Default categories:
 - Admin
 - Other
 
-Default categories are seeded for convenience and remain user-owned. Public
-launch should allow users to add categories and remove default categories once
-category management is fully scoped.
+Default categories are seeded for convenience and remain user-owned.
+Ticket 123 adds nullable plain-text descriptions through migration
+`20260905035835_user_defined_categories.sql` and SQLite migration 0011.
+Normalized names are unique per owner using trimmed ASCII case folding.
+Legacy duplicates retain their IDs and assignments; later duplicates receive an
+ID suffix. New names allow 1–120 characters without control characters.
+Descriptions allow 2,000 characters. Existing unchanged legacy names remain valid.
+`manage_categories` locks the account, checks category and affected Behavior
+snapshots, and applies the complete category change atomically.
 
 ### `behaviors`
 
@@ -294,9 +301,9 @@ graph as retained archived context.
 Authenticated clients may select owned events. They cannot insert, update, or
 delete event rows directly. Direct authenticated writes to Behaviors, schedule
 parents, and schedule slots are revoked; app writes use history-aware RPCs.
-Category deletion is disabled because `ON DELETE SET NULL` would bypass
-history. A future category-delete boundary must capture each affected Behavior
-atomically.
+Direct category deletion stays disabled because `ON DELETE SET NULL` bypasses
+history. The owner-scoped `manage_categories` RPC clears affected assignments
+and captures each Behavior configuration event atomically. Existing historical snapshots remain unchanged.
 
 Generated Occurrences link to these events when verified lineage exists. Full
 JSON and BehaviorLog expose the complete included-Behavior history and

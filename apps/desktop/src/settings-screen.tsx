@@ -31,6 +31,7 @@ export type SettingsScreenProps = Readonly<{
   updates?: ReactNode;
   databaseControls?: ReactNode;
   accountControls?: ReactNode;
+  categoryControls?: ReactNode;
 }>;
 
 const PERMISSION_LABELS: Record<NativeNotificationPermission, string> = {
@@ -57,6 +58,7 @@ export function SettingsScreen({
   updates,
   databaseControls,
   accountControls,
+  categoryControls,
 }: SettingsScreenProps) {
   const hasPermission =
     permission === "authorized" || permission === "provisional";
@@ -84,6 +86,7 @@ export function SettingsScreen({
           currentTimezone={currentTimezone}
           updateTimezoneAction={updateTimezoneAction}
         />
+        {categoryControls}
         {databaseControls}
         <section
           id="notifications"

@@ -12,6 +12,8 @@ import {
   isBehaviorCreatedEvent,
 } from "@/components/behaviors/behavior-events";
 import {
+  projectBehaviorList,
+  type BehaviorSort,
   reconcileCreatedBehaviorViews,
   upsertBehaviorView,
 } from "@/components/behaviors/behavior-list-state";
@@ -106,6 +108,22 @@ export function BehaviorList({
   resetTimeTrackingAction,
   reminderRuntime = "web",
 }: BehaviorListProps) {
+  const [updateAnnouncement, setUpdateAnnouncement] = useState<BehaviorActionAnnouncement | null>(null);
+  const announcedUpdateAction = useCallback<BehaviorFormAction>(async (previous, form) => {
+    const result = await updateAction(previous, form);
+    setUpdateAnnouncement(result);
+    return result;
+  }, [updateAction]);
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sort, setSort] = useState<BehaviorSort>("time");
+  const removedCategory = categoryFilter !== "all" && categoryFilter !== "none" &&
+    !categories.some((category) => category.id === categoryFilter);
+  const effectiveCategory = removedCategory ? "all" : categoryFilter;
+  const [filterNotice, setFilterNotice] = useState("");
+  if (removedCategory) {
+    setCategoryFilter("all");
+    setFilterNotice("The selected category was removed. Showing all categories.");
+  }
   const [createdBehaviorRows, setCreatedBehaviorRows] = useState<BehaviorView[]>(
     [],
   );
@@ -145,6 +163,8 @@ export function BehaviorList({
     (current, behavior) => upsertBehaviorView(current, behavior),
     activeBehaviors,
   );
+  const activeList = projectBehaviorList(activeBehaviorRows, categories, effectiveCategory, sort);
+  const archivedList = projectBehaviorList(archivedBehaviors, categories, effectiveCategory, sort);
   const behaviorAnalyticsById = new Map(
     analytics.behaviorSummaries.map((summary) => [summary.behaviorId, summary]),
   );
@@ -173,7 +193,36 @@ export function BehaviorList({
         <BehaviorActionResultAnnouncement result={actionAnnouncement} />
       ) : null}
 
+      {updateAnnouncement?.message ? <BehaviorActionResultAnnouncement result={updateAnnouncement} /> : null}
       <OverallAdherence analytics={analytics} />
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="grid min-w-0 max-w-full gap-2 text-sm">
+          Category
+          <select className="min-h-11 min-w-0 max-w-full border border-line bg-background px-3" value={effectiveCategory}
+            onChange={(event) => { setCategoryFilter(event.target.value); setFilterNotice(""); }}>
+            <option value="all">All categories</option>
+            <option value="none">No category</option>
+            {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+          </select>
+        </label>
+        <label className="grid min-w-0 max-w-full gap-2 text-sm">
+          Sort
+          <select className="min-h-11 min-w-0 max-w-full border border-line bg-background px-3" value={sort}
+            onChange={(event) => setSort(event.target.value as BehaviorSort)}>
+            <option value="time">Scheduled time</option>
+            <option value="name">Name A–Z</option>
+            <option value="category">Category</option>
+          </select>
+        </label>
+        <button type="button" className="product-action product-action-secondary min-h-11 text-sm"
+          onClick={() => { setCategoryFilter("all"); setSort("time"); setFilterNotice(""); }}>Clear filters</button>
+      </div>
+      <p role="status" className="text-sm text-muted-readable">
+        {filterNotice} {activeList.visibleIds.size} of {activeBehaviorRows.length} active behaviors;
+        {" "}{archivedList.visibleIds.size} of {archivedBehaviors.length} archived behaviors.
+        {effectiveCategory !== "all" ? " Overall adherence and category counts include all categories." : ""}
+      </p>
+
 
       <section className="grid gap-4" aria-labelledby="active-behaviors-title">
         <div className="border-b border-line pb-3">
@@ -188,15 +237,16 @@ export function BehaviorList({
           </p>
         ) : (
           <div className="divide-y divide-line">
-            {activeBehaviorRows.map((behavior) => (
+            {activeList.visibleIds.size === 0 ? <p className="py-4 text-sm text-muted-readable">No matching behaviors.</p> : null}
+            {activeList.rows.map((behavior) => (
+              <div key={behavior.id} hidden={!activeList.visibleIds.has(behavior.id)}>
               <BehaviorRecord
-                key={behavior.id}
                 behavior={behavior}
                 reminderRuntime={reminderRuntime}
                 categories={categories}
                 analytics={analytics}
                 behaviorAnalytics={behaviorAnalyticsById.get(behavior.id) ?? null}
-                updateAction={updateAction}
+                updateAction={announcedUpdateAction}
                 lifecycleFormAction={lifecycleFormAction}
                 lifecycleResult={lifecycleState}
                 statusAction={statusAction}
@@ -204,6 +254,7 @@ export function BehaviorList({
                 stopTimeTrackingAction={stopTimeTrackingAction}
                 resetTimeTrackingAction={resetTimeTrackingAction}
               />
+              </div>
             ))}
           </div>
         )}
@@ -213,9 +264,10 @@ export function BehaviorList({
 
       <ArchivedBehaviorDisclosure
         reminderRuntime={reminderRuntime}
-        archivedBehaviors={archivedBehaviors}
+        archivedBehaviors={archivedList.rows}
+        visibleIds={archivedList.visibleIds}
         categories={categories}
-        updateAction={updateAction}
+        updateAction={announcedUpdateAction}
         lifecycleFormAction={lifecycleFormAction}
         lifecycleResult={lifecycleState}
       />
@@ -837,6 +889,7 @@ function CategoryCounts({
 
 function ArchivedBehaviorDisclosure({
   archivedBehaviors,
+  visibleIds,
   categories,
   updateAction,
   lifecycleFormAction,
@@ -844,6 +897,7 @@ function ArchivedBehaviorDisclosure({
   reminderRuntime,
 }: Readonly<{
   archivedBehaviors: BehaviorView[];
+  visibleIds: ReadonlySet<string>;
   categories: CategoryOption[];
   updateAction: BehaviorFormAction;
   lifecycleFormAction: BehaviorLifecycleFormAction;
@@ -859,7 +913,7 @@ function ArchivedBehaviorDisclosure({
         >
           <span aria-hidden="true" className="product-disclosure-indicator" />
           <span className="product-disclosure-trigger-label">
-            Archived behaviors ({archivedBehaviors.length})
+            Archived behaviors ({visibleIds.size === archivedBehaviors.length ? archivedBehaviors.length : `${visibleIds.size} of ${archivedBehaviors.length}`})
           </span>
         </summary>
 
@@ -869,16 +923,18 @@ function ArchivedBehaviorDisclosure({
           </p>
         ) : (
           <div className="mt-4 divide-y divide-line border-t border-line">
+            {visibleIds.size === 0 ? <p className="py-4 text-sm text-muted-readable">No matching archived behaviors.</p> : null}
             {archivedBehaviors.map((behavior) => (
+              <div key={behavior.id} hidden={!visibleIds.has(behavior.id)}>
               <BehaviorRecord
                 reminderRuntime={reminderRuntime}
-                key={behavior.id}
                 behavior={behavior}
                 categories={categories}
                 updateAction={updateAction}
                 lifecycleFormAction={lifecycleFormAction}
                 lifecycleResult={lifecycleResult}
               />
+              </div>
             ))}
           </div>
         )}

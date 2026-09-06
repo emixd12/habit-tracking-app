@@ -684,3 +684,10 @@ enforces the same requirements.
 Do not include destructive data actions in v1 except explicit account deletion
 and dedicated BehaviorLog restore work. Restore preview is read-only; restore
 apply requires its own explicit review, confirmation, and stale-preview gates.
+
+
+## Category controls (Tickets 123–124)
+
+Settings category management uses the shared CategoryPanel on web and desktop.
+Deletion requires reviewed active/archived counts and preserves all Behavior history.
+Behaviors filtering and sorting preserve mounted drafts and account-wide analytics.

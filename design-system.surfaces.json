@@ -693,7 +693,8 @@
         "Timezone is chosen from one native select of IANA timezones whose value is the saved timezone; a detected-timezone hint appears only when it differs from the saved value",
         "Permission prompts happen only from explicit user action",
         "Timezone uses browser/OS data without geolocation",
-        "Account deletion requires export acknowledgement and typed confirmation"
+        "Account deletion requires export acknowledgement and typed confirmation",
+        "Category drafts retain errors; deletion confirms assignment counts and preserves Behavior history; reorder uses accessible buttons."
       ],
       "surfaceImplementations": [
         {
@@ -705,13 +706,15 @@
             "components/settings/TimezonePanel.tsx",
             "components/settings/NotificationPermissionPanel.tsx",
             "components/settings/SettingsPanels.tsx",
-            "components/settings/AccountDeletionPanel.tsx"
+            "components/settings/AccountDeletionPanel.tsx",
+            "components/settings/CategoryPanel.tsx"
           ],
           "implementationIds": [
             "module.timezone-panel",
             "module.notification-permission-panel",
             "module.trust-and-legal-panel",
-            "flow.account-deletion-panel"
+            "flow.account-deletion-panel",
+            "module.category-panel"
           ],
           "notes": "Settings modules are fixture-backed in the bench with bench-only actions for mutable controls."
         },
@@ -733,9 +736,12 @@
             "apps/desktop/src/local-database-controls.tsx",
             "components/settings/TimezonePanel.tsx",
             "docs/DESKTOP_BUILD.md",
-            "tests/desktop-settings-ui.test.tsx"
+            "tests/desktop-settings-ui.test.tsx",
+            "components/settings/CategoryPanel.tsx"
           ],
-          "implementationIds": [],
+          "implementationIds": [
+            "module.category-panel"
+          ],
           "notes": "The local screen reuses timezone controls, reports native reminder coverage, exposes database controls, and presents the first account-link data choice. Automated account-choice and native protected-backup checks pass; live hosted first-link acceptance remains in progress."
         },
         {
@@ -759,7 +765,8 @@
         "Behavior is the recurring tracked object",
         "Recurrence presets stay explicit; no natural language recurrence UI",
         "Browser reminders default on, email reminders default off",
-        "Archive preserves history"
+        "Archive preserves history",
+        "Category and Sort native selects affect active and archived lists; hidden rows retain drafts, aggregate analytics keep their full scope."
       ],
       "surfaceImplementations": [
         {

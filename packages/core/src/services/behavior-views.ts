@@ -195,9 +195,10 @@ function normalizeSchedulePreset(value: string | null): TimeRangePreset | null {
   throw new Error(`Unsupported schedule preset: ${value}.`);
 }
 
-function toCategoryOption(category: { id: string; name: string }): CategoryOption {
+function toCategoryOption(category: CategoryOption): CategoryOption {
   return {
     id: category.id,
     name: category.name,
+    description: category.description ?? null,
   };
 }

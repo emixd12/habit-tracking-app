@@ -5,6 +5,8 @@ import { listen } from "@tauri-apps/api/event";
 import { DesktopApp, type DesktopScreen } from "./desktop-app";
 import { TimelineScreen } from "./timeline-screen";
 import { BehaviorsScreen } from "./behaviors-screen";
+import { CategoryPanel } from "@/components/settings/CategoryPanel";
+import { createLocalCategoryAction } from "./local-category.service";
 import { SettingsScreen } from "./settings-screen";
 import { LocalExportScreen } from "./export-screen";
 import { localCommand } from "./local-store";
@@ -242,6 +244,7 @@ export function Product() {
   /* eslint-disable react-hooks/refs -- These factories only capture refresh; event callbacks read its refs after render. */
   const occurrenceActions = useMemo(() => profile ? createLocalOccurrenceActions(profile.id, () => refresh()) : null, [profile, refresh]);
   const behaviorActions = useMemo(() => profile ? createLocalBehaviorActions(profile, () => refresh()) : null, [profile, refresh]);
+  const categoryAction = useMemo(() => createLocalCategoryAction(() => refresh()), [refresh]);
   const timezoneAction = useMemo(() => createLocalTimezoneAction(() => refresh()), [refresh]);
   /* eslint-enable react-hooks/refs */
   const coverage = reminders ? reminderCoverageView(reminders.state) : null;
@@ -315,6 +318,8 @@ export function Product() {
         {...occurrenceActions} {...behaviorActions} onRefresh={refresh}
         onNavigateReview={(selection) => { parameters.current.analytics = selection; refresh(); }} /> : null}
       {activeScreen === "settings" ? <SettingsScreen currentTimezone={bundle.timeline.profile.timezone} accountConnected={syncReady}
+        categoryControls={<CategoryPanel categories={bundle.timeline.categories}
+          assignments={bundle.timeline.behaviors.map((behavior) => ({ id: behavior.id, categoryId: behavior.category_id, active: behavior.active, updatedAt: behavior.updated_at }))} action={categoryAction} />}
         accountControls={completeAccountControls}
         updates={<DesktopUpdatePanel />}
         databaseControls={<LocalDatabaseControls onRestored={refresh} />}

@@ -1,3 +1,5 @@
+import { assembleExportBundle } from "@cadence/core/services/export-assembly";
+import { storedBehavior, storedConfigurationEvent, USER_ID } from "./helpers/export-row-fixture";
 import { createStoredZip } from "../lib/services/zip";
 import { createHash } from "node:crypto";
 import { saveLocalOccurrenceNote, trackLocalOccurrence } from "../apps/desktop/src/local-occurrence.service";
@@ -190,6 +192,23 @@ describe.skipIf(!process.env.CADENCE_SQLITE_CONTRACT)("BehaviorLog clients again
     const final = await localCommand("readImportSnapshot", { profileId: profile.id });
     expect(final.graphs).toHaveLength(1); expect(final.occurrences).toHaveLength(1);
     expect(final.definitionEvents).toHaveLength(1);
+  });
+
+  it("restores exported category descriptions into new categories", async () => {
+    const profile = await localCommand("readProfile", {});
+    const category = { id: "33333333-3333-4333-8333-333333333333", name: "Travel context", description: "Routines while away", sort_order: 0, created_at: NOW.toString(), updated_at: NOW.toString() };
+    const configuration = storedConfigurationEvent();
+    const bundle = assembleExportBundle({ userId: USER_ID, timezone: profile.timezone, now: NOW, range: "all",
+      categories: [category], behaviors: [{ ...storedBehavior(), category_id: category.id, category }], behaviorDefinitionEvents: [],
+      behaviorConfigurationEvents: [{ ...configuration, next_configuration: { ...configuration.next_configuration, category_id: category.id } }],
+      occurrences: [], statusEvents: [], reminderDeliveries: [], timeSessions: [] });
+    const zip = createDesktopZip(bundle.behaviorLog.files);
+    const preview = await previewLocalBehaviorLogRestore(profile, upload(zip, "restore_behaviorlog_file"), NOW);
+    expect(preview.status, preview.message ?? "").toBe("previewed");
+    const applied = await applyLocalBehaviorLogRestore(profile, accepted(zip, preview, "restore"), NOW);
+    expect(applied.status, applied.message ?? "").toBe("applied");
+    const categories = await localCommand("readCategories", { profileId: profile.id });
+    expect(categories.find((row) => row.name === category.name)?.description).toBe(category.description);
   });
 
   it("requires restore acknowledgements and restores a reviewed snapshot with immutable lineage", async () => {

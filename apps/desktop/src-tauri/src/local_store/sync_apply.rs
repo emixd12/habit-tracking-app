@@ -930,6 +930,7 @@ mod tests {
         let (_directory, mut connection, profile, _category) = database();
         let stamp = "2026-09-01T00:00:00Z".to_string();
         let category = Category {
+            description: None,
             id: "10000000-0000-4000-8000-000000000001".into(),
             user_id: profile.clone(),
             name: "Graph".into(),

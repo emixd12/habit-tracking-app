@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  projectBehaviorList,
   reconcileCreatedBehaviorViews,
   removeBehaviorView,
   upsertBehaviorView,
@@ -162,3 +163,17 @@ function behaviorView(
     updatedAt: overrides.updatedAt ?? "2026-06-26T12:00:00Z",
   };
 }
+
+describe("category projection", () => {
+  it("filters by identity, sorts deterministically, and preserves source rows", () => {
+    const categories = [{ id: "b" }, { id: "a" }];
+    const rows = [behaviorView({ id: "3", title: "A", categoryId: "" }),
+      behaviorView({ id: "2", title: "A", categoryId: "a" }), behaviorView({ id: "1", title: "Z", categoryId: "b" })];
+    const before = structuredClone(rows);
+    expect(projectBehaviorList(rows, categories, "all", "category").rows.map((row) => row.id)).toEqual(["1", "2", "3"]);
+    expect([...projectBehaviorList(rows, categories, "a", "name").visibleIds]).toEqual(["2"]);
+    expect([...projectBehaviorList(rows, categories, "none", "name").visibleIds]).toEqual(["3"]);
+    expect(projectBehaviorList(rows, categories, "missing", "time").visibleIds.size).toBe(0);
+    expect(rows).toEqual(before);
+  });
+});

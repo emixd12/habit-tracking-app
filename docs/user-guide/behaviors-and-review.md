@@ -247,3 +247,23 @@ nearby.
 and Restore are text-labeled buttons and do not rely on color. On mobile, the
 archive action follows the entire edit form; confirm the row heading before
 submitting.
+
+## Categories and list controls
+
+In Settings, use Add category or Edit to enter a name and optional description.
+Save category applies the change. Cancel discards the draft. Move up and Move
+down change the category order. Default categories use the same controls.
+Names must be unique within your account after trimming and ignoring ASCII case.
+Names allow 120 characters; descriptions allow 2,000 characters.
+
+Delete category shows the affected active and archived Behavior counts.
+Confirm the checkbox and select Delete category to move those Behaviors to
+No category. Behaviors, Occurrences, and history remain saved.
+If assignments change during review, cancel and reopen the editor before retrying.
+
+On Behaviors, Category selects All categories, No category, or one category.
+Sort selects Scheduled time, Name A–Z, or Category. Both controls affect active
+and archived lists. Overall adherence keeps its account-wide scope.
+Clear filters restores All categories and Scheduled time. Unsaved Behavior and
+Note drafts stay available when their rows are temporarily hidden.
+Controls survive in-screen refreshes; leaving Behaviors or reloading may reset them.

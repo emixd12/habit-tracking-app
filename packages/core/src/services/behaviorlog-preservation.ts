@@ -115,11 +115,12 @@ export function collectBehaviorLogPortability(input: {
       expect(Array.isArray(registry), "Cadence category registry must be an array.");
       const ids = new Set<string>();
       for (const value of registry) {
-        const row = record(value, ["id", "name", "sort_order", "created_at", "updated_at"], ["id", "name", "sort_order"]);
+        const row = record(value, ["id", "name", "description", "sort_order", "created_at", "updated_at"], ["id", "name", "sort_order"]);
         expect(text(row.id) && typeof row.name === "string" && Number.isInteger(row.sort_order) && !ids.has(row.id), "Invalid or duplicate Cadence category registry entry.");
         for (const key of ["created_at", "updated_at"]) {
           if (row[key] !== undefined) { expect(text(row[key]), "Invalid category timestamp."); Temporal.Instant.from(row[key]); }
         }
+        expect(row.description === undefined || row.description === null || (typeof row.description === "string" && Array.from(row.description).length <= 2000 && !row.description.includes("\0")), "Invalid category description.");
         ids.add(row.id);
         categories.push(row as NonNullable<BehaviorLogPortabilityData["categories"]>[number]);
       }
