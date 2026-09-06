@@ -64,6 +64,7 @@ pub(super) const MIGRATIONS: &[(i64, &str, &str)] = &[
         "first_link_attempt_baseline",
         include_str!("../../migrations/0010_first_link_attempt_baseline.sql"),
     ),
+    (11, "category_descriptions", include_str!("../../migrations/0011_category_descriptions.sql")),
 ];
 
 pub fn open(path: &Path) -> Result<Connection> {

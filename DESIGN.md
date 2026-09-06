@@ -483,3 +483,14 @@ Desktop Settings includes an optional App updates section. The local build
 shows unavailable text until signed release configuration exists. Check,
 install, and restart remain separate user actions. The unconfigured state
 passed WKWebView QA; signed update installation remains pending.
+
+Web Export reads counts first. Its AI summary section uses Generate summary
+with pending and retry states, then the existing preview and copy/save actions.
+Desktop retains the same section with a locally prepared summary.
+
+
+## Category controls (Tickets 123–124)
+
+CategoryPanel uses native inputs, a textarea, explicit deletion acknowledgement,
+and Move up / Move down text actions. BehaviorList uses native Category and Sort
+selects with matching counts and Clear filters. Hidden rows retain mounted drafts.

@@ -930,6 +930,41 @@
       "id": "INT-TIMELINE-010",
       "classification": "browser_only",
       "reason": "Threshold, direction locking, native-refresh suppression, and feedback require a rendered touch interface; existing Timeline reads cover route capacity."
+    },
+    {
+      "id": "INT-SETTINGS-010",
+      "classification": "not_load_bearing",
+      "reason": "Local view controls do not issue HTTP requests."
+    },
+    {
+      "id": "INT-SETTINGS-011",
+      "classification": "destructive_serial_only",
+      "reason": "Category mutations require isolated concurrency and history verification."
+    },
+    {
+      "id": "INT-SETTINGS-012",
+      "classification": "destructive_serial_only",
+      "reason": "Category mutations require isolated concurrency and history verification."
+    },
+    {
+      "id": "INT-SETTINGS-013",
+      "classification": "destructive_serial_only",
+      "reason": "Category mutations require isolated concurrency and history verification."
+    },
+    {
+      "id": "INT-BEHAVIOR-024",
+      "classification": "not_load_bearing",
+      "reason": "Local view controls do not issue HTTP requests."
+    },
+    {
+      "id": "INT-BEHAVIOR-025",
+      "classification": "not_load_bearing",
+      "reason": "Local view controls do not issue HTTP requests."
+    },
+    {
+      "id": "INT-BEHAVIOR-026",
+      "classification": "not_load_bearing",
+      "reason": "Local view controls do not issue HTTP requests."
     }
   ]
 }

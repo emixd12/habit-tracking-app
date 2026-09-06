@@ -10,6 +10,18 @@ const context = { hostedUserId: "hosted", baselineFingerprint: digest, baselineJ
 const hosted = { schemaVersion: 1, userId: "hosted", fingerprint: digest, entities: [{ kind: "profile", id: "profile", value: { timezone: "America/New_York" } }] };
 
 describe("desktop account sync adapter", () => {
+  it("upgrades old category baselines without erasing a description edited on another copy", () => {
+    const old = { entities: [{ kind: "category" as const, id: "category", value: { name: "Home", sort_order: 0 } }] };
+    const baseline = normalizeAccountSyncBaseline(old);
+    expect(baseline.entities[0].value).toMatchObject({ description: null });
+    const hosted = { entities: [{ ...baseline.entities[0], value: { name: "Home", sort_order: 0, description: "Household routines" } }] };
+    const plan = resolveAccountSync({ accountLinkId: "hosted", baseline, local: baseline, hosted });
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.hostedWrites).toEqual([]);
+    expect(plan.localWrites[0].value).toMatchObject({ description: "Household routines" });
+    const competing = { entities: [{ ...baseline.entities[0], value: { name: "Home", sort_order: 0, description: "Other context" } }] };
+    expect(resolveAccountSync({ accountLinkId: "hosted", baseline, local: competing, hosted }).conflicts).toHaveLength(1);
+  });
   it("canonicalizes nested Unicode keys in PostgreSQL C order", () => {
     expect(canonicalJson({ nested: { "𐀀": 2, "": 1 } })).toBe('{"nested":{"":1,"𐀀":2}}');
   });

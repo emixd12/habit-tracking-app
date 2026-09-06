@@ -53,3 +53,25 @@ function compareBehaviorViews(left: BehaviorView, right: BehaviorView): number {
 
   return left.id.localeCompare(right.id);
 }
+
+export type BehaviorSort = "time" | "name" | "category";
+
+export function projectBehaviorList(
+  behaviors: readonly BehaviorView[],
+  categories: readonly { id: string }[],
+  categoryId: string,
+  sort: BehaviorSort,
+) {
+  const order = new Map(categories.map((category, index) => [category.id, index]));
+  const rows = [...behaviors].sort((left, right) => {
+    if (sort === "time") return compareBehaviorViews(left, right);
+    const categoryOrder = sort === "category"
+      ? (order.get(left.categoryId) ?? categories.length) - (order.get(right.categoryId) ?? categories.length)
+      : 0;
+    return categoryOrder || left.title.localeCompare(right.title) || left.id.localeCompare(right.id);
+  });
+  const visibleIds = new Set(rows.filter((behavior) =>
+    categoryId === "all" || (categoryId === "none" ? !behavior.categoryId : behavior.categoryId === categoryId),
+  ).map((behavior) => behavior.id));
+  return { rows, visibleIds };
+}

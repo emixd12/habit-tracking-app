@@ -12,6 +12,8 @@ import { localCommand } from "../apps/desktop/src/local-store";
 import { loadLocalTimeline } from "../apps/desktop/src/local-timeline.service";
 import { markLocalOccurrence, saveLocalOccurrenceNote, trackLocalOccurrence } from "../apps/desktop/src/local-occurrence.service";
 import { getLocalExportDownload, getLocalExportPageData } from "../apps/desktop/src/local-export.service";
+import { createLocalCategoryAction } from "../apps/desktop/src/local-category.service";
+import { categorySnapshot, categoryAssignmentSnapshot } from "@cadence/core/services/category.service";
 import { updateLocalTimezone } from "../apps/desktop/src/local-settings.service";
 import { reconcileLocalReminders, retainNativeDeliveryEvents } from "../apps/desktop/src/local-reminder.service";
 import { readDesktopZipEntries } from "../apps/desktop/src/archive";
@@ -66,6 +68,32 @@ describe.skipIf(!process.env.CADENCE_SQLITE_CONTRACT)("TypeScript adapters again
   async function stop() { child.stdin.end(); await stopped; }
   beforeEach(async () => { directory = await mkdtemp(path.join(tmpdir(), "cadence-ts-sqlite-")); await start(); });
   afterEach(async () => { vi.restoreAllMocks(); await stop(); await rm(directory, { recursive: true, force: true }); });
+
+  it("persists category descriptions and history-safe removal through the native adapter and restart", async () => {
+    const profile = await localCommand("readProfile", {});
+    const action = createLocalCategoryAction(() => undefined);
+    const edit = async (intent: string, values: Record<string, string>) => {
+      const categories = await localCommand("readCategories", { profileId: profile.id });
+      const form = new FormData();
+      for (const [key, value] of Object.entries({ intent, expected: categorySnapshot(categories), ...values })) form.set(key, value);
+      return action({ status: "idle", message: "" }, form);
+    };
+    expect((await edit("create", { name: "Travel", description: "Routines while away" })).status).toBe("success");
+    await stop(); await start();
+    const categories = await localCommand("readCategories", { profileId: profile.id });
+    const category = categories.find((row) => row.name === "Travel")!;
+    expect(category.description).toBe("Routines while away");
+    const store = createLocalBehaviorStore(profile.id, NOW);
+    const created = await createBehavior(store, { userId: profile.id, timezone: profile.timezone, recordedAt: NOW.toString(), values: { ...VALUES, categoryId: category.id } });
+    const graphs = await localCommand("readBehaviorGraphs", { profileId: profile.id });
+    const expected = categoryAssignmentSnapshot(graphs.map(({ behavior }) => ({ id: behavior.id, categoryId: behavior.category_id, active: behavior.active, updatedAt: behavior.updated_at })), category.id);
+    expect((await edit("delete", { category_id: category.id, confirm_delete: "yes", expected_assignments: "[]" })).status).toBe("error");
+    expect((await edit("delete", { category_id: category.id, confirm_delete: "yes", expected_assignments: expected })).status).toBe("success");
+    await stop(); await start();
+    const saved = await localCommand("readBehaviorGraphs", { profileId: profile.id });
+    expect(saved.find((row) => row.behavior.id === created.id)?.behavior.category_id).toBeNull();
+    expect((await localCommand("readCategories", { profileId: profile.id })).some((row) => row.id === category.id)).toBe(false);
+  });
 
   it("satisfies the shared BehaviorDataStore transaction and history contract", async () => {
     const profile = await localCommand("readProfile", {});

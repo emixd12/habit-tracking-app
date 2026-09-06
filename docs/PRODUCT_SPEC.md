@@ -183,6 +183,24 @@ Default timezone:
 
 ## Behavior creation
 
+### Category management and list organization
+
+Tickets 123–124 implement category management and list organization locally.
+Ticket 123 provides Settings controls to create,
+rename, describe, reorder, and delete user-owned categories on web and desktop.
+Defaults use the same controls. Deletion moves affected Behaviors to No category
+through an atomic operation that preserves history. Descriptions remain optional
+plain text and accompany category data in supported portable formats.
+
+Ticket 124 owns category filtering and sorting on Behaviors. Its defaults are
+All categories and the existing scheduled-time order. Users can select one
+category or No category and sort by scheduled time, name, or category.
+Filtering changes active/archived lists, not overall adherence calculations.
+Category management stays in Settings; Timeline and primary navigation remain
+unchanged. Full acceptance criteria and platform impacts live in `docs/TICKETS.md`.
+
+### Creation fields
+
 Required fields:
 - Title
 - Schedule with at least one recurrence pattern and one exact time or time range

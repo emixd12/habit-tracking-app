@@ -39,6 +39,7 @@ import {
   AccountDeletionPanel,
   type DeleteAccountAction,
 } from "@/components/settings/AccountDeletionPanel";
+import { CategoryPanel } from "@/components/settings/CategoryPanel";
 import { NotificationPermissionPanel } from "@/components/settings/NotificationPermissionPanel";
 import {
   TimezonePanel,
@@ -1811,6 +1812,10 @@ const previewFactories: Record<
         />
       </ProductPreview>
     ),
+  "module.category-panel": () => (
+    <ProductPreview><CategoryPanel categories={[{ id: "health", name: "Health", description: "Movement and rest", sort_order: 0, updated_at: "2026-09-05T00:00:00Z" }]} assignments={[]}
+      action={async () => { "use server"; return { status: "error", message: "Preview only. Your draft remains available." }; }} /></ProductPreview>
+  ),
   "module.timezone-panel": () => (
       <ProductPreview>
         <TimezonePanel

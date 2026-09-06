@@ -208,3 +208,14 @@ Query the current pending desktop work without maintaining another inventory:
 ```bash
 jq -r '.interactions[] | select(.platforms.desktop.applicability == "applicable") | [.id, .name, .platforms.desktop.status, (.platforms.desktop.follow_up // "")] | @tsv' interaction-registry.json
 ```
+
+
+## Category controls (Tickets 123–124)
+
+Tickets 123–124 share CategoryPanel and BehaviorList between web and desktop.
+The SQLite manageCategories command preserves configuration history and applies
+mutations with outbox records atomically. Native category creation, rename,
+description edits, ordering, filtering, sorting, cancellation, confirmed deletion,
+and restart passed in the isolated Category QA app on 2026-09-05. Shared DOM and
+real SQLite checks are recorded in the ticket QA note. Hosted rollout and release
+publication remain separate.

@@ -498,6 +498,7 @@ export type Database = {
       categories: {
         Row: {
           created_at: string
+          description: string | null
           id: string
           name: string
           sort_order: number
@@ -506,6 +507,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           id?: string
           name: string
           sort_order?: number
@@ -514,6 +516,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           id?: string
           name?: string
           sort_order?: number
@@ -1119,10 +1122,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      apply_account_sync_plan: {
-        Args: { sync_payload: Json }
-        Returns: Json
-      }
+      apply_account_sync_plan: { Args: { sync_payload: Json }; Returns: Json }
       apply_behaviorlog_import: {
         Args: { import_payload: Json }
         Returns: Json
@@ -1149,10 +1149,6 @@ export type Database = {
           target_behavior_id: string
           target_user_id: string
         }
-        Returns: Json
-      }
-      read_account_sync_snapshot: {
-        Args: Record<PropertyKey, never>
         Returns: Json
       }
       apply_occurrence_status_transition: {
@@ -1233,6 +1229,14 @@ export type Database = {
           user_id: string
         }[]
       }
+      manage_categories: {
+        Args: {
+          behavior_changes: Json
+          expected_categories: Json
+          next_categories: Json
+        }
+        Returns: undefined
+      }
       mark_occurrence_sync_fresh_if_configuration_current: {
         Args: {
           expected_behavior_configuration_events: Json
@@ -1250,6 +1254,7 @@ export type Database = {
         }
         Returns: Json
       }
+      read_account_sync_snapshot: { Args: never; Returns: Json }
       update_behavior_with_definition_event: {
         Args: {
           behavior_payload: Json

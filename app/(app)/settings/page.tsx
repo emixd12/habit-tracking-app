@@ -13,6 +13,9 @@ import {
   SettingsProfile,
   TrustAndLegalPanel,
 } from "@/components/settings/SettingsPanels";
+import { CategoryPanel } from "@/components/settings/CategoryPanel";
+import { getCategorySettings } from "@/lib/services/category.service";
+import { changeCategoryAction } from "./actions";
 import { getSettingsPageData } from "@/lib/services/settings.service";
 import { withPerformanceRoute } from "@/lib/services/performance-timing";
 import { deleteAccountAction, updateTimezoneAction } from "./actions";
@@ -38,6 +41,8 @@ async function SettingsContent() {
     () => getSettingsPageData(),
   );
 
+  const categorySettings = await getCategorySettings();
+
   return (
     <SettingsPanelGrid>
       <SettingsProfile email={settings.email} />
@@ -50,6 +55,8 @@ async function SettingsContent() {
       <NotificationPermissionPanel
         vapidPublicKey={settings.vapidPublicKey}
       />
+
+      <CategoryPanel {...categorySettings} action={changeCategoryAction} />
 
       <TrustAndLegalPanel />
 

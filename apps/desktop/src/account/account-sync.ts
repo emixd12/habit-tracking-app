@@ -177,13 +177,13 @@ export function portabilityEntities(snapshot: PortabilitySnapshot): AccountSyncE
 }
 
 export function normalizeAccountSyncBaseline(snapshot: AccountSyncSnapshot | PortabilitySnapshot): AccountSyncSnapshot {
-  return "entities" in snapshot ? { entities: snapshot.entities } : { entities: portabilityEntities(snapshot) };
+  return "entities" in snapshot ? { entities: snapshot.entities.map(entity) } : { entities: portabilityEntities(snapshot) };
 }
 
 function add(output: AccountSyncEntity[], kind: AccountSyncEntity["kind"], rows: readonly unknown[]) {
   for (const row of rows) {
     if (!isRecord(row) || typeof row.id !== "string") throw new Error(`The local ${kind} snapshot contains an invalid row.`);
-    output.push({ kind, id: row.id, value: json(row) });
+    output.push({ kind, id: row.id, value: json(kind === "category" ? { description: null, ...row } : row) });
   }
 }
 
@@ -204,7 +204,7 @@ function hostedEnvelope(value: unknown): HostedEnvelope {
 
 function entity(value: unknown): AccountSyncEntity {
   if (!isRecord(value) || typeof value.kind !== "string" || !ACCOUNT_SYNC_ENTITY_KINDS.includes(value.kind as AccountSyncEntity["kind"]) || typeof value.id !== "string" || !("value" in value)) throw new Error("The account snapshot contains an invalid entity.");
-  return { kind: value.kind as AccountSyncEntity["kind"], id: value.id, value: json(value.value) };
+  return { kind: value.kind as AccountSyncEntity["kind"], id: value.id, value: json(value.kind === "category" && isRecord(value.value) ? { description: null, ...value.value } : value.value) };
 }
 function isPortabilitySnapshot(value: unknown): value is PortabilitySnapshot {
   return isRecord(value) && isRecord(value.profile) && typeof value.profile.timezone === "string" && Array.isArray(value.categories) && Array.isArray(value.graphs) && Array.isArray(value.occurrences);

@@ -540,6 +540,20 @@ from the durable stale marker.
 
 Category editing belongs in Settings.
 
+Ticket 123 implements category create, rename, optional
+plain-text description, reorder, and confirmed delete controls to Settings on
+web and desktop. Deletion shows the affected Behavior count and moves those
+Behaviors to No category while preserving their history. Reuse native fields
+and existing text actions; use Move up / Move down for category order.
+
+Ticket 124 implements compact Category and Sort selects to
+Behaviors. Category offers All categories, No category, and owned categories.
+Sort offers Scheduled time, Name A–Z, and Category. Controls affect active and
+archived lists; archived results stay in their disclosure. Show matching/total
+counts and Clear filters. Keep overall analytics scope explicit and unchanged.
+Preserve drafts and selections through in-screen updates. Stack controls on
+narrow screens. Detailed lifecycle and empty-state criteria live in Ticket 124.
+
 ## Behavior review details
 
 Default range:
@@ -806,3 +820,8 @@ and successful saves use status semantics.
 Offline support is not part of v1.
 
 Future offline behavior is tracked in `/docs/FUTURE_UPDATES.md`.
+
+Ticket 091: web Export initially shows scoped counts and Generate summary.
+Generation reveals the existing Markdown preview, Copy summary, and Download
+.md controls. Errors preserve retry. Applying new options clears the summary.
+Desktop keeps its local summary behavior.

@@ -61,6 +61,7 @@ export type ExportProfileInput = {
 };
 
 export type ExportCategoryInput = {
+  description?: string | null;
   id: string;
   name: string;
   sortOrder: number;
@@ -257,6 +258,7 @@ export type ExportJsonBackup = {
 };
 
 export type ExportJsonCategory = {
+  description?: string | null;
   id: string;
   name: string;
   sort_order: number;

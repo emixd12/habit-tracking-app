@@ -8914,3 +8914,173 @@ checks, and `git diff --check`.
 Out of scope: Apple enrollment or trust-gate changes, Intel release, billing,
 web PWA/offline writes, realtime closed-app synchronization, background helper,
 desktop email delivery, mobile implementation, and arbitrary live database paths.
+
+---
+
+## Ticket 123: User-defined categories and descriptions
+
+Status: complete locally 2026-09-05. Automated, browser, and native interactive
+acceptance passed. Hosted rollout remains separate. Evidence:
+`docs/qa/2026-09-05-categories-and-behavior-filters.md`.
+
+Let users organize Behaviors with their own categories and explain each
+category's meaning for later review and portable exports.
+
+Dependencies: existing configuration-history, portability, and account-sync
+contracts from Tickets 095–097 and 116–122. Ticket 124 can start independently.
+
+Scope and acceptance criteria:
+
+- Add a Categories section to Settings on web and desktop. Support create,
+  rename, optional plain-text description, reorder, and delete. Default
+  categories use the same controls as user-created categories. Deleted defaults
+  must not reappear on login, launch, or synchronization.
+- Reuse existing category IDs, ownership, and `sort_order`. Keep one optional
+  category per Behavior. Use accessible Move up / Move down actions for ordering;
+  no drag-and-drop dependency or separate category archive state is required.
+- Validate names and descriptions at service/database boundaries. Reject blank
+  names and duplicate normalized names within one account. Define and test
+  shared length limits. Migrate existing duplicate names without deleting or
+  silently merging categories, Behavior assignments, or history.
+- Show descriptions in category management and as supporting context for the
+  selected category in Behavior forms. Keep descriptions optional and plain text.
+- Before deletion, show the affected active and archived Behavior count. Explain
+  that deletion moves these Behaviors to No category. Require explicit Delete
+  category confirmation, preserve all Behaviors and Occurrences, and allow cancel.
+- Replace the disabled category-delete path with one atomic owner-scoped
+  operation. Clear affected assignments and append each affected Behavior's
+  configuration event in that transaction. Preserve historical snapshots and
+  Occurrence lineage. A stale edit, foreign owner, or partial failure writes nothing.
+- Renaming, description edits, and reordering preserve category identity and
+  Behavior history. Refresh category selectors, Behavior metadata, analytics
+  labels, and export reads after successful mutations. Preserve form drafts on
+  validation, concurrency, or network errors.
+- Add the nullable description field through tracked Postgres and SQLite
+  migrations. Update generated types and shared category contracts. Keep web
+  writes behind authenticated services/repositories and RLS; keep desktop writes,
+  revisions, tombstones, and outbox records atomic through DataStore operations.
+- Synchronize category names, descriptions, ordering, and deletion through the
+  existing account-sync contract. Test offline edits, concurrent rename/delete
+  versus Behavior assignment, retries, and older-client payloads. Missing new
+  fields must not erase descriptions. Reject incompatible writes explicitly if
+  compatibility cannot preserve data.
+- Carry descriptions in app-native category JSONL/full JSON, the existing Cadence
+  BehaviorLog category-registry extension, and Markdown category context.
+  Preserve descriptions through supported import/restore paths and desktop
+  backup/restore. Older bundles without descriptions remain valid. Preserve
+  existing create-only import matching and restore decisions; do not silently
+  overwrite an existing category's description. Keep CSV columns unchanged.
+- Update `docs/DATA_MODEL.md`, `docs/DESKTOP_DATA_MODEL.md`,
+  `docs/EXPORT_FORMATS.md`, `docs/USER_FLOWS.md`, and route/parity documentation
+  with the implemented contracts. Extend the existing interaction registry and
+  design-system catalog when controls ship, with web and native desktop evidence.
+
+Implementation references:
+
+- `app/(app)/settings/`, `components/settings/`, `lib/db/`, `lib/services/`
+- `components/behaviors/BehaviorForm.tsx`, `lib/db/behaviors.repo.ts`
+- `packages/core/src/`, `apps/desktop/src/local-store.ts`,
+  `apps/desktop/src/account/`, `apps/desktop/src-tauri/`
+- `supabase/migrations/`, `lib/db/database.types.ts`
+- `interaction-registry.json` (`INT-BEHAVIOR-007`, existing metadata draft intent)
+  and `design-system.surfaces.json`; register new category-management intents
+  during implementation, not as already implemented planning records.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | This ticket owns Settings management, Behavior selectors, RLS/history-safe mutations, and category export context |
+| Desktop | This ticket owns equivalent Settings controls, local migrations, atomic offline writes, account sync, portability, and native QA |
+| Marketing | No new interface; update existing public documentation and feature claims only after web and desktop acceptance |
+| Future mobile | No implementation: mobile remains deferred; preserve the shared category contract for a separately scoped mobile ticket |
+
+Verification: focused validation, ownership, concurrency/rollback, history,
+sync, old-client compatibility, export round-trip, and UI tests; clean local
+Supabase migration replay and real SQLite adapter contracts; native restart and
+protected-backup upgrade preservation; responsive web QA and native Settings
+QA. Run the standard ticket checks, `npm run interactions:check`,
+`npm run design-system:check`, desktop type/native/contract/parity checks, and
+`git diff --check`. Hosted rollout and release publication require their existing
+explicit authorization gates.
+
+Out of scope: nested categories, multiple categories per Behavior, tags,
+category merging, AI-generated descriptions, team taxonomy, and bulk Behavior editing.
+
+---
+
+## Ticket 124: Behaviors category filtering and sorting
+
+Status: complete locally 2026-09-05. Automated, browser, and native interactive
+acceptance passed. Hosted rollout remains separate. Evidence:
+`docs/qa/2026-09-05-categories-and-behavior-filters.md`.
+
+Help users find Behaviors as their list grows. Reuse the existing category
+assignments and shared Behavior list; no database migration is required.
+
+Dependencies: none on Ticket 123. Verify custom-category mutation integration
+when Ticket 123 ships.
+
+Scope and acceptance criteria:
+
+- Add a compact, labeled Category select beside the Behaviors list controls.
+  Offer All categories by default, No category, and each owned category in its
+  configured order. Select by category ID, not display name. Start with one
+  selected category rather than a multi-select filter builder.
+- Add a labeled Sort select with Scheduled time (existing default), Name A–Z,
+  and Category. Category sorting uses category order, then Behavior title;
+  No category sorts last. Use a stable ID tie-breaker. Preserve the existing
+  scheduled-time/title/ID comparator for the default order.
+- Apply the controls to active and archived Behavior lists. Keep archived
+  Behaviors inside their existing disclosure. Show matching and total counts;
+  distinguish No matching behaviors from a genuinely empty account or list.
+  Provide a Clear filters action that restores All categories and default sorting.
+- Keep overall adherence and category summary calculations at their existing
+  account/range scope. Make that scope clear when a list filter is active.
+  Preserve each visible Behavior's heatmap and selected-day review semantics.
+- Preserve selections through range changes, day review, and successful
+  create/edit/archive/restore refreshes within the Behaviors screen. Full reload
+  or leaving the screen may reset them; no persisted account preference is required.
+  Reconcile created rows before filtering. If a saved Behavior leaves the selected
+  category, announce success even though its row disappears from the filtered list.
+- Category rename/reorder refreshes labels/order without changing the selected
+  ID. If the selected category disappears, reset to All categories and announce
+  the reset. Do not silently discard unsaved Behavior or Note drafts when a user
+  changes controls; preserve drafts or require the existing save/cancel flow.
+- Share one pure list projection across web and desktop, reusing
+  `components/behaviors/behavior-list-state.ts`. Filter the loaded list without
+  additional per-Behavior requests. Do not mutate source arrays or domain records.
+- Keep controls keyboard accessible, announce result changes, and stack controls
+  at narrow widths without horizontal overflow. Use existing native select and
+  text-action patterns. Keep categories out of primary navigation and Timeline filtering.
+- Add filter, sort, and clear intents to `interaction-registry.json` at
+  implementation time. Update affected review/lifecycle evidence and
+  `design-system.surfaces.json` through the existing bench workflow.
+
+Implementation references:
+
+- `components/behaviors/BehaviorList.tsx`
+- `components/behaviors/behavior-list-state.ts`
+- `app/(app)/behaviors/page.tsx`, `apps/desktop/src/behaviors-screen.tsx`
+- `tests/behavior-list-state.test.ts`, existing Behavior UI tests
+- `interaction-registry.json`, `design-system.surfaces.json`
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | This ticket owns `/behaviors` controls, list projection, lifecycle integration, and responsive QA |
+| Desktop | This ticket owns the same shared list behavior in `apps/desktop/src/behaviors-screen.tsx`, offline operation, and native QA |
+| Marketing | No new interface; public documentation may describe filtering only after acceptance |
+| Future mobile | No implementation: mobile remains deferred; responsive web support is required by this ticket |
+
+Verification: focused projection tests for All categories, No category, empty
+matches, duplicate labels, sorting ties, archived rows, and immutable inputs;
+UI tests for clear, range/day review, draft preservation, creation, category
+reassignment/deletion, and archive/restore. Run standard ticket checks,
+`npm run interactions:check`, `npm run design-system:check`, desktop type/build
+and parity checks, responsive browser QA, native Behaviors QA, and
+`git diff --check`.
+
+Out of scope: Timeline filters, text search, saved views, compound filters,
+drag ordering, new analytics calculations, pagination, and new dependencies.

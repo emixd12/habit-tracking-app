@@ -4,7 +4,7 @@ import type { Json } from "./json";
 
 export type BehaviorLogPortabilityData = {
   version: 1;
-  categories?: {id: string; name: string; sort_order: number; created_at?: string; updated_at?: string}[];
+  categories?: {id: string; name: string; description?: string | null; sort_order: number; created_at?: string; updated_at?: string}[];
   configurationEvents: { [key: string]: Json | undefined }[];
   occurrences: { externalId: string; behaviorExternalId: string; timezone: string;
     scheduledForUtc: string; localDate: string; configurationEventId: string | null }[];

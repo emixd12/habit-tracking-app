@@ -1,5 +1,12 @@
 # Desktop data model
 
+Schema version 11 adds nullable category descriptions and owner-scoped normalized
+name uniqueness. Migration 0011 preserves IDs and distinguishes legacy duplicates.
+`manageCategories` validates the expected category snapshot and performs assignment
+clearing, configuration events, category tombstones, revisions, and outbox writes
+in one transaction. Description fields survive backup upgrades and synchronization.
+Older hosted category writes without the description field are rejected.
+
 Schema version 10 adds the durable pre-attempt account snapshot to
 `account_first_link_attempts`. Schema version 9 added the table after version 8 added
 `account_sync_baselines` and schema version 7 added `account_link_metadata`.

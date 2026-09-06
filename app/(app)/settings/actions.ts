@@ -1,5 +1,7 @@
 "use server";
 
+import { changeCurrentUserCategory } from "@/lib/services/category.service";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
@@ -61,4 +63,17 @@ function timezoneSuccessMessage(result: {
   }
 
   return `Timezone saved. ${result.activeBehaviorCount} active behaviors were updated.`;
+}
+
+export async function changeCategoryAction(
+  _previous: import("@cadence/core/services/category.service").CategoryActionState,
+  form: { get(name: string): unknown },
+): Promise<import("@cadence/core/services/category.service").CategoryActionState> {
+  try {
+    await changeCurrentUserCategory(form);
+    for (const path of ["/settings", "/behaviors", "/timeline", "/export"]) revalidatePath(path);
+    return { status: "success", message: "Categories saved." };
+  } catch (error) {
+    return { status: "error", message: error instanceof Error ? error.message : "Unable to save categories." };
+  }
 }

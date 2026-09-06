@@ -380,6 +380,8 @@ export function buildRestorePayload(input: {
             id: behaviorId,
             external_id: behavior.externalId,
             category_id: null,
+            category_description: input.importPreview.portability?.categories?.find((category) =>
+              category.name.trim().toLowerCase() === (behavior.cadenceCategoryName?.trim() || behavior.category || "").toLowerCase())?.description ?? null,
             category_name:
               behavior.cadenceCategoryName?.trim() || behavior.category,
             title:

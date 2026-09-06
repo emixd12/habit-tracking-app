@@ -10,6 +10,7 @@ export type PortabilityProfileRow = {
 };
 
 export type PortabilityCategoryRow = {
+  description?: string | null;
   created_at: string;
   id: string;
   name: string;

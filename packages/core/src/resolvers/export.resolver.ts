@@ -325,6 +325,7 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
     jsonBackup,
     json: JSON.stringify(jsonBackup, null, 2),
     markdownSummary: toMarkdownSummary({
+      categories,
       range,
       counts: overallCounts,
       behaviors,
@@ -412,6 +413,7 @@ function toJsonCategories(
       id: category.id,
       name: category.name,
       sort_order: category.sortOrder,
+      ...(category.description ? { description: category.description } : {}),
       created_at: category.createdAt,
       updated_at: category.updatedAt,
     }));
@@ -1963,7 +1965,7 @@ function retainedBehaviorLogHistory(input: ExportImportedHistory, current: Param
     for (const value of Array.isArray(portability.categories) ? portability.categories : []) {
       const category = object(value);
       if (!category || typeof category.id !== "string" || typeof category.name !== "string" || !Number.isInteger(category.sort_order)) continue;
-      categories.set(category.id, { id: category.id, name: category.name, sort_order: Number(category.sort_order),
+      categories.set(category.id, { id: category.id, name: category.name, ...(typeof category.description === "string" ? { description: category.description } : {}), sort_order: Number(category.sort_order),
         ...(typeof category.created_at === "string" ? { created_at: category.created_at } : {}),
         ...(typeof category.updated_at === "string" ? { updated_at: category.updated_at } : {}) });
     }
@@ -2669,6 +2671,7 @@ function omitNullish<T extends Record<string, unknown>>(input: T): T {
 }
 
 function toMarkdownSummary(input: {
+  categories: ExportJsonCategory[];
   range: ExportDateRange;
   counts: ExportStatusCounts;
   behaviors: ExportJsonBehavior[];
@@ -2708,6 +2711,7 @@ function toMarkdownSummary(input: {
       : ["- No occurrences in this range."]),
     "",
     "## By category",
+    ...input.categories.filter((category) => category.description).map((category) => `- ${category.name}: ${normalizeMarkdownNote(category.description!)}`),
     ...(categoryLines.length > 0
       ? categoryLines
       : ["- No category counts in this range."]),

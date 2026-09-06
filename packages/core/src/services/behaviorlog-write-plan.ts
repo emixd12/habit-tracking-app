@@ -74,7 +74,7 @@ export function planBehaviorLogRestoreWrite(context: PortabilityPlanContext & { 
       if (behaviorAction !== "keep") {
       let category = [...context.snapshot.categories, ...plan.categoryCreates].find(({ name }) => name.trim().replace(/\s+/g, " ").toLowerCase() === String(source.category_name ?? "").trim().replace(/\s+/g, " ").toLowerCase());
       if (!category && source.category_name) {
-        category = { id: context.newId(), user_id, name: String(source.category_name).trim(), sort_order: Math.max(-1, ...context.snapshot.categories.map((row) => row.sort_order), ...plan.categoryCreates.map((row) => row.sort_order)) + 1, created_at: context.now, updated_at: context.now };
+        category = { id: context.newId(), user_id, description: typeof source.category_description === "string" ? source.category_description : null, name: String(source.category_name).trim(), sort_order: Math.max(-1, ...context.snapshot.categories.map((row) => row.sort_order), ...plan.categoryCreates.map((row) => row.sort_order)) + 1, created_at: context.now, updated_at: context.now };
         plan.categoryCreates.push(category);
       }
       graph.behavior = { ...graph.behavior, title: string(source.title), description: nullable(source.description), category_id: category?.id ?? null,

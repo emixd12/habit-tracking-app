@@ -48,7 +48,7 @@ try {
   assert(first.fingerprint === mergedFingerprint, "merged fingerprint binding");
   const category = first.snapshot.entities.find((row) => row.kind === "category");
   assert(category, "timestamp roundtrip category");
-  const timestampValue = { ...category.value, name: "Timestamp roundtrip", updated_at: "2026-09-01T06:00:00.123457Z" };
+  const timestampValue = { ...category.value, name: "Timestamp roundtrip", description: "Synced category context", updated_at: "2026-09-01T06:00:00.123457Z" };
   const timestampMerged = first.snapshot.entities.map((row) => row.kind === "category" && row.id === category.id ? { ...row, value: timestampValue } : row);
   const timestampPlan = { writes: [{ kind: "category", id: category.id, operation: "upsert", expected: category.value, value: timestampValue }], mergedFingerprint: entityDigest(timestampMerged), conflicts: [] };
   const timestampRequest = { schemaVersion: 1, idempotencyKey: "4".repeat(64), baselineFingerprint: first.fingerprint, localFingerprint: first.fingerprint,
@@ -59,7 +59,14 @@ try {
   const returnedCategory = timestampResult.snapshot.entities.find((row) => row.kind === "category" && row.id === category.id);
   assert(returnedCategory?.value.name === "Timestamp roundtrip", "timestamp roundtrip product value");
   assert(returnedCategory?.value.updated_at !== timestampValue.updated_at, "server-owned updated_at remains authoritative");
-  const insertedCategory = { kind: "category", id: randomUUID(), value: { id: "", name: "Expected null insert", sort_order: 9,
+  assert(returnedCategory.value.description === "Synced category context", "category description roundtrip");
+  const legacyValue = { ...returnedCategory.value, name: "Old client overwrite" };
+  delete legacyValue.description;
+  const oldClientWrite = { kind: "category", id: category.id, operation: "upsert", expected: returnedCategory.value, value: legacyValue };
+  const oldClient = await clients[0].rpc("apply_account_sync_plan", { sync_payload: payload(timestampResult.snapshot, [oldClientWrite], timestampResult.fingerprint, "6".repeat(64)) });
+  assert(oldClient.error?.message.includes("Update Cadence"), "old clients cannot erase category descriptions");
+  assert((await readSnapshot(clients[0])).fingerprint === timestampResult.fingerprint, "old-client rejection rolls back");
+  const insertedCategory = { kind: "category", id: randomUUID(), value: { id: "", description: null, name: "Expected null insert", sort_order: 9,
     created_at: "2026-09-01T06:00:02.000000Z", updated_at: "2026-09-01T06:00:02.000000Z" } };
   insertedCategory.value.id = insertedCategory.id;
   const insertMerged = [...timestampResult.snapshot.entities, insertedCategory].sort((left, right) => left.kind.localeCompare(right.kind) || left.id.localeCompare(right.id));
@@ -156,7 +163,7 @@ try {
   const [crossAccountA, crossAccountB] = await Promise.all(clients.map(readSnapshot));
   const sharedId = randomUUID();
   const crossAccountRequests = [crossAccountA, crossAccountB].map((snapshot, index) => {
-    const value = { id: sharedId, name: `Cross-account race ${index}`, sort_order: 99, created_at: "2026-09-02T14:00:00.000000Z", updated_at: "2026-09-02T14:00:00.000000Z" };
+    const value = { id: sharedId, description: null, name: `Cross-account race ${index}`, sort_order: 99, created_at: "2026-09-02T14:00:00.000000Z", updated_at: "2026-09-02T14:00:00.000000Z" };
     const entities = [...snapshot.entities, { kind: "category", id: sharedId, value }].sort((left, right) => left.kind.localeCompare(right.kind) || left.id.localeCompare(right.id));
     return payload(snapshot, [{ kind: "category", id: sharedId, operation: "upsert", expected: null, value }], entityDigest(entities), (index ? "f" : "e").repeat(64));
   });

@@ -5,6 +5,7 @@ import type {
 } from "./schedule";
 
 export type CategoryOption = {
+  description?: string | null;
   id: string;
   name: string;
 };

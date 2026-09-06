@@ -27,6 +27,8 @@ impl StoredRow for Profile {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Category {
+    #[serde(default)]
+    pub description: Option<String>,
     pub created_at: String,
     pub id: String,
     pub name: String,

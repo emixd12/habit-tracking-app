@@ -412,12 +412,12 @@ fn failed_migration_rolls_back_ddl_and_ledger_without_changing_profile() {
     let original = db::profile(&fixture.db).unwrap();
     let mut migrations = db::MIGRATIONS.to_vec();
     migrations.push((
-        10,
+        db::MIGRATIONS.last().unwrap().0 + 1,
         "broken",
         "CREATE TABLE must_rollback(id INTEGER); INSERT INTO no_such_table VALUES (1);",
     ));
     assert!(db::migrate(&mut fixture.db, &migrations).is_err());
-    assert_eq!(fixture.count("schema_migrations"), 10);
+    assert_eq!(fixture.count("schema_migrations"), db::MIGRATIONS.len() as i64);
     assert_eq!(db::profile(&fixture.db).unwrap(), original);
     let exists: bool = fixture
         .db
@@ -1007,8 +1007,10 @@ fn passive_intervention_migration_preserves_history_provenance_and_revision_afte
     )
     .is_err());
 
+    let mut before = before;
+    for category in before["categories"].as_array_mut().unwrap() { category["description"] = Value::Null; }
     db::migrate(&mut fixture.db, db::MIGRATIONS).unwrap();
-    assert_eq!(fixture.count("schema_migrations"), 10);
+    assert_eq!(fixture.count("schema_migrations"), db::MIGRATIONS.len() as i64);
     assert_eq!(
         import::snapshot(&fixture.db, &fixture.profile).unwrap(),
         before
@@ -1379,4 +1381,58 @@ fn reminder_reconciliation_and_sync_metadata_do_not_stale_import_preview() {
         fixture.run(apply_import_request(), 104).unwrap()["status"],
         "applied"
     );
+}
+
+#[test]
+fn category_management_preserves_history_and_rolls_back_stale_deletion() {
+    let mut fixture = Fixture::new();
+    let categories: Vec<Category> = db::owned(&fixture.db, &fixture.profile).unwrap();
+    let target = categories[0].id.clone();
+    let snapshot = |rows: &[Category]| rows.iter().map(|row| json!({"id":row.id,"name":row.name,"description":row.description,"sort_order":row.sort_order,"updated_at":row.updated_at})).collect::<Vec<_>>();
+    let mut initial = create_request(&fixture.profile);
+    initial["graph"]["behavior"]["category_id"] = json!(target);
+    initial["configurationEvent"]["next_configuration"]["categoryId"] = json!(target);
+    let mut graph = fixture.run(initial.clone(), 500).unwrap();
+    graph.as_object_mut().unwrap().remove("revision");
+    fixture.occurrence();
+    let outbox = fixture.count("mutation_outbox");
+    let mut event = initial["configurationEvent"].clone();
+    event["id"] = json!(id(501));
+    event["event_kind"] = json!("revision");
+    event["previous_configuration"] = initial["configurationEvent"]["next_configuration"].clone();
+    event["next_configuration"]["categoryId"] = Value::Null;
+    event["changed_fields"] = json!(["category_id"]);
+    event["reason_code"] = json!("category_changed");
+    graph["behavior"]["category_id"] = Value::Null;
+    graph["behavior"]["current_configuration_event_id"] = json!(id(501));
+    let next = snapshot(&categories).into_iter().filter(|row| row["id"] != target).collect::<Vec<_>>();
+    let request = json!({"operation":"manageCategories","expectedCategories":snapshot(&categories),"nextCategories":next,
+      "updates":[{"graph":graph,"expectedRevision":1,"configurationEvent":event}]});
+    let mut stale = request.clone();
+    stale["updates"][0]["expectedRevision"] = json!(999);
+    assert!(fixture.run(stale, 502).is_err());
+    assert_eq!(fixture.count("mutation_outbox"), outbox);
+    fixture.run(request, 503).unwrap();
+    assert_eq!(fixture.count("categories"), 7);
+    assert_eq!(fixture.count("behavior_configuration_events"), 2);
+    assert_eq!(fixture.count("occurrences"), 1);
+    assert_eq!(fixture.count("tombstones"), 1);
+    let retained: BehaviorConfigurationEvent = db::by_id(&fixture.db, &fixture.profile, &initial["configurationEvent"]["id"].as_str().unwrap().to_string()).unwrap();
+    assert_eq!(retained.next_configuration["categoryId"], target);
+}
+
+#[test]
+fn category_upgrade_preserves_duplicate_ids_and_rejects_invalid_new_names() {
+    let mut fixture = Fixture::at_schema(10);
+    fixture.db.execute("INSERT INTO categories(id,user_id,name,sort_order,created_at,updated_at) VALUES(?1,?2,'home',40,?3,?3)", params![id(601),fixture.profile,NOW]).unwrap();
+    db::migrate(&mut fixture.db, db::MIGRATIONS).unwrap();
+    let category = db::by_id::<Category>(&fixture.db,&fixture.profile,&id(601)).unwrap();
+    assert_eq!(category.name,format!("home [{}]",id(601)));
+    assert_eq!(category.description,None);
+    assert_eq!(fixture.count("categories"),9);
+    for name in ["", " HOME ", "Home", "Invalid\nName"] {
+        assert!(fixture.db.execute("INSERT INTO categories(id,user_id,name,sort_order,created_at,updated_at) VALUES(?1,?2,?3,50,?4,?4)",params![id(602),fixture.profile,name,NOW]).is_err());
+    }
+    let reopened = db::open(&fixture.directory.join("data.sqlite3")).unwrap();
+    assert_eq!(db::by_id::<Category>(&reopened,&fixture.profile,&id(601)).unwrap(),category);
 }

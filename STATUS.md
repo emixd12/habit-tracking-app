@@ -43,6 +43,20 @@ When updating a ticket row:
 
 ## Current repository state
 
+Tickets 123–124 are complete locally (2026-09-05). Settings supports custom categories, descriptions,
+ordering, and atomic history-safe deletion. Behaviors supports category filtering,
+sorting, and preserved drafts on web and desktop.
+
+Verification: 1,499 tests, 67 native tests, 17 real SQLite contracts, the real
+Postgres category contract, and two-account sync smoke passed. Typecheck, lint,
+web/desktop builds, registry, resolver, design-system, and parity checks passed.
+Clean local migration replay passed; generated database types match.
+Browser and native interactive acceptance passed on the unlocked Mac. Category
+management, filtering, draft preservation, deletion, and native restart passed.
+Narrow browser layouts had no horizontal overflow. No hosted rollout occurred. See
+`docs/qa/2026-09-05-categories-and-behavior-filters.md` for evidence and files.
+
+
 Tickets 116–122 are complete (2026-09-02). Ticket 119 completed after the owner
 selected first-hydration compatibility handling for existing same-status
 branched hosted history and installed preview.19 hydrated the owner account.
@@ -6654,6 +6668,8 @@ Owner authorization: 2026-08-30. Current requirements live in
 | 120: Offline-capable two-way desktop synchronization | complete | Final QA A/B matrices, status transition, branched-history rejection, offline/retry behavior, and hosted/RLS contracts passed. The deployed final hardening serializes same-account plans and cross-account entity identities and bounds receipt storage. Preview.15 preserved the branched-history safety gate with real owner data. |
 | 121: Sync conflict review and account disconnect | complete | Conflict cue/review, stale rejection, Mac/account decisions, Keep-local, Remove-account-data, Restore, and revoked-session native paths passed. Keep both remains safely withheld. |
 | 122: Account-sync migration and release acceptance | complete | Preview.19 supersedes preview.15. Its installed owner-account hydration, immutable publication, remote hash readback, final-valid updater feed, and production marketing link passed. Migration `20260902052213` and expanded hosted account-sync/RLS smoke also passed. The release remains prerelease and not latest. |
+| 123: User-defined categories and descriptions | complete | Web/desktop management, descriptions, history-safe deletion, portability, and sync passed automated and interactive acceptance. Native restart passed; hosted rollout remains separate. |
+| 124: Behaviors category filtering and sorting | complete | Shared category filtering/sorting, archived counts, reset, and draft preservation passed automated, responsive browser, and native interactive acceptance. |
 
 Final 0.3 verification supersedes the earlier 0.2 checkpoints. The clean local
 reset replayed all 47 migrations through `20260831014424`, with every published

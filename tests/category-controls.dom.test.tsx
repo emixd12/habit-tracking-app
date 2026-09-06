@@ -1,0 +1,54 @@
+// @vitest-environment jsdom
+import { LinkProvider, RefreshProvider } from "@cadence/ui/runtime";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { Temporal } from "@js-temporal/polyfill";
+import { CategoryPanel } from "../components/settings/CategoryPanel";
+import { BehaviorList } from "../components/behaviors/BehaviorList";
+import { toBehaviorView } from "@cadence/core/services/behavior-views";
+import { resolveAnalytics } from "@cadence/core/resolvers/analytics.resolver";
+import { storedBehavior } from "./helpers/export-row-fixture";
+import { categoryAssignmentSnapshot, verifyCategoryDeletionReview } from "@cadence/core/services/category.service";
+let root: Root; let container: HTMLDivElement;
+const categories = [{ id: "home", name: "Home", description: "Household routines", sort_order: 0, updated_at: "2026-09-05T00:00:00Z" }];
+beforeEach(() => { Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
+afterEach(async () => { await act(() => root.unmount()); container.remove(); });
+async function click(label: string) { const button = [...container.querySelectorAll("button")].find((row) => row.textContent === label); expect(button).toBeTruthy(); await act(() => button!.click()); }
+it("keeps category drafts after failed saves and confirms the reviewed assignment set", async () => {
+  const assignments = [{ id: "behavior", categoryId: "home", active: false, updatedAt: "now" }];
+  const action = vi.fn(async () => ({ status: "error" as const, message: "Duplicate name" }));
+  await act(() => root.render(<CategoryPanel categories={categories} assignments={assignments} action={action} />));
+  await click("Edit Home");
+  const name = container.querySelector<HTMLInputElement>('[name="name"]')!; name.value = "Draft";
+  await click("Save category");
+  expect(action).toHaveBeenCalledOnce(); expect(name.value).toBe("Draft"); expect(container.textContent).toContain("Duplicate name");
+  await click("Delete category…"); expect(container.textContent).toContain("0 active and 1 archived");
+  const form = new FormData(container.querySelector("form")!);
+  expect(form.get("expected_assignments")).toBe(categoryAssignmentSnapshot(assignments, "home"));
+  expect(() => verifyCategoryDeletionReview(form, [...assignments, { ...assignments[0], id: "new" }], "home")).toThrow(/assignments changed/);
+  expect(container.querySelector<HTMLInputElement>('[name="confirm_delete"]')!.required).toBe(true);
+  await click("Cancel"); expect(container.querySelector("form")).toBeNull();
+});
+it("filters both lists, retains mounted drafts, clears controls, and resets removed categories", async () => {
+  const home = { ...toBehaviorView(storedBehavior()), id: "home-behavior", title: "Home behavior", categoryId: "home", categoryName: "Home" };
+  const other = { ...home, id: "none-behavior", title: "Uncategorized behavior", categoryId: "", categoryName: "No category" };
+  const unchanged = async <T,>(state: T) => state;
+  const props = { activeBehaviors: [home, other], archivedBehaviors: [{...home,id:"archived",active:false}], categories,
+    analytics: resolveAnalytics({ occurrences: [], now: Temporal.Instant.from("2026-09-05T12:00:00Z"), timezone: "America/New_York" }),
+    updateAction: unchanged, archiveAction: unchanged, restoreAction: unchanged, statusAction: unchanged, noteAction: unchanged,
+    stopTimeTrackingAction: unchanged, resetTimeTrackingAction: unchanged };
+  await act(() => root.render(<LinkProvider component={(props) => <a {...props} />}><RefreshProvider onRefresh={() => undefined}><BehaviorList {...props} /></RefreshProvider></LinkProvider>));
+  const selects = container.querySelectorAll("select"); const category = selects[0]; const sort = selects[1];
+  const article = [...container.querySelectorAll("article")].find(row => row.querySelector("h3")?.textContent === "Home behavior")!;
+  const details = article.querySelector("details")!;
+  await act(() => { details.open = true; details.dispatchEvent(new Event("toggle")); });
+  const draft = article.querySelector<HTMLInputElement>('[name="title"]'); expect(draft).toBeTruthy(); draft!.value = "Unsaved title";
+  await act(() => { category.value = "none"; category.dispatchEvent(new Event("change", { bubbles: true })); });
+  expect(article.closest("[hidden]")).toBeTruthy(); expect(container.textContent).toContain("1 of 2 active behaviors"); expect(container.textContent).toContain("0 of 1 archived behaviors");
+  await act(() => { sort.value = "name"; sort.dispatchEvent(new Event("change", { bubbles: true })); });
+  await click("Clear filters"); expect(category.value).toBe("all"); expect(sort.value).toBe("time"); expect(article.querySelector('[name="title"]')).toBe(draft); expect(draft!.value).toBe("Unsaved title");
+  await act(() => { category.value = "home"; category.dispatchEvent(new Event("change", { bubbles: true })); });
+  await act(() => root.render(<LinkProvider component={(props) => <a {...props} />}><RefreshProvider onRefresh={() => undefined}><BehaviorList {...props} categories={[]} /></RefreshProvider></LinkProvider>));
+  expect(category.value).toBe("all"); expect(container.textContent).toContain("selected category was removed");
+});

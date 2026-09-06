@@ -422,6 +422,20 @@
       "trackUsages": "required",
       "status": "active",
       "notes": ""
+    },
+    {
+      "id": "module.category-panel",
+      "name": "CategoryPanel",
+      "kind": "module",
+      "source": "components/settings/CategoryPanel.tsx",
+      "exportName": "CategoryPanel",
+      "usageNames": [
+        "CategoryPanel"
+      ],
+      "benchAnchor": "design-system#ds-module-category-panel",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": ""
     }
   ]
 }

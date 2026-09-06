@@ -36,6 +36,12 @@ function preservedExport(eventLists: Record<string, unknown>[][], originalLocalC
 }
 
 describe("BehaviorLog complete portable export", () => {
+  it("exports described category context and retains imported descriptions without changing CSV columns", () => {
+    const described = assembleExportBundle({ ...input, categories: [{ id: "category", name: "Home", sort_order: 0, description: "Household routines", created_at: "2026-09-05T00:00:00Z", updated_at: "2026-09-05T00:00:00Z" }] });
+    expect(described.jsonBackup.categories[0].description).toBe("Household routines");
+    expect(JSON.parse(described.behaviorLog.files[0].content).extensions["app.cadence"].categories[0].description).toBe("Household routines");
+    expect(described.markdownSummary).toContain("Household routines");
+  });
   it("resolves exchanged history aliases without collapsing distinct source IDs lacking capture identity", () => {
     const original = records(assembleExportBundle(input), "data/behavior_configuration_events.jsonl")[0];
     delete original.source.original_id;

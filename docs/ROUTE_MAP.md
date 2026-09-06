@@ -118,3 +118,9 @@ Before adding a new app or API route:
 - Add the route to this document.
 - Keep UI pages thin. Move calculations and state planning into resolvers/services.
 - Add tests for navigation or route behavior when practical.
+
+
+## Category controls (Tickets 123–124)
+
+Settings owns category management. Behaviors owns category filtering and sorting.
+These controls introduce no routes and do not change Timeline.
