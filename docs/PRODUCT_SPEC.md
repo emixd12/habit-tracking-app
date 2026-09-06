@@ -474,3 +474,20 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - AI coaching or speech features in the launch web app
 - Marketing/product emails at launch
 - Intel desktop releases, desktop email delivery, and closed-app background synchronization
+
+
+## Retained archive notes (Ticket 125)
+
+Each active-to-archived transition records a dated archive entry, even when its
+optional note is blank. Restore and subsequent archives retain earlier entries.
+Archive note text is separate from the Behavior description and Occurrence Notes.
+While archived, users can edit or remove any entry's note. Removal clears its
+text without deleting the archive entry. Existing archives receive no invented
+history. Text is trimmed, limited to 2,000 UTF-16 code units, and stored with the
+archive mutation in the existing atomic Behavior write. Failed writes preserve
+the draft; stale revisions cannot overwrite newer notes.
+
+The shared web/desktop interface places Archive note (optional) beside Archive
+behavior in Details and Settings. Archived details show dated Archive history
+with Save note and Remove note actions. No predefined reasons or automatic
+archiving rules are added.

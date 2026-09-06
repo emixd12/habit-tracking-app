@@ -2553,6 +2553,45 @@ describe("resolveExportBundle", () => {
     expect(worstCaseStatusEvents).toHaveLength(18_260);
     expect(zip.byteLength).toBeLessThan(1.5 * 1024 * 1024);
   }, 30_000);
+
+  it("exports archive history through the Cadence extension and redacts its text with notes", () => {
+    const archiveNotes = [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        archivedAt: "2026-06-01T12:00:00Z",
+        note: "Paused while traveling.",
+        updatedAt: "2026-06-01T12:00:00Z",
+      },
+    ];
+    const withNotes = resolve({
+      behaviors: [behavior({ id: "behavior-brush", archiveNotes })],
+      includeNotes: true,
+    });
+    const withoutNotes = resolve({
+      behaviors: [behavior({ id: "behavior-brush", archiveNotes })],
+      includeNotes: false,
+    });
+    const withNotesBehavior = parseJsonl(
+      withNotes.behaviorLog.files.find((file) => file.path === "data/behaviors.jsonl")?.content ?? "",
+    )[0];
+    const withoutNotesBehavior = parseJsonl(
+      withoutNotes.behaviorLog.files.find((file) => file.path === "data/behaviors.jsonl")?.content ?? "",
+    )[0];
+
+    expect(withNotes.jsonBackup.behaviors[0].archive_notes).toEqual([
+      expect.objectContaining({ note: "Paused while traveling." }),
+    ]);
+    expect(withNotesBehavior.extensions).toMatchObject({
+      "app.cadence": { archive_notes: [{ note: "Paused while traveling." }] },
+    });
+    expect(withoutNotes.json).not.toContain("Paused while traveling.");
+    expect(
+      withoutNotes.behaviorLog.files.map((file) => file.content).join("\n"),
+    ).not.toContain("Paused while traveling.");
+    expect(withoutNotesBehavior.extensions).toMatchObject({
+      "app.cadence": { archive_notes: [{ note: null }] },
+    });
+  });
 });
 
 function parseJsonl(content: string): Array<Record<string, unknown>> {

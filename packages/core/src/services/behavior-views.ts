@@ -2,6 +2,7 @@ import type { BehaviorGraphRecord, BehaviorScheduleRecord } from "../behavior-st
 import type { BehaviorPageData, BehaviorView, CategoryOption } from "../types/behavior";
 import type { BehaviorScheduleView, ScheduleKind, TimeRangePreset } from "../types/schedule";
 import { DEFAULT_TIMEZONE } from "../types/recurrence";
+import { parseArchiveNotes } from "../resolvers/archive-note.resolver";
 import { formatScheduledTimeLabel, normalizeRecurrenceRule, normalizeScheduledTime,
   recurrenceDefaultsFromRule, summarizeRecurrenceRule, summarizeReminders } from "./behavior-values";
 import { compareScheduleSlots, formatScheduleSlotsSummary, toScheduleSlotView } from "./schedule";
@@ -55,6 +56,7 @@ export function toBehaviorView(behavior: BehaviorGraphRecord): BehaviorView {
     }),
     active: behavior.active,
     archivedAt: behavior.archived_at,
+    archiveNotes: parseArchiveNotes(behavior.archive_notes),
     createdAt: behavior.created_at,
     updatedAt: behavior.updated_at,
   };

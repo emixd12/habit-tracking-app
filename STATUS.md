@@ -43,6 +43,16 @@ When updating a ticket row:
 
 ## Current repository state
 
+Ticket 125 is complete locally (2026-09-05). Optional archive notes retain each archive cycle across
+Restore, web/desktop storage, account synchronization, and portable exports.
+Verification passed: 1,516 JavaScript tests, 69 native tests, 17 SQLite contracts,
+authenticated Postgres contracts, account-sync smoke, clean migration replay,
+all required checks/builds, and responsive browser acceptance. Fresh read-only
+review returned ship with no findings. Hosted rollout is authorized and in progress.
+The isolated release passed 1,510 tests and all required checks; unfinished
+export/reminder/timezone changes remain outside the release.
+Evidence: `docs/qa/2026-09-05-archive-notes.md`.
+
 Tickets 123–124 are complete locally (2026-09-05). Settings supports custom categories, descriptions,
 ordering, and atomic history-safe deletion. Behaviors supports category filtering,
 sorting, and preserved drafts on web and desktop.

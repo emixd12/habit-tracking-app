@@ -238,12 +238,27 @@ describe("behavior date review UI", () => {
     );
 
     expect(parentSource.match(/useActionState\(/g)).toHaveLength(1);
-    expect(parentSource).toContain('intent === "archive" ? archiveAction : restoreAction');
+    expect(parentSource).toContain('? archiveAction');
+    expect(parentSource).toContain('? restoreAction');
+    expect(parentSource).toContain(': archiveNoteAction');
     expect(rowFormSource).not.toContain("useActionState(");
     expect(archivedHtml).toContain('role="status"');
     expect(archivedHtml).toContain("Behavior archived.");
     expect(restoreFailureHtml).toContain('role="alert"');
     expect(restoreFailureHtml).toContain("Behavior could not be restored.");
+  });
+
+  it("keeps archive-note controls in the shared web and desktop behavior list", () => {
+    const source = readFileSync(
+      new URL("../components/behaviors/BehaviorList.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(source).toContain('name="archive_note"');
+    expect(source).toContain('name="archive_note_id"');
+    expect(source).toContain('name="expected_updated_at"');
+    expect(source).toContain("Archive history");
+    expect(source).toContain("Remove note");
+    expect(source).toContain("maxLength={2000}");
   });
 
   it("gives actionable heatmap days review scent and names the selected-day panel", () => {
@@ -265,6 +280,7 @@ describe("behavior date review UI", () => {
         updateAction={behaviorAction}
         archiveAction={behaviorAction}
         restoreAction={behaviorAction}
+        archiveNoteAction={behaviorAction}
         statusAction={occurrenceAction}
         noteAction={occurrenceAction}
         stopTimeTrackingAction={timeTrackingAction}
@@ -304,6 +320,7 @@ describe("behavior date review UI", () => {
         updateAction={behaviorAction}
         archiveAction={behaviorAction}
         restoreAction={behaviorAction}
+        archiveNoteAction={behaviorAction}
         statusAction={occurrenceAction}
         noteAction={occurrenceAction}
         stopTimeTrackingAction={timeTrackingAction}
@@ -338,6 +355,7 @@ describe("behavior date review UI", () => {
         updateAction={behaviorAction}
         archiveAction={behaviorAction}
         restoreAction={behaviorAction}
+        archiveNoteAction={behaviorAction}
         statusAction={occurrenceAction}
         noteAction={occurrenceAction}
         stopTimeTrackingAction={timeTrackingAction}
@@ -410,6 +428,7 @@ function behaviorView(): BehaviorView {
     reminderSummary: "Browser reminders",
     active: true,
     archivedAt: null,
+    archiveNotes: [],
     createdAt: "2026-06-01T12:00:00Z",
     updatedAt: "2026-06-01T12:00:00Z",
   };

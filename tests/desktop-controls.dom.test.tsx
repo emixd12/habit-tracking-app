@@ -63,6 +63,7 @@ function behaviorScreen() {
   const unchanged = async <T,>(state: T) => state;
   return { action, review, node: <BehaviorsScreen activeBehaviors={[]} archivedBehaviors={[]} categories={[{ id: "category-health", name: "Health" }]}
     analytics={resolveAnalytics({ occurrences: [], now, timezone })} createAction={action} updateAction={action} archiveAction={action} restoreAction={action}
+    archiveNoteAction={action}
     statusAction={unchanged} noteAction={unchanged} stopTimeTrackingAction={unchanged} resetTimeTrackingAction={unchanged}
     defaultTimezone={timezone} onRefresh={vi.fn()} onNavigateReview={review} /> };
 }

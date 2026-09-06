@@ -965,6 +965,16 @@
       "id": "INT-BEHAVIOR-026",
       "classification": "not_load_bearing",
       "reason": "Local view controls do not issue HTTP requests."
+    },
+    {
+      "id": "INT-BEHAVIOR-027",
+      "classification": "destructive_serial_only",
+      "reason": "Archive note mutations require isolated revision and history-preservation verification."
+    },
+    {
+      "id": "INT-BEHAVIOR-028",
+      "classification": "destructive_serial_only",
+      "reason": "Archive note mutations require isolated revision and history-preservation verification."
     }
   ]
 }

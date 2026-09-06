@@ -1,4 +1,5 @@
 import type { RecurrenceRule } from "./recurrence";
+import type { ArchiveNote } from "./behavior";
 import type { PortabilityNoteRow, PortabilityInterventionRow, PortabilityImportRunRow, PortabilityMappingRow } from "./portability-rows";
 
 export type ExportImportedHistory = {
@@ -85,6 +86,7 @@ export type ExportBehaviorInput = {
   reminderOffsetMinutes: number;
   active: boolean;
   archivedAt: string | null;
+  archiveNotes?: ArchiveNote[];
   createdAt?: string | null;
   updatedAt?: string | null;
 };
@@ -282,6 +284,12 @@ export type ExportJsonBehavior = {
   reminder_offset_minutes: number;
   active: boolean;
   archived_at: string | null;
+  archive_notes?: Array<{
+    id: string;
+    archived_at: string;
+    note: string | null;
+    updated_at: string;
+  }>;
   created_at?: string | null;
   updated_at?: string | null;
 };

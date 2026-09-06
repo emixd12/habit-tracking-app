@@ -13,6 +13,7 @@ import {
   behaviorErrorToActionState,
   createBehaviorFromFormData,
   restoreBehaviorFromFormData,
+  updateBehaviorArchiveNoteFromFormData,
   updateBehaviorFromFormData,
 } from "@/lib/services/behavior.service";
 import {
@@ -94,6 +95,19 @@ export async function restoreBehaviorAction(
       status: "success",
       message: "Behavior restored.",
     };
+  } catch (error) {
+    return behaviorErrorToActionState(error);
+  }
+}
+
+export async function updateBehaviorArchiveNoteAction(
+  _previousState: BehaviorActionState,
+  formData: FormData,
+): Promise<BehaviorActionState> {
+  try {
+    await updateBehaviorArchiveNoteFromFormData(formData);
+    revalidatePath("/behaviors");
+    return { status: "success", message: "Archive note saved." };
   } catch (error) {
     return behaviorErrorToActionState(error);
   }

@@ -268,6 +268,30 @@ describe("historical schedule merge identity", () => {
 });
 
 describe("resolveBehaviorLogImportPreview", () => {
+  it("round-trips Cadence archive history and rejects malformed extension entries", () => {
+    const archiveNotes = [{
+      id: "11111111-1111-4111-8111-111111111111",
+      archivedAt: "2026-06-01T12:00:00Z",
+      note: "Paused while traveling.",
+      updatedAt: "2026-06-01T12:00:00Z",
+    }];
+    const files = bundleFiles({ behaviors: [behavior({ archiveNotes })] });
+    const preview = resolveBehaviorLogImportPreview({ files });
+
+    expect(preview.valid).toBe(true);
+    expect(preview.plan.behaviors[0].cadenceArchiveNotes).toEqual(archiveNotes);
+
+    const invalid = replaceJsonlRecords(files, "data/behaviors.jsonl", (records) =>
+      records.map((record) => ({
+        ...record,
+        extensions: { "app.cadence": { ...(record.extensions as Record<string, Record<string, unknown>>)["app.cadence"], archive_notes: [{ ...archiveNotes[0], id: "not-a-uuid" }] } },
+      })),
+    );
+    expect(resolveBehaviorLogImportPreview({ files: invalid }).errors).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "cadence_archive_notes_invalid" })]),
+    );
+  });
+
   it("round-trips an arbitrary range as a custom range slot", () => {
     const preview = resolveBehaviorLogImportPreview({
       files: bundleFiles({

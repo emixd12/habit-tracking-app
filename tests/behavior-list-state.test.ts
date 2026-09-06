@@ -159,6 +159,7 @@ function behaviorView(
     reminderSummary: overrides.reminderSummary ?? "Browser notifications on",
     active: overrides.active ?? true,
     archivedAt: overrides.archivedAt ?? null,
+    archiveNotes: overrides.archiveNotes ?? [],
     createdAt: overrides.createdAt ?? "2026-06-26T12:00:00Z",
     updatedAt: overrides.updatedAt ?? "2026-06-26T12:00:00Z",
   };

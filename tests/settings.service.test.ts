@@ -56,6 +56,7 @@ const ACTIVE_BEHAVIOR = {
   email_reminder_enabled: false,
   reminder_offset_minutes: 0,
   active: true,
+  archive_notes: [],
   archived_at: null,
   current_configuration_event_id: "configuration-event-1",
   created_at: "2026-06-01T00:00:00Z",

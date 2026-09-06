@@ -9084,3 +9084,45 @@ and parity checks, responsive browser QA, native Behaviors QA, and
 
 Out of scope: Timeline filters, text search, saved views, compound filters,
 drag ordering, new analytics calculations, pagination, and new dependencies.
+
+## Ticket 125: Retained Behavior archive notes
+
+Status: complete locally (2026-09-05). User approved implementation on 2026-09-05.
+Evidence: `docs/qa/2026-09-05-archive-notes.md`. Fresh read-only review returned
+ship with no findings. Hosted rollout and signed desktop distribution remain separate.
+
+Record why a Behavior no longer needs tracking. Every archive cycle retains its
+own dated note across Restore and subsequent archives.
+
+Scope and acceptance criteria:
+
+- Add an optional Archive note beside Archive behavior in Details and Settings.
+  Blank notes do not block archiving. Plain text is trimmed and limited to 2,000
+  characters. Store the note and archive mutation atomically. Failed saves keep
+  the draft; stale writes require a fresh Behavior revision.
+- Display dated archive history. While archived, allow editing or removing each
+  note's text. Removing text retains the archive entry. Restore and later archives
+  preserve earlier entries. Repeated submissions do not duplicate archive entries.
+- Keep archive notes separate from Behavior descriptions and Occurrence Notes.
+  Do not add predefined reasons, automatic archive rules, or completion statuses.
+- Preserve history in SQLite, backups, account synchronization, and supported
+  exports/imports. Existing Include Notes privacy controls govern archive text.
+  Old bundles without archive notes preserve existing notes during merge/restore.
+- Reuse the atomic Behavior graph write and existing sync conflict handling.
+  Apply schema changes through migrations and verify owner isolation.
+
+Platform impact and evidence:
+
+- Web: `components/behaviors/BehaviorList.tsx`, Behavior Server Actions/services,
+  and Postgres migration; extends `INT-BEHAVIOR-022` and archive history controls.
+- Desktop: shared BehaviorList, local actions, SQLite migration 0012, and existing
+  account-sync adapter. Verify offline writes, restart, and portability contracts.
+- Marketing: update `docs/user-guide/behaviors-and-review.md` and generated guidance.
+  No marketing layout or product claims beyond the implemented feature.
+- Future mobile: implementation remains deferred. The shared Behavior model and
+  interaction registry define the future parity requirement.
+
+Verification: focused lifecycle/privacy/sync tests; real SQLite and Postgres
+contracts; all repository completion checks; responsive browser acceptance.
+Hosted migration, deployment, and signed desktop distribution remain separate
+authorized release actions.

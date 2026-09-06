@@ -4,6 +4,7 @@ import { normalizeBehaviorDefinition, planBehaviorDefinitionChangeEvent, planIni
 import { planBehaviorConfigurationChangeEvent, planInitialBehaviorConfigurationEvent } from "../resolvers/behavior-configuration.resolver";
 import { toBehaviorConfigurationEventPlanPayload } from "./configuration-payload";
 import type { BehaviorLogImportBehaviorPlan, BehaviorLogImportDefinitionEventPlan, BehaviorLogExistingRecords, BehaviorLogImportNotePlan, BehaviorLogImportPreview, BehaviorLogImportRecordMappingInput, BehaviorLogImportSchedulePlan, BehaviorLogImportInterventionRulePlan } from "../types/behaviorlog-import";
+import { serializeArchiveNotes } from "../resolvers/archive-note.resolver";
 import type { BehaviorDefinition, BehaviorDefinitionEventPlan } from "../types/behavior-definition-event";
 import type { BehaviorConfigurationSchedule } from "../types/behavior-configuration-event";
 import { DEFAULT_TIMEZONE, type Weekday } from "../types/recurrence";
@@ -404,6 +405,9 @@ export function buildRestorePayload(input: {
               reminderConfiguration.reminderOffsetMinutes,
             active: behavior.archivedAtUtc === null,
             archived_at: behavior.archivedAtUtc,
+            ...(behavior.cadenceArchiveNotes === undefined
+              ? {}
+              : { archive_notes: serializeArchiveNotes(behavior.cadenceArchiveNotes) }),
             created_at:
               action?.action === "create"
                 ? behavior.createdAtUtc ?? restoreRecordedAt

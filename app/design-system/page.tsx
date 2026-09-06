@@ -1736,6 +1736,7 @@ const previewFactories: Record<
           updateAction={behaviorAction}
           archiveAction={behaviorAction}
           restoreAction={behaviorAction}
+          archiveNoteAction={behaviorAction}
           statusAction={occurrenceAction}
           noteAction={occurrenceAction}
           stopTimeTrackingAction={timeTrackingAction}
@@ -1995,6 +1996,7 @@ const activeBehavior: BehaviorView = {
   reminderSummary: "Browser notifications, 1 hour before",
   active: true,
   archivedAt: null,
+  archiveNotes: [],
   createdAt: "2026-05-01T12:00:00Z",
   updatedAt: "2026-06-08T12:00:00Z",
 };
@@ -2006,6 +2008,10 @@ const archivedBehavior: BehaviorView = {
   description: "Past behavior kept for history.",
   active: false,
   archivedAt: "2026-06-01T12:00:00Z",
+  archiveNotes: [
+    { id: "11111111-1111-4111-8111-111111111111", archivedAt: "2026-05-15T12:00:00Z", updatedAt: "2026-05-15T12:00:00Z", note: "Program finished." },
+    { id: "22222222-2222-4222-8222-222222222222", archivedAt: "2026-06-01T12:00:00Z", updatedAt: "2026-06-01T12:00:00Z", note: "This is now part of my routine." },
+  ],
   reminderSummary: "No reminders",
 };
 

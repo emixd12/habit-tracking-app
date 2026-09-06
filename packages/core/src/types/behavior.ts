@@ -26,6 +26,13 @@ export type BehaviorRecurrenceFormDefaults = {
   monthlyDay: number;
 };
 
+export type ArchiveNote = {
+  id: string;
+  archivedAt: string;
+  note: string | null;
+  updatedAt: string;
+};
+
 export type BehaviorView = {
   id: string;
   title: string;
@@ -46,6 +53,7 @@ export type BehaviorView = {
   reminderSummary: string;
   active: boolean;
   archivedAt: string | null;
+  archiveNotes: ArchiveNote[];
   createdAt: string;
   updatedAt: string;
 };

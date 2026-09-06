@@ -29,6 +29,7 @@ export type BehaviorFields = {
   reminder_offset_minutes: number;
   active: boolean;
   archived_at: string | null;
+  archive_notes?: Json;
 };
 
 export type BehaviorRecord = BehaviorFields & {

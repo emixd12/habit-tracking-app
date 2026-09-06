@@ -244,7 +244,9 @@
         "INT-BEHAVIOR-021",
         "INT-BEHAVIOR-024",
         "INT-BEHAVIOR-025",
-        "INT-BEHAVIOR-026"
+        "INT-BEHAVIOR-026",
+        "INT-BEHAVIOR-027",
+        "INT-BEHAVIOR-028"
       ]
     },
     {
@@ -398,7 +400,7 @@
     {
       "path": "components/behaviors/BehaviorList.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 15,
+      "interaction_marker_count": 27,
       "interaction_ids": [
         "INT-BEHAVIOR-001",
         "INT-BEHAVIOR-002",
@@ -413,7 +415,9 @@
         "INT-TIMELINE-008",
         "INT-BEHAVIOR-024",
         "INT-BEHAVIOR-025",
-        "INT-BEHAVIOR-026"
+        "INT-BEHAVIOR-026",
+        "INT-BEHAVIOR-027",
+        "INT-BEHAVIOR-028"
       ]
     },
     {
@@ -6039,7 +6043,7 @@
       "journeys": [
         "J06"
       ],
-      "intent": "Make an active behavior inactive without deleting its history.",
+      "intent": "Archive a Behavior with an optional note while retaining every archive cycle.",
       "triggers": [
         {
           "kind": "submit",
@@ -6047,8 +6051,8 @@
         }
       ],
       "availability": "Available at the end of Details and Settings for an active behavior.",
-      "success_result": "Atomically marks the behavior inactive with a durable occurrence/reminder stale marker, preserves history, immediately moves the row to Archived behaviors, and attempts occurrence and reminder repair; retryable repair failure does not overturn the committed archive.",
-      "failure_result": "A transaction failure shows a factual error and leaves the behavior active; a post-commit repair failure remains queued by the durable stale marker.",
+      "success_result": "Atomically archives the Behavior and appends its dated optional note, retains prior archive entries, moves the row to Archived behaviors, and queues occurrence/reminder reconciliation.",
+      "failure_result": "A failed or stale write preserves the note draft and stored Behavior history. Post-commit reconciliation remains retryable.",
       "effects": [
         "database_write",
         "occurrence_sync_stale",
@@ -9748,6 +9752,190 @@
           "applicability": "deferred",
           "status": "deferred",
           "reason": "Mobile implementation remains deferred."
+        }
+      }
+    },
+    {
+      "id": "INT-BEHAVIOR-027",
+      "name": "Edit an archive note",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/behaviors-and-review.md#review-archive-notes"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "behaviors"
+      ],
+      "routes": [
+        "/behaviors"
+      ],
+      "journeys": [
+        "J06"
+      ],
+      "intent": "Correct one retained archive note while keeping its archive date and identity.",
+      "triggers": [
+        {
+          "kind": "submit",
+          "control": "Save note"
+        }
+      ],
+      "availability": "Available in Archive history for an archived Behavior; Remove note requires saved text.",
+      "success_result": "Updates only the selected archive entry text and update time through a revision-checked atomic Behavior write.",
+      "failure_result": "Preserves the stored history and draft on invalid, failed, or stale writes.",
+      "effects": [
+        "database_write",
+        "occurrence_sync_stale",
+        "ui_state"
+      ],
+      "risk": "moderate",
+      "confirmation": "none",
+      "implementation": [
+        "components/behaviors/BehaviorList.tsx",
+        "app/(app)/behaviors/actions.ts#updateBehaviorArchiveNoteAction",
+        "apps/desktop/src/local-actions.ts"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/archive-note.resolver.test.ts",
+          "tests/behavior-store-supabase.contract.test.ts",
+          "tests/desktop-store-contract.test.ts"
+        ],
+        "notes": "Shared lifecycle, revision conflict, and real persistence contracts cover archive note history."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/behaviors/BehaviorList.tsx",
+            "app/(app)/behaviors/actions.ts#updateBehaviorArchiveNoteAction"
+          ],
+          "evidence": [
+            "tests/archive-note.resolver.test.ts",
+            "tests/behavior-store-supabase.contract.test.ts",
+            "tests/desktop-store-contract.test.ts"
+          ],
+          "reason": "Shared implementation; Ticket 125 records current validation evidence."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/local-actions.ts",
+            "components/behaviors/BehaviorList.tsx",
+            "apps/desktop/src/behaviors-screen.tsx"
+          ],
+          "evidence": [
+            "tests/archive-note.resolver.test.ts",
+            "tests/behavior-store-supabase.contract.test.ts",
+            "tests/desktop-store-contract.test.ts"
+          ],
+          "reason": "Shared implementation; Ticket 125 records current validation evidence."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-BEHAVIOR-028",
+      "name": "Remove archive note text",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/behaviors-and-review.md#review-archive-notes"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "behaviors"
+      ],
+      "routes": [
+        "/behaviors"
+      ],
+      "journeys": [
+        "J06"
+      ],
+      "intent": "Clear one archive note while retaining its dated archive entry.",
+      "triggers": [
+        {
+          "kind": "submit",
+          "control": "Remove note"
+        }
+      ],
+      "availability": "Available in Archive history for an archived Behavior; Remove note requires saved text.",
+      "success_result": "Updates only the selected archive entry text and update time through a revision-checked atomic Behavior write.",
+      "failure_result": "Preserves the stored history and draft on invalid, failed, or stale writes.",
+      "effects": [
+        "database_write",
+        "occurrence_sync_stale",
+        "ui_state"
+      ],
+      "risk": "moderate",
+      "confirmation": "none",
+      "implementation": [
+        "components/behaviors/BehaviorList.tsx",
+        "app/(app)/behaviors/actions.ts#updateBehaviorArchiveNoteAction",
+        "apps/desktop/src/local-actions.ts"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/archive-note.resolver.test.ts",
+          "tests/behavior-store-supabase.contract.test.ts",
+          "tests/desktop-store-contract.test.ts"
+        ],
+        "notes": "Shared lifecycle, revision conflict, and real persistence contracts cover archive note history."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/behaviors/BehaviorList.tsx",
+            "app/(app)/behaviors/actions.ts#updateBehaviorArchiveNoteAction"
+          ],
+          "evidence": [
+            "tests/archive-note.resolver.test.ts",
+            "tests/behavior-store-supabase.contract.test.ts",
+            "tests/desktop-store-contract.test.ts"
+          ],
+          "reason": "Shared implementation; Ticket 125 records current validation evidence."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/local-actions.ts",
+            "components/behaviors/BehaviorList.tsx",
+            "apps/desktop/src/behaviors-screen.tsx"
+          ],
+          "evidence": [
+            "tests/archive-note.resolver.test.ts",
+            "tests/behavior-store-supabase.contract.test.ts",
+            "tests/desktop-store-contract.test.ts"
+          ],
+          "reason": "Shared implementation; Ticket 125 records current validation evidence."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
         }
       }
     }

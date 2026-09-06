@@ -1,5 +1,7 @@
 import { assembleBehaviorPageData, toBehaviorView } from "@cadence/core/services/behavior-views";
-import { createBehavior, updateBehavior, setBehaviorActive } from "@cadence/core/services/behavior.service";
+import {
+  createBehavior, setBehaviorActive, updateBehavior, updateBehaviorArchiveNote,
+} from "@cadence/core/services/behavior.service";
 import { createBehaviorStore } from "@/lib/db/behavior-store";
 import {
   listUserBehaviors,
@@ -59,6 +61,7 @@ export async function updateBehaviorFromFormData(formData: FormData): Promise<vo
   const expectedUpdatedAt = getExpectedUpdatedAtFromFormData(formData);
   await updateBehavior(createBehaviorStore(supabase, userId), {
     behaviorId: input.behaviorId, values: input, expectedUpdatedAt,
+    newArchiveNoteId: crypto.randomUUID(),
     recordedAt: new Date().toISOString(),
   });
   invalidateBehaviorData(userId);
@@ -80,6 +83,9 @@ export async function archiveBehaviorFromFormData(formData: FormData): Promise<v
   const userId = await requireUserId(supabase);
   await setBehaviorActive(createBehaviorStore(supabase, userId), {
     behaviorId: getBehaviorIdForArchive(formData), active: false,
+    expectedUpdatedAt: getExpectedUpdatedAtFromFormData(formData),
+    newArchiveNoteId: crypto.randomUUID(),
+    archiveNote: getArchiveNoteFromFormData(formData),
     recordedAt: new Date().toISOString(),
   });
   invalidateBehaviorData(userId);
@@ -91,10 +97,24 @@ export async function restoreBehaviorFromFormData(formData: FormData): Promise<v
   const userId = await requireUserId(supabase);
   await setBehaviorActive(createBehaviorStore(supabase, userId), {
     behaviorId: getBehaviorIdForArchive(formData), active: true,
+    expectedUpdatedAt: getExpectedUpdatedAtFromFormData(formData),
     recordedAt: new Date().toISOString(),
   });
   invalidateBehaviorData(userId);
   await syncBehaviorGraphForUser(supabase, userId, "restore");
+}
+
+export async function updateBehaviorArchiveNoteFromFormData(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const userId = await requireUserId(supabase);
+  await updateBehaviorArchiveNote(createBehaviorStore(supabase, userId), {
+    behaviorId: getBehaviorIdForArchive(formData),
+    archiveNoteId: getArchiveNoteIdFromFormData(formData),
+    note: getArchiveNoteFromFormData(formData),
+    expectedUpdatedAt: getExpectedUpdatedAtFromFormData(formData),
+    recordedAt: new Date().toISOString(),
+  });
+  invalidateBehaviorData(userId);
 }
 
 async function syncBehaviorGraphForUser(
@@ -202,4 +222,17 @@ function canonicalizeTimezone(timezone: string): string {
   } catch {
     throw new Error("Behavior timezone is invalid.");
   }
+}
+
+function getArchiveNoteIdFromFormData(formData: FormData): string {
+  const value = formData.get("archive_note_id");
+  if (typeof value !== "string" || !value) throw new Error("Choose an archive note to edit.");
+  return value;
+}
+
+function getArchiveNoteFromFormData(formData: FormData): string {
+  if (formData.get("archive_note_remove") === "1") return "";
+  const value = formData.get("archive_note");
+  if (typeof value !== "string") throw new Error("Archive note must be text.");
+  return value;
 }

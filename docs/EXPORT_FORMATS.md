@@ -1040,3 +1040,18 @@ Cadence BehaviorLog category registry. Markdown summaries include category conte
 Older bundles remain valid. Restore copies descriptions into new categories.
 Create-only import retains the category registry and its existing matching policy.
 Neither path overwrites existing category descriptions. CSV columns are unchanged.
+
+
+## Archive note history (Ticket 125)
+
+Full JSON includes each Behavior's `archive_notes`. BehaviorLog uses the
+`extensions.app.cadence.archive_notes` extension with UUID `id`, UTC
+`archived_at`, nullable `note`, and UTC `updated_at`. The base BehaviorLog
+standard schema is unchanged. Include Notes controls archive text as well as
+Occurrence Notes: when disabled, dated archive entries remain but text is null.
+
+Import validates each entry before planning writes. New imports preserve
+provided history. An older bundle omitting the extension preserves existing
+history during restore; an explicitly supplied empty array expresses empty
+history. Archive-only restore retains existing history. Existing Occurrence
+CSV/JSONL formats keep their Occurrence scope.

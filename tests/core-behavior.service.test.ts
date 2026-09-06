@@ -4,7 +4,7 @@ import type {
   BehaviorDataStore,
 } from "../packages/core/src/behavior-store";
 import {
-  createBehavior, setBehaviorActive, updateBehavior,
+  createBehavior, setBehaviorActive, updateBehavior, updateBehaviorArchiveNote,
 } from "../packages/core/src/services/behavior.service";
 
 import { recordedAt, stored, values } from "./helpers/behavior-graph-fixture";
@@ -63,25 +63,77 @@ describe("shared Behavior orchestration", () => {
     expect(commit.schedules[0].slots[0].start_time).toBe("10:00");
   });
 
+  it("records a blank archive entry when a generic edit deactivates an active behavior", async () => {
+    const adapter = store();
+    await updateBehavior(adapter, {
+      behaviorId: "behavior", expectedUpdatedAt: stored.updated_at, recordedAt,
+      newArchiveNoteId: "33333333-3333-4333-8333-333333333333",
+      values: { ...values, active: false },
+    });
+    expect(adapter.updateBehaviorWithAtomicScheduleGraph.mock.calls[0]![0].behavior.archive_notes).toEqual([{
+      id: "33333333-3333-4333-8333-333333333333",
+      archived_at: "2026-08-30T16:00:00Z",
+      note: null,
+      updated_at: "2026-08-30T16:00:00Z",
+    }]);
+  });
+
   it("archives and restores with the stored revision and no definition event", async () => {
     const adapter = store();
-    await setBehaviorActive(adapter, { behaviorId: "behavior", active: false, recordedAt });
+    await setBehaviorActive(adapter, {
+      behaviorId: "behavior", active: false, expectedUpdatedAt: stored.updated_at,
+      recordedAt, newArchiveNoteId: "11111111-1111-4111-8111-111111111111", archiveNote: "  Pausing  ",
+    });
     expect(adapter.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(expect.objectContaining({
       expectedUpdatedAt: stored.updated_at, definitionEventPlan: null,
-      behavior: expect.objectContaining({ active: false, archived_at: recordedAt }),
+      behavior: expect.objectContaining({ active: false, archived_at: recordedAt, archive_notes: [{
+        id: "11111111-1111-4111-8111-111111111111", archived_at: "2026-08-30T16:00:00Z",
+        note: "Pausing", updated_at: "2026-08-30T16:00:00Z",
+      }] }),
       configurationEventPlan: expect.objectContaining({ changedFields: ["active"], reasonCode: "behavior_archived" }),
     }));
-    const archived = { ...stored, active: false, archived_at: "2026-08-20T00:00:00Z" };
+    const archived = { ...stored, active: false, archived_at: "2026-08-20T00:00:00Z", archive_notes: [{
+      id: "22222222-2222-4222-8222-222222222222", archived_at: "2026-08-20T00:00:00Z",
+      note: null, updated_at: "2026-08-20T00:00:00Z",
+    }] };
     adapter.getBehaviorById.mockResolvedValue(archived);
-    await setBehaviorActive(adapter, { behaviorId: "behavior", active: false, recordedAt });
+    await setBehaviorActive(adapter, { behaviorId: "behavior", active: false, expectedUpdatedAt: archived.updated_at, recordedAt });
     expect(adapter.updateBehaviorWithAtomicScheduleGraph.mock.lastCall![0]).toMatchObject({
       behavior: { archived_at: archived.archived_at }, configurationEventPlan: null,
     });
-    await setBehaviorActive(adapter, { behaviorId: "behavior", active: true, recordedAt });
+    await setBehaviorActive(adapter, { behaviorId: "behavior", active: true, expectedUpdatedAt: archived.updated_at, recordedAt });
     expect(adapter.updateBehaviorWithAtomicScheduleGraph.mock.lastCall![0]).toMatchObject({
-      behavior: { active: true, archived_at: null },
+      behavior: { active: true, archived_at: null, archive_notes: archived.archive_notes },
       configurationEventPlan: { reasonCode: "behavior_restored" },
     });
+    adapter.getBehaviorById.mockResolvedValue({ ...archived, active: true, archived_at: null });
+    await setBehaviorActive(adapter, {
+      behaviorId: "behavior", active: false, expectedUpdatedAt: archived.updated_at, recordedAt,
+      newArchiveNoteId: "33333333-3333-4333-8333-333333333333", archiveNote: "Again",
+    });
+    expect(adapter.updateBehaviorWithAtomicScheduleGraph.mock.lastCall![0].behavior.archive_notes).toHaveLength(2);
+  });
+
+  it("edits or removes one retained archive note with the submitted stale-write guard", async () => {
+    const archived = { ...stored, active: false, archived_at: "2026-08-20T00:00:00Z", archive_notes: [{
+      id: "22222222-2222-4222-8222-222222222222", archived_at: "2026-08-20T00:00:00Z",
+      note: "Old", updated_at: "2026-08-20T00:00:00Z",
+    }] };
+    const adapter = store(archived);
+    await updateBehaviorArchiveNote(adapter, {
+      behaviorId: archived.id,
+      archiveNoteId: "22222222-2222-4222-8222-222222222222",
+      note: "  ", expectedUpdatedAt: "browser-revision", recordedAt,
+    });
+    expect(adapter.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(expect.objectContaining({
+      expectedUpdatedAt: "browser-revision",
+      definitionEventPlan: null,
+      configurationEventPlan: null,
+      behavior: expect.objectContaining({ archive_notes: [{
+        id: "22222222-2222-4222-8222-222222222222", archived_at: "2026-08-20T00:00:00Z",
+        note: null, updated_at: "2026-08-30T16:00:00Z",
+      }] }),
+    }));
   });
 
   it("propagates atomic conflicts and rejects missing rows without follow-up writes", async () => {
@@ -91,7 +143,8 @@ describe("shared Behavior orchestration", () => {
       .rejects.toThrow("Behavior schedule graph changed after it was read.");
     expect(adapter.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledOnce();
     adapter.getBehaviorById.mockResolvedValue(null);
-    await expect(setBehaviorActive(adapter, { behaviorId: "missing", active: false, recordedAt })).rejects.toThrow("Behavior not found.");
+    await expect(setBehaviorActive(adapter, { behaviorId: "missing", active: false, expectedUpdatedAt: stored.updated_at,
+      recordedAt, newArchiveNoteId: "11111111-1111-4111-8111-111111111111" })).rejects.toThrow("Behavior not found.");
     expect(adapter.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledOnce();
   });
 });

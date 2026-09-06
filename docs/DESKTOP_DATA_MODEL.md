@@ -1,5 +1,7 @@
 # Desktop data model
 
+Schema version 12 adds retained archive notes. See the Ticket 125 section below.
+
 Schema version 11 adds nullable category descriptions and owner-scoped normalized
 name uniqueness. Migration 0011 preserves IDs and distinguishes legacy duplicates.
 `manageCategories` validates the expected category snapshot and performs assignment
@@ -398,3 +400,13 @@ requires integration and OS lifecycle verification. Migration
 recovery UI, full offline product QA, and signed release remain separate
 gates. No provider calls, cloud identity, live sync, or background helper were
 added.
+
+
+## Archive notes (Ticket 125)
+
+SQLite schema 12 adds `behaviors.archive_notes` as validated JSON text with
+default `[]`. The native row serializer exposes the JSON array matching the
+web model. Existing graph writes, revisions, and outbox transactions persist
+each archive cycle atomically. Restore/rearchive preserves prior entries.
+Validated schema-11 backups upgrade before replacement. Older archives receive
+no fabricated history. Account-sync conflicts require explicit review.

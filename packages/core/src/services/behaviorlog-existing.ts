@@ -9,6 +9,7 @@ import type { BehaviorLogExistingOccurrence, BehaviorLogExistingRecords, Behavio
 import type { OccurrenceStatus } from "../types/database";
 import type { PortabilityConfigurationEventRow, PortabilityDefinitionEventRow, PortabilityTimeSessionRow, PortabilityMappingRow, PortabilityNoteRow, PortabilityInterventionRow, PortabilityImportRunRow } from "../types/portability-rows";
 import { DEFAULT_TIMEZONE, type RecurrenceRule } from "../types/recurrence";
+import { parseArchiveNotes } from "../resolvers/archive-note.resolver";
 const BEHAVIORLOG_RECURRENCE_PROFILE = "behaviorlog.calendar_simple.v1";
 
 export function assembleBehaviorLogExistingRecords(input: {
@@ -104,6 +105,7 @@ function toExistingBehavior(behavior: BehaviorGraphRecord, schedules: BehaviorLo
     cadenceCategoryName: behavior.category?.name ?? null,
     active: behavior.active,
     archivedAt: behavior.archived_at,
+    archiveNotes: parseArchiveNotes(behavior.archive_notes),
     sourceOriginalId: behavior.id,
     schedules,
     configurationSnapshot: toExistingBehaviorConfiguration(behavior),

@@ -419,6 +419,7 @@ export type Database = {
       behaviors: {
         Row: {
           active: boolean
+          archive_notes: Json
           archived_at: string | null
           browser_reminder_enabled: boolean
           category_id: string | null
@@ -437,6 +438,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          archive_notes?: Json
           archived_at?: string | null
           browser_reminder_enabled?: boolean
           category_id?: string | null
@@ -455,6 +457,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          archive_notes?: Json
           archived_at?: string | null
           browser_reminder_enabled?: boolean
           category_id?: string | null

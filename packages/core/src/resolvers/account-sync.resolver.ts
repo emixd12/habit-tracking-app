@@ -1,4 +1,5 @@
 import { sha256 } from "../hash";
+import { parseArchiveNotes } from "./archive-note.resolver";
 import { Temporal } from "@js-temporal/polyfill";
 import type { Json } from "../types/json";
 
@@ -122,7 +123,13 @@ function normalize(entity: AccountSyncEntity): AccountSyncEntity {
     const value = entity.value && !Array.isArray(entity.value) && typeof entity.value === "object" ? entity.value : {};
     return { kind: "profile", id: "profile", value: { timezone: typeof value.timezone === "string" ? value.timezone : null } };
   }
-  return { kind: entity.kind, id: entity.id, value: normalizeRow(stripOwnership(entity.value)) };
+  let value = normalizeRow(stripOwnership(entity.value));
+  if (entity.kind === "behavior" && value && !Array.isArray(value) && typeof value === "object") {
+    parseArchiveNotes(value.archive_notes);
+    // Older saved baselines predate the column; omission means an empty history.
+    value = { archive_notes: [], ...value };
+  }
+  return { kind: entity.kind, id: entity.id, value };
 }
 function normalizeRow(value: Json): Json {
   if (!value || Array.isArray(value) || typeof value !== "object") return value;

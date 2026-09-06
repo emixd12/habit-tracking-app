@@ -155,11 +155,15 @@ describe.skipIf(!process.env.CADENCE_SQLITE_CONTRACT)("TypeScript adapters again
     const stoppedTime = await trackLocalOccurrence(profile.id, occurrence.id, "stop", NOW.add({ seconds: 70 }));
     expect(stoppedTime.tracking.recordedSeconds).toBe(60);
     expect((await localCommand("readOccurrence", { profileId: profile.id, occurrenceId: occurrence.id }))?.note).toBe("Private note\nline two");
+    const archiveNoteId = crypto.randomUUID();
     await setBehaviorActive(createLocalBehaviorStore(profile.id, NOW.add({ seconds: 80 })), {
-      behaviorId: behavior.id, active: false, recordedAt: NOW.add({ seconds: 80 }).toString(),
+      behaviorId: behavior.id, active: false, expectedUpdatedAt: updated.updated_at, newArchiveNoteId: archiveNoteId, archiveNote: "First archive", recordedAt: NOW.add({ seconds: 80 }).toString(),
     });
     const archived = await loadLocalTimeline(7, NOW.add({ seconds: 90 }));
     expect(archived.timeline.daySections.flatMap((day) => day.occurrences)).toHaveLength(0);
+    expect(archived.behaviors.find((row) => row.id === behavior.id)!.archive_notes).toEqual([{
+      id: archiveNoteId, archived_at: NOW.add({ seconds: 80 }).toString(), note: "First archive", updated_at: NOW.add({ seconds: 80 }).toString(),
+    }]);
     expect((await localCommand("readOccurrence", { profileId: profile.id, occurrenceId: occurrence.id }))?.status).toBe("completed");
     const reminderTarget = await loadNotificationOccurrence({ occurrenceId: occurrence.id, profile,
       behaviors: archived.behaviors, now: NOW.add({ hours: 24 * 60 }) });
@@ -262,7 +266,7 @@ describe.skipIf(!process.env.CADENCE_SQLITE_CONTRACT)("TypeScript adapters again
     expect(pending.size).toBe(0);
     permission = "authorized";
     await setBehaviorActive(createLocalBehaviorStore(profile.id, NOW.add({ seconds: 8 })), {
-      behaviorId: created.id, active: false, recordedAt: NOW.add({ seconds: 8 }).toString(),
+      behaviorId: created.id, active: false, expectedUpdatedAt: graphs[0].behavior.updated_at, newArchiveNoteId: crypto.randomUUID(), recordedAt: NOW.add({ seconds: 8 }).toString(),
     });
     expect((await reconcileLocalReminders(NOW.add({ seconds: 9 }))).state.coverage).toMatchObject({ status: "complete", expected_count: 0 });
   }, 20_000);
@@ -306,7 +310,7 @@ describe.skipIf(!process.env.CADENCE_SQLITE_CONTRACT)("TypeScript adapters again
     pending.delete(deliveredId);
     delivered = [{ id: deliveredId }, { id: "unrelated-notification" }];
     await setBehaviorActive(createLocalBehaviorStore(profile.id, NOW.add({ seconds: 1 })), {
-      behaviorId: created.id, active: false, recordedAt: NOW.add({ seconds: 1 }).toString(),
+      behaviorId: created.id, active: false, expectedUpdatedAt: created.updated_at, newArchiveNoteId: crypto.randomUUID(), recordedAt: NOW.add({ seconds: 1 }).toString(),
     });
     const archived = await reconcileLocalReminders(NOW.add({ seconds: 2 }));
     expect(archived.state.coverage).toMatchObject({ status: "complete", expected_count: 0, scheduled_count: 0 });
@@ -344,7 +348,7 @@ describe.skipIf(!process.env.CADENCE_SQLITE_CONTRACT)("TypeScript adapters again
         deliveredAt: Temporal.Instant.from(request.fireAt).add({ seconds: 1 }).toString() } }]);
     expect((await reconcileLocalReminders(afterDelivery)).state.reminders.find((row) => row.request_id === request.id)?.status).toBe("delivered");
     const archiveAt = afterDelivery.add({ seconds: 1 }); clock.mockReturnValue(archiveAt);
-    await setBehaviorActive(createLocalBehaviorStore(profile.id, archiveAt), { behaviorId: behavior.id, active: false, recordedAt: archiveAt.toString() });
+    await setBehaviorActive(createLocalBehaviorStore(profile.id, archiveAt), { behaviorId: behavior.id, active: false, expectedUpdatedAt: behavior.updated_at, newArchiveNoteId: crypto.randomUUID(), recordedAt: archiveAt.toString() });
     await reconcileLocalReminders(archiveAt);
     expect(pending.size).toBe(0);
     await stop(); await start();

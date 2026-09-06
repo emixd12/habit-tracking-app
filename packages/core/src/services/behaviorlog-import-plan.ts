@@ -5,6 +5,7 @@ import type { OccurrenceStatusEventRecord } from "../data-store";
 import { toCadenceRecurrenceRule } from "./behaviorlog-restore-plan";
 import { addMapping, canonicalStoredTime, configureGraph, emptyWritePlan, plannedOccurrence, writeOccurrence, type PortabilityPlanContext } from "./behaviorlog-write-plan";
 import { withBehaviorLogPortability } from "./behaviorlog-preservation";
+import { serializeArchiveNotes } from "../resolvers/archive-note.resolver";
 
 // Row projection of the production Aug27 atomic import and portability wrapper.
 // The existing resolver owns matching, conflicts, provenance and supported records.
@@ -48,7 +49,8 @@ export function planBehaviorLogImportWrite(context: PortabilityPlanContext & {
       browser_reminder_enabled: context.interventionRulesPresent ? rules.some((rule) => rule.channel === "browser_push") : row.cadenceBrowserReminderEnabled ?? true,
       email_reminder_enabled: context.interventionRulesPresent ? rules.some((rule) => rule.channel === "email") : row.cadenceEmailReminderEnabled ?? false,
       reminder_offset_minutes: context.interventionRulesPresent ? Math.max(0, -(rules.filter((rule) => ["browser_push", "email"].includes(rule.channel) && rule.offsetMinutes !== null).sort(byExternal)[0]?.offsetMinutes ?? 0)) : row.cadenceReminderOffsetMinutes ?? 0,
-      active: row.archivedAtUtc ? false : row.cadenceActive ?? true, archived_at: row.archivedAtUtc, current_configuration_event_id: null,
+      active: row.archivedAtUtc ? false : row.cadenceActive ?? true, archived_at: row.archivedAtUtc,
+      archive_notes: serializeArchiveNotes(row.cadenceArchiveNotes ?? []), current_configuration_event_id: null,
       created_at: row.createdAtUtc ?? now, updated_at: row.createdAtUtc ?? now }, schedules: [], slots: [] };
     const parentGroups = new Map<string, BehaviorLogImportSchedulePlan[]>();
     for (const schedule of schedules) { const key = schedule.cadenceBehaviorScheduleId ?? schedule.externalId; parentGroups.set(key, [...(parentGroups.get(key) ?? []), schedule]); }

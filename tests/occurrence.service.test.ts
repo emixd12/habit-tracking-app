@@ -1306,6 +1306,7 @@ function buildBehavior(input: {
     email_reminder_enabled: false,
     reminder_offset_minutes: 0,
     active: true,
+    archive_notes: [],
     archived_at: null,
     current_configuration_event_id: `${input.id}-configuration-event`,
     created_at: "2026-06-01T00:00:00Z",

@@ -149,7 +149,7 @@ describe("resolveAccountSync", () => {
 
   it("preserves domain revision fields while removing ownership", () => {
     const revised: AccountSyncEntity = { kind: "behavior", id: "a", value: { id: "a", revision: 3, user_id: "local", metadata: { user_id: "provenance-owner" } } };
-    expect(plan(empty, snapshot([revised]), empty).hostedWrites[0].value).toEqual({ id: "a", revision: 3, metadata: { user_id: "provenance-owner" } });
+    expect(plan(empty, snapshot([revised]), empty).hostedWrites[0].value).toEqual({ archive_notes: [], id: "a", revision: 3, metadata: { user_id: "provenance-owner" } });
   });
 
   it("rejects duplicate identities and collection rows above the ceiling", () => {
@@ -199,5 +199,28 @@ describe("resolveAccountSync", () => {
     expect(() => plan(snapshot([prior]), snapshot([prior, first, second]), snapshot([prior]))).toThrow("local account snapshot contains branched status history");
     expect(() => plan(snapshot([prior]), snapshot([prior]), snapshot([prior, first, second]))).toThrow("hosted account snapshot contains branched status history");
     expect(() => plan(snapshot([prior]), snapshot([prior, first]), snapshot([prior, second]))).toThrow("branched status history");
+  });
+});
+
+
+describe("archive notes in account synchronization", () => {
+  const first = { id: "11111111-1111-4111-8111-111111111111", archived_at: "2026-09-01T12:00:00Z", updated_at: "2026-09-01T12:00:00Z", note: "Program finished" };
+  const withNotes = (notes: typeof first[]): AccountSyncSnapshot => snapshot([{ kind: "behavior", id: "b", value: { id: "b", title: "Walk", archive_notes: notes } }]);
+  it("treats an older baseline as empty and transfers all later archive entries", () => {
+    const base = snapshot([row("b", "Walk")]);
+    expect(plan(base, withNotes([]), withNotes([])).hostedWrites).toEqual([]);
+    const second = { ...first, id: "22222222-2222-4222-8222-222222222222", note: "Routine established" };
+    const result = plan(base, withNotes([first, second]), withNotes([]));
+    expect(result.conflicts).toEqual([]);
+    expect(result.hostedWrites[0].value).toMatchObject({ archive_notes: [first, second] });
+  });
+  it("requires review for concurrent note edits without issuing writes", () => {
+    const result = plan(withNotes([first]), withNotes([{ ...first, note: "Local correction" }]), withNotes([{ ...first, note: "Account correction" }]));
+    expect(result.conflicts).toMatchObject([{ kind: "behavior", reason: "concurrent_update" }]);
+    expect(result.hostedWrites).toEqual([]);
+    expect(result.localWrites).toEqual([]);
+  });
+  it("rejects malformed archive history before planning a write", () => {
+    expect(() => plan(empty, withNotes([first, first]), empty)).toThrow(/duplicated/);
   });
 });

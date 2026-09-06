@@ -251,3 +251,12 @@ When adding a resolver:
 4. Keep Supabase calls, provider SDK calls, browser APIs, and env reads out of the resolver.
 5. Add or update service/repository code only after the resolver contract is clear.
 6. Run `npm run resolvers:check`, `npm run test`, `npm run typecheck`, and `npm run build`.
+
+
+### Archive notes
+
+`packages/core/src/resolvers/archive-note.resolver.ts` owns archive note parsing,
+normalization, append, and text replacement. Services inject IDs and timestamps.
+The resolver has no I/O or clock access. Behavior services, export/import
+resolvers, account-sync validation, and tests may call it. Paired checks live in
+`tests/archive-note.resolver.test.ts`; see Ticket 125 and `docs/DATA_MODEL.md`.

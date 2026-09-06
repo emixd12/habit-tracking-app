@@ -9,6 +9,10 @@ import {
 import {
   planBehaviorConfigurationChangeEvent, planInitialBehaviorConfigurationEvent,
 } from "../resolvers/behavior-configuration.resolver";
+import {
+  appendArchiveNote, normalizeArchiveNote, parseArchiveNotes, replaceArchiveNote,
+  serializeArchiveNotes,
+} from "../resolvers/archive-note.resolver";
 import type { Json } from "../types/json";
 import type { BehaviorScheduleInput } from "../types/schedule";
 
@@ -30,6 +34,7 @@ export async function createBehavior(
     reminder_offset_minutes: values.reminderOffsetMinutes,
     active: true,
     archived_at: null,
+    archive_notes: [],
   };
   const definitionEventPlan = planInitialBehaviorDefinitionEvent({
     definition: { title: behavior.title, description: behavior.description },
@@ -61,7 +66,7 @@ export async function createBehavior(
 
 export async function updateBehavior(
   store: BehaviorDataStore,
-  input: { behaviorId: string; expectedUpdatedAt: string; values: BehaviorInput; recordedAt: string },
+  input: { behaviorId: string; expectedUpdatedAt: string; values: BehaviorInput; recordedAt: string; newArchiveNoteId?: string },
 ) {
   if (!input.expectedUpdatedAt) throw new Error("Reload this behavior before saving changes.");
   const existing = await requireBehavior(store, input.behaviorId);
@@ -73,6 +78,10 @@ export async function updateBehavior(
     source: "manual",
   });
   const values = input.values;
+  const archiveNotes = parseArchiveNotes(existing.archive_notes);
+  if (existing.active && !values.active && !input.newArchiveNoteId) {
+    throw new Error("Archive note id is required when archiving a behavior.");
+  }
   const behavior: BehaviorFields = {
     category_id: values.categoryId,
     title: definitionEventPlan?.nextTitle ?? existing.title,
@@ -84,6 +93,12 @@ export async function updateBehavior(
     reminder_offset_minutes: values.reminderOffsetMinutes,
     active: values.active,
     archived_at: values.active ? null : existing.archived_at ?? input.recordedAt,
+    archive_notes: serializeArchiveNotes(existing.active && !values.active
+      ? appendArchiveNote(archiveNotes, {
+          id: input.newArchiveNoteId!, archivedAt: input.recordedAt,
+          note: null, updatedAt: input.recordedAt,
+        })
+      : archiveNotes),
     timezone: existing.timezone,
   };
   const expectedScheduleGraph = toStoredBehaviorScheduleGraph(existing);
@@ -113,11 +128,22 @@ export async function updateBehavior(
 
 export async function setBehaviorActive(
   store: BehaviorDataStore,
-  input: { behaviorId: string; active: boolean; recordedAt: string },
+  input: {
+    behaviorId: string;
+    active: boolean;
+    expectedUpdatedAt?: string;
+    recordedAt: string;
+    newArchiveNoteId?: string;
+    archiveNote?: string | null;
+  },
 ) {
   const existing = await requireBehavior(store, input.behaviorId);
   const schedules = toStoredBehaviorScheduleGraph(existing);
   const expectedDefinition = { title: existing.title, description: existing.description };
+  const archiveNotes = parseArchiveNotes(existing.archive_notes);
+  if (existing.active && !input.active && !input.newArchiveNoteId) {
+    throw new Error("Archive note id is required when archiving a behavior.");
+  }
   const behavior: BehaviorFields = {
     category_id: existing.category_id,
     title: existing.title,
@@ -130,6 +156,12 @@ export async function setBehaviorActive(
     reminder_offset_minutes: existing.reminder_offset_minutes,
     active: input.active,
     archived_at: input.active ? null : existing.archived_at ?? input.recordedAt,
+    archive_notes: serializeArchiveNotes(existing.active && !input.active
+      ? appendArchiveNote(archiveNotes, {
+          id: input.newArchiveNoteId!, archivedAt: input.recordedAt,
+          note: normalizeArchiveNote(input.archiveNote ?? ""), updatedAt: input.recordedAt,
+        })
+      : archiveNotes),
   };
   const configurationEventPlan = planBehaviorConfigurationChangeEvent({
     previousConfiguration: toBehaviorConfigurationSnapshot(existing, schedules),
@@ -145,9 +177,57 @@ export async function setBehaviorActive(
     expectedDefinition,
     expectedNormalizedDefinition: normalizeBehaviorDefinition(expectedDefinition),
     expectedScheduleGraph: schedules,
-    expectedUpdatedAt: existing.updated_at,
+    expectedUpdatedAt: input.expectedUpdatedAt ?? existing.updated_at,
     definitionEventPlan: null,
     configurationEventPlan,
+    schedules,
+  });
+  if (!updated) throw new Error("Behavior not found.");
+  return updated;
+}
+
+export async function updateBehaviorArchiveNote(
+  store: BehaviorDataStore,
+  input: {
+    behaviorId: string;
+    archiveNoteId: string;
+    note: string | null;
+    expectedUpdatedAt: string;
+    recordedAt: string;
+  },
+) {
+  if (!input.expectedUpdatedAt) throw new Error("Reload this behavior before saving changes.");
+  const existing = await requireBehavior(store, input.behaviorId);
+  if (existing.active) throw new Error("Restore or archive the behavior before editing archive history.");
+  const schedules = toStoredBehaviorScheduleGraph(existing);
+  const expectedDefinition = { title: existing.title, description: existing.description };
+  const behavior: BehaviorFields = {
+    category_id: existing.category_id,
+    title: existing.title,
+    description: existing.description,
+    recurrence_rule: existing.recurrence_rule,
+    scheduled_time: existing.scheduled_time,
+    timezone: existing.timezone,
+    browser_reminder_enabled: existing.browser_reminder_enabled,
+    email_reminder_enabled: existing.email_reminder_enabled,
+    reminder_offset_minutes: existing.reminder_offset_minutes,
+    active: existing.active,
+    archived_at: existing.archived_at,
+    archive_notes: serializeArchiveNotes(replaceArchiveNote(parseArchiveNotes(existing.archive_notes), {
+      id: input.archiveNoteId,
+      note: normalizeArchiveNote(input.note ?? ""),
+      updatedAt: input.recordedAt,
+    })),
+  };
+  const updated = await store.updateBehaviorWithAtomicScheduleGraph({
+    behaviorId: existing.id,
+    behavior,
+    expectedDefinition,
+    expectedNormalizedDefinition: normalizeBehaviorDefinition(expectedDefinition),
+    expectedScheduleGraph: schedules,
+    expectedUpdatedAt: input.expectedUpdatedAt,
+    definitionEventPlan: null,
+    configurationEventPlan: null,
     schedules,
   });
   if (!updated) throw new Error("Behavior not found.");
