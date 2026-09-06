@@ -2,7 +2,9 @@ import { parseOccurrenceId, parseOccurrenceNote, parseOccurrenceStatus } from "@
 import type { OccurrenceFormAction, TimeTrackingFormAction } from "../../../lib/types/timeline";
 import { markLocalOccurrence, saveLocalOccurrenceNote, trackLocalOccurrence } from "./local-occurrence.service";
 import { Temporal } from "@js-temporal/polyfill";
-import { createBehavior, updateBehavior, setBehaviorActive } from "@cadence/core/services/behavior.service";
+import {
+  createBehavior, setBehaviorActive, updateBehavior, updateBehaviorArchiveNote,
+} from "@cadence/core/services/behavior.service";
 import { toBehaviorView } from "@cadence/core/services/behavior-views";
 import { behaviorErrorToActionState, parseBehaviorFormData } from "../../../lib/services/behavior-form";
 import type { BehaviorFormAction } from "../../../lib/types/behavior";
@@ -73,6 +75,7 @@ export function createLocalBehaviorActions(profile: Profile, refresh: () => void
       if (typeof expected !== "string" || !expected) throw new Error("Reload this behavior before saving changes.");
       await updateBehavior(createLocalBehaviorStore(profile.id, now), {
         behaviorId: values.behaviorId, expectedUpdatedAt: expected, values, recordedAt: now.toString(),
+        newArchiveNoteId: crypto.randomUUID(),
       });
       refresh();
       return { status: "success", message: "Behavior saved." };
@@ -83,10 +86,35 @@ export function createLocalBehaviorActions(profile: Profile, refresh: () => void
       const now = Temporal.Now.instant();
       const behaviorId = form.get("behavior_id");
       if (typeof behaviorId !== "string" || !behaviorId) throw new Error("Choose an existing behavior.");
-      await setBehaviorActive(createLocalBehaviorStore(profile.id, now), { behaviorId, active, recordedAt: now.toString() });
+      const expectedUpdatedAt = form.get("expected_updated_at");
+      if (typeof expectedUpdatedAt !== "string" || !expectedUpdatedAt) throw new Error("Reload this behavior before saving changes.");
+      const archiveNote = form.get("archive_note");
+      if (!active && typeof archiveNote !== "string") throw new Error("Archive note must be text.");
+      await setBehaviorActive(createLocalBehaviorStore(profile.id, now), {
+        behaviorId, active, expectedUpdatedAt, recordedAt: now.toString(),
+        ...(active ? {} : { archiveNote: archiveNote as string, newArchiveNoteId: crypto.randomUUID() }),
+      });
       refresh();
       return { status: "success", message: active ? "Behavior restored." : "Behavior archived." };
     } catch (error) { return behaviorErrorToActionState(error); }
   };
-  return { createAction, updateAction, archiveAction: lifecycle(false), restoreAction: lifecycle(true) };
+  const archiveNoteAction: BehaviorFormAction = async (_previous, form) => {
+    try {
+      const now = Temporal.Now.instant();
+      const behaviorId = form.get("behavior_id");
+      const archiveNoteId = form.get("archive_note_id");
+      const expectedUpdatedAt = form.get("expected_updated_at");
+      const note = form.get("archive_note_remove") === "1" ? "" : form.get("archive_note");
+      if (typeof behaviorId !== "string" || !behaviorId) throw new Error("Choose an existing behavior.");
+      if (typeof archiveNoteId !== "string" || !archiveNoteId) throw new Error("Choose an archive note to edit.");
+      if (typeof expectedUpdatedAt !== "string" || !expectedUpdatedAt) throw new Error("Reload this behavior before saving changes.");
+      if (typeof note !== "string") throw new Error("Archive note must be text.");
+      await updateBehaviorArchiveNote(createLocalBehaviorStore(profile.id, now), {
+        behaviorId, archiveNoteId, expectedUpdatedAt, note, recordedAt: now.toString(),
+      });
+      refresh();
+      return { status: "success", message: "Archive note saved." };
+    } catch (error) { return behaviorErrorToActionState(error); }
+  };
+  return { createAction, updateAction, archiveAction: lifecycle(false), restoreAction: lifecycle(true), archiveNoteAction };
 }

@@ -55,6 +55,7 @@ export type ExportPageBehaviorRow = Pick<
   | "reminder_offset_minutes"
   | "active"
   | "archived_at"
+  | "archive_notes"
   | "current_configuration_event_id"
   | "created_at"
   | "updated_at"

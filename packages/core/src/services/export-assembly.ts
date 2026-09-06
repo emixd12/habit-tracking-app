@@ -3,6 +3,7 @@ import { sha256 } from "../hash";
 import type { BehaviorGraphRecord } from "../behavior-store";
 import type { Json } from "../types/json";
 import { resolveExportBundle } from "../resolvers/export.resolver";
+import { parseArchiveNotes } from "../resolvers/archive-note.resolver";
 import { normalizeRecurrenceRule, recurrenceDefaultsFromRule, summarizeRecurrenceRule } from "./behavior-values";
 import { compareScheduleSlots, formatScheduleSlotsSummary, formatOccurrenceScheduleLabel, toScheduleSlotView } from "./schedule";
 import type {
@@ -413,6 +414,7 @@ function toExportBehaviorInput(
     reminderOffsetMinutes: behavior.reminder_offset_minutes,
     active: behavior.active,
     archivedAt: behavior.archived_at,
+    archiveNotes: parseArchiveNotes(behavior.archive_notes),
     createdAt: behavior.created_at,
     updatedAt: behavior.updated_at,
   };

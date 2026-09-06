@@ -23,7 +23,10 @@ export function behaviorLog03Files() {
     range: "all", includeNotes: true, includeTimeTracking: true,
     categories: [{ id: "unused-source-category", name: "Imported unused category", sort_order: 99,
       created_at: baseline.created_at, updated_at: baseline.created_at }],
-    behaviors: [{ ...storedBehavior(), current_configuration_event_id: revision.id,
+    behaviors: [{ ...storedBehavior(), archive_notes: [{
+      id: "33333333-3333-4333-8333-333333333333", archived_at: "2026-05-01T12:00:00Z",
+      updated_at: "2026-05-01T12:00:00Z", note: "Private archive context",
+    }], current_configuration_event_id: revision.id,
       reminder_offset_minutes: 15, updated_at: revision.created_at }],
     behaviorDefinitionEvents: [], behaviorConfigurationEvents: [baseline, revision], occurrences: [past, future],
     statusEvents: [past, future].map((occurrence, index) => ({ id: `source-status-${index}`,

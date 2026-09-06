@@ -216,7 +216,8 @@ to the explicit action when you need to review the whole draft first.
    the first open.
 2. Edit fields and choose **Save behavior**, or choose **Cancel** to avoid a
    server write.
-3. To remove the Behavior from active use, choose **Archive behavior** at the
+3. Optionally enter an **Archive note** explaining why tracking is ending.
+   To remove the Behavior from active use, choose **Archive behavior** at the
    end of the active row's settings.
 4. At the bottom of the screen, open **Archived behaviors (n)**. This
    disclosure is available even when the count is zero.
@@ -267,3 +268,21 @@ and archived lists. Overall adherence keeps its account-wide scope.
 Clear filters restores All categories and Scheduled time. Unsaved Behavior and
 Note drafts stay available when their rows are temporarily hidden.
 Controls survive in-screen refreshes; leaving Behaviors or reloading may reset them.
+
+
+## Review archive notes
+
+Open **Archived behaviors**, then the Behavior's details. **Archive history**
+shows each recorded archive date and its optional note. Change the text and
+choose **Save note**, or choose **Remove note** to clear it. Cadence retains the
+archive entry when its text is removed. Notes can contain up to 2,000 characters.
+
+Restore preserves archive history. Archiving again adds another entry without
+replacing earlier notes. Archives made before this feature have no recorded
+archive notes. Failed saves preserve your draft. If another copy changed the
+Behavior, reload the Behavior before retrying your correction.
+
+Archive notes sync with the account when linked and work offline on desktop.
+They appear in Full JSON and BehaviorLog exports when **Include Notes** is on.
+Turn that option off to omit their text from an export. The fields have visible
+labels and support keyboard input; controls wrap on narrow screens.

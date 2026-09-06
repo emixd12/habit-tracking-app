@@ -494,3 +494,9 @@ Desktop retains the same section with a locally prepared summary.
 CategoryPanel uses native inputs, a textarea, explicit deletion acknowledgement,
 and Move up / Move down text actions. BehaviorList uses native Category and Sort
 selects with matching counts and Clear filters. Hidden rows retain mounted drafts.
+
+
+Archive note controls reuse the Behavior details textareas and underlined text
+actions. Archived Behavior details display dated Archive history with Save note
+and Remove note. The shared web/desktop component stacks entries vertically
+and wraps actions on narrow screens. No token or navigation changes.

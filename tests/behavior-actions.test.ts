@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   createBehaviorFromFormData: vi.fn(),
   behaviorErrorToActionState: vi.fn(),
+  updateBehaviorArchiveNoteFromFormData: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
@@ -17,6 +18,7 @@ vi.mock("@/lib/services/behavior.service", () => ({
   updateBehaviorFromFormData: vi.fn(),
   archiveBehaviorFromFormData: vi.fn(),
   restoreBehaviorFromFormData: vi.fn(),
+  updateBehaviorArchiveNoteFromFormData: mocks.updateBehaviorArchiveNoteFromFormData,
   behaviorErrorToActionState: mocks.behaviorErrorToActionState,
 }));
 
@@ -51,6 +53,15 @@ describe("behavior actions", () => {
     expect(mocks.revalidatePath).toHaveBeenCalledTimes(1);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/timeline");
     expect(mocks.revalidatePath).not.toHaveBeenCalledWith("/behaviors");
+  });
+
+  it("revalidates archived behavior history after saving a note", async () => {
+    const { updateBehaviorArchiveNoteAction } = await import("../app/(app)/behaviors/actions");
+    const formData = new FormData();
+    const result = await updateBehaviorArchiveNoteAction({ status: "idle", message: "" }, formData);
+    expect(mocks.updateBehaviorArchiveNoteFromFormData).toHaveBeenCalledWith(formData);
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/behaviors");
+    expect(result).toEqual({ status: "success", message: "Archive note saved." });
   });
 });
 
@@ -92,6 +103,7 @@ function behaviorView(): BehaviorView {
     reminderSummary: "Browser notifications on",
     active: true,
     archivedAt: null,
+    archiveNotes: [],
     createdAt: "2026-06-26T12:00:00Z",
     updatedAt: "2026-06-26T12:00:00Z",
   };

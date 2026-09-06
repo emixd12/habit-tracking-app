@@ -1553,3 +1553,21 @@ Invalidation is explicit:
 
 Occurrence rows, occurrence status events, reminder deliveries, push
 subscriptions, and account deletion authorization data remain uncached.
+
+## Archive note history (Ticket 125)
+
+`behaviors.archive_notes` is non-null JSONB with default `[]`. Each entry has a
+UUID `id`, UTC `archived_at`, nullable plain-text `note`, and UTC `updated_at`.
+The same Behavior owner and RLS policies protect the history. The database
+validates shape, unique IDs, timestamps, and text bounds. The shared resolver
+normalizes text and validates the precise UI length limit.
+
+The existing Behavior graph transaction saves archive state and notes together.
+Restore preserves entries. Editing/removing text uses the loaded Behavior
+revision and retains entry identity and archive time. Notes do not create
+configuration or definition events. Account synchronization carries the whole
+Behavior history and rejects old writes that omit the new field. Old saved
+baselines normalize the missing field to an empty history.
+
+Migration: `20260906010951_add_behavior_archive_notes.sql`. Legacy archived
+rows remain empty; the migration does not fabricate past archive cycles.

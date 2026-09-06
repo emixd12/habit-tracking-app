@@ -52,6 +52,7 @@ import {
   planInitialBehaviorConfigurationEvent,
 } from "@/lib/resolvers/behavior-configuration.resolver";
 import { normalizeBehaviorDefinition } from "@/lib/resolvers/behavior-definition.resolver";
+import { serializeArchiveNotes } from "@cadence/core/resolvers/archive-note.resolver";
 import { markOccurrenceSyncStale } from "@/lib/services/occurrence-sync-state.service";
 import { repairUserOccurrenceReminderGraphBestEffort } from "@/lib/services/occurrence-reminder-repair.service";
 import {
@@ -536,6 +537,7 @@ export async function applyCreateMissingBehaviorLogImportPlan(
             ? false
             : behavior.cadenceActive ?? true,
           archived_at: behavior.archivedAtUtc,
+          archive_notes: serializeArchiveNotes(behavior.cadenceArchiveNotes ?? []),
           created_at: behavior.createdAtUtc ?? undefined,
         } satisfies NewBehavior,
       );
@@ -1043,6 +1045,7 @@ export async function applyApprovedBehaviorLogMergePlan(
             ? false
             : behavior.cadenceActive ?? true,
           archived_at: behavior.archivedAtUtc,
+          archive_notes: serializeArchiveNotes(behavior.cadenceArchiveNotes ?? []),
           created_at: behavior.createdAtUtc ?? undefined,
         } satisfies NewBehavior,
       );

@@ -81,6 +81,7 @@ export function planBehaviorLogRestoreWrite(context: PortabilityPlanContext & { 
         recurrence_rule: source.recurrence_rule as Json, scheduled_time: canonicalStoredTime(string(source.scheduled_time)), timezone: string(source.timezone),
         browser_reminder_enabled: source.browser_reminder_enabled === true, email_reminder_enabled: source.email_reminder_enabled === true,
         reminder_offset_minutes: Number(source.reminder_offset_minutes), active: source.active === true, archived_at: nullable(source.archived_at),
+        ...(source.archive_notes === undefined ? {} : { archive_notes: source.archive_notes as Json }),
         created_at: previous?.behavior.created_at ?? nullable(source.created_at) ?? context.now, updated_at: context.now };
       }
       graph.schedules = []; graph.slots = [];

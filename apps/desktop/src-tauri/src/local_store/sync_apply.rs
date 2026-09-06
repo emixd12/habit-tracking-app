@@ -944,8 +944,14 @@ mod tests {
             category_id: Some(category.id.clone()),
             title: "Graph behavior".into(),
             description: None,
-            active: true,
-            archived_at: None,
+            active: false,
+            archive_notes: vec![BehaviorArchiveNote {
+                id: "10000000-0000-4000-8000-000000000005".into(),
+                archived_at: stamp.clone(),
+                note: Some("Synced archive".into()),
+                updated_at: stamp.clone(),
+            }],
+            archived_at: Some(stamp.clone()),
             recurrence_rule: json!({"type":"daily","interval":1}),
             scheduled_time: "09:00:00".into(),
             timezone: "America/New_York".into(),
@@ -1050,6 +1056,11 @@ mod tests {
                 .unwrap()
                 .behavior_id,
             behavior.id
+        );
+        assert_eq!(
+            normalized(&db::by_id::<Behavior>(&connection, &profile, &behavior.id).unwrap())
+                .unwrap()["archive_notes"],
+            normalized(&behavior).unwrap()["archive_notes"]
         );
         let mut detached_behavior = behavior.clone();
         detached_behavior.category_id = None;

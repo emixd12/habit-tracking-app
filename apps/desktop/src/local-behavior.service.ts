@@ -37,7 +37,7 @@ export function createLocalBehaviorStore(profileId: string, now: Temporal.Instan
       if (input.behavior.user_id !== profileId) throw new Error("The Behavior belongs to a different profile.");
       const behaviorId = crypto.randomUUID();
       const configurationEvent = configurationRow(input.configurationEventPlan, profileId, behaviorId, timestamp);
-      const behavior: Behavior = { ...input.behavior, id: behaviorId,
+      const behavior: Behavior = { ...input.behavior, archive_notes: input.behavior.archive_notes ?? [], id: behaviorId,
         current_configuration_event_id: configurationEvent.id,
         scheduled_time: canonicalTime(input.behavior.scheduled_time),
         created_at: input.definitionEventPlan.recordedAt, updated_at: timestamp };

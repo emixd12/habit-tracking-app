@@ -44,8 +44,19 @@ impl StoredRow for Category {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
+pub struct BehaviorArchiveNote {
+    pub archived_at: String,
+    pub id: String,
+    pub note: Option<String>,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct Behavior {
     pub active: bool,
+    #[serde(default)]
+    pub archive_notes: Vec<BehaviorArchiveNote>,
     pub archived_at: Option<String>,
     pub browser_reminder_enabled: bool,
     pub category_id: Option<String>,
@@ -64,7 +75,7 @@ pub struct Behavior {
 }
 impl StoredRow for Behavior {
     const TABLE: &'static str = "behaviors";
-    const JSON_COLUMNS: &'static [&'static str] = &["recurrence_rule"];
+    const JSON_COLUMNS: &'static [&'static str] = &["archive_notes", "recurrence_rule"];
     const BOOL_COLUMNS: &'static [&'static str] = &[
         "active",
         "browser_reminder_enabled",

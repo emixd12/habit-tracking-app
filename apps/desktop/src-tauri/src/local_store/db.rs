@@ -1,4 +1,4 @@
-use super::rows::{Profile, StoredRow};
+use super::rows::{Behavior, Profile, StoredRow};
 use rusqlite::{
     params, params_from_iter, types::Value as SqlValue, Connection, OptionalExtension,
     TransactionBehavior,
@@ -65,6 +65,11 @@ pub(super) const MIGRATIONS: &[(i64, &str, &str)] = &[
         include_str!("../../migrations/0010_first_link_attempt_baseline.sql"),
     ),
     (11, "category_descriptions", include_str!("../../migrations/0011_category_descriptions.sql")),
+    (
+        12,
+        "behavior_archive_notes",
+        include_str!("../../migrations/0012_behavior_archive_notes.sql"),
+    ),
 ];
 
 pub fn open(path: &Path) -> Result<Connection> {
@@ -104,17 +109,22 @@ fn validate_backup(db: &Connection) -> Result<()> {
             |row| row.get(0),
         )
         .map_err(|_| "The selected file is not a Cadence database.".to_string())?;
-    if latest != MIGRATIONS.last().map_or(0, |migration| migration.0) {
+    if latest < 1 || latest > MIGRATIONS.last().map_or(0, |migration| migration.0) {
         return Err(
             if latest > MIGRATIONS.last().map_or(0, |migration| migration.0) {
                 "This backup needs a newer Cadence version."
             } else {
-                "This backup uses an older unsupported Cadence schema."
+                "This backup is missing its Cadence schema history."
             }
             .into(),
         );
     }
-    for (version, name, source) in MIGRATIONS {
+    let known_migrations = MIGRATIONS
+        .iter()
+        .take_while(|migration| migration.0 <= latest)
+        .copied()
+        .collect::<Vec<_>>();
+    for (version, name, source) in &known_migrations {
         let stored: (String, String) = db
             .query_row(
                 "SELECT name, source FROM schema_migrations WHERE version=?1",
@@ -130,11 +140,14 @@ fn validate_backup(db: &Connection) -> Result<()> {
     reference
         .execute_batch("PRAGMA foreign_keys = ON;")
         .map_err(error)?;
-    migrate(&mut reference, MIGRATIONS)?;
+    migrate(&mut reference, &known_migrations)?;
     if schema(db)? != schema(&reference)? {
         return Err("The selected database schema does not match this Cadence build.".into());
     }
-    profile(db)?;
+    let profile = profile(db)?;
+    for behavior in owned::<Behavior>(db, &profile.id)? {
+        validate_row(&profile.id, &behavior)?;
+    }
     Ok(())
 }
 
@@ -327,6 +340,16 @@ pub fn restore(live: &mut Connection, live_path: &Path, source_path: &Path) -> R
     validate_backup(&source)?;
     let staged = unique_sibling(live_path, "restore-stage")?;
     online_copy(&source, &staged)?;
+    let mut staged_db = Connection::open(&staged).map_err(error)?;
+    staged_db
+        .execute_batch("PRAGMA foreign_keys = ON;")
+        .map_err(error)?;
+    migrate(&mut staged_db, MIGRATIONS)?;
+    validate_backup(&staged_db)?;
+    staged_db
+        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;")
+        .map_err(error)?;
+    staged_db.close().map_err(|(_, failure)| error(failure))?;
     let protected = match protected_backup(live, live_path) {
         Ok(path) => path,
         Err(failure) => {
@@ -619,6 +642,58 @@ pub fn validate_row<T: StoredRow>(profile_id: &str, row: &T) -> Result<()> {
             }
         }
     }
+    if T::TABLE == "behaviors" {
+        validate_archive_notes(&value["archive_notes"])?;
+    }
+    Ok(())
+}
+
+fn validate_archive_notes(value: &Value) -> Result<()> {
+    let notes = value
+        .as_array()
+        .ok_or("Behavior archive notes must be an array.")?;
+    let mut ids = std::collections::HashSet::new();
+    for note in notes {
+        let object = note
+            .as_object()
+            .ok_or("A Behavior archive note must be an object.")?;
+        if object.len() != 4
+            || !["id", "archived_at", "note", "updated_at"]
+                .iter()
+                .all(|field| object.contains_key(*field))
+        {
+            return Err("A Behavior archive note has invalid fields.".into());
+        }
+        let id = object["id"]
+            .as_str()
+            .ok_or("A Behavior archive note ID must be a UUID.")?;
+        valid_id(id)?;
+        if !ids.insert(id.to_ascii_lowercase()) {
+            return Err("A Behavior archive note ID is duplicated.".into());
+        }
+        let archived_at = instant_key(
+            object["archived_at"]
+                .as_str()
+                .ok_or("A Behavior archive note timestamp must be a UTC instant.")?,
+        )?;
+        let updated_at = instant_key(
+            object["updated_at"]
+                .as_str()
+                .ok_or("A Behavior archive note timestamp must be a UTC instant.")?,
+        )?;
+        if updated_at < archived_at {
+            return Err("A Behavior archive note cannot predate its archive cycle.".into());
+        }
+        if let Some(note) = object["note"].as_str() {
+            if note.is_empty() || note != note.trim() || note.encode_utf16().count() > 2_000 {
+                return Err(
+                    "A Behavior archive note must be trimmed and at most 2,000 characters.".into(),
+                );
+            }
+        } else if !object["note"].is_null() {
+            return Err("A Behavior archive note must contain text or null.".into());
+        }
+    }
     Ok(())
 }
 
@@ -810,6 +885,32 @@ mod database_control_tests {
     }
 
     #[test]
+    fn restore_upgrades_a_known_older_backup_with_empty_archive_history() {
+        let directory = directory("restore-older-archive-notes");
+        let live_path = directory.join("cadence.sqlite3");
+        let source_path = directory.join("schema-11.sqlite3");
+        let mut source = Connection::open(&source_path).unwrap();
+        source.execute_batch("PRAGMA foreign_keys=ON").unwrap();
+        migrate(&mut source, &MIGRATIONS[..11]).unwrap();
+        seed(&mut source).unwrap();
+        let profile_id = profile(&source).unwrap().id;
+        let behavior_id = "60000000-0000-4000-8000-000000000001";
+        source.execute("INSERT INTO behaviors(id,user_id,category_id,title,description,recurrence_rule,scheduled_time,timezone,browser_reminder_enabled,email_reminder_enabled,reminder_offset_minutes,active,created_at,updated_at,archived_at,current_configuration_event_id) VALUES(?1,?2,NULL,'Legacy',NULL,'{\"type\":\"daily\",\"interval\":1}','09:00:00','America/New_York',1,0,0,1,'2026-09-01T00:00:00Z','2026-09-01T00:00:00Z',NULL,NULL)", params![behavior_id,profile_id]).unwrap();
+        source.close().unwrap();
+
+        let mut live = open(&live_path).unwrap();
+        restore(&mut live, &live_path, &source_path).unwrap();
+        let restored: super::super::rows::Behavior =
+            by_id(&live, &profile_id, behavior_id).unwrap();
+        assert!(restored.archive_notes.is_empty());
+        assert_eq!(
+            live.query_row("SELECT max(version) FROM schema_migrations", [], |row| row.get::<_, i64>(0)).unwrap(),
+            12
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn keep_local_copy_preserves_product_data_and_clears_only_account_link_state() {
         let directory = directory("disconnect-keep");
         let live_path = directory.join("cadence.sqlite3");
@@ -985,6 +1086,13 @@ mod database_control_tests {
         assert!(restore(&mut live, &live_path, &altered)
             .unwrap_err()
             .contains("schema does not match"));
+        let malformed = directory.join("malformed-archive-notes.sqlite3");
+        backup(&live, &live_path, &malformed).unwrap();
+        let malformed_db = Connection::open(&malformed).unwrap();
+        let profile_id = profile(&malformed_db).unwrap().id;
+        malformed_db.execute("INSERT INTO behaviors(id,user_id,category_id,title,description,recurrence_rule,scheduled_time,timezone,browser_reminder_enabled,email_reminder_enabled,reminder_offset_minutes,active,created_at,updated_at,archived_at,current_configuration_event_id,archive_notes) VALUES('70000000-0000-4000-8000-000000000001',?1,NULL,'Malformed',NULL,'{\"type\":\"daily\",\"interval\":1}','09:00:00','America/New_York',1,0,0,0,'2026-09-01T00:00:00Z','2026-09-01T00:00:00Z','2026-09-01T00:00:00Z',NULL,'[{\"id\":\"not-a-uuid\"}]')", [profile_id]).unwrap();
+        drop(malformed_db);
+        assert!(restore(&mut live, &live_path, &malformed).is_err());
         assert_eq!(profile(&live).unwrap().timezone, "America/New_York");
         std::fs::remove_dir_all(directory).unwrap();
     }

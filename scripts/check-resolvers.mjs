@@ -115,6 +115,12 @@ const resolverRegistry = [
     source: "docs/DESKTOP_BUILD.md",
   },
   {
+    domain: "archive notes",
+    resolver: "packages/core/src/resolvers/archive-note.resolver.ts",
+    test: "tests/archive-note.resolver.test.ts",
+    source: "docs/DATA_MODEL.md",
+  },
+  {
     domain: "desktop account synchronization",
     resolver: "packages/core/src/resolvers/account-sync.resolver.ts",
     test: "tests/account-sync.resolver.test.ts",

@@ -216,6 +216,7 @@ function behavior(overrides: Partial<BehaviorWithCategory> = {}): BehaviorWithCa
     email_reminder_enabled: false,
     reminder_offset_minutes: 0,
     active: true,
+    archive_notes: [],
     archived_at: null,
     current_configuration_event_id: "configuration-event-1",
     created_at: "2026-08-02T10:00:00Z",

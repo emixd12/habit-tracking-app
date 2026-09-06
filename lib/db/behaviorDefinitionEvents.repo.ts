@@ -340,6 +340,7 @@ function toBehaviorPayload(
     reminder_offset_minutes: behavior.reminder_offset_minutes,
     active: behavior.active,
     archived_at: behavior.archived_at ?? null,
+    archive_notes: behavior.archive_notes,
     created_at: "created_at" in behavior ? behavior.created_at ?? null : null,
   };
 }

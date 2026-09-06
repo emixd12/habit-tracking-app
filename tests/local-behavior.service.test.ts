@@ -13,7 +13,8 @@ vi.mock("../apps/desktop/src/local-store", () => ({
 }));
 const now = Temporal.Instant.from("2026-08-30T16:00:00Z");
 const recordedAt = now.toString();
-const { category: _category, schedules: nestedSchedules, schedule_slots: slots, ...behavior } = stored;
+const { category: _category, schedules: nestedSchedules, schedule_slots: slots, ...storedBehavior } = stored;
+const behavior = { ...storedBehavior, archive_notes: storedBehavior.archive_notes ?? [] };
 void _category;
 const fixture = {
   behavior,
@@ -107,10 +108,16 @@ describe("local Behavior adapter", () => {
   });
 
   it("archives through shared policy without inventing definition history", async () => {
-    await setBehaviorActive(createLocalBehaviorStore("owner", now), { behaviorId: "behavior", active: false, recordedAt });
+    await setBehaviorActive(createLocalBehaviorStore("owner", now), {
+      behaviorId: "behavior", active: false, expectedUpdatedAt: stored.updated_at,
+      recordedAt, newArchiveNoteId: "11111111-1111-4111-8111-111111111111", archiveNote: "Pausing",
+    });
     const commit = command.mock.calls.find(([operation]) => operation === "updateBehaviorGraph")![1];
     expect(commit).toMatchObject({ expectedRevision: 17, definitionEvent: null,
-      graph: { behavior: { active: false, archived_at: recordedAt } },
+      graph: { behavior: { active: false, archived_at: recordedAt, archive_notes: [{
+        id: "11111111-1111-4111-8111-111111111111", archived_at: recordedAt,
+        note: "Pausing", updated_at: recordedAt,
+      }] } },
       configurationEvent: { reason_code: "behavior_archived", changed_fields: ["active"] } });
   });
 });

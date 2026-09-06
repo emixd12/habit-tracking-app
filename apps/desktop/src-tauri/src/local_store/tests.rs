@@ -233,6 +233,61 @@ fn graph_revision_rejects_aba_and_foreign_rows() {
 }
 
 #[test]
+fn archive_history_validates_and_roundtrips_each_cycle() {
+    let mut fixture = Fixture::new();
+    fixture.create();
+    let original: Behavior = db::by_id(&fixture.db, &fixture.profile, &id(1)).unwrap();
+    let first = BehaviorArchiveNote {
+        id: id(6),
+        archived_at: "2026-08-30T12:01:00Z".into(),
+        note: Some("First cycle".into()),
+        updated_at: "2026-08-30T12:01:00Z".into(),
+    };
+    let mut archived = original.clone();
+    archived.active = false;
+    archived.archived_at = Some(first.archived_at.clone());
+    archived.archive_notes.push(first.clone());
+    behavior::validate_archive_history(&original, &archived).unwrap();
+    db::update(&fixture.db, &fixture.profile, &archived.id, &archived).unwrap();
+
+    let mut restored = archived.clone();
+    restored.active = true;
+    restored.archived_at = None;
+    behavior::validate_archive_history(&archived, &restored).unwrap();
+    let mut rearchived = restored.clone();
+    rearchived.active = false;
+    rearchived.archived_at = Some("2026-08-30T12:02:00Z".into());
+    rearchived.archive_notes.push(BehaviorArchiveNote {
+        id: id(7),
+        archived_at: "2026-08-30T12:02:00Z".into(),
+        note: None,
+        updated_at: "2026-08-30T12:02:00Z".into(),
+    });
+    behavior::validate_archive_history(&restored, &rearchived).unwrap();
+    assert!(behavior::validate_archive_history(&rearchived, &archived).is_err());
+
+    let mut invalid = rearchived.clone();
+    invalid.archive_notes[1].id = first.id;
+    assert!(db::validate_row(&fixture.profile, &invalid).is_err());
+    invalid = rearchived.clone();
+    invalid.archive_notes[1].note = Some(" untrimmed ".into());
+    assert!(db::validate_row(&fixture.profile, &invalid).is_err());
+    invalid.archive_notes[1].note = Some("x".repeat(2_001));
+    assert!(db::validate_row(&fixture.profile, &invalid).is_err());
+    invalid.archive_notes[1].note = Some("😀".repeat(1_001));
+    assert!(db::validate_row(&fixture.profile, &invalid).is_err());
+
+    db::update(&fixture.db, &fixture.profile, &rearchived.id, &rearchived).unwrap();
+    let reopened = db::open(&fixture.directory.join("data.sqlite3")).unwrap();
+    assert_eq!(
+        db::by_id::<Behavior>(&reopened, &fixture.profile, &id(1))
+            .unwrap()
+            .archive_notes,
+        rearchived.archive_notes
+    );
+}
+
+#[test]
 fn occurrence_identity_keeps_exact_and_different_ranges_and_rejects_stale_batch() {
     let mut fixture = Fixture::new();
     fixture.create();
@@ -869,6 +924,7 @@ fn accepted_archive_cannot_replace_definition_or_schedule() {
     assert_eq!(result["status"], "applied", "{result}");
     let archived = behavior::graph(&fixture.db, &profile, &id(1)).unwrap();
     assert!(!archived.behavior.active);
+    assert!(archived.behavior.archive_notes.is_empty());
     assert_eq!(archived.behavior.title, "Walk");
     assert_eq!(archived.slots[0].start_time, "09:00:00");
 }
@@ -963,14 +1019,14 @@ fn passive_intervention_import_accepts_standard_channels_without_scheduling_remi
 #[test]
 fn passive_intervention_migration_preserves_history_provenance_and_revision_after_rollback() {
     let mut fixture = Fixture::at_schema(5);
+    // Let the current Row type seed the older migration fixture without advancing its ledger.
+    fixture.db.execute_batch(db::MIGRATIONS[11].2).unwrap();
     let mut plan = import_plan(&fixture.profile);
     let intervention = imported_intervention(&fixture.profile, 200, "browser_push", "sent");
     plan["importedInterventionWrites"] = json!([{"expected":null,"next":intervention}]);
     prepare_import(&mut fixture, plan);
-    assert_eq!(
-        fixture.run(apply_import_request(), 101).unwrap()["status"],
-        "applied"
-    );
+    let applied = fixture.run(apply_import_request(), 101).unwrap();
+    assert_eq!(applied["status"], "applied", "{applied}");
     let reminder: ReminderDelivery = serde_json::from_value(json!({
         "id":id(201),"user_id":fixture.profile,"occurrence_id":id(10),
         "channel":"browser_push","status":"pending","scheduled_send_at":NOW,
@@ -1009,6 +1065,10 @@ fn passive_intervention_migration_preserves_history_provenance_and_revision_afte
 
     let mut before = before;
     for category in before["categories"].as_array_mut().unwrap() { category["description"] = Value::Null; }
+    fixture
+        .db
+        .execute_batch("ALTER TABLE behaviors DROP COLUMN archive_notes")
+        .unwrap();
     db::migrate(&mut fixture.db, db::MIGRATIONS).unwrap();
     assert_eq!(fixture.count("schema_migrations"), db::MIGRATIONS.len() as i64);
     assert_eq!(

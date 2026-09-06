@@ -60,6 +60,7 @@ export async function exerciseBehaviorLog03SqlContract(client: AppSupabaseClient
   // The web reader must include saved future rows and preserve imported history
   // without assigning imported rows to the new operational configuration.
   const bundle = await getExportPageData({ range: "all", now: NOW, includeNotes: true, includeTimeTracking: true });
+  expect(bundle.jsonBackup.behaviors[0].archive_notes).toMatchObject([{ note: "Private archive context" }]);
   const exported = bundle.behaviorLog.files;
   const exportedOccurrences = records(exported, "data/occurrences.jsonl");
   const future = exportedOccurrences.find((row) => row.local_date === "2026-09-01");
@@ -84,6 +85,7 @@ export async function exerciseBehaviorLog03SqlContract(client: AppSupabaseClient
     expect.objectContaining({ name: "Imported unused category", sort_order: 99 }),
   ]));
   const privateDefault = await getExportPageData({ range: "all", now: NOW });
+  expect(privateDefault.behaviorLog.files.some((file) => file.content.includes("Private archive context"))).toBe(false);
   expect(privateDefault.behaviorLog.files.some((file) => file.path === "data/notes.jsonl")).toBe(false);
   expect(privateDefault.behaviorLog.files.some((file) => file.path === "data/time_sessions.jsonl")).toBe(false);
 
@@ -163,6 +165,7 @@ export async function exerciseBehaviorLog03SqlContract(client: AppSupabaseClient
   expect(afterRestore.timeSessions).toHaveLength(1);
   expect(afterRestore.importedInterventions).toHaveLength(1);
   const restoredBundle = await getExportPageData({ range: "all", now: NOW, includeNotes: true, includeTimeTracking: true });
+  expect(restoredBundle.jsonBackup.behaviors[0].archive_notes).toEqual(bundle.jsonBackup.behaviors[0].archive_notes);
   const restoredFiles = restoredBundle.behaviorLog.files;
   const restoredHistory = records(restoredFiles, "data/behavior_configuration_events.jsonl");
   const byEventId = (left: Record<string, unknown>, right: Record<string, unknown>) =>

@@ -86,6 +86,35 @@ pub(super) fn validate_graph(profile_id: &str, graph: &GraphRows) -> Result<()> 
     Ok(())
 }
 
+pub(super) fn validate_archive_history(before: &Behavior, next: &Behavior) -> Result<()> {
+    if next.archive_notes.len() < before.archive_notes.len() {
+        return Err("A Behavior update cannot remove archive history.".into());
+    }
+    for (old, new) in before.archive_notes.iter().zip(&next.archive_notes) {
+        if old.id != new.id || old.archived_at != new.archived_at {
+            return Err("A Behavior update cannot replace archive history.".into());
+        }
+        if old != new && before.active {
+            return Err("A Behavior archive note can be edited only while archived.".into());
+        }
+    }
+    let appended = next.archive_notes.len() - before.archive_notes.len();
+    if before.active && !next.active {
+        if appended != 1
+            || next
+                .archive_notes
+                .last()
+                .map(|note| note.archived_at.as_str())
+                != next.archived_at.as_deref()
+        {
+            return Err("Archiving a Behavior requires one matching archive-history entry.".into());
+        }
+    } else if appended != 0 {
+        return Err("Archive history can grow only when a Behavior is archived.".into());
+    }
+    Ok(())
+}
+
 // This is a relational projection for plan validation. TypeScript owns normalization and history decisions.
 fn snapshot(graph: &GraphRows) -> Value {
     let behavior = &graph.behavior;
@@ -210,7 +239,11 @@ pub fn write_graph(
     } else {
         None
     };
+    if before.is_none() && !next.behavior.archive_notes.is_empty() {
+        return Err("A newly created Behavior cannot start with archive history.".into());
+    }
     if let Some(before) = &before {
+        validate_archive_history(&before.behavior, &next.behavior)?;
         if before.behavior.created_at != next.behavior.created_at {
             return Err("An edit cannot rewrite Behavior creation history.".into());
         }

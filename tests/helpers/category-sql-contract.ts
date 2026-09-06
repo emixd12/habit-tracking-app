@@ -25,7 +25,7 @@ export async function exerciseCategorySqlContract(client: AppSupabaseClient, use
     values: { ...CONTRACT_VALUES, title: "Travel routine", categoryId: id } });
   const archived = await createBehavior(store, { userId, timezone: "America/New_York", recordedAt: now,
     values: { ...CONTRACT_VALUES, title: "Archived travel routine", categoryId: id } });
-  await setBehaviorActive(store, { behaviorId: archived.id, active: false, recordedAt: now });
+  await setBehaviorActive(store, { behaviorId: archived.id, active: false, expectedUpdatedAt: archived.updated_at, newArchiveNoteId: crypto.randomUUID(), recordedAt: now });
   const baseline = (await listBehaviorConfigurationEvents(client, userId)).find((event) => event.behavior_id === created.id)!;
   const bundle = await getExportPageData({ range: "all", includeArchived: true, includeNotes: true, now: Temporal.Instant.from(now) });
   expect(bundle.jsonBackup.categories.find((row) => row.id === id)?.description).toBe("Routines while away");

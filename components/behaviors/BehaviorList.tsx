@@ -47,6 +47,7 @@ type BehaviorListProps = Readonly<{
   updateAction: BehaviorFormAction;
   archiveAction: BehaviorFormAction;
   restoreAction: BehaviorFormAction;
+  archiveNoteAction: BehaviorFormAction;
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
   stopTimeTrackingAction: TimeTrackingFormAction;
@@ -67,15 +68,17 @@ type BehaviorActionAnnouncement = Pick<
 type BehaviorLifecycleActionState = BehaviorActionState & {
   behaviorId: string | null;
   intent: BehaviorLifecycleIntent | null;
+  archiveNoteId: string | null;
 };
 
 type BehaviorLifecycleFormAction = (formData: FormData) => void;
-type BehaviorLifecycleIntent = "archive" | "restore";
+type BehaviorLifecycleIntent = "archive" | "restore" | "edit_archive_note";
 
 const EMPTY_LIFECYCLE_ACTION_STATE: BehaviorLifecycleActionState = {
   ...EMPTY_ACTION_STATE,
   behaviorId: null,
   intent: null,
+  archiveNoteId: null,
 };
 
 const OVERALL_CELL_CLASSES: Record<AnalyticsOverallDayState, string> = {
@@ -102,6 +105,7 @@ export function BehaviorList({
   updateAction,
   archiveAction,
   restoreAction,
+  archiveNoteAction,
   statusAction,
   noteAction,
   stopTimeTrackingAction,
@@ -139,13 +143,17 @@ export function BehaviorList({
       }
 
       return runBehaviorLifecycleAction(
-        intent === "archive" ? archiveAction : restoreAction,
+        intent === "archive"
+          ? archiveAction
+          : intent === "restore"
+            ? restoreAction
+            : archiveNoteAction,
         intent,
         previousState,
         formData,
       );
     },
-    [archiveAction, restoreAction],
+    [archiveAction, archiveNoteAction, restoreAction],
   );
   const [lifecycleState, lifecycleFormAction] = useActionState(
     lifecycleAction,
@@ -454,6 +462,7 @@ function BehaviorRecord({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <BehaviorStateForm
                 behaviorId={behavior.id}
+                expectedUpdatedAt={behavior.updatedAt}
                 intent="restore"
                 action={lifecycleFormAction}
                 result={lifecycleResult}
@@ -514,28 +523,37 @@ function BehaviorRecord({
                     behavior={behavior}
                     showActiveToggle={false}
                   />
-                  <div className="sm:absolute sm:bottom-0 sm:right-0">
+                  <div className="grid justify-items-end">
                     <BehaviorStateForm
                       behaviorId={behavior.id}
+                      expectedUpdatedAt={behavior.updatedAt}
                       intent="archive"
                       action={lifecycleFormAction}
                       result={lifecycleResult}
                       buttonLabel="Archive behavior"
                       pendingLabel="Archiving..."
                       variant="danger"
+                      allowArchiveNote
                     />
                   </div>
                 </div>
               ) : (
-                <BehaviorForm
-                  reminderRuntime={reminderRuntime}
-                  key={`${behavior.id}-${behavior.updatedAt}`}
-                  mode="edit"
-                  action={updateAction}
-                  categories={categories}
-                  behavior={behavior}
-                  showActiveToggle={false}
-                />
+                <div className="grid gap-5">
+                  <BehaviorForm
+                    reminderRuntime={reminderRuntime}
+                    key={`${behavior.id}-${behavior.updatedAt}`}
+                    mode="edit"
+                    action={updateAction}
+                    categories={categories}
+                    behavior={behavior}
+                    showActiveToggle={false}
+                  />
+                  <ArchiveNoteHistory
+                    behavior={behavior}
+                    action={lifecycleFormAction}
+                    result={lifecycleResult}
+                  />
+                </div>
               )}
             </>
           ) : null}
@@ -943,6 +961,95 @@ function ArchivedBehaviorDisclosure({
   );
 }
 
+function ArchiveNoteHistory({
+  behavior,
+  action,
+  result,
+}: Readonly<{
+  behavior: BehaviorView;
+  action: BehaviorLifecycleFormAction;
+  result: BehaviorLifecycleActionState;
+}>) {
+  const notes = [...(behavior.archiveNotes ?? [])].reverse();
+
+  return (
+    <section className="grid gap-3 border-t border-line pt-4" aria-labelledby={`archive-history-${behavior.id}`}>
+      <h4 id={`archive-history-${behavior.id}`} className="text-base leading-tight">Archive history</h4>
+      {notes.length === 0 ? <p className="text-sm text-muted-readable">No archive history recorded.</p> : null}
+      {notes.map((archiveNote) => (
+        <ArchiveNoteEntryForm
+          key={`${archiveNote.id}:${archiveNote.updatedAt}`}
+          behavior={behavior}
+          archiveNote={archiveNote}
+          action={action}
+          result={result}
+        />
+      ))}
+    </section>
+  );
+}
+
+function ArchiveNoteEntryForm({ behavior, archiveNote, action, result }: Readonly<{
+  behavior: BehaviorView;
+  archiveNote: BehaviorView["archiveNotes"][number];
+  action: BehaviorLifecycleFormAction;
+  result: BehaviorLifecycleActionState;
+}>) {
+  const [draft, setDraft] = useState(archiveNote.note ?? "");
+  const matchingResult = result.behaviorId === behavior.id &&
+    result.intent === "edit_archive_note" && result.archiveNoteId === archiveNote.id
+    ? result
+    : null;
+  const dateLabel = formatArchiveDate(archiveNote.archivedAt, behavior.timezone);
+  return (
+    <form action={action} className="grid gap-2 border-t border-line pt-3">
+      <input type="hidden" name="behavior_id" value={behavior.id} />
+      <input type="hidden" name="archive_note_id" value={archiveNote.id} />
+      <input type="hidden" name="expected_updated_at" value={behavior.updatedAt} />
+      <input type="hidden" name="behavior_lifecycle_intent" value="edit_archive_note" />
+      <label className="grid max-w-2xl gap-2 text-sm">
+        <span>Archived <time dateTime={archiveNote.archivedAt}>{dateLabel}</time></span>
+        <textarea
+          name="archive_note"
+          aria-label={`Archive note from ${dateLabel}`}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          maxLength={2000}
+          rows={2}
+          className="min-h-20 w-full border border-line bg-background px-3 py-2 text-foreground"
+        />
+      </label>
+      <ArchiveNoteButtons removable={archiveNote.note !== null} />
+      {matchingResult?.message ? (
+        <p className={matchingResult.status === "error" ? "text-sm text-accent" : "text-sm text-muted-readable"}>
+          {matchingResult.message}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
+function ArchiveNoteButtons({ removable }: Readonly<{ removable: boolean }>) {
+  const { pending } = useFormStatus();
+  return (
+    <div className="flex flex-wrap gap-2">
+      <button type="submit" disabled={pending} className="product-action product-action-primary min-h-11 py-2 text-sm">
+        {pending ? "Saving..." : "Save note"}
+      </button>
+      {removable ? (
+        <button type="submit" name="archive_note_remove" value="1" disabled={pending}
+          className="product-action product-action-secondary min-h-11 py-2 text-sm">
+          Remove note
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function formatArchiveDate(instant: string, timezone: string): string {
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: timezone }).format(new Date(instant));
+}
+
 function SummaryItem({
   label,
   value,
@@ -962,27 +1069,48 @@ function SummaryItem({
 
 function BehaviorStateForm({
   behaviorId,
+  expectedUpdatedAt,
   intent,
   action,
   result,
   buttonLabel,
   pendingLabel,
   variant,
+  allowArchiveNote = false,
 }: Readonly<{
   behaviorId: string;
+  expectedUpdatedAt: string;
   intent: BehaviorLifecycleIntent;
   action: BehaviorLifecycleFormAction;
   result: BehaviorLifecycleActionState;
   buttonLabel: string;
   pendingLabel: string;
   variant: "primary" | "danger";
+  allowArchiveNote?: boolean;
 }>) {
+  const [archiveNoteDraft, setArchiveNoteDraft] = useState("");
   const matchingResult =
     result.behaviorId === behaviorId && result.intent === intent ? result : null;
 
   return (
-    <form action={action} className="grid justify-start gap-2 text-sm">
+    <form action={action} className={allowArchiveNote
+      ? "grid w-full max-w-2xl gap-2 text-sm sm:grid-cols-[minmax(12rem,1fr)_auto] sm:items-end"
+      : "grid justify-start gap-2 text-sm"}>
       <input type="hidden" name="behavior_id" value={behaviorId} />
+      <input type="hidden" name="expected_updated_at" value={expectedUpdatedAt} />
+      {allowArchiveNote ? (
+        <label className="grid w-full max-w-md gap-2">
+          <span>Archive note (optional)</span>
+          <textarea
+            name="archive_note"
+            value={archiveNoteDraft}
+            onChange={(event) => setArchiveNoteDraft(event.target.value)}
+            maxLength={2000}
+            rows={2}
+            className="min-h-20 w-full border border-line bg-background px-3 py-2 text-foreground"
+          />
+        </label>
+      ) : null}
       <BehaviorStateButton
         intent={intent}
         label={buttonLabel}
@@ -1012,11 +1140,13 @@ async function runBehaviorLifecycleAction(
   formData: FormData,
 ): Promise<BehaviorLifecycleActionState> {
   const behaviorId = formData.get("behavior_id");
+  const archiveNoteId = formData.get("archive_note_id");
   const result = await action(previousState, formData);
 
   return {
     ...result,
     intent,
+    archiveNoteId: typeof archiveNoteId === "string" && archiveNoteId ? archiveNoteId : null,
     behaviorId:
       typeof behaviorId === "string" && behaviorId.length > 0
         ? behaviorId
@@ -1029,7 +1159,9 @@ function readBehaviorLifecycleIntent(
 ): BehaviorLifecycleIntent | null {
   const intent = formData.get("behavior_lifecycle_intent");
 
-  return intent === "archive" || intent === "restore" ? intent : null;
+  return intent === "archive" || intent === "restore" || intent === "edit_archive_note"
+    ? intent
+    : null;
 }
 
 function invalidBehaviorLifecycleActionState(
@@ -1042,6 +1174,7 @@ function invalidBehaviorLifecycleActionState(
     message: "Behavior action is unavailable. Try again.",
     behaviorId: typeof behaviorId === "string" ? behaviorId : null,
     intent: null,
+    archiveNoteId: null,
   };
 }
 

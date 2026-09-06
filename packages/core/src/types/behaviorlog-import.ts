@@ -1,6 +1,7 @@
 import type { OccurrenceStatus } from "./database";
 import type { BehaviorConfigurationSnapshot } from "./behavior-configuration-event";
 import type { Json } from "./json";
+import type { ArchiveNote } from "./behavior";
 
 export type BehaviorLogPortabilityData = {
   version: 1;
@@ -132,6 +133,7 @@ export type BehaviorLogExistingBehavior = {
   cadenceCategoryName?: string | null;
   active?: boolean | null;
   archivedAt?: string | null;
+  archiveNotes?: ArchiveNote[];
   sourceOriginalId?: string | null;
   schedules?: BehaviorLogExistingSchedule[];
   configurationSnapshot?: BehaviorConfigurationSnapshot;
@@ -272,6 +274,7 @@ export type BehaviorLogImportBehaviorPlan = {
   description: string | null;
   createdAtUtc: string | null;
   archivedAtUtc: string | null;
+  cadenceArchiveNotes?: ArchiveNote[];
   active?: boolean;
   cadenceActive: boolean | null;
   cadenceBrowserReminderEnabled: boolean | null;

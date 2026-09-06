@@ -635,6 +635,7 @@ function behaviorRow(overrides: Partial<Behavior> = {}): Behavior {
     email_reminder_enabled: true,
     reminder_offset_minutes: 60,
     active: true,
+    archive_notes: [],
     archived_at: null,
     current_configuration_event_id: null,
     created_at: "2026-06-01T10:00:00Z",

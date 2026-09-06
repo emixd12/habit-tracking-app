@@ -204,7 +204,9 @@ export function resolveExportBundle(input: ResolveExportInput): ExportBundle {
   const behaviorById = new Map(
     includedBehaviors.map((behavior) => [behavior.id, behavior]),
   );
-  const behaviors = includedBehaviors.map(toJsonBehavior);
+  const behaviors = includedBehaviors.map((behavior) =>
+    toJsonBehavior(behavior, includeNotes),
+  );
   const behaviorDefinitionEvents = toJsonBehaviorDefinitionEvents({
     behaviorDefinitionEvents: input.behaviorDefinitionEvents ?? [],
     behaviorById,
@@ -419,7 +421,10 @@ function toJsonCategories(
     }));
 }
 
-function toJsonBehavior(behavior: ExportBehaviorInput): ExportJsonBehavior {
+function toJsonBehavior(
+  behavior: ExportBehaviorInput,
+  includeNotes: boolean,
+): ExportJsonBehavior {
   return {
     id: behavior.id,
     category_id: behavior.categoryId,
@@ -436,6 +441,16 @@ function toJsonBehavior(behavior: ExportBehaviorInput): ExportJsonBehavior {
     reminder_offset_minutes: behavior.reminderOffsetMinutes,
     active: behavior.active,
     archived_at: behavior.archivedAt,
+    ...(behavior.archiveNotes
+      ? {
+          archive_notes: behavior.archiveNotes.map((entry) => ({
+            id: entry.id,
+            archived_at: entry.archivedAt,
+            note: includeNotes ? entry.note : null,
+            updated_at: entry.updatedAt,
+          })),
+        }
+      : {}),
     created_at: behavior.createdAt,
     updated_at: behavior.updatedAt,
   };
@@ -1042,7 +1057,11 @@ function toBehaviorLogBundle(input: ExportImportedHistory & {
     createBehaviorLogManifest({
       exportedAt: input.exportedAtInstant.toString(),
       profile: input.profile,
-      containsNotes: noteRecords.length > 0,
+      containsNotes:
+        noteRecords.length > 0 ||
+        input.behaviors.some((behavior) =>
+          behavior.archive_notes?.some((entry) => entry.note !== null),
+        ),
       nativeReminderCount: nativeRecords.length,
       containsInterventions:
         interventionRecords.length > 0 || interventionRuleRecords.length > 0,
@@ -1235,6 +1254,9 @@ function toBehaviorLogBehavior(
         browser_reminder_enabled: behavior.browser_reminder_enabled,
         email_reminder_enabled: behavior.email_reminder_enabled,
         reminder_offset_minutes: behavior.reminder_offset_minutes,
+        ...(behavior.archive_notes !== undefined
+          ? { archive_notes: behavior.archive_notes }
+          : {}),
       },
     },
   });

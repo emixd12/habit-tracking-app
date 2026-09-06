@@ -4,6 +4,7 @@ const USER_ID = "11111111-1111-4111-8111-111111111111";
 const BEHAVIOR_ID = "22222222-2222-4222-8222-222222222222";
 const SCHEDULE_ID = "33333333-3333-4333-8333-333333333333";
 const SCHEDULE_SLOT_ID = "44444444-4444-4444-8444-444444444444";
+const ARCHIVE_NOTE_ID = "55555555-5555-4555-8555-555555555555";
 const SUPABASE = { kind: "supabase" } as never;
 
 const mocks = vi.hoisted(() => ({
@@ -342,11 +343,37 @@ describe("behavior lifecycle reminder synchronization", () => {
     ).resolves.toBeUndefined();
     expect(mocks.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledOnce();
   });
+
+  it("updates one archived note atomically without replanning occurrences", async () => {
+    const archived = storedBehavior({
+      active: false,
+      archived_at: "2026-06-30T12:00:00Z",
+      archive_notes: [{ id: ARCHIVE_NOTE_ID, archived_at: "2026-06-30T12:00:00Z",
+        note: "Old", updated_at: "2026-06-30T12:00:00Z" }],
+    });
+    mocks.getBehaviorById.mockResolvedValue(archived);
+    mocks.updateBehaviorWithAtomicScheduleGraph.mockResolvedValue(archived);
+    const form = behaviorForm();
+    form.set("archive_note_id", ARCHIVE_NOTE_ID);
+    form.set("archive_note", "  Updated  ");
+    const { updateBehaviorArchiveNoteFromFormData } = await import("@/lib/services/behavior.service");
+    await updateBehaviorArchiveNoteFromFormData(form);
+    expect(mocks.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(SUPABASE, expect.objectContaining({
+      behaviorId: BEHAVIOR_ID,
+      expectedUpdatedAt: "2026-07-01T12:00:00Z",
+      definitionEventPlan: null,
+      configurationEventPlan: null,
+      behavior: expect.objectContaining({ archive_notes: [expect.objectContaining({ id: ARCHIVE_NOTE_ID, note: "Updated" })] }),
+    }));
+    expect(mocks.syncUserOccurrencesAndReminders).not.toHaveBeenCalled();
+  });
 });
 
 function behaviorForm(): FormData {
   const formData = new FormData();
   formData.set("behavior_id", BEHAVIOR_ID);
+  formData.set("expected_updated_at", "2026-07-01T12:00:00Z");
+  formData.set("archive_note", "");
   return formData;
 }
 
@@ -379,6 +406,7 @@ function storedBehavior(overrides: Record<string, unknown> = {}) {
     reminder_offset_minutes: 0,
     active: true,
     archived_at: null,
+    archive_notes: [],
     created_at: "2026-07-01T12:00:00Z",
     updated_at: "2026-07-01T12:00:00Z",
     category: null,

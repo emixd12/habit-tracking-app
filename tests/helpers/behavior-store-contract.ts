@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
 import { expect } from "vitest";
 import type { BehaviorDataStore, BehaviorGraphRecord, BehaviorInput } from "@cadence/core/behavior-store";
-import { createBehavior, setBehaviorActive, updateBehavior } from "@cadence/core/services/behavior.service";
+import { createBehavior, setBehaviorActive, updateBehavior, updateBehaviorArchiveNote } from "@cadence/core/services/behavior.service";
 import type { BehaviorConfigurationEvent, BehaviorDefinitionEvent } from "@/lib/types/database";
 
 export const CONTRACT_NOW = Temporal.Instant.from("2026-08-30T12:00:00Z");
@@ -79,7 +79,9 @@ export async function exerciseBehaviorStoreContract(adapter: ContractAdapter) {
   })).rejects.toMatchObject({ message: expect.stringMatching(/changed|constraint rejected the transaction/i) });
   expect(snapshotHash(await adapter.readSnapshot())).toBe(snapshotHash(edited));
 
-  await setBehaviorActive(storeAt(4), { behaviorId: created.id, active: false, recordedAt: recordedAt(4) });
+  const archiveNoteId = "11111111-1111-4111-8111-111111111111";
+  await setBehaviorActive(storeAt(4), { behaviorId: created.id, active: false, expectedUpdatedAt: updated.updated_at,
+    newArchiveNoteId: archiveNoteId, archiveNote: "  Program finished  ", recordedAt: recordedAt(4) });
   const archived = await adapter.readSnapshot();
   expect(archived.graphs[0].active).toBe(false);
   expect(Boolean(archived.graphs[0].archived_at)).toBe(true);
@@ -88,7 +90,8 @@ export async function exerciseBehaviorStoreContract(adapter: ContractAdapter) {
     "behavior_created", "behavior_edited", "behavior_archived",
   ]);
   expect(archived.syncState?.state_version).toBe(edited.syncState!.state_version + 1);
-  await setBehaviorActive(storeAt(5), { behaviorId: created.id, active: true, recordedAt: recordedAt(5) });
+  expect(archived.graphs[0].archive_notes).toMatchObject([{ id: archiveNoteId, note: "Program finished" }]);
+  await setBehaviorActive(storeAt(5), { behaviorId: created.id, active: true, expectedUpdatedAt: archived.graphs[0].updated_at, recordedAt: recordedAt(5) });
   const restored = await adapter.readSnapshot();
   expect(restored.graphs[0].active).toBe(true);
   expect(restored.graphs[0].archived_at).toBeNull();
@@ -97,7 +100,22 @@ export async function exerciseBehaviorStoreContract(adapter: ContractAdapter) {
     "behavior_created", "behavior_edited", "behavior_archived", "behavior_restored",
   ]);
   expect(restored.syncState?.state_version).toBe(archived.syncState!.state_version + 1);
-  return { behaviorId: created.id, definitionCount: 2, configurationCount: 4 };
+  expect(restored.graphs[0].archive_notes).toEqual(archived.graphs[0].archive_notes);
+  const archivedAgain = await setBehaviorActive(storeAt(6), { behaviorId: created.id, active: false,
+    expectedUpdatedAt: restored.graphs[0].updated_at, recordedAt: recordedAt(6),
+    newArchiveNoteId: "22222222-2222-4222-8222-222222222222", archiveNote: "Routine established" });
+  expect(archivedAgain.archive_notes).toMatchObject([{ note: "Program finished" }, { note: "Routine established" }]);
+  const revisedNote = await updateBehaviorArchiveNote(storeAt(7), { behaviorId: created.id, archiveNoteId,
+    expectedUpdatedAt: archivedAgain.updated_at, recordedAt: recordedAt(7), note: "Program completed" });
+  expect(revisedNote.archive_notes).toMatchObject([{ note: "Program completed" }, { note: "Routine established" }]);
+  const beforeStaleNote = snapshotHash(await adapter.readSnapshot());
+  await expect(updateBehaviorArchiveNote(storeAt(8), { behaviorId: created.id, archiveNoteId,
+    expectedUpdatedAt: created.updated_at, recordedAt: recordedAt(8), note: "Stale overwrite" })).rejects.toThrow(/changed/);
+  expect(snapshotHash(await adapter.readSnapshot())).toBe(beforeStaleNote);
+  const clearedNote = await updateBehaviorArchiveNote(storeAt(9), { behaviorId: created.id, archiveNoteId,
+    expectedUpdatedAt: revisedNote.updated_at, recordedAt: recordedAt(9), note: "" });
+  expect(clearedNote.archive_notes).toMatchObject([{ id: archiveNoteId, note: null }, { note: "Routine established" }]);
+  return { behaviorId: created.id, definitionCount: 2, configurationCount: 5 };
 }
 
 export function snapshotHash(snapshot: unknown) {

@@ -16,6 +16,7 @@ export const stored: BehaviorGraphRecord = {
   description: "A chapter", recurrence_rule: { frequency: "daily", interval: 1 },
   scheduled_time: "09:00", timezone: "America/New_York", browser_reminder_enabled: true,
   email_reminder_enabled: false, reminder_offset_minutes: 0, active: true, archived_at: null,
+  archive_notes: [],
   created_at: "2026-08-01T00:00:00Z", updated_at: "2026-08-29T00:00:00Z",
   current_configuration_event_id: "configuration", category: null,
   schedules: [schedule], schedule_slots: schedule.schedule_slots,

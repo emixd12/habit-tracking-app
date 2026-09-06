@@ -36,7 +36,8 @@ it("filters both lists, retains mounted drafts, clears controls, and resets remo
   const unchanged = async <T,>(state: T) => state;
   const props = { activeBehaviors: [home, other], archivedBehaviors: [{...home,id:"archived",active:false}], categories,
     analytics: resolveAnalytics({ occurrences: [], now: Temporal.Instant.from("2026-09-05T12:00:00Z"), timezone: "America/New_York" }),
-    updateAction: unchanged, archiveAction: unchanged, restoreAction: unchanged, statusAction: unchanged, noteAction: unchanged,
+    updateAction: unchanged, archiveAction: unchanged, restoreAction: unchanged, archiveNoteAction: unchanged,
+    statusAction: unchanged, noteAction: unchanged,
     stopTimeTrackingAction: unchanged, resetTimeTrackingAction: unchanged };
   await act(() => root.render(<LinkProvider component={(props) => <a {...props} />}><RefreshProvider onRefresh={() => undefined}><BehaviorList {...props} /></RefreshProvider></LinkProvider>));
   const selects = container.querySelectorAll("select"); const category = selects[0]; const sort = selects[1];
@@ -51,4 +52,31 @@ it("filters both lists, retains mounted drafts, clears controls, and resets remo
   await act(() => { category.value = "home"; category.dispatchEvent(new Event("change", { bubbles: true })); });
   await act(() => root.render(<LinkProvider component={(props) => <a {...props} />}><RefreshProvider onRefresh={() => undefined}><BehaviorList {...props} categories={[]} /></RefreshProvider></LinkProvider>));
   expect(category.value).toBe("all"); expect(container.textContent).toContain("selected category was removed");
+});
+it("keeps an archive-note draft after the archive action fails", async () => {
+  const behavior = toBehaviorView(storedBehavior());
+  const unchanged = async <T,>(state: T) => state;
+  const archiveAction = vi.fn(async (_state, form: FormData) => {
+    expect(form.get("expected_updated_at")).toBe(behavior.updatedAt);
+    expect(form.get("archive_note")).toBe("Pause during travel");
+    return { status: "error" as const, message: "Archive failed." };
+  });
+  const props = {
+    activeBehaviors: [behavior], archivedBehaviors: [], categories,
+    analytics: resolveAnalytics({ occurrences: [], now: Temporal.Instant.from("2026-09-05T12:00:00Z"), timezone: "America/New_York" }),
+    updateAction: unchanged, archiveAction, restoreAction: unchanged, archiveNoteAction: unchanged,
+    statusAction: unchanged, noteAction: unchanged, stopTimeTrackingAction: unchanged, resetTimeTrackingAction: unchanged,
+  };
+  await act(() => root.render(<LinkProvider component={(props) => <a {...props} />}><RefreshProvider onRefresh={() => undefined}><BehaviorList {...props} /></RefreshProvider></LinkProvider>));
+  const details = container.querySelector("article details") as HTMLDetailsElement;
+  await act(() => { details.open = true; details.dispatchEvent(new Event("toggle")); });
+  const note = container.querySelector<HTMLTextAreaElement>('[name="archive_note"]')!;
+  await act(() => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(note, "Pause during travel");
+    note.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await click("Archive behavior");
+  expect(archiveAction).toHaveBeenCalledOnce();
+  expect(note.value).toBe("Pause during travel");
+  expect(container.textContent).toContain("Archive failed.");
 });

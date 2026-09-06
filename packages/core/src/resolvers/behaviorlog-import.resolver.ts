@@ -35,6 +35,8 @@ import type {
 } from "../types/behaviorlog-import";
 import type { OccurrenceStatus } from "../types/database";
 import { behaviorLogScheduleIdentity, collectBehaviorLogPortability } from "../services/behaviorlog-preservation";
+import { parseArchiveNotes } from "./archive-note.resolver";
+import type { Json } from "../types/json";
 
 const BEHAVIORLOG_FORMAT = "behaviorlog.bundle";
 const BEHAVIORLOG_SUPPORTED_SCHEMA_VERSIONS = [
@@ -1034,6 +1036,7 @@ function toBehaviorPlan(
   const source = readSource(row, errors, false);
   const cadence = readCadenceExtension(row.record);
   const cadenceActive = readExtensionBoolean(cadence, "active");
+  const cadenceArchiveNotes = readArchiveNotes(cadence, row, errors);
 
   if (!id || !title || !category) {
     return null;
@@ -1059,6 +1062,7 @@ function toBehaviorPlan(
     description: readOptionalString(row, "description", errors),
     createdAtUtc,
     archivedAtUtc,
+    ...(cadenceArchiveNotes === undefined ? {} : { cadenceArchiveNotes }),
     active: archivedAtUtc === null,
     cadenceActive,
     cadenceBrowserReminderEnabled: readExtensionBoolean(
@@ -5510,6 +5514,30 @@ function readCadenceExtension(record: JsonRecord): JsonRecord | null {
   const cadence = extensions[BEHAVIORLOG_EXTENSION_NAMESPACE];
 
   return isRecord(cadence) ? cadence : null;
+}
+
+function readArchiveNotes(
+  extension: JsonRecord | null,
+  row: ParsedJsonlRecord,
+  errors: BehaviorLogImportIssue[],
+) {
+  if (!extension || !Object.hasOwn(extension, "archive_notes")) {
+    return undefined;
+  }
+
+  try {
+    return parseArchiveNotes(extension.archive_notes as Json);
+  } catch (error) {
+    errors.push({
+      severity: "error",
+      code: "cadence_archive_notes_invalid",
+      message: `${row.file} row ${row.row}: archive_notes is invalid: ${errorMessage(error)}.`,
+      file: row.file,
+      row: row.row,
+      path: "extensions.app.cadence.archive_notes",
+    });
+    return undefined;
+  }
 }
 
 function readExtensionString(
