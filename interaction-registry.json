@@ -136,10 +136,17 @@
     {
       "path": "apps/desktop/src/desktop-update-panel.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 6,
+      "interaction_marker_count": 20,
       "interaction_ids": [
         "INT-DESKTOP-002"
       ]
+    },
+    {
+      "path": "apps/desktop/src/settings-bench.tsx",
+      "classification": "excluded",
+      "interaction_marker_count": 2,
+      "interaction_ids": [],
+      "reason": "Synthetic developer-only Settings fixtures; no native updates or file mutations."
     },
     {
       "path": "apps/desktop/src/export-screen.tsx",
@@ -755,7 +762,8 @@
       },
       "status": "implemented",
       "surfaces": [
-        "settings"
+        "settings",
+        "app_shell"
       ],
       "routes": [
         "/settings"
@@ -763,7 +771,7 @@
       "journeys": [
         "J20"
       ],
-      "intent": "Explicitly check for a signed desktop update, install it, and restart Cadence.",
+      "intent": "Control automatic downloads, review a signed update, install it, and explicitly restart without losing drafts.",
       "triggers": [
         {
           "kind": "activate",
@@ -771,15 +779,43 @@
         },
         {
           "kind": "activate",
-          "control": "Download and install"
+          "control": "Download updates automatically"
+        },
+        {
+          "kind": "activate",
+          "control": "Review update"
+        },
+        {
+          "kind": "activate",
+          "control": "Later"
+        },
+        {
+          "kind": "activate",
+          "control": "Download update"
+        },
+        {
+          "kind": "activate",
+          "control": "Install update"
+        },
+        {
+          "kind": "activate",
+          "control": "Retry update"
         },
         {
           "kind": "activate",
           "control": "Restart Cadence"
+        },
+        {
+          "kind": "activate",
+          "control": "Keep editing"
+        },
+        {
+          "kind": "activate",
+          "control": "Discard drafts and restart"
         }
       ],
-      "availability": "Desktop Settings only. An unconfigured build shows unavailable text. Check and install controls follow updater state; restart appears only after installation.",
-      "success_result": "Checks the configured update feed, verifies the update signature during installation, and restarts only after a separate user action.",
+      "availability": "Configured desktop builds check at startup and every 24 hours while open. Settings and the nonmodal notice expose explicit installation and restart.",
+      "success_result": "Automatically downloads signed updates by default. Later snoozes one version for 24 hours. Installation and restart require separate actions. Restart waits for writes and saved or explicitly discarded drafts.",
       "failure_result": "Shows configuration, network, signature, installation, or restart errors without claiming success. Unconfigured builds do not contact an update feed.",
       "effects": [
         "network_request",
@@ -797,9 +833,11 @@
       "test_coverage": {
         "level": "indirect",
         "references": [
-          "tests/desktop-updater.test.ts"
+          "tests/desktop-updater.test.ts",
+          "tests/desktop-update-panel.test.tsx",
+          "tests/desktop-restart.test.tsx"
         ],
-        "notes": "Updater state and transport contracts are tested. Native signed archive installation, rejection paths, separate restart, and data preservation passed through the public HTTPS preview feed. Apple notarization remains a separate release gate."
+        "notes": "Controller and UI contracts cover automatic download, retained candidates, retry, snooze, and restart guards. Ticket 131 installed acceptance remains pending."
       },
       "platforms": {
         "web": {
@@ -817,9 +855,10 @@
           ],
           "evidence": [
             "tests/desktop-updater.test.ts",
-            "docs/qa/2026-08-31-desktop-preview.md#published-preview-continuation"
+            "tests/desktop-update-panel.test.tsx",
+            "tests/desktop-restart.test.tsx"
           ],
-          "reason": "The public preview feed proved check, signed archive installation, signature and tamper rejection, unavailable-download recovery, separate restart, and data preservation."
+          "reason": "Ticket 131 implementation; installed release acceptance remains pending."
         },
         "marketing": {
           "applicability": "not_applicable",

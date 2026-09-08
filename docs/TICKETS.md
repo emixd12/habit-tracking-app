@@ -9268,3 +9268,73 @@ Platform impact:
 | Future mobile | Implementation deferred; the shared dependency-safe sync contract defines future parity |
 
 ---
+
+## Ticket 131: Automatic downloads with user-controlled installation
+
+Status: in_progress (2026-09-08); excluded from the Tickets 129–130 repair release.
+
+Extend the existing signed Tauri updater. No new updater service or dependency is needed.
+
+**Checking and downloading**
+
+- Initialize the updater at app startup, independently of Settings.
+- Check after startup, then every 24 hours while running. Resume and connectivity recovery trigger overdue checks.
+- Persist the last attempt time to prevent repeated launch requests. Manual **Check for updates** bypasses this interval.
+- Download a newer release automatically. Retain one candidate per app session and release superseded resources.
+- Split the existing transport into `download`, `install`, and `restart`. Tauri already supports separate download and installation.
+- Keep the current HTTPS feed, signature verification, version ordering, and downgrade prevention.
+- Provide an enabled-by-default **Download updates automatically** setting. Disabling it retains manual checks and downloads.
+- Run no closed-app background helper. Downloads interrupted by quitting retry during a later app session.
+
+**Prompt and installation experience**
+
+- Show a nonmodal shell notice when the update is ready: version, **Review update**, and **Later**.
+- **Later** suppresses that version’s notice for 24 hours. Settings retains its update status and actions.
+- Settings shows release notes, download progress, installation state, and actionable retry errors.
+- Installation requires **Install update**. Restart requires a separate **Restart Cadence** action.
+- Prevent restart during active writes or maintenance. Require saving or explicitly discarding unsaved drafts before restart.
+- Keep ordinary background-check failures quiet outside Settings. Never steal focus or show recurring launch dialogs.
+- Recognize the existing incompatible-client sync response and show **Update required to synchronize** with a direct update action.
+- Keep local tracking available while an update is required.
+
+Compatibility acceptance details:
+
+- Both errors originate in `cadence_private.apply_account_sync_plan(jsonb)`.
+  Recognize SQLSTATE `22023` only with `Update Cadence before synchronizing category changes.`
+  or `Update Cadence before synchronizing Behavior changes.`.
+- Trace these RPC errors through the sync engine into desktop UI. Test both exact
+  compatibility responses and negative cases. Unrelated `22023`, network,
+  authorization, and ordinary conflicts must not prompt updates.
+- Persist an attempt when a check starts. Coalesce concurrent automatic checks.
+  Manual checks bypass the interval. Manual mode exposes explicit download before
+  the separate install and restart actions.
+
+Acceptance: verify automatic discovery/download, postponement, manual mode,
+offline recovery, signature rejection, navigation during download, installation
+failure, and draft-safe restart.
+
+Implementation references and contract ownership:
+
+- `apps/desktop/src/desktop-updater.ts`, `native-updater.ts`,
+  `desktop-update-panel.tsx`, `product.tsx`, `settings-screen.tsx`, and
+  `apps/desktop/src-tauri/src/updates.rs`.
+- `tests/desktop-updater.test.ts`, `tests/desktop-update-panel.test.tsx`,
+  `tests/desktop-restart.test.tsx`, and native updater tests.
+- `docs/DESKTOP_BUILD.md`, `docs/DESKTOP_RELEASE.md`, `docs/UI_SPEC.md`,
+  `docs/USER_FLOWS.md`, and `docs/user-guide/desktop-local.md`.
+- `interaction-registry.json` and `design-system.surfaces.json` retain interaction
+  and cross-platform design evidence.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Desktop | Owns startup scheduling, automatic downloads, Settings, shell notices, and guarded install/restart through the references above |
+| Web | No updater UI or service; desktop recognizes the existing incompatible-client response |
+| Marketing | Owns factual update/release help copy after acceptance; no new marketing layout |
+| Future mobile | Implementation deferred; native mobile update distribution requires a separately scoped ticket |
+
+Signed installed acceptance remains pending. Ticket 115 continues to own Apple
+Developer ID signing and notarization.
+
+---

@@ -2,7 +2,7 @@
 
 import { RuntimeLink as Link } from "@cadence/ui/runtime";
 import type { CSSProperties, ReactNode } from "react";
-import { useActionState, useCallback, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { BehaviorForm } from "@/components/behaviors/BehaviorForm";
@@ -18,6 +18,7 @@ import {
   upsertBehaviorView,
 } from "@/components/behaviors/behavior-list-state";
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
+import { DesktopFormDraftGuard } from "@/lib/desktop-draft";
 import { StatusButtons } from "@/components/timeline/StatusButtons";
 import type {
   AnalyticsBehaviorDayCell,
@@ -996,13 +997,32 @@ function ArchiveNoteEntryForm({ behavior, archiveNote, action, result }: Readonl
   result: BehaviorLifecycleActionState;
 }>) {
   const [draft, setDraft] = useState(archiveNote.note ?? "");
+  const [savedDraft, setSavedDraft] = useState(archiveNote.note ?? "");
+  const submittedDraftRef = useRef<string | null>(null);
   const matchingResult = result.behaviorId === behavior.id &&
     result.intent === "edit_archive_note" && result.archiveNoteId === archiveNote.id
     ? result
     : null;
   const dateLabel = formatArchiveDate(archiveNote.archivedAt, behavior.timezone);
+
+  useEffect(() => {
+    if (matchingResult?.status !== "success" || submittedDraftRef.current === null) return;
+    setSavedDraft(submittedDraftRef.current);
+  }, [matchingResult]);
+
   return (
-    <form action={action} className="grid gap-2 border-t border-line pt-3">
+    <form
+      action={action}
+      onSubmitCapture={(event) => {
+        const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+        submittedDraftRef.current = submitter?.name === "archive_note_remove" ? "" : draft;
+      }}
+      className="grid gap-2 border-t border-line pt-3"
+    >
+      <DesktopFormDraftGuard
+        dirty={draft !== savedDraft}
+        onDiscard={() => setDraft(savedDraft)}
+      />
       <input type="hidden" name="behavior_id" value={behavior.id} />
       <input type="hidden" name="archive_note_id" value={archiveNote.id} />
       <input type="hidden" name="expected_updated_at" value={behavior.updatedAt} />
@@ -1089,13 +1109,27 @@ function BehaviorStateForm({
   allowArchiveNote?: boolean;
 }>) {
   const [archiveNoteDraft, setArchiveNoteDraft] = useState("");
+  const submittedArchiveNoteRef = useRef<string | null>(null);
   const matchingResult =
     result.behaviorId === behaviorId && result.intent === intent ? result : null;
 
+  useEffect(() => {
+    if (
+      matchingResult?.status === "success" &&
+      submittedArchiveNoteRef.current === archiveNoteDraft
+    ) {
+      setArchiveNoteDraft("");
+    }
+  }, [archiveNoteDraft, matchingResult]);
+
   return (
-    <form action={action} className={allowArchiveNote
+    <form action={action} onSubmitCapture={() => { submittedArchiveNoteRef.current = archiveNoteDraft; }} className={allowArchiveNote
       ? "grid w-full max-w-2xl gap-2 text-sm sm:grid-cols-[minmax(12rem,1fr)_auto] sm:items-end"
       : "grid justify-start gap-2 text-sm"}>
+      <DesktopFormDraftGuard
+        dirty={allowArchiveNote && archiveNoteDraft.length > 0}
+        onDiscard={() => setArchiveNoteDraft("")}
+      />
       <input type="hidden" name="behavior_id" value={behaviorId} />
       <input type="hidden" name="expected_updated_at" value={expectedUpdatedAt} />
       {allowArchiveNote ? (

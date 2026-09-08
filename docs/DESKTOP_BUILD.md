@@ -450,18 +450,33 @@ run macOS 14. Keep Ticket 115 deferred. Public production publication remains an
 explicit owner-authorized action; do not publish or change providers as a side
 effect.
 
-## Storage and synchronization repair (Tickets 129–130)
+## Repair and automatic-update implementation (Tickets 129–131)
 
-Native reminder receipts retain one compact entry per operation and local owner.
-Startup creates a protected recovery backup, verifies data preservation, compacts
-SQLite, and reopens before exposing local tracking. Settings reports actual storage
-totals and provides acknowledged deletion of the verified recovery backup.
-Reconciliation bursts share one running and one pending refresh.
+Tickets 129 and 130 form the first repair release. Ticket 131 follows separately.
+The repair bounds native reminder receipts, coalesces refreshes to one running and
+one pending reconciliation, and preserves delivery evidence until SQLite commit.
+Migration 0014 performs guarded recovery before local tracking opens. The sync
+planner and SQLite/Postgres apply boundaries reject incomplete dependency graphs.
 
-The pure account planner validates complete graphs and cascades accepted Occurrence
-deletions to every attached reminder. SQLite and tracked Postgres apply guards
-reject orphan-producing plans and protected history deletion.
+Ticket 131 starts the existing signed updater independently of Settings. Checks
+persist their last attempt and run at startup or after 24 hours; resume and online
+events run overdue checks. Manual checks bypass the interval. Automatic download
+defaults on. One session controller retains a candidate across screen navigation.
+Download, installation, and restart remain distinct states and actions. A nonmodal
+notice offers inline review or a 24-hour version-specific snooze.
 
-This repair release excludes Ticket 131 automatic updates and Note shortcut runtime.
-SQLite migration 0013 remains a schema-only compatibility prerequisite for0014.
-Signed installed upgrade and owner account convergence remain acceptance gates.
+Restart refuses pending writes, account operations, synchronization, or unsaved
+drafts. Explicit discard clears tracked drafts only when writes are idle. The
+native restart command holds the existing LocalStore mutex through restart.
+The response producer is `cadence_private.apply_account_sync_plan(jsonb)`.
+Desktop recognizes SQLSTATE `22023` only with either exact message:
+
+- `Update Cadence before synchronizing category changes.`
+- `Update Cadence before synchronizing Behavior changes.`
+
+The guards originate in migrations `20260905035835` and `20260906010951`.
+These responses produce update-required synchronization state. Other errors retain
+their existing classification. Local tracking remains available.
+
+Installed recovery, signed repair upgrade, account convergence, and automatic
+update acceptance remain release gates. Automated tests do not establish these.

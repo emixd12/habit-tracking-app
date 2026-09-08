@@ -842,3 +842,14 @@ The shared web/desktop interface places Archive note (optional) beside Archive
 behavior in Details and Settings. Archived details show dated Archive history
 with Save note and Remove note actions. No predefined reasons or automatic
 archiving rules are added.
+
+### Desktop storage and update controls (Tickets 129 and 131)
+
+Local database Settings shows verified before/after bytes including recovery files.
+Deleting the exact repair backup requires a checkbox acknowledgement. App updates
+shows the automatic-download preference, download progress, plain-text release
+notes, and separate download/install/restart actions. A nonmodal notice opens
+review inline, preserving the mounted editor. Later snoozes one release for 24
+hours. Restart offers Keep editing or explicit draft discard when necessary.
+These controls use existing square layouts and text actions. Web and marketing
+are not applicable; future mobile implementation remains deferred.

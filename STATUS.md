@@ -43,6 +43,16 @@ When updating a ticket row:
 
 ## Current repository state
 
+Tickets 129–131 are in progress (2026-09-08). Tickets 129–130 release before 131.
+The Ticket 131 implementation extends the signed updater in an isolated release branch.
+Installed update acceptance remains pending.
+
+| Ticket | Status | Next action |
+|---|---|---|
+| 129: Bounded reminder bookkeeping and storage recovery | in_progress | Complete the repair release acceptance outside this branch |
+| 130: Dependency-safe account synchronization | in_progress | Complete owner-account convergence outside this branch |
+| 131: Automatic downloads with user-controlled installation | in_progress | Complete repair acceptance, then signed installed updater acceptance |
+
 Ticket 125 is complete locally (2026-09-05). Optional archive notes retain each archive cycle across
 Restore, web/desktop storage, account synchronization, and portable exports.
 Verification passed: 1,516 JavaScript tests, 69 native tests, 17 SQLite contracts,
@@ -6801,7 +6811,7 @@ release occurred. Preserve all unrelated Ticket 106 edits.
 
 ## Desktop repair — 2026-09-08
 
-Tickets 129 and 130 are in progress. Bounded reminder receipts and dependency-safe
-synchronization are implemented. SQLite schema 0013 is a compatibility prerequisite
-for 0014; this release excludes Note shortcut runtime and Ticket 131 automatic
-updates. Native signed upgrade and installed-data acceptance remain pending.
+Tickets 129–131 are in progress. Bounded reminder receipts, dependency-safe
+synchronization, and automatic updater downloads are implemented. SQLite schema
+0013 remains a compatibility prerequisite for 0014. This isolated updater release
+excludes Note shortcut runtime. Signed installation and updater acceptance remain pending.

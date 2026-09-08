@@ -6,6 +6,7 @@ import {
   TIMEZONE_ACTION_INITIAL_STATE,
   type TimezoneActionState,
 } from "@/lib/types/settings";
+import { DesktopDraftGuard } from "@/lib/desktop-draft";
 
 export type TimezoneUpdateAction = (
   state: TimezoneActionState,
@@ -84,6 +85,11 @@ export function TimezonePanel({
         action={formAction}
         className="mt-4 grid min-w-0 max-w-md grid-cols-1 gap-3"
       >
+        <DesktopDraftGuard
+          dirty={selectedTimezone !== savedTimezone}
+          pending={isPending}
+          onDiscard={() => setSelectedTimezone(savedTimezone)}
+        />
         <label htmlFor="timezone-select" className="sr-only">
           Timezone
         </label>

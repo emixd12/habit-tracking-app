@@ -9,9 +9,11 @@ import { CategoryPanel } from "@/components/settings/CategoryPanel";
 import { createLocalCategoryAction } from "./local-category.service";
 import { SettingsScreen } from "./settings-screen";
 import { LocalExportScreen } from "./export-screen";
-import { localCommand } from "./local-store";
+import { hasPendingLocalCommands, localCommand } from "./local-store";
 import { DesktopOnboardingGuide } from "./onboarding-guide";
-import { DesktopUpdatePanel } from "./desktop-update-panel";
+import { DesktopUpdateNotice, DesktopUpdatePanel } from "./desktop-update-panel";
+import { desktopUpdater } from "./native-updater";
+import { discardUnsavedDesktopDrafts, hasPendingDesktopWrites, hasUnsavedDesktopDrafts } from "./desktop-restart";
 import { LocalDatabaseControls } from "./local-database-controls";
 import { createLocalTimezoneAction } from "./local-settings.service";
 import { reconcileLocalReminders, reminderCoverageView, requestLocalNotificationPermission, retainNativeDeliveryEvents, type LocalReminderResult } from "./local-reminder.service";
@@ -45,6 +47,13 @@ export function Product() {
   const [reminderBusy, setReminderBusy] = useState(false);
   const [reminderError, setReminderError] = useState("");
   const [guideRequest, setGuideRequest] = useState(0);
+  const [restartBlocked, setRestartBlocked] = useState(false);
+  const [restartError, setRestartError] = useState("");
+  useEffect(() => {
+    if (!isTauri()) return;
+    void desktopUpdater.start();
+    return () => desktopUpdater.stop();
+  }, []);
   const [account, setAccount] = useState<DesktopAccountState>({ status: "local" });
   const [accountBusy, setAccountBusy] = useState(false);
   const [firstLink, setFirstLink] = useState<{ recognized: boolean; complete?: boolean; backupPath?: string; error?: string } | null>(null);
@@ -128,6 +137,7 @@ export function Product() {
         const events = await readNativeEvents();
         if (!mounted.current) return;
         retainNativeDeliveryEvents(events);
+        if (events.length) void desktopUpdater.checkOverdue();
         const occurrenceId = latestNotificationOccurrenceId(events);
         if (occurrenceId) {
           const requestKey = ++activationSequence.current;
@@ -175,6 +185,23 @@ export function Product() {
       else { setFirstLink({ recognized: false, complete: true, backupPath: result.backupPath ?? undefined }); setSyncReady(true); refresh(); }
     }).catch((failure) => setFirstLink((value) => ({ recognized: value?.recognized ?? true, backupPath: firstLinkFailureBackupPath(failure) ?? value?.backupPath, error: localErrorMessage(failure) }))).finally(() => setAccountBusy(false));
   };
+  useEffect(() => {
+    desktopUpdater.setRestartGuard(() => !syncRunning.current && !accountBusy && !hasPendingLocalCommands() && !hasPendingDesktopWrites() && !hasUnsavedDesktopDrafts());
+    return () => desktopUpdater.setRestartGuard(undefined);
+  }, [accountBusy]);
+  const restartUpdate = (discard = false) => {
+    setRestartError("");
+    if (syncRunning.current || accountBusy || hasPendingLocalCommands() || hasPendingDesktopWrites()) {
+      setRestartError("Wait for the current save or synchronization to finish before restarting.");
+      return;
+    }
+    if (discard && !discardUnsavedDesktopDrafts()) return;
+    if (hasUnsavedDesktopDrafts()) { setRestartBlocked(true); return; }
+    setRestartBlocked(false);
+    void desktopUpdater.restart();
+  };
+  const restartActions = { onRestart: () => restartUpdate(), onDiscardAndRestart: () => restartUpdate(true),
+    onCancelRestart: () => setRestartBlocked(false), restartBlocked };
   const profile = bundle?.timeline.profile;
   useEffect(() => {
     if (!profile || !auth.current) { setFirstLink(null); setSyncReady(false); return; }
@@ -262,6 +289,7 @@ export function Product() {
       onImport={() => runFirstLink("import")} onIgnore={() => runFirstLink("ignore")}
       onCancel={() => auth.current && runAccount(() => auth.current!.cancelLink())} /> : null}
     {syncReady ? <AccountSyncPanel status={syncStatus} busy={accountBusy || syncStatus.state === "syncing"} onSync={syncAccount}
+      onUpdate={() => { document.getElementById("app-updates")?.focus(); document.getElementById("app-updates")?.scrollIntoView({ block: "start" }); }}
       onReconnect={() => { if (!auth.current) return; setSyncStatus({ state: "revoked" }); runAccount(() => auth.current!.reconnect()); }} /> : null}</>;
 
   const resolveConflicts = (decisions: readonly AccountSyncConflictDecision[]) => {
@@ -304,6 +332,8 @@ export function Product() {
   return <DesktopApp activeScreen={activeScreen} onNavigate={navigate} availableScreens={AVAILABLE_SCREENS} conflictCount={conflictReview?.conflicts.length ?? 0}>
     {!isTauri() ? <div className="p-8"><h1 className="text-3xl font-bold">Open Cadence on your Mac</h1>
       <p className="mt-4">Local tracking uses the desktop app’s SQLite database. This browser preview cannot read or change it.</p></div> : null}
+    <DesktopUpdateNotice required={syncStatus.state === "update_required"} {...restartActions} />
+    {restartError ? <p role="status" className="px-4 py-3 text-sm text-accent">{restartError}</p> : null}
     {loading ? <p role="status" className="p-8">Opening local tracking data…</p> : null}
     {error ? <div role="alert" className="m-6 border border-line p-4"><p>{error}</p>
       <button className="product-action product-action-primary mt-3" onClick={refresh}>Try again</button></div> : null}
@@ -321,7 +351,7 @@ export function Product() {
         categoryControls={<CategoryPanel categories={bundle.timeline.categories}
           assignments={bundle.timeline.behaviors.map((behavior) => ({ id: behavior.id, categoryId: behavior.category_id, active: behavior.active, updatedAt: behavior.updated_at }))} action={categoryAction} />}
         accountControls={completeAccountControls}
-        updates={<DesktopUpdatePanel />}
+        updates={<div id="app-updates" tabIndex={-1} className="scroll-mt-20"><DesktopUpdatePanel {...restartActions} /></div>}
         databaseControls={<LocalDatabaseControls onRestored={refresh} />}
         updateTimezoneAction={timezoneAction} permission={permission} coverage={coverage}
         busy={reminderBusy} error={reminderError} onRequestPermission={() => refreshReminders(true)}

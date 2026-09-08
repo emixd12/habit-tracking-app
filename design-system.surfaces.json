@@ -738,12 +738,16 @@
             "docs/DESKTOP_BUILD.md",
             "tests/desktop-settings-ui.test.tsx",
             "components/settings/CategoryPanel.tsx",
-            "apps/desktop/src/local-database-controls.tsx"
+            "apps/desktop/src/product.tsx",
+            "apps/desktop/src/settings-bench.tsx",
+            "apps/desktop/src/desktop-update-panel.tsx",
+            "apps/desktop/src/local-database-controls.tsx",
+            "tests/desktop-update-panel.test.tsx"
           ],
           "implementationIds": [
             "module.category-panel"
           ],
-          "notes": "The local screen reuses timezone controls, reports native reminder coverage, exposes database controls, and presents the first account-link data choice. Automated account-choice and native protected-backup checks pass; live hosted first-link acceptance remains in progress. Ticket 129 shows verified recovery totals and acknowledged temporary-backup deletion. Installed acceptance remains pending."
+          "notes": "The local screen reuses timezone controls, reports native reminder coverage, exposes database controls, and presents the first account-link data choice. Automated account-choice and native protected-backup checks pass; live hosted first-link acceptance remains in progress. The settings fixture bench is apps/desktop/?bench=settings. Tickets 129 and 131 add verified recovery totals and explicit backup deletion, automatic-download controls, nonmodal update review, and draft-safe restart. Native release acceptance remains pending."
         },
         {
           "surfaceId": "mobile",

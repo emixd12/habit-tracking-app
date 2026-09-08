@@ -125,16 +125,22 @@ export type LocalCommandMap = {
   commitSyncState: { input: Mutation & { expectedVersion: number; state: OccurrenceSyncState }; result: OccurrenceSyncState };
 };
 
+let pendingLocalCommands = 0;
+export function hasPendingLocalCommands() { return pendingLocalCommands > 0; }
+
+export async function localDatabaseCommand<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  pendingLocalCommands += 1;
+  try { return await invoke<T>(command, args); }
+  catch (error) { throw error instanceof Error ? error : new Error(String(error)); }
+  finally { pendingLocalCommands -= 1; }
+}
+
 // No SQL, arbitrary table names, filesystem paths, or provider credentials cross IPC.
-export async function localCommand<K extends keyof LocalCommandMap>(
+export function localCommand<K extends keyof LocalCommandMap>(
   operation: K,
   input: LocalCommandMap[K]["input"],
 ): Promise<LocalCommandMap[K]["result"]> {
-  try {
-    return await invoke("local_store", { request: { operation, ...input } });
-  } catch (error) {
-    throw error instanceof Error ? error : new Error(String(error));
-  }
+  return localDatabaseCommand("local_store", { request: { operation, ...input } });
 }
 
 export function localMutation(profileId: string, now: string): Mutation {

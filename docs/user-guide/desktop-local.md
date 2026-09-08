@@ -137,12 +137,20 @@ shows an error instead of claiming the record was deleted.
 
 ## App updates
 
-Settings shows **Signed updates are not configured for this build** until the
-release configuration exists. Configured builds expose **Check for updates**.
-A found update requires **Download and install**, followed by **Restart Cadence**
-after installation. Cadence does not check or install updates automatically.
-Signed installation and recovery remain release-verification gates for this
-preview.
+Cadence checks for signed updates at startup and daily while open. Resume and
+connectivity recovery trigger an overdue check. **Check for updates** bypasses
+the daily interval. **Download updates automatically** is enabled by default.
+Turn it off to download manually.
+
+A downloaded update shows a nonmodal **Review update** notice. Reviewing keeps
+your current editor open. **Later** hides that version's notice for 24 hours.
+Review release notes, choose **Install update**, then choose **Restart Cadence**.
+Cadence waits for writes and synchronization. Save your drafts first, or choose
+**Discard drafts and restart**. **Keep editing** leaves drafts open.
+
+An incompatible synchronization response shows **Update required to synchronize**.
+Local tracking remains available. An unconfigured build shows **Signed updates
+are not configured for this build**. Ticket 131 installed acceptance is pending.
 
 ## Storage recovery
 

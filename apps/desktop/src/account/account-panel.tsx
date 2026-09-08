@@ -30,7 +30,7 @@ export function AccountPanel({ state, configured, connected, busy, onSignIn, onC
   </section>;
 }
 
-export function AccountSyncPanel({ status, busy, onSync, onReconnect }: Readonly<{ status: SyncStatus; busy: boolean; onSync: () => void; onReconnect: () => void }>) {
+export function AccountSyncPanel({ status, busy, onSync, onReconnect, onUpdate }: Readonly<{ status: SyncStatus; busy: boolean; onSync: () => void; onReconnect: () => void; onUpdate?: () => void }>) {
   const message = status.state === "offline" ? "Offline. Local changes will synchronize when Cadence reconnects."
     : status.state === "syncing" ? "Synchronizing account data…"
     : status.state === "current" ? "Account data is current."
@@ -40,7 +40,7 @@ export function AccountSyncPanel({ status, busy, onSync, onReconnect }: Readonly
   return <section id="account-sync" aria-busy={busy} className="bg-background py-4">
     <h3 className="text-lg leading-tight">Account synchronization</h3>
     <p role={status.state === "failed" || status.state === "revoked" ? "alert" : "status"} aria-live="polite" className={`mt-3 max-w-2xl text-sm leading-6 ${status.state === "failed" || status.state === "conflict" || status.state === "revoked" ? "text-accent" : "text-muted-readable"}`}>{message}</p>
-    <button type="button" disabled={busy} onClick={status.state === "revoked" ? onReconnect : onSync} className="product-action product-action-secondary mt-4 min-h-11 py-2 text-sm">{status.state === "revoked" ? "Reconnect account" : "Sync now"}</button>
+    <button type="button" disabled={busy} onClick={status.state === "update_required" ? onUpdate : status.state === "revoked" ? onReconnect : onSync} className="product-action product-action-secondary mt-4 min-h-11 py-2 text-sm">{status.state === "update_required" ? "Review update" : status.state === "revoked" ? "Reconnect account" : "Sync now"}</button>
   </section>;
 }
 

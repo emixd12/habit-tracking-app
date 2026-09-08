@@ -708,3 +708,13 @@ The shared web/desktop interface places Archive note (optional) beside Archive
 behavior in Details and Settings. Archived details show dated Archive history
 with Save note and Remove note actions. No predefined reasons or automatic
 archiving rules are added.
+
+### Desktop repair and update review (Tickets 129–131)
+
+Startup repairs oversized reminder receipts before opening local tracking. Settings
+shows verified storage totals and an acknowledged deletion action for the recovery
+backup. Dependency-safe account synchronization preserves linked-account metadata.
+Automatic update downloads present inline review without replacing an open editor.
+Installation and restart require separate actions. Unsaved drafts require saving
+or explicit discard; pending writes prevent restart. Web and marketing expose no
+native update or recovery controls. Future mobile remains deferred.

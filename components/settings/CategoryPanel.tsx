@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { DesktopDraftGuard, DesktopFormDraftGuard } from "@/lib/desktop-draft";
 import { categoryAssignmentSnapshot, type CategoryAssignment, categorySnapshot, CATEGORY_NAME_LIMIT, CATEGORY_DESCRIPTION_LIMIT,
   type ManagedCategory, type CategoryAction } from "@cadence/core/services/category.service";
 
@@ -27,6 +28,7 @@ export function CategoryPanel({ categories, assignments, action }: Readonly<{
     submit(form);
   }
   return <section id="categories" className="bg-background py-4" aria-labelledby="categories-title" aria-busy={pending}>
+    <DesktopDraftGuard pending={pending} />
     <h2 id="categories-title" className="text-xl leading-tight">Categories</h2>
     <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-readable">Organize Behaviors with your own categories. Descriptions provide context in forms and exports.</p>
     <p role={result.status === "error" ? "alert" : "status"} className="mt-3 text-sm">{pending ? "Saving categories…" : result.message}</p>
@@ -57,7 +59,9 @@ function CategoryEditor({ category, categories, assignments, pending, submit, ca
   const [expected] = useState(() => categorySnapshot(categories));
   const [expectedAssignments] = useState(() => categoryAssignmentSnapshot(assignments, category?.id ?? ""));
   const [deleting, setDeleting] = useState(false);
-  return <form onSubmit={(event) => { event.preventDefault(); submit(new FormData(event.currentTarget)); }} className="mt-4 grid max-w-2xl gap-4">
+  const [dirty, setDirty] = useState(false);
+  return <form onChangeCapture={() => setDirty(true)} onSubmit={(event) => { event.preventDefault(); submit(new FormData(event.currentTarget)); }} className="mt-4 grid max-w-2xl gap-4">
+    <DesktopFormDraftGuard dirty={dirty} onDiscard={cancel} />
     <input type="hidden" name="expected" value={expected} />
     <input type="hidden" name="expected_assignments" value={expectedAssignments} />
     <input type="hidden" name="category_id" value={category?.id ?? ""} />
@@ -76,7 +80,7 @@ function CategoryEditor({ category, categories, assignments, pending, submit, ca
       <div className="flex flex-wrap gap-4 text-sm">
         <button type="submit" className={`product-action min-h-11 ${deleting ? "product-action-danger" : "product-action-primary"}`}>{deleting ? "Delete category" : "Save category"}</button>
         <button type="button" className="product-action product-action-secondary min-h-11" onClick={cancel}>Cancel</button>
-        {category && !deleting ? <button type="button" className="product-action product-action-danger min-h-11" onClick={() => setDeleting(true)}>Delete category…</button> : null}
+        {category && !deleting ? <button type="button" className="product-action product-action-danger min-h-11" onClick={() => { setDeleting(true); setDirty(true); }}>Delete category…</button> : null}
       </div>
     </fieldset>
   </form>;

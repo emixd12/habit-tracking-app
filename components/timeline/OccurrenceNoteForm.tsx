@@ -1,13 +1,16 @@
 "use client";
 
 import { useRefresh } from "@cadence/ui/runtime";
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+
+import { resolveNoteUpdate } from "@cadence/core/resolvers/status.resolver";
 
 import type {
   OccurrenceActionState,
   OccurrenceFormAction,
 } from "@/lib/types/timeline";
+import { DesktopFormDraftGuard } from "@/lib/desktop-draft";
 
 type OccurrenceNoteFormProps = Readonly<{
   occurrenceId: string;
@@ -45,42 +48,73 @@ export function OccurrenceNoteForm({
   const refresh = useRefresh();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const draftRevisionRef = useRef(0);
+  const draftValueRef = useRef(note);
+  const [draftValue, setDraftValue] = useState(note);
+  const expectedNoteRef = useRef(note);
+  const [expectedNoteValue, setExpectedNoteValue] = useState(note);
   const submittedDraftRef = useRef<{
     value: string;
     revision: number;
   } | null>(null);
 
   useEffect(() => {
-    if (state.status === "success") {
-      const textarea = textareaRef.current;
-      const submittedDraft = submittedDraftRef.current;
-
-      if (textarea && submittedDraft) {
-        textarea.value = reconcileSavedNoteDraft({
+    const submittedDraft = submittedDraftRef.current;
+    if (state.status !== "idle" && submittedDraft) {
+      if (state.status === "success") {
+        expectedNoteRef.current = canonicalNoteValue(submittedDraft.value);
+        setExpectedNoteValue(expectedNoteRef.current);
+      }
+      if (textareaRef.current) {
+        textareaRef.current.value = reconcileSavedNoteDraft({
           submittedDraft: submittedDraft.value,
           submittedRevision: submittedDraft.revision,
-          currentDraft: textarea.value,
+          currentDraft: draftValueRef.current,
           currentRevision: draftRevisionRef.current,
         });
+        draftValueRef.current = textareaRef.current.value;
+        setDraftValue(textareaRef.current.value);
       }
+    }
 
+    if (state.status === "success") {
       refresh();
     }
   }, [refresh, state]);
+
+  useEffect(() => {
+    if (note === expectedNoteRef.current) return;
+    if (canonicalNoteValue(draftValueRef.current) !== expectedNoteRef.current) return;
+
+    expectedNoteRef.current = note;
+    setExpectedNoteValue(note);
+    draftValueRef.current = note;
+    setDraftValue(note);
+    if (textareaRef.current) textareaRef.current.value = note;
+  }, [note]);
 
   return (
     <form
       action={formAction}
       onSubmit={() => {
         submittedDraftRef.current = {
-          value: textareaRef.current?.value ?? "",
+          value: draftValueRef.current,
           revision: draftRevisionRef.current,
         };
       }}
       className={["grid", compact ? "gap-1" : "gap-3"].join(" ")}
     >
+      <DesktopFormDraftGuard
+        dirty={canonicalNoteValue(draftValue) !== expectedNoteValue}
+        onDiscard={() => {
+          const saved = expectedNoteRef.current;
+          draftRevisionRef.current += 1;
+          draftValueRef.current = saved;
+          setDraftValue(saved);
+          if (textareaRef.current) textareaRef.current.value = saved;
+        }}
+      />
       <input type="hidden" name="occurrence_id" value={occurrenceId} />
-      <input type="hidden" name="expected_note" value={note} />
+      <input type="hidden" name="expected_note" value={expectedNoteValue} readOnly />
       <label
         className={[
           "grid font-bold text-foreground",
@@ -92,7 +126,9 @@ export function OccurrenceNoteForm({
           ref={textareaRef}
           name="note"
           defaultValue={note}
-          onChange={() => {
+          onChange={(event) => {
+            draftValueRef.current = event.currentTarget.value;
+            setDraftValue(event.currentTarget.value);
             draftRevisionRef.current += 1;
           }}
           rows={3}
@@ -114,6 +150,10 @@ export function OccurrenceNoteForm({
       </div>
     </form>
   );
+}
+
+function canonicalNoteValue(note: string): string {
+  return resolveNoteUpdate({ note }).note ?? "";
 }
 
 function SaveNoteButton({ compact }: Readonly<{ compact: boolean }>) {
