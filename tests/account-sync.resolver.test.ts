@@ -3,9 +3,45 @@ import { ACCOUNT_SYNC_ROW_LIMIT, accountSyncFingerprint, resolveAccountSync, res
 
 const row = (id: string, title: string, user_id = "owner"): AccountSyncEntity => ({ kind: "behavior", id, value: { id, title, user_id } });
 const history = (id: string, occurrence: string, predecessor: string | null, status = "completed"): AccountSyncEntity => ({ kind: "status_event", id, value: { id, occurrence_id: occurrence, revises_event_id: predecessor, status, user_id: "owner" } });
-const snapshot = (entities: AccountSyncEntity[]): AccountSyncSnapshot => ({ entities });
+const rawSnapshot = (entities: AccountSyncEntity[]): AccountSyncSnapshot => ({ entities });
+const snapshot = (entities: AccountSyncEntity[]): AccountSyncSnapshot => {
+  const rows = new Map<string, AccountSyncEntity>();
+  const add = (entity: AccountSyncEntity) => rows.set(entity.kind === "profile" ? "profile:profile" : `${entity.kind}:${entity.id}`, entity);
+  add({ kind: "profile", id: "profile", value: { timezone: "UTC" } });
+  for (const source of entities) {
+    const value = source.value && !Array.isArray(source.value) && typeof source.value === "object" ? { ...source.value } : source.value;
+    if (value && !Array.isArray(value) && typeof value === "object") {
+      if (["schedule", "schedule_slot", "definition_event", "configuration_event", "occurrence", "status_event", "time_session"].includes(source.kind)) value.behavior_id ??= "fixture-behavior";
+      if (["mapping", "imported_note", "imported_intervention"].includes(source.kind)) value.import_run_id ??= "fixture-import";
+    }
+    add({ ...source, value });
+  }
+  for (const entity of [...rows.values()]) {
+    const value = entity.value && !Array.isArray(entity.value) && typeof entity.value === "object" ? entity.value : {};
+    const behaviorId = typeof value.behavior_id === "string" ? value.behavior_id : null;
+    if (behaviorId && !rows.has(`behavior:${behaviorId}`)) add(row(behaviorId, "Fixture Behavior"));
+    const occurrenceId = typeof value.occurrence_id === "string" ? value.occurrence_id : null;
+    if (occurrenceId && !rows.has(`occurrence:${occurrenceId}`)) add({ kind: "occurrence", id: occurrenceId, value: { id: occurrenceId, behavior_id: behaviorId ?? "fixture-behavior", status: "unresolved" } });
+    const importRunId = typeof value.import_run_id === "string" ? value.import_run_id : null;
+    if (importRunId && !rows.has(`import_run:${importRunId}`)) add({ kind: "import_run", id: importRunId, value: { id: importRunId } });
+  }
+  if ([...rows.values()].some(({ kind, value }) => kind === "occurrence" && value && !Array.isArray(value) && typeof value === "object" && value.behavior_id === "fixture-behavior") && !rows.has("behavior:fixture-behavior")) add(row("fixture-behavior", "Fixture Behavior"));
+  return rawSnapshot([...rows.values()]);
+};
 const empty = snapshot([]);
+const rawEmpty = rawSnapshot([]);
 const plan = (baseline: AccountSyncSnapshot, local: AccountSyncSnapshot, hosted: AccountSyncSnapshot) => resolveAccountSync({ accountLinkId: "link", baseline, local, hosted });
+const completeRows = (extra: AccountSyncEntity[] = []): AccountSyncEntity[] => [
+  { kind: "profile", id: "profile", value: { timezone: "UTC" } },
+  { kind: "behavior", id: "b", value: { id: "b", title: "Behavior", status: "active" } },
+  ...extra,
+];
+const occurrence = (status = "unresolved", note: string | null = null): AccountSyncEntity => ({
+  kind: "occurrence", id: "o", value: { id: "o", behavior_id: "b", status, note, scheduled_for: "2026-09-01T12:00:00Z" },
+});
+const reminder = (status: "pending" | "sent" | "failed" | "cancelled" = "pending"): AccountSyncEntity => ({
+  kind: "reminder_delivery", id: `r-${status}`, value: { id: `r-${status}`, occurrence_id: "o", status },
+});
 
 describe("resolveAccountSync", () => {
   it("replaces remapped first-link behavior and history IDs exactly without hosted writes", () => {
@@ -14,11 +50,11 @@ describe("resolveAccountSync", () => {
     const result = resolveFirstLinkReplacement({ accountLinkId: "link", baseline: local, local, hosted });
     expect(result.hostedWrites).toEqual([]);
     expect(result.conflicts).toEqual([]);
-    expect(result.localWrites).toMatchObject([
-      { id: "hosted-behavior", operation: "upsert" }, { id: "local-behavior", operation: "delete" },
-      { id: "hosted-event", operation: "upsert" }, { id: "local-event", operation: "delete" },
+    expect(result.localWrites.filter(({ id }) => ["hosted-behavior", "hosted-event", "local-behavior", "local-event"].includes(id))).toMatchObject([
+      { id: "hosted-behavior", operation: "upsert" }, { id: "hosted-event", operation: "upsert" },
+      { id: "local-behavior", operation: "delete" }, { id: "local-event", operation: "delete" },
     ]);
-    expect(result.mergedEntities.map(({ id }) => id)).toEqual(["hosted-behavior", "hosted-event"]);
+    expect(result.mergedEntities.filter(({ id }) => ["hosted-behavior", "hosted-event"].includes(id)).map(({ id }) => id)).toEqual(["hosted-behavior", "hosted-event"]);
   });
   it("merges independent changes and normalizes local and hosted ownership", () => {
     const base = snapshot([row("a", "A"), row("b", "B")]);
@@ -31,9 +67,11 @@ describe("resolveAccountSync", () => {
 
   it("synchronizes only profile timezone and includes reminder delivery rows", () => {
     const profile = (id: string, timezone: string, email: string): AccountSyncEntity => ({ kind: "profile", id, value: { id, timezone, email } });
-    const delivery: AccountSyncEntity = { kind: "reminder_delivery", id: "r", value: { id: "r", status: "sent", user_id: "hosted" } };
-    const base = snapshot([profile("hosted", "UTC", "old@example.test")]);
-    const result = plan(base, snapshot([profile("local", "UTC", "local@example.test")]), snapshot([profile("hosted", "America/New_York", "hosted@example.test"), delivery]));
+    const behavior = row("b", "Behavior");
+    const occurrence: AccountSyncEntity = { kind: "occurrence", id: "o", value: { id: "o", behavior_id: "b", status: "unresolved" } };
+    const delivery: AccountSyncEntity = { kind: "reminder_delivery", id: "r", value: { id: "r", occurrence_id: "o", status: "sent", user_id: "hosted" } };
+    const base = snapshot([profile("hosted", "UTC", "old@example.test"), behavior, occurrence]);
+    const result = plan(base, snapshot([profile("local", "UTC", "local@example.test"), behavior, occurrence]), snapshot([profile("hosted", "America/New_York", "hosted@example.test"), behavior, occurrence, delivery]));
     expect(result.conflicts).toEqual([]);
     expect(result.localWrites.map(({ kind }) => kind)).toEqual(["profile", "reminder_delivery"]);
     expect(result.mergedEntities.find(({ kind }) => kind === "profile")?.value).toEqual({ timezone: "America/New_York" });
@@ -46,6 +84,103 @@ describe("resolveAccountSync", () => {
     expect(replay.localWrites).toEqual([]); expect(replay.hostedWrites).toEqual([]);
   });
 
+  it("deletes an attached reminder when an unresolved Occurrence deletion is accepted", () => {
+    const occurrence: AccountSyncEntity = { kind: "occurrence", id: "o", value: { id: "o", behavior_id: "b", status: "unresolved", note: null } };
+    const reminder: AccountSyncEntity = { kind: "reminder_delivery", id: "r", value: { id: "r", occurrence_id: "o", status: "sent" } };
+    const baseline = snapshot(completeRows([occurrence, reminder]));
+    const result = plan(baseline, snapshot(completeRows()), baseline);
+
+    expect(result.localWrites).toEqual([]);
+    expect(result.hostedWrites).toMatchObject([
+      { kind: "reminder_delivery", id: "r", operation: "delete" },
+      { kind: "occurrence", id: "o", operation: "delete" },
+    ]);
+  });
+
+  it("deletes every reminder status with an accepted parent in either direction", () => {
+    const reminders = (["pending", "sent", "failed", "cancelled"] as const).map(reminder);
+    const baseline = snapshot(completeRows([occurrence(), ...reminders]));
+    const deleted = snapshot(completeRows());
+    const localDeletion = plan(baseline, deleted, baseline);
+    expect(localDeletion.hostedWrites.map(({ kind, operation }) => [kind, operation])).toEqual([
+      ...reminders.map(() => ["reminder_delivery", "delete"]),
+      ["occurrence", "delete"],
+    ]);
+    const hostedDeletion = plan(baseline, baseline, deleted);
+    expect(hostedDeletion.localWrites.map(({ kind, operation }) => [kind, operation])).toEqual([
+      ...reminders.map(() => ["reminder_delivery", "delete"]),
+      ["occurrence", "delete"],
+    ]);
+    expect(plan(baseline, deleted, deleted).mergedEntities.some(({ kind }) => kind === "reminder_delivery" || kind === "occurrence")).toBe(false);
+  });
+
+  it("rejects incomplete input graphs instead of inferring parent deletion", () => {
+    const baseline = snapshot(completeRows([occurrence(), reminder()]));
+    expect(() => plan(baseline, rawEmpty, baseline)).toThrow("requires complete baseline, local, and hosted graphs");
+    expect(() => plan(rawEmpty, rawEmpty, rawEmpty)).toThrow("requires complete baseline, local, and hosted graphs");
+    const orphaned = rawSnapshot(completeRows([reminder()]));
+    expect(() => plan(baseline, orphaned, baseline)).toThrow("references missing occurrence o; read a complete graph");
+    const malformed = rawSnapshot(completeRows([{ kind: "reminder_delivery", id: "r", value: { id: "r", status: "pending" } }]));
+    expect(() => plan(baseline, malformed, baseline)).toThrow("missing required reference occurrence_id");
+  });
+
+  it("rejects a merge that would retain a child after deleting its parent", () => {
+    const category: AccountSyncEntity = { kind: "category", id: "c", value: { id: "c", name: "Category" } };
+    const behavior: AccountSyncEntity = { kind: "behavior", id: "linked", value: { id: "linked", category_id: "c", title: "Linked" } };
+    const baseline = snapshot([category]);
+    expect(() => plan(baseline, empty, snapshot([category, behavior]))).toThrow("references missing category c; read a complete graph");
+  });
+
+  it("restores Occurrences and reminders that contain protected user data", () => {
+    const protectedGraphs = [
+      completeRows([occurrence("completed"), reminder("sent")]),
+      completeRows([occurrence("unresolved", "User Note"), reminder("failed")]),
+      completeRows([occurrence(), { kind: "status_event", id: "s", value: { id: "s", behavior_id: "b", occurrence_id: "o", revises_event_id: null, status: "completed" } }, reminder("cancelled")]),
+      completeRows([occurrence(), { kind: "time_session", id: "t", value: { id: "t", behavior_id: "b", occurrence_id: "o" } }, reminder("pending")]),
+    ];
+    for (const rows of protectedGraphs) {
+      const baseline = snapshot(rows);
+      const deleted = snapshot(completeRows());
+      const result = plan(baseline, deleted, baseline);
+      expect(result.conflicts).toEqual([]);
+      expect(result.localWrites.some(({ kind, operation }) => kind === "occurrence" && operation === "upsert")).toBe(true);
+      expect(result.localWrites.some(({ kind, operation }) => kind === "reminder_delivery" && operation === "upsert")).toBe(true);
+      expect(result.hostedWrites).toEqual([]);
+    }
+  });
+
+  it("deletes reminders after reviewed acceptance of an unprotected parent deletion", () => {
+    const baseline = snapshot(completeRows([occurrence(), reminder("sent")]));
+    const local = snapshot(completeRows());
+    const hosted = snapshot(completeRows([{ ...occurrence(), value: { ...(occurrence().value as object), scheduled_for: "2026-09-01T13:00:00Z" } }, reminder("sent")]));
+    const review = plan(baseline, local, hosted);
+    const resolved = resolveReviewedAccountSync({ accountLinkId: "link", baseline, local, hosted,
+      reviewedFingerprints: review.fingerprints, decisions: [{ kind: "occurrence", id: "o", choice: "local" }] });
+    expect(resolved.hostedWrites.map(({ kind, operation }) => [kind, operation])).toEqual([
+      ["reminder_delivery", "delete"], ["occurrence", "delete"],
+    ]);
+    expect(resolved.localWrites).toEqual([]);
+  });
+
+  it("does not let conflict review delete protected Occurrence content", () => {
+    const baseline = snapshot(completeRows([occurrence(), reminder()]));
+    const local = snapshot(completeRows());
+    const hosted = snapshot(completeRows([occurrence("unresolved", "Account Note"), reminder()]));
+    const review = plan(baseline, local, hosted);
+    expect(() => resolveReviewedAccountSync({ accountLinkId: "link", baseline, local, hosted,
+      reviewedFingerprints: review.fingerprints, decisions: [{ kind: "occurrence", id: "o", choice: "local" }] }))
+      .toThrow("cannot be deleted during synchronization");
+  });
+
+  it("routes deletion versus newly tracked time through conflict review", () => {
+    const baseline = snapshot(completeRows([occurrence(), reminder()]));
+    const local = snapshot(completeRows());
+    const hosted = snapshot(completeRows([occurrence(), { kind: "time_session", id: "t", value: { id: "t", behavior_id: "b", occurrence_id: "o" } }, reminder()]));
+    expect(plan(baseline, local, hosted).conflicts).toMatchObject([
+      { kind: "occurrence", id: "o", reason: "delete_vs_update" },
+    ]);
+  });
+
   it("normalizes equivalent UTC instant encodings without changing local dates or times", () => {
     const local: AccountSyncEntity = { kind: "occurrence", id: "o", value: { id: "o", scheduled_for: "2026-09-01T12:00:00.123456789Z", local_date: "2026-09-01", scheduled_time: "08:00:00" } };
     const hosted: AccountSyncEntity = { ...local, value: { ...local.value as object, scheduled_for: "2026-09-01T12:00:00.123457+00:00" } };
@@ -54,7 +189,7 @@ describe("resolveAccountSync", () => {
     expect(result.localWrites).toEqual([]);
     expect(result.hostedWrites).toEqual([]);
     expect(result.fingerprints.local).toBe(result.fingerprints.hosted);
-    expect(result.mergedEntities[0].value).toMatchObject({ local_date: "2026-09-01", scheduled_time: "08:00:00", scheduled_for: "2026-09-01T12:00:00.123457Z" });
+    expect(result.mergedEntities.find(({ kind }) => kind === "occurrence")?.value).toMatchObject({ local_date: "2026-09-01", scheduled_time: "08:00:00", scheduled_for: "2026-09-01T12:00:00.123457Z" });
   });
 
   it("uses PostgreSQL bytewise entity ordering and half-even microsecond rounding", () => {
@@ -64,13 +199,13 @@ describe("resolveAccountSync", () => {
       { kind: "occurrence", id: "carry", value: { id: "carry", scheduled_for: "2026-09-01T12:00:00.999999500Z" } },
     ];
     const result = plan(empty, snapshot(entities), empty);
-    expect(result.mergedEntities.map(({ kind }) => kind)).toEqual(["occurrence", "schedule", "schedule_slot"]);
-    expect(result.mergedEntities.map(({ value }) => value)).toMatchObject([
+    expect(result.mergedEntities.filter(({ kind }) => ["occurrence", "schedule", "schedule_slot"].includes(kind)).map(({ kind }) => kind)).toEqual(["occurrence", "schedule", "schedule_slot"]);
+    expect(result.mergedEntities.filter(({ kind }) => ["occurrence", "schedule", "schedule_slot"].includes(kind)).map(({ value }) => value)).toMatchObject([
       { scheduled_for: "2026-09-01T12:00:01.000000Z" },
       { created_at: "2026-09-01T12:00:00.123458Z", metadata: { "𐀀": 2, "": 1 } },
       { created_at: "2026-09-01T12:00:00.123456Z" },
     ]);
-    expect(accountSyncFingerprint({ entities })).toBe(result.fingerprints.merged);
+    expect(accountSyncFingerprint(snapshot(entities))).toBe(result.fingerprints.merged);
   });
 
   it("ignores database-generated occurrence range identity across stores", () => {
@@ -89,17 +224,28 @@ describe("resolveAccountSync", () => {
     expect(result.fingerprints.local).toBe(result.fingerprints.hosted);
   });
 
-  it("repairs deletion of protected Behavior, provenance, and delivery rows from the retained copy", () => {
-    for (const kind of ["behavior", "import_run", "imported_note", "imported_intervention", "reminder_delivery"] as const) {
+  it("repairs deletion of protected Behavior and provenance rows from the retained copy", () => {
+    for (const kind of ["behavior", "import_run", "imported_note", "imported_intervention"] as const) {
       const base = snapshot([{ kind, id: kind, value: { id: kind } }]);
-      expect(plan(base, empty, base)).toMatchObject({ conflicts: [], localWrites: [{ kind, id: kind, operation: "upsert" }] });
+      const result = plan(base, empty, base);
+      expect(result.conflicts).toEqual([]);
+      expect(result.localWrites).toContainEqual(expect.objectContaining({ kind, id: kind, operation: "upsert" }));
     }
+  });
+
+  it("retains every reminder while its Occurrence remains", () => {
+    const occurrence: AccountSyncEntity = { kind: "occurrence", id: "o", value: { id: "o", status: "unresolved" } };
+    const reminder: AccountSyncEntity = { kind: "reminder_delivery", id: "r", value: { id: "r", occurrence_id: "o", status: "failed" } };
+    const baseline = snapshot([occurrence, reminder]);
+    expect(plan(baseline, snapshot([occurrence]), baseline).localWrites).toMatchObject([
+      { kind: "reminder_delivery", id: "r", operation: "upsert" },
+    ]);
   });
 
   it("repairs deletion of a resolved Occurrence but reviews an unresolved Occurrence", () => {
     const occurrence = (status: "unresolved" | "completed"): AccountSyncEntity => ({ kind: "occurrence", id: "o", value: { id: "o", status } });
     const resolved = snapshot([occurrence("completed")]);
-    expect(plan(resolved, empty, resolved)).toMatchObject({ conflicts: [], localWrites: [{ kind: "occurrence", id: "o", operation: "upsert" }] });
+    expect(plan(resolved, empty, resolved).localWrites).toContainEqual(expect.objectContaining({ kind: "occurrence", id: "o", operation: "upsert" }));
     const unresolved = snapshot([occurrence("unresolved")]), hosted = snapshot([{ ...occurrence("unresolved"), value: { id: "o", status: "unresolved", note: "changed" } }]);
     expect(plan(unresolved, empty, hosted).conflicts).toMatchObject([{ kind: "occurrence", id: "o", reason: "delete_vs_update" }]);
   });
@@ -114,7 +260,7 @@ describe("resolveAccountSync", () => {
   it("unions append-only history but rejects rewrites, deletions, id collisions, and branches", () => {
     const prior = history("prior", "occ", null), localNext = history("local", "occ", "prior"), hostedNext = history("hosted", "occ", "prior");
     expect(plan(snapshot([prior]), snapshot([prior, history("l", "other", null)]), snapshot([prior, history("h", "third", null)])).conflicts).toEqual([]);
-    expect(plan(snapshot([prior]), empty, snapshot([prior]))).toMatchObject({ conflicts: [], localWrites: [{ id: "prior", operation: "upsert" }] });
+    expect(plan(snapshot([prior]), empty, snapshot([prior])).localWrites).toContainEqual(expect.objectContaining({ id: "prior", operation: "upsert" }));
     expect(() => plan(empty, snapshot([history("same", "occ", null)]), snapshot([{ ...history("same", "occ", null), value: { id: "same", occurrence_id: "different" } }]))).toThrow("incompatible append-only history");
     expect(() => plan(snapshot([prior]), snapshot([prior, localNext]), snapshot([prior, hostedNext]))).toThrow("branched status history");
   });
@@ -129,8 +275,8 @@ describe("resolveAccountSync", () => {
     const hydrated = resolveAccountSync({ accountLinkId: "link", baseline: empty, local: empty, hosted: snapshot([first, second]), firstHostedHydration: true });
     expect(hydrated.conflicts).toEqual([]);
     expect(hydrated.hostedWrites).toEqual([]);
-    expect(hydrated.localWrites).toMatchObject([{ id: "first", operation: "upsert" }, { id: "second", operation: "upsert" }]);
-    expect(hydrated.mergedEntities.map(({ id }) => id)).toEqual(["first", "second"]);
+    expect(hydrated.localWrites.filter(({ kind }) => kind === "status_event")).toMatchObject([{ id: "first", operation: "upsert" }, { id: "second", operation: "upsert" }]);
+    expect(hydrated.mergedEntities.filter(({ kind }) => kind === "status_event").map(({ id }) => id)).toEqual(["first", "second"]);
 
     expect(() => resolveAccountSync({ accountLinkId: "link", baseline: empty, local: empty,
       hosted: snapshot([first, history("different", "occ", null, "not_completed")]), firstHostedHydration: true })).toThrow("hosted account snapshot contains branched status history");
@@ -153,7 +299,7 @@ describe("resolveAccountSync", () => {
   });
 
   it("rejects duplicate identities and collection rows above the ceiling", () => {
-    expect(() => plan(empty, snapshot([row("a", "A"), row("a", "A")]), empty)).toThrow("Duplicate account synchronization entity");
+    expect(() => plan(empty, rawSnapshot([{ kind: "profile", id: "profile", value: { timezone: "UTC" } }, row("a", "A"), row("a", "A")]), empty)).toThrow("Duplicate account synchronization entity");
     const rows = Array.from({ length: ACCOUNT_SYNC_ROW_LIMIT + 1 }, (_, index) => row(String(index), "A"));
     expect(() => plan(empty, snapshot(rows), empty)).toThrow("exceeds 100,000 rows");
   });

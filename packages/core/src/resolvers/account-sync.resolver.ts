@@ -17,44 +17,54 @@ export type AccountSyncConflictDecision = Readonly<{ kind: AccountSyncEntityKind
 export type AccountSyncPlan = Readonly<{ localWrites: readonly AccountSyncWrite[]; hostedWrites: readonly AccountSyncWrite[]; conflicts: readonly AccountSyncConflict[]; mergedEntities: readonly AccountSyncEntity[]; fingerprints: Readonly<{ baseline: string; local: string; hosted: string; merged: string | null }>; idempotencyKey: string | null }>;
 
 const HISTORY = new Set<AccountSyncEntityKind>(["definition_event", "configuration_event", "status_event", "mapping"]);
-const PROTECTED_DELETE = new Set<AccountSyncEntityKind>(["behavior", "import_run", "imported_note", "imported_intervention", "reminder_delivery"]);
+const PROTECTED_DELETE = new Set<AccountSyncEntityKind>(["behavior", "import_run", "imported_note", "imported_intervention", "reminder_delivery", "time_session"]);
 
 export function accountSyncFingerprint(snapshot: AccountSyncSnapshot): string { return fingerprint(prepare(snapshot).values()); }
 
 export function resolveFirstLinkReplacement(input: Readonly<{ accountLinkId: string; baseline: AccountSyncSnapshot; local: AccountSyncSnapshot; hosted: AccountSyncSnapshot }>): AccountSyncPlan {
   const baseline = prepare(input.baseline), local = prepare(input.local), hosted = prepare(input.hosted);
+  validateInputGraphs(true, baseline, local, hosted);
   const fingerprints = { baseline: fingerprint(baseline.values()), local: fingerprint(local.values()), hosted: fingerprint(hosted.values()) };
   const mergedEntities = [...hosted.values()].sort(compareEntity), merged = fingerprint(mergedEntities);
   return { localWrites: writesBetween(local, hosted), hostedWrites: [], conflicts: [], mergedEntities,
     fingerprints: { ...fingerprints, merged }, idempotencyKey: sha256(`${input.accountLinkId}:${fingerprints.baseline}:${fingerprints.local}:${fingerprints.hosted}:${merged}:first-link-replacement`) };
 }
 
-export function resolveAccountSync(input: Readonly<{ accountLinkId?: string; baseline: AccountSyncSnapshot; local: AccountSyncSnapshot; hosted: AccountSyncSnapshot; firstHostedHydration?: boolean }>): AccountSyncPlan {
+export function resolveAccountSync(input: Readonly<{ accountLinkId?: string; baseline: AccountSyncSnapshot; local: AccountSyncSnapshot; hosted: AccountSyncSnapshot; firstLink?: boolean; firstHostedHydration?: boolean }>): AccountSyncPlan {
   const accountLinkId = input.accountLinkId ?? "account-link";
   const baseline = prepare(input.baseline), local = prepare(input.local), hosted = prepare(input.hosted);
+  validateInputGraphs(input.firstLink === true, baseline, local, hosted);
+  const baselineProtectedOccurrences = protectedOccurrenceIds(baseline);
+  const protectedOccurrences = protectedOccurrenceIds(baseline, local, hosted);
   const fingerprints = { baseline: fingerprint(baseline.values()), local: fingerprint(local.values()), hosted: fingerprint(hosted.values()) };
   const keys = [...new Set([...baseline.keys(), ...local.keys(), ...hosted.keys()])].sort();
-  const localWrites: AccountSyncWrite[] = [], hostedWrites: AccountSyncWrite[] = [], conflicts: AccountSyncConflict[] = [], mergedEntities: AccountSyncEntity[] = [];
+  const conflicts: AccountSyncConflict[] = [], mergedEntities: AccountSyncEntity[] = [];
   for (const key of keys) {
     const base = baseline.get(key) ?? null, left = local.get(key) ?? null, right = hosted.get(key) ?? null;
+    if (base?.kind === "occurrence" && (!left || !right) && protectedOccurrences.has(base.id)) {
+      const retained = left ?? right;
+      if (retained && (!same(retained, base) || !baselineProtectedOccurrences.has(base.id))) conflicts.push(conflict(base, left, right, "delete_vs_update"));
+      else mergedEntities.push(retained ?? base);
+      continue;
+    }
     const historyConflict = historyProblem(base, left, right);
     if (historyConflict === "history_rewrite" && base) {
       if (HISTORY.has(base.kind) && ((left && !same(left, base)) || (right && !same(right, base)))) throw new Error("The account snapshot rewrites append-only history.");
       const retained = left ?? right ?? base;
       mergedEntities.push(retained);
-      if (!same(left, retained)) localWrites.push(writeFor(left, retained));
-      if (!same(right, retained)) hostedWrites.push(writeFor(right, retained));
     }
     else if (historyConflict) throw new Error("The account snapshot contains incompatible append-only history.");
     else if (same(left, right)) { if (left) mergedEntities.push(left); }
-    else if (same(left, base)) { if (right) mergedEntities.push(right); localWrites.push(writeFor(left, right)); }
-    else if (same(right, base)) { if (left) mergedEntities.push(left); hostedWrites.push(writeFor(right, left)); }
+    else if (same(left, base)) { if (right) mergedEntities.push(right); }
+    else if (same(right, base)) { if (left) mergedEntities.push(left); }
     else conflicts.push(conflict(base, left, right, !base ? "append_id_collision" : !left || !right ? "delete_vs_update" : "concurrent_update"));
   }
   historyBranches(baseline, local, hosted, input.firstHostedHydration === true);
   if (conflicts.length) return { localWrites: [], hostedWrites: [], conflicts: uniqueConflicts(conflicts), mergedEntities: [], fingerprints: { ...fingerprints, merged: null }, idempotencyKey: null };
-  const merged = [...mergedEntities].sort(compareEntity), mergedFingerprint = fingerprint(merged);
-  return { localWrites, hostedWrites, conflicts: [], mergedEntities: merged, fingerprints: { ...fingerprints, merged: mergedFingerprint }, idempotencyKey: sha256(`${accountLinkId}:${fingerprints.baseline}:${fingerprints.local}:${fingerprints.hosted}`) };
+  const retained = reconcileOccurrenceReminders(mergedEntities);
+  const merged = prepare({ entities: retained }), mergedRows = [...merged.values()].sort(compareEntity), mergedFingerprint = fingerprint(mergedRows);
+  validateInputGraphs(false, merged);
+  return { localWrites: writesBetween(local, merged), hostedWrites: writesBetween(hosted, merged), conflicts: [], mergedEntities: mergedRows, fingerprints: { ...fingerprints, merged: mergedFingerprint }, idempotencyKey: sha256(`${accountLinkId}:${fingerprints.baseline}:${fingerprints.local}:${fingerprints.hosted}:${mergedFingerprint}`) };
 }
 
 export function canKeepBothAccountSyncConflict(_conflict: AccountSyncConflict): boolean {
@@ -67,6 +77,7 @@ export function resolveReviewedAccountSync(input: Readonly<{
   accountLinkId?: string; baseline: AccountSyncSnapshot; local: AccountSyncSnapshot; hosted: AccountSyncSnapshot;
   reviewedFingerprints: Readonly<{ baseline: string; local: string; hosted: string }>;
   decisions: readonly AccountSyncConflictDecision[];
+  firstLink?: boolean;
 }>): AccountSyncPlan {
   const initial = resolveAccountSync(input);
   if (initial.fingerprints.baseline !== input.reviewedFingerprints.baseline || initial.fingerprints.local !== input.reviewedFingerprints.local || initial.fingerprints.hosted !== input.reviewedFingerprints.hosted) {
@@ -74,9 +85,15 @@ export function resolveReviewedAccountSync(input: Readonly<{
   }
   const decisions = new Map(input.decisions.map((decision) => [`${decision.kind}:${decision.id}`, decision]));
   const local = prepare(input.local), hosted = prepare(input.hosted);
+  const protectedOccurrences = protectedOccurrenceIds(prepare(input.baseline), local, hosted);
   for (const conflict of initial.conflicts) {
     const key = `${conflict.kind}:${conflict.id}`, decision = decisions.get(key);
     if (!decision) throw new Error("Every synchronization conflict requires a decision.");
+    if (conflict.kind === "occurrence"
+      && protectedOccurrences.has(conflict.id)
+      && ((decision.choice === "local" && conflict.local === null) || (decision.choice === "hosted" && conflict.hosted === null))) {
+      throw new Error("An Occurrence with a Note, status history, tracked time, or resolved status cannot be deleted during synchronization.");
+    }
     if (conflict.reason === "history_branch") {
       const localKey = `${conflict.kind}:${jsonId(conflict.local) ?? conflict.id}`, hostedKey = `${conflict.kind}:${jsonId(conflict.hosted) ?? conflict.id}`;
       if (decision.choice === "hosted") { local.delete(localKey); replace(local, hostedKey, hosted.get(hostedKey) ?? null); }
@@ -89,9 +106,12 @@ export function resolveReviewedAccountSync(input: Readonly<{
       throw new Error("Keep both is unavailable for this synchronization conflict.");
     }
   }
+  removeOrphanReminders(local);
+  removeOrphanReminders(hosted);
   const resolved = resolveAccountSync({ ...input, local: { entities: [...local.values()] }, hosted: { entities: [...hosted.values()] } });
   if (resolved.conflicts.length) throw new Error("The synchronization conflict decisions do not produce a valid account state.");
   const actualLocal = prepare(input.local), actualHosted = prepare(input.hosted), merged = prepare({ entities: resolved.mergedEntities });
+  validateInputGraphs(false, merged);
   const fingerprints = { baseline: initial.fingerprints.baseline, local: initial.fingerprints.local, hosted: initial.fingerprints.hosted, merged: fingerprint(merged.values()) };
   return { ...resolved, localWrites: writesBetween(actualLocal, merged), hostedWrites: writesBetween(actualHosted, merged), fingerprints,
     idempotencyKey: sha256(`${input.accountLinkId ?? "account-link"}:${fingerprints.baseline}:${fingerprints.local}:${fingerprints.hosted}:${fingerprints.merged}`) };
@@ -100,7 +120,95 @@ export function resolveReviewedAccountSync(input: Readonly<{
 function replace(target: Map<string, AccountSyncEntity>, key: string, value: AccountSyncEntity | null) { if (value) target.set(key, value); else target.delete(key); }
 function jsonId(value: Json | null): string | null { return value && !Array.isArray(value) && typeof value === "object" && typeof value.id === "string" ? value.id : null; }
 function writesBetween(previous: Map<string, AccountSyncEntity>, next: Map<string, AccountSyncEntity>): AccountSyncWrite[] {
-  return [...new Set([...previous.keys(), ...next.keys()])].sort().flatMap((key) => same(previous.get(key) ?? null, next.get(key) ?? null) ? [] : [writeFor(previous.get(key) ?? null, next.get(key) ?? null)]);
+  return [...new Set([...previous.keys(), ...next.keys()])].sort().flatMap((key) => same(previous.get(key) ?? null, next.get(key) ?? null) ? [] : [writeFor(previous.get(key) ?? null, next.get(key) ?? null)])
+    .sort((left, right) => writeOrder(left) - writeOrder(right) || compareText(`${left.kind}:${left.id}`, `${right.kind}:${right.id}`));
+}
+
+function writeOrder(write: AccountSyncWrite): number {
+  if (write.operation !== "delete") return 0;
+  if (write.kind === "reminder_delivery") return 1;
+  if (write.kind === "occurrence") return 2;
+  return 1;
+}
+
+function reconcileOccurrenceReminders(entities: readonly AccountSyncEntity[]): AccountSyncEntity[] {
+  const occurrenceIds = new Set(entities.filter(({ kind }) => kind === "occurrence").map(({ id }) => id));
+  return entities.filter((entity) => {
+    if (entity.kind !== "reminder_delivery") return true;
+    const occurrenceId = field(entity.value, "occurrence_id");
+    return occurrenceId === null || occurrenceIds.has(occurrenceId);
+  });
+}
+
+function removeOrphanReminders(graph: Map<string, AccountSyncEntity>): void {
+  for (const [key, entity] of graph) {
+    if (entity.kind === "reminder_delivery") {
+      const occurrenceId = field(entity.value, "occurrence_id");
+      if (occurrenceId && !graph.has(`occurrence:${occurrenceId}`)) graph.delete(key);
+    }
+  }
+}
+
+function protectedOccurrenceIds(...graphs: readonly Map<string, AccountSyncEntity>[]): Set<string> {
+  const protectedIds = new Set<string>();
+  for (const graph of graphs) for (const entity of graph.values()) {
+    if (entity.kind === "occurrence") {
+      const status = field(entity.value, "status");
+      const note = field(entity.value, "note");
+      if (status !== "unresolved" || (note !== null && note.trim() !== "")) protectedIds.add(entity.id);
+    } else if (entity.kind === "status_event" || entity.kind === "time_session") {
+      const occurrenceId = field(entity.value, "occurrence_id");
+      if (occurrenceId) protectedIds.add(occurrenceId);
+    }
+  }
+  return protectedIds;
+}
+
+function validateInputGraphs(allowEmptyBaseline: boolean, ...graphs: readonly Map<string, AccountSyncEntity>[]): void {
+  for (const [index, graph] of graphs.entries()) {
+    if (index === 0 && allowEmptyBaseline && graph.size === 0) continue;
+    if (!graph.has("profile:profile")) throw new Error("Account synchronization requires complete baseline, local, and hosted graphs with a profile.");
+    for (const entity of graph.values()) for (const [fieldName, parentKind] of dependencies(entity)) {
+      const parentId = field(entity.value, fieldName);
+      if (!parentId && requiredDependency(entity.kind, fieldName)) {
+        throw new Error(`The account ${entity.kind} ${entity.id} is missing required reference ${fieldName}; read a complete graph before synchronizing.`);
+      }
+      if (parentId && !graph.has(`${parentKind}:${parentId}`)) {
+        throw new Error(`The account ${entity.kind} ${entity.id} references missing ${parentKind} ${parentId}; read a complete graph before synchronizing.`);
+      }
+    }
+  }
+}
+
+function requiredDependency(kind: AccountSyncEntityKind, fieldName: string): boolean {
+  return !(
+    (kind === "behavior" && (fieldName === "category_id" || fieldName === "current_configuration_event_id"))
+    || (kind === "schedule_slot" && fieldName === "behavior_schedule_id")
+    || (kind === "occurrence" && (fieldName === "behavior_configuration_event_id" || fieldName === "behavior_schedule_slot_id"))
+    || (kind === "status_event" && fieldName === "revises_event_id")
+    || (kind === "import_run" && fieldName === "accepted_preview_run_id")
+    || (kind === "imported_intervention" && (fieldName === "behavior_id" || fieldName === "occurrence_id"))
+    || (kind === "reminder_delivery" && (fieldName === "import_run_id" || fieldName === "imported_intervention_id"))
+  );
+}
+
+function dependencies(entity: AccountSyncEntity): readonly (readonly [string, AccountSyncEntityKind])[] {
+  switch (entity.kind) {
+    case "behavior": return [["category_id", "category"], ["current_configuration_event_id", "configuration_event"]];
+    case "schedule":
+    case "definition_event":
+    case "configuration_event": return [["behavior_id", "behavior"]];
+    case "schedule_slot": return [["behavior_id", "behavior"], ["behavior_schedule_id", "schedule"]];
+    case "occurrence": return [["behavior_id", "behavior"], ["behavior_configuration_event_id", "configuration_event"], ["behavior_schedule_slot_id", "schedule_slot"]];
+    case "status_event": return [["behavior_id", "behavior"], ["occurrence_id", "occurrence"], ["revises_event_id", "status_event"]];
+    case "time_session": return [["behavior_id", "behavior"], ["occurrence_id", "occurrence"]];
+    case "import_run": return [["accepted_preview_run_id", "import_run"]];
+    case "mapping":
+    case "imported_note": return [["import_run_id", "import_run"]];
+    case "imported_intervention": return [["import_run_id", "import_run"], ["behavior_id", "behavior"], ["occurrence_id", "occurrence"]];
+    case "reminder_delivery": return [["occurrence_id", "occurrence"], ["import_run_id", "import_run"], ["imported_intervention_id", "imported_intervention"]];
+    default: return [];
+  }
 }
 
 function prepare(snapshot: AccountSyncSnapshot): Map<string, AccountSyncEntity> {

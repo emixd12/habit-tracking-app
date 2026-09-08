@@ -6798,3 +6798,10 @@ release occurred. Preserve all unrelated Ticket 106 edits.
 - Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.
 - Keep v1 small. Web PWA/offline work remains deferred; desktop local writes are required under `docs/DESKTOP_BUILD.md`.
 - Preserve the resolver-first architecture: core logic belongs in `lib/resolvers`, database access in `lib/db`, orchestration in `lib/services`, and UI/API routes should not duplicate resolver logic.
+
+## Desktop repair — 2026-09-08
+
+Tickets 129 and 130 are in progress. Bounded reminder receipts and dependency-safe
+synchronization are implemented. SQLite schema 0013 is a compatibility prerequisite
+for 0014; this release excludes Note shortcut runtime and Ticket 131 automatic
+updates. Native signed upgrade and installed-data acceptance remain pending.

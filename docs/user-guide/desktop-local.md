@@ -143,3 +143,15 @@ A found update requires **Download and install**, followed by **Restart Cadence*
 after installation. Cadence does not check or install updates automatically.
 Signed installation and recovery remain release-verification gates for this
 preview.
+
+## Storage recovery
+
+Cadence repairs oversized native reminder receipts before opening local tracking.
+It checks free space, creates a protected recovery backup, verifies product data,
+compacts SQLite, and reopens the database. An interrupted repair resumes safely.
+An error stops opening the database instead of continuing with an unverified copy.
+
+Settings shows storage totals before and after repair, including remaining
+recovery files. Cadence retains the recovery backup by default. **Delete recovery
+backup** deletes only that recorded backup after verification. It never deletes
+user-created backups. Ticket 129 installed recovery acceptance is pending.

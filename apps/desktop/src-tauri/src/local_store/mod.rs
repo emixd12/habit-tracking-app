@@ -6,7 +6,10 @@ mod export;
 mod import;
 mod import_write;
 mod occurrence;
+mod recovery;
 mod reminder;
+#[cfg(test)]
+mod repair_tests;
 pub mod rows;
 mod sync_apply;
 #[cfg(test)]
@@ -17,8 +20,11 @@ use rows::*;
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::{path::Path, sync::Mutex};
 use tauri::State;
+
+pub use recovery::RecoveryReport;
 
 pub struct LocalStore(pub Mutex<Connection>);
 pub fn adopt_previous_identity(directory: &Path) -> Result<()> {
@@ -26,6 +32,21 @@ pub fn adopt_previous_identity(directory: &Path) -> Result<()> {
 }
 pub fn open(path: &Path) -> Result<LocalStore> {
     Ok(LocalStore(Mutex::new(db::open(path)?)))
+}
+
+pub fn storage_recovery_report(live_path: &Path) -> Result<Option<RecoveryReport>> {
+    recovery::report(live_path)
+}
+
+pub fn delete_storage_recovery_backup(
+    store: &LocalStore,
+    live_path: &Path,
+) -> Result<RecoveryReport> {
+    let db = store.0.lock().map_err(|_| "SQLite lock is unavailable.")?;
+    db::validate_backup(&db)?;
+    let report = recovery::delete_backup(live_path)?;
+    db::validate_backup(&db)?;
+    Ok(report)
 }
 
 pub fn is_local_mode(db: &Connection) -> Result<bool> {
@@ -472,14 +493,26 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
         if payload.len() > 32 * 1024 * 1024 {
             return Err("The local mutation exceeds 32 MiB.".into());
         }
+        let reminder_commit = matches!(
+            &request,
+            Request::CommitNativeReminderPlan { .. } | Request::RecordNativeReminderCoverage { .. }
+        );
+        let journal_payload = if reminder_commit {
+            json!(format!("{:x}", Sha256::digest(payload.as_bytes()))).to_string()
+        } else {
+            payload.clone()
+        };
         let tx = db
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(error)?;
         db::owner(&tx, profile_id)?;
         let prior: Option<(String,String)> = tx.query_row("SELECT request_json,result_json FROM mutation_outbox WHERE user_id=?1 AND mutation_id=?2", params![profile_id,mutation_id], |row| Ok((row.get(0)?,row.get(1)?))).optional().map_err(error)?;
         if let Some((prior_payload, result)) = prior {
-            if prior_payload != payload {
+            if prior_payload != journal_payload {
                 return Err("The mutation ID was already used for a different plan.".into());
+            }
+            if reminder_commit {
+                return reminder::read(&tx, profile_id);
             }
             return serde_json::from_str(&result)
                 .map_err(|_| "The prior mutation result is invalid.".into());
@@ -490,8 +523,23 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
             .as_str()
             .ok_or("Missing local operation.")?
             .to_string();
-        tx.execute("INSERT INTO mutation_outbox (mutation_id,user_id,operation,request_json,result_json,created_at) VALUES (?1,?2,?3,?4,?5,?6)", params![mutation_id,profile_id,operation,payload,result.to_string(),now]).map_err(error)?;
-        reminder::after_mutation(&tx, &request, tx.last_insert_rowid())?;
+        let journal_result = if reminder_commit {
+            "null".into()
+        } else {
+            result.to_string()
+        };
+        if reminder_commit {
+            tx.execute(
+                "DELETE FROM mutation_outbox WHERE user_id=?1 AND operation=?2",
+                params![profile_id, operation],
+            )
+            .map_err(error)?;
+            tx.execute("INSERT INTO mutation_outbox (mutation_id,user_id,operation,request_json,result_json,created_at,synced_at) VALUES (?1,?2,?3,?4,?5,?6,?6)", params![mutation_id,profile_id,operation,journal_payload,journal_result,now]).map_err(error)?;
+        } else {
+            tx.execute("INSERT INTO mutation_outbox (mutation_id,user_id,operation,request_json,result_json,created_at) VALUES (?1,?2,?3,?4,?5,?6)", params![mutation_id,profile_id,operation,journal_payload,journal_result,now]).map_err(error)?;
+        }
+        let sequence = tx.last_insert_rowid();
+        reminder::after_mutation(&tx, &request, sequence)?;
         if let Request::PrepareBehaviorLogImport { preview_run, .. } = &request {
             result =
                 import::after_prepare(&tx, profile_id, &preview_run.id, tx.last_insert_rowid())?;
@@ -501,14 +549,11 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
             )
             .map_err(error)?;
         }
-        if matches!(
-            request,
-            Request::CommitNativeReminderPlan { .. } | Request::RecordNativeReminderCoverage { .. }
-        ) {
+        if reminder_commit {
             result = reminder::read(&tx, profile_id)?;
             tx.execute(
                 "UPDATE mutation_outbox SET result_json=?2 WHERE mutation_id=?1",
-                params![mutation_id, result.to_string()],
+                params![mutation_id, json!({"revision":sequence}).to_string()],
             )
             .map_err(error)?;
         }

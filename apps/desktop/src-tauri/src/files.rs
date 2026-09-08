@@ -56,6 +56,7 @@ pub async fn save_export(
 pub struct LocalDatabaseInfo {
     path: String,
     local_mode: bool,
+    recovery: Option<crate::local_store::RecoveryReport>,
 }
 
 #[derive(serde::Serialize)]
@@ -83,7 +84,16 @@ pub fn local_database_info(
     Ok(LocalDatabaseInfo {
         path: database_path(&app)?.to_string_lossy().into_owned(),
         local_mode: is_local_mode(&db)?,
+        recovery: crate::local_store::storage_recovery_report(&database_path(&app)?)?,
     })
+}
+
+#[tauri::command]
+pub fn delete_storage_recovery_backup(
+    app: tauri::AppHandle,
+    store: tauri::State<'_, LocalStore>,
+) -> Result<crate::local_store::RecoveryReport, String> {
+    crate::local_store::delete_storage_recovery_backup(&store, &database_path(&app)?)
 }
 
 #[tauri::command]

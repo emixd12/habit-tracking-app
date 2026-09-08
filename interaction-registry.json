@@ -126,11 +126,11 @@
     {
       "path": "apps/desktop/src/local-database-controls.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 8,
+      "interaction_marker_count": 12,
       "interaction_ids": [
         "INT-DATABASE-001",
         "INT-DATABASE-002",
-        "INT-DATABASE-003"
+        "INT-DATABASE-003", "INT-DATABASE-004"
       ]
     },
     {
@@ -664,6 +664,86 @@
     }
   ],
   "interactions": [
+    {
+      "id": "INT-DATABASE-004",
+      "name": "Delete the verified storage recovery backup",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#back-up-or-restore-the-local-database"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#local-database"
+      ],
+      "journeys": [
+        "J04"
+      ],
+      "intent": "Delete only the temporary repair backup after the repaired database passes verification and reopens.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Delete recovery backup"
+        }
+      ],
+      "availability": "Local database Settings shows this action only when a verified repair backup remains.",
+      "success_result": "Deletes the exact recorded temporary recovery backup and refreshes the storage report. User-created backups remain untouched.",
+      "failure_result": "Retains the recovery backup when verification, ownership, or deletion fails.",
+      "effects": [
+        "filesystem_write",
+        "ui_state"
+      ],
+      "risk": "destructive",
+      "confirmation": "acknowledgement",
+      "implementation": [
+        "apps/desktop/src/local-database-controls.tsx",
+        "apps/desktop/src/local-database.ts",
+        "apps/desktop/src-tauri/src/files.rs",
+        "apps/desktop/src-tauri/src/local_store/recovery.rs"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-settings-ui.test.tsx"
+        ],
+        "notes": "Native recovery tests cover verification and deletion guards. Installed owner recovery acceptance remains pending."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "The web app does not replace a local SQLite database."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/local-database-controls.tsx",
+            "apps/desktop/src/local-database.ts",
+            "apps/desktop/src-tauri/src/files.rs",
+            "apps/desktop/src-tauri/src/local_store/recovery.rs"
+          ],
+          "evidence": [
+            "tests/desktop-settings-ui.test.tsx"
+          ],
+          "reason": "Ticket 129 recovery controls; installed acceptance remains pending."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not operate local product data or claim this feature before native acceptance."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "This raw macOS database workflow does not define a future mobile restore flow."
+        }
+      }
+    },
     {
       "id": "INT-DESKTOP-002",
       "name": "Check, install, or restart a desktop update",

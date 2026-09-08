@@ -82,7 +82,7 @@ export async function finishReviewedFirstAccountLink(input: { client: SupabaseCl
   ]);
   const current: AccountSyncInputs = { ...input.reviewed.inputs, local: { entities: portabilityEntities(local) }, hosted: { fingerprint: hosted.fingerprint, entities: hosted.entities },
     hostedFingerprint: hosted.fingerprint, outboxHighWater: local.revision };
-  const plan = resolveReviewedAccountSync({ ...current, reviewedFingerprints: {
+  const plan = resolveReviewedAccountSync({ ...current, firstLink: true, reviewedFingerprints: {
     baseline: accountSyncFingerprint(input.reviewed.inputs.baseline), local: accountSyncFingerprint(input.reviewed.inputs.local), hosted: input.reviewed.inputs.hostedFingerprint,
   }, decisions: input.decisions });
   const localReplacement = resolveFirstLinkReplacement({ ...current, hosted: { entities: plan.mergedEntities } });
@@ -215,7 +215,7 @@ export function planFirstLinkReconciliation(input: { accountLinkId: string; base
   const baseline = input.baseline ?? (input.localUnchanged ? input.local : { entities: [] });
   const inputs: AccountSyncInputs = { accountLinkId: input.accountLinkId, baseline, local: input.local, hosted: input.hosted,
     baselineFingerprint: accountSyncFingerprint(baseline), hostedFingerprint: accountSyncFingerprint(input.hosted), outboxHighWater: input.outboxHighWater };
-  return { inputs, plan: resolveAccountSync({ ...inputs, firstHostedHydration: input.choice === "hydrate" }) };
+  return { inputs, plan: resolveAccountSync({ ...inputs, firstLink: true, firstHostedHydration: input.choice === "hydrate" }) };
 }
 
 function parseAccountSyncSnapshot(value: string): AccountSyncSnapshot {

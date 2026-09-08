@@ -1571,3 +1571,12 @@ baselines normalize the missing field to an empty history.
 
 Migration: `20260906010951_add_behavior_archive_notes.sql`. Legacy archived
 rows remain empty; the migration does not fabricate past archive cycles.
+
+### Dependency-safe account apply (Ticket 130)
+
+Migration `20260908174627_guard_dependency_safe_account_sync.sql` strengthens
+`cadence_private.apply_account_sync_plan(jsonb)` without adding tables. It permits
+reminder deletion only with the parent Occurrence deletion, requires every attached
+reminder deletion, and rejects retained reminders for a deleted parent. Notes,
+status history, tracked time, and resolved Occurrences prevent deletion. The
+existing JWT ownership, RLS, expected-row, transaction, and receipt checks remain.

@@ -4,6 +4,7 @@ import React from "react";
 import { hasRecognizedLocalData } from "@cadence/core/services/first-account-link";
 import { DEFAULT_CATEGORY_NAMES } from "@cadence/core/types/database";
 import { sha256 } from "@cadence/core/hash";
+import type { AccountSyncEntity, AccountSyncSnapshot } from "@cadence/core/resolvers/account-sync.resolver";
 import type { PortabilitySnapshot } from "@cadence/core/types/portability-rows";
 import { FirstAccountLinkChoice } from "../apps/desktop/src/account/account-panel";
 import { applyVerifiedFirstLinkPlan, assertFirstLinkLocalUnchanged, commitFirstLink, completedFirstLinkState, existingRecordsFromHostedEnvelope, firstLinkFailureBackupPath, localChangedSinceFirstLinkAttempt, planFirstLinkReconciliation, recoverRejectedFirstLinkReview, stabilizeFirstLinkAttempt } from "../apps/desktop/src/account/first-link";
@@ -12,6 +13,10 @@ function snapshot(): PortabilitySnapshot {
   const profile = { id: "local", timezone: "America/New_York", email: "", display_name: null, created_at: "now", updated_at: "now" };
   return { revision: 0, profile, categories: DEFAULT_CATEGORY_NAMES.map((name, sort_order) => ({ id: `c${sort_order}`, user_id: profile.id, name, sort_order, created_at: "now", updated_at: "now" })), graphs: [], definitionEvents: [], configurationEvents: [], occurrences: [], statusEvents: [], timeSessions: [], importRuns: [], mappings: [], importedNotes: [], importedInterventions: [] };
 }
+
+const graph = (entities: readonly AccountSyncEntity[] = []): AccountSyncSnapshot => ({
+  entities: [{ kind: "profile" as const, id: "profile", value: { timezone: "America/New_York" } }, ...entities],
+});
 
 describe("first desktop account link", () => {
   it("does not mistake untouched seed rows for recognized local data", () => {
@@ -117,7 +122,7 @@ describe("first desktop account link", () => {
   });
 
   it("plans divergent first-link rows as reviewable whole-plan conflicts", () => {
-    const value = (title: string) => ({ entities: [{ kind: "behavior" as const, id: "shared", value: { id: "shared", title } }] });
+    const value = (title: string) => graph([{ kind: "behavior", id: "shared", value: { id: "shared", title } }]);
     const { inputs, plan } = planFirstLinkReconciliation({ accountLinkId: "hosted", local: value("Mac"), hosted: value("Account"), choice: "import", localUnchanged: false, outboxHighWater: 4 });
     expect(inputs.baseline.entities).toEqual([]);
     expect(plan.conflicts).toMatchObject([{ kind: "behavior", id: "shared", reason: "append_id_collision" }]);
@@ -127,8 +132,8 @@ describe("first desktop account link", () => {
 
   it("replaces untouched local seed IDs with hosted seed IDs through account sync", () => {
     const category = (id: string) => ({ kind: "category" as const, id, value: { id, user_id: "owner", name: "Medical", sort_order: 0 } });
-    const local = { entities: [category("local-seed")] };
-    const hosted = { entities: [category("hosted-seed")] };
+    const local = graph([category("local-seed")]);
+    const hosted = graph([category("hosted-seed")]);
     const { plan } = planFirstLinkReconciliation({ accountLinkId: "hosted", baseline: local, local, hosted, choice: "hydrate", localUnchanged: true, outboxHighWater: 1 });
     expect(plan.conflicts).toEqual([]);
     expect(plan.hostedWrites).toEqual([]);
@@ -139,20 +144,24 @@ describe("first desktop account link", () => {
   });
 
   it("hydrates untouched local data from same-status hosted history branches", () => {
-    const event = (id: string) => ({ kind: "status_event" as const, id, value: { id, occurrence_id: "occurrence", revises_event_id: null, status: "completed" } });
-    const local = { entities: [] };
-    const hosted = { entities: [event("first"), event("second")] };
+    const event = (id: string) => ({ kind: "status_event" as const, id, value: { id, behavior_id: "behavior", occurrence_id: "occurrence", revises_event_id: null, status: "completed" } });
+    const local = graph();
+    const hosted = graph([
+      { kind: "behavior", id: "behavior", value: { id: "behavior", title: "Behavior" } },
+      { kind: "occurrence", id: "occurrence", value: { id: "occurrence", behavior_id: "behavior", status: "completed" } },
+      event("first"), event("second"),
+    ]);
     const { plan } = planFirstLinkReconciliation({ accountLinkId: "hosted", baseline: local, local, hosted, choice: "hydrate", localUnchanged: false, outboxHighWater: 1 });
     expect(plan.conflicts).toEqual([]);
     expect(plan.hostedWrites).toEqual([]);
-    expect(plan.localWrites).toMatchObject([{ id: "first", operation: "upsert" }, { id: "second", operation: "upsert" }]);
+    expect(plan.localWrites.filter(({ kind }) => kind === "status_event")).toMatchObject([{ id: "first", operation: "upsert" }, { id: "second", operation: "upsert" }]);
   });
 
   it("uploads a post-attempt local edit when the hosted row still matches the baseline", () => {
     const entity = (title: string) => ({ kind: "behavior" as const, id: "shared", value: { id: "shared", title } });
-    const baseline = { entities: [entity("Before")] };
-    const local = { entities: [entity("Edited on this Mac")] };
-    const hosted = { entities: [entity("Before")] };
+    const baseline = graph([entity("Before")]);
+    const local = graph([entity("Edited on this Mac")]);
+    const hosted = graph([entity("Before")]);
     const { plan } = planFirstLinkReconciliation({ accountLinkId: "hosted", baseline, local, hosted, choice: "import", localUnchanged: false, outboxHighWater: 2 });
     expect(plan.conflicts).toEqual([]);
     expect(plan.hostedWrites).toMatchObject([{ kind: "behavior", id: "shared", operation: "upsert", value: { title: "Edited on this Mac" } }]);
@@ -161,9 +170,9 @@ describe("first desktop account link", () => {
 
   it("pauses for review when both copies changed after the first-link attempt", () => {
     const entity = (title: string) => ({ kind: "behavior" as const, id: "shared", value: { id: "shared", title } });
-    const baseline = { entities: [entity("Before")] };
-    const local = { entities: [entity("Edited on this Mac")] };
-    const hosted = { entities: [entity("Edited in the account")] };
+    const baseline = graph([entity("Before")]);
+    const local = graph([entity("Edited on this Mac")]);
+    const hosted = graph([entity("Edited in the account")]);
     const { plan } = planFirstLinkReconciliation({ accountLinkId: "hosted", baseline, local, hosted, choice: "import", localUnchanged: false, outboxHighWater: 2 });
     expect(plan.conflicts).toMatchObject([{ kind: "behavior", id: "shared", reason: "concurrent_update" }]);
     expect(plan.hostedWrites).toEqual([]);
@@ -172,8 +181,8 @@ describe("first desktop account link", () => {
 
   it("applies a post-attempt local deletion through the returned plan", () => {
     const entity = { kind: "category" as const, id: "shared", value: { id: "shared", name: "Before" } };
-    const baseline = { entities: [entity] };
-    const { plan } = planFirstLinkReconciliation({ accountLinkId: "hosted", baseline, local: { entities: [] }, hosted: baseline,
+    const baseline = graph([entity]);
+    const { plan } = planFirstLinkReconciliation({ accountLinkId: "hosted", baseline, local: graph(), hosted: baseline,
       choice: "import", localUnchanged: false, outboxHighWater: 2 });
     expect(plan.conflicts).toEqual([]);
     expect(plan.hostedWrites).toMatchObject([{ kind: "category", id: "shared", operation: "delete" }]);
@@ -194,7 +203,7 @@ describe("first desktop account link", () => {
   });
 
   it("does not treat changed local Ignore data as the common baseline", () => {
-    const value = (title: string) => ({ entities: [{ kind: "behavior" as const, id: "shared", value: { id: "shared", title } }] });
+    const value = (title: string) => graph([{ kind: "behavior", id: "shared", value: { id: "shared", title } }]);
     const { inputs, plan } = planFirstLinkReconciliation({ accountLinkId: "hosted", local: value("Edited after choice"), hosted: value("Account"), choice: "ignore", localUnchanged: false, outboxHighWater: 5 });
     expect(inputs.baseline.entities).toEqual([]);
     expect(plan.conflicts).toHaveLength(1);

@@ -1,3 +1,4 @@
+use super::recovery;
 use super::rows::{Behavior, Profile, StoredRow};
 use rusqlite::{
     params, params_from_iter, types::Value as SqlValue, Connection, OptionalExtension,
@@ -70,22 +71,68 @@ pub(super) const MIGRATIONS: &[(i64, &str, &str)] = &[
         "behavior_archive_notes",
         include_str!("../../migrations/0012_behavior_archive_notes.sql"),
     ),
+    (
+        13,
+        "note_shortcut_states",
+        include_str!("../../migrations/0013_note_shortcut_states.sql"),
+    ),
+    (
+        14,
+        "bounded_native_reminder_receipts",
+        include_str!("../../migrations/0014_bounded_native_reminder_receipts.sql"),
+    ),
 ];
 
 pub fn open(path: &Path) -> Result<Connection> {
-    let mut db = Connection::open(path).map_err(error)?;
+    let mut db = connect(path)?;
+    let latest = schema_version(&db)?;
+    if latest == 0 {
+        migrate(&mut db, MIGRATIONS)?;
+        seed(&mut db)?;
+    } else if latest >= MIGRATIONS.last().unwrap().0 {
+        migrate(&mut db, MIGRATIONS)?;
+        seed(&mut db)?;
+        recovery::run(&mut db, path)?;
+    } else {
+        recovery::preflight_initial(path)?;
+        migrate(&mut db, &MIGRATIONS[..MIGRATIONS.len() - 1])?;
+        seed(&mut db)?;
+        recovery::run(&mut db, path)?;
+    }
+    Ok(db)
+}
+
+pub(super) fn connect(path: &Path) -> Result<Connection> {
+    let db = Connection::open(path).map_err(error)?;
     #[cfg(unix)]
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
         .map_err(|_| "The local database permissions could not be restricted.")?;
     db.busy_timeout(Duration::from_secs(5)).map_err(error)?;
     db.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")
         .map_err(error)?;
-    migrate(&mut db, MIGRATIONS)?;
-    seed(&mut db)?;
     Ok(db)
 }
 
-fn validate_backup(db: &Connection) -> Result<()> {
+pub(super) fn schema_version(db: &Connection) -> Result<i64> {
+    let has_ledger: bool = db
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='schema_migrations')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(error)?;
+    if !has_ledger {
+        return Ok(0);
+    }
+    db.query_row(
+        "SELECT coalesce(max(version),0) FROM schema_migrations",
+        [],
+        |row| row.get(0),
+    )
+    .map_err(error)
+}
+
+pub(super) fn validate_backup(db: &Connection) -> Result<()> {
     let integrity: String = db
         .query_row("PRAGMA integrity_check", [], |row| row.get(0))
         .map_err(error)?;
@@ -198,7 +245,7 @@ fn reserve_protected_path(directory: &Path) -> Result<PathBuf> {
     Err("A unique protected backup file could not be reserved.".into())
 }
 
-fn online_copy(source: &Connection, destination: &Path) -> Result<()> {
+pub(super) fn online_copy(source: &Connection, destination: &Path) -> Result<()> {
     let mut output = Connection::open(destination).map_err(error)?;
     let backup = rusqlite::backup::Backup::new(source, &mut output).map_err(error)?;
     backup
@@ -207,7 +254,7 @@ fn online_copy(source: &Connection, destination: &Path) -> Result<()> {
     drop(backup);
     validate_backup(&output)?;
     output
-        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
+        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;")
         .map_err(error)?;
     #[cfg(unix)]
     std::fs::set_permissions(destination, std::fs::Permissions::from_mode(0o600))
@@ -372,7 +419,7 @@ pub fn restore(live: &mut Connection, live_path: &Path, source_path: &Path) -> R
     Ok(protected)
 }
 
-fn remove_sidecars(path: &Path) {
+pub(super) fn remove_sidecars(path: &Path) {
     let text = path.as_os_str().to_string_lossy();
     for suffix in ["-wal", "-shm"] {
         let _ = std::fs::remove_file(format!("{text}{suffix}"));
@@ -408,6 +455,9 @@ pub(super) fn migrate(db: &mut Connection, migrations: &[(i64, &str, &str)]) -> 
                 return Err("An applied SQLite migration differs from this build. The database was not changed.".into());
             }
         } else {
+            if *version == 14 {
+                recovery::compact_receipts(&tx)?;
+            }
             tx.execute_batch(sql).map_err(error)?;
             tx.execute("INSERT INTO schema_migrations VALUES (?1,?2,?3,strftime('%Y-%m-%dT%H:%M:%fZ','now'))", params![version,name,sql]).map_err(error)?;
         }
@@ -905,7 +955,7 @@ mod database_control_tests {
         assert!(restored.archive_notes.is_empty());
         assert_eq!(
             live.query_row("SELECT max(version) FROM schema_migrations", [], |row| row.get::<_, i64>(0)).unwrap(),
-            12
+            MIGRATIONS.last().unwrap().0
         );
         std::fs::remove_dir_all(directory).unwrap();
     }

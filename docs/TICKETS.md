@@ -9126,3 +9126,145 @@ Verification: focused lifecycle/privacy/sync tests; real SQLite and Postgres
 contracts; all repository completion checks; responsive browser acceptance.
 Hosted migration, deployment, and signed desktop distribution remain separate
 authorized release actions.
+
+---
+
+## Ticket 129: Bounded reminder bookkeeping and storage recovery
+
+Status: in_progress (2026-09-08).
+
+**Stop the growth at its source.**
+
+- Reuse the existing journal. Store compact receipts for the two native-reminder operations instead of complete requests and reminder-state responses.
+- Retain at most the latest receipt per operation and local profile. Store the mutation ID, request hash, and revision.
+- Mark these receipts as device-local and complete immediately. They must not accumulate as pending account changes.
+- Preserve the existing monotonically increasing sequence used by reminder freshness checks.
+- Return current reminder state for an identical retained retry. Reject changed payloads or stale revisions before writing.
+- Keep domain mutations, pending user edits, tombstones, and account acknowledgements unchanged.
+- Coalesce repeated refresh requests into one running reconciliation and one pending reconciliation. Preserve delivery evidence until SQLite commits it.
+
+**Repair existing installations safely.**
+
+- Add a tracked SQLite migration that compacts existing native-reminder journal entries while preserving sequence continuity.
+- Run recovery before background reconciliation starts. Suspend database writes during maintenance.
+- Create one protected recovery backup using the existing SQLite backup implementation.
+- Remove redundant native-reminder journal payloads, checkpoint the WAL, and compact the live database.
+- Validate database integrity, foreign keys, account identity, baseline, product data, and pending domain mutations before and after cleanup.
+- Reopen the database successfully before deleting this repair’s backup, following the user’s selected preference.
+- Persist a small recovery marker so interrupted maintenance resumes safely. Preserve the backup on any failure.
+- Never delete user-created backups. Report actual before/after disk usage, including WAL and remaining recovery files.
+
+SQLite compaction requires temporary free space. Check available space first and leave the original intact on failure. [SQLite VACUUM documentation](https://www.sqlite.org/lang_vacuum.html)
+
+**Acceptance:** repeated reconciliation on an unchanged dataset retains two compact receipts at most. A 10,000-cycle fixture shows no linear journal growth. The affected database loses its redundant gigabytes without changing user records.
+
+Additional acceptance details:
+
+- Limit compaction to `mutation_outbox` operations `commitNativeReminderPlan`
+  and `recordNativeReminderCoverage`, keyed by `(user_id, operation)` for retention.
+  Preserve mutation retry identity `(user_id, mutation_id)` and the sequence high-water mark.
+- Before implementing recovery, document marker transitions for backup verified,
+  cleanup committed, compaction complete, reopen verified, and optional backup deletion.
+  Inject interruption at each transition. Verify restart resumes without another backup
+  or lost domain writes. Prove all native write entry points honor maintenance exclusion.
+- Compare canonical pre/post fingerprints of account identity, baseline, product rows,
+  and pending domain mutations. Exclude only the authorized reminder bookkeeping changes.
+  Test insufficient space before writes, mid-cleanup failure, rollback, reopen failure,
+  and retained backup recovery. Never resume reconciliation on failed validation.
+
+Implementation references and contract ownership:
+
+- Reuse `apps/desktop/src-tauri/src/local_store/mod.rs`, `reminder.rs`, and
+  `db.rs`; add the next tracked migration under `apps/desktop/src-tauri/migrations/`.
+- Coalesce refreshes in `apps/desktop/src/local-reminder.service.ts` and gate
+  startup in `apps/desktop/src/product.tsx`. Preserve existing delivery evidence handling.
+- Update `docs/DESKTOP_DATA_MODEL.md`, `docs/DESKTOP_BUILD.md`,
+  `docs/NOTIFICATION_SPEC.md`, and `docs/OPERATIONS.md` with implemented behavior.
+- Extend native tests and `tests/desktop-store-contract.test.ts`. Record recovery
+  measurements and failure evidence without Notes, credentials, or record identifiers.
+- Recovery-backup retention is an installed-app acceptance input. Record the
+  owner's preference before deletion; an absent preference retains the backup.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Desktop | This ticket owns compact receipts, maintenance, recovery, and installed-database acceptance in the native store and reminder service above |
+| Web | No storage implementation: the journal and recovery files are device-local; preserve hosted reminder semantics |
+| Marketing | This ticket owns factual repair/help copy in `docs/user-guide/desktop-local.md` and release notes after verification |
+| Future mobile | Implementation deferred; no mobile database or maintenance flow exists |
+
+---
+
+## Ticket 130: Dependency-safe account synchronization
+
+Status: in_progress (2026-09-08).
+
+**Apply the chosen deletion policy.**
+
+- When synchronization accepts legitimate occurrence deletion, delete its attached reminder logs on both copies.
+- Apply this to all delivery statuses. Retain delivery logs while their occurrence remains.
+- Never restore a reminder whose occurrence is absent from the accepted result.
+- Protect occurrences containing Notes, status history, or tracked time. Concurrent user changes must produce reviewable conflicts.
+- Reject incomplete input graphs with an actionable error. Do not treat arbitrary missing parents as authorized deletion.
+
+**Update every enforcement boundary.**
+
+- Adjust the shared planner and both ordinary and reviewed sync paths.
+- Replace blanket reminder-deletion protection with deletion permitted only alongside accepted parent removal.
+- Add matching Postgres and native SQLite validation. Preserve ownership checks, foreign keys, atomic apply, and stale-plan protection.
+- Delete children before parents. Validate that every retained reminder references a retained occurrence.
+- Add a tracked hosted migration for the RPC guard change.
+- Keep baseline advancement and outbox acknowledgement conditional on both hosted and local success.
+
+Deletion acceptance matrix:
+
+- Require complete baseline, local, and hosted graphs before planning. An automatic
+  accepted deletion requires an existing baseline occurrence, its deletion on one
+  copy, an unchanged occurrence on the other, and no protected user content.
+  Compatible deletion on both copies must also preserve the protected-content checks.
+- Notes, status history, tracked time, resolved status, or concurrent user edits
+  prevent automatic deletion. Use existing review controls and stale-plan checks;
+  never interpret a missing parent in an incomplete input as a deletion decision.
+- Cover pending, sent, failed, and cancelled reminders with removable and protected
+  parents, in both deletion directions and reviewed apply. Retain every reminder
+  when its parent remains; delete every attached reminder only with accepted parent removal.
+
+**Repair the affected account through normal sync.**
+
+- Verify current local and hosted snapshots read-only before applying the repaired plan.
+- Install the compatible repair build and run normal synchronization.
+- Confirm convergence of Behaviors, occurrences, Notes, histories, and Needs decision for the same timezone and date.
+- Do not reset the account link or overwrite local data from the web copy.
+- Route genuine conflicts through existing review controls.
+
+**Acceptance:** reproduce the original failure before the fix. Then prove convergence, rollback, and retry behavior against real Postgres and SQLite.
+
+Implementation references and contract ownership:
+
+- `packages/core/src/resolvers/account-sync.resolver.ts` owns ordinary and
+  reviewed planning. Trace all callers before changing shared deletion guards.
+- `apps/desktop/src/account/account-sync.ts`, `apps/desktop/src/sync-engine.ts`,
+  and `apps/desktop/src-tauri/src/local_store/sync_apply.rs` own adapter ordering,
+  native validation, atomic apply, baseline advancement, and acknowledgement.
+- Add the next tracked guard migration under `supabase/migrations/`; update
+  `docs/DATA_MODEL.md`, `docs/DESKTOP_DATA_MODEL.md`, `docs/DESKTOP_BUILD.md`,
+  `docs/AGENT_RESOLVERS.md`, and `docs/NOTIFICATION_SPEC.md` with the new contract.
+- Extend `tests/account-sync.resolver.test.ts`,
+  `tests/desktop-account-sync-adapter.test.ts`, `tests/desktop-sync-engine.test.ts`,
+  native tests, and real Postgres/SQLite contracts.
+- The selected all-status child-deletion policy supersedes the delivery-history
+  retention recommendation in `docs/qa/2026-09-08-account-sync-audit.md`.
+  Keep that audit as historical evidence. Existing blanket reminder guards are
+  implementation defects to replace, not permission to discard other history.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Desktop | This ticket owns shared planning, native apply, normal account repair, and convergence acceptance through the references above |
+| Web | This ticket owns the hosted RPC guard migration and shared sync contract; preserve RLS, ownership, and ordinary hosted reminder behavior |
+| Marketing | This ticket owns factual sync-repair help/release copy after acceptance; no marketing account-data implementation |
+| Future mobile | Implementation deferred; the shared dependency-safe sync contract defines future parity |
+
+---

@@ -410,3 +410,35 @@ web model. Existing graph writes, revisions, and outbox transactions persist
 each archive cycle atomically. Restore/rearchive preserves prior entries.
 Validated schema-11 backups upgrade before replacement. Older archives receive
 no fabricated history. Account-sync conflicts require explicit review.
+
+## Bounded reminder receipts and recovery (Ticket 129)
+
+SQLite migration 0014 retains one `mutation_outbox` receipt per local owner and
+native reminder operation. `commitNativeReminderPlan` and
+`recordNativeReminderCoverage` store a payload hash and revision, mark the receipt
+synchronized, and preserve the sequence high-water mark. An exact retained retry
+returns current state. Changed payloads and stale revisions fail. Domain mutations
+and unsynchronized domain outbox entries keep their existing contracts.
+
+Startup recovery runs before exposing LocalStore. It checks disk space, reserves
+a protected backup, and records durable recovery stages. Verification compares
+integrity, foreign keys, account metadata, baselines, product rows, and non-reminder
+outbox data. Cleanup, checkpoint, VACUUM, and reopen must pass before tracking
+starts. Settings reports database, WAL, shared memory, and retained recovery files.
+The backup remains until the user acknowledges and deletes that exact recovery copy.
+
+Schema 0013 remains in chronological order as a compatibility prerequisite. The
+repair release includes its table migration without activating Note shortcut UI.
+
+## Dependency-safe synchronization (Ticket 130)
+
+An accepted Occurrence deletion removes attached reminder deliveries in both
+copies, regardless of reminder status. A retained Occurrence keeps its reminders.
+The pure planner rejects incomplete graphs and protects Notes, status history,
+time history, and resolved Occurrences. SQLite applies child deletion first and
+rejects orphan-producing plans atomically. Hosted apply uses the same final-graph
+guard. A failed apply leaves the saved baseline and pending outbox unchanged.
+
+Recovery fails closed if a crash leaves a reserved staging file before its
+identity reaches the durable marker. Cadence preserves that file and stops before
+cleanup. Operator inspection is required; Cadence never adopts an unproven file.

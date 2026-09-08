@@ -449,3 +449,19 @@ Apple access and credentials remain unavailable, and the current host does not
 run macOS 14. Keep Ticket 115 deferred. Public production publication remains an
 explicit owner-authorized action; do not publish or change providers as a side
 effect.
+
+## Storage and synchronization repair (Tickets 129–130)
+
+Native reminder receipts retain one compact entry per operation and local owner.
+Startup creates a protected recovery backup, verifies data preservation, compacts
+SQLite, and reopens before exposing local tracking. Settings reports actual storage
+totals and provides acknowledged deletion of the verified recovery backup.
+Reconciliation bursts share one running and one pending refresh.
+
+The pure account planner validates complete graphs and cascades accepted Occurrence
+deletions to every attached reminder. SQLite and tracked Postgres apply guards
+reject orphan-producing plans and protected history deletion.
+
+This repair release excludes Ticket 131 automatic updates and Note shortcut runtime.
+SQLite migration 0013 remains a schema-only compatibility prerequisite for0014.
+Signed installed upgrade and owner account convergence remain acceptance gates.
