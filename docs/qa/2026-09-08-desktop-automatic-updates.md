@@ -25,3 +25,20 @@ and integrity checks passed. The protected recovery backup remains intact.
 The owner must complete the macOS Keychain prompt before normal sync convergence
 and unchanged reconciliation can be verified. Ticket 131 remains in progress and
 unreleased until that repair acceptance and its own signed installed checks pass.
+
+## Installed correction — 2026-09-09
+
+Preview.22 opened after owner Keychain approval. Installed testing found that
+its separate download call lacked native permission: main.json still allowed
+only the old combined download-and-install command. Preview.23 used identical
+source. The public feed was restored to verified repair preview.21 after this
+finding; installed clients are not downgraded.
+
+The correction replaces the combined permission with allow-download and
+allow-install. The installed plugin's generated permission definitions and the
+native build's generated capability file confirm both command permissions.
+A new runnable capability regression check passes. Parent verification passed
+1,545 JavaScript tests (25 skipped), required governance checks, lint, types,
+and web/desktop builds. Preview.24 passed native build and all artifact checks.
+Fresh correction review returned `ship`, with no findings. Replacement release
+activation and direct installed acceptance remain pending.
