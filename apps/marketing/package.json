@@ -18,7 +18,7 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@js-temporal/polyfill": "^0.5.1",
     "@popmelt.com/core": "^0.16.0",
-    "astro": "^7.2.6"
+    "astro": "^7.2.8"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
