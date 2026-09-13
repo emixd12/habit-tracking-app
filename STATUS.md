@@ -43,6 +43,25 @@ When updating a ticket row:
 
 ## Current repository state
 
+Production rollout (2026-09-12): PR #52 contains the latest workspace changes.
+The owner authorized production deployment. Hosted migrations `20260905020741`
+and `20260908003245` are applied; all 61 migration versions now match locally.
+Read-only checks confirmed Note shortcut RLS, authenticated reads, blocked direct
+inserts, and blocked anonymous commits. Existing sync repairs remain installed.
+The two Ready Preview deployments at `01e03993` returned HTTP 200 for the login
+page and marketing homepage, with the expected Google login and Mac download CTA.
+Local agent, interaction, resolver, public-source, Trust, lint, TypeScript,
+web build, marketing check/build, and desktop TypeScript/build checks pass.
+All 1,612 tests pass; 26 remain skipped. Lint retains seven fixture warnings.
+GitHub CI and production merge/deployment verification remain pending.
+Platform impact: web releases Note shortcuts, Markdown export, summary loading,
+timezone fixes, and five-minute reminders; marketing releases mobile fixes.
+Desktop source repairs are included, but this rollout publishes no desktop binary.
+Future mobile implementation remains deferred. Existing native acceptance gates
+and Ticket 091's separately authorized reminder-delivery check remain open.
+Older desktop clients must update before synchronizing Note shortcut state.
+
+
 Ticket 130 snapshot-timeout follow-up (2026-09-10): deployed and verified in the
 installed desktop app. The broader Ticket 130 retains its separate acceptance gates.
 Read-only hosted diagnostics found eight snapshot HTTP 500 responses and eight
