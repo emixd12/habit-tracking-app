@@ -25,6 +25,14 @@ describe("export download response", () => {
     vi.clearAllMocks();
   });
 
+  it("serves Markdown through the authenticated download adapter", async () => {
+    vi.mocked(getExportDownload).mockResolvedValue({ content: "# Summary", contentType: "text/markdown; charset=utf-8", fileName: "summary.md" });
+    const response = await exportDownloadResponse(exportRequest(), "markdown");
+    expect(response.headers.get("content-type")).toContain("text/markdown");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.text()).toBe("# Summary");
+  });
+
   it("keeps anonymous requests on the JSON 401 contract", async () => {
     vi.mocked(getExportDownload).mockRejectedValue(new ExportAuthError());
 

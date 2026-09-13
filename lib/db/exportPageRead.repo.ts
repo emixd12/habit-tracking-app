@@ -1,3 +1,4 @@
+import type { ExportSummaryCounts } from "@/lib/types/export";
 import type { Json } from "@/lib/db/database.types";
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import { measurePerformanceSpan } from "@/lib/services/performance-timing";
@@ -200,4 +201,24 @@ function jsonArray(value: Json | undefined, label: string): Json[] {
 
 function isJsonObject(value: Json | null): value is { [key: string]: Json | undefined } {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+export async function readExportPageSummary(
+  supabase: AppSupabaseClient,
+  input: { startLocalDate: string | null; endLocalDate: string; includeArchived: boolean; includeTimeTracking: boolean; throughStartedAt: string },
+): Promise<ExportSummaryCounts> {
+  const { data, error } = await supabase.rpc("get_export_page_summary", {
+    range_start_local_date: input.startLocalDate ?? ALL_TIME_START_LOCAL_DATE,
+    range_end_local_date: input.endLocalDate,
+    include_archived: input.includeArchived,
+    include_time_tracking: input.includeTimeTracking,
+    through_started_at: input.throughStartedAt,
+  });
+  if (error) throw error;
+  const fields = ["behavior_count", "completed_count", "not_completed_count", "unresolved_count", "time_session_count"];
+  if (!isJsonObject(data) || fields.some((key) =>
+    typeof data[key] !== "number" || !Number.isSafeInteger(data[key]) || (data[key] as number) < 0)) {
+    throw new Error("Export summary returned invalid counts.");
+  }
+  return data as unknown as ExportSummaryCounts;
 }

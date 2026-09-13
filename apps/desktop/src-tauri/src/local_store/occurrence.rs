@@ -392,6 +392,7 @@ pub fn note(
     occurrence_id: &str,
     expected_note: &Option<String>,
     note: &Option<String>,
+    used_shortcut: bool,
 ) -> Result<Value> {
     if note.as_ref().is_some_and(|text| text.len() > 1_048_576) {
         return Err("The note exceeds one MiB.".into());
@@ -403,6 +404,39 @@ pub fn note(
     row.note = note.clone();
     row.updated_at = now.into();
     db::update(db, profile_id, occurrence_id, &row)?;
+    if used_shortcut {
+        let existing = db::read::<NoteShortcutState>(
+            db,
+            "SELECT * FROM note_shortcut_states WHERE user_id=?1 AND id=?2",
+            &[profile_id.to_string().into(), row.behavior_id.clone().into()],
+        )?
+        .into_iter()
+        .next();
+        let insert = existing.is_none();
+        let mut state = existing.unwrap_or_else(|| NoteShortcutState {
+            id: row.behavior_id.clone(),
+            user_id: profile_id.into(),
+            behavior_id: Some(row.behavior_id.clone()),
+            enabled: false,
+            entries: vec![],
+            excluded_occurrence_ids: vec![],
+            revision: 0,
+            updated_at: now.into(),
+        });
+        if !state.excluded_occurrence_ids.iter().any(|id| id == occurrence_id) {
+            if state.excluded_occurrence_ids.len() == 100_000 {
+                return Err("Note shortcut exclusions exceed 100,000 Occurrences.".into());
+            }
+            state.excluded_occurrence_ids.push(occurrence_id.into());
+            state.revision += 1;
+            state.updated_at = now.into();
+            if insert {
+                db::insert(db, profile_id, &state)?;
+            } else {
+                db::update(db, profile_id, &state.id, &state)?;
+            }
+        }
+    }
     Ok(json!(row))
 }
 

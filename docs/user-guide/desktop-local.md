@@ -86,6 +86,19 @@ verified horizon even when later reminders exist. **Not verified** means
 Cadence cannot currently claim coverage. Reopen Cadence to refresh the horizon.
 Scheduling does not prove delivery; macOS controls notification presentation.
 
+## Note shortcuts
+
+Settings controls the global **Note shortcuts** setting. In an active Behavior's
+**Details and Settings**, enable its shortcuts and choose **Find repeated Notes**.
+Cadence analyzes local Notes only when requested. Review each proposal before
+accepting it. Accepted shortcuts are available above that Behavior's Occurrence
+Note fields on Timeline, Needs decision, and selected-day review.
+
+A shortcut fills an empty draft or appends a new line. Choose **Save note** to
+store it. Selection alone does not change status or reminders. Local shortcut
+state works while offline and can synchronize with a linked account. Linking
+does not enable cloud Note analysis.
+
 ## Back up or restore the local database
 
 Settings shows the exact absolute path to `cadence.sqlite3` in Cadence's macOS
@@ -137,9 +150,29 @@ shows an error instead of claiming the record was deleted.
 
 ## App updates
 
-Settings shows **Signed updates are not configured for this build** until the
-release configuration exists. Configured builds expose **Check for updates**.
-A found update requires **Download and install**, followed by **Restart Cadence**
-after installation. Cadence does not check or install updates automatically.
-Signed installation and recovery remain release-verification gates for this
-preview.
+Cadence checks for signed updates at startup and daily while open. Resume and
+connectivity recovery trigger an overdue check. **Check for updates** bypasses
+the daily interval. **Download updates automatically** is enabled by default.
+Turn it off to download manually.
+
+A downloaded update shows a nonmodal **Review update** notice. Reviewing keeps
+your current editor open. **Later** hides that version's notice for 24 hours.
+Review release notes, choose **Install update**, then choose **Restart Cadence**.
+Cadence waits for writes and synchronization. Save your drafts first, or choose
+**Discard drafts and restart**. **Keep editing** leaves drafts open.
+
+An incompatible synchronization response shows **Update required to synchronize**.
+Local tracking remains available. An unconfigured build shows **Signed updates
+are not configured for this build**. Ticket 131 installed acceptance is pending.
+
+## Storage recovery
+
+Cadence repairs oversized native reminder receipts before opening local tracking.
+It checks free space, creates a protected recovery backup, verifies product data,
+compacts SQLite, and reopens the database. An interrupted repair resumes safely.
+An error stops opening the database instead of continuing with an unverified copy.
+
+Settings shows storage totals before and after repair, including remaining
+recovery files. Cadence retains the recovery backup by default. **Delete recovery
+backup** deletes only that recorded backup after verification. It never deletes
+user-created backups. Ticket 129 installed recovery acceptance is pending.

@@ -20,6 +20,10 @@ import { readDesktopZipEntries } from "../apps/desktop/src/archive";
 import { toLocalBehaviorGraphRecord } from "../apps/desktop/src/local-generation.service";
 import { CONTRACT_NOW, exerciseBehaviorStoreContract } from "./helpers/behavior-store-contract";
 import { loadNotificationOccurrence } from "../apps/desktop/src/notification-activation";
+import { createLocalNoteShortcutStore } from "../apps/desktop/src/local-note-shortcut.service";
+import { getNoteShortcutView, listAcceptedNoteShortcuts, manageNoteShortcuts } from "@cadence/core/services/note-shortcut.service";
+import { noteShortcutRevision } from "@cadence/core/resolvers/note-suggestion.resolver";
+import { createLocalOccurrenceActions } from "../apps/desktop/src/local-actions";
 
 const transport = vi.hoisted(() => ({ notify: (_request: unknown): Promise<unknown> => { void _request; return Promise.reject(new Error("OS adapter not configured.")); }, send: (_request: unknown): Promise<unknown> => { void _request; return Promise.reject(new Error("SQLite runner is not started.")); } }));
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true, invoke: (command: string, args: { request: unknown }) => {
@@ -170,6 +174,42 @@ describe.skipIf(!process.env.CADENCE_SQLITE_CONTRACT)("TypeScript adapters again
     expect(reminderTarget).toMatchObject({ id: occurrence.id, status: "completed", note: "Private note\nline two",
       canStartTimeTracking: false, timeTracking: { recordedSeconds: 60, runningStartedAt: null } });
     await expect(localCommand("readCategories", { profileId: crypto.randomUUID() })).rejects.toThrow("profile");
+  }, 20_000);
+
+  it("persists Note shortcuts and excludes shortcut-assisted Notes through restart", async () => {
+    const profile = await localCommand("readProfile", {});
+    const behavior = await createBehavior(createLocalBehaviorStore(profile.id, NOW), {
+      userId: profile.id, timezone: profile.timezone, values: VALUES, recordedAt: NOW.toString(),
+    });
+    const occurrences = (await loadLocalTimeline(7, NOW)).timeline.daySections.flatMap((day) => day.occurrences);
+    for (const [index, occurrence] of occurrences.slice(0, 3).entries()) {
+      await saveLocalOccurrenceNote(profile.id, { occurrenceId: occurrence.id, expectedNote: "", note: "Wore aligners overnight" }, NOW.add({ seconds: index + 1 }));
+    }
+    const store = createLocalNoteShortcutStore(profile.id);
+    const analysisNow = NOW.add({ hours: 48 });
+    let view = await getNoteShortcutView(store, null, analysisNow);
+    await manageNoteShortcuts(store, { behaviorId: null, command: { operation: "enable", enabled: true }, expectedRevision: noteShortcutRevision(view.state), now: analysisNow });
+    view = await getNoteShortcutView(store, behavior.id, analysisNow);
+    await manageNoteShortcuts(store, { behaviorId: behavior.id, command: { operation: "enable", enabled: true }, expectedRevision: noteShortcutRevision(view.state), now: analysisNow });
+    view = await getNoteShortcutView(store, behavior.id, analysisNow);
+    const analyzed = await manageNoteShortcuts(store, { behaviorId: behavior.id, command: { operation: "analyze" }, expectedRevision: noteShortcutRevision(view.state), now: analysisNow });
+    expect(analyzed.entries).toHaveLength(1);
+    const accepted = await manageNoteShortcuts(store, { behaviorId: behavior.id,
+      command: { operation: "accept", key: analyzed.entries[0].key, text: "Private accepted shortcut" },
+      expectedRevision: noteShortcutRevision(analyzed), now: analysisNow.add({ seconds: 1 }) });
+    const form = new FormData();
+    form.set("occurrence_id", occurrences[3].id);
+    form.set("expected_note", "");
+    form.set("note", "Edited after shortcut insertion");
+    form.set("used_shortcut", "true");
+    expect(await createLocalOccurrenceActions(profile.id, () => undefined).noteAction({ status: "idle", message: "" }, form)).toMatchObject({ status: "success" });
+    const exported = await getLocalExportPageData(profile, { range: "all", includeNotes: true, now: analysisNow.add({ seconds: 3 }) });
+    expect(JSON.stringify(exported)).not.toContain(accepted.entries[0].text!);
+    expect(JSON.stringify(exported)).toContain("Edited after shortcut insertion");
+
+    await stop(); await start();
+    expect((await listAcceptedNoteShortcuts(createLocalNoteShortcutStore(profile.id)))[behavior.id]).toMatchObject([{ text: "Private accepted shortcut", status: "accepted" }]);
+    expect((await localCommand("readNoteShortcutContext", { profileId: profile.id, behaviorId: behavior.id })).state?.excluded_occurrence_ids).toEqual([occurrences[3].id]);
   }, 20_000);
 
   it("exports real SQLite history in all formats without leaking owner IDs or default-sensitive content", async () => {

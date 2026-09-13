@@ -1,3 +1,4 @@
+import type { ExportPageData, ExportSummaryCounts } from "../types/export";
 import { sha256 } from "../hash";
 
 import { Temporal } from "@js-temporal/polyfill";
@@ -3015,4 +3016,33 @@ function formatInstantInTimezone(
   return instant
     .toZonedDateTimeISO(timezone || DEFAULT_TIMEZONE)
     .toString({ timeZoneName: "never" });
+}
+
+export function resolveExportPageSummary(input: {
+  now: Temporal.Instant;
+  timezone: string;
+  range?: string | number | null;
+  includeArchived?: boolean;
+  includeNotes?: boolean;
+  includeTimeTracking?: boolean;
+  counts: ExportSummaryCounts;
+}): ExportPageData {
+  const counts = input.counts;
+  const resolvedCount = counts.completed_count + counts.not_completed_count;
+  const totalCount = resolvedCount + counts.unresolved_count;
+  return {
+    timezone: input.timezone,
+    range: resolveExportDateRange(input),
+    rangeOptions: [...EXPORT_RANGE_OPTIONS],
+    includeArchived: input.includeArchived ?? false,
+    includeNotes: input.includeNotes ?? false,
+    includeTimeTracking: input.includeTimeTracking ?? false,
+    behaviorCount: counts.behavior_count,
+    occurrenceCount: totalCount,
+    ...(input.includeTimeTracking ? { timeSessionCount: counts.time_session_count } : {}),
+    overallAdherenceLabel: formatAdherenceValue({
+      completedCount: counts.completed_count, notCompletedCount: counts.not_completed_count,
+      unresolvedCount: counts.unresolved_count, resolvedCount, totalCount,
+    }),
+  };
 }

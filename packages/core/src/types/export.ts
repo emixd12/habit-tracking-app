@@ -422,3 +422,17 @@ export type ExportBundle = {
   markdownFileName: string;
   behaviorLog: BehaviorLogBundle;
 };
+
+export type ExportPageData = Pick<ExportBundle,
+  "timezone" | "includeArchived" | "includeNotes" | "includeTimeTracking" |
+  "range" | "rangeOptions" | "behaviorCount" | "occurrenceCount" |
+  "timeSessionCount" | "overallAdherenceLabel"
+> & Partial<Pick<ExportBundle, "markdownSummary" | "markdownFileName">>;
+
+export type ExportSummaryCounts = {
+  behavior_count: number;
+  completed_count: number;
+  not_completed_count: number;
+  unresolved_count: number;
+  time_session_count: number;
+};

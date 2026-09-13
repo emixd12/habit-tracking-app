@@ -37,7 +37,7 @@ export const primaryCtas = {
     href: `${siteConfig.cadenceAppUrl}/login`,
   },
   downloadMac: {
-    label: "Download unnotarized macOS preview",
+    label: "Download for Mac",
     href: siteConfig.desktopPreviewUrl,
   },
   readStandard: {

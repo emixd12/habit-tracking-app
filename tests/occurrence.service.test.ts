@@ -33,6 +33,7 @@ import {
   processOccurrenceSyncHorizons,
   syncUserOccurrences,
   updateOccurrenceNote,
+  updateOccurrenceNoteFromFormData,
 } from "@/lib/services/occurrence.service";
 import {
   syncReminderDeliveriesForBehavior,
@@ -1281,6 +1282,67 @@ describe("updateOccurrenceNote", () => {
         note: "My edit",
       }),
     ).rejects.toThrow("note changed elsewhere");
+  });
+
+  it("forwards shortcut provenance only when the user chose a shortcut", async () => {
+    const occurrence = buildOccurrence({
+      id: "occurrence-1",
+      behaviorId: "behavior-1",
+      scheduledFor: "2026-06-08T14:00:00Z",
+      startTime: "10:00:00",
+    });
+    vi.mocked(updateOccurrenceNoteIfExpected).mockResolvedValue(occurrence);
+
+    await updateOccurrenceNote(SUPABASE, "user-1", {
+      occurrenceId: occurrence.id,
+      expectedNote: "",
+      note: "Wore aligners overnight",
+      usedShortcut: true,
+    });
+
+    expect(updateOccurrenceNoteIfExpected).toHaveBeenCalledWith(SUPABASE, {
+      userId: "user-1",
+      occurrenceId: occurrence.id,
+      expectedNote: null,
+      note: "Wore aligners overnight",
+      usedShortcut: true,
+    });
+  });
+});
+
+describe("updateOccurrenceNoteFromFormData", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(createClient).mockResolvedValue(SUPABASE);
+    vi.mocked(requireCurrentUserId).mockResolvedValue("user-1");
+    vi.mocked(updateOccurrenceNoteIfExpected).mockResolvedValue(buildOccurrence({
+      id: FORM_OCCURRENCE_ID,
+      behaviorId: "behavior-1",
+      scheduledFor: "2026-06-08T14:00:00Z",
+      startTime: "10:00:00",
+    }));
+  });
+
+  it.each([
+    ["true", true],
+    ["false", false],
+    ["TRUE", false],
+  ])("parses used_shortcut=%s without trusting truthy text", async (value, used) => {
+    const formData = new FormData();
+    formData.set("occurrence_id", FORM_OCCURRENCE_ID);
+    formData.set("expected_note", "");
+    formData.set("note", "Wore aligners overnight");
+    formData.set("used_shortcut", value);
+
+    await updateOccurrenceNoteFromFormData(formData);
+
+    expect(updateOccurrenceNoteIfExpected).toHaveBeenCalledWith(SUPABASE, {
+      userId: "user-1",
+      occurrenceId: FORM_OCCURRENCE_ID,
+      expectedNote: null,
+      note: "Wore aligners overnight",
+      ...(used ? { usedShortcut: true } : {}),
+    });
   });
 });
 

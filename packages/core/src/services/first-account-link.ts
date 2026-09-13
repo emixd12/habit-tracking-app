@@ -3,7 +3,7 @@ import type { PortabilitySnapshot } from "../types/portability-rows";
 
 const DEFAULT_TIMEZONE = "America/New_York";
 
-export function hasRecognizedLocalData(snapshot: PortabilitySnapshot & { reminderDeliveries?: readonly unknown[] }): boolean {
+export function hasRecognizedLocalData(snapshot: PortabilitySnapshot & { reminderDeliveries?: readonly unknown[]; noteShortcutStates?: readonly unknown[] }): boolean {
   if (snapshot.profile.timezone !== DEFAULT_TIMEZONE) return true;
   const categories = [...snapshot.categories]
     .sort((left, right) => left.sort_order - right.sort_order)
@@ -15,5 +15,6 @@ export function hasRecognizedLocalData(snapshot: PortabilitySnapshot & { reminde
     snapshot.statusEvents.length > 0 || snapshot.timeSessions.length > 0 ||
     snapshot.importRuns.length > 0 || snapshot.mappings.length > 0 ||
     snapshot.importedNotes.length > 0 || snapshot.importedInterventions.length > 0 ||
-    (snapshot.reminderDeliveries?.length ?? 0) > 0;
+    (snapshot.reminderDeliveries?.length ?? 0) > 0 ||
+    (snapshot.noteShortcutStates?.length ?? 0) > 0;
 }

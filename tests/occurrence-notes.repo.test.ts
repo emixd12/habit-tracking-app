@@ -8,7 +8,8 @@ const is = vi.fn(() => ({ select }));
 const eq = vi.fn();
 const update = vi.fn();
 const from = vi.fn(() => ({ update }));
-const supabase = { from } as never;
+const rpc = vi.fn(() => ({ maybeSingle }));
+const supabase = { from, rpc } as never;
 
 describe("updateOccurrenceNoteIfExpected", () => {
   beforeEach(() => {
@@ -35,5 +36,25 @@ describe("updateOccurrenceNoteIfExpected", () => {
 
     expect(update).toHaveBeenCalledWith({ note: "New note" });
     expect(method).toHaveBeenCalledWith("note", value);
+  });
+
+  it("uses the atomic shortcut Note RPC when a shortcut filled the draft", async () => {
+    maybeSingle.mockResolvedValue({ data: { id: "occurrence-1" }, error: null });
+
+    await updateOccurrenceNoteIfExpected(supabase, {
+      userId: "user-1",
+      occurrenceId: "occurrence-1",
+      expectedNote: null,
+      note: "Wore aligners overnight",
+      usedShortcut: true,
+    });
+
+    expect(from).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith("update_occurrence_note_with_shortcut", {
+      target_occurrence_id: "occurrence-1",
+      expected_note: null,
+      next_note: "Wore aligners overnight",
+      used_shortcut: true,
+    });
   });
 });

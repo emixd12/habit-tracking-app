@@ -74,5 +74,6 @@ export type OccurrenceDataStore = {
     occurrenceId: string;
     expectedNote: string | null;
     note: string | null;
+    usedShortcut?: boolean;
   }): Promise<OccurrenceRecord | null>;
 };

@@ -45,6 +45,12 @@ function walk(relativePath) {
 
 const resolverRegistry = [
   {
+    domain: "Note shortcuts",
+    resolver: "packages/core/src/resolvers/note-suggestion.resolver.ts",
+    test: "tests/note-suggestion.resolver.test.ts",
+    source: "docs/PRODUCT_SPEC.md",
+  },
+  {
     domain: "recurrence",
     resolver: "packages/core/src/resolvers/recurrence.resolver.ts",
     compatibility: "lib/resolvers/recurrence.resolver.ts",

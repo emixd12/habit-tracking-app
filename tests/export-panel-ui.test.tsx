@@ -1,17 +1,19 @@
+// @vitest-environment jsdom
 import {
+  act,
   Children,
   isValidElement,
   type ElementType,
   type ReactElement,
   type ReactNode,
 } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it, vi } from "vitest";
 
 import { ExportPanel } from "../components/export/ExportPanel";
 import { ExportRangeSelector } from "../components/export/ExportRangeSelector";
-import { MarkdownSummaryActions } from "../components/export/MarkdownSummaryActions";
 import { BehaviorLogImportPanel } from "../components/export/BehaviorLogImportPanel";
 import { BehaviorLogRestorePanel } from "../components/export/BehaviorLogRestorePanel";
 import { EXPORT_PROMPT_TEMPLATES } from "../lib/export-prompts";
@@ -20,6 +22,38 @@ import type { BehaviorLogImportFormAction } from "../lib/types/behaviorlog-impor
 import type { BehaviorLogRestoreFormAction } from "../lib/types/behaviorlog-restore-ui";
 
 describe("Export panel UI", () => {
+  it("generates the web summary on demand, retries errors, and clears it after option changes", async () => {
+    const fetchSummary = vi.fn().mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response("# Prepared summary", { headers: {
+        "content-type": "text/markdown", "content-disposition": 'attachment; filename="scoped-summary.md"',
+      } }));
+    vi.stubGlobal("fetch", fetchSummary);
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const data = { ...exportBundle(), markdownSummary: undefined, markdownFileName: undefined };
+    const renderPanel = (range = data.range) => <ExportPanel exportData={{ ...data, range }}
+      importData={{ recentRuns: [] }} restoreData={{ recentRuns: [] }}
+      importAction={async (state) => state} restoreAction={async (state) => state} />;
+    try {
+      await act(async () => root.render(renderPanel()));
+      expect(fetchSummary).not.toHaveBeenCalled();
+      const generate = () => [...container.querySelectorAll("button")].find((button) => button.textContent === "Generate summary")!;
+      await act(async () => generate().click());
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain("Try again");
+      await act(async () => generate().click());
+      expect(fetchSummary).toHaveBeenLastCalledWith(expect.stringContaining("/api/export/markdown?range=30"), { cache: "no-store" });
+      expect(container.textContent).toContain("# Prepared summary");
+      expect(container.textContent).toContain("Copy summary");
+      await act(async () => root.render(renderPanel({ ...data.range, key: "90" })));
+      expect(container.textContent).not.toContain("# Prepared summary");
+      expect(generate()).toBeDefined();
+      expect(fetchSummary).toHaveBeenCalledTimes(2);
+    } finally {
+      await act(async () => root.unmount());
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("renders export options and every structured download interaction", () => {
     const html = renderToStaticMarkup(
       <ExportPanel
@@ -218,7 +252,7 @@ describe("Export panel UI", () => {
     expect(thirtyDayInput).not.toContain('checked=""');
   });
 
-  it("routes desktop downloads and form actions through supplied transports", () => {
+  it("routes desktop downloads and form actions through supplied transports", async () => {
     const onDownload = vi.fn();
     const importAction = vi.fn<BehaviorLogImportFormAction>(async (state) => state);
     const restoreAction = vi.fn<BehaviorLogRestoreFormAction>(async (state) => state);
@@ -239,8 +273,12 @@ describe("Export panel UI", () => {
       const props = button.props as { "aria-label"?: string; onClick?: () => void };
       if (props["aria-label"]?.startsWith("Download ")) props.onClick?.();
     }
-    const markdown = findElementByType(panel, MarkdownSummaryActions);
-    (markdown?.props as { onDownload: () => void }).onDownload();
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(async () => root.render(panel));
+    const markdown = [...container.querySelectorAll("button")].find((button) => button.textContent === "Download .md");
+    await act(async () => markdown!.click());
+    await act(async () => root.unmount());
     expect(onDownload.mock.calls).toEqual([
       ["jsonl"], ["csv"], ["json"], ["behaviorlog"], ["markdown"],
     ]);

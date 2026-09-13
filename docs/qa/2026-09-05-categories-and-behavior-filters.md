@@ -2,7 +2,7 @@
 
 Settings now supports category creation, renaming, descriptions, ordering, and
 confirmed deletion. Behaviors supports category filtering and three sort orders.
-The shared controls run on web and desktop. Hosted rollout has not occurred.
+The shared controls run on web and desktop. The web release is live in production.
 
 ## Implementation
 
@@ -95,5 +95,30 @@ Typecheck, lint, the web build, desktop typecheck, registry, resolver, design-sy
 and public-source checks pass. The seven existing fixture lint warnings remain.
 The migration dry run selects only `20260905035835_user_defined_categories.sql`.
 
-The web release is in progress. Desktop production distribution retains deferred
+The web release completed through PR #45. Desktop production distribution retains deferred
 Ticket 115's Apple-signing, notarization, and macOS 14 acceptance requirements.
+
+## Production deployment receipt
+
+- PR: https://github.com/emixd12/habit-tracking-app/pull/45
+- Merge commit: `4260b5443530949211552969820a9939aa62e432`.
+- Production deployment: `dpl_86JK8N7oE7Pw59qmKg1XUDLuGJjo`, READY.
+- Canonical alias: https://cadence-blush-three.vercel.app.
+- Hosted migration readback matches through `20260905035835`. No Export-summary
+  migration, reminder schedule, or unrelated unfinished change was deployed.
+- Required CI and all four CodeQL language analyses passed. Preview builds passed.
+  Preview login lacks Supabase runtime configuration, so authenticated Preview
+  QA was unavailable. Production used its existing authenticated session.
+- Production Settings rendered Categories and Add category. Behaviors category
+  filtering, Name A–Z selection, and Clear filters worked. Browser errors: zero.
+  Verification changed only local view controls; no production records changed.
+- `/login` returned 200. Protected app routes returned their expected login
+  redirects. An unauthenticated reminder-process request returned 401.
+- Vercel production build completed successfully. The existing agentmail-cli
+  install-script advisory remains non-failing.
+- Desktop source is merged. No desktop production binary or updater feed was
+  published. Ticket 115's Apple-trusted distribution prerequisites remain deferred.
+  Older desktop category-sync writes without descriptions require an updated client.
+
+The original workspace tracks the merged main commit and retains unrelated
+uncommitted work. This receipt is also recorded in the merged PR description.

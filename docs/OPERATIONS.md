@@ -1376,3 +1376,50 @@ marks, and third-party notices unchanged. The approved preview feed is public.
 Any production publication, uploads, hosted migrations, deployments, and
 provider changes remain separate explicit actions. Ticket 106
 legal/public-registration gates passed under the completion attestation above.
+
+## Ticket 104 security inbox follow-up
+
+Read-only inspection on 2026-09-04 confirmed the prior synthetic message
+reached a filtered folder. The root cause is not verified because provider
+diagnostics require operator access. No filtering rule has changed. Keep
+provider diagnostics and configuration details in private operator notes.
+
+The repository owner owns review of Inbox, Junk/Spam, and quarantine
+each business day, plus immediate review after any authorized route test.
+Keep malware and spam filtering enabled. Provider access and one separately
+authorized harmless test remain required for Ticket 104 acceptance. The prior
+Ticket 099 message does not substitute for a new test.
+
+## Ticket 105 browser-push compatibility exception
+
+The npm registry still publishes web-push 3.6.7 as latest (2026-09-04). The
+installed direct dependency calls legacy `url.parse()` in
+`src/web-push-lib.js` during VAPID audience construction and HTTPS request
+construction. Node 24 reports DEP0169 on that path. Upstream issue
+https://github.com/web-push-libs/web-push/issues/943 is closed by the merged
+https://github.com/web-push-libs/web-push/pull/948, but the fix has no newer
+published npm release. Keep the installed version and lockfile unchanged.
+Do not patch node_modules, suppress warnings, or replace the push provider.
+
+The repository owner owns rechecking when npm publishes a newer stable version
+or a supported Node upgrade changes this warning into a failure. Run
+`npx vitest run tests/web-push-compatibility.test.ts tests/web-push-subject.test.ts tests/reminder.service.test.ts`,
+then the full release checks and an authorized Preview deployment. The real
+package test uses generated synthetic keys and a fake HTTPS transport. It
+checks encryption, VAPID, endpoint/query preservation, TTL, and successful
+response handling without network traffic.
+
+## Note shortcut rollout (Tickets 126–128)
+
+Deterministic matching uses the owned database only and needs no external model.
+Keep all provider calls disabled until Ticket 126's synthetic evaluation and
+provider/privacy go decision are documented. Cloud consent cannot synchronize.
+Do not log Notes, shortcut text, evidence hashes, provider payloads, or account IDs.
+Record aggregate synthetic checks and sanitized failures only.
+
+Apply tracked Postgres and SQLite migrations with the normal local replay,
+ownership, rollback, backup, and old-client compatibility checks. Hosted migration,
+deployment, distribution, new provider access, and spending beyond authorization
+remain explicit gates. Marketing/privacy copy must state the actual provider,
+training use, retention/deletion limits, data sent, device-specific consent,
+revocation, and fallback before cloud analysis becomes available.

@@ -142,6 +142,28 @@ describe("local database controls", () => {
     expect(html).toContain("protects the current database");
   });
 
+  it("reports recovery totals and requires acknowledgement before deleting its backup", () => {
+    const usage = { databaseBytes: 100, walBytes: 20, shmBytes: 10, recoveryBytes: 1000, totalBytes: 1130 };
+    const html = renderToStaticMarkup(<LocalDatabaseSection
+      info={{ path: "/Application Support/cadence.sqlite3", localMode: false,
+        recovery: { state: "reopen_verified", backupPath: "/Application Support/Backups/recovery.sqlite3", before: usage, after: usage } }}
+      confirmation="" busy={false} message="" onConfirmationChange={vi.fn()} onReveal={vi.fn()} onBackup={vi.fn()} onRestore={vi.fn()} onDeleteRecoveryBackup={vi.fn()} />);
+    expect(html).toContain("Current storage, including remaining recovery files");
+    expect(html).toContain("Permanently delete this recovery backup");
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Delete recovery backup/);
+  });
+
+  it("does not claim an unfinished recovery deleted its backup", () => {
+    const usage = { databaseBytes: 100, walBytes: 0, shmBytes: 0, recoveryBytes: 100, totalBytes: 200 };
+    const html = renderToStaticMarkup(<LocalDatabaseSection
+      info={{ path: "/Application Support/cadence.sqlite3", localMode: false,
+        recovery: { state: "backup_pending", backupPath: null, before: usage, after: usage } }}
+      confirmation="" busy={false} message="" onConfirmationChange={vi.fn()} onReveal={vi.fn()} onBackup={vi.fn()} onRestore={vi.fn()} />);
+    expect(html).toContain("Storage recovery has not finished.");
+    expect(html).not.toContain("backup was deleted");
+    expect(html).not.toContain("Delete recovery backup");
+  });
+
   it("hides raw restore outside local mode", () => {
     const html = renderToStaticMarkup(<LocalDatabaseSection
       info={{ path: "/Application Support/cadence.sqlite3", localMode: false }} confirmation="RESTORE"

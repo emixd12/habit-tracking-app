@@ -134,11 +134,21 @@ the new identifier cannot cancel requests owned by the spike identifier.
 
 ## Update behavior
 
-Settings reads local build configuration without contacting a server. The user
-must select **Check for updates**, then **Download and install**, then
-**Restart Cadence**. Leaving Settings does not cancel an approved installation.
-There is no automatic launch check or downgrade override. Release notes render
-as plain text. An installation error never produces an installed state.
+Ticket 131 checks at startup and every 24 hours while open. Focus, visibility
+resume, native resume, and connectivity recovery trigger overdue checks. The
+last attempt persists; **Check for updates** bypasses the interval. Automatic
+download is enabled by default and can be disabled in Settings.
+
+A downloaded candidate stays available across navigation. **Review update** opens
+release notes inline; **Later** snoozes that version for 24 hours. The user chooses
+**Install update**, then separately **Restart Cadence**. Pending writes and account
+operations block restart. Unsaved drafts require saving or explicit discard.
+There is no downgrade override. Release notes render as plain text. A failed
+installation never produces an installed state.
+
+Tickets 129–130 use the existing manual updater for the first repair release.
+Ticket 131 follows separately after repair acceptance. Its signed native lifecycle
+and UI verification remain release gates.
 
 The updater is disabled when the final identity, public key, or HTTPS feed is
 absent. The native plugin rejects invalid signatures before installation.

@@ -52,7 +52,7 @@ export function summarizeOccurrenceSyncPlans(input: {
       : [input.fallbackWindow];
 
   return {
-    timezone: resolveSummaryTimezone(windows, input.timezone),
+    timezone: resolveSummaryTimezone(windows),
     lastSyncedLocalDate: minLocalDate(
       windows.map((coverageWindow) => coverageWindow.startLocalDate),
     ),
@@ -127,12 +127,7 @@ export function isOccurrenceSyncHorizonCovered(
 
 function resolveSummaryTimezone(
   windows: OccurrenceGenerationWindow[],
-  timezone?: string | null,
 ): string {
-  if (timezone) {
-    return timezone;
-  }
-
   const timezones = new Set(windows.map((coverageWindow) => coverageWindow.timezone));
 
   if (timezones.size === 1) {

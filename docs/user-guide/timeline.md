@@ -161,6 +161,23 @@ become this inline Note field.
 supports it. At high zoom it stacks above its action rather than requiring a
 horizontal pointer gesture.
 
+## Use a Note shortcut
+
+Open **Settings** and enable **Note shortcuts**. Open an active Behavior's
+**Details and Settings**, enable its Note shortcuts, then choose **Find repeated
+Notes**. Cadence checks only that Behavior's repeated Notes when you request it.
+Review a proposal before choosing **Accept**, or edit it first. You can later
+edit or remove accepted shortcuts in the same Behavior settings.
+
+Open an Occurrence Note form and choose an accepted shortcut. Cadence fills an
+empty draft or appends the shortcut on a new line. Review the draft, then choose
+**Save note**. Shortcut selection does not save the Note, change status, or send
+a reminder. A shortcut added while a Note save is pending remains in the draft.
+
+Turning off the global setting hides quick-fill buttons and proposals. It keeps
+accepted shortcuts and saved Notes. Removing a shortcut keeps saved Notes and
+suppresses that repeated pattern for 90 days.
+
 ## Track occurrence time
 
 **Prerequisites:** Expand an active Behavior's current-day Occurrence or an

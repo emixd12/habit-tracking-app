@@ -121,22 +121,34 @@
       "path": "apps/desktop/src/account/account-panel.tsx",
       "classification": "cataloged",
       "interaction_marker_count": 27,
-      "interaction_ids": ["INT-AUTH-004", "INT-AUTH-005", "INT-AUTH-006", "INT-AUTH-007", "INT-AUTH-008", "INT-AUTH-009", "INT-AUTH-011", "INT-AUTH-012", "INT-AUTH-013", "INT-AUTH-014"]
+      "interaction_ids": [
+        "INT-AUTH-004",
+        "INT-AUTH-005",
+        "INT-AUTH-006",
+        "INT-AUTH-007",
+        "INT-AUTH-008",
+        "INT-AUTH-009",
+        "INT-AUTH-011",
+        "INT-AUTH-012",
+        "INT-AUTH-013",
+        "INT-AUTH-014"
+      ]
     },
     {
       "path": "apps/desktop/src/local-database-controls.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 8,
+      "interaction_marker_count": 12,
       "interaction_ids": [
         "INT-DATABASE-001",
         "INT-DATABASE-002",
-        "INT-DATABASE-003"
+        "INT-DATABASE-003",
+        "INT-DATABASE-004"
       ]
     },
     {
       "path": "apps/desktop/src/desktop-update-panel.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 6,
+      "interaction_marker_count": 20,
       "interaction_ids": [
         "INT-DESKTOP-002"
       ]
@@ -255,7 +267,10 @@
       "interaction_marker_count": 2,
       "interaction_ids": [
         "INT-DESKTOP-001",
-        "INT-NOTIFICATION-001"
+        "INT-NOTIFICATION-001",
+        "INT-TIMELINE-011",
+        "INT-BEHAVIOR-029",
+        "INT-SETTINGS-014"
       ]
     },
     {
@@ -275,6 +290,13 @@
         "INT-TIMELINE-003"
       ],
       "reason": "Product Timeline uses a local show-more callback. Full native workflow verification remains pending."
+    },
+    {
+      "path": "apps/desktop/src/settings-bench.tsx",
+      "classification": "excluded",
+      "interaction_marker_count": 2,
+      "interaction_ids": [],
+      "reason": "Synthetic developer-only Settings fixtures; no native updates or file mutations."
     },
     {
       "path": "apps/desktop/src/main.tsx",
@@ -464,13 +486,14 @@
     {
       "path": "components/export/ExportPanel.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 9,
+      "interaction_marker_count": 11,
       "interaction_ids": [
         "INT-EXPORT-002",
         "INT-EXPORT-003",
         "INT-EXPORT-019",
         "INT-EXPORT-004",
-        "INT-EXPORT-005"
+        "INT-EXPORT-005",
+        "INT-EXPORT-020"
       ]
     },
     {
@@ -602,11 +625,22 @@
       ]
     },
     {
+      "path": "components/note-shortcuts/NoteShortcutControls.tsx",
+      "classification": "cataloged",
+      "interaction_marker_count": 18,
+      "interaction_ids": [
+        "INT-TIMELINE-011",
+        "INT-BEHAVIOR-029",
+        "INT-SETTINGS-014"
+      ]
+    },
+    {
       "path": "components/timeline/OccurrenceNoteForm.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 7,
+      "interaction_marker_count": 10,
       "interaction_ids": [
-        "INT-TIMELINE-008"
+        "INT-TIMELINE-008",
+        "INT-TIMELINE-011"
       ]
     },
     {
@@ -665,8 +699,88 @@
   ],
   "interactions": [
     {
+      "id": "INT-DATABASE-004",
+      "name": "Delete the verified storage recovery backup",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#back-up-or-restore-the-local-database"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#local-database"
+      ],
+      "journeys": [
+        "J04"
+      ],
+      "intent": "Delete only the temporary repair backup after the repaired database passes verification and reopens.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Delete recovery backup"
+        }
+      ],
+      "availability": "Local database Settings shows this action only when a verified repair backup remains.",
+      "success_result": "Deletes the exact recorded temporary recovery backup and refreshes the storage report. User-created backups remain untouched.",
+      "failure_result": "Retains the recovery backup when verification, ownership, or deletion fails.",
+      "effects": [
+        "filesystem_write",
+        "ui_state"
+      ],
+      "risk": "destructive",
+      "confirmation": "acknowledgement",
+      "implementation": [
+        "apps/desktop/src/local-database-controls.tsx",
+        "apps/desktop/src/local-database.ts",
+        "apps/desktop/src-tauri/src/files.rs",
+        "apps/desktop/src-tauri/src/local_store/recovery.rs"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-settings-ui.test.tsx"
+        ],
+        "notes": "Native recovery tests cover verification and deletion guards. Installed owner recovery acceptance remains pending."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "The web app does not replace a local SQLite database."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/local-database-controls.tsx",
+            "apps/desktop/src/local-database.ts",
+            "apps/desktop/src-tauri/src/files.rs",
+            "apps/desktop/src-tauri/src/local_store/recovery.rs"
+          ],
+          "evidence": [
+            "tests/desktop-settings-ui.test.tsx"
+          ],
+          "reason": "Ticket 129 recovery controls; installed acceptance remains pending."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not operate local product data or claim this feature before native acceptance."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "This raw macOS database workflow does not define a future mobile restore flow."
+        }
+      }
+    },
+    {
       "id": "INT-DESKTOP-002",
-      "name": "Check, install, or restart a desktop update",
+      "name": "Review, download, install, or restart a desktop update",
       "user_guidance": {
         "audience": "user",
         "references": [
@@ -675,7 +789,8 @@
       },
       "status": "implemented",
       "surfaces": [
-        "settings"
+        "settings",
+        "app_shell"
       ],
       "routes": [
         "/settings"
@@ -683,7 +798,7 @@
       "journeys": [
         "J20"
       ],
-      "intent": "Explicitly check for a signed desktop update, install it, and restart Cadence.",
+      "intent": "Control automatic downloads, review a signed update, install it, and explicitly restart without losing drafts.",
       "triggers": [
         {
           "kind": "activate",
@@ -691,15 +806,43 @@
         },
         {
           "kind": "activate",
-          "control": "Download and install"
+          "control": "Download updates automatically"
+        },
+        {
+          "kind": "activate",
+          "control": "Review update"
+        },
+        {
+          "kind": "activate",
+          "control": "Later"
+        },
+        {
+          "kind": "activate",
+          "control": "Download update"
+        },
+        {
+          "kind": "activate",
+          "control": "Install update"
+        },
+        {
+          "kind": "activate",
+          "control": "Retry update"
         },
         {
           "kind": "activate",
           "control": "Restart Cadence"
+        },
+        {
+          "kind": "activate",
+          "control": "Keep editing"
+        },
+        {
+          "kind": "activate",
+          "control": "Discard drafts and restart"
         }
       ],
-      "availability": "Desktop Settings only. An unconfigured build shows unavailable text. Check and install controls follow updater state; restart appears only after installation.",
-      "success_result": "Checks the configured update feed, verifies the update signature during installation, and restarts only after a separate user action.",
+      "availability": "Configured desktop builds check at startup and every 24 hours while open. Settings and the nonmodal notice expose explicit installation and restart.",
+      "success_result": "Automatically downloads signed updates by default. Later snoozes one version for 24 hours. Installation and restart require separate actions. Restart waits for writes and saved or explicitly discarded drafts.",
       "failure_result": "Shows configuration, network, signature, installation, or restart errors without claiming success. Unconfigured builds do not contact an update feed.",
       "effects": [
         "network_request",
@@ -717,9 +860,11 @@
       "test_coverage": {
         "level": "indirect",
         "references": [
-          "tests/desktop-updater.test.ts"
+          "tests/desktop-updater.test.ts",
+          "tests/desktop-update-panel.test.tsx",
+          "tests/desktop-restart.test.tsx"
         ],
-        "notes": "Updater state and transport contracts are tested. Native signed archive installation, rejection paths, separate restart, and data preservation passed through the public HTTPS preview feed. Apple notarization remains a separate release gate."
+        "notes": "Controller and UI contracts cover automatic download, retained candidates, retry, snooze, and restart guards. Ticket 131 installed acceptance remains pending."
       },
       "platforms": {
         "web": {
@@ -737,9 +882,10 @@
           ],
           "evidence": [
             "tests/desktop-updater.test.ts",
-            "docs/qa/2026-08-31-desktop-preview.md#published-preview-continuation"
+            "tests/desktop-update-panel.test.tsx",
+            "tests/desktop-restart.test.tsx"
           ],
-          "reason": "The public preview feed proved check, signed archive installation, signature and tamper rejection, unavailable-download recovery, separate restart, and data preservation."
+          "reason": "Ticket 131 implementation; installed release acceptance remains pending."
         },
         "marketing": {
           "applicability": "not_applicable",
@@ -2199,7 +2345,7 @@
       "triggers": [
         {
           "kind": "activate",
-          "control": "Download for macOS"
+          "control": "Download for Mac"
         }
       ],
       "availability": "Available in the marketing header.",
@@ -3868,7 +4014,7 @@
         }
       ],
       "availability": "Available inside expanded Timeline/Needs decision rows and behavior date Review disclosures.",
-      "success_result": "Updates only the occurrence Note and refreshes the owning surface without changing status timestamps or status history. Typing entered after the save started remains in the Note draft.",
+      "success_result": "Updates the occurrence Note and refreshes the owning surface without changing status history. A shortcut-assisted save atomically records its Occurrence ID as excluded future suggestion evidence. Draft edits entered during a pending save remain visible.",
       "failure_result": "Rejects a stale Note draft, shows a factual conflict error, and preserves both the stored Note and the unsaved draft.",
       "effects": [
         "database_write",
@@ -3922,7 +4068,9 @@
         "level": "direct",
         "references": [
           "tests/timeline-interactions-ui.test.tsx",
-          "tests/ui-runtime.test.tsx"
+          "tests/ui-runtime.test.tsx",
+          "tests/occurrence-note-shortcuts-ui.test.tsx",
+          "tests/desktop-store-contract.test.ts"
         ],
         "notes": "The Timeline UI test renders the Note field and Save note submission control; note persistence is covered separately."
       },
@@ -6583,7 +6731,7 @@
         }
       ],
       "availability": "Available in Export Options when no desktop export operation is pending.",
-      "success_result": "Applies the normalized export selection and reloads counts, downloads, summary, import, and restore page data. Web uses a URL query; desktop uses a local callback.",
+      "success_result": "Applies the normalized export selection and reloads counts, downloads, import, and restore page data. Web resets the on-demand summary and uses a URL query; desktop uses a local callback.",
       "failure_result": "Invalid query values normalize to safe defaults.",
       "effects": [
         "navigation",
@@ -6797,7 +6945,7 @@
           "control": "Copy summary"
         }
       ],
-      "availability": "Available when the Export page renders a Markdown summary.",
+      "availability": "Web: available after Generate summary succeeds for the applied options. Desktop: available when the local summary renders.",
       "success_result": "Writes the summary to the clipboard and announces Copied.",
       "failure_result": "Announces Copy unavailable without changing the clipboard.",
       "effects": [
@@ -6883,7 +7031,7 @@
           "control": "Download .md"
         }
       ],
-      "availability": "Available when the Export page renders a Markdown summary.",
+      "availability": "Web: available after Generate summary succeeds for the applied options. Desktop: available when the local summary renders.",
       "success_result": "Creates a temporary object URL and starts the .md file download. Desktop delegates to a native save dialog and reports saved, cancelled, or failed without automatic writes.",
       "failure_result": "Browser download restrictions may prevent the save without changing product data. Desktop cancellation is not success, and a save error is displayed.",
       "effects": [
@@ -8780,7 +8928,7 @@
           "tests/desktop-reminder-repair.test.ts",
           "tests/desktop-controls.dom.test.tsx"
         ],
-      "notes": "Existing-window navigation/focus and new-window opening are executed against the service worker source. Desktop tests cover strict identifier parsing, exact owner lookup, past/resolved/archived and out-of-range targets, shared row semantics, missing/error results, and unique disclosure IDs. An owner-clicked native product notification opened and focused its exact Occurrence; Tab reached that row's Track Time control. DOM tests verify repeated activation, missing-target focus, and no focus theft during ordinary refresh. Separate OS sleep/wake evidence now verifies automatic post-wake reconciliation before GUI inspection."
+        "notes": "Existing-window navigation/focus and new-window opening are executed against the service worker source. Desktop tests cover strict identifier parsing, exact owner lookup, past/resolved/archived and out-of-range targets, shared row semantics, missing/error results, and unique disclosure IDs. An owner-clicked native product notification opened and focused its exact Occurrence; Tab reached that row's Track Time control. DOM tests verify repeated activation, missing-target focus, and no focus theft during ordinary refresh. Separate OS sleep/wake evidence now verifies automatic post-wake reconciliation before GUI inspection."
       },
       "platforms": {
         "web": {
@@ -8795,21 +8943,21 @@
         },
         "desktop": {
           "applicability": "applicable",
-      "status": "implemented",
-      "implementation": [
-        "apps/desktop/src/product.tsx#Product",
-        "apps/desktop/src/notification-activation.ts",
-        "apps/desktop/src/timeline-screen.tsx",
-        "packages/core/src/services/timeline.service.ts#resolvePersistedTimelineOccurrence"
-      ],
-      "evidence": [
-        "tests/desktop-notification-activation.test.tsx",
-        "tests/desktop-store-contract.test.ts",
-        "tests/desktop-controls.dom.test.tsx",
-        "docs/qa/2026-08-30-desktop-lifecycle-release.md#product-notification-click-passed",
-        "docs/qa/2026-08-30-desktop-lifecycle-release.md#system-sleep-and-wake-passed"
-      ],
-      "reason": "The owner clicked the native product notification after the app quit. Before any agent launch, Cadence was running with the intended 22:41 Occurrence expanded and its summary focused; the 22:30 row remained collapsed. Tab moved to that target's Track Time control. Tests cover other target states and real SQLite lookup after restart. Separate actual system sleep/wake acceptance passed on 2026-08-31 with persisted reconciliation before the next minute poll and GUI inspection. Tickets 111 and 112 are complete locally; offline acceptance includes owner-confirmed disconnection. Ticket 113 signed-release acceptance remains open."
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/product.tsx#Product",
+            "apps/desktop/src/notification-activation.ts",
+            "apps/desktop/src/timeline-screen.tsx",
+            "packages/core/src/services/timeline.service.ts#resolvePersistedTimelineOccurrence"
+          ],
+          "evidence": [
+            "tests/desktop-notification-activation.test.tsx",
+            "tests/desktop-store-contract.test.ts",
+            "tests/desktop-controls.dom.test.tsx",
+            "docs/qa/2026-08-30-desktop-lifecycle-release.md#product-notification-click-passed",
+            "docs/qa/2026-08-30-desktop-lifecycle-release.md#system-sleep-and-wake-passed"
+          ],
+          "reason": "The owner clicked the native product notification after the app quit. Before any agent launch, Cadence was running with the intended 22:41 Occurrence expanded and its summary focused; the 22:30 row remained collapsed. Tab moved to that target's Track Time control. Tests cover other target states and real SQLite lookup after restart. Separate actual system sleep/wake acceptance passed on 2026-08-31 with persisted reconciliation before the next minute poll and GUI inspection. Tickets 111 and 112 are complete locally; offline acceptance includes owner-confirmed disconnection. Ticket 113 signed-release acceptance remains open."
         },
         "marketing": {
           "applicability": "not_applicable",
@@ -8826,351 +8974,1178 @@
     {
       "id": "INT-DATABASE-001",
       "name": "Reveal the local database in Finder",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#back-up-or-restore-the-local-database"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#back-up-or-restore-the-local-database"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#local-database"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#local-database"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Show the app-managed local database in Finder without accepting an arbitrary path.",
-      "triggers": [{ "kind": "activate", "control": "Reveal in Finder" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Reveal in Finder"
+        }
+      ],
       "availability": "Available in installed macOS app Settings after the managed database path loads.",
       "success_result": "Finder opens with the exact managed cadence.sqlite3 file selected.",
       "failure_result": "Shows an actionable Finder error and does not expose or open an unrelated path.",
-      "effects": ["native_navigation"],
+      "effects": [
+        "native_navigation"
+      ],
       "risk": "low",
       "confirmation": "none",
-      "implementation": ["apps/desktop/src/local-database-controls.tsx", "apps/desktop/src/local-database.ts", "apps/desktop/src-tauri/src/files.rs"],
-      "test_coverage": { "level": "manual", "references": ["tests/desktop-settings-ui.test.tsx"], "notes": "Automated UI coverage verifies disclosure and control availability. Native acceptance verified exact Finder selection in the recorded QA evidence." },
+      "implementation": [
+        "apps/desktop/src/local-database-controls.tsx",
+        "apps/desktop/src/local-database.ts",
+        "apps/desktop/src-tauri/src/files.rs"
+      ],
+      "test_coverage": {
+        "level": "manual",
+        "references": [
+          "tests/desktop-settings-ui.test.tsx"
+        ],
+        "notes": "Automated UI coverage verifies disclosure and control availability. Native acceptance verified exact Finder selection in the recorded QA evidence."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "The web app has no local SQLite file or Finder integration." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/local-database-controls.tsx", "apps/desktop/src-tauri/src/files.rs"], "evidence": ["tests/desktop-settings-ui.test.tsx", "docs/qa/2026-08-31-desktop-local-database-controls.md"], "reason": "The command derives the managed path internally. Native Finder acceptance selected the exact managed database." },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing does not operate local product data." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Finder and macOS Application Support are desktop-specific." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "The web app has no local SQLite file or Finder integration."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/local-database-controls.tsx",
+            "apps/desktop/src-tauri/src/files.rs"
+          ],
+          "evidence": [
+            "tests/desktop-settings-ui.test.tsx",
+            "docs/qa/2026-08-31-desktop-local-database-controls.md"
+          ],
+          "reason": "The command derives the managed path internally. Native Finder acceptance selected the exact managed database."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not operate local product data."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Finder and macOS Application Support are desktop-specific."
+        }
       }
     },
     {
       "id": "INT-DATABASE-002",
       "name": "Back up the local database",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#back-up-or-restore-the-local-database"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#back-up-or-restore-the-local-database"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#local-database"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#local-database"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Save a consistent validated copy of the managed local database.",
-      "triggers": [{ "kind": "activate", "control": "Back Up" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Back Up"
+        }
+      ],
       "availability": "Available in installed macOS app Settings after the managed database path loads.",
       "success_result": "Creates a validated online SQLite snapshot and atomically publishes it at the selected destination.",
       "failure_result": "Cancellation writes nothing. Validation or write failure preserves any previous destination file and shows an actionable error.",
-      "effects": ["native_dialog", "filesystem_write"],
+      "effects": [
+        "native_dialog",
+        "filesystem_write"
+      ],
       "risk": "moderate",
       "confirmation": "none",
-      "implementation": ["apps/desktop/src/local-database-controls.tsx", "apps/desktop/src/local-database.ts", "apps/desktop/src-tauri/src/files.rs", "apps/desktop/src-tauri/src/local_store/db.rs"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-settings-ui.test.tsx", "tests/desktop-store-contract.test.ts"], "notes": "Rust tests cover WAL-aware online backup, validation, atomic replacement, live-path rejection, and owner-only output." },
+      "implementation": [
+        "apps/desktop/src/local-database-controls.tsx",
+        "apps/desktop/src/local-database.ts",
+        "apps/desktop/src-tauri/src/files.rs",
+        "apps/desktop/src-tauri/src/local_store/db.rs"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-settings-ui.test.tsx",
+          "tests/desktop-store-contract.test.ts"
+        ],
+        "notes": "Rust tests cover WAL-aware online backup, validation, atomic replacement, live-path rejection, and owner-only output."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Browser storage and hosted backups do not change." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/local-database-controls.tsx", "apps/desktop/src-tauri/src/files.rs", "apps/desktop/src-tauri/src/local_store/db.rs"], "evidence": ["tests/desktop-settings-ui.test.tsx", "tests/desktop-store-contract.test.ts"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing does not operate local product data or claim this feature before native acceptance." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "This native file workflow is macOS-specific." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Browser storage and hosted backups do not change."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/local-database-controls.tsx",
+            "apps/desktop/src-tauri/src/files.rs",
+            "apps/desktop/src-tauri/src/local_store/db.rs"
+          ],
+          "evidence": [
+            "tests/desktop-settings-ui.test.tsx",
+            "tests/desktop-store-contract.test.ts"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not operate local product data or claim this feature before native acceptance."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "This native file workflow is macOS-specific."
+        }
       }
     },
     {
       "id": "INT-DATABASE-003",
       "name": "Restore the local database",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#back-up-or-restore-the-local-database"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#back-up-or-restore-the-local-database"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#local-database"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#local-database"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Replace local-mode data from a compatible Cadence database while retaining a protected prior copy.",
-      "triggers": [{ "kind": "activate", "control": "Restore local database" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Restore local database"
+        }
+      ],
       "availability": "Available only in local mode after the user types RESTORE. Account mode requires disconnect through Ticket 121.",
       "success_result": "Validates and stages the selected backup, protects the current database, replaces it atomically, and reopens the restored copy.",
       "failure_result": "Rejects corrupt, incompatible, non-Cadence, or live database files. Replacement failure restores and reopens the original database.",
-      "effects": ["native_dialog", "filesystem_write", "database_replace"],
+      "effects": [
+        "native_dialog",
+        "filesystem_write",
+        "database_replace"
+      ],
       "risk": "destructive",
       "confirmation": "typed",
-      "implementation": ["apps/desktop/src/local-database-controls.tsx", "apps/desktop/src/local-database.ts", "apps/desktop/src-tauri/src/files.rs", "apps/desktop/src-tauri/src/local_store/db.rs"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-settings-ui.test.tsx", "tests/desktop-store-contract.test.ts"], "notes": "UI tests cover typed confirmation and account-mode hiding. Rust tests cover protected backup, reopen, corruption, schema mismatch, sidecar cleanup, and original-data preservation." },
+      "implementation": [
+        "apps/desktop/src/local-database-controls.tsx",
+        "apps/desktop/src/local-database.ts",
+        "apps/desktop/src-tauri/src/files.rs",
+        "apps/desktop/src-tauri/src/local_store/db.rs"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-settings-ui.test.tsx",
+          "tests/desktop-store-contract.test.ts"
+        ],
+        "notes": "UI tests cover typed confirmation and account-mode hiding. Rust tests cover protected backup, reopen, corruption, schema mismatch, sidecar cleanup, and original-data preservation."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "The web app does not replace a local SQLite database." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/local-database-controls.tsx", "apps/desktop/src-tauri/src/files.rs", "apps/desktop/src-tauri/src/local_store/db.rs"], "evidence": ["tests/desktop-settings-ui.test.tsx", "tests/desktop-store-contract.test.ts", "docs/qa/2026-08-31-desktop-local-database-controls.md"], "reason": "Automated rollback contracts and native protected restore, validation, quit, and restart acceptance pass." },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing does not operate local product data or claim this feature before native acceptance." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "This raw macOS database workflow does not define a future mobile restore flow." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "The web app does not replace a local SQLite database."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/local-database-controls.tsx",
+            "apps/desktop/src-tauri/src/files.rs",
+            "apps/desktop/src-tauri/src/local_store/db.rs"
+          ],
+          "evidence": [
+            "tests/desktop-settings-ui.test.tsx",
+            "tests/desktop-store-contract.test.ts",
+            "docs/qa/2026-08-31-desktop-local-database-controls.md"
+          ],
+          "reason": "Automated rollback contracts and native protected restore, validation, quit, and restart acceptance pass."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not operate local product data or claim this feature before native acceptance."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "This raw macOS database workflow does not define a future mobile restore flow."
+        }
       }
     },
     {
       "id": "INT-AUTH-004",
       "name": "Sign in to a desktop account with Google",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#connect-a-google-account"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#connect-a-google-account"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#account"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#account"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Authenticate one optional Cadence account without changing local tracking data.",
-      "triggers": [{ "kind": "activate", "control": "Sign in with Google" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Sign in with Google"
+        }
+      ],
       "availability": "Available in a configured installed macOS build while no account session exists.",
       "success_result": "The system browser returns through the registered callback, Cadence consumes the PKCE code once, and Keychain retains the session for Ticket 119.",
       "failure_result": "Cancellation, denial, stale, duplicate, malformed, and state-mismatched callbacks show a recoverable error and leave local data unchanged.",
-      "effects": ["authentication_session", "native_navigation"],
+      "effects": [
+        "authentication_session",
+        "native_navigation"
+      ],
       "risk": "moderate",
       "confirmation": "none",
-      "implementation": ["apps/desktop/src/account/auth.ts", "apps/desktop/src/account/account-panel.tsx", "apps/desktop/src-tauri/src/auth.rs", "apps/desktop/src-tauri/native/auth.m"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-auth.test.tsx"], "notes": "Unit tests cover callback origin, state, denial, expiry, and public configuration. The hosted allowlist and installed-app round trip remain Ticket 118 acceptance gates." },
+      "implementation": [
+        "apps/desktop/src/account/auth.ts",
+        "apps/desktop/src/account/account-panel.tsx",
+        "apps/desktop/src-tauri/src/auth.rs",
+        "apps/desktop/src-tauri/native/auth.m"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-auth.test.tsx"
+        ],
+        "notes": "Unit tests cover callback origin, state, denial, expiry, and public configuration. The hosted allowlist and installed-app round trip remain Ticket 118 acceptance gates."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "The separate existing web Google flow remains INT-AUTH-001." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src/account/auth.ts", "apps/desktop/src-tauri/src/auth.rs"], "evidence": ["tests/desktop-auth.test.tsx"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing makes no account-sync claim before Ticket 122." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No mobile callback or credential store is implemented." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "The separate existing web Google flow remains INT-AUTH-001."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/account/account-panel.tsx",
+            "apps/desktop/src/account/auth.ts",
+            "apps/desktop/src-tauri/src/auth.rs"
+          ],
+          "evidence": [
+            "tests/desktop-auth.test.tsx"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing makes no account-sync claim before Ticket 122."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No mobile callback or credential store is implemented."
+        }
       }
     },
     {
       "id": "INT-AUTH-005",
       "name": "Cancel desktop Google sign in",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#connect-a-google-account"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#connect-a-google-account"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#account"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#account"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Stop a pending browser sign-in without ending local mode.",
-      "triggers": [{ "kind": "activate", "control": "Cancel sign in" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Cancel sign in"
+        }
+      ],
       "availability": "Available while Cadence waits for the system-browser callback.",
       "success_result": "Removes pending state and the PKCE verifier from Keychain and returns Settings to local mode.",
       "failure_result": "A later callback is rejected as cancelled or already used. Local data remains unchanged.",
-      "effects": ["authentication_session"],
+      "effects": [
+        "authentication_session"
+      ],
       "risk": "low",
       "confirmation": "none",
-      "implementation": ["apps/desktop/src/account/auth.ts", "apps/desktop/src/account/account-panel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-auth.test.tsx"], "notes": "Callback tests prove that a cancelled flow has no valid pending state." },
+      "implementation": [
+        "apps/desktop/src/account/auth.ts",
+        "apps/desktop/src/account/account-panel.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-auth.test.tsx"
+        ],
+        "notes": "Callback tests prove that a cancelled flow has no valid pending state."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Web owns its existing redirect flow." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/account/auth.ts", "apps/desktop/src/account/account-panel.tsx"], "evidence": ["tests/desktop-auth.test.tsx"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing does not own authentication." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No mobile authentication flow exists." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Web owns its existing redirect flow."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/account/auth.ts",
+            "apps/desktop/src/account/account-panel.tsx"
+          ],
+          "evidence": [
+            "tests/desktop-auth.test.tsx"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not own authentication."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No mobile authentication flow exists."
+        }
       }
     },
     {
       "id": "INT-AUTH-006",
       "name": "Import local data during first account link",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#choose-data-for-the-first-account-link"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#choose-data-for-the-first-account-link"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#account-link-choice"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#account-link-choice"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Choose the local tracking copy as input to the authenticated account link.",
-      "triggers": [{ "kind": "activate", "control": "Import local data into the account" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Import local data into the account"
+        }
+      ],
       "availability": "Shown after authentication when the typed local snapshot contains recognized data.",
       "success_result": "Commits the reviewed local bundle through the hosted atomic import RPC, hydrates the local merged copy, then saves one common baseline.",
       "failure_result": "Leaves the hosted import atomic, does not advance the baseline, retries any completed hosted commit by deterministic identity, and routes divergent recovery into whole-plan conflict review.",
-      "effects": ["database_write", "network_request"],
+      "effects": [
+        "database_write",
+        "network_request"
+      ],
       "risk": "moderate",
       "confirmation": "none",
-      "implementation": ["apps/desktop/src/account/account-panel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-first-account-link.test.tsx"], "notes": "Tests cover the explicit choice, hosted-success local retry, baseline-last ordering, and divergent conflict routing." },
+      "implementation": [
+        "apps/desktop/src/account/account-panel.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-first-account-link.test.tsx"
+        ],
+        "notes": "Tests cover the explicit choice, hosted-success local retry, baseline-last ordering, and divergent conflict routing."
+      },
       "platforms": {
-        "web": { "applicability": "applicable", "status": "implemented", "implementation": ["lib/services/behaviorlog-import-write.service.ts"], "evidence": ["tests/desktop-first-account-link.test.tsx"], "reason": "Desktop reuses the existing authenticated atomic import RPC and hosted RLS." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src/account/first-link.ts"], "evidence": ["tests/desktop-first-account-link.test.tsx"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing makes no account-link claim before Ticket 122." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No mobile first-link flow is authorized." }
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "lib/services/behaviorlog-import-write.service.ts"
+          ],
+          "evidence": [
+            "tests/desktop-first-account-link.test.tsx"
+          ],
+          "reason": "Desktop reuses the existing authenticated atomic import RPC and hosted RLS."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/account/account-panel.tsx",
+            "apps/desktop/src/account/first-link.ts"
+          ],
+          "evidence": [
+            "tests/desktop-first-account-link.test.tsx"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing makes no account-link claim before Ticket 122."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No mobile first-link flow is authorized."
+        }
       }
     },
     {
       "id": "INT-AUTH-007",
       "name": "Ignore local data during first account link",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#choose-data-for-the-first-account-link"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#choose-data-for-the-first-account-link"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#account-link-choice"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#account-link-choice"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Choose account data after protecting the current local copy.",
-      "triggers": [{ "kind": "activate", "control": "Ignore local data and use account data" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Ignore local data and use account data"
+        }
+      ],
       "availability": "Shown after authentication when the typed local snapshot contains recognized data.",
       "success_result": "Creates and verifies a protected backup, hydrates account data through one local atomic apply, displays the path, then saves one common baseline.",
       "failure_result": "Leaves both copies unchanged if backup or replacement fails.",
-      "effects": ["filesystem_write", "database_write", "network_request"],
+      "effects": [
+        "filesystem_write",
+        "database_write",
+        "network_request"
+      ],
       "risk": "moderate",
       "confirmation": "none",
-      "implementation": ["apps/desktop/src/account/account-panel.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-first-account-link.test.tsx"], "notes": "The UI test covers the choice and exact protected path output; native tests cover backup validation." },
+      "implementation": [
+        "apps/desktop/src/account/account-panel.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-first-account-link.test.tsx"
+        ],
+        "notes": "The UI test covers the choice and exact protected path output; native tests cover backup validation."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Ignore uploads nothing." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src/account/first-link.ts"], "evidence": ["tests/desktop-first-account-link.test.tsx"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing makes no account-link claim before Ticket 122." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No mobile first-link flow is authorized." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Ignore uploads nothing."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/account/account-panel.tsx",
+            "apps/desktop/src/account/first-link.ts"
+          ],
+          "evidence": [
+            "tests/desktop-first-account-link.test.tsx"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing makes no account-link claim before Ticket 122."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No mobile first-link flow is authorized."
+        }
       }
     },
     {
       "id": "INT-AUTH-008",
       "name": "Cancel first desktop account link",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#choose-data-for-the-first-account-link"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#choose-data-for-the-first-account-link"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#account-link-choice"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#account-link-choice"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Return to local mode without changing either product copy.",
-      "triggers": [{ "kind": "activate", "control": "Cancel account link" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Cancel account link"
+        }
+      ],
       "availability": "Shown while a first account-link choice is pending.",
       "success_result": "Clears the local session and incomplete account metadata.",
       "failure_result": "Shows a recoverable error and does not mutate product data.",
-      "effects": ["authentication_session", "database_write"],
+      "effects": [
+        "authentication_session",
+        "database_write"
+      ],
       "risk": "low",
       "confirmation": "none",
-      "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src/account/auth.ts"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-first-account-link.test.tsx"], "notes": "The UI test covers the explicit cancel action." },
+      "implementation": [
+        "apps/desktop/src/account/account-panel.tsx",
+        "apps/desktop/src/account/auth.ts"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-first-account-link.test.tsx"
+        ],
+        "notes": "The UI test covers the explicit cancel action."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No hosted product data changes." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/account/account-panel.tsx"], "evidence": ["tests/desktop-first-account-link.test.tsx"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing does not own account linking." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No mobile first-link flow is authorized." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No hosted product data changes."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/account/account-panel.tsx"
+          ],
+          "evidence": [
+            "tests/desktop-first-account-link.test.tsx"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not own account linking."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No mobile first-link flow is authorized."
+        }
       }
     },
     {
       "id": "INT-AUTH-009",
       "name": "Synchronize linked desktop account now",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#connect-a-google-account"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#connect-a-google-account"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#account-sync"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#account-sync"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Retry bounded two-way synchronization for the linked account while local tracking remains available.",
-      "triggers": [{ "kind": "activate", "control": "Sync now" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Sync now"
+        }
+      ],
       "availability": "Available after the first account link saves a common baseline.",
       "success_result": "Applies one conflict-free typed plan to hosted and local storage, then advances the baseline and captured outbox acknowledgement.",
       "failure_result": "Shows offline, failed, or conflict state without advancing the baseline or discarding local writes.",
-      "effects": ["network_request", "database_write"],
+      "effects": [
+        "network_request",
+        "database_write"
+      ],
       "risk": "moderate",
       "confirmation": "none",
-      "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src/account/account-sync.ts", "apps/desktop/src/sync-engine.ts", "apps/desktop/src/product.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-account-sync-ui.test.tsx", "tests/desktop-account-sync-adapter.test.ts", "tests/desktop-sync-engine.test.ts"], "notes": "Tests cover every status, deterministic hosted requests, conflict fail-closed behavior, and commit-boundary acknowledgement." },
+      "implementation": [
+        "apps/desktop/src/account/account-panel.tsx",
+        "apps/desktop/src/account/account-sync.ts",
+        "apps/desktop/src/sync-engine.ts",
+        "apps/desktop/src/product.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-account-sync-ui.test.tsx",
+          "tests/desktop-account-sync-adapter.test.ts",
+          "tests/desktop-sync-engine.test.ts"
+        ],
+        "notes": "Tests cover every status, deterministic hosted requests, conflict fail-closed behavior, and commit-boundary acknowledgement."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "The web app has no Sync now control; its authenticated writes become desktop synchronization input through existing RLS." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src/account/account-sync.ts", "apps/desktop/src-tauri/src/local_store/sync_apply.rs"], "evidence": ["tests/desktop-account-sync-ui.test.tsx", "tests/desktop-account-sync-adapter.test.ts"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing makes no synchronized-product claim before Ticket 122." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No mobile synchronization client is authorized." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "The web app has no Sync now control; its authenticated writes become desktop synchronization input through existing RLS."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/account/account-panel.tsx",
+            "apps/desktop/src/account/account-sync.ts",
+            "apps/desktop/src-tauri/src/local_store/sync_apply.rs"
+          ],
+          "evidence": [
+            "tests/desktop-account-sync-ui.test.tsx",
+            "tests/desktop-account-sync-adapter.test.ts"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing makes no synchronized-product claim before Ticket 122."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No mobile synchronization client is authorized."
+        }
       }
     },
     {
       "id": "INT-AUTH-010",
       "name": "Open desktop synchronization conflict review",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#review-synchronization-conflicts"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#review-synchronization-conflicts"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["app_shell", "settings"],
-      "routes": ["/settings#account-conflicts"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "app_shell",
+        "settings"
+      ],
+      "routes": [
+        "/settings#account-conflicts"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Keep unresolved synchronization conflicts visible and open their Settings review.",
-      "triggers": [{ "kind": "activate", "control": "Review sync conflicts" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Review sync conflicts"
+        }
+      ],
       "availability": "Shown persistently while one or more first-link or later synchronization conflicts pause reconciliation.",
       "success_result": "Opens Settings at the conflict review and keeps both copies unchanged.",
       "failure_result": "The cue remains available until review opens or the account disconnects.",
-      "effects": ["navigation"],
+      "effects": [
+        "navigation"
+      ],
       "risk": "low",
       "confirmation": "none",
-      "implementation": ["apps/desktop/src/desktop-app.tsx", "apps/desktop/src/product.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-account-sync-ui.test.tsx"], "notes": "UI tests cover the conflict count and review controls." },
+      "implementation": [
+        "apps/desktop/src/desktop-app.tsx",
+        "apps/desktop/src/product.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-account-sync-ui.test.tsx"
+        ],
+        "notes": "UI tests cover the conflict count and review controls."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Web has no desktop conflict shell." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/desktop-app.tsx"], "evidence": ["tests/desktop-account-sync-ui.test.tsx"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing makes no claim before Ticket 122." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No mobile client is authorized." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Web has no desktop conflict shell."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/desktop-app.tsx"
+          ],
+          "evidence": [
+            "tests/desktop-account-sync-ui.test.tsx"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing makes no claim before Ticket 122."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No mobile client is authorized."
+        }
       }
     },
     {
       "id": "INT-AUTH-011",
       "name": "Resolve desktop synchronization conflicts",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#review-synchronization-conflicts"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#review-synchronization-conflicts"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#account-conflicts"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#account-conflicts"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Choose the account or Mac value for every valid conflict and resume one atomic plan.",
-      "triggers": [{ "kind": "activate", "control": "Apply conflict decisions" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Apply conflict decisions"
+        }
+      ],
       "availability": "Available after every conflict has one valid decision. Keep both stays hidden when graph identity cannot be duplicated safely.",
-      "success_result": "Revalidates all three fingerprints, applies the complete reviewed plan, and advances either the pending first-link baseline or the existing synchronization baseline.",
+      "success_result": "Revalidates all three fingerprints, retains existing reminder processing claims when a selected version omits them, applies the complete reviewed plan, and advances either the pending first-link baseline or the existing synchronization baseline.",
       "failure_result": "Rejects stale or invalid decisions and leaves both copies and the baseline unchanged.",
-      "effects": ["network_request", "database_write"],
+      "effects": [
+        "network_request",
+        "database_write"
+      ],
       "risk": "moderate",
       "confirmation": "none",
-      "implementation": ["packages/core/src/resolvers/account-sync.resolver.ts", "apps/desktop/src/account/account-panel.tsx", "apps/desktop/src/account/account-sync.ts", "apps/desktop/src/account/first-link.ts"],
-      "test_coverage": { "level": "direct", "references": ["tests/account-sync.resolver.test.ts", "tests/desktop-account-sync-ui.test.tsx"], "notes": "Tests cover both winners, stale reviews, history branches, and invalid Keep both." },
+      "implementation": [
+        "packages/core/src/resolvers/account-sync.resolver.ts",
+        "apps/desktop/src/account/account-panel.tsx",
+        "apps/desktop/src/account/account-sync.ts",
+        "apps/desktop/src/account/first-link.ts"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/account-sync.resolver.test.ts",
+          "tests/desktop-account-sync-ui.test.tsx"
+        ],
+        "notes": "Tests cover both winners, stale reviews, history branches, and invalid Keep both."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Web edits remain synchronization inputs." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/account/account-panel.tsx"], "evidence": ["tests/account-sync.resolver.test.ts"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing makes no claim before Ticket 122." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No mobile client is authorized." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Web edits remain synchronization inputs."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/account/account-panel.tsx"
+          ],
+          "evidence": [
+            "tests/account-sync.resolver.test.ts"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing makes no claim before Ticket 122."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No mobile client is authorized."
+        }
       }
     },
     {
       "id": "INT-AUTH-012",
       "name": "Disconnect desktop account and keep local copy",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#disconnect-an-account"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#disconnect-an-account"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#account-disconnect"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#account-disconnect"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Leave account mode without removing the current local tracking data.",
-      "triggers": [{ "kind": "activate", "control": "Keep a local copy" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Keep a local copy"
+        }
+      ],
       "availability": "Available while an account is linked, including after session revocation.",
       "success_result": "Removes Keychain secrets and link state, preserves SQLite product data, and displays the exact database path.",
       "failure_result": "Stops before native mutation when secret removal fails; otherwise reports the recoverable native error.",
-      "effects": ["authentication_session", "database_write"],
+      "effects": [
+        "authentication_session",
+        "database_write"
+      ],
       "risk": "moderate",
       "confirmation": "none",
-      "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src/account/auth.ts", "apps/desktop/src-tauri/src/files.rs"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-auth.test.tsx", "tests/desktop-account-sync-ui.test.tsx"], "notes": "Tests prove secret-first ordering and the explicit keep control; Rust tests prove product-row preservation." },
+      "implementation": [
+        "apps/desktop/src/account/account-panel.tsx",
+        "apps/desktop/src/account/auth.ts",
+        "apps/desktop/src-tauri/src/files.rs"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-auth.test.tsx",
+          "tests/desktop-account-sync-ui.test.tsx"
+        ],
+        "notes": "Tests prove secret-first ordering and the explicit keep control; Rust tests prove product-row preservation."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Hosted data is unchanged." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src-tauri/src/files.rs"], "evidence": ["tests/desktop-auth.test.tsx", "tests/desktop-account-sync-ui.test.tsx"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing does not own disconnect." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No mobile client is authorized." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Hosted data is unchanged."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/account/account-panel.tsx",
+            "apps/desktop/src-tauri/src/files.rs"
+          ],
+          "evidence": [
+            "tests/desktop-auth.test.tsx",
+            "tests/desktop-account-sync-ui.test.tsx"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not own disconnect."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No mobile client is authorized."
+        }
       }
     },
     {
       "id": "INT-AUTH-013",
       "name": "Disconnect desktop account and remove local account data",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#disconnect-an-account"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#disconnect-an-account"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#account-disconnect"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#account-disconnect"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Protect the linked database, remove its working data from this Mac, and return to a fresh local profile.",
-      "triggers": [{ "kind": "activate", "control": "Remove account data" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Remove account data"
+        }
+      ],
       "availability": "Available after typing REMOVE while an account is linked.",
       "success_result": "Creates a validated owner-only backup, clears secrets and linked working data, seeds a fresh profile, and displays both exact paths.",
       "failure_result": "Leaves hosted data unchanged and refuses removal when backup creation or secret removal fails.",
-      "effects": ["authentication_session", "filesystem_write", "database_write"],
+      "effects": [
+        "authentication_session",
+        "filesystem_write",
+        "database_write"
+      ],
       "risk": "high",
       "confirmation": "typed",
-      "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src/account/auth.ts", "apps/desktop/src-tauri/src/files.rs", "apps/desktop/src-tauri/src/local_store/db.rs"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-account-sync-ui.test.tsx", "tests/desktop-auth.test.tsx"], "notes": "Tests cover typed confirmation and secret-first ordering; Rust tests cover protected backup, fresh profile, and local restore gating." },
+      "implementation": [
+        "apps/desktop/src/account/account-panel.tsx",
+        "apps/desktop/src/account/auth.ts",
+        "apps/desktop/src-tauri/src/files.rs",
+        "apps/desktop/src-tauri/src/local_store/db.rs"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-account-sync-ui.test.tsx",
+          "tests/desktop-auth.test.tsx"
+        ],
+        "notes": "Tests cover typed confirmation and secret-first ordering; Rust tests cover protected backup, fresh profile, and local restore gating."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Hosted data is unchanged." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src-tauri/src/files.rs"], "evidence": ["tests/desktop-account-sync-ui.test.tsx", "tests/desktop-auth.test.tsx"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing does not own disconnect." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No mobile client is authorized." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Hosted data is unchanged."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/account/account-panel.tsx",
+            "apps/desktop/src-tauri/src/files.rs"
+          ],
+          "evidence": [
+            "tests/desktop-account-sync-ui.test.tsx",
+            "tests/desktop-auth.test.tsx"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not own disconnect."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No mobile client is authorized."
+        }
       }
     },
     {
       "id": "INT-AUTH-014",
       "name": "Reconnect or cancel revoked desktop account recovery",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/desktop-local.md#connect-a-google-account"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/desktop-local.md#connect-a-google-account"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings#account-sync"],
-      "journeys": ["J04"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#account-sync"
+      ],
+      "journeys": [
+        "J04"
+      ],
       "intent": "Restore an expired or revoked desktop account session, or cancel that recovery, without changing the linked SQLite working copy.",
-      "triggers": [{ "kind": "activate", "control": "Reconnect account" }, { "kind": "activate", "control": "Cancel reconnect" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Reconnect account"
+        },
+        {
+          "kind": "activate",
+          "control": "Cancel reconnect"
+        }
+      ],
       "availability": "Available when account synchronization classifies the saved session as revoked.",
       "success_result": "Reconnection clears only the local session secret, authenticates the same hosted account, and resumes from the saved baseline. Cancellation returns to revoked state with Disconnect still available.",
       "failure_result": "Preserves account metadata, baseline, local product data, and disconnect controls while showing a recoverable error.",
-      "effects": ["authentication_session", "network_request", "database_write"],
+      "effects": [
+        "authentication_session",
+        "network_request",
+        "database_write"
+      ],
       "risk": "moderate",
       "confirmation": "none",
-      "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src/account/auth.ts", "apps/desktop/src/product.tsx"],
-      "test_coverage": { "level": "direct", "references": ["tests/desktop-auth.test.tsx", "tests/desktop-account-sync-ui.test.tsx"], "notes": "Tests cover local-session-only cleanup, the explicit reconnect control, and revoked retry suppression." },
+      "implementation": [
+        "apps/desktop/src/account/account-panel.tsx",
+        "apps/desktop/src/account/auth.ts",
+        "apps/desktop/src/product.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/desktop-auth.test.tsx",
+          "tests/desktop-account-sync-ui.test.tsx"
+        ],
+        "notes": "Tests cover local-session-only cleanup, the explicit reconnect control, and revoked retry suppression."
+      },
       "platforms": {
-        "web": { "applicability": "not_applicable", "status": "not_applicable", "reason": "The web session lifecycle is separate from the desktop Keychain session." },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/account/account-panel.tsx", "apps/desktop/src/account/auth.ts"], "evidence": ["tests/desktop-auth.test.tsx", "tests/desktop-account-sync-ui.test.tsx"] },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing does not own authenticated session recovery." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "No mobile client is authorized." }
+        "web": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "The web session lifecycle is separate from the desktop Keychain session."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/account/account-panel.tsx",
+            "apps/desktop/src/account/auth.ts"
+          ],
+          "evidence": [
+            "tests/desktop-auth.test.tsx",
+            "tests/desktop-account-sync-ui.test.tsx"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not own authenticated session recovery."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "No mobile client is authorized."
+        }
+      }
+    },
+    {
+      "id": "INT-EXPORT-020",
+      "name": "Generate the Markdown AI summary",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/data-portability.md#copy-or-download-the-markdown-ai-summary"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "export_import"
+      ],
+      "routes": [
+        "/export"
+      ],
+      "journeys": [
+        "J15"
+      ],
+      "intent": "Prepare the Markdown summary only when requested for the applied export options.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Generate summary"
+        }
+      ],
+      "availability": "Web Export page before a summary has been generated for the applied options.",
+      "success_result": "The authenticated Markdown export endpoint applies download guardrails and returns a summary. The page displays it with Copy summary and Download .md controls.",
+      "failure_result": "Displays an error and leaves Generate summary available for retry. Changing export options discards the prior summary.",
+      "effects": [
+        "ui_state",
+        "network_request",
+        "database_write",
+        "sensitive_data_disclosure"
+      ],
+      "risk": "high",
+      "confirmation": "none",
+      "implementation": [
+        "components/export/ExportPanel.tsx",
+        "app/api/export/markdown/route.ts",
+        "lib/services/export.service.ts"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/export-panel-ui.test.tsx",
+          "tests/export.service.test.ts",
+          "tests/export-download-route.test.ts"
+        ],
+        "notes": "Covers explicit generation, retry, option reset, summary-only page reads, and shared route guardrails."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/export/ExportPanel.tsx",
+            "app/api/export/markdown/route.ts",
+            "lib/services/export.service.ts"
+          ],
+          "evidence": [
+            "tests/export-panel-ui.test.tsx",
+            "tests/export.service.test.ts",
+            "tests/export-download-route.test.ts"
+          ]
+        },
+        "desktop": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Desktop uses a local summary and native saves in apps/desktop/src/export-screen.tsx. It does not call hosted export endpoints."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
       }
     },
     {
@@ -9936,6 +10911,279 @@
           "applicability": "deferred",
           "status": "deferred",
           "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-TIMELINE-011",
+      "name": "Fill an occurrence Note with an accepted shortcut",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#use-a-note-shortcut"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "timeline",
+        "behaviors"
+      ],
+      "routes": [
+        "/timeline",
+        "/behaviors"
+      ],
+      "journeys": [
+        "J07",
+        "J10"
+      ],
+      "intent": "Fill or append accepted Behavior-scoped shortcut text in one unsaved Occurrence Note draft.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Accepted Note shortcut"
+        }
+      ],
+      "availability": "Available above supported Occurrence Note fields only when global and Behavior Note shortcuts are enabled.",
+      "success_result": "Fills an empty draft or appends a new line, increments the draft revision, and marks the submitted draft as shortcut-assisted without saving it.",
+      "failure_result": "No stored Note, status, reminder, or draft text changes when no accepted shortcut is available.",
+      "effects": [
+        "form_draft"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/timeline/OccurrenceNoteForm.tsx#OccurrenceNoteForm",
+        "components/behaviors/BehaviorList.tsx#BehaviorDateReview",
+        "apps/desktop/src/timeline-screen.tsx#TimelineScreen"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/occurrence-note-shortcuts-ui.test.tsx",
+          "tests/note-suggestion.resolver.test.ts",
+          "tests/desktop-store-contract.test.ts"
+        ],
+        "notes": "Mounted UI checks cover draft preservation and off controls; shared resolver and real SQLite/Postgres contracts cover ownership, revisions, lifecycle, and atomic saves."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/timeline/OccurrenceNoteForm.tsx#OccurrenceNoteForm"
+          ],
+          "evidence": [
+            "tests/occurrence-note-shortcuts-ui.test.tsx",
+            "tests/note-suggestion.resolver.test.ts",
+            "docs/qa/2026-09-07-note-shortcuts.md"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/product.tsx#Product",
+            "apps/desktop/src/timeline-screen.tsx#TimelineScreen",
+            "components/timeline/OccurrenceNoteForm.tsx#OccurrenceNoteForm"
+          ],
+          "evidence": [
+            "tests/occurrence-note-shortcuts-ui.test.tsx",
+            "tests/note-suggestion.resolver.test.ts",
+            "tests/desktop-store-contract.test.ts"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not render authenticated Occurrence Note controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile remains deferred."
+        }
+      }
+    },
+    {
+      "id": "INT-BEHAVIOR-029",
+      "name": "Manage Behavior Note shortcuts",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#use-a-note-shortcut"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "behaviors"
+      ],
+      "routes": [
+        "/behaviors"
+      ],
+      "journeys": [
+        "J06",
+        "J10"
+      ],
+      "intent": "Enable one Behavior's Note shortcuts and explicitly find, accept, edit, dismiss, or remove repeated-Note text.",
+      "triggers": [
+        {
+          "kind": "change",
+          "control": "Enable Note shortcuts for this Behavior"
+        },
+        {
+          "kind": "activate",
+          "control": "Find repeated Notes"
+        },
+        {
+          "kind": "activate",
+          "control": "Accept, Edit, Dismiss, or Remove Note shortcut"
+        }
+      ],
+      "availability": "Available in Behavior Details and Settings. Analysis needs an active Behavior and global/Behavior enablement; retained shortcut removal remains available when archived or off.",
+      "success_result": "Persists the reviewed shortcut state for one Behavior and announces the result without changing historical Notes.",
+      "failure_result": "Shows the service error and retains the visible editor draft.",
+      "effects": [
+        "database_write",
+        "ui_state"
+      ],
+      "risk": "moderate",
+      "confirmation": "none",
+      "implementation": [
+        "components/note-shortcuts/NoteShortcutControls.tsx#NoteShortcutSettings",
+        "components/behaviors/BehaviorList.tsx#BehaviorRecord",
+        "apps/desktop/src/product.tsx#Product"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/occurrence-note-shortcuts-ui.test.tsx",
+          "tests/note-suggestion.resolver.test.ts",
+          "tests/desktop-store-contract.test.ts"
+        ],
+        "notes": "Mounted UI checks cover draft preservation and off controls; shared resolver and real SQLite/Postgres contracts cover ownership, revisions, lifecycle, and atomic saves."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/note-shortcuts/NoteShortcutControls.tsx#NoteShortcutSettings"
+          ],
+          "evidence": [
+            "tests/occurrence-note-shortcuts-ui.test.tsx",
+            "tests/note-suggestion.resolver.test.ts",
+            "docs/qa/2026-09-07-note-shortcuts.md"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/product.tsx#Product",
+            "components/note-shortcuts/NoteShortcutControls.tsx#NoteShortcutSettings"
+          ],
+          "evidence": [
+            "tests/occurrence-note-shortcuts-ui.test.tsx",
+            "tests/note-suggestion.resolver.test.ts",
+            "tests/desktop-store-contract.test.ts"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not manage account data."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile remains deferred."
+        }
+      }
+    },
+    {
+      "id": "INT-SETTINGS-014",
+      "name": "Enable Note shortcuts globally",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#use-a-note-shortcut"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings#note-shortcuts"
+      ],
+      "journeys": [
+        "J14"
+      ],
+      "intent": "Enable or turn off recurring Note shortcuts for the account or local desktop profile.",
+      "triggers": [
+        {
+          "kind": "change",
+          "control": "Enable Note shortcuts"
+        }
+      ],
+      "availability": "Available in Settings.",
+      "success_result": "Persists the global setting, hides or restores quick-fill and proposals, and keeps accepted shortcuts and saved Notes.",
+      "failure_result": "Shows the service error and keeps the prior setting visible.",
+      "effects": [
+        "database_write",
+        "ui_state"
+      ],
+      "risk": "moderate",
+      "confirmation": "none",
+      "implementation": [
+        "components/note-shortcuts/NoteShortcutControls.tsx#GlobalNoteShortcutControl",
+        "apps/desktop/src/settings-screen.tsx#SettingsScreen",
+        "apps/desktop/src/product.tsx#Product"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/occurrence-note-shortcuts-ui.test.tsx",
+          "tests/note-suggestion.resolver.test.ts",
+          "tests/desktop-store-contract.test.ts"
+        ],
+        "notes": "Mounted UI checks cover draft preservation and off controls; shared resolver and real SQLite/Postgres contracts cover ownership, revisions, lifecycle, and atomic saves."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/note-shortcuts/NoteShortcutControls.tsx#GlobalNoteShortcutControl"
+          ],
+          "evidence": [
+            "tests/occurrence-note-shortcuts-ui.test.tsx",
+            "tests/note-suggestion.resolver.test.ts",
+            "docs/qa/2026-09-07-note-shortcuts.md"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/settings-screen.tsx#SettingsScreen",
+            "apps/desktop/src/product.tsx#Product"
+          ],
+          "evidence": [
+            "tests/occurrence-note-shortcuts-ui.test.tsx",
+            "tests/note-suggestion.resolver.test.ts",
+            "tests/desktop-store-contract.test.ts"
+          ]
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not alter authenticated settings."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile remains deferred."
         }
       }
     }

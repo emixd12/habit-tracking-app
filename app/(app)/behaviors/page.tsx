@@ -10,6 +10,8 @@ import {
 import { getAnalyticsPageData } from "@/lib/services/analytics.service";
 import { getBehaviorPageData } from "@/lib/services/behavior.service";
 import { withPerformanceRoute } from "@/lib/services/performance-timing";
+import { getNoteShortcutViewForCurrentUser } from "@/lib/services/note-shortcut.service";
+import { manageNoteShortcutAction } from "@/app/(app)/note-shortcuts/actions";
 import {
   archiveBehaviorAction,
   createBehaviorAction,
@@ -92,6 +94,12 @@ async function BehaviorsContent({
   );
   const hasBehaviors =
     data.activeBehaviors.length > 0 || data.archivedBehaviors.length > 0;
+  const noteShortcutViews = Object.fromEntries(await Promise.all(
+    [...data.activeBehaviors, ...data.archivedBehaviors].map(async (behavior) => [
+      behavior.id,
+      await getNoteShortcutViewForCurrentUser(behavior.id),
+    ] as const),
+  ));
 
   return (
     <>
@@ -115,6 +123,8 @@ async function BehaviorsContent({
         noteAction={updateBehaviorReviewOccurrenceNoteAction}
         stopTimeTrackingAction={stopBehaviorReviewOccurrenceTimeTrackingAction}
         resetTimeTrackingAction={resetBehaviorReviewOccurrenceTimeTrackingAction}
+        noteShortcutViews={noteShortcutViews}
+        noteShortcutAction={manageNoteShortcutAction}
       />
     </>
   );

@@ -7,6 +7,7 @@ import { FirstRunOnboardingPanel } from "@/components/onboarding/FirstRunOnboard
 import { Timeline } from "@/components/timeline/Timeline";
 import { withPerformanceRoute } from "@/lib/services/performance-timing";
 import { getTimelinePageBundle } from "@/lib/services/timeline.service";
+import { listAcceptedNoteShortcutsForCurrentUser } from "@/lib/services/note-shortcut.service";
 import {
   markOccurrenceStatusAction,
   resetTimeTrackingAction,
@@ -81,6 +82,7 @@ async function TimelineContent({
       }),
     },
   );
+  const shortcutsByBehavior = await listAcceptedNoteShortcutsForCurrentUser();
 
   return (
     <>
@@ -92,6 +94,7 @@ async function TimelineContent({
         startTimeTrackingAction={startTimeTrackingAction}
         stopTimeTrackingAction={stopTimeTrackingAction}
         resetTimeTrackingAction={resetTimeTrackingAction}
+        shortcutsByBehavior={shortcutsByBehavior}
       />
     </>
   );

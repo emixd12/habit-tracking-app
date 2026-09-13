@@ -260,3 +260,13 @@ normalization, append, and text replacement. Services inject IDs and timestamps.
 The resolver has no I/O or clock access. Behavior services, export/import
 resolvers, account-sync validation, and tests may call it. Paired checks live in
 `tests/archive-note.resolver.test.ts`; see Ticket 125 and `docs/DATA_MODEL.md`.
+
+## Note shortcuts (Tickets 126–128)
+
+`packages/core/src/resolvers/note-suggestion.resolver.ts` owns source eligibility,
+normalization, repeated-text matching, evidence thresholds, expiry, suppression,
+and review transitions. `tests/note-suggestion.resolver.test.ts` pairs its boundary
+checks. Shared `services/note-shortcut.service` orchestrates the owner-scoped
+`NoteShortcutStore`; web and desktop adapters perform atomic reads and CAS writes.
+UI, API, repositories, and native code must not independently derive patterns.
+No network, storage, environment, clock reads, or UI may enter this resolver.

@@ -11,6 +11,7 @@ import type {
   StatusTransitionCommit,
 } from "@cadence/core/data-store";
 import type { AccountSyncWrite } from "@cadence/core/resolvers/account-sync.resolver";
+import type { NoteShortcutContext, NoteShortcutState } from "@cadence/core/types/note-shortcut";
 
 export type LocalBehaviorGraph = {
   behavior: Behavior;
@@ -42,7 +43,13 @@ export type LocalCommandMap = {
   applyFirstLinkAccountSync: { input: Owned & { hostedUserId: string; choice: "import" | "ignore" | "hydrate"; attemptId: string; localFingerprint: string; hostedFingerprint: string;
     expectedRevision: number; idempotencyKey: string; baselineFingerprint: string; baselineJson: string; backupPath: string | null; completedAt: string; writes: AccountSyncWrite[] }; result: { appliedCount: number } };
   readImportRuns: { input: Owned & { limit: number; kind?: "import" | "restore" }; result: PortabilityImportRunRow[] };
-  readImportSnapshot: { input: Owned; result: PortabilitySnapshot };
+  readImportSnapshot: { input: Owned; result: PortabilitySnapshot & { noteShortcutStates: NoteShortcutState[] } };
+  readNoteShortcutStates: { input: Owned; result: NoteShortcutState[] };
+  readNoteShortcutContext: { input: Owned & { behaviorId: string | null }; result: NoteShortcutContext };
+  commitNoteShortcutState: {
+    input: Mutation & { expected: NoteShortcutContext; next: NoteShortcutState; requireEnabled: boolean };
+    result: NoteShortcutState;
+  };
   prepareBehaviorLogImport: {
     input: Mutation & { expectedRevision: number; previewRun: PortabilityImportRunRow; plan: LocalImportWritePlan | null };
     result: { previewRun: PortabilityImportRunRow; revision: number };
@@ -113,7 +120,7 @@ export type LocalCommandMap = {
     result: StatusTransitionResult;
   };
   updateOccurrenceNote: {
-    input: Mutation & { occurrenceId: string; expectedNote: string | null; note: string | null };
+    input: Mutation & { occurrenceId: string; expectedNote: string | null; note: string | null; usedShortcut?: boolean };
     result: OccurrenceRecord | null;
   };
   startTimeSession: { input: Mutation & { session: OccurrenceTimeSession }; result: OccurrenceTimeSession | null };
@@ -125,16 +132,22 @@ export type LocalCommandMap = {
   commitSyncState: { input: Mutation & { expectedVersion: number; state: OccurrenceSyncState }; result: OccurrenceSyncState };
 };
 
+let pendingLocalCommands = 0;
+export function hasPendingLocalCommands() { return pendingLocalCommands > 0; }
+
+export async function localDatabaseCommand<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  pendingLocalCommands += 1;
+  try { return await invoke<T>(command, args); }
+  catch (error) { throw error instanceof Error ? error : new Error(String(error)); }
+  finally { pendingLocalCommands -= 1; }
+}
+
 // No SQL, arbitrary table names, filesystem paths, or provider credentials cross IPC.
-export async function localCommand<K extends keyof LocalCommandMap>(
+export function localCommand<K extends keyof LocalCommandMap>(
   operation: K,
   input: LocalCommandMap[K]["input"],
 ): Promise<LocalCommandMap[K]["result"]> {
-  try {
-    return await invoke("local_store", { request: { operation, ...input } });
-  } catch (error) {
-    throw error instanceof Error ? error : new Error(String(error));
-  }
+  return localDatabaseCommand("local_store", { request: { operation, ...input } });
 }
 
 export function localMutation(profileId: string, now: string): Mutation {

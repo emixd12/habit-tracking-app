@@ -608,6 +608,52 @@ If hosted appears ahead or different:
 Do not commit `.env`, `.env.local`, Supabase access tokens, service-role keys, or CLI config files.
 
 `.env.example` contains names only. Real values belong in local env files, deployment secrets, or user-owned CLI auth storage.
+
+## Hosted incident diagnostics through the existing CLI credential
+
+Use the configured CLI/API path before requesting dashboard access. Missing
+`SUPABASE_ACCESS_TOKEN` and `~/.supabase/access-token` do not prove CLI logout.
+The installed CLI uses macOS Keychain service `Supabase CLI`, account matching
+the selected profile (default `supabase`), then legacy account `access-token`.
+Verify this lookup against the installed CLI when its version changes.
+
+For read-only Management API diagnostics, retrieve only that credential into
+process memory. Capture credential-command output privately; never print it,
+place it in command arguments, or persist it in a report or temporary file.
+Send it only as the Authorization header to `https://api.supabase.com`.
+Use a bounded request timeout and the confirmed project reference.
+
+Useful GET endpoints under `/v1/projects/{ref}`:
+
+- `/health?services=auth&services=db&services=rest` checks individual services.
+  A project-wide `ACTIVE_HEALTHY` flag does not prove each service is healthy.
+  Omit optional `timeout_ms`: the API rejected its query-string value on
+  September 10, 2026. Bound the HTTP client request instead.
+- `/analytics/endpoints/logs.all` accepts `sql`, `iso_timestamp_start`, and
+  `iso_timestamp_end`. Select timestamps, paths, status codes, and aggregate
+  error categories from `edge_logs`, `auth_logs`, and `postgres_logs`.
+- `/config/disk/util` reports filesystem usage; `/config/disk` reports capacity.
+- `/billing/addons` reports selected and available add-ons. An empty selected
+  list alone does not establish the exact current compute class.
+
+Keep raw OAuth callback URLs, codes, tokens, identities, and product data out
+of output. Inspect Auth error text only after sanitizing it in memory.
+Use `SUPABASE_TELEMETRY_DISABLED=1` for sandboxed CLI diagnostics if telemetry
+writes prevent CLI startup. Confirm command options with `--help`.
+
+Read-only investigation does not authorize restart, pause, resize, deployment,
+or provider configuration changes. Record project-level evidence separately
+from any inferred connection to a public provider incident.
+
+When the owner explicitly authorizes recovery by restart, use
+`POST /v1/projects/{ref}/restart` after checking the target name and reference.
+Treat a successful empty response as accepted; do not require JSON or retry
+the mutation because response parsing failed. Read project status and service
+health until recovery, then verify database start time and ordinary sign-in.
+Transient connection refusal is expected while services restart. Respect
+provider retry intervals; do not substitute pause/restore or database reset.
+Endpoint reference: <https://supabase.com/docs/reference/api/v1-restart-a-project>.
+
 ## Ticket 102 public evidence collection
 
 The Public Trust workflow reads the final hosted migration version through the

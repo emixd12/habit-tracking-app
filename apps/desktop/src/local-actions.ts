@@ -30,6 +30,7 @@ export function createLocalOccurrenceActions(profileId: string, refresh: () => v
         occurrenceId: parseOccurrenceId(form.get("occurrence_id")),
         expectedNote: parseOccurrenceNote(form.get("expected_note"), true),
         note: parseOccurrenceNote(form.get("note")),
+        ...(form.get("used_shortcut") === "true" ? { usedShortcut: true } : {}),
       });
       return { status: "success", message: "Note saved." };
     } catch (error) { return { status: "error", message: localErrorMessage(error) }; }

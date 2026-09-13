@@ -161,6 +161,19 @@ describe("createBehaviorFromFormData", () => {
     );
   });
 
+  it("ignores an old tab timezone and reads the current profile without the cache", async () => {
+    const { readCachedProfileTimezone } = await import("../lib/cache/stable-user-data.cache");
+    await readCachedProfileTimezone({} as never, USER_ID);
+    mocks.getProfileTimezone.mockResolvedValue("America/Los_Angeles");
+    const { createBehaviorFromFormData } = await import("../lib/services/behavior.service");
+    await createBehaviorFromFormData(createFormData());
+    expect(mocks.createBehaviorWithAtomicScheduleGraph).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({
+        behavior: expect.objectContaining({ timezone: "America/Los_Angeles" }),
+      }),
+    );
+  });
+
   it("returns the committed behavior when post-write graph repair fails", async () => {
     const failure = new Error("reminder repair failed");
     mocks.syncUserOccurrencesAndReminders.mockRejectedValueOnce(failure);

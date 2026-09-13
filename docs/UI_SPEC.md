@@ -842,3 +842,34 @@ The shared web/desktop interface places Archive note (optional) beside Archive
 behavior in Details and Settings. Archived details show dated Archive history
 with Save note and Remove note actions. No predefined reasons or automatic
 archiving rules are added.
+
+## Note shortcut controls (Tickets 126–128)
+
+Existing Behavior settings contain a Note shortcuts section with its persisted
+opt-in, Find repeated Notes action, proposed text with Accept/Edit/Dismiss, and
+accepted text with Edit/Remove. Global Settings contains the feature off control.
+Explain that matching uses repeated Notes for this Behavior and runs only on request.
+Show insufficient evidence and request errors without blocking ordinary Note entry.
+If shortcut reads fail, show an unavailable notice and disable those controls.
+Keep the tracking screen and ordinary Note entry usable; mutation failures remain errors.
+
+Only accepted shortcuts appear above the existing Note textarea on Timeline,
+Needs decision, and Behaviors selected-day review. Buttons fill an empty draft
+or append a newline and text to a nonempty draft. They never replace text,
+submit, change status, or send reminders. Insertion increments the existing draft
+revision, including while Save note is pending. Keep keyboard focus usable,
+44px mobile targets, plain text rendering, labelled inputs, and result announcements.
+Preserve unsaved shortcut edits on failure. Hide quick-fill/proposals when off;
+keep management available so users can remove retained text. No new navigation
+or modal is needed. Cloud consent must not appear enabled before provider acceptance.
+
+### Desktop storage and update controls (Tickets 129 and 131)
+
+Local database Settings shows verified before/after bytes including recovery files.
+Deleting the exact repair backup requires a checkbox acknowledgement. App updates
+shows the automatic-download preference, download progress, plain-text release
+notes, and separate download/install/restart actions. A nonmodal notice opens
+review inline, preserving the mounted editor. Later snoozes one release for 24
+hours. Restart offers Keep editing or explicit draft discard when necessary.
+These controls use existing square layouts and text actions. Web and marketing
+are not applicable; future mobile implementation remains deferred.

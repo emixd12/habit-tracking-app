@@ -3,7 +3,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { assembleExportBundle, type ExportOptions } from "@cadence/core/services/export-assembly";
 export type { ExportOptions } from "@cadence/core/services/export-assembly";
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
-import { readExportPageBundle, type ExportPageSyncStateRow } from "@/lib/db/exportPageRead.repo";
+import { readExportPageSummary, readExportPageBundle, type ExportPageSyncStateRow } from "@/lib/db/exportPageRead.repo";
 import { listBehaviorDefinitionEvents } from "@/lib/db/behaviorDefinitionEvents.repo";
 import { listBehaviorConfigurationEvents } from "@/lib/db/behaviorConfigurationEvents.repo";
 import { consumeExportDownloadRateLimit } from "@/lib/db/launchRateLimits.repo";
@@ -11,18 +11,18 @@ import { listTimeSessionHistory } from "@/lib/db/timeSessions.repo";
 import { listAppliedBehaviorLogImportRuns, listBehaviorLogImportRecordMappings } from "@/lib/db/behaviorLogImports.repo";
 import { listImportedNotes } from "@/lib/db/notes.repo";
 import { listImportedInterventions } from "@/lib/db/importedInterventions.repo";
-import { exportReadEndLocalDate, resolveExportDateRange } from "@/lib/resolvers/export.resolver";
+import { resolveExportPageSummary, exportReadEndLocalDate, resolveExportDateRange } from "@/lib/resolvers/export.resolver";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { assertLaunchCircuitBreakerClosed } from "@/lib/security/launch-circuit-breakers";
 import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
 import { createStoredZip } from "@/lib/services/zip";
 import { createClient } from "@/lib/supabase/server";
 import { readCachedProfileTimezone, readCachedUserBehaviors } from "@/lib/cache/stable-user-data.cache";
-import type { ExportBundle } from "@/lib/types/export";
+import type { ExportPageData, ExportBundle } from "@/lib/types/export";
 import type { OccurrenceSyncState } from "@/lib/types/database";
 import { DEFAULT_TIMEZONE } from "@/lib/types/recurrence";
 
-export type ExportDownloadFormat = "jsonl" | "csv" | "json" | "behaviorlog";
+export type ExportDownloadFormat = "jsonl" | "csv" | "json" | "behaviorlog" | "markdown";
 
 export type ExportDownload = {
   content: BodyInit;
@@ -57,17 +57,27 @@ export class ExportRateLimitError extends Error {
 
 export async function getExportPageData(
   options: ExportOptions = {},
-): Promise<ExportBundle> {
-  return getUserExportBundle(options, { enforceDownloadGuardrails: false });
+): Promise<ExportPageData> {
+  const supabase = await createClient();
+  const userId = await requireUserId(supabase);
+  const now = options.now ?? Temporal.Now.instant();
+  const timezone = (await readCachedProfileTimezone(supabase, userId)) ?? DEFAULT_TIMEZONE;
+  const range = resolveExportDateRange({ now, timezone, range: options.range });
+  const counts = await readExportPageSummary(supabase, {
+    startLocalDate: range.startLocalDate,
+    endLocalDate: exportReadEndLocalDate(range),
+    includeArchived: options.includeArchived ?? false,
+    includeTimeTracking: options.includeTimeTracking ?? false,
+    throughStartedAt: now.toString(),
+  });
+  return resolveExportPageSummary({ ...options, now, timezone, counts });
 }
 
 export async function getExportDownload(
   format: ExportDownloadFormat,
   options: ExportOptions = {},
 ): Promise<ExportDownload> {
-  const bundle = await getUserExportBundle(options, {
-    enforceDownloadGuardrails: true,
-  });
+  const bundle = await getUserExportBundle(options);
 
   const payload = await buildExportDownload(bundle, format, createStoredZip);
   return {
@@ -77,20 +87,16 @@ export async function getExportDownload(
   };
 }
 
-async function getUserExportBundle(
+export async function getUserExportBundle(
   options: ExportOptions,
-  guardrails: { enforceDownloadGuardrails: boolean },
 ): Promise<ExportBundle> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
 
-  if (guardrails.enforceDownloadGuardrails) {
-    assertLaunchCircuitBreakerClosed("export_downloads");
-    const rateLimit = await consumeExportDownloadRateLimit(supabase);
-
-    if (!rateLimit.allowed) {
-      throw new ExportRateLimitError(rateLimit);
-    }
+  assertLaunchCircuitBreakerClosed("export_downloads");
+  const rateLimit = await consumeExportDownloadRateLimit(supabase);
+  if (!rateLimit.allowed) {
+    throw new ExportRateLimitError(rateLimit);
   }
 
   const now = options.now ?? Temporal.Now.instant();

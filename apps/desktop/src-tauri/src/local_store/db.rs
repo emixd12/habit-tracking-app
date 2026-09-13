@@ -1,4 +1,6 @@
+use super::recovery;
 use super::rows::{Behavior, Profile, StoredRow};
+use icu_normalizer::ComposingNormalizerBorrowed;
 use rusqlite::{
     params, params_from_iter, types::Value as SqlValue, Connection, OptionalExtension,
     TransactionBehavior,
@@ -64,28 +66,78 @@ pub(super) const MIGRATIONS: &[(i64, &str, &str)] = &[
         "first_link_attempt_baseline",
         include_str!("../../migrations/0010_first_link_attempt_baseline.sql"),
     ),
-    (11, "category_descriptions", include_str!("../../migrations/0011_category_descriptions.sql")),
+    (
+        11,
+        "category_descriptions",
+        include_str!("../../migrations/0011_category_descriptions.sql"),
+    ),
     (
         12,
         "behavior_archive_notes",
         include_str!("../../migrations/0012_behavior_archive_notes.sql"),
     ),
+    (
+        13,
+        "note_shortcut_states",
+        include_str!("../../migrations/0013_note_shortcut_states.sql"),
+    ),
+    (
+        14,
+        "bounded_native_reminder_receipts",
+        include_str!("../../migrations/0014_bounded_native_reminder_receipts.sql"),
+    ),
 ];
 
 pub fn open(path: &Path) -> Result<Connection> {
-    let mut db = Connection::open(path).map_err(error)?;
+    let mut db = connect(path)?;
+    let latest = schema_version(&db)?;
+    if latest == 0 {
+        migrate(&mut db, MIGRATIONS)?;
+        seed(&mut db)?;
+    } else if latest >= MIGRATIONS.last().unwrap().0 {
+        migrate(&mut db, MIGRATIONS)?;
+        seed(&mut db)?;
+        recovery::run(&mut db, path)?;
+    } else {
+        recovery::preflight_initial(path)?;
+        migrate(&mut db, &MIGRATIONS[..MIGRATIONS.len() - 1])?;
+        seed(&mut db)?;
+        recovery::run(&mut db, path)?;
+    }
+    Ok(db)
+}
+
+pub(super) fn connect(path: &Path) -> Result<Connection> {
+    let db = Connection::open(path).map_err(error)?;
     #[cfg(unix)]
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
         .map_err(|_| "The local database permissions could not be restricted.")?;
     db.busy_timeout(Duration::from_secs(5)).map_err(error)?;
     db.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")
         .map_err(error)?;
-    migrate(&mut db, MIGRATIONS)?;
-    seed(&mut db)?;
     Ok(db)
 }
 
-fn validate_backup(db: &Connection) -> Result<()> {
+pub(super) fn schema_version(db: &Connection) -> Result<i64> {
+    let has_ledger: bool = db
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='schema_migrations')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(error)?;
+    if !has_ledger {
+        return Ok(0);
+    }
+    db.query_row(
+        "SELECT coalesce(max(version),0) FROM schema_migrations",
+        [],
+        |row| row.get(0),
+    )
+    .map_err(error)
+}
+
+pub(super) fn validate_backup(db: &Connection) -> Result<()> {
     let integrity: String = db
         .query_row("PRAGMA integrity_check", [], |row| row.get(0))
         .map_err(error)?;
@@ -198,7 +250,7 @@ fn reserve_protected_path(directory: &Path) -> Result<PathBuf> {
     Err("A unique protected backup file could not be reserved.".into())
 }
 
-fn online_copy(source: &Connection, destination: &Path) -> Result<()> {
+pub(super) fn online_copy(source: &Connection, destination: &Path) -> Result<()> {
     let mut output = Connection::open(destination).map_err(error)?;
     let backup = rusqlite::backup::Backup::new(source, &mut output).map_err(error)?;
     backup
@@ -207,7 +259,7 @@ fn online_copy(source: &Connection, destination: &Path) -> Result<()> {
     drop(backup);
     validate_backup(&output)?;
     output
-        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
+        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;")
         .map_err(error)?;
     #[cfg(unix)]
     std::fs::set_permissions(destination, std::fs::Permissions::from_mode(0o600))
@@ -372,7 +424,7 @@ pub fn restore(live: &mut Connection, live_path: &Path, source_path: &Path) -> R
     Ok(protected)
 }
 
-fn remove_sidecars(path: &Path) {
+pub(super) fn remove_sidecars(path: &Path) {
     let text = path.as_os_str().to_string_lossy();
     for suffix in ["-wal", "-shm"] {
         let _ = std::fs::remove_file(format!("{text}{suffix}"));
@@ -408,6 +460,9 @@ pub(super) fn migrate(db: &mut Connection, migrations: &[(i64, &str, &str)]) -> 
                 return Err("An applied SQLite migration differs from this build. The database was not changed.".into());
             }
         } else {
+            if *version == 14 {
+                recovery::compact_receipts(&tx)?;
+            }
             tx.execute_batch(sql).map_err(error)?;
             tx.execute("INSERT INTO schema_migrations VALUES (?1,?2,?3,strftime('%Y-%m-%dT%H:%M:%fZ','now'))", params![version,name,sql]).map_err(error)?;
         }
@@ -521,7 +576,9 @@ pub fn owned<T: StoredRow>(db: &Connection, profile_id: &str) -> Result<Vec<T>> 
 }
 
 pub fn by_id<T: StoredRow>(db: &Connection, profile_id: &str, id: &str) -> Result<T> {
-    valid_id(id)?;
+    if !(T::TABLE == "note_shortcut_states" && id == "global") {
+        valid_id(id)?;
+    }
     read(
         db,
         &format!("SELECT * FROM {} WHERE user_id=?1 AND id=?2", T::TABLE),
@@ -613,14 +670,21 @@ pub fn update<T: StoredRow>(db: &Connection, profile_id: &str, id: &str, row: &T
 
 pub fn validate_row<T: StoredRow>(profile_id: &str, row: &T) -> Result<()> {
     let value = serde_json::to_value(row).map_err(|_| "The row could not be encoded.")?;
-    if value.to_string().len() > 1_048_576 {
-        return Err("A local row exceeds one MiB.".into());
+    let size_limit = if T::TABLE == "note_shortcut_states" {
+        8 * 1_048_576
+    } else {
+        1_048_576
+    };
+    if value.to_string().len() > size_limit {
+        return Err("A local row exceeds its allowed size.".into());
     }
     if value["user_id"] != profile_id {
         return Err("A row belongs to another profile.".into());
     }
     if let Some(id) = value.get("id").and_then(Value::as_str) {
-        valid_id(id)?;
+        if !(T::TABLE == "note_shortcut_states" && id == "global") {
+            valid_id(id)?;
+        }
     }
     for (field, value) in value.as_object().ok_or("A row must be an object.")? {
         if let Some(text) = value.as_str() {
@@ -644,6 +708,191 @@ pub fn validate_row<T: StoredRow>(profile_id: &str, row: &T) -> Result<()> {
     }
     if T::TABLE == "behaviors" {
         validate_archive_notes(&value["archive_notes"])?;
+    } else if T::TABLE == "note_shortcut_states" {
+        validate_note_shortcut_state(&value)?;
+    }
+    Ok(())
+}
+
+fn valid_hash(value: &Value) -> bool {
+    value.as_str().is_some_and(|text| {
+        text.len() == 64
+            && text
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
+}
+
+fn validate_note_shortcut_state(value: &Value) -> Result<()> {
+    let object = value
+        .as_object()
+        .ok_or("A Note shortcut state must be an object.")?;
+    let id = object["id"]
+        .as_str()
+        .ok_or("A Note shortcut state ID is invalid.")?;
+    let behavior_id = object["behavior_id"].as_str();
+    if id == "global" {
+        if !object["behavior_id"].is_null()
+            || object["entries"]
+                .as_array()
+                .is_none_or(|rows| !rows.is_empty())
+            || object["excluded_occurrence_ids"]
+                .as_array()
+                .is_none_or(|rows| !rows.is_empty())
+        {
+            return Err("Global Note shortcut state cannot contain Behavior data.".into());
+        }
+    } else if behavior_id != Some(id) {
+        return Err("A Note shortcut state must match its Behavior.".into());
+    } else {
+        valid_id(id)?;
+    }
+    if object["revision"]
+        .as_i64()
+        .is_none_or(|revision| !(0..=i64::from(i32::MAX)).contains(&revision))
+    {
+        return Err("A Note shortcut revision is invalid.".into());
+    }
+    let excluded = object["excluded_occurrence_ids"]
+        .as_array()
+        .ok_or("Note shortcut exclusions must be an array.")?;
+    if excluded.len() > 100_000 {
+        return Err("Note shortcut exclusions exceed 100,000 Occurrences.".into());
+    }
+    let mut excluded_ids = std::collections::HashSet::new();
+    for id in excluded {
+        let id = id
+            .as_str()
+            .ok_or("A Note shortcut exclusion ID is invalid.")?;
+        valid_id(id)?;
+        if !excluded_ids.insert(id.to_ascii_lowercase()) {
+            return Err("A Note shortcut exclusion ID is duplicated.".into());
+        }
+    }
+    let entries = object["entries"]
+        .as_array()
+        .ok_or("Note shortcut entries must be an array.")?;
+    if entries.len() > 128 {
+        return Err("Note shortcut history exceeds 128 entries.".into());
+    }
+    let mut keys = std::collections::HashSet::new();
+    let mut accepted_texts = std::collections::HashSet::new();
+    let mut accepted = 0;
+    let mut proposed = 0;
+    for entry in entries {
+        let entry = entry
+            .as_object()
+            .ok_or("A Note shortcut entry is invalid.")?;
+        if entry.len() != 7
+            || ![
+                "key",
+                "text",
+                "status",
+                "source",
+                "evidence",
+                "created_at",
+                "expires_at",
+            ]
+            .iter()
+            .all(|field| entry.contains_key(*field))
+            || !valid_hash(&entry["key"])
+        {
+            return Err("A Note shortcut entry has invalid fields.".into());
+        }
+        if !keys.insert(entry["key"].as_str().unwrap()) {
+            return Err("A Note shortcut key is duplicated.".into());
+        }
+        instant_key(
+            entry["created_at"]
+                .as_str()
+                .ok_or("A Note shortcut timestamp is invalid.")?,
+        )?;
+        if let Some(expires_at) = entry["expires_at"].as_str() {
+            instant_key(expires_at)?;
+        } else if !entry["expires_at"].is_null() {
+            return Err("A Note shortcut expiry is invalid.".into());
+        }
+        if !matches!(entry["source"].as_str(), Some("repeated_text" | "model")) {
+            return Err("A Note shortcut source is invalid.".into());
+        }
+        let evidence = entry["evidence"]
+            .as_array()
+            .ok_or("Note shortcut evidence must be an array.")?;
+        if evidence.len() > 100 {
+            return Err("Note shortcut evidence exceeds 100 Occurrences.".into());
+        }
+        let mut evidence_ids = std::collections::HashSet::new();
+        for reference in evidence {
+            let reference = reference
+                .as_object()
+                .ok_or("Note shortcut evidence is invalid.")?;
+            if reference.len() != 2
+                || !reference.contains_key("occurrence_id")
+                || !valid_hash(&reference["note_hash"])
+            {
+                return Err("Note shortcut evidence has invalid fields.".into());
+            }
+            let occurrence_id = reference["occurrence_id"]
+                .as_str()
+                .ok_or("Note shortcut evidence ID is invalid.")?;
+            valid_id(occurrence_id)?;
+            if !evidence_ids.insert(occurrence_id.to_ascii_lowercase()) {
+                return Err("Note shortcut evidence duplicates an Occurrence.".into());
+            }
+        }
+        let status = entry["status"].as_str();
+        match status {
+            Some("proposed") => {
+                proposed += 1;
+                if evidence.len() < 3 || entry["expires_at"].is_null() {
+                    return Err("A proposed Note shortcut requires evidence and expiry.".into());
+                }
+            }
+            Some("accepted") => {
+                accepted += 1;
+                if !evidence.is_empty() || !entry["expires_at"].is_null() {
+                    return Err(
+                        "An accepted Note shortcut cannot retain evidence or expiry.".into(),
+                    );
+                }
+            }
+            Some("dismissed") => {
+                if !entry["text"].is_null() || !evidence.is_empty() || entry["expires_at"].is_null()
+                {
+                    return Err("A dismissed Note shortcut retains only its key and expiry.".into());
+                }
+            }
+            _ => return Err("A Note shortcut status is invalid.".into()),
+        }
+        if status != Some("dismissed") {
+            let text = entry["text"]
+                .as_str()
+                .ok_or("Note shortcut text is invalid.")?;
+            if text.is_empty()
+                || text != text.trim()
+                || text.chars().count() > 160
+                || text.chars().any(char::is_control)
+            {
+                return Err(
+                    "Note shortcut text must be trimmed and at most 160 characters.".into(),
+                );
+            }
+            if status == Some("accepted") {
+                let normalized = ComposingNormalizerBorrowed::new_nfkc()
+                    .normalize(text)
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .to_lowercase();
+                if !accepted_texts.insert(normalized) {
+                    return Err("An accepted Note shortcut has duplicated text.".into());
+                }
+            }
+        }
+    }
+    // Each accepted shortcut reserves a second suppression slot for later removal.
+    if accepted > 20 || proposed > 5 || entries.len() + accepted > 128 {
+        return Err("Note shortcut entry limits were exceeded.".into());
     }
     Ok(())
 }
@@ -870,12 +1119,23 @@ mod database_control_tests {
         let directory = directory("protected-first-link-backup");
         let live_path = directory.join("cadence.sqlite3");
         let live = open(&live_path).unwrap();
+        let profile_id = profile(&live).unwrap().id;
+        live.execute("INSERT INTO note_shortcut_states(id,user_id,behavior_id,enabled,entries,excluded_occurrence_ids,revision,updated_at) VALUES('global',?1,NULL,1,'[]','[]',1,'2026-09-01T00:00:00Z')", [&profile_id]).unwrap();
         let path = protected_backup(&live, &live_path).unwrap();
         assert_ne!(path, live_path);
         assert_eq!(path.parent().unwrap(), directory.join("Backups"));
         let copy =
             Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
         validate_backup(&copy).unwrap();
+        assert_eq!(
+            copy.query_row(
+                "SELECT enabled FROM note_shortcut_states WHERE user_id=?1 AND id='global'",
+                [&profile_id],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
         #[cfg(unix)]
         assert_eq!(
             std::fs::metadata(path).unwrap().permissions().mode() & 0o777,
@@ -885,27 +1145,65 @@ mod database_control_tests {
     }
 
     #[test]
-    fn restore_upgrades_a_known_older_backup_with_empty_archive_history() {
-        let directory = directory("restore-older-archive-notes");
+    fn schema_twelve_backup_restores_notes_then_backs_up_shortcut_state() {
+        let directory = directory("restore-schema-twelve-note-shortcut");
         let live_path = directory.join("cadence.sqlite3");
-        let source_path = directory.join("schema-11.sqlite3");
+        let source_path = directory.join("schema-12.sqlite3");
         let mut source = Connection::open(&source_path).unwrap();
         source.execute_batch("PRAGMA foreign_keys=ON").unwrap();
-        migrate(&mut source, &MIGRATIONS[..11]).unwrap();
+        migrate(&mut source, &MIGRATIONS[..12]).unwrap();
         seed(&mut source).unwrap();
         let profile_id = profile(&source).unwrap().id;
         let behavior_id = "60000000-0000-4000-8000-000000000001";
+        let occurrence_id = "60000000-0000-4000-8000-000000000002";
         source.execute("INSERT INTO behaviors(id,user_id,category_id,title,description,recurrence_rule,scheduled_time,timezone,browser_reminder_enabled,email_reminder_enabled,reminder_offset_minutes,active,created_at,updated_at,archived_at,current_configuration_event_id) VALUES(?1,?2,NULL,'Legacy',NULL,'{\"type\":\"daily\",\"interval\":1}','09:00:00','America/New_York',1,0,0,1,'2026-09-01T00:00:00Z','2026-09-01T00:00:00Z',NULL,NULL)", params![behavior_id,profile_id]).unwrap();
+        source.execute("INSERT INTO occurrences(behavior_configuration_event_id,behavior_id,behavior_schedule_slot_id,completed_at,created_at,id,local_date,note,schedule_end_time,schedule_kind,schedule_preset,schedule_start_time,scheduled_for,status,status_marked_at,updated_at,user_id) VALUES(NULL,?1,NULL,NULL,'2026-09-01T00:00:00Z',?2,'2026-09-01','Preserved Note',NULL,'exact',NULL,'09:00:00','2026-09-01T13:00:00Z','unresolved',NULL,'2026-09-01T00:00:00Z',?3)", params![behavior_id,occurrence_id,profile_id]).unwrap();
+        let schema_twelve_backup = protected_backup(&source, &source_path).unwrap();
         source.close().unwrap();
 
         let mut live = open(&live_path).unwrap();
-        restore(&mut live, &live_path, &source_path).unwrap();
+        restore(&mut live, &live_path, &schema_twelve_backup).unwrap();
         let restored: super::super::rows::Behavior =
             by_id(&live, &profile_id, behavior_id).unwrap();
         assert!(restored.archive_notes.is_empty());
         assert_eq!(
-            live.query_row("SELECT max(version) FROM schema_migrations", [], |row| row.get::<_, i64>(0)).unwrap(),
-            12
+            by_id::<super::super::rows::Occurrence>(&live, &profile_id, occurrence_id)
+                .unwrap()
+                .note
+                .as_deref(),
+            Some("Preserved Note")
+        );
+        assert_eq!(
+            live.query_row("SELECT count(*) FROM note_shortcut_states", [], |row| row
+                .get::<_, i64>(
+                0
+            ))
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            live.query_row("SELECT max(version) FROM schema_migrations", [], |row| row
+                .get::<_, i64>(
+                0
+            ))
+            .unwrap(),
+            MIGRATIONS.len() as i64
+        );
+        live.execute("INSERT INTO note_shortcut_states(id,user_id,behavior_id,enabled,entries,excluded_occurrence_ids,revision,updated_at) VALUES('global',?1,NULL,1,'[]','[]',1,'2026-09-01T00:00:00Z')", [&profile_id]).unwrap();
+        let current_backup = protected_backup(&live, &live_path).unwrap();
+        drop(live);
+        let reopened = open(&current_backup).unwrap();
+        assert_eq!(
+            by_id::<super::super::rows::Occurrence>(&reopened, &profile_id, occurrence_id)
+                .unwrap()
+                .note
+                .as_deref(),
+            Some("Preserved Note")
+        );
+        assert!(
+            by_id::<super::super::rows::NoteShortcutState>(&reopened, &profile_id, "global")
+                .unwrap()
+                .enabled
         );
         std::fs::remove_dir_all(directory).unwrap();
     }

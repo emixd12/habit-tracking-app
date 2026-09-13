@@ -506,7 +506,8 @@
         "Rows remain compact and unboxed",
         "Completed, Not Completed, and Unresolved language stays exact",
         "Occurrence notes attach to the occurrence, not the behavior",
-        "Mobile pull-to-refresh reads current Timeline data once without mutating an occurrence"
+        "Mobile pull-to-refresh reads current Timeline data once without mutating an occurrence",
+        "Accepted Behavior Note shortcuts fill or append only to the draft; global and Behavior off hide them; Save note remains explicit."
       ],
       "surfaceImplementations": [
         {
@@ -518,14 +519,17 @@
             "components/timeline/MobileTimelinePullToRefresh.tsx",
             "components/timeline/TimelineGroup.tsx",
             "components/timeline/OccurrenceRow.tsx",
-            "components/timeline/TimeTracker.tsx"
+            "components/timeline/TimeTracker.tsx",
+            "components/timeline/OccurrenceNoteForm.tsx",
+            "tests/occurrence-note-shortcuts-ui.test.tsx"
           ],
           "implementationIds": [
             "module.timeline",
             "module.mobile-timeline-pull-to-refresh",
             "module.timeline-group",
             "composite.occurrence-row",
-            "module.time-tracker"
+            "module.time-tracker",
+            "composite.occurrence-note-form"
           ],
           "notes": "Live fixture-backed Timeline modules are rendered in the current bench. The mobile wrapper owns threshold feedback, native-refresh suppression, and one in-flight route refresh."
         },
@@ -548,9 +552,13 @@
             "apps/desktop/src/timeline-screen.tsx",
             "components/timeline/TimelineGroup.tsx",
             "components/timeline/OccurrenceRow.tsx",
-            "docs/qa/2026-08-30-desktop-native-boundary.md"
+            "docs/qa/2026-08-30-desktop-native-boundary.md",
+            "components/timeline/OccurrenceNoteForm.tsx",
+            "tests/occurrence-note-shortcuts-ui.test.tsx"
           ],
-          "implementationIds": [],
+          "implementationIds": [
+            "composite.occurrence-note-form"
+          ],
           "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
@@ -574,7 +582,8 @@
         "Needs decision is derived, not a stored status",
         "Use factual language and avoid missed/failure framing",
         "Rows stay grouped by original local day",
-        "Resolved rows may remain correction-visible through the current local day"
+        "Resolved rows may remain correction-visible through the current local day",
+        "Accepted Behavior Note shortcuts fill or append only to the draft; global and Behavior off hide them; Save note remains explicit."
       ],
       "surfaceImplementations": [
         {
@@ -583,11 +592,14 @@
           "parity": "canonical",
           "sources": [
             "components/timeline/NeedsDecisionDialog.tsx",
-            "components/timeline/TimelineGroup.tsx"
+            "components/timeline/TimelineGroup.tsx",
+            "components/timeline/OccurrenceNoteForm.tsx",
+            "tests/occurrence-note-shortcuts-ui.test.tsx"
           ],
           "implementationIds": [
             "module.needs-decision-dialog",
-            "module.timeline-group"
+            "module.timeline-group",
+            "composite.occurrence-note-form"
           ],
           "notes": "Implemented as fixed button plus modal/sheet with accessible dialog labeling."
         },
@@ -609,9 +621,13 @@
           "sources": [
             "components/timeline/NeedsDecisionDialog.tsx",
             "apps/desktop/src/timeline-screen.tsx",
-            "docs/qa/2026-08-30-desktop-native-boundary.md"
+            "docs/qa/2026-08-30-desktop-native-boundary.md",
+            "components/timeline/OccurrenceNoteForm.tsx",
+            "tests/occurrence-note-shortcuts-ui.test.tsx"
           ],
-          "implementationIds": [],
+          "implementationIds": [
+            "composite.occurrence-note-form"
+          ],
           "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
@@ -635,7 +651,8 @@
         "Unresolved never implies failure",
         "Overall calendar uses completion share intensity",
         "Behavior calendars expose day review only when there are occurrences",
-        "Cells remain square and state-readable without color alone"
+        "Cells remain square and state-readable without color alone",
+        "Accepted Behavior Note shortcuts fill or append only to the draft; global and Behavior off hide them; Save note remains explicit."
       ],
       "surfaceImplementations": [
         {
@@ -644,10 +661,13 @@
           "parity": "canonical",
           "sources": [
             "components/behaviors/BehaviorList.tsx",
-            "app/globals.css"
+            "app/globals.css",
+            "components/timeline/OccurrenceNoteForm.tsx",
+            "tests/occurrence-note-shortcuts-ui.test.tsx"
           ],
           "implementationIds": [
-            "module.behavior-list"
+            "module.behavior-list",
+            "composite.occurrence-note-form"
           ],
           "notes": "Live Behaviors fixture owns current heatmap and behavior date review behavior."
         },
@@ -666,9 +686,13 @@
           "sources": [
             "apps/desktop/src/behaviors-screen.tsx",
             "components/behaviors/BehaviorList.tsx",
-            "docs/qa/2026-08-30-desktop-native-boundary.md"
+            "docs/qa/2026-08-30-desktop-native-boundary.md",
+            "components/timeline/OccurrenceNoteForm.tsx",
+            "tests/occurrence-note-shortcuts-ui.test.tsx"
           ],
-          "implementationIds": [],
+          "implementationIds": [
+            "composite.occurrence-note-form"
+          ],
           "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
         },
         {
@@ -687,14 +711,15 @@
       "id": "module.settings-controls",
       "name": "Settings controls",
       "tier": "module",
-      "definition": "Settings panels for profile-adjacent account operations: timezone, browser notifications, trust/legal links, and account deletion.",
+      "definition": "Settings panels for profile-adjacent account operations: timezone, browser notifications, Note shortcuts, trust/legal links, and account deletion.",
       "sharedContract": [
         "Settings stays sparse and divider-led: a single-column stack with exactly one divider between adjacent sections, no per-section perimeter borders, and no nested container repeating a parent boundary",
         "Timezone is chosen from one native select of IANA timezones whose value is the saved timezone; a detected-timezone hint appears only when it differs from the saved value",
         "Permission prompts happen only from explicit user action",
         "Timezone uses browser/OS data without geolocation",
         "Account deletion requires export acknowledgement and typed confirmation",
-        "Category drafts retain errors; deletion confirms assignment counts and preserves Behavior history; reorder uses accessible buttons."
+        "Category drafts retain errors; deletion confirms assignment counts and preserves Behavior history; reorder uses accessible buttons.",
+        "Global Note shortcuts hides quick-fill and proposals without deleting accepted shortcuts or saved Notes."
       ],
       "surfaceImplementations": [
         {
@@ -707,14 +732,16 @@
             "components/settings/NotificationPermissionPanel.tsx",
             "components/settings/SettingsPanels.tsx",
             "components/settings/AccountDeletionPanel.tsx",
-            "components/settings/CategoryPanel.tsx"
+            "components/settings/CategoryPanel.tsx",
+            "components/note-shortcuts/NoteShortcutControls.tsx"
           ],
           "implementationIds": [
             "module.timezone-panel",
             "module.notification-permission-panel",
             "module.trust-and-legal-panel",
             "flow.account-deletion-panel",
-            "module.category-panel"
+            "module.category-panel",
+            "module.note-shortcut-controls"
           ],
           "notes": "Settings modules are fixture-backed in the bench with bench-only actions for mutable controls."
         },
@@ -737,12 +764,19 @@
             "components/settings/TimezonePanel.tsx",
             "docs/DESKTOP_BUILD.md",
             "tests/desktop-settings-ui.test.tsx",
-            "components/settings/CategoryPanel.tsx"
+            "components/settings/CategoryPanel.tsx",
+            "components/note-shortcuts/NoteShortcutControls.tsx",
+            "apps/desktop/src/product.tsx",
+            "apps/desktop/src/settings-bench.tsx",
+            "apps/desktop/src/desktop-update-panel.tsx",
+            "apps/desktop/src/local-database-controls.tsx",
+            "tests/desktop-update-panel.test.tsx"
           ],
           "implementationIds": [
-            "module.category-panel"
+            "module.category-panel",
+            "module.note-shortcut-controls"
           ],
-          "notes": "The local screen reuses timezone controls, reports native reminder coverage, exposes database controls, and presents the first account-link data choice. Automated account-choice and native protected-backup checks pass; live hosted first-link acceptance remains in progress."
+          "notes": "The local screen reuses timezone controls, reports native reminder coverage, exposes database controls, and presents the first account-link data choice. Automated account-choice and native protected-backup checks pass; live hosted first-link acceptance remains in progress. The settings fixture bench is apps/desktop/?bench=settings. Tickets 129 and 131 add verified recovery totals and explicit backup deletion, automatic-download controls, nonmodal update review, and draft-safe restart. Native release acceptance remains pending."
         },
         {
           "surfaceId": "mobile",
@@ -760,13 +794,14 @@
       "id": "module.behavior-editor",
       "name": "Behavior editor",
       "tier": "module",
-      "definition": "Behavior creation/editing, recurrence, schedule slots, reminders, archive/restore, and behavior list management.",
+      "definition": "Behavior creation/editing, recurrence, schedule slots, reminders, Note shortcuts, archive/restore, and behavior list management.",
       "sharedContract": [
         "Behavior is the recurring tracked object",
         "Recurrence presets stay explicit; no natural language recurrence UI",
         "Browser reminders default on, email reminders default off",
         "Archive preserves history",
-        "Category and Sort native selects affect active and archived lists; hidden rows retain drafts, aggregate analytics keep their full scope."
+        "Category and Sort native selects affect active and archived lists; hidden rows retain drafts, aggregate analytics keep their full scope.",
+        "Repeated Note matching remains explicit, Behavior-scoped, and user-reviewed before quick fill."
       ],
       "surfaceImplementations": [
         {
@@ -776,13 +811,15 @@
           "sources": [
             "components/behaviors/BehaviorCreateSection.tsx",
             "components/behaviors/BehaviorForm.tsx",
-            "components/behaviors/BehaviorList.tsx"
+            "components/behaviors/BehaviorList.tsx",
+            "components/note-shortcuts/NoteShortcutControls.tsx"
           ],
           "implementationIds": [
             "module.behavior-create-section",
             "composite.behavior-form",
             "module.behavior-list",
-            "module.reminder-editor"
+            "module.reminder-editor",
+            "module.note-shortcut-controls"
           ],
           "notes": "Current live behavior management modules are fixture-backed in the bench."
         },
@@ -801,6 +838,7 @@
           "sources": [
             "apps/desktop/src/behaviors-screen.tsx",
             "components/behaviors/BehaviorForm.tsx",
+            "components/note-shortcuts/NoteShortcutControls.tsx",
             "docs/qa/2026-08-30-desktop-native-boundary.md"
           ],
           "implementationIds": [],

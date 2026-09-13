@@ -92,6 +92,7 @@ Do not create `/dashboard` in v1. The locked primary route is `/timeline`.
 | `/api/export/csv` | implemented in 012 | CSV export | Uses the same authenticated distributed limit and circuit-breaker contract as JSONL. |
 | `/api/export/json` | implemented in 012 | Full JSON backup | Uses the same authenticated distributed limit and circuit-breaker contract as JSONL. |
 | `/api/export/behaviorlog` | implemented in BehaviorLog alignment milestone 1 | BehaviorLog `.behaviorlog.zip` interoperability bundle | Route calls export service/resolver and packages generated bundle files as a ZIP. It uses the same authenticated distributed limit and circuit-breaker contract as JSONL. |
+| `/api/export/markdown` | implemented in 091 | On-demand Markdown AI summary | Uses the same authenticated limit and circuit breaker as structured exports. |
 
 Do not add API routes that duplicate resolver logic. API routes are request/response adapters.
 
@@ -124,3 +125,12 @@ Before adding a new app or API route:
 
 Settings owns category management. Behaviors owns category filtering and sorting.
 These controls introduce no routes and do not change Timeline.
+
+## Note shortcut operations (Tickets 126–128)
+
+Existing Behaviors and Settings surfaces own shortcut management and opt-in.
+Timeline and Behaviors reuse the existing guarded Note save action for insertion
+provenance. No new navigation route is added. Authenticated actions call a shared
+shortcut service, which calls owner-scoped repositories. A desktop-callable cloud
+analysis route remains unavailable until Ticket 126 provider/privacy acceptance;
+never expose an arbitrary client-supplied Note corpus or owner ID to a provider.

@@ -331,6 +331,44 @@ describe("behavior date review UI", () => {
     expect(html).not.toContain("Clear decision");
   });
 
+  it("does not offer accepted shortcuts in selected-day review when the global setting is off", () => {
+    const behavior = behaviorView();
+    const shortcut = {
+      key: "shortcut-1", text: "Fresh shortcut", status: "accepted" as const,
+      source: "repeated_text" as const, evidence: [], created_at: "2026-09-07T00:00:00Z", expires_at: null,
+    };
+    const html = renderToStaticMarkup(
+      <BehaviorList
+        activeBehaviors={[behavior]}
+        archivedBehaviors={[]}
+        categories={[{ id: "category-1", name: "Health" }]}
+        analytics={analyticsView(behavior)}
+        updateAction={behaviorAction}
+        archiveAction={behaviorAction}
+        restoreAction={behaviorAction}
+        archiveNoteAction={behaviorAction}
+        statusAction={occurrenceAction}
+        noteAction={occurrenceAction}
+        stopTimeTrackingAction={timeTrackingAction}
+        resetTimeTrackingAction={timeTrackingAction}
+        noteShortcutViews={{
+          [behavior.id]: {
+            state: {
+              id: "shortcut-state", user_id: "user-1", behavior_id: behavior.id, enabled: true,
+              entries: [shortcut], excluded_occurrence_ids: [], revision: 1, updated_at: "2026-09-07T00:00:00Z",
+            },
+            globalEnabled: false,
+            available: true,
+            entries: [shortcut],
+          },
+        }}
+        noteShortcutAction={async () => ({ status: "idle" as const, message: "" })}
+      />,
+    );
+
+    expect(html).not.toContain('aria-label="Note shortcuts"');
+  });
+
   it("renders Stop and Reset for a running timer inside selected-day review", () => {
     const behavior = behaviorView();
     const analytics = analyticsView(behavior);

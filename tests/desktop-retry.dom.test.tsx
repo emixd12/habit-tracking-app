@@ -10,7 +10,7 @@ import { Product } from "../apps/desktop/src/product";
 import { LocalExportScreen } from "../apps/desktop/src/export-screen";
 
 const mocks = vi.hoisted(() => ({ timeline: vi.fn(), behaviors: vi.fn(), command: vi.fn(), exportData: vi.fn(), imports: vi.fn(), restores: vi.fn(),
-  listen: vi.fn(), events: vi.fn(), reminders: vi.fn(), retainDeliveries: vi.fn() }));
+  listen: vi.fn(), events: vi.fn(), reminders: vi.fn(), retainDeliveries: vi.fn(), shortcutContext: vi.fn(), shortcutStates: vi.fn(), shortcutCommit: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true, invoke: vi.fn(async (command: string) => {
   if (command === "read_update_configuration") return { configured: false, version: "0.1.0" };
   throw new Error(`Unexpected native command: ${command}`);
@@ -20,6 +20,14 @@ vi.mock("../apps/desktop/src/native-spike", () => ({ readNativeEvents: mocks.eve
 vi.mock("../apps/desktop/src/local-timeline.service", () => ({ loadLocalTimeline: mocks.timeline }));
 vi.mock("../apps/desktop/src/local-behaviors-read.service", () => ({ getLocalBehaviorsPageData: mocks.behaviors }));
 vi.mock("../apps/desktop/src/local-store", () => ({ localCommand: mocks.command }));
+vi.mock("../apps/desktop/src/local-note-shortcut.service", () => ({
+  createLocalNoteShortcutStore: () => ({
+    userId: "11111111-1111-4111-8111-111111111111",
+    readContext: mocks.shortcutContext,
+    readStates: mocks.shortcutStates,
+    commit: mocks.shortcutCommit,
+  }),
+}));
 vi.mock("../apps/desktop/src/local-reminder.service", () => ({
   reconcileLocalReminders: mocks.reminders,
   retainNativeDeliveryEvents: mocks.retainDeliveries,
@@ -55,6 +63,14 @@ beforeEach(() => {
     if (operation === "readImportRuns") return [];
     throw new Error(`Unexpected mutation or read: ${operation}`);
   });
+  mocks.shortcutContext.mockImplementation(async (behaviorId: string | null) => ({
+    state: null,
+    globalState: null,
+    behavior: behaviorId ? { id: behaviorId, user_id: profile.id, active: true, timezone: profile.timezone } : null,
+    notes: [],
+    importedOccurrenceIds: [],
+  }));
+  mocks.shortcutStates.mockResolvedValue([]);
   mocks.timeline.mockResolvedValue({ profile, behaviors: [], categories: [],
     timeline: resolveTimeline({ now, timezone: profile.timezone, occurrences: [] }) });
   mocks.behaviors.mockResolvedValue({ behaviors: { activeBehaviors: [], archivedBehaviors: [], categories: [] },
@@ -155,6 +171,17 @@ describe("desktop lifecycle refresh", () => {
 });
 
 describe("desktop failed-read retries", () => {
+  it("keeps Timeline and Settings usable when optional shortcut reads fail", async () => {
+    mocks.shortcutContext.mockRejectedValue(new Error("Shortcut context exceeds its read limit"));
+    mocks.shortcutStates.mockRejectedValue(new Error("Shortcut state unavailable"));
+    await act(() => root.render(<Product />)); await settle();
+    expect(container.querySelector("h1")?.textContent).toBe("Timeline");
+    const settings = Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Settings")!;
+    await act(() => settings.click()); await settle();
+    expect(container.textContent).toContain("Note shortcuts are temporarily unavailable");
+    expect(container.querySelector("h1")?.textContent).toBe("Settings");
+  });
+
   it("clears the Product forced-setup request after dismissal and screen navigation", async () => {
     await act(() => root.render(<Product />)); await settle();
     async function click(label: string) {

@@ -43,14 +43,186 @@ When updating a ticket row:
 
 ## Current repository state
 
-Ticket 125 is complete locally (2026-09-05). Optional archive notes retain each archive cycle across
-Restore, web/desktop storage, account synchronization, and portable exports.
-Verification passed: 1,516 JavaScript tests, 69 native tests, 17 SQLite contracts,
-authenticated Postgres contracts, account-sync smoke, clean migration replay,
-all required checks/builds, and responsive browser acceptance. Fresh read-only
-review returned ship with no findings. Hosted rollout is authorized and in progress.
-The isolated release passed 1,510 tests and all required checks; unfinished
-export/reminder/timezone changes remain outside the release.
+Production rollout (2026-09-12): PR #52 contains the latest workspace changes.
+The owner authorized production deployment. Hosted migrations `20260905020741`
+and `20260908003245` are applied; all 61 migration versions now match locally.
+Read-only checks confirmed Note shortcut RLS, authenticated reads, blocked direct
+inserts, and blocked anonymous commits. Existing sync repairs remain installed.
+The two Ready Preview deployments at `01e03993` returned HTTP 200 for the login
+page and marketing homepage, with the expected Google login and Mac download CTA.
+Local agent, interaction, resolver, public-source, Trust, lint, TypeScript,
+web build, marketing check/build, and desktop TypeScript/build checks pass.
+All 1,612 tests pass; 26 remain skipped. Lint retains seven fixture warnings.
+GitHub CI and production merge/deployment verification remain pending.
+Platform impact: web releases Note shortcuts, Markdown export, summary loading,
+timezone fixes, and five-minute reminders; marketing releases mobile fixes.
+Desktop source repairs are included, but this rollout publishes no desktop binary.
+Future mobile implementation remains deferred. Existing native acceptance gates
+and Ticket 091's separately authorized reminder-delivery check remain open.
+Older desktop clients must update before synchronizing Note shortcut state.
+
+
+Ticket 130 snapshot-timeout follow-up (2026-09-10): deployed and verified in the
+installed desktop app. The broader Ticket 130 retains its separate acceptance gates.
+Read-only hosted diagnostics found eight snapshot HTTP 500 responses and eight
+database statement timeouts after 03:00 UTC. Auth, database, and REST health checks
+passed; the activity sample had no lock waiters. Authenticated statements have
+an eight-second limit. An account snapshot read took 4.8 seconds; sync apply reads
+the snapshot twice. The prior processing-claim repair does not fix this timeout.
+
+Migration `20260911031421_accelerate_account_sync_canonical_json.sql` replaces
+the recursive SQL serializer with PL/pgSQL branch queries. Isolated PostgreSQL
+17 tests returned identical canonical bytes and reduced synthetic serialization
+from 1,018ms to 115ms, and from 818ms to 157ms with nested metadata.
+`tests/sql/account-sync-canonical-smoke.sql` covers the prior serializer, fixed
+key-order expectations, nulls, numbers, Unicode, escaping, nested values, and
+1,500 synthetic records. Predeployment agent, interaction, resolver,
+lint, TypeScript, and web build checks pass. Lint reports seven existing warnings
+in the reference validator. The suite passed 1,606 tests with six timeouts during
+concurrent builds; all 106 tests in those four files passed on a one-worker rerun
+with unchanged time limits. No test remains failing; 26 tests remain skipped.
+
+All 61 migrations replayed against empty local PostgreSQL 17. The normal CLI reset
+recreated non-loopback bindings, so its database was stopped immediately. A second
+CLI attempt refused to remove the in-use volume. The remaining migrations then
+replayed through psql in an isolated loopback container using the same empty test
+volume. The complete migration ledger now contains all 61 versions. Post-replay
+smoke tests passed, with 1,048ms versus 192ms on the nested fixture; invoker,
+immutability, authenticated execution, and anon/service-role denial all match.
+Temporary test containers were stopped after verification. The local database
+volume retains the replayed schema; the local Supabase stack remains stopped.
+
+The owner approved hosted deployment in this task. A staged CLI workdir contained
+the 58 deployed migrations plus only the approved serializer migration. Both the
+dry run and `supabase db push` selected only `20260911031421`. The hosted ledger
+and function catalog confirm deployment with unchanged execution privileges.
+The same account snapshot read dropped from 4,788ms to 1,148ms. Its fingerprint
+and 4,408-entity count matched before and after deployment, before retrying sync.
+
+Installed Cadence 0.1.1-preview.24 retained the owner's two Use account version
+selections. Applying them succeeded. The hosted sync receipt advanced at
+2026-09-11T03:28:46Z, and six additional Mac status-history records reached the
+account. The conflict panel disappeared; the desktop then displayed **Account
+data is current.** No app update, account reset, or manual product-row repair
+was needed. Older local-only export/Note shortcut migrations were not deployed.
+The public function signatures and generated types stay unchanged.
+Platform impact: web hosts the optimized helper; existing desktop RPCs use it;
+marketing has no change; future mobile implementation remains deferred.
+
+Ticket 130 processing-claim follow-up (2026-09-10): implementation and automated
+checks pass locally; real database and installed-app acceptance remain pending.
+The shared account-sync planner now preserves existing reminder processing claims
+in ordinary and reviewed writes. Regression tests reproduced a reviewed Mac
+cancellation clearing the account's claim before the repair. Both directions now
+retain the claim without changing the selected status or reviving deleted rows.
+The 59 focused resolver, adapter, and sync-engine tests pass. Agent, interaction,
+resolver, lint, web/desktop TypeScript, and web/desktop build checks pass on Node
+24.19.0. All 1,612 tests pass (26 skipped). The initial sandbox run blocked local
+test sockets; the permitted rerun passed. Postgres verification could not run:
+the isolated local instance at 127.0.0.1:55322 refused the connection. No hosted
+or installed data changed. The repair still needs an installed desktop build
+and normal synchronization acceptance; Ticket 130 remains in progress.
+Platform impact: desktop uses the shared planner; web keeps its existing database
+guard; marketing has no change; future mobile implementation remains deferred.
+Implementation: `packages/core/src/resolvers/account-sync.resolver.ts` and
+`tests/account-sync.resolver.test.ts`; review contract: `INT-AUTH-011` in
+`interaction-registry.json` and `docs/DESKTOP_BUILD.md`. Notification and Ticket
+130 documentation record the invariant without changing conflict policy.
+
+Marketing mobile overflow follow-up (2026-09-10): complete locally.
+`apps/marketing/src/components/HowItWorks.astro` stacks form fields and places
+Occurrence actions below the title on phones. The heatmap legend wraps when its
+panel cannot fit both columns. `apps/marketing/src/pages/index.astro` keeps the
+mobile hero inside its lane and wraps chat example content without clipping.
+No interaction intents, links, stored data, or backend behavior changed.
+Platform impact: marketing homepage only; web and desktop app UI and future
+mobile implementation are not applicable. The signed-in Behaviors screen was
+not verified; the user's reference to that surface remains unconfirmed.
+The existing marketing surface catalog remains valid.
+
+Browser QA passed at 320, 375, 390, 430, 619, 620, 768, 820, 1024, and 1440px:
+page scrollWidth equaled viewport width at each size. At 320px, every walkthrough
+Occurrence row and both chat examples fit their containers without internal
+horizontal overflow. Visual inspection confirmed readable titles and actions.
+Required agent, interaction, resolver, design-system, lint, TypeScript, test,
+web build, and marketing check/build commands passed. The test suite passed
+1,610 tests (26 skipped). No production deployment occurred.
+
+Marketing header correction (2026-09-10): the shared CTA now says **Download for Mac**.
+The header wraps on narrow screens before shrinking the Cadence brand. The logo
+retains its 2.15rem square size, and the mobile download target is 44px tall.
+Implementation: `apps/marketing/src/data/site.ts` and `src/styles/global.css`.
+The existing layout test, interaction label, design guidance, architecture, and
+public user guide now match the CTA. The DMG destination stays the same.
+
+Platform impact: marketing implements this through the shared BaseLayout and
+INT-MKT-012. Web, desktop, and future mobile application UI are not applicable;
+this correction changes only the public Astro header.
+
+Verification: header geometry passed at 320, 375, 390, 430, 768, and 1440px.
+The logo stayed square and never overlapped the actions. The lower-page follow-up below resolves the remaining 320px overflow. Marketing check/build, agent checks,
+interaction checks, resolver checks, design-system checks, lint, and TypeScript
+passed. The web build also passed. All 1,610 tests passed (26 skipped).
+The initial sandbox run blocked
+local test sockets and font fetching; verification reran with those permissions.
+Production deployment was not performed.
+
+
+Tickets 129–131 are in progress (2026-09-08). Tickets 129–130 release before 131.
+Implementation preserves existing workspace changes against a captured source baseline.
+Installed-data recovery and release acceptance remain pending.
+The prior audit remains historical evidence: `docs/qa/2026-09-08-account-sync-audit.md`.
+
+| Ticket | Status | Next action |
+|---|---|---|
+| 129: Bounded reminder bookkeeping and storage recovery | in_progress | Bound native receipts, verify protected recovery, and measure installed storage after the shared repair release |
+| 130: Dependency-safe account synchronization | in_progress | Reproduce the orphan-reminder plan, repair every apply boundary, and verify normal account convergence with Ticket 129 |
+| 131: Automatic downloads with user-controlled installation | in_progress | Extend the existing signed updater after the repair release; verify separate install/restart and draft protection |
+
+Implementation evidence: `docs/qa/2026-09-08-desktop-repair-implementation.md`.
+Full TypeScript tests and platform builds passed. Native interruption fixes, independent
+review, isolated release replay, and installed acceptance remain pending.
+
+Hosted migration deployment, signed release, and installed-app acceptance remain pending.
+
+Tickets 126–128 have local implementation and verification evidence (2026-09-07).
+Ticket 126's contract and synthetic evaluation passed final review. Ticket 127's
+shared Note shortcuts pass automated checks and authenticated browser QA. Native
+UI acceptance passed in the isolated app on 2026-09-08. Ticket 128 records a
+provider no-go after 79/80 synthetic quality checks passed on 2026-09-08.
+No personal Notes were uploaded. Estimated API cost was $0.0088825.
+
+| Ticket | Status | Next action |
+|---|---|---|
+| 126: Recurring Note suggestions contract and model evaluation | complete | Contract and synthetic evaluation accepted; provider no-go recorded for Ticket 128 |
+| 127: Behavior-scoped Note shortcuts on web and desktop | complete | Native synthetic QA passed analysis, edited acceptance, keyboard, draft-only insertion, consecutive saves, off/removal, and restart |
+| 128: Bounded recurring Note pattern analysis | blocked | Live evaluation failed one negation-case recall check; retain deterministic fallback. A revised candidate needs a new measured gate |
+
+Ticket 127 adds the shared shortcut resolver/service and Note controls, Postgres
+migration `20260908003245`, SQLite schema 13, guarded Note provenance, account
+synchronization, protected-backup support, and documentation/interaction evidence.
+All standard checks passed: 1,573 tests, TypeScript, lint, and web build. Core,
+design-system, desktop, and marketing checks/builds passed. Rust passed 76 tests;
+SQLite contracts passed 18. Final local migration replay and Postgres contracts
+passed through the reviewed loopback Docker proxy. All published local ports
+remained on loopback after the successful replay.
+Evidence and remaining QA limits: `docs/qa/2026-09-07-note-shortcuts.md`.
+
+Earlier uncommitted export/reminder/timezone work is preserved. No hosted migration
+or release occurred. Native acceptance and provider authorization remain separate gates.
+
+Ticket 125 is complete and deployed to web production (2026-09-05).
+Optional archive notes retain every archive cycle across Restore, storage,
+account synchronization, and portable exports. PR #46 merged at
+`d401cea83d9d71d140c20ec864763ad86101c45e`. Hosted migration
+`20260906010951` is applied and congruent with the isolated release branch.
+Application deployment `dpl_6E7iZpSiPGw6KVmw5fPenpvJQ9A4` and marketing
+deployment `dpl_BtqTHJpfw75ZSszBv55V9noAciTc` are Ready at that commit.
+The isolated release passed 1,510 tests, required CI, local replay, real
+Postgres contracts, production database lint, and read-only production smoke.
+Both fresh reviews returned ship. The new deployment has no error/fatal logs.
+Unfinished export/reminder/timezone changes remain local. Desktop distribution
+remains separate; older desktop builds must update before syncing Behavior writes.
 Evidence: `docs/qa/2026-09-05-archive-notes.md`.
 
 Tickets 123–124 are complete locally (2026-09-05). Settings supports custom categories, descriptions,
@@ -63,9 +235,30 @@ web/desktop builds, registry, resolver, design-system, and parity checks passed.
 Clean local migration replay passed; generated database types match.
 Browser and native interactive acceptance passed on the unlocked Mac. Category
 management, filtering, draft preservation, deletion, and native restart passed.
-Narrow browser layouts had no horizontal overflow. No hosted rollout occurred. See
+Narrow browser layouts had no horizontal overflow. Web production rollout passed
+through PR #45 at `4260b5443530949211552969820a9939aa62e432`. The hosted
+migration is `20260905035835`; production deployment is
+`dpl_86JK8N7oE7Pw59qmKg1XUDLuGJjo`. Desktop production distribution remains
+deferred under Ticket 115. See
 `docs/qa/2026-09-05-categories-and-behavior-filters.md` for evidence and files.
 
+Ticket 088 is complete locally (2026-09-04). Behavior creation reads the current
+profile timezone. Sync summaries use generation-window timezones. Existing
+version and configuration guards reject stale workers; regression checks pass.
+
+Ticket 091 is in_progress. Export opens with authenticated aggregate counts.
+Explicit downloads and Markdown generation retain guardrails. Reminder cron
+is configured for five minutes; the existing Pro plan supports that interval.
+Migration-first hosted rollout and actual reminder timing remain unverified.
+
+Ticket 104 is blocked on operator diagnostics and one separately approved
+synthetic route test. The prior message reached a filtered folder. No filtering
+rule changed. GitHub private vulnerability reporting remains enabled.
+
+Ticket 105 is in_progress. The latest published web-push 3.6.7 retains DEP0169.
+A documented upstream exception names the owner and recheck trigger. Real
+package encryption passes with fake transport. Authorized Preview inspection
+remains required. See `docs/qa/2026-09-04-tickets-088-091-104-105.md` for evidence.
 
 Tickets 116–122 are complete (2026-09-02). Ticket 119 completed after the owner
 selected first-hydration compatibility handling for existing same-status
@@ -473,15 +666,14 @@ remains unauthorized and was not performed.
 
 Tickets 072-074, 077, 079-084, 086, 092, and 093 are `complete`.
 Tickets 072-074, 077, 079-084, 086, and 093 are deployed. Tickets 085, 087,
-089, and 090 are `complete` locally; Tickets 088 and 091 are `not_started`.
+089, 090, and 088 are `complete` locally; Ticket 091 is `in_progress`.
 Ticket 092 is complete locally without a provider
 mutation. Ticket 094 is `complete`. Tickets 078-093
 were defined on 2026-08-06 from a repository-wide read-only audit across five
 independent passes (domain resolvers/services/repos, routes/auth/API,
 import/restore/export, UI/interaction, schema/marketing/ops). No fix was applied
 during the audit and no product scope changed. Scope and acceptance criteria
-live in `docs/TICKETS.md`; the remaining suggested order starts with Ticket
-088, then Ticket 091 after its dependencies.
+live in `docs/TICKETS.md`; Ticket 091 awaits hosted rollout acceptance.
 
 Tickets 085, 087, 089, and 090 completed locally on 2026-08-27. Ticket 085
 adds range-aware Occurrence identity, missing-overlap backfill, idempotent
@@ -553,7 +745,8 @@ gate, open-source license and private disclosure contract, and authorized
 GitHub publication sequence. Tickets 079-083 and 093 are deployed and verified.
 The authorized private `main` history rewrite is complete.
 
-Tickets 101-103 are `complete`; Tickets 104-105 are `not_started`. Tickets
+Tickets 101-103 are `complete`; Ticket 104 is `blocked` and Ticket 105 is
+`in_progress`. Tickets
 101-103 complete the public Trust
 evidence pipeline: Ticket 101 defines the versioned evidence and freshness
 contract, Ticket 102 publishes post-deployment provenance, dependency,
@@ -6678,7 +6871,7 @@ Owner authorization: 2026-08-30. Current requirements live in
 | 120: Offline-capable two-way desktop synchronization | complete | Final QA A/B matrices, status transition, branched-history rejection, offline/retry behavior, and hosted/RLS contracts passed. The deployed final hardening serializes same-account plans and cross-account entity identities and bounds receipt storage. Preview.15 preserved the branched-history safety gate with real owner data. |
 | 121: Sync conflict review and account disconnect | complete | Conflict cue/review, stale rejection, Mac/account decisions, Keep-local, Remove-account-data, Restore, and revoked-session native paths passed. Keep both remains safely withheld. |
 | 122: Account-sync migration and release acceptance | complete | Preview.19 supersedes preview.15. Its installed owner-account hydration, immutable publication, remote hash readback, final-valid updater feed, and production marketing link passed. Migration `20260902052213` and expanded hosted account-sync/RLS smoke also passed. The release remains prerelease and not latest. |
-| 123: User-defined categories and descriptions | complete | Web/desktop management, descriptions, history-safe deletion, portability, and sync passed automated and interactive acceptance. Native restart passed; hosted rollout remains separate. |
+| 123: User-defined categories and descriptions | complete | Web/desktop management, descriptions, history-safe deletion, portability, and sync passed automated and interactive acceptance. Native restart passed; web production rollout passed through PR #45. Desktop production distribution remains deferred. |
 | 124: Behaviors category filtering and sorting | complete | Shared category filtering/sorting, archived counts, reset, and draft preservation passed automated, responsive browser, and native interactive acceptance. |
 
 Final 0.3 verification supersedes the earlier 0.2 checkpoints. The clean local
@@ -6798,3 +6991,43 @@ release occurred. Preserve all unrelated Ticket 106 edits.
 - Use `docs/SUPABASE_WORKFLOW.md` for Supabase CLI local/hosted management and `docs/SEQUENZY_WORKFLOW.md` for Sequenzy CLI/provider operations.
 - Keep v1 small. Web PWA/offline work remains deferred; desktop local writes are required under `docs/DESKTOP_BUILD.md`.
 - Preserve the resolver-first architecture: core logic belongs in `lib/resolvers`, database access in `lib/db`, orchestration in `lib/services`, and UI/API routes should not duplicate resolver logic.
+
+Desktop repair rollout continuation (2026-09-08): hosted guard 20260908174627 and
+signed updater preview.21 are published. Installed recovery reduced the live
+database from 6.21 GB to 6.53 MB, preserving existing records and the recovery
+backup. Tickets 129–130 remain in_progress pending Keychain completion, normal
+sync convergence, and repeated reconciliation. Ticket 131 remains in_progress.
+
+## Desktop repair acceptance — 2026-09-09
+
+Tickets 129 and 130 are complete. Installed preview.21 converged with the hosted
+account after owner Keychain approval. Unchanged sync succeeded; all domain
+mutations are acknowledged. Integrity and foreign-key checks passed. Repeated
+native reminder reconciliation retained one receipt per operation with zero
+measured file growth. The protected backup remains intact. Ticket 131 remains
+in progress for signed installed updater acceptance. See
+`docs/qa/2026-09-08-desktop-repair-implementation.md`.
+
+Ticket 131 rollout: preview.22 is published and installed; its executable matches
+the verified artifact. Restart now waits for renewed owner Keychain access.
+Preview.23 artifacts from identical source are uploaded and verified, but public
+feed activation was rejected by automatic approval review pending explicit owner
+authorization. The feed remains preview.22. Ticket 131 remains in progress.
+
+Ticket 131 remains in progress after installed QA exposed missing native updater
+permissions in preview.22/23. The minimal permission correction passes repository
+checks and builds. The public feed was restored to repair preview.21; installed
+preview.22 remains functional for tracking but requires direct replacement to
+repair self-update. Corrected preview.24 verification is in progress.
+
+Preview.24 is now activated and directly installed with owner approval. Strict
+codesign and executable hash verification passed. Protected domain/account rows
+are unchanged; SQLite integrity and foreign-key checks pass. Startup waits for
+renewed owner Keychain approval. Ticket 131 remains in progress for final installed
+acceptance; Tickets 129–130 remain complete.
+
+Preview.24 post-Keychain verification passed: Timeline and Settings open, account
+data is current, automatic downloads are enabled, and live update checks succeed.
+Ticket 131 is implemented and released, but remains in progress until a newer
+signed release verifies the corrected download/install lifecycle. No owner action
+is currently required to use preview.24.

@@ -13,6 +13,7 @@ const canonicalOrderSql = readFileSync("supabase/migrations/20260901193000_stabi
 const occurrenceLineageSql = readFileSync("supabase/migrations/20260901200000_preserve_occurrence_lineage_on_sync_upsert.sql", "utf8").toLowerCase();
 const scopedOccurrenceLineageSql = readFileSync("supabase/migrations/20260901203000_scope_occurrence_lineage_preservation_to_account_sync.sql", "utf8").toLowerCase();
 const serializedApplySql = readFileSync("supabase/migrations/20260902052213_serialize_and_bound_account_sync_apply.sql", "utf8").toLowerCase();
+const dependencySafeSql = readFileSync("supabase/migrations/20260908174627_guard_dependency_safe_account_sync.sql", "utf8").toLowerCase();
 
 describe("account synchronization migration", () => {
   it("normalizes a missing hosted insert row to JSON null before compare-and-set", () => {
@@ -59,6 +60,18 @@ describe("account synchronization migration", () => {
     expect(serializedApplySql).toContain("current_snapshot ->> 'fingerprint' <> stored_receipt.result_fingerprint");
     expect(serializedApplySql).toContain("jsonb_build_object('status', 'applied')");
     expect(serializedApplySql).toContain("account changed after this synchronization receipt");
+  });
+  it("deletes reminder history only with an unprotected deleted Occurrence", () => {
+    expect(dependencySafeSql).toContain("a reminder can be deleted only with its occurrence");
+    expect(dependencySafeSql).toContain("every attached reminder must be deleted with its occurrence");
+    expect(dependencySafeSql).toContain("a retained reminder must reference a retained occurrence");
+    expect(dependencySafeSql).toContain("occurrence_status_events");
+    expect(dependencySafeSql).toContain("occurrence_time_sessions");
+    expect(dependencySafeSql).toContain("coalesce(btrim(stored_value ->> 'note'), '') <> ''");
+    expect(dependencySafeSql).toContain("original_count = 1 and corrected_count = 0");
+    expect(dependencySafeSql).toContain("original_count <> 0 or corrected_count <> 1");
+    expect(dependencySafeSql).toContain("'behavior', 'import_run', 'imported_note', 'imported_intervention',\n        'time_session'");
+    expect(dependencySafeSql).toContain("the account-sync protected-row guard changed unexpectedly");
   });
   it("reads one bounded, owner-scoped snapshot through an invoker RPC", () => {
     expect(sql).toContain(

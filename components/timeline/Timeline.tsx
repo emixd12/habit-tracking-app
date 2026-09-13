@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import type { NoteShortcut } from "@cadence/core/types/note-shortcut";
 
 import { MobileTimelinePullToRefresh } from "@/components/timeline/MobileTimelinePullToRefresh";
 import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
@@ -17,6 +18,7 @@ type TimelineProps = Readonly<{
   startTimeTrackingAction: TimeTrackingFormAction;
   stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
+  shortcutsByBehavior?: Record<string, NoteShortcut[]>;
 }>;
 
 export function Timeline({
@@ -26,6 +28,7 @@ export function Timeline({
   startTimeTrackingAction,
   stopTimeTrackingAction,
   resetTimeTrackingAction,
+  shortcutsByBehavior = {},
 }: TimelineProps) {
   return (
     <MobileTimelinePullToRefresh>
@@ -53,6 +56,7 @@ export function Timeline({
                   startTimeTrackingAction={startTimeTrackingAction}
                   stopTimeTrackingAction={stopTimeTrackingAction}
                   resetTimeTrackingAction={resetTimeTrackingAction}
+                  shortcutsByBehavior={shortcutsByBehavior}
                   variant="needsDecisionDialog"
                 />
               ))}
@@ -70,6 +74,7 @@ export function Timeline({
               startTimeTrackingAction={startTimeTrackingAction}
               stopTimeTrackingAction={stopTimeTrackingAction}
               resetTimeTrackingAction={resetTimeTrackingAction}
+              shortcutsByBehavior={shortcutsByBehavior}
             />
           ))}
         </div>

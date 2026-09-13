@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Timeline } from "../components/timeline/Timeline";
 import { TimelineScreen } from "../apps/desktop/src/timeline-screen";
-import { reconcileSavedNoteDraft } from "../components/timeline/OccurrenceNoteForm";
+import { insertNoteShortcutDraft, reconcileSavedNoteDraft } from "../components/timeline/OccurrenceNoteForm";
 import type {
   OccurrenceActionState,
   OccurrenceFormAction,
@@ -67,6 +67,17 @@ describe("Timeline interaction controls", () => {
         currentRevision: 1,
       }),
     ).toBe("Saved draft");
+  });
+
+  it("fills or appends accepted shortcut text without replacing the draft", () => {
+    expect(insertNoteShortcutDraft("", "Took a shorter walk.")).toBe("Took a shorter walk.");
+    expect(insertNoteShortcutDraft("Warm-up", "Took a shorter walk.")).toBe("Warm-up\nTook a shorter walk.");
+    expect(reconcileSavedNoteDraft({
+      submittedDraft: "Warm-up",
+      submittedRevision: 1,
+      currentDraft: "Warm-up\nTook a shorter walk.",
+      currentRevision: 2,
+    })).toBe("Warm-up\nTook a shorter walk.");
   });
 
   it("renders the future-day, review, status, disclosure, and note interactions", () => {

@@ -23,6 +23,7 @@ pub enum AccountSyncEntityKind {
     ImportedNote,
     ImportedIntervention,
     ReminderDelivery,
+    NoteShortcutState,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -51,10 +52,21 @@ fn apply_mode(
     replacement: bool,
 ) -> db::Result<()> {
     validate_entity_counts(writes.iter().map(|write| write.kind))?;
+    let occurrence_deletes: HashSet<String> = writes
+        .iter()
+        .filter(|write| {
+            write.kind == AccountSyncEntityKind::Occurrence
+                && write.operation == AccountSyncOperation::Delete
+        })
+        .map(|write| write.id.clone())
+        .collect();
     let mut keys = HashSet::new();
     for write in writes {
         db::valid_id(&write.id).or_else(|error| {
-            if matches!(write.kind, AccountSyncEntityKind::Profile) && write.id == "profile" {
+            if (matches!(write.kind, AccountSyncEntityKind::Profile) && write.id == "profile")
+                || (matches!(write.kind, AccountSyncEntityKind::NoteShortcutState)
+                    && write.id == "global")
+            {
                 Ok(())
             } else {
                 Err(error)
@@ -63,7 +75,7 @@ fn apply_mode(
         if !keys.insert(format!("{:?}:{}", write.kind, write.id)) {
             return Err("The account sync plan writes the same record twice.".into());
         }
-        validate_write(db, profile, write, replacement)?;
+        validate_write(db, profile, write, replacement, &occurrence_deletes, writes)?;
     }
     let status_depths = dependency_depths(
         writes,
@@ -142,6 +154,9 @@ fn apply_mode(
             }
             AccountSyncEntityKind::ReminderDelivery => {
                 row_write::<ReminderDelivery>(db, profile, write, false, false)?
+            }
+            AccountSyncEntityKind::NoteShortcutState => {
+                row_write::<NoteShortcutState>(db, profile, write, false, false)?
             }
         }
     }
@@ -245,6 +260,8 @@ fn validate_write(
     profile: &str,
     write: &AccountSyncWrite,
     replacement: bool,
+    occurrence_deletes: &HashSet<String>,
+    writes: &[AccountSyncWrite],
 ) -> db::Result<()> {
     if !replacement
         && write.operation == AccountSyncOperation::Delete
@@ -254,7 +271,7 @@ fn validate_write(
                 | AccountSyncEntityKind::ImportRun
                 | AccountSyncEntityKind::ImportedNote
                 | AccountSyncEntityKind::ImportedIntervention
-                | AccountSyncEntityKind::ReminderDelivery
+                | AccountSyncEntityKind::TimeSession
         )
     {
         return Err(
@@ -288,7 +305,11 @@ fn validate_write(
             )
         }
         AccountSyncEntityKind::Occurrence => {
-            validate_row_write::<Occurrence>(db, profile, write, false, !replacement)
+            validate_row_write::<Occurrence>(db, profile, write, false, !replacement)?;
+            if !replacement && write.operation == AccountSyncOperation::Delete {
+                validate_occurrence_delete(db, profile, write, writes)?;
+            }
+            Ok(())
         }
         AccountSyncEntityKind::StatusEvent => {
             validate_row_write::<OccurrenceStatusEvent>(db, profile, write, !replacement, false)
@@ -313,10 +334,13 @@ fn validate_write(
             validate_row_write::<ImportedIntervention>(db, profile, write, false, false)
         }
         AccountSyncEntityKind::ReminderDelivery if !replacement => {
-            validate_reminder_write(db, profile, write)
+            validate_reminder_write(db, profile, write, occurrence_deletes)
         }
         AccountSyncEntityKind::ReminderDelivery => {
             validate_row_write::<ReminderDelivery>(db, profile, write, false, false)
+        }
+        AccountSyncEntityKind::NoteShortcutState => {
+            validate_row_write::<NoteShortcutState>(db, profile, write, false, false)
         }
     }
 }
@@ -325,10 +349,29 @@ fn validate_reminder_write(
     db: &Connection,
     profile: &str,
     write: &AccountSyncWrite,
+    occurrence_deletes: &HashSet<String>,
 ) -> db::Result<()> {
     validate_row_write::<ReminderDelivery>(db, profile, write, false, false)?;
     if write.operation == AccountSyncOperation::Delete {
-        return Err("Account sync cannot delete reminder delivery history.".into());
+        let occurrence_id = write
+            .expected
+            .as_ref()
+            .and_then(|value| value.get("occurrence_id"))
+            .and_then(Value::as_str)
+            .ok_or("A reminder deletion is missing its Occurrence reference.")?;
+        if !occurrence_deletes.contains(occurrence_id) {
+            return Err("Account sync can delete a reminder only with its Occurrence.".into());
+        }
+        return Ok(());
+    }
+    if write
+        .value
+        .as_ref()
+        .and_then(|value| value.get("occurrence_id"))
+        .and_then(Value::as_str)
+        .is_some_and(|occurrence_id| occurrence_deletes.contains(occurrence_id))
+    {
+        return Err("Account sync cannot retain a reminder whose Occurrence is deleted.".into());
     }
     let Some(previous) = write.expected.as_ref() else {
         return Ok(());
@@ -348,6 +391,48 @@ fn validate_reminder_write(
         && next.get("processing_started_at").is_none_or(Value::is_null)
     {
         return Err("A reminder delivery processing claim cannot be cleared.".into());
+    }
+    Ok(())
+}
+
+fn validate_occurrence_delete(
+    db: &Connection,
+    profile: &str,
+    write: &AccountSyncWrite,
+    writes: &[AccountSyncWrite],
+) -> db::Result<()> {
+    let occurrence = write
+        .expected
+        .as_ref()
+        .ok_or("An Occurrence deletion requires its expected row.")?;
+    let protected = occurrence.get("status").and_then(Value::as_str) != Some("unresolved")
+        || occurrence
+            .get("note")
+            .and_then(Value::as_str)
+            .is_some_and(|note| !note.trim().is_empty())
+        || db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM occurrence_status_events WHERE user_id=?1 AND occurrence_id=?2) OR EXISTS(SELECT 1 FROM occurrence_time_sessions WHERE user_id=?1 AND occurrence_id=?2)",
+            params![profile, write.id],
+            |row| row.get::<_, bool>(0),
+        ).map_err(db::error)?;
+    if protected {
+        return Err("Account sync cannot delete an Occurrence with a Note, status history, tracked time, or resolved status.".into());
+    }
+    let reminder_ids = db::read::<ReminderDelivery>(
+        db,
+        "SELECT * FROM reminder_deliveries WHERE user_id=?1 AND occurrence_id=?2",
+        &[profile.to_string().into(), write.id.clone().into()],
+    )?;
+    for reminder in reminder_ids {
+        if !writes.iter().any(|candidate| {
+            candidate.kind == AccountSyncEntityKind::ReminderDelivery
+                && candidate.operation == AccountSyncOperation::Delete
+                && candidate.id == reminder.id
+        }) {
+            return Err(
+                "Account sync must delete every attached reminder before its Occurrence.".into(),
+            );
+        }
     }
     Ok(())
 }
@@ -446,7 +531,8 @@ fn mutation_order(write: &AccountSyncWrite) -> (u8, u8) {
         | AccountSyncEntityKind::Mapping
         | AccountSyncEntityKind::ImportedNote
         | AccountSyncEntityKind::ImportedIntervention => 6,
-        AccountSyncEntityKind::ReminderDelivery => 7,
+        AccountSyncEntityKind::ReminderDelivery => 8,
+        AccountSyncEntityKind::NoteShortcutState => 9,
     };
     let rank = if write.operation == AccountSyncOperation::Delete {
         u8::MAX - parent_first
@@ -658,6 +744,18 @@ mod tests {
             mutation_order(&write(AccountSyncEntityKind::ImportedIntervention))
                 < mutation_order(&write(AccountSyncEntityKind::ReminderDelivery))
         );
+        assert!(
+            mutation_order(&write(AccountSyncEntityKind::ReminderDelivery))
+                < mutation_order(&write(AccountSyncEntityKind::NoteShortcutState))
+        );
+        let delete = |kind| AccountSyncWrite {
+            operation: AccountSyncOperation::Delete,
+            ..write(kind)
+        };
+        assert!(
+            mutation_order(&delete(AccountSyncEntityKind::NoteShortcutState))
+                < mutation_order(&delete(AccountSyncEntityKind::Occurrence))
+        );
     }
 
     fn database() -> (std::path::PathBuf, rusqlite::Connection, String, Category) {
@@ -734,6 +832,85 @@ mod tests {
             db::profile(&connection).unwrap().timezone,
             "America/New_York"
         );
+    }
+
+    #[test]
+    fn account_sync_applies_and_deletes_note_shortcut_state_with_cas() {
+        let (_directory, mut connection, profile, _category) = database();
+        let state = NoteShortcutState {
+            id: "global".into(),
+            user_id: profile.clone(),
+            behavior_id: None,
+            enabled: true,
+            entries: vec![],
+            excluded_occurrence_ids: vec![],
+            revision: 1,
+            updated_at: "2026-09-01T00:00:00.000000Z".into(),
+        };
+        let value = normalized(&state).unwrap();
+        execute(
+            &mut connection,
+            Request::ApplyAccountSync {
+                profile_id: profile.clone(),
+                writes: vec![AccountSyncWrite {
+                    kind: AccountSyncEntityKind::NoteShortcutState,
+                    id: "global".into(),
+                    operation: AccountSyncOperation::Upsert,
+                    expected: None,
+                    value: Some(value.clone()),
+                }],
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            db::by_id::<NoteShortcutState>(&connection, &profile, "global").unwrap(),
+            state
+        );
+
+        let failure = execute(
+            &mut connection,
+            Request::ApplyAccountSync {
+                profile_id: profile.clone(),
+                writes: vec![
+                    AccountSyncWrite {
+                        kind: AccountSyncEntityKind::Profile,
+                        id: "profile".into(),
+                        operation: AccountSyncOperation::Upsert,
+                        expected: Some(json!({"timezone":"America/New_York"})),
+                        value: Some(json!({"timezone":"Europe/London"})),
+                    },
+                    AccountSyncWrite {
+                        kind: AccountSyncEntityKind::NoteShortcutState,
+                        id: "global".into(),
+                        operation: AccountSyncOperation::Delete,
+                        expected: Some(json!({"stale":true})),
+                        value: None,
+                    },
+                ],
+            },
+        )
+        .unwrap_err();
+        assert_eq!(failure, "A local record changed after sync planning.");
+        assert_eq!(
+            db::profile(&connection).unwrap().timezone,
+            "America/New_York"
+        );
+
+        execute(
+            &mut connection,
+            Request::ApplyAccountSync {
+                profile_id: profile.clone(),
+                writes: vec![AccountSyncWrite {
+                    kind: AccountSyncEntityKind::NoteShortcutState,
+                    id: "global".into(),
+                    operation: AccountSyncOperation::Delete,
+                    expected: Some(value),
+                    value: None,
+                }],
+            },
+        )
+        .unwrap();
+        assert!(db::by_id::<NoteShortcutState>(&connection, &profile, "global").is_err());
     }
 
     #[test]
@@ -1396,6 +1573,141 @@ mod tests {
                 .revises_event_id
                 .as_deref(),
             Some(parent_id)
+        );
+    }
+
+    #[test]
+    fn account_sync_deletes_all_reminder_statuses_with_their_unprotected_occurrence() {
+        let (_directory, connection, profile, category) = database();
+        let behavior_id = "50000000-0000-4000-8000-000000000001";
+        let occurrence_id = "50000000-0000-4000-8000-000000000002";
+        connection.execute("INSERT INTO behaviors(id,user_id,category_id,title,description,recurrence_rule,scheduled_time,timezone,browser_reminder_enabled,email_reminder_enabled,reminder_offset_minutes,active,created_at,updated_at,archived_at,current_configuration_event_id) VALUES(?1,?2,?3,'Test',NULL,'{\"type\":\"daily\",\"interval\":1}','09:00:00','America/New_York',1,0,0,1,'2026-09-01T00:00:00Z','2026-09-01T00:00:00Z',NULL,NULL)", params![behavior_id,profile,category.id]).unwrap();
+        connection.execute("INSERT INTO occurrences(id,user_id,behavior_id,behavior_configuration_event_id,behavior_schedule_slot_id,scheduled_for,local_date,schedule_kind,schedule_preset,schedule_start_time,schedule_end_time,status,completed_at,status_marked_at,note,created_at,updated_at) VALUES(?1,?2,?3,NULL,NULL,'2026-09-01T13:00:00Z','2026-09-01','exact',NULL,'09:00:00',NULL,'unresolved',NULL,NULL,NULL,'2026-09-01T00:00:00Z','2026-09-01T00:00:00Z')", params![occurrence_id,profile,behavior_id]).unwrap();
+        for (index, status) in ["pending", "sent", "failed", "cancelled"]
+            .iter()
+            .enumerate()
+        {
+            let id = format!("50000000-0000-4000-8000-{:012}", index + 3);
+            let scheduled = format!("2026-09-01T12:{index:02}:00Z");
+            connection.execute("INSERT INTO reminder_deliveries(id,user_id,occurrence_id,channel,scheduled_send_at,sent_at,status,error,processing_started_at,import_run_id,imported_intervention_id,created_at,updated_at) VALUES(?1,?2,?3,'browser_push',?4,NULL,?5,NULL,NULL,NULL,NULL,'2026-09-01T00:00:00Z','2026-09-01T00:00:00Z')", params![id,profile,occurrence_id,scheduled,status]).unwrap();
+        }
+        let occurrence = db::by_id::<Occurrence>(&connection, &profile, occurrence_id).unwrap();
+        let reminders = db::read::<ReminderDelivery>(
+            &connection,
+            "SELECT * FROM reminder_deliveries WHERE user_id=?1 AND occurrence_id=?2 ORDER BY id",
+            &[profile.clone().into(), occurrence_id.to_string().into()],
+        )
+        .unwrap();
+        let mut writes = vec![AccountSyncWrite {
+            kind: AccountSyncEntityKind::Occurrence,
+            id: occurrence_id.into(),
+            operation: AccountSyncOperation::Delete,
+            expected: Some(normalized(&occurrence).unwrap()),
+            value: None,
+        }];
+        writes.extend(reminders.iter().map(|reminder| AccountSyncWrite {
+            kind: AccountSyncEntityKind::ReminderDelivery,
+            id: reminder.id.clone(),
+            operation: AccountSyncOperation::Delete,
+            expected: Some(normalized(reminder).unwrap()),
+            value: None,
+        }));
+
+        apply(&connection, &profile, &writes).unwrap();
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT count(*) FROM occurrences WHERE id=?1",
+                    [occurrence_id],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT count(*) FROM reminder_deliveries WHERE occurrence_id=?1",
+                    [occurrence_id],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn account_sync_rejects_orphan_and_protected_occurrence_deletes_atomically() {
+        let (_directory, connection, profile, category) = database();
+        let behavior_id = "60000000-0000-4000-8000-000000000001";
+        let occurrence_id = "60000000-0000-4000-8000-000000000002";
+        let reminder_id = "60000000-0000-4000-8000-000000000003";
+        connection.execute("INSERT INTO behaviors(id,user_id,category_id,title,description,recurrence_rule,scheduled_time,timezone,browser_reminder_enabled,email_reminder_enabled,reminder_offset_minutes,active,created_at,updated_at,archived_at,current_configuration_event_id) VALUES(?1,?2,?3,'Test',NULL,'{\"type\":\"daily\",\"interval\":1}','09:00:00','America/New_York',1,0,0,1,'2026-09-01T00:00:00Z','2026-09-01T00:00:00Z',NULL,NULL)", params![behavior_id,profile,category.id]).unwrap();
+        connection.execute("INSERT INTO occurrences(id,user_id,behavior_id,behavior_configuration_event_id,behavior_schedule_slot_id,scheduled_for,local_date,schedule_kind,schedule_preset,schedule_start_time,schedule_end_time,status,completed_at,status_marked_at,note,created_at,updated_at) VALUES(?1,?2,?3,NULL,NULL,'2026-09-01T13:00:00Z','2026-09-01','exact',NULL,'09:00:00',NULL,'unresolved',NULL,NULL,'Protected Note','2026-09-01T00:00:00Z','2026-09-01T00:00:00Z')", params![occurrence_id,profile,behavior_id]).unwrap();
+        connection.execute("INSERT INTO reminder_deliveries(id,user_id,occurrence_id,channel,scheduled_send_at,sent_at,status,error,processing_started_at,import_run_id,imported_intervention_id,created_at,updated_at) VALUES(?1,?2,?3,'browser_push','2026-09-01T12:00:00Z',NULL,'failed','error',NULL,NULL,NULL,'2026-09-01T00:00:00Z','2026-09-01T00:00:00Z')", params![reminder_id,profile,occurrence_id]).unwrap();
+        let occurrence = db::by_id::<Occurrence>(&connection, &profile, occurrence_id).unwrap();
+        let reminder = db::by_id::<ReminderDelivery>(&connection, &profile, reminder_id).unwrap();
+        let reminder_value = normalized(&reminder).unwrap();
+        let occurrence_delete = AccountSyncWrite {
+            kind: AccountSyncEntityKind::Occurrence,
+            id: occurrence_id.into(),
+            operation: AccountSyncOperation::Delete,
+            expected: Some(normalized(&occurrence).unwrap()),
+            value: None,
+        };
+        let reminder_delete = AccountSyncWrite {
+            kind: AccountSyncEntityKind::ReminderDelivery,
+            id: reminder_id.into(),
+            operation: AccountSyncOperation::Delete,
+            expected: Some(reminder_value.clone()),
+            value: None,
+        };
+        let reminder_upsert = AccountSyncWrite {
+            kind: AccountSyncEntityKind::ReminderDelivery,
+            id: reminder_id.into(),
+            operation: AccountSyncOperation::Upsert,
+            expected: Some(reminder_value.clone()),
+            value: Some(reminder_value),
+        };
+
+        assert_eq!(
+            apply(
+                &connection,
+                &profile,
+                std::slice::from_ref(&reminder_delete)
+            )
+            .unwrap_err(),
+            "Account sync can delete a reminder only with its Occurrence."
+        );
+        assert_eq!(
+            apply(
+                &connection,
+                &profile,
+                &[reminder_upsert, occurrence_delete.clone()]
+            )
+            .unwrap_err(),
+            "Account sync cannot retain a reminder whose Occurrence is deleted."
+        );
+        assert_eq!(apply(&connection, &profile, &[reminder_delete, occurrence_delete]).unwrap_err(), "Account sync cannot delete an Occurrence with a Note, status history, tracked time, or resolved status.");
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT count(*) FROM occurrences WHERE id=?1",
+                    [occurrence_id],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT count(*) FROM reminder_deliveries WHERE id=?1",
+                    [reminder_id],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            1
         );
     }
 }

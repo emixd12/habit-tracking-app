@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { BehaviorLogImportPanel } from "@/components/export/BehaviorLogImportPanel";
 import { BehaviorLogRestorePanel } from "@/components/export/BehaviorLogRestorePanel";
 import { ExportRangeSelector } from "@/components/export/ExportRangeSelector";
@@ -13,11 +15,11 @@ import type {
   BehaviorLogRestoreFormAction,
   BehaviorLogRestorePageData,
 } from "@/lib/types/behaviorlog-restore-ui";
-import type { ExportBundle } from "@/lib/types/export";
+import type { ExportPageData } from "@/lib/types/export";
 import type { ExportDownloadFormat } from "@cadence/core/services/export-download";
 
 export type ExportPanelProps = Readonly<{
-  exportData: ExportBundle;
+  exportData: ExportPageData;
   importData: BehaviorLogImportPageData;
   restoreData: BehaviorLogRestorePageData;
   importAction: BehaviorLogImportFormAction;
@@ -69,8 +71,8 @@ export function ExportPanel({
   error,
 }: ExportPanelProps) {
   return (
-    <div className="grid gap-12">
-      <section className="grid gap-8" aria-labelledby="export-section-title">
+    <div className="grid grid-cols-1 gap-12">
+      <section className="grid grid-cols-1 gap-8" aria-labelledby="export-section-title">
         <div className="border-b border-line pb-4">
           <h2 id="export-section-title" className="text-2xl leading-tight">
             Export
@@ -274,37 +276,17 @@ export function ExportPanel({
           ) : null}
         </section>
 
-        <section
-          className="bg-background py-1"
-          aria-labelledby="export-summary-title"
-        >
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h3 id="export-summary-title" className="text-xl leading-tight">
-                AI summary
-              </h3>
-              <p className="mt-2 max-w-3xl text-sm text-muted-readable">
-                Markdown summary for pasting into an AI assistant or saving as a
-                readable export artifact. It follows the same export options.
-              </p>
-            </div>
-            <MarkdownSummaryActions
-              summary={exportData.markdownSummary}
-              fileName={exportData.markdownFileName}
-              onDownload={onDownload ? () => onDownload("markdown") : undefined}
-              downloadBusy={busy}
-            />
-          </div>
-
-          <pre className="mt-5 max-h-[36rem] overflow-auto whitespace-pre-wrap border border-line bg-surface p-4 text-sm leading-6 text-foreground">
-            {exportData.markdownSummary}
-          </pre>
-        </section>
+        <ExportSummary
+          key={downloadHref("markdown", exportData)}
+          exportData={exportData}
+          onDownload={onDownload ? () => onDownload("markdown") : undefined}
+          busy={busy}
+        />
 
         <PromptLibraryPanel />
       </section>
 
-      <section className="grid gap-8" aria-labelledby="import-section-title">
+      <section className="grid grid-cols-1 gap-8" aria-labelledby="import-section-title">
         <div className="border-b border-line pb-4">
           <h2 id="import-section-title" className="text-2xl leading-tight">
             Import
@@ -358,8 +340,8 @@ function ExportStat({
 }
 
 function downloadHref(
-  format: (typeof DOWNLOAD_ACTIONS)[number]["format"],
-  exportData: ExportBundle,
+  format: ExportDownloadFormat,
+  exportData: ExportPageData,
 ): string {
   const params = new URLSearchParams({
     range: exportData.range.key,
@@ -378,4 +360,65 @@ function downloadHref(
   }
 
   return `/api/export/${format}?${params.toString()}`;
+}
+
+function ExportSummary({ exportData, onDownload, busy }: {
+  exportData: ExportPageData;
+  onDownload?: () => void;
+  busy: boolean;
+}) {
+  const [generatedSummary, setSummary] = useState<string>();
+  const summary = exportData.markdownSummary ?? generatedSummary;
+  const [generatedFileName, setFileName] = useState("cadence-summary.md");
+  const fileName = exportData.markdownFileName ?? generatedFileName;
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function generateSummary() {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(downloadHref("markdown", exportData), { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(response.status === 429
+          ? "Too many export downloads. Try again later."
+          : "Unable to prepare summary. Try again.");
+      }
+      const text = await response.text();
+      setFileName(response.headers.get("content-disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "cadence-summary.md");
+      setSummary(text);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to prepare summary. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="bg-background py-1" aria-labelledby="export-summary-title">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h3 id="export-summary-title" className="text-xl leading-tight">AI summary</h3>
+          <p className="mt-2 max-w-3xl text-sm text-muted-readable">
+            Markdown summary for pasting into an AI assistant or saving as a
+            readable export artifact. It follows the same export options.
+          </p>
+        </div>
+        {summary !== undefined ? (
+          <MarkdownSummaryActions summary={summary} fileName={fileName}
+            onDownload={onDownload} downloadBusy={busy} />
+        ) : (
+          <button type="button" onClick={generateSummary} disabled={loading || busy}
+            className="product-action product-action-primary min-h-11 py-2 text-sm font-bold">
+            {loading ? "Preparing summary…" : "Generate summary"}
+          </button>
+        )}
+      </div>
+      {loading ? <p role="status" className="mt-3 text-sm">Preparing summary…</p> : null}
+      {error ? <p role="alert" className="mt-3 text-sm text-accent">{error}</p> : null}
+      {summary !== undefined ? (
+        <pre className="mt-5 max-h-[36rem] overflow-auto whitespace-pre-wrap border border-line bg-surface p-4 text-sm leading-6 text-foreground">{summary}</pre>
+      ) : null}
+    </section>
+  );
 }

@@ -1,6 +1,7 @@
 import { RefreshProvider } from "@cadence/ui/runtime";
 import { useEffect, useRef } from "react";
 import { Plus } from "lucide-react";
+import type { NoteShortcut } from "@cadence/core/types/note-shortcut";
 
 import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
@@ -22,6 +23,7 @@ export type TimelineScreenProps = Readonly<{
   onRefresh: () => void;
   onShowMore: (days: number) => void;
   notificationTarget?: NotificationTarget | null;
+  shortcutsByBehavior?: Record<string, NoteShortcut[]>;
 }>;
 
 export function TimelineScreen({
@@ -29,6 +31,7 @@ export function TimelineScreen({
   onRefresh,
   onShowMore,
   notificationTarget,
+  shortcutsByBehavior = {},
   ...actions
 }: TimelineScreenProps) {
   const nextFutureDays = timeline.nextFutureDays;
@@ -88,7 +91,7 @@ export function TimelineScreen({
                     : notificationTarget.status === "unavailable" ? "That reminder’s occurrence is no longer available in this local profile."
                     : <>Opened reminder for {notificationTarget.occurrence.title} on <time dateTime={notificationTarget.occurrence.localDate}>{notificationTarget.occurrence.localDate}</time>.</>}
                 </p>
-                {targetOccurrence && !targetInFeed ? <OccurrenceRow occurrence={targetOccurrence} {...actions} /> : null}
+                {targetOccurrence && !targetInFeed ? <OccurrenceRow occurrence={targetOccurrence} shortcuts={shortcutsByBehavior[targetOccurrence.behaviorId]} {...actions} /> : null}
               </section>
             ) : null}
             <NeedsDecisionDialog
@@ -110,6 +113,7 @@ export function TimelineScreen({
                       key={section.key}
                       section={section}
                       {...actions}
+                      shortcutsByBehavior={shortcutsByBehavior}
                       variant="needsDecisionDialog"
                     />
                   ))}
@@ -122,6 +126,7 @@ export function TimelineScreen({
                   key={section.key}
                   section={section}
                   {...actions}
+                  shortcutsByBehavior={shortcutsByBehavior}
                 />
               ))}
             </div>

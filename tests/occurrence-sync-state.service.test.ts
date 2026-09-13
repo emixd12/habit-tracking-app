@@ -140,6 +140,15 @@ describe("occurrence sync freshness decisions", () => {
     });
   });
 
+  it("records the expansion timezone even when the caller supplies another timezone", () => {
+    expect(summarizeOccurrenceSyncPlans({
+      plans: [{ generationWindow: WINDOW,
+        create: [], updateUnresolved: [], deleteUnresolved: [] }],
+      fallbackWindow: { ...WINDOW, timezone: "America/Los_Angeles" },
+      timezone: "America/Los_Angeles",
+    }).timezone).toBe("America/New_York");
+  });
+
   it("uses the fallback window when a sync has no behaviors", () => {
     expect(
       summarizeOccurrenceSyncPlans({

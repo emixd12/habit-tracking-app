@@ -44,8 +44,8 @@ export function createLocalOccurrenceStore(profileId: string, now: Temporal.Inst
       } : null;
       return localCommand("applyStatusTransition", { ...localMutation(profileId, now.toString()), ...plan, event });
     },
-    updateOccurrenceNote: (plan) => localCommand("updateOccurrenceNote", {
-      ...localMutation(profileId, now.toString()), ...plan,
+    updateOccurrenceNote: ({ usedShortcut, ...plan }) => localCommand("updateOccurrenceNote", {
+      ...localMutation(profileId, now.toString()), ...plan, ...(usedShortcut ? { usedShortcut: true } : {}),
     }),
   };
 }
@@ -90,7 +90,7 @@ export async function markLocalOccurrence(profileId: string, input: {
 }
 
 export async function saveLocalOccurrenceNote(profileId: string, input: {
-  occurrenceId: string; expectedNote: string; note: string;
+  occurrenceId: string; expectedNote: string; note: string; usedShortcut?: boolean;
 }, now = Temporal.Now.instant()) {
   return updateOccurrenceNote(createLocalOccurrenceStore(profileId, now), input);
 }

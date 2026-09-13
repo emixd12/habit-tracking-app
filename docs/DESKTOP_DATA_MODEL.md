@@ -410,3 +410,61 @@ web model. Existing graph writes, revisions, and outbox transactions persist
 each archive cycle atomically. Restore/rearchive preserves prior entries.
 Validated schema-11 backups upgrade before replacement. Older archives receive
 no fabricated history. Account-sync conflicts require explicit review.
+
+## Note shortcut state (Tickets 126–128)
+
+Schema 13 mirrors the owned `note_shortcut_states` contract in DATA_MODEL with
+JSON arrays stored as validated SQLite text. Operation-specific reads/commits
+own state CAS, ownership checks, outbox writes, revisions, and tombstones.
+SQLite and native validation enforce the same 2,147,483,647 revision ceiling as web.
+Shortcut-assisted Note saves atomically retain their Occurrence exclusion ID.
+Any late failure rolls back both writes. Native backups include the table;
+validated older backups migrate before replacement. No provider secret or cloud
+consent is stored in this synchronized table.
+
+Account snapshots include `note_shortcut_state` entities. Whole-row conflicts
+use existing explicit conflict review; deletion cannot silently resurrect text.
+Older clients that cannot understand the entity fail sync and request an update.
+Old Note-save payloads remain valid and cannot clear exclusions. Empty pre-feature
+state means disabled, never implied consent. Account switching cannot reuse another
+owner's state. Offline restart preserves accepted text, dismissals, and settings.
+Normal and reviewed sync unions exclusion IDs without merging shortcut entries or
+settings. A selected state deletion becomes a disabled, entry-free exclusion marker
+while its Behavior survives. Explicit first-link replacement may discard the local
+dataset and its exclusions. The 100,000-ID and 64 MiB limits still fail atomically.
+Shortcut-management outbox rows retain only the canonical request SHA-256 and a
+text-free result marker. Exact retry hashes return the already-applied requested
+state; changed payloads cannot reuse the mutation ID. Source Notes and shortcut
+text are not copied into the mutation journal.
+
+## Bounded reminder receipts and recovery (Ticket 129)
+
+SQLite migration 0014 retains one `mutation_outbox` receipt per local owner and
+native reminder operation. `commitNativeReminderPlan` and
+`recordNativeReminderCoverage` store a payload hash and revision, mark the receipt
+synchronized, and preserve the sequence high-water mark. An exact retained retry
+returns current state. Changed payloads and stale revisions fail. Domain mutations
+and unsynchronized domain outbox entries keep their existing contracts.
+
+Startup recovery runs before exposing LocalStore. It checks disk space, reserves
+a protected backup, and records durable recovery stages. Verification compares
+integrity, foreign keys, account metadata, baselines, product rows, and non-reminder
+outbox data. Cleanup, checkpoint, VACUUM, and reopen must pass before tracking
+starts. Settings reports database, WAL, shared memory, and retained recovery files.
+The backup remains until the user acknowledges and deletes that exact recovery copy.
+
+Schema 0013 remains in chronological order as a compatibility prerequisite. The
+repair release includes its table migration without activating Note shortcut UI.
+
+## Dependency-safe synchronization (Ticket 130)
+
+An accepted Occurrence deletion removes attached reminder deliveries in both
+copies, regardless of reminder status. A retained Occurrence keeps its reminders.
+The pure planner rejects incomplete graphs and protects Notes, status history,
+time history, and resolved Occurrences. SQLite applies child deletion first and
+rejects orphan-producing plans atomically. Hosted apply uses the same final-graph
+guard. A failed apply leaves the saved baseline and pending outbox unchanged.
+
+Recovery fails closed if a crash leaves a reserved staging file before its
+identity reaches the durable marker. Cadence preserves that file and stops before
+cleanup. Operator inspection is required; Cadence never adopts an unproven file.

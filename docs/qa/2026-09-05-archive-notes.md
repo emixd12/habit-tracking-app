@@ -44,14 +44,31 @@ No hosted account or application data was used.
 
 ## Release limits
 
-The user authorized production release on 2026-09-05. Hosted migration and
-production deployment are in progress. The desktop frontend and real native storage contracts are
-verified; this task does not distribute a new signed desktop binary.
+The desktop frontend and real native storage contracts are verified. This task
+does not distribute a new signed desktop binary. Older desktop builds must
+update before synchronizing Behavior writes; the hosted guard prevents note loss.
 
-## Isolated production release verification
+## Production release
 
-The release branch excludes unfinished export, reminder, and timezone changes.
-Its exact code passed 1,510 tests, all required checks and builds, clean migration
-replay, real Postgres lifecycle/portability contracts, and SQL constraint smoke.
-Generated database types match. The hosted dry run selects only migration
-`20260906010951_add_behavior_archive_notes.sql`.
+The user authorized production rollout on 2026-09-05. PR #46 merged at
+`d401cea83d9d71d140c20ec864763ad86101c45e`. The isolated branch excluded
+unfinished export, reminder, and timezone changes. Its exact code passed 1,510
+tests and every required check/build. Clean local migration replay, actual
+Postgres lifecycle/portability contracts, SQL constraint smoke, and generated
+type comparison passed. Fresh release review returned ship without findings.
+
+- Hosted migration `20260906010951` applied before merge. Migration history
+  matches the isolated release; hosted function lint reports no errors.
+- Application: `dpl_6E7iZpSiPGw6KVmw5fPenpvJQ9A4`, Ready at the merge commit.
+- Marketing: `dpl_BtqTHJpfw75ZSszBv55V9noAciTc`, Ready at the merge commit.
+- Existing canonical production aliases remain unchanged.
+- `/login` and marketing return 200. Protected app routes redirect to login.
+  Reminder processing rejects unauthenticated calls with 401. Test login
+  redirects with `test_login_unavailable`, matching its production contract.
+- The new application deployment has no error/fatal runtime logs in the
+  post-deploy scan. Project error groups contain only the previously documented
+  web-push deprecation from the preceding deployment.
+- No production user data, reminders, or email were mutated for smoke QA.
+  Authenticated archive editing was verified locally before release.
+- Local main now tracks the merge. Unrelated workspace edits were preserved,
+  and the workspace-only export migration was restored in the local database.

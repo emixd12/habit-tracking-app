@@ -14,6 +14,9 @@ import {
   TrustAndLegalPanel,
 } from "@/components/settings/SettingsPanels";
 import { CategoryPanel } from "@/components/settings/CategoryPanel";
+import { GlobalNoteShortcutControl } from "@/components/note-shortcuts/NoteShortcutControls";
+import { getNoteShortcutViewForCurrentUser } from "@/lib/services/note-shortcut.service";
+import { manageNoteShortcutAction } from "@/app/(app)/note-shortcuts/actions";
 import { getCategorySettings } from "@/lib/services/category.service";
 import { changeCategoryAction } from "./actions";
 import { getSettingsPageData } from "@/lib/services/settings.service";
@@ -41,7 +44,10 @@ async function SettingsContent() {
     () => getSettingsPageData(),
   );
 
-  const categorySettings = await getCategorySettings();
+  const [categorySettings, noteShortcutView] = await Promise.all([
+    getCategorySettings(),
+    getNoteShortcutViewForCurrentUser(null),
+  ]);
 
   return (
     <SettingsPanelGrid>
@@ -57,6 +63,8 @@ async function SettingsContent() {
       />
 
       <CategoryPanel {...categorySettings} action={changeCategoryAction} />
+
+      <GlobalNoteShortcutControl view={noteShortcutView} action={manageNoteShortcutAction} />
 
       <TrustAndLegalPanel />
 

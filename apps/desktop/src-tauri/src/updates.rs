@@ -1,4 +1,7 @@
 use serde::Serialize;
+use std::sync::MutexGuard;
+
+use crate::local_store::LocalStore;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -65,11 +68,22 @@ pub fn read_update_configuration(app: tauri::AppHandle) -> UpdateConfiguration {
 }
 
 #[tauri::command]
-pub fn restart_after_update(app: tauri::AppHandle) -> Result<(), String> {
+pub fn restart_after_update(
+    app: tauri::AppHandle,
+    local: tauri::State<'_, LocalStore>,
+) -> Result<(), String> {
     if !is_configured(&app) {
         return Err("Signed updates are not configured for this build.".into());
     }
+    let _restart_guard = lock_for_restart(&local)?;
     app.restart()
+}
+
+fn lock_for_restart(store: &LocalStore) -> Result<MutexGuard<'_, rusqlite::Connection>, String> {
+    store
+        .0
+        .try_lock()
+        .map_err(|_| "Cadence is still saving changes. Try again when saving finishes.".into())
 }
 
 #[cfg(test)]
@@ -95,5 +109,20 @@ mod tests {
         ] {
             assert!(!valid_configuration("app.cadence.desktop", Some(&bad)));
         }
+    }
+
+    #[test]
+    fn restart_lock_rejects_an_active_local_write() {
+        let store = LocalStore(std::sync::Mutex::new(
+            rusqlite::Connection::open_in_memory().unwrap(),
+        ));
+        let write = store.0.lock().unwrap();
+
+        assert_eq!(
+            lock_for_restart(&store).err().as_deref(),
+            Some("Cadence is still saving changes. Try again when saving finishes.")
+        );
+        drop(write);
+        assert!(lock_for_restart(&store).is_ok());
     }
 }

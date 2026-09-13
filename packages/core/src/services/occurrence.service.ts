@@ -50,13 +50,14 @@ export async function applyOccurrenceStatusTransition(
 
 export async function updateOccurrenceNote(
   store: Pick<OccurrenceDataStore, "updateOccurrenceNote">,
-  input: { occurrenceId: string; expectedNote: string; note: string },
+  input: { occurrenceId: string; expectedNote: string; note: string; usedShortcut?: boolean },
 ) {
   const update = resolveNoteUpdate({ note: input.note });
   const occurrence = await store.updateOccurrenceNote({
     occurrenceId: input.occurrenceId,
     expectedNote: input.expectedNote.length > 0 ? input.expectedNote : null,
     note: update.note,
+    ...(input.usedShortcut ? { usedShortcut: true } : {}),
   });
   if (!occurrence) {
     throw new Error("This note changed elsewhere. Review the latest note before saving again.");

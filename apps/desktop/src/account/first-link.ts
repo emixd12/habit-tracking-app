@@ -82,9 +82,9 @@ export async function finishReviewedFirstAccountLink(input: { client: SupabaseCl
   ]);
   const current: AccountSyncInputs = { ...input.reviewed.inputs, local: { entities: portabilityEntities(local) }, hosted: { fingerprint: hosted.fingerprint, entities: hosted.entities },
     hostedFingerprint: hosted.fingerprint, outboxHighWater: local.revision };
-  const plan = resolveReviewedAccountSync({ ...current, reviewedFingerprints: {
+  const plan = resolveReviewedAccountSync({ ...current, firstLink: true, reviewedFingerprints: {
     baseline: accountSyncFingerprint(input.reviewed.inputs.baseline), local: accountSyncFingerprint(input.reviewed.inputs.local), hosted: input.reviewed.inputs.hostedFingerprint,
-  }, decisions: input.decisions });
+  }, decisions: input.decisions, noteShortcutExclusionPolicy: input.reviewed.attempt.choice === "import" ? "preserve" : "discard_local" });
   const localReplacement = resolveFirstLinkReplacement({ ...current, hosted: { entities: plan.mergedEntities } });
   const reviewedPlan: AccountSyncPlan = { ...plan, localWrites: localReplacement.localWrites };
   const applied = await applyFirstLinkPlan(input.client, input.profileId, current, reviewedPlan, { hostedUserId: current.accountLinkId,
@@ -202,7 +202,7 @@ async function reconcileLocalFromHosted(client: SupabaseClient, profileId: strin
   attemptId: string, localFingerprint: string, hostedFingerprint: string, backupPath: string | null, preAttemptBaselineJson: string) {
   const localSnapshot: AccountSyncSnapshot = { entities: portabilityEntities(local) };
   const hostedSnapshot: AccountSyncSnapshot = { fingerprint: hosted.fingerprint, entities: hosted.entities };
-  const baseline = parseAccountSyncSnapshot(preAttemptBaselineJson);
+  const baseline = firstLinkAccountSyncBaseline(parseAccountSyncSnapshot(preAttemptBaselineJson), choice);
   const { inputs, plan } = planFirstLinkReconciliation({ accountLinkId: hostedUserId, baseline, local: localSnapshot, hosted: hostedSnapshot, choice,
     localUnchanged: false, outboxHighWater: local.revision });
   if (plan.conflicts.length) return { inputs, conflicts: plan.conflicts };
@@ -211,11 +211,15 @@ async function reconcileLocalFromHosted(client: SupabaseClient, profileId: strin
   return { baseline: applied.snapshot };
 }
 
+export function firstLinkAccountSyncBaseline(baseline: AccountSyncSnapshot, choice: Choice): AccountSyncSnapshot {
+  return choice === "import" ? { entities: baseline.entities.filter(({ kind }) => kind !== "note_shortcut_state") } : baseline;
+}
+
 export function planFirstLinkReconciliation(input: { accountLinkId: string; baseline?: AccountSyncSnapshot; local: AccountSyncSnapshot; hosted: AccountSyncSnapshot; choice: Choice; localUnchanged: boolean; outboxHighWater: number }) {
   const baseline = input.baseline ?? (input.localUnchanged ? input.local : { entities: [] });
   const inputs: AccountSyncInputs = { accountLinkId: input.accountLinkId, baseline, local: input.local, hosted: input.hosted,
     baselineFingerprint: accountSyncFingerprint(baseline), hostedFingerprint: accountSyncFingerprint(input.hosted), outboxHighWater: input.outboxHighWater };
-  return { inputs, plan: resolveAccountSync({ ...inputs, firstHostedHydration: input.choice === "hydrate" }) };
+  return { inputs, plan: resolveAccountSync({ ...inputs, firstLink: true, firstHostedHydration: input.choice === "hydrate", noteShortcutExclusionPolicy: input.choice === "import" ? "preserve" : "discard_local" }) };
 }
 
 function parseAccountSyncSnapshot(value: string): AccountSyncSnapshot {
