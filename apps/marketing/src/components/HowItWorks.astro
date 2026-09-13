@@ -273,12 +273,12 @@
   .hw-ranges .is-active { color: var(--foreground); }
 
   .hw-review__grid {
-    display: grid;
-    grid-template-columns: 16rem max-content;
+    display: flex;
+    flex-wrap: wrap;
     gap: 1rem;
     align-items: start;
   }
-  .hw-heatmap { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .hw-heatmap { width: 16rem; max-width: 100%; display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
   .hw-cell {
     aspect-ratio: 1;
     min-height: 2rem;
@@ -310,12 +310,21 @@
   .hw-swatch--nc { background: var(--accent); }
   .hw-swatch--unresolved { background: var(--surface); }
 
+  @media (width < 620px) {
+    .hw-occ { grid-template-columns: auto minmax(0, 1fr); }
+    .hw-occ__actions,
+    .hw-occ__status { grid-column: 1 / -1; justify-self: end; }
+    .hw-occ__actions { flex-wrap: wrap; }
+    .hw-form__row--head,
+    .hw-form__row--schedule { grid-template-columns: minmax(0, 1fr); }
+  }
+
   @media (width < 820px) {
     .hw-step { grid-template-columns: 1fr; gap: 1.5rem; }
     .hw-copy {
       grid-template-columns: 1fr;
       gap: 0.4rem;
     }
-    .hw-review__grid { grid-template-columns: 1fr; }
+    .hw-review__grid { flex-direction: column; }
   }
 </style>

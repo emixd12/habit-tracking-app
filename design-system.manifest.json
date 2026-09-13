@@ -284,6 +284,21 @@
       "notes": "Mobile Timeline gesture wrapper with threshold feedback, native-refresh suppression, control exclusion, and one in-flight route refresh."
     },
     {
+      "id": "module.note-shortcut-controls",
+      "name": "NoteShortcutControls",
+      "kind": "module",
+      "source": "components/note-shortcuts/NoteShortcutControls.tsx",
+      "exportName": "NoteShortcutSettings",
+      "usageNames": [
+        "NoteShortcutSettings",
+        "GlobalNoteShortcutControl"
+      ],
+      "benchAnchor": "design-system#ds-module-note-shortcut-controls",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Behavior-scoped review controls and the global Note shortcuts setting."
+    },
+    {
       "id": "module.needs-decision-dialog",
       "name": "NeedsDecisionDialog",
       "kind": "module",

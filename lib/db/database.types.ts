@@ -717,6 +717,47 @@ export type Database = {
         }
         Relationships: []
       }
+      note_shortcut_states: {
+        Row: {
+          behavior_id: string | null
+          enabled: boolean
+          entries: Json
+          excluded_occurrence_ids: Json
+          id: string
+          revision: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          behavior_id?: string | null
+          enabled?: boolean
+          entries?: Json
+          excluded_occurrence_ids?: Json
+          id: string
+          revision?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          behavior_id?: string | null
+          enabled?: boolean
+          entries?: Json
+          excluded_occurrence_ids?: Json
+          id?: string
+          revision?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_shortcut_states_behavior_owner_fkey"
+            columns: ["user_id", "behavior_id"]
+            isOneToOne: false
+            referencedRelation: "behaviors"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
       occurrence_status_events: {
         Row: {
           behavior_id: string
@@ -1175,6 +1216,14 @@ export type Database = {
         Args: { restore_payload: Json }
         Returns: string
       }
+      commit_note_shortcut_state: {
+        Args: {
+          expected_context: Json
+          next_state: Json
+          require_enabled: boolean
+        }
+        Returns: Json
+      }
       consume_launch_rate_limit: {
         Args: { p_action: string }
         Returns: {
@@ -1200,6 +1249,16 @@ export type Database = {
       }
       get_export_page_read_bundle: {
         Args: { range_end_local_date: string; range_start_local_date: string }
+        Returns: Json
+      }
+      get_export_page_summary: {
+        Args: {
+          include_archived: boolean
+          include_time_tracking: boolean
+          range_end_local_date: string
+          range_start_local_date: string
+          through_started_at: string
+        }
         Returns: Json
       }
       list_my_occurrence_time_session_history: {
@@ -1258,6 +1317,10 @@ export type Database = {
         Returns: Json
       }
       read_account_sync_snapshot: { Args: never; Returns: Json }
+      read_note_shortcut_context: {
+        Args: { target_behavior_id: string }
+        Returns: Json
+      }
       update_behavior_with_definition_event: {
         Args: {
           behavior_payload: Json
@@ -1279,6 +1342,40 @@ export type Database = {
           target_behavior_id: string
         }
         Returns: Json
+      }
+      update_occurrence_note_with_shortcut: {
+        Args: {
+          expected_note: string
+          next_note: string
+          target_occurrence_id: string
+          used_shortcut: boolean
+        }
+        Returns: {
+          behavior_configuration_event_id: string | null
+          behavior_id: string
+          behavior_schedule_slot_id: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          local_date: string
+          note: string | null
+          schedule_end_time: string | null
+          schedule_kind: string
+          schedule_preset: string | null
+          schedule_range_identity: number | null
+          schedule_start_time: string
+          scheduled_for: string
+          status: string
+          status_marked_at: string | null
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "occurrences"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       update_profile_and_behavior_timezones_with_config_events: {
         Args: {

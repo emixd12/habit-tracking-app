@@ -71,6 +71,7 @@ pub fn run() {
             local_store::local_store,
             files::save_export,
             files::local_database_info,
+            files::delete_storage_recovery_backup,
             files::reveal_local_database,
             files::backup_local_database,
             files::create_protected_local_backup,

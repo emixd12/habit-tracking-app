@@ -369,7 +369,7 @@ A boundary's space always exceeds every boundary one level below it; header rule
 - **Unresolved cells:** Cold Surface or background with a neutral border. Do not imply failure.
 - **Grid:** Square cells, consistent gutters, no gradients, no rounded cells. Calendar cells show a compact date label on hover or keyboard focus while keeping the longer accessible label available.
 - **Behavior rows:** Behavior counts use unboxed divider rows with title, adherence label, Completed and Not Completed label/value counts, MM-DD-YY tracking-since text, and a seven-column heatmap sized to the row. Values align left in the shared field column with equal vertical spacing. Category, schedule, recurrence, reminders, and description sit inside Details and Settings. Full completion is filled blue; partial states use factual diagonal marks; not completed states use Rust Signal without an added diagonal mark. The behavior tracking start date is marked with a dotted cell border when it falls inside the selected range. Non-empty behavior calendar cells open that behavior's Behavior date review area.
-- **Behavior day review:** The selected day appears inside the selected behavior row as a quiet Cold Surface expansion headed by Behavior date. Do not use internal divider lines that compete with the behavior-row separators. Each occurrence uses plain text rows for Time of behavior, Status, and Note; empty notes display italic No note. Status and note correction controls stay hidden behind a Review disclosure by default. Inside the disclosure, Change status and the Completed / Not Completed actions sit on the same row when space allows, followed by the inline Note form. Do not render an empty inspection panel when there are no occurrences on the selected behavior day.
+- **Behavior day review:** The selected day appears inside the selected behavior row as a quiet Cold Surface expansion headed by Behavior date. Do not use internal divider lines that compete with the behavior-row separators. Each occurrence uses plain text rows for Time of behavior, Status, and Note; empty notes display italic No note. Status and note correction controls stay hidden behind a Review disclosure by default. Inside the disclosure, Change status and the Completed / Not Completed actions sit on the same row when space allows, followed by accepted Note shortcut buttons and the inline Note form. Do not render an empty inspection panel when there are no occurrences on the selected behavior day.
 
 ### Export Panels
 
@@ -417,8 +417,9 @@ A boundary's space always exceeds every boundary one level below it; header rule
   and use only the Cadence logo and name in the marketing header. Do not use a
   combined BehaviorLog/Cadence lockup in top navigation. Header navigation
   links use the underlined text-action convention and no bottom divider. The
-  launch header shows the Cadence brand link, a compact Download for macOS
-  button to the disclosed preview release, and Log in. About and FAQ are
+  launch header shows the Cadence brand link, a compact Download for Mac
+  button to the disclosed preview release, and Log in. The logo keeps its square
+  dimensions; narrow headers wrap the actions before compressing the brand. About and FAQ are
   footer-only, and Docs/Examples stay available by direct link and
   machine-readable outputs rather than top navigation.
 - **Captures:** Product visuals are sanitized static captures of the Timeline
@@ -426,7 +427,11 @@ A boundary's space always exceeds every boundary one level below it; header rule
   scheduled time, behavior title, Completed, Not Completed, Needs decision,
   Note, and status-history authority. They do not render real account data.
   The homepage hero layers the trajectory-horse backplate with sanitized Timeline and behavior-row captures positioned in CSS. The composition must stay quiet, keep the captures readable, and fit the available lane without colliding with the headline or clipping offscreen at any viewport width.
-- **CTAs:** The launch marketing site uses filled-button CTAs rather than the app's underlined text actions: a Monolith Blue filled primary (Try Cadence), a 1px-bordered secondary, and underlined ghost links for tertiary actions. The header uses a compact Monolith Blue Download for macOS button and keeps Log in as an underlined text action. This is a deliberate marketing-register exception; the authenticated app keeps its underlined text-action vocabulary.
+- **CTAs:** The launch marketing site uses filled-button CTAs rather than the app's underlined text actions: a Monolith Blue filled primary (Try Cadence), a 1px-bordered secondary, and underlined ghost links for tertiary actions. The header uses a compact Monolith Blue Download for Mac button and keeps Log in as an underlined text action. This is a deliberate marketing-register exception; the authenticated app keeps its underlined text-action vocabulary.
+- **Mobile marketing examples:** Below 620px, walkthrough form fields stack and
+  Occurrence actions sit below the time and title. Chat example footers and file
+  names wrap within their panels. The heatmap legend wraps when its panel is too
+  narrow for both columns. The mobile hero stays inside its content lane.
 - **Docs route:** `/docs` is agent-first and developer-familiar. It links to
   Markdown mirrors, `llms.txt`, `llms-full.txt`, `/data/route-manifest.json`,
   sitemap, robots, and the example bundle. Use tables for machine file indexes

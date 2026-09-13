@@ -10,7 +10,7 @@ standard, read account information, and enter the protected app.
 1. At the first keyboard focus, use **Skip to content** to move directly to the
    main content.
 2. Use the **Cadence** brand to return to the marketing homepage.
-3. In the header, use **Cadence** to return home, **Download for macOS** to
+3. In the header, use **Cadence** to return home, **Download for Mac** to
    download the current Apple Silicon preview DMG, or **Log in** to open the Cadence
    sign-in screen.
 4. Use **Begin a record** to open the Cadence product entry. Use
@@ -44,7 +44,7 @@ order and labels remain the same.
 
 **Prerequisites:** An Apple Silicon Mac running the supported macOS version.
 
-1. Choose **Download for macOS** in the marketing header.
+1. Choose **Download for Mac** in the marketing header.
 2. Confirm that the browser downloads the current Cadence preview DMG. The
    preview uses ad hoc signing and is not notarized.
 3. Open the DMG and follow its installation guidance. Back up existing Cadence
@@ -59,7 +59,7 @@ you no longer need it.
 **Privacy and safety:** The marketing button targets the normal preview DMG, not
 an updater archive or a QA-only failure asset.
 
-**Keyboard and mobile:** Focus **Download for macOS** and press Enter. The link
+**Keyboard and mobile:** Focus **Download for Mac** and press Enter. The link
 starts the same DMG download from narrow layouts.
 
 ## Download the sanitized example bundle

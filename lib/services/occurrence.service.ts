@@ -770,6 +770,9 @@ export async function updateOccurrenceNoteFromFormData(
     occurrenceId: getOccurrenceIdFromFormData(formData),
     expectedNote: getExpectedNoteFromFormData(formData),
     note: getNoteFromFormData(formData),
+    ...(formData.get("used_shortcut") === "true"
+      ? { usedShortcut: true }
+      : {}),
   });
 }
 
@@ -780,6 +783,7 @@ export async function updateOccurrenceNote(
     occurrenceId: string;
     expectedNote: string;
     note: string;
+    usedShortcut?: boolean;
   },
 ): Promise<Occurrence> {
   return updateSharedOccurrenceNote({

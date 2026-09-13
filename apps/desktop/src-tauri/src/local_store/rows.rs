@@ -202,6 +202,43 @@ impl StoredRow for Occurrence {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
+pub struct NoteShortcutEvidence {
+    pub occurrence_id: String,
+    pub note_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct NoteShortcut {
+    pub key: String,
+    pub text: Option<String>,
+    pub status: String,
+    pub source: String,
+    pub evidence: Vec<NoteShortcutEvidence>,
+    pub created_at: String,
+    pub expires_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct NoteShortcutState {
+    pub id: String,
+    pub user_id: String,
+    pub behavior_id: Option<String>,
+    pub enabled: bool,
+    pub entries: Vec<NoteShortcut>,
+    pub excluded_occurrence_ids: Vec<String>,
+    pub revision: i64,
+    pub updated_at: String,
+}
+impl StoredRow for NoteShortcutState {
+    const TABLE: &'static str = "note_shortcut_states";
+    const JSON_COLUMNS: &'static [&'static str] = &["entries", "excluded_occurrence_ids"];
+    const BOOL_COLUMNS: &'static [&'static str] = &["enabled"];
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct OccurrenceStatusEvent {
     pub behavior_id: String,
     pub created_at: String,

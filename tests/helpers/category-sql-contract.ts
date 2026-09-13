@@ -7,7 +7,7 @@ import { commitCategoryChange } from "../../lib/db/categories.repo";
 import { listBehaviorCategories, listUserBehaviors, type AppSupabaseClient } from "../../lib/db/behaviors.repo";
 import { listBehaviorConfigurationEvents } from "../../lib/db/behaviorConfigurationEvents.repo";
 import { CONTRACT_VALUES } from "./behavior-store-contract";
-import { getExportPageData } from "../../lib/services/export.service";
+import { getUserExportBundle } from "../../lib/services/export.service";
 import { Temporal } from "@js-temporal/polyfill";
 
 export async function exerciseCategorySqlContract(client: AppSupabaseClient, userId: string, stranger: AppSupabaseClient) {
@@ -27,7 +27,7 @@ export async function exerciseCategorySqlContract(client: AppSupabaseClient, use
     values: { ...CONTRACT_VALUES, title: "Archived travel routine", categoryId: id } });
   await setBehaviorActive(store, { behaviorId: archived.id, active: false, expectedUpdatedAt: archived.updated_at, newArchiveNoteId: crypto.randomUUID(), recordedAt: now });
   const baseline = (await listBehaviorConfigurationEvents(client, userId)).find((event) => event.behavior_id === created.id)!;
-  const bundle = await getExportPageData({ range: "all", includeArchived: true, includeNotes: true, now: Temporal.Instant.from(now) });
+  const bundle = await getUserExportBundle({ range: "all", includeArchived: true, includeNotes: true, now: Temporal.Instant.from(now) });
   expect(bundle.jsonBackup.categories.find((row) => row.id === id)?.description).toBe("Routines while away");
   expect(bundle.markdownSummary).toContain("Routines while away");
   before = categories;

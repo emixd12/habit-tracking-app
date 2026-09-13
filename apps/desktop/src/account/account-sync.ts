@@ -4,6 +4,7 @@ import { ACCOUNT_SYNC_ENTITY_KINDS, ACCOUNT_SYNC_TIME_LIMIT_MS, accountSyncFinge
 import { sha256 } from "@cadence/core/hash";
 import type { Json } from "@cadence/core/types/json";
 import type { PortabilitySnapshot } from "@cadence/core/types/portability-rows";
+import type { NoteShortcutState } from "@cadence/core/types/note-shortcut";
 import { localCommand } from "../local-store";
 import { runAccountSync, syncFailureStatus, type AccountSyncOperations, type SyncStatus } from "../sync-engine";
 import { canonicalJson } from "./canonical-json";
@@ -27,10 +28,11 @@ export type AccountSyncInputs = {
 };
 export type AccountSyncReadOperations = {
   readContext: () => Promise<SyncContext | null>;
-  readLocal: () => Promise<PortabilitySnapshot>;
+  readLocal: () => Promise<AccountSyncPortabilitySnapshot>;
   readHosted: () => Promise<unknown>;
 };
 type HostedApplyResult = { fingerprint: string; snapshot: HostedEnvelope };
+type AccountSyncPortabilitySnapshot = PortabilitySnapshot & { noteShortcutStates?: NoteShortcutState[] };
 
 export async function readAccountSyncInputs(profileId: string, client: SupabaseClient, operations: Partial<AccountSyncReadOperations> = {}): Promise<AccountSyncInputs> {
   const controller = new AbortController();
@@ -155,7 +157,7 @@ export async function synchronizeReviewedAccount(profileId: string, client: Supa
   }
 }
 
-export function portabilityEntities(snapshot: PortabilitySnapshot): AccountSyncEntity[] {
+export function portabilityEntities(snapshot: AccountSyncPortabilitySnapshot): AccountSyncEntity[] {
   const entities: AccountSyncEntity[] = [{ kind: "profile", id: "profile", value: { timezone: snapshot.profile.timezone } }];
   add(entities, "category", snapshot.categories);
   for (const graph of snapshot.graphs) {
@@ -173,17 +175,21 @@ export function portabilityEntities(snapshot: PortabilitySnapshot): AccountSyncE
   add(entities, "imported_note", snapshot.importedNotes);
   add(entities, "imported_intervention", snapshot.importedInterventions);
   add(entities, "reminder_delivery", snapshot.reminderDeliveries ?? []);
+  add(entities, "note_shortcut_state", snapshot.noteShortcutStates ?? []);
   return entities;
 }
 
-export function normalizeAccountSyncBaseline(snapshot: AccountSyncSnapshot | PortabilitySnapshot): AccountSyncSnapshot {
+export function normalizeAccountSyncBaseline(snapshot: AccountSyncSnapshot | AccountSyncPortabilitySnapshot): AccountSyncSnapshot {
   return "entities" in snapshot ? { entities: snapshot.entities.map(entity) } : { entities: portabilityEntities(snapshot) };
 }
 
 function add(output: AccountSyncEntity[], kind: AccountSyncEntity["kind"], rows: readonly unknown[]) {
   for (const row of rows) {
     if (!isRecord(row) || typeof row.id !== "string") throw new Error(`The local ${kind} snapshot contains an invalid row.`);
-    output.push({ kind, id: row.id, value: json(kind === "category" ? { description: null, ...row } : row) });
+    const value = kind === "category" ? { description: null, ...row }
+      : kind === "note_shortcut_state" ? Object.fromEntries(Object.entries(row).filter(([key]) => key !== "user_id"))
+      : row;
+    output.push({ kind, id: row.id, value: json(value) });
   }
 }
 

@@ -2,6 +2,7 @@
 
 import {
   useActionState,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -10,6 +11,7 @@ import {
 import { useFormStatus } from "react-dom";
 
 import { ReminderEditor } from "@/components/behaviors/ReminderEditor";
+import { DesktopFormDraftGuard } from "@/lib/desktop-draft";
 import type {
   BehaviorActionState,
   BehaviorFormAction,
@@ -100,9 +102,21 @@ export function BehaviorForm({
   const [scheduleRows, setScheduleRows] = useState<ScheduleFormRow[]>(() =>
     initialScheduleRows(behavior),
   );
+  const [draftDirty, setDraftDirty] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const draftRevisionRef = useRef(0);
+  const submittedRevisionRef = useRef<number | null>(null);
+
+  const markDraftDirty = useCallback(() => {
+    draftRevisionRef.current += 1;
+    setDraftDirty(true);
+  }, []);
 
   useEffect(() => {
     if (state.status === "success" && state.message) {
+      if (submittedRevisionRef.current === draftRevisionRef.current) {
+        setDraftDirty(false);
+      }
       onSuccess?.(state);
     }
   }, [onSuccess, state]);
@@ -111,6 +125,8 @@ export function BehaviorForm({
     if (scheduleRows.length >= MAX_SCHEDULE_ROWS) {
       return;
     }
+
+    markDraftDirty();
 
     setScheduleRows((rows) => [
       ...rows,
@@ -125,6 +141,7 @@ export function BehaviorForm({
   }
 
   function removeScheduleRow(scheduleKey: string) {
+    markDraftDirty();
     setScheduleRows((rows) =>
       rows.length === 1
         ? rows
@@ -136,6 +153,7 @@ export function BehaviorForm({
     scheduleKey: string,
     update: Partial<Pick<ScheduleFormRow, "recurrenceKind">>,
   ) {
+    markDraftDirty();
     setScheduleRows((rows) =>
       rows.map((schedule) =>
         schedule.key === scheduleKey ? { ...schedule, ...update } : schedule,
@@ -144,6 +162,7 @@ export function BehaviorForm({
   }
 
   function addTimeEntry(scheduleKey: string) {
+    markDraftDirty();
     setScheduleRows((rows) =>
       rows.map((schedule) => {
         if (
@@ -172,6 +191,7 @@ export function BehaviorForm({
     entryKey: string,
     update: Partial<Omit<TimeEntryRow, "key" | "id">>,
   ) {
+    markDraftDirty();
     setScheduleRows((rows) =>
       rows.map((schedule) =>
         schedule.key === scheduleKey
@@ -187,6 +207,7 @@ export function BehaviorForm({
   }
 
   function removeTimeEntry(scheduleKey: string, entryKey: string) {
+    markDraftDirty();
     setScheduleRows((rows) =>
       rows.map((schedule) =>
         schedule.key === scheduleKey && schedule.timeEntries.length > 1
@@ -201,13 +222,29 @@ export function BehaviorForm({
     );
   }
 
-  function resetFormDraft() {
+  const resetFormDraft = useCallback(() => {
+    draftRevisionRef.current += 1;
+    submittedRevisionRef.current = null;
+    setDraftDirty(false);
     setSelectedCategory(behavior?.categoryId ?? "");
     setScheduleRows((rows) => resetBehaviorScheduleDraft(rows, behavior));
-  }
+  }, [behavior]);
 
   return (
-    <form action={formAction} onReset={resetFormDraft} className="grid gap-6">
+    <form
+      ref={formRef}
+      action={formAction}
+      onChangeCapture={markDraftDirty}
+      onReset={resetFormDraft}
+      onSubmitCapture={() => {
+        submittedRevisionRef.current = draftRevisionRef.current;
+      }}
+      className="grid gap-6"
+    >
+      <DesktopFormDraftGuard
+        dirty={draftDirty}
+        onDiscard={() => formRef.current?.reset()}
+      />
       {behavior ? (
         <>
           <input type="hidden" name="behavior_id" value={behavior.id} />

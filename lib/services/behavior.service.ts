@@ -4,6 +4,7 @@ import {
 } from "@cadence/core/services/behavior.service";
 import { createBehaviorStore } from "@/lib/db/behavior-store";
 import {
+  getProfileTimezone,
   listUserBehaviors,
   type AppSupabaseClient,
 } from "@/lib/db/behaviors.repo";
@@ -43,8 +44,7 @@ export async function getBehaviorPageData(): Promise<BehaviorPageData> {
 export async function createBehaviorFromFormData(formData: FormData): Promise<BehaviorView> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
-  const timezone = getTimezoneFromFormData(formData) ??
-    (await readCachedProfileTimezone(supabase, userId)) ?? DEFAULT_TIMEZONE;
+  const timezone = (await getProfileTimezone(supabase, userId)) ?? DEFAULT_TIMEZONE;
   const input = parseBehaviorFormData(formData, { mode: "create" });
   const confirmedBehavior = await createBehavior(createBehaviorStore(supabase, userId), {
     userId, timezone, values: input, recordedAt: new Date().toISOString(),
@@ -202,26 +202,6 @@ function getBehaviorIdForArchive(formData: FormData): string {
   }
 
   return value;
-}
-
-function getTimezoneFromFormData(formData: FormData): string | null {
-  const value = formData.get("timezone");
-
-  if (typeof value !== "string" || value.trim().length === 0) {
-    return null;
-  }
-
-  return canonicalizeTimezone(value.trim());
-}
-
-function canonicalizeTimezone(timezone: string): string {
-  try {
-    return new Intl.DateTimeFormat("en-US", { timeZone: timezone })
-      .resolvedOptions()
-      .timeZone;
-  } catch {
-    throw new Error("Behavior timezone is invalid.");
-  }
 }
 
 function getArchiveNoteIdFromFormData(formData: FormData): string {

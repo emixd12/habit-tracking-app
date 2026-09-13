@@ -3,6 +3,7 @@ import type {
   TimeTrackingFormAction,
   TimelineDaySection,
 } from "@/lib/types/timeline";
+import type { NoteShortcut } from "@cadence/core/types/note-shortcut";
 import { OccurrenceRow } from "@/components/timeline/OccurrenceRow";
 
 type TimelineGroupProps = Readonly<{
@@ -12,6 +13,7 @@ type TimelineGroupProps = Readonly<{
   startTimeTrackingAction: TimeTrackingFormAction;
   stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
+  shortcutsByBehavior?: Record<string, NoteShortcut[]>;
   variant?: "feed" | "needsDecisionDialog";
 }>;
 
@@ -28,6 +30,7 @@ export function TimelineGroup({
   startTimeTrackingAction,
   stopTimeTrackingAction,
   resetTimeTrackingAction,
+  shortcutsByBehavior = {},
   variant = "feed",
 }: TimelineGroupProps) {
   const isEmpty = section.occurrenceGroups.length === 0;
@@ -89,6 +92,7 @@ export function TimelineGroup({
               startTimeTrackingAction={startTimeTrackingAction}
               stopTimeTrackingAction={stopTimeTrackingAction}
               resetTimeTrackingAction={resetTimeTrackingAction}
+              shortcutsByBehavior={shortcutsByBehavior}
             />
           ))}
         </div>
@@ -116,6 +120,7 @@ function OccurrenceStack({
   startTimeTrackingAction,
   stopTimeTrackingAction,
   resetTimeTrackingAction,
+  shortcutsByBehavior,
 }: Readonly<{
   group: TimelineDaySection["occurrenceGroups"][number];
   statusAction: OccurrenceFormAction;
@@ -123,6 +128,7 @@ function OccurrenceStack({
   startTimeTrackingAction: TimeTrackingFormAction;
   stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
+  shortcutsByBehavior: Record<string, NoteShortcut[]>;
 }>) {
   if (!group.isGroupedStack) {
     const occurrence = group.occurrences[0];
@@ -139,6 +145,7 @@ function OccurrenceStack({
         startTimeTrackingAction={startTimeTrackingAction}
         stopTimeTrackingAction={stopTimeTrackingAction}
         resetTimeTrackingAction={resetTimeTrackingAction}
+        shortcuts={shortcutsByBehavior[group.behaviorId]}
       />
     );
   }
@@ -160,6 +167,7 @@ function OccurrenceStack({
           startTimeTrackingAction={startTimeTrackingAction}
           stopTimeTrackingAction={stopTimeTrackingAction}
           resetTimeTrackingAction={resetTimeTrackingAction}
+          shortcuts={shortcutsByBehavior[group.behaviorId]}
         />
       ))}
     </div>

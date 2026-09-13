@@ -7,11 +7,17 @@ import { TimelineScreen } from "./timeline-screen";
 import { BehaviorsScreen } from "./behaviors-screen";
 import { CategoryPanel } from "@/components/settings/CategoryPanel";
 import { createLocalCategoryAction } from "./local-category.service";
+import { createLocalNoteShortcutStore } from "./local-note-shortcut.service";
+import { getNoteShortcutView, listAcceptedNoteShortcuts, manageNoteShortcuts } from "@cadence/core/services/note-shortcut.service";
+import type { NoteShortcutView } from "@cadence/core/types/note-shortcut";
+import { GlobalNoteShortcutControl, type NoteShortcutAction } from "@/components/note-shortcuts/NoteShortcutControls";
 import { SettingsScreen } from "./settings-screen";
 import { LocalExportScreen } from "./export-screen";
-import { localCommand } from "./local-store";
+import { hasPendingLocalCommands, localCommand } from "./local-store";
 import { DesktopOnboardingGuide } from "./onboarding-guide";
-import { DesktopUpdatePanel } from "./desktop-update-panel";
+import { DesktopUpdateNotice, DesktopUpdatePanel } from "./desktop-update-panel";
+import { desktopUpdater } from "./native-updater";
+import { discardUnsavedDesktopDrafts, hasPendingDesktopWrites, hasUnsavedDesktopDrafts } from "./desktop-restart";
 import { LocalDatabaseControls } from "./local-database-controls";
 import { createLocalTimezoneAction } from "./local-settings.service";
 import { reconcileLocalReminders, reminderCoverageView, requestLocalNotificationPermission, retainNativeDeliveryEvents, type LocalReminderResult } from "./local-reminder.service";
@@ -33,7 +39,8 @@ import { hasRecognizedLocalData } from "@cadence/core/services/first-account-lin
 import { completedFirstLinkState, finishFirstAccountLink, finishReviewedFirstAccountLink, firstLinkFailureBackupPath, recoverRejectedFirstLinkReview, type FirstLinkConflict } from "./account/first-link";
 
 type Bundle = { timeline: Awaited<ReturnType<typeof loadLocalTimeline>>;
-  behaviors: Awaited<ReturnType<typeof getLocalBehaviorsPageData>>; hasImportRuns: boolean };
+  behaviors: Awaited<ReturnType<typeof getLocalBehaviorsPageData>>; hasImportRuns: boolean;
+  shortcuts: { global: NoteShortcutView; accepted: Record<string, import("@cadence/core/types/note-shortcut").NoteShortcut[]>; views: Record<string, NoteShortcutView> } };
 const AVAILABLE_SCREENS: DesktopScreen[] = ["timeline", "behaviors", "export", "settings"];
 
 export function Product() {
@@ -45,6 +52,13 @@ export function Product() {
   const [reminderBusy, setReminderBusy] = useState(false);
   const [reminderError, setReminderError] = useState("");
   const [guideRequest, setGuideRequest] = useState(0);
+  const [restartBlocked, setRestartBlocked] = useState(false);
+  const [restartError, setRestartError] = useState("");
+  useEffect(() => {
+    if (!isTauri()) return;
+    void desktopUpdater.start();
+    return () => desktopUpdater.stop();
+  }, []);
   const [account, setAccount] = useState<DesktopAccountState>({ status: "local" });
   const [accountBusy, setAccountBusy] = useState(false);
   const [firstLink, setFirstLink] = useState<{ recognized: boolean; complete?: boolean; backupPath?: string; error?: string } | null>(null);
@@ -93,8 +107,13 @@ export function Product() {
     void (async () => {
       try {
         const timeline = await loadLocalTimeline(parameters.current.days, now);
-        const behaviors = await getLocalBehaviorsPageData(timeline.profile, { ...parameters.current.analytics, now });
-        const imports = await localCommand("readImportRuns", { profileId: timeline.profile.id, limit: 1 });
+        const [behaviors, imports, global, accepted, behaviorViews] = await Promise.all([
+          getLocalBehaviorsPageData(timeline.profile, { ...parameters.current.analytics, now }),
+          localCommand("readImportRuns", { profileId: timeline.profile.id, limit: 1 }),
+          getNoteShortcutView(createLocalNoteShortcutStore(timeline.profile.id), null, now),
+          listAcceptedNoteShortcuts(createLocalNoteShortcutStore(timeline.profile.id)),
+          Promise.all(timeline.behaviors.map(async (behavior) => [behavior.id, await getNoteShortcutView(createLocalNoteShortcutStore(timeline.profile.id), behavior.id, now)] as const)),
+        ]);
         if (requestedActivation) {
           let target: NotificationTarget;
           try {
@@ -107,7 +126,7 @@ export function Product() {
           }
           if (mounted.current && current === revision.current && activation.current?.requestKey === requestedActivation.requestKey) setNotificationTarget(target);
         }
-        if (mounted.current && current === revision.current) { setBundle({ timeline, behaviors, hasImportRuns: imports.length > 0 }); setError(""); }
+        if (mounted.current && current === revision.current) { setBundle({ timeline, behaviors, hasImportRuns: imports.length > 0, shortcuts: { global, accepted, views: Object.fromEntries(behaviorViews) } }); setError(""); }
       } catch (failure) {
         if (mounted.current && current === revision.current) {
           setError(localErrorMessage(failure));
@@ -128,6 +147,7 @@ export function Product() {
         const events = await readNativeEvents();
         if (!mounted.current) return;
         retainNativeDeliveryEvents(events);
+        if (events.length) void desktopUpdater.checkOverdue();
         const occurrenceId = latestNotificationOccurrenceId(events);
         if (occurrenceId) {
           const requestKey = ++activationSequence.current;
@@ -175,6 +195,23 @@ export function Product() {
       else { setFirstLink({ recognized: false, complete: true, backupPath: result.backupPath ?? undefined }); setSyncReady(true); refresh(); }
     }).catch((failure) => setFirstLink((value) => ({ recognized: value?.recognized ?? true, backupPath: firstLinkFailureBackupPath(failure) ?? value?.backupPath, error: localErrorMessage(failure) }))).finally(() => setAccountBusy(false));
   };
+  useEffect(() => {
+    desktopUpdater.setRestartGuard(() => !syncRunning.current && !accountBusy && !hasPendingLocalCommands() && !hasPendingDesktopWrites() && !hasUnsavedDesktopDrafts());
+    return () => desktopUpdater.setRestartGuard(undefined);
+  }, [accountBusy]);
+  const restartUpdate = (discard = false) => {
+    setRestartError("");
+    if (syncRunning.current || accountBusy || hasPendingLocalCommands() || hasPendingDesktopWrites()) {
+      setRestartError("Wait for the current save or synchronization to finish before restarting.");
+      return;
+    }
+    if (discard && !discardUnsavedDesktopDrafts()) return;
+    if (hasUnsavedDesktopDrafts()) { setRestartBlocked(true); return; }
+    setRestartBlocked(false);
+    void desktopUpdater.restart();
+  };
+  const restartActions = { onRestart: () => restartUpdate(), onDiscardAndRestart: () => restartUpdate(true),
+    onCancelRestart: () => setRestartBlocked(false), restartBlocked };
   const profile = bundle?.timeline.profile;
   useEffect(() => {
     if (!profile || !auth.current) { setFirstLink(null); setSyncReady(false); return; }
@@ -246,6 +283,19 @@ export function Product() {
   const behaviorActions = useMemo(() => profile ? createLocalBehaviorActions(profile, () => refresh()) : null, [profile, refresh]);
   const categoryAction = useMemo(() => createLocalCategoryAction(() => refresh()), [refresh]);
   const timezoneAction = useMemo(() => createLocalTimezoneAction(() => refresh()), [refresh]);
+  const noteShortcutAction: NoteShortcutAction = async (behaviorId, command, expectedRevision) => {
+    if (!profile) return { status: "error", message: "The local profile is not ready." };
+    try {
+      const store = createLocalNoteShortcutStore(profile.id);
+      const now = Temporal.Now.instant();
+      await manageNoteShortcuts(store, { behaviorId, command, expectedRevision, now });
+      const view = await getNoteShortcutView(store, behaviorId, now);
+      refresh();
+      return { status: "success", message: noteShortcutMessage(command.operation, view), view };
+    } catch (failure) {
+      return { status: "error", message: localErrorMessage(failure) };
+    }
+  };
   /* eslint-enable react-hooks/refs */
   const coverage = reminders ? reminderCoverageView(reminders.state) : null;
   const permission = reminders?.permission ?? "checking";
@@ -262,6 +312,7 @@ export function Product() {
       onImport={() => runFirstLink("import")} onIgnore={() => runFirstLink("ignore")}
       onCancel={() => auth.current && runAccount(() => auth.current!.cancelLink())} /> : null}
     {syncReady ? <AccountSyncPanel status={syncStatus} busy={accountBusy || syncStatus.state === "syncing"} onSync={syncAccount}
+      onUpdate={() => { document.getElementById("app-updates")?.focus(); document.getElementById("app-updates")?.scrollIntoView({ block: "start" }); }}
       onReconnect={() => { if (!auth.current) return; setSyncStatus({ state: "revoked" }); runAccount(() => auth.current!.reconnect()); }} /> : null}</>;
 
   const resolveConflicts = (decisions: readonly AccountSyncConflictDecision[]) => {
@@ -304,6 +355,8 @@ export function Product() {
   return <DesktopApp activeScreen={activeScreen} onNavigate={navigate} availableScreens={AVAILABLE_SCREENS} conflictCount={conflictReview?.conflicts.length ?? 0}>
     {!isTauri() ? <div className="p-8"><h1 className="text-3xl font-bold">Open Cadence on your Mac</h1>
       <p className="mt-4">Local tracking uses the desktop app’s SQLite database. This browser preview cannot read or change it.</p></div> : null}
+    <DesktopUpdateNotice required={syncStatus.state === "update_required"} {...restartActions} />
+    {restartError ? <p role="status" className="px-4 py-3 text-sm text-accent">{restartError}</p> : null}
     {loading ? <p role="status" className="p-8">Opening local tracking data…</p> : null}
     {error ? <div role="alert" className="m-6 border border-line p-4"><p>{error}</p>
       <button className="product-action product-action-primary mt-3" onClick={refresh}>Try again</button></div> : null}
@@ -312,16 +365,19 @@ export function Product() {
         hasAnyBehavior={bundle.timeline.behaviors.length > 0} hasImportRuns={bundle.hasImportRuns} currentTimezone={bundle.timeline.profile.timezone}
         permission={permission} coverage={coverage} onNavigate={navigate} availableScreens={AVAILABLE_SCREENS} /> : null}
       {activeScreen === "timeline" ? <TimelineScreen timeline={bundle.timeline.timeline} {...occurrenceActions}
+        shortcutsByBehavior={bundle.shortcuts.accepted}
         notificationTarget={notificationTarget}
         onRefresh={refresh} onShowMore={(days) => { parameters.current.days = days; refresh(); }} /> : null}
       {activeScreen === "behaviors" ? <BehaviorsScreen {...bundle.behaviors.behaviors} analytics={bundle.behaviors.analytics}
         {...occurrenceActions} {...behaviorActions} onRefresh={refresh}
+        noteShortcutViews={bundle.shortcuts.views} noteShortcutAction={noteShortcutAction}
         onNavigateReview={(selection) => { parameters.current.analytics = selection; refresh(); }} /> : null}
       {activeScreen === "settings" ? <SettingsScreen currentTimezone={bundle.timeline.profile.timezone} accountConnected={syncReady}
+        noteShortcutControls={<GlobalNoteShortcutControl view={bundle.shortcuts.global} action={noteShortcutAction} />}
         categoryControls={<CategoryPanel categories={bundle.timeline.categories}
           assignments={bundle.timeline.behaviors.map((behavior) => ({ id: behavior.id, categoryId: behavior.category_id, active: behavior.active, updatedAt: behavior.updated_at }))} action={categoryAction} />}
         accountControls={completeAccountControls}
-        updates={<DesktopUpdatePanel />}
+        updates={<div id="app-updates" tabIndex={-1} className="scroll-mt-20"><DesktopUpdatePanel {...restartActions} /></div>}
         databaseControls={<LocalDatabaseControls onRestored={refresh} />}
         updateTimezoneAction={timezoneAction} permission={permission} coverage={coverage}
         busy={reminderBusy} error={reminderError} onRequestPermission={() => refreshReminders(true)}
@@ -329,4 +385,15 @@ export function Product() {
       {activeScreen === "export" ? <LocalExportScreen onChanged={refresh} /> : null}
     </> : null}
   </DesktopApp>;
+}
+
+function noteShortcutMessage(operation: string, view: NoteShortcutView): string {
+  if (operation === "analyze") return view.entries.some((entry) => entry.status === "proposed")
+    ? "Repeated Notes checked."
+    : "No new shortcuts found. Matching needs the same Note on three eligible Occurrences.";
+  if (operation === "remove") return "Note shortcut removed.";
+  if (operation === "dismiss") return "Note shortcut dismissed.";
+  if (operation === "accept") return "Note shortcut accepted.";
+  if (operation === "edit") return "Note shortcut saved.";
+  return "Note shortcut setting saved.";
 }

@@ -111,6 +111,34 @@ try {
   const returnedOccurrence = occurrenceResult.snapshot.entities.find((row) => row.kind === "occurrence" && row.id === occurrenceId);
   assert(returnedOccurrence?.value.status === "unresolved", "new unresolved occurrence without status history");
   assert(!("schedule_range_identity" in returnedOccurrence.value), "derived occurrence identity stays outside the sync snapshot");
+
+  const deletionOccurrenceId = randomUUID();
+  const deletionOccurrence = { ...returnedOccurrence.value, id: deletionOccurrenceId, scheduled_for: "2026-09-04T13:00:00.000000Z", local_date: "2026-09-04" };
+  const seededDeletionOccurrence = await admin.from("occurrences").insert({ ...deletionOccurrence, user_id: users[0].id });
+  if (seededDeletionOccurrence.error) throw seededDeletionOccurrence.error;
+  const deliveryStatuses = ["pending", "sent", "failed", "cancelled"];
+  const deletionDeliveryIds = deliveryStatuses.map(() => randomUUID());
+  const seededDeletionDeliveries = await admin.from("reminder_deliveries").insert(deliveryStatuses.map((status, index) => ({
+    id: deletionDeliveryIds[index], user_id: users[0].id, occurrence_id: deletionOccurrenceId, channel: "browser_push",
+    scheduled_send_at: `2026-09-04T12:${String(50 + index).padStart(2, "0")}:00Z`, status,
+  })));
+  if (seededDeletionDeliveries.error) throw seededDeletionDeliveries.error;
+  const deletionBase = await readSnapshot(clients[0]);
+  const deletionOccurrenceRow = deletionBase.entities.find((row) => row.kind === "occurrence" && row.id === deletionOccurrenceId);
+  const deletionReminderRows = deletionBase.entities.filter((row) => row.kind === "reminder_delivery" && deletionDeliveryIds.includes(row.id));
+  assert(deletionOccurrenceRow && deletionReminderRows.length === 4, "all-status deletion fixtures");
+  const reminderDeletes = deletionReminderRows.map((row) => ({ kind: row.kind, id: row.id, operation: "delete", expected: row.value }));
+  const occurrenceDelete = { kind: "occurrence", id: deletionOccurrenceId, operation: "delete", expected: deletionOccurrenceRow.value };
+  await rejects(clients[0].rpc("apply_account_sync_plan", { sync_payload: payload(deletionBase, [reminderDeletes[0]],
+    entityDigest(deletionBase.entities.filter((row) => row.id !== reminderDeletes[0].id)), digest("standalone-reminder-delete")) }), "standalone reminder deletion");
+  await rejects(clients[0].rpc("apply_account_sync_plan", { sync_payload: payload(deletionBase, [occurrenceDelete],
+    entityDigest(deletionBase.entities.filter((row) => row.id !== deletionOccurrenceId && !deletionDeliveryIds.includes(row.id))), digest("orphaning-occurrence-delete")) }), "Occurrence deletion without every reminder");
+  const deletionWrites = [...reminderDeletes, occurrenceDelete];
+  const deletionMerged = deletionBase.entities.filter((row) => row.id !== deletionOccurrenceId && !deletionDeliveryIds.includes(row.id));
+  const deletionResult = await applied(clients[0].rpc("apply_account_sync_plan", { sync_payload: payload(deletionBase, deletionWrites,
+    entityDigest(deletionMerged), digest("dependency-safe-occurrence-delete")) }));
+  assert(!deletionResult.snapshot.entities.some((row) => row.id === deletionOccurrenceId || deletionDeliveryIds.includes(row.id)), "all-status reminder and Occurrence deletion");
+
   const deliveryId = randomUUID();
   const seededDelivery = await admin.from("reminder_deliveries").insert({ id: deliveryId, user_id: users[0].id, occurrence_id: occurrenceId,
     channel: "browser_push", scheduled_send_at: "2026-09-02T12:55:00Z", status: "pending" });
@@ -139,6 +167,15 @@ try {
   assert(statusResult.snapshot.entities.some((row) => row.kind === "status_event" && row.id === eventId), "status transition history persisted");
   assert(statusResult.snapshot.entities.some((row) => row.kind === "occurrence" && row.id === occurrenceId && row.value.behavior_configuration_event_id === configurationEvent.id), "status transition preserved occurrence configuration lineage");
   assert(statusResult.snapshot.entities.some((row) => row.kind === "reminder_delivery" && row.id === deliveryId && row.value.status === "cancelled"), "status transition reminder cancellation persisted");
+  const protectedOccurrence = statusResult.snapshot.entities.find((row) => row.kind === "occurrence" && row.id === occurrenceId);
+  const protectedReminder = statusResult.snapshot.entities.find((row) => row.kind === "reminder_delivery" && row.id === deliveryId);
+  assert(protectedOccurrence && protectedReminder, "protected deletion fixtures");
+  const protectedMerged = statusResult.snapshot.entities.filter((row) => row.id !== occurrenceId && row.id !== deliveryId && row.id !== eventId);
+  await rejects(clients[0].rpc("apply_account_sync_plan", { sync_payload: payload(statusResult.snapshot, [
+    { kind: "reminder_delivery", id: deliveryId, operation: "delete", expected: protectedReminder.value },
+    { kind: "occurrence", id: occurrenceId, operation: "delete", expected: protectedOccurrence.value },
+  ], entityDigest(protectedMerged), digest("protected-occurrence-delete")) }), "protected Occurrence deletion");
+  assert((await readSnapshot(clients[0])).fingerprint === statusResult.fingerprint, "protected deletion rolls back every write");
   const resolvedId = randomUUID();
   const resolvedValue = { ...occurrenceValue, id: resolvedId, scheduled_for: "2026-09-03T13:00:00.000000Z", local_date: "2026-09-03", status: "completed",
     completed_at: "2026-09-03T13:05:00.000000Z", status_marked_at: "2026-09-03T13:05:00.000000Z" };
@@ -173,7 +210,7 @@ try {
   assert(crossAccountRows[0] + crossAccountRows[1] === 1, "cross-account insert identity has one owner");
 
   await rejects(clients[0].rpc("apply_account_sync_plan", { sync_payload: { ...request, localFingerprint: "e".repeat(64) } }), "idempotency-key substitution");
-  console.log("Account sync RPC smoke passed: unauthenticated rejection, two-account isolation, stale and cross-account rejection, bounded receipt replay, serialized same-account plans and cross-account identities, timestamp precision, compare-and-set rejection, occurrence history, and idempotency substitution rejection.");
+  console.log("Account sync RPC smoke passed: unauthenticated rejection, two-account isolation, stale and cross-account rejection, bounded receipt replay, serialized same-account plans and cross-account identities, timestamp precision, compare-and-set rejection, dependency-safe all-status reminder deletion, occurrence history, and idempotency substitution rejection.");
 } finally {
   await cleanupTemporaryUsers(admin, users);
 }

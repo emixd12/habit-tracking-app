@@ -136,7 +136,7 @@ Primary calls to action:
 - Read BehaviorLog
 - Download Example Bundle
 - View on GitHub
-- Download unnotarized macOS preview
+- Download for Mac
 - Log in
 
 The site is static-first and SEO-conscious from the start: semantic HTML,
@@ -151,7 +151,7 @@ Marketing posture:
 - BehaviorLog is the open bundle standard and portability layer Cadence writes
   and reads. It should be explained in the same manner as a technical base
   layer or open package, not as the primary site brand.
-- The header shows the Cadence brand link, a Download unnotarized macOS preview
+- The header shows the Cadence brand link, a Download for Mac
   button to the current preview DMG, and Log in. About and FAQ are linked
   from the footer. Docs and Examples stay available by direct URL,
   machine-readable mirrors, and in-page content links.

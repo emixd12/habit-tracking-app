@@ -420,6 +420,268 @@ fn generation_preserves_notes_and_configuration_lineage() {
 }
 
 #[test]
+fn note_shortcuts_commit_with_notes_atomically_and_survive_restart() {
+    let mut fixture = Fixture::new();
+    fixture.create();
+    fixture.occurrence();
+
+    let global_context = note_shortcut::read_context(&fixture.db, &fixture.profile, None).unwrap();
+    let global_state = NoteShortcutState {
+        id: "global".into(),
+        user_id: fixture.profile.clone(),
+        behavior_id: None,
+        enabled: true,
+        entries: vec![],
+        excluded_occurrence_ids: vec![],
+        revision: 1,
+        updated_at: NOW.into(),
+    };
+    fixture.run(json!({"operation":"commitNoteShortcutState","expected":global_context,"next":global_state,"requireEnabled":false}),102).unwrap();
+
+    fixture.db.execute("UPDATE occurrences SET note='Source corpus secret' WHERE user_id=?1 AND id=?2", params![fixture.profile,id(10)]).unwrap();
+    let behavior_context = note_shortcut::read_context(&fixture.db, &fixture.profile, Some(&id(1))).unwrap();
+    let behavior_state = NoteShortcutState {
+        id: id(1),
+        user_id: fixture.profile.clone(),
+        behavior_id: Some(id(1)),
+        enabled: true,
+        entries: vec![NoteShortcut {
+            key: "a".repeat(64),
+            text: Some("Accepted shortcut secret".into()),
+            status: "accepted".into(),
+            source: "repeated_text".into(),
+            evidence: vec![],
+            created_at: NOW.into(),
+            expires_at: None,
+        }],
+        excluded_occurrence_ids: vec![],
+        revision: 1,
+        updated_at: NOW.into(),
+    };
+    let behavior_request = json!({"operation":"commitNoteShortcutState","expected":behavior_context,"next":behavior_state,"requireEnabled":false});
+    assert_eq!(fixture.run(behavior_request.clone(),103).unwrap(), json!(behavior_state));
+    let (journal_request, journal_result): (String, String) = fixture.db.query_row(
+        "SELECT request_json,result_json FROM mutation_outbox WHERE user_id=?1 AND mutation_id=?2",
+        params![fixture.profile,id(103)],
+        |row| Ok((row.get(0)?,row.get(1)?)),
+    ).unwrap();
+    let journal_hash: String = serde_json::from_str(&journal_request).unwrap();
+    assert_eq!(journal_hash.len(), 64);
+    assert!(journal_hash.bytes().all(|byte| byte.is_ascii_hexdigit()));
+    assert_eq!(journal_result, "null");
+    assert!(!journal_request.contains("Source corpus secret"));
+    assert!(!journal_request.contains("Accepted shortcut secret"));
+    let committed_outbox = fixture.count("mutation_outbox");
+    assert_eq!(fixture.run(behavior_request.clone(),103).unwrap(), json!(behavior_state));
+    assert_eq!(fixture.count("mutation_outbox"), committed_outbox);
+    let mut changed_request = behavior_request;
+    changed_request["next"]["enabled"] = json!(false);
+    assert!(fixture.run(changed_request,103).unwrap_err().contains("different plan"));
+    assert_eq!(fixture.count("mutation_outbox"), committed_outbox);
+    fixture.db.execute("UPDATE occurrences SET note=NULL WHERE user_id=?1 AND id=?2", params![fixture.profile,id(10)]).unwrap();
+
+    let outbox = fixture.count("mutation_outbox");
+    fixture.db.execute_batch("CREATE TRIGGER reject_shortcut_note_outbox BEFORE INSERT ON mutation_outbox WHEN new.operation='updateOccurrenceNote' BEGIN SELECT RAISE(ABORT,'test rollback'); END;").unwrap();
+    assert!(fixture.run(json!({"operation":"updateOccurrenceNote","occurrenceId":id(10),"expectedNote":null,"note":"Routine note","usedShortcut":true}),104).is_err());
+    assert_eq!(fixture.count("mutation_outbox"), outbox);
+    assert_eq!(db::by_id::<Occurrence>(&fixture.db, &fixture.profile, &id(10)).unwrap().note, None);
+    assert!(db::by_id::<NoteShortcutState>(&fixture.db, &fixture.profile, &id(1)).unwrap().excluded_occurrence_ids.is_empty());
+    fixture.db.execute_batch("DROP TRIGGER reject_shortcut_note_outbox").unwrap();
+
+    fixture.run(json!({"operation":"updateOccurrenceNote","occurrenceId":id(10),"expectedNote":null,"note":"Routine note","usedShortcut":true}),105).unwrap();
+    fixture.run(json!({"operation":"updateOccurrenceNote","occurrenceId":id(10),"expectedNote":"Routine note","note":"Edited later"}),106).unwrap();
+    let saved = db::by_id::<NoteShortcutState>(&fixture.db, &fixture.profile, &id(1)).unwrap();
+    assert_eq!(saved.revision, 2);
+    assert_eq!(saved.excluded_occurrence_ids, vec![id(10)]);
+
+    let stale_context = note_shortcut::read_context(&fixture.db, &fixture.profile, Some(&id(1))).unwrap();
+    fixture.run(json!({"operation":"updateOccurrenceNote","occurrenceId":id(10),"expectedNote":"Edited later","note":"Source changed"}),107).unwrap();
+    let mut stale_next = saved.clone();
+    stale_next.revision += 1;
+    stale_next.updated_at = NOW.into();
+    assert!(fixture.run(json!({"operation":"commitNoteShortcutState","expected":stale_context,"next":stale_next,"requireEnabled":false}),108).unwrap_err().contains("sources or settings changed"));
+
+    let mut foreign = saved.clone();
+    foreign.user_id = id(999);
+    foreign.revision += 1;
+    let current_context = note_shortcut::read_context(&fixture.db, &fixture.profile, Some(&id(1))).unwrap();
+    assert!(fixture.run(json!({"operation":"commitNoteShortcutState","expected":current_context,"next":foreign,"requireEnabled":false}),109).is_err());
+    assert_eq!(db::by_id::<NoteShortcutState>(&fixture.db, &fixture.profile, &id(1)).unwrap(), saved);
+
+    let reopened = db::open(&fixture.directory.join("data.sqlite3")).unwrap();
+    assert_eq!(db::by_id::<NoteShortcutState>(&reopened, &fixture.profile, &id(1)).unwrap(), saved);
+    assert_eq!(db::by_id::<Occurrence>(&reopened, &fixture.profile, &id(10)).unwrap().note.as_deref(), Some("Source changed"));
+}
+
+#[test]
+fn shortcut_note_save_creates_disabled_state_when_settings_changed() {
+    let mut fixture = Fixture::new();
+    fixture.create();
+    fixture.occurrence();
+    fixture.run(json!({"operation":"updateOccurrenceNote","occurrenceId":id(10),"expectedNote":null,"note":"Reviewed draft","usedShortcut":true}),102).unwrap();
+    let state: NoteShortcutState = db::by_id(&fixture.db, &fixture.profile, &id(1)).unwrap();
+    assert!(!state.enabled);
+    assert_eq!(state.revision, 1);
+    assert_eq!(state.excluded_occurrence_ids, vec![id(10)]);
+}
+
+#[test]
+fn note_shortcut_validation_rejects_nfkc_duplicate_accepted_text() {
+    let profile_id = id(50);
+    let state = NoteShortcutState {
+        id: id(51),
+        user_id: profile_id.clone(),
+        behavior_id: Some(id(51)),
+        enabled: true,
+        entries: vec![
+            NoteShortcut {
+                key: "a".repeat(64),
+                text: Some("Shortcut text".into()),
+                status: "accepted".into(),
+                source: "repeated_text".into(),
+                evidence: vec![],
+                created_at: NOW.into(),
+                expires_at: None,
+            },
+            NoteShortcut {
+                key: "b".repeat(64),
+                text: Some("Ｓｈｏｒｔｃｕｔ   ｔｅｘｔ".into()),
+                status: "accepted".into(),
+                source: "model".into(),
+                evidence: vec![],
+                created_at: NOW.into(),
+                expires_at: None,
+            },
+        ],
+        excluded_occurrence_ids: vec![],
+        revision: 1,
+        updated_at: NOW.into(),
+    };
+    assert!(db::validate_row(&profile_id, &state)
+        .unwrap_err()
+        .contains("duplicated text"));
+}
+
+#[test]
+fn note_shortcut_revision_ceiling_is_readable_and_overflow_writes_no_journal() {
+    let mut fixture = Fixture::new();
+    let max_revision = i64::from(i32::MAX);
+    fixture
+        .db
+        .execute(
+            "INSERT INTO note_shortcut_states(id,user_id,behavior_id,enabled,entries,excluded_occurrence_ids,revision,updated_at) VALUES('global',?1,NULL,0,'[]','[]',?2,'2026-08-29T12:00:00Z')",
+            params![fixture.profile, max_revision - 1],
+        )
+        .unwrap();
+
+    let context = note_shortcut::read_context(&fixture.db, &fixture.profile, None).unwrap();
+    let mut at_ceiling = context.state.clone().unwrap();
+    at_ceiling.enabled = true;
+    at_ceiling.revision = max_revision;
+    at_ceiling.updated_at = NOW.into();
+    fixture
+        .run(
+            json!({"operation":"commitNoteShortcutState","expected":context,"next":at_ceiling,"requireEnabled":false}),
+            102,
+        )
+        .unwrap();
+
+    let current = note_shortcut::read_context(&fixture.db, &fixture.profile, None).unwrap();
+    assert_eq!(current.state.as_ref().unwrap().revision, max_revision);
+    assert_eq!(
+        note_shortcut::read_states(&fixture.db, &fixture.profile).unwrap()[0].revision,
+        max_revision
+    );
+    let before_outbox = fixture.count("mutation_outbox");
+    let mut overflow = current.state.clone().unwrap();
+    overflow.revision = max_revision + 1;
+    let error = fixture
+        .run(
+            json!({"operation":"commitNoteShortcutState","expected":current,"next":overflow,"requireEnabled":false}),
+            103,
+        )
+        .unwrap_err();
+
+    assert!(error.contains("revision is invalid"));
+    assert_eq!(fixture.count("mutation_outbox"), before_outbox);
+    assert_eq!(
+        note_shortcut::read_states(&fixture.db, &fixture.profile).unwrap()[0].revision,
+        max_revision
+    );
+}
+
+#[test]
+fn note_shortcut_validation_reserves_capacity_for_accepted_removal_history() {
+    let profile_id = id(50);
+    let dismissed = |index: usize| NoteShortcut {
+        key: format!("{index:064x}"),
+        text: None,
+        status: "dismissed".into(),
+        source: "repeated_text".into(),
+        evidence: vec![],
+        created_at: NOW.into(),
+        expires_at: Some(NOW.into()),
+    };
+    let accepted = NoteShortcut {
+        key: "f".repeat(64),
+        text: Some("Accepted shortcut".into()),
+        status: "accepted".into(),
+        source: "model".into(),
+        evidence: vec![],
+        created_at: NOW.into(),
+        expires_at: None,
+    };
+    let state = |entries| NoteShortcutState {
+        id: id(51),
+        user_id: profile_id.clone(),
+        behavior_id: Some(id(51)),
+        enabled: true,
+        entries,
+        excluded_occurrence_ids: vec![],
+        revision: 1,
+        updated_at: NOW.into(),
+    };
+
+    let mut with_one_reserved_slot = (0..126).map(dismissed).collect::<Vec<_>>();
+    with_one_reserved_slot.push(accepted.clone());
+    db::validate_row(&profile_id, &state(with_one_reserved_slot)).unwrap();
+
+    let mut without_reserved_slot = (0..127).map(dismissed).collect::<Vec<_>>();
+    without_reserved_slot.push(accepted);
+    assert!(db::validate_row(&profile_id, &state(without_reserved_slot))
+        .unwrap_err()
+        .contains("limits"));
+
+    let removal_result = (0..128).map(dismissed).collect::<Vec<_>>();
+    db::validate_row(&profile_id, &state(removal_result)).unwrap();
+}
+
+#[test]
+fn note_shortcut_context_does_not_materialize_oversized_notes() {
+    let mut fixture = Fixture::new();
+    fixture.create();
+    fixture.occurrence();
+    let oversized = "😀".repeat(2_001);
+    fixture
+        .run(
+            json!({"operation":"updateOccurrenceNote","occurrenceId":id(10),"expectedNote":null,"note":oversized}),
+            102,
+        )
+        .unwrap();
+    let context = note_shortcut::read_context(&fixture.db, &fixture.profile, Some(&id(1))).unwrap();
+    assert!(context.notes.is_empty());
+    assert_eq!(
+        db::by_id::<Occurrence>(&fixture.db, &fixture.profile, &id(10))
+            .unwrap()
+            .note
+            .unwrap()
+            .chars()
+            .count(),
+        2_001
+    );
+}
+
+#[test]
 fn timing_survives_restart_and_reset_requires_exact_sessions_and_writes_tombstones() {
     let mut fixture = Fixture::new();
     fixture.create();

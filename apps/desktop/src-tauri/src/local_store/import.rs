@@ -82,7 +82,8 @@ pub fn snapshot(db: &Connection, profile_id: &str) -> Result<Value> {
         "timeSessions":db::owned::<OccurrenceTimeSession>(db,profile_id)?,
         "reminderDeliveries":db::owned::<ReminderDelivery>(db,profile_id)?,"nativeReminders":db::owned::<NativeReminderState>(db,profile_id)?,
         "importRuns":db::owned::<BehaviorLogImportRun>(db,profile_id)?,"mappings":db::owned::<BehaviorLogImportRecordMapping>(db,profile_id)?,
-        "importedNotes":db::owned::<ImportedNote>(db,profile_id)?,"importedInterventions":db::owned::<ImportedIntervention>(db,profile_id)?
+        "importedNotes":db::owned::<ImportedNote>(db,profile_id)?,"importedInterventions":db::owned::<ImportedIntervention>(db,profile_id)?,
+        "noteShortcutStates":super::note_shortcut::read_states(db,profile_id)?
     }))
 }
 

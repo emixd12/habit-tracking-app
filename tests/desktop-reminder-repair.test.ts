@@ -243,3 +243,52 @@ describe("bounded native reminder repair", () => {
     expect(state.coverage?.reason).toContain("retained a cancelled reminder");
   });
 });
+
+
+describe("coalesced reminder refreshes", () => {
+  it("bounds a 10,000-request burst to one running and one pending reconciliation", async () => {
+    mocks.notifications.mockImplementation(async (request: OsRequest) => ordinary(request));
+    const command = mocks.command.getMockImplementation()!;
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let reads = 0;
+    mocks.command.mockImplementation(async (operation, input) => {
+      if (operation === "readProfile" && ++reads === 1) await held;
+      return command(operation, input);
+    });
+    const first = reconcileLocalReminders(NOW);
+    const pendingPass = reconcileLocalReminders(NOW.add({ seconds: 1 }));
+    for (let index = 2; index <= 10_000; index++) {
+      expect(reconcileLocalReminders(NOW.add({ seconds: index }))).toBe(pendingPass);
+    }
+    expect(reads).toBe(1);
+    release();
+    await vi.runAllTimersAsync();
+    await Promise.all([first, pendingPass]);
+    expect(reads).toBe(2);
+    const plans = mocks.command.mock.calls.filter(([operation]) => operation === "commitNativeReminderPlan");
+    expect(plans).toHaveLength(2);
+    expect(plans[1][1].now).toBe(NOW.add({ seconds: 10_000 }).toString());
+    await reconcile();
+    expect(reads).toBe(3);
+  });
+
+  it("runs the pending refresh after a running pass fails", async () => {
+    mocks.notifications.mockImplementation(async (request: OsRequest) => ordinary(request));
+    const command = mocks.command.getMockImplementation()!;
+    let reject!: (error: Error) => void;
+    const held = new Promise<void>((_, fail) => { reject = fail; });
+    let reads = 0;
+    mocks.command.mockImplementation(async (operation, input) => {
+      if (operation === "readProfile" && ++reads === 1) await held;
+      return command(operation, input);
+    });
+    const first = expect(reconcileLocalReminders(NOW)).rejects.toThrow("SQLite temporarily busy");
+    const pendingPass = reconcileLocalReminders(NOW.add({ seconds: 1 }));
+    reject(new Error("SQLite temporarily busy"));
+    await vi.runAllTimersAsync();
+    await first;
+    await expect(pendingPass).resolves.toMatchObject({ permission: "authorized" });
+    expect(reads).toBe(2);
+  });
+});

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useId, useState } from "react";
+import type { NoteShortcut } from "@cadence/core/types/note-shortcut";
 
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
 import { StatusButtons } from "@/components/timeline/StatusButtons";
@@ -27,6 +28,7 @@ type OccurrenceRowProps = Readonly<{
   startTimeTrackingAction: TimeTrackingFormAction;
   stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
+  shortcuts?: readonly NoteShortcut[];
 }>;
 
 type KeyedOptimisticStatusState = Readonly<{
@@ -65,6 +67,7 @@ export function OccurrenceRow({
   startTimeTrackingAction,
   stopTimeTrackingAction,
   resetTimeTrackingAction,
+  shortcuts,
 }: OccurrenceRowProps) {
   const serverStatusKey = [
     occurrence.id,
@@ -225,6 +228,7 @@ export function OccurrenceRow({
               occurrenceId={visibleOccurrence.id}
               note={visibleOccurrence.note}
               action={noteAction}
+              shortcuts={shortcuts}
               compact
             />
           </div>

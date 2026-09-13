@@ -2,7 +2,7 @@
 
 import { RuntimeLink as Link } from "@cadence/ui/runtime";
 import type { CSSProperties, ReactNode } from "react";
-import { useActionState, useCallback, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { BehaviorForm } from "@/components/behaviors/BehaviorForm";
@@ -18,6 +18,12 @@ import {
   upsertBehaviorView,
 } from "@/components/behaviors/behavior-list-state";
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
+import { DesktopFormDraftGuard } from "@/lib/desktop-draft";
+import {
+  NoteShortcutSettings,
+  type NoteShortcutAction,
+} from "@/components/note-shortcuts/NoteShortcutControls";
+import type { NoteShortcut, NoteShortcutView } from "@cadence/core/types/note-shortcut";
 import { StatusButtons } from "@/components/timeline/StatusButtons";
 import type {
   AnalyticsBehaviorDayCell,
@@ -52,6 +58,8 @@ type BehaviorListProps = Readonly<{
   noteAction: OccurrenceFormAction;
   stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
+  noteShortcutViews?: Record<string, NoteShortcutView>;
+  noteShortcutAction?: NoteShortcutAction;
   reminderRuntime?: "web" | "desktop";
 }>;
 
@@ -110,6 +118,8 @@ export function BehaviorList({
   noteAction,
   stopTimeTrackingAction,
   resetTimeTrackingAction,
+  noteShortcutViews = {},
+  noteShortcutAction,
   reminderRuntime = "web",
 }: BehaviorListProps) {
   const [updateAnnouncement, setUpdateAnnouncement] = useState<BehaviorActionAnnouncement | null>(null);
@@ -261,6 +271,8 @@ export function BehaviorList({
                 noteAction={noteAction}
                 stopTimeTrackingAction={stopTimeTrackingAction}
                 resetTimeTrackingAction={resetTimeTrackingAction}
+                noteShortcutView={noteShortcutViews[behavior.id]}
+                noteShortcutAction={noteShortcutAction}
               />
               </div>
             ))}
@@ -278,6 +290,8 @@ export function BehaviorList({
         updateAction={announcedUpdateAction}
         lifecycleFormAction={lifecycleFormAction}
         lifecycleResult={lifecycleState}
+        noteShortcutViews={noteShortcutViews}
+        noteShortcutAction={noteShortcutAction}
       />
     </div>
   );
@@ -420,6 +434,8 @@ function BehaviorRecord({
   stopTimeTrackingAction,
   resetTimeTrackingAction,
   reminderRuntime,
+  noteShortcutView,
+  noteShortcutAction,
 }: Readonly<{
   behavior: BehaviorView;
   categories: CategoryOption[];
@@ -433,6 +449,8 @@ function BehaviorRecord({
   stopTimeTrackingAction?: TimeTrackingFormAction;
   resetTimeTrackingAction?: TimeTrackingFormAction;
   reminderRuntime?: "web" | "desktop";
+  noteShortcutView?: NoteShortcutView;
+  noteShortcutAction?: NoteShortcutAction;
 }>) {
   const [hasOpenedEdit, setHasOpenedEdit] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -523,6 +541,7 @@ function BehaviorRecord({
                     behavior={behavior}
                     showActiveToggle={false}
                   />
+                  {noteShortcutView && noteShortcutAction ? <NoteShortcutSettings behaviorId={behavior.id} view={noteShortcutView} action={noteShortcutAction} /> : null}
                   <div className="grid justify-items-end">
                     <BehaviorStateForm
                       behaviorId={behavior.id}
@@ -548,6 +567,7 @@ function BehaviorRecord({
                     behavior={behavior}
                     showActiveToggle={false}
                   />
+                  {noteShortcutView && noteShortcutAction ? <NoteShortcutSettings behaviorId={behavior.id} view={noteShortcutView} action={noteShortcutAction} /> : null}
                   <ArchiveNoteHistory
                     behavior={behavior}
                     action={lifecycleFormAction}
@@ -567,6 +587,9 @@ function BehaviorRecord({
           noteAction={noteAction}
           stopTimeTrackingAction={stopTimeTrackingAction}
           resetTimeTrackingAction={resetTimeTrackingAction}
+          shortcuts={noteShortcutView?.globalEnabled && noteShortcutView.available && noteShortcutView.state?.enabled
+            ? noteShortcutView.entries.filter((entry) => entry.status === "accepted")
+            : []}
         />
       ) : null}
     </article>
@@ -725,12 +748,14 @@ function BehaviorDateReview({
   noteAction,
   stopTimeTrackingAction,
   resetTimeTrackingAction,
+  shortcuts = [],
 }: Readonly<{
   selectedBehaviorDay: NonNullable<AnalyticsView["selectedBehaviorDay"]>;
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
   stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
+  shortcuts?: readonly NoteShortcut[];
 }>) {
   return (
     <div
@@ -777,6 +802,7 @@ function BehaviorDateReview({
                   occurrenceId={occurrence.id}
                   note={occurrence.note}
                   action={noteAction}
+                  shortcuts={shortcuts}
                 />
 
                 {occurrence.trackedTime ? (
@@ -913,6 +939,8 @@ function ArchivedBehaviorDisclosure({
   lifecycleFormAction,
   lifecycleResult,
   reminderRuntime,
+  noteShortcutViews,
+  noteShortcutAction,
 }: Readonly<{
   archivedBehaviors: BehaviorView[];
   visibleIds: ReadonlySet<string>;
@@ -921,6 +949,8 @@ function ArchivedBehaviorDisclosure({
   lifecycleFormAction: BehaviorLifecycleFormAction;
   lifecycleResult: BehaviorLifecycleActionState;
   reminderRuntime?: "web" | "desktop";
+  noteShortcutViews: Record<string, NoteShortcutView>;
+  noteShortcutAction?: NoteShortcutAction;
 }>) {
   return (
     <section className="border-t border-line pt-4" aria-labelledby="archived-behaviors-title">
@@ -951,6 +981,8 @@ function ArchivedBehaviorDisclosure({
                 updateAction={updateAction}
                 lifecycleFormAction={lifecycleFormAction}
                 lifecycleResult={lifecycleResult}
+                noteShortcutView={noteShortcutViews[behavior.id]}
+                noteShortcutAction={noteShortcutAction}
               />
               </div>
             ))}
@@ -996,13 +1028,32 @@ function ArchiveNoteEntryForm({ behavior, archiveNote, action, result }: Readonl
   result: BehaviorLifecycleActionState;
 }>) {
   const [draft, setDraft] = useState(archiveNote.note ?? "");
+  const [savedDraft, setSavedDraft] = useState(archiveNote.note ?? "");
+  const submittedDraftRef = useRef<string | null>(null);
   const matchingResult = result.behaviorId === behavior.id &&
     result.intent === "edit_archive_note" && result.archiveNoteId === archiveNote.id
     ? result
     : null;
   const dateLabel = formatArchiveDate(archiveNote.archivedAt, behavior.timezone);
+
+  useEffect(() => {
+    if (matchingResult?.status !== "success" || submittedDraftRef.current === null) return;
+    setSavedDraft(submittedDraftRef.current);
+  }, [matchingResult]);
+
   return (
-    <form action={action} className="grid gap-2 border-t border-line pt-3">
+    <form
+      action={action}
+      onSubmitCapture={(event) => {
+        const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+        submittedDraftRef.current = submitter?.name === "archive_note_remove" ? "" : draft;
+      }}
+      className="grid gap-2 border-t border-line pt-3"
+    >
+      <DesktopFormDraftGuard
+        dirty={draft !== savedDraft}
+        onDiscard={() => setDraft(savedDraft)}
+      />
       <input type="hidden" name="behavior_id" value={behavior.id} />
       <input type="hidden" name="archive_note_id" value={archiveNote.id} />
       <input type="hidden" name="expected_updated_at" value={behavior.updatedAt} />
@@ -1089,13 +1140,27 @@ function BehaviorStateForm({
   allowArchiveNote?: boolean;
 }>) {
   const [archiveNoteDraft, setArchiveNoteDraft] = useState("");
+  const submittedArchiveNoteRef = useRef<string | null>(null);
   const matchingResult =
     result.behaviorId === behaviorId && result.intent === intent ? result : null;
 
+  useEffect(() => {
+    if (
+      matchingResult?.status === "success" &&
+      submittedArchiveNoteRef.current === archiveNoteDraft
+    ) {
+      setArchiveNoteDraft("");
+    }
+  }, [archiveNoteDraft, matchingResult]);
+
   return (
-    <form action={action} className={allowArchiveNote
+    <form action={action} onSubmitCapture={() => { submittedArchiveNoteRef.current = archiveNoteDraft; }} className={allowArchiveNote
       ? "grid w-full max-w-2xl gap-2 text-sm sm:grid-cols-[minmax(12rem,1fr)_auto] sm:items-end"
       : "grid justify-start gap-2 text-sm"}>
+      <DesktopFormDraftGuard
+        dirty={allowArchiveNote && archiveNoteDraft.length > 0}
+        onDiscard={() => setArchiveNoteDraft("")}
+      />
       <input type="hidden" name="behavior_id" value={behaviorId} />
       <input type="hidden" name="expected_updated_at" value={expectedUpdatedAt} />
       {allowArchiveNote ? (

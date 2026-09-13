@@ -1403,6 +1403,13 @@ It preserves ordinary owner RLS and returns one canonical typed snapshot.
 Canonical object keys and entity kind/ID pairs use explicit `COLLATE "C"` byte order.
 Clients use matching Unicode code-point order and half-even microsecond rounding.
 
+Migration `20260911031421_accelerate_account_sync_canonical_json.sql` replaces
+the recursive SQL fingerprint serializer with PL/pgSQL branch queries. It keeps
+the same JSON bytes, text return type, immutable/invoker properties, empty search
+path, and existing execution grants. No table or generated TypeScript type changes.
+The SQL smoke check at `tests/sql/account-sync-canonical-smoke.sql` compares the
+prior algorithm with nested, escaped, Unicode, numeric, and large synthetic input.
+
 `apply_account_sync_plan` verifies `auth.uid()`, exact payload fields, bounds,
 canonical fingerprints, the current hosted snapshot, zero unresolved
 conflicts, row preconditions, and idempotency before applying any write. It
@@ -1554,6 +1561,19 @@ Invalidation is explicit:
 Occurrence rows, occurrence status events, reminder deliveries, push
 subscriptions, and account deletion authorization data remain uncached.
 
+### `public.get_export_page_summary(date, date, boolean, boolean, timestamptz)`
+
+Ticket 091 adds an authenticated, STABLE SECURITY INVOKER counts-only read.
+It uses an empty search path, explicit owner predicates, and existing RLS.
+Only authenticated users receive EXECUTE; anonymous and service roles do not.
+The function returns Behavior counts, Completed/Not Completed/Unresolved
+counts, and optional time-session counts for the inclusive local-date range.
+Time-session counts use the supplied `through_started_at` cutoff, matching downloads.
+Inactive Behaviors require `include_archived`; all-time uses 0001-01-01 through
+9999-12-31, including saved future Occurrences. It returns no record arrays,
+Notes, history, or export artifacts. Download reads retain the existing RPC.
+
+
 ## Archive note history (Ticket 125)
 
 `behaviors.archive_notes` is non-null JSONB with default `[]`. Each entry has a
@@ -1571,3 +1591,62 @@ baselines normalize the missing field to an empty history.
 
 Migration: `20260906010951_add_behavior_archive_notes.sql`. Legacy archived
 rows remain empty; the migration does not fabricate past archive cycles.
+
+## Note shortcut state (Tickets 126–128)
+
+`note_shortcut_states` stores records separately from historical Notes. Its
+composite primary key is `(user_id, id)`. `id` is `global` with null `behavior_id`,
+or the exact Behavior UUID text with that owned `behavior_id`. Composite ownership
+foreign keys and RLS reject foreign Behaviors; account/Behavior deletion cascades.
+Fields are `enabled boolean`, `entries jsonb`, `excluded_occurrence_ids jsonb`,
+`revision integer`, and `updated_at timestamptz`. Global arrays must be empty.
+Absent state means disabled. Arrays, enum values, IDs, lengths, and ownership
+are validated at storage boundaries. Mutations compare the captured state and
+commit atomically; concurrent changes fail rather than overwrite. Rendered management
+actions also carry a content fingerprint, because equal integer revisions from
+independent devices do not prove equal state.
+Revision values range from 0 through 2,147,483,647 on every platform. Commands
+reject an increment at the ceiling before mutation. Synchronization rejects
+over-limit snapshots before planning or applying writes.
+
+Each entry has a SHA-256 normalized-pattern `key`, nullable `text`, `status`
+(proposed/accepted/dismissed), `source` (repeated_text/model), `evidence` containing
+only Occurrence IDs and exact Note SHA-256 hashes, `created_at`, and nullable
+`expires_at`. Accepted text is user-controlled. Dismissed records retain no text
+or evidence. Bounds and expiry follow PRODUCT_SPEC. Evidence hashes are private,
+not anonymized public data. Saving a shortcut-assisted Note and adding its ID to
+`excluded_occurrence_ids` is one guarded transaction. Existing saves that omit
+this optional flag retain all previously recorded exclusions.
+The 128-slot bound counts each accepted entry twice, reserving room to suppress
+both original and edited text on removal. PostgreSQL, SQLite, and core validation
+enforce the same bound before accepting additional retained state.
+
+Normal and reviewed account synchronization retains the sorted union of exclusion
+IDs from the common baseline and both copies. It changes no winning shortcut text,
+status, suppression key, or setting. If review selects deletion while the owned
+Behavior survives, synchronization writes a disabled state with no entries and
+the retained IDs. Deleting the Behavior may cascade the state. An explicit
+first-link local-dataset discard does not retain exclusions from that discarded
+copy. A union above 100,000 IDs fails instead of truncating.
+
+Analysis reads current owned sources. Before proposal persistence, compare source
+Notes, current state, global enablement, and Behavior lifecycle again atomically.
+No stale result may revive removed text or overwrite an accepted edit. No raw
+Note text enters logs or monitoring. Cloud consent is separate, device-specific,
+and never a synchronized state field. Provider analysis remains disabled until
+the Ticket 126 evaluation authorizes it.
+
+Expiry immediately removes proposals/suppressions from eligibility and UI. The next
+explicit shortcut mutation prunes expired records. No background cleanup job is
+added. Until that mutation, expired private records can remain in the database and
+protected native backups. User removal clears live shortcut text immediately;
+existing backups retain their prior snapshot under the existing backup policy.
+
+### Dependency-safe account apply (Ticket 130)
+
+Migration `20260908174627_guard_dependency_safe_account_sync.sql` strengthens
+`cadence_private.apply_account_sync_plan(jsonb)` without adding tables. It permits
+reminder deletion only with the parent Occurrence deletion, requires every attached
+reminder deletion, and rejects retained reminders for a deleted parent. Notes,
+status history, tracked time, and resolved Occurrences prevent deletion. The
+existing JWT ownership, RLS, expected-row, transaction, and receipt checks remain.

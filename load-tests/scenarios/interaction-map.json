@@ -3,6 +3,7 @@
   "registry_id": "cadence.user-interactions",
   "registry_schema_version": "1.3.0",
   "entries": [
+    {"id": "INT-DATABASE-004", "classification": "destructive_serial_only", "reason": "Deletes one native recovery backup without hosted HTTP requests."},
     {
       "id": "INT-DESKTOP-002",
       "classification": "external_provider",
@@ -684,6 +685,30 @@
       ]
     },
     {
+      "id": "INT-EXPORT-020",
+      "classification": "loadable_http",
+      "requests": [
+        {
+          "name": "INT-EXPORT-020 GET /api/export/markdown structured-export",
+          "route": "/api/export/markdown?range=30&include_archived=0&include_notes=0",
+          "method": "GET",
+          "expected_result": "structured_export",
+          "environments": [
+            "local",
+            "hosted_staging"
+          ],
+          "data_preconditions": [
+            "authenticated synthetic account",
+            "synthetic export cohort"
+          ],
+          "cleanup_owner": "synthetic_account_cascade",
+          "profiles": [
+            "structured_export"
+          ]
+        }
+      ]
+    },
+    {
       "id": "INT-EXPORT-006",
       "classification": "browser_only",
       "reason": "Clipboard writes require browser permission and client JavaScript."
@@ -691,7 +716,7 @@
     {
       "id": "INT-EXPORT-007",
       "classification": "browser_only",
-      "reason": "The Markdown file is assembled and downloaded by client JavaScript."
+      "reason": "Client JavaScript downloads the already-generated Markdown summary."
     },
     {
       "id": "INT-EXPORT-008",
@@ -975,6 +1000,21 @@
       "id": "INT-BEHAVIOR-028",
       "classification": "destructive_serial_only",
       "reason": "Archive note mutations require isolated revision and history-preservation verification."
+    },
+    {
+      "id": "INT-TIMELINE-011",
+      "classification": "not_load_bearing",
+      "reason": "Accepted shortcut insertion changes only an in-browser Note draft; ordinary Note saves own the guarded mutation route."
+    },
+    {
+      "id": "INT-BEHAVIOR-029",
+      "classification": "destructive_serial_only",
+      "reason": "Behavior shortcut commands need isolated owner, revision, suppression, and sync verification."
+    },
+    {
+      "id": "INT-SETTINGS-014",
+      "classification": "destructive_serial_only",
+      "reason": "Global shortcut settings need isolated owner and stale-revision verification."
     }
   ]
 }

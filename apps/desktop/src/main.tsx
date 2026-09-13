@@ -160,6 +160,8 @@ function NativeBench() {
 const root = createRoot(document.getElementById("root")!);
 if (new URLSearchParams(window.location.search).get("bench") === "native") {
   void import("./spike.css").then(() => root.render(<NativeBench />));
+} else if (new URLSearchParams(window.location.search).get("bench") === "settings") {
+  void Promise.all([import("./timeline.css"), import("./settings-bench")]).then(([, { SettingsBench }]) => root.render(<SettingsBench />));
 } else {
   void import("./product").then(({ Product }) => root.render(<Product />)).catch(() => {
     root.render(<main role="alert">Cadence could not open. Quit and reopen the app to try again.</main>);

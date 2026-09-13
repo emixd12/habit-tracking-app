@@ -392,8 +392,23 @@ export async function updateOccurrenceNoteIfExpected(
     occurrenceId: string;
     expectedNote: string | null;
     note: string | null;
+    usedShortcut?: boolean;
   },
 ): Promise<Occurrence | null> {
+  if (input.usedShortcut) {
+    const { data, error } = await supabase
+      .rpc("update_occurrence_note_with_shortcut", {
+        target_occurrence_id: input.occurrenceId,
+        expected_note: input.expectedNote as unknown as string,
+        next_note: input.note as unknown as string,
+        used_shortcut: true,
+      })
+      .maybeSingle();
+
+    if (error) throw error;
+    return data ?? null;
+  }
+
   let query = supabase
     .from("occurrences")
     .update({ note: input.note })

@@ -136,7 +136,7 @@ the Supabase project owner accepts that operational tradeoff.
   "crons": [
     {
       "path": "/api/reminders/process",
-      "schedule": "0 * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/occurrences/sync",
@@ -460,3 +460,11 @@ Production collection does not create a bypass.
 Production collection requests each configured public Production origin only
 after the Vercel API confirms that origin is an alias on the exact named Ready
 deployment. It does not follow an immutable deployment host across origins.
+
+Ticket 091 verified the active team is Pro on 2026-09-04. Current
+https://vercel.com/docs/cron-jobs/usage-and-pricing permits one-minute intervals
+on Pro, so five-minute reminder processing fits the existing plan. Deploy
+`get_export_page_summary` before this application revision. Verify an
+authorized Preview before Production; Preview does not execute Vercel Cron.
+Production cadence acceptance requires the deployed schedule and a bounded
+owner-authorized delivery check.

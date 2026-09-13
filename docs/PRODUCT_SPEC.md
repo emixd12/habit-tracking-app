@@ -491,3 +491,57 @@ The shared web/desktop interface places Archive note (optional) beside Archive
 behavior in Details and Settings. Archived details show dated Archive history
 with Save note and Remove note actions. No predefined reasons or automatic
 archiving rules are added.
+
+## Recurring Note shortcuts contract (Tickets 126–128)
+
+The deterministic feature is optional and defaults off globally and for each
+Behavior. Explicit **Find repeated Notes** analyzes only one owner's current,
+nonblank Occurrence Notes for one active Behavior, across all three statuses.
+Use the latest 100 eligible Occurrences in the 90 local calendar days ending
+today (today minus 89 days). Sort local date descending, scheduled instant
+descending, then ID ascending. Ignore Notes over 2,000 Unicode code points.
+Descriptions, archive notes, passive Notes, and imported inline Occurrences
+with import provenance never qualify, including after later edits. Unknown
+legacy manual Notes qualify. Count Occurrences once, never edit history.
+
+Normalize repeated text using Unicode NFKC, trim, collapse whitespace, and
+locale-independent lowercase for comparison. Preserve the normalized latest
+source's letter case for proposed display. Match the entire Note, not fragments
+or fuzzy similarity. Require three distinct Occurrences. Propose at most five
+texts, each at most 160 Unicode code points, sorted by evidence count descending,
+latest supporting date descending, then pattern key ascending. Reject control
+characters and instruction-like prompt text. This conservative rule preserves
+negation and never infers advice, diagnoses, or status changes.
+
+Proposals expire after 30 elapsed days and disappear immediately when their
+exact source Note hashes no longer support three eligible Occurrences. Accepted
+shortcuts have no expiry and fresh analysis never edits them. Accept permits
+editing before saving; later editing retains the original pattern key.
+Dismiss/remove deletes text and evidence, retains only suppression keys for the
+original pattern and any edited accepted text for
+90 elapsed days, and does not delete saved Notes. Deduplicate by normalized
+text and original pattern key. Keep at most 20 accepted shortcuts and 128 total
+entries per Behavior; report the limit instead of dropping retained entries.
+Each accepted shortcut reserves one of those 128 slots for a second suppression
+key after editing. Admission checks preserve that reserve so removal always fits.
+Saving a draft that used a shortcut atomically records its Occurrence ID as
+excluded future evidence. Edits, removal, off controls, and synchronization never
+clear this exclusion. Cancelled/failed saves create no exclusion. Exclusions
+retain IDs only, with a 100,000-ID ceiling that fails instead of truncating.
+
+Global off dominates every Behavior setting, hides quick-fill and proposals,
+and rejects new analysis. Settings and removals remain available. Off preserves
+accepted shortcuts and historical Notes. Both settings persist and synchronize;
+neither is provider consent. There is no automatic analysis on opening/saving a
+Note, schedule, background worker, or automatic Note submission.
+
+Ticket 128 requires a separate explicit device-specific cloud consent with a
+versioned privacy notice, global and per-Behavior checks, current account identity,
+and an operator off switch. Linking/synchronization cannot grant this consent.
+Account-free/offline desktop uses only local deterministic matching. Provider
+selection and synthetic live acceptance remain separately recorded in Ticket
+126's evaluation. Until its go decision, cloud analysis is unavailable.
+
+Web and desktop share the resolver, review lifecycle, and Note form. Marketing
+updates existing guidance only after verified acceptance. Future mobile remains
+deferred and inherits this contract without implementation here.

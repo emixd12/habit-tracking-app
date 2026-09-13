@@ -35,6 +35,7 @@ import {
   ScreenFrame,
 } from "@/components/layout/ScreenFrame";
 import { FirstRunOnboardingPanel } from "@/components/onboarding/FirstRunOnboardingPanel";
+import { NoteShortcutSettings, type NoteShortcutAction } from "@/components/note-shortcuts/NoteShortcutControls";
 import {
   AccountDeletionPanel,
   type DeleteAccountAction,
@@ -50,6 +51,7 @@ import { TrustEvidencePanel } from "@/components/trust/TrustEvidencePanel";
 import { MobileTimelinePullToRefresh } from "@/components/timeline/MobileTimelinePullToRefresh";
 import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
+import type { NoteShortcut, NoteShortcutView } from "@cadence/core/types/note-shortcut";
 import { OccurrenceRow } from "@/components/timeline/OccurrenceRow";
 import { StatusButtons } from "@/components/timeline/StatusButtons";
 import { TimeTracker } from "@/components/timeline/TimeTracker";
@@ -1253,6 +1255,35 @@ function buildPreviews(
 
 const behaviorAction: BehaviorFormAction = benchBehaviorAction;
 const occurrenceAction: OccurrenceFormAction = benchOccurrenceAction;
+const noteShortcutFixture: NoteShortcut[] = [{
+  key: "morning-walk-shortcut",
+  text: "Took a shorter walk.",
+  status: "accepted",
+  source: "repeated_text",
+  evidence: [],
+  created_at: "2026-09-07T00:00:00Z",
+  expires_at: null,
+}];
+const noteShortcutViewFixture: NoteShortcutView = {
+  state: {
+    id: "bench-note-shortcuts",
+    user_id: "bench-user",
+    behavior_id: "bench-behavior",
+    enabled: true,
+    entries: noteShortcutFixture,
+    excluded_occurrence_ids: [],
+    revision: 1,
+    updated_at: "2026-09-07T00:00:00Z",
+  },
+  globalEnabled: true,
+  available: true,
+  entries: noteShortcutFixture,
+};
+const noteShortcutAction: NoteShortcutAction = async () => ({
+  status: "success",
+  message: "Note shortcut saved.",
+  view: noteShortcutViewFixture,
+});
 const timeTrackingAction: TimeTrackingFormAction = benchTimeTrackingAction;
 const timezoneAction: TimezoneUpdateAction = benchTimezoneAction;
 const deleteAccountAction: DeleteAccountAction = benchDeleteAccountAction;
@@ -1680,7 +1711,13 @@ const previewFactories: Record<
           occurrenceId="bench-occurrence-note"
           note="Slept poorly, but completed the evening reset."
           action={occurrenceAction}
+          shortcuts={noteShortcutFixture}
         />
+      </ProductPreview>
+    ),
+  "module.note-shortcut-controls": () => (
+      <ProductPreview>
+        <NoteShortcutSettings behaviorId="bench-behavior" view={noteShortcutViewFixture} action={noteShortcutAction} />
       </ProductPreview>
     ),
   "module.needs-decision-dialog": () => (
@@ -1764,7 +1801,7 @@ const previewFactories: Record<
   "module.export-panel": () => (
       <ProductPreview maxHeight="50rem">
         <ExportPanel
-          exportData={exportFixture}
+          exportData={{ ...exportFixture, markdownSummary: undefined, markdownFileName: undefined }}
           importData={importPageFixture}
           restoreData={restorePageFixture}
           importAction={behaviorLogImportAction}

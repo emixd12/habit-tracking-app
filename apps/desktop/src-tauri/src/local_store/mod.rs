@@ -5,8 +5,12 @@ mod db;
 mod export;
 mod import;
 mod import_write;
+mod note_shortcut;
 mod occurrence;
+mod recovery;
 mod reminder;
+#[cfg(test)]
+mod repair_tests;
 pub mod rows;
 mod sync_apply;
 #[cfg(test)]
@@ -17,8 +21,11 @@ use rows::*;
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::{path::Path, sync::Mutex};
 use tauri::State;
+
+pub use recovery::RecoveryReport;
 
 pub struct LocalStore(pub Mutex<Connection>);
 pub fn adopt_previous_identity(directory: &Path) -> Result<()> {
@@ -26,6 +33,21 @@ pub fn adopt_previous_identity(directory: &Path) -> Result<()> {
 }
 pub fn open(path: &Path) -> Result<LocalStore> {
     Ok(LocalStore(Mutex::new(db::open(path)?)))
+}
+
+pub fn storage_recovery_report(live_path: &Path) -> Result<Option<RecoveryReport>> {
+    recovery::report(live_path)
+}
+
+pub fn delete_storage_recovery_backup(
+    store: &LocalStore,
+    live_path: &Path,
+) -> Result<RecoveryReport> {
+    let db = store.0.lock().map_err(|_| "SQLite lock is unavailable.")?;
+    db::validate_backup(&db)?;
+    let report = recovery::delete_backup(live_path)?;
+    db::validate_backup(&db)?;
+    Ok(report)
 }
 
 pub fn is_local_mode(db: &Connection) -> Result<bool> {
@@ -103,8 +125,8 @@ pub fn run_contract(path: &Path) -> Result<()> {
     let mut stdout = std::io::stdout().lock();
     for line in stdin.lock().lines() {
         let line = line.map_err(|_| "The contract request could not be read.")?;
-        let result = if line.len() > 32 * 1024 * 1024 {
-            Err("The contract request exceeds 32 MiB.".into())
+        let result = if line.len() > 64 * 1024 * 1024 {
+            Err("The contract request exceeds 64 MiB.".into())
         } else {
             serde_json::from_str::<Request>(&line)
                 .map_err(|error| format!("Invalid typed local request: {error}"))
@@ -245,6 +267,13 @@ pub enum Request {
         limit: i64,
         kind: Option<import::ImportRunKind>,
     },
+    ReadNoteShortcutStates {
+        profile_id: String,
+    },
+    ReadNoteShortcutContext {
+        profile_id: String,
+        behavior_id: Option<String>,
+    },
     PrepareBehaviorLogImport {
         profile_id: String,
         mutation_id: String,
@@ -284,8 +313,12 @@ pub enum Request {
         writes: Vec<AccountSyncWrite>,
     },
     ManageCategories {
-        profile_id: String, mutation_id: String, now: String,
-        expected_categories: Vec<Value>, next_categories: Vec<Value>, updates: Vec<TimezoneGraphUpdate>,
+        profile_id: String,
+        mutation_id: String,
+        now: String,
+        expected_categories: Vec<Value>,
+        next_categories: Vec<Value>,
+        updates: Vec<TimezoneGraphUpdate>,
     },
     UpdateProfileTimezone {
         profile_id: String,
@@ -360,6 +393,16 @@ pub enum Request {
         occurrence_id: String,
         expected_note: Option<String>,
         note: Option<String>,
+        #[serde(default)]
+        used_shortcut: Option<bool>,
+    },
+    CommitNoteShortcutState {
+        profile_id: String,
+        mutation_id: String,
+        now: String,
+        expected: note_shortcut::NoteShortcutContext,
+        next: NoteShortcutState,
+        require_enabled: bool,
     },
     StartTimeSession {
         profile_id: String,
@@ -469,17 +512,38 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
         db::instant_key(now)?;
         let payload = serde_json::to_string(&request)
             .map_err(|_| "The local request could not be encoded.")?;
-        if payload.len() > 32 * 1024 * 1024 {
-            return Err("The local mutation exceeds 32 MiB.".into());
+        let note_shortcut_commit = matches!(&request, Request::CommitNoteShortcutState { .. });
+        let payload_limit = if note_shortcut_commit {
+            64 * 1024 * 1024
+        } else {
+            32 * 1024 * 1024
+        };
+        if payload.len() > payload_limit {
+            return Err("The local mutation exceeds its allowed size.".into());
         }
+        let reminder_commit = matches!(
+            &request,
+            Request::CommitNativeReminderPlan { .. } | Request::RecordNativeReminderCoverage { .. }
+        );
+        let journal_payload = if note_shortcut_commit || reminder_commit {
+            json!(format!("{:x}", Sha256::digest(payload.as_bytes()))).to_string()
+        } else {
+            payload.clone()
+        };
         let tx = db
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(error)?;
         db::owner(&tx, profile_id)?;
         let prior: Option<(String,String)> = tx.query_row("SELECT request_json,result_json FROM mutation_outbox WHERE user_id=?1 AND mutation_id=?2", params![profile_id,mutation_id], |row| Ok((row.get(0)?,row.get(1)?))).optional().map_err(error)?;
         if let Some((prior_payload, result)) = prior {
-            if prior_payload != payload {
+            if prior_payload != journal_payload {
                 return Err("The mutation ID was already used for a different plan.".into());
+            }
+            if let Request::CommitNoteShortcutState { next, .. } = &request {
+                return Ok(json!(next));
+            }
+            if reminder_commit {
+                return reminder::read(&tx, profile_id);
             }
             return serde_json::from_str(&result)
                 .map_err(|_| "The prior mutation result is invalid.".into());
@@ -490,8 +554,23 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
             .as_str()
             .ok_or("Missing local operation.")?
             .to_string();
-        tx.execute("INSERT INTO mutation_outbox (mutation_id,user_id,operation,request_json,result_json,created_at) VALUES (?1,?2,?3,?4,?5,?6)", params![mutation_id,profile_id,operation,payload,result.to_string(),now]).map_err(error)?;
-        reminder::after_mutation(&tx, &request, tx.last_insert_rowid())?;
+        let journal_result = if note_shortcut_commit || reminder_commit {
+            "null".into()
+        } else {
+            result.to_string()
+        };
+        if reminder_commit {
+            tx.execute(
+                "DELETE FROM mutation_outbox WHERE user_id=?1 AND operation=?2",
+                params![profile_id, operation],
+            )
+            .map_err(error)?;
+            tx.execute("INSERT INTO mutation_outbox (mutation_id,user_id,operation,request_json,result_json,created_at,synced_at) VALUES (?1,?2,?3,?4,?5,?6,?6)", params![mutation_id,profile_id,operation,journal_payload,journal_result,now]).map_err(error)?;
+        } else {
+            tx.execute("INSERT INTO mutation_outbox (mutation_id,user_id,operation,request_json,result_json,created_at) VALUES (?1,?2,?3,?4,?5,?6)", params![mutation_id,profile_id,operation,journal_payload,journal_result,now]).map_err(error)?;
+        }
+        let sequence = tx.last_insert_rowid();
+        reminder::after_mutation(&tx, &request, sequence)?;
         if let Request::PrepareBehaviorLogImport { preview_run, .. } = &request {
             result =
                 import::after_prepare(&tx, profile_id, &preview_run.id, tx.last_insert_rowid())?;
@@ -501,14 +580,11 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
             )
             .map_err(error)?;
         }
-        if matches!(
-            request,
-            Request::CommitNativeReminderPlan { .. } | Request::RecordNativeReminderCoverage { .. }
-        ) {
+        if reminder_commit {
             result = reminder::read(&tx, profile_id)?;
             tx.execute(
                 "UPDATE mutation_outbox SET result_json=?2 WHERE mutation_id=?1",
-                params![mutation_id, result.to_string()],
+                params![mutation_id, json!({"revision":sequence}).to_string()],
             )
             .map_err(error)?;
         }
@@ -592,6 +668,21 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
             db::owner(&tx, profile_id)?;
             json!(import::read_runs(&tx, profile_id, *limit, kind.as_ref())?)
         }
+        Request::ReadNoteShortcutStates { profile_id } => {
+            db::owner(&tx, profile_id)?;
+            json!(note_shortcut::read_states(&tx, profile_id)?)
+        }
+        Request::ReadNoteShortcutContext {
+            profile_id,
+            behavior_id,
+        } => {
+            db::owner(&tx, profile_id)?;
+            json!(note_shortcut::read_context(
+                &tx,
+                profile_id,
+                behavior_id.as_deref()
+            )?)
+        }
         Request::ReadExportSnapshot {
             profile_id,
             start_local_date,
@@ -669,8 +760,25 @@ fn apply(db: &Connection, request: &Request) -> Result<Value> {
             occurrence_id,
             expected_note,
             note,
+            used_shortcut,
             ..
-        } => occurrence::note(db, profile_id, now, occurrence_id, expected_note, note),
+        } => occurrence::note(
+            db,
+            profile_id,
+            now,
+            occurrence_id,
+            expected_note,
+            note,
+            used_shortcut == &Some(true),
+        ),
+        Request::CommitNoteShortcutState {
+            profile_id,
+            now,
+            expected,
+            next,
+            require_enabled,
+            ..
+        } => note_shortcut::commit(db, profile_id, now, expected, next, *require_enabled),
         Request::StartTimeSession {
             profile_id,
             session,
@@ -724,7 +832,12 @@ impl Request {
                 now,
                 ..
             }
-            | Self::ManageCategories { profile_id, mutation_id, now, .. }
+            | Self::ManageCategories {
+                profile_id,
+                mutation_id,
+                now,
+                ..
+            }
             | Self::UpdateProfileTimezone {
                 profile_id,
                 mutation_id,
@@ -768,6 +881,12 @@ impl Request {
                 ..
             }
             | Self::UpdateOccurrenceNote {
+                profile_id,
+                mutation_id,
+                now,
+                ..
+            }
+            | Self::CommitNoteShortcutState {
                 profile_id,
                 mutation_id,
                 now,

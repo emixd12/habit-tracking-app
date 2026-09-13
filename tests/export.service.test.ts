@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { USER_ID, BEHAVIOR_ID, storedBehavior, storedExportPageBehavior, storedConfigurationEvent, storedExportOccurrence, uuid } from "./helpers/export-row-fixture";
 
 const mocks = vi.hoisted(() => ({
+  consumeExportDownloadRateLimit: vi.fn(),
+  readExportPageSummary: vi.fn(),
   createClient: vi.fn(),
   requireCurrentUserId: vi.fn(),
   readCachedProfileTimezone: vi.fn(),
@@ -41,6 +43,7 @@ vi.mock("@/lib/db/behaviorConfigurationEvents.repo", () => ({
 
 vi.mock("@/lib/db/exportPageRead.repo", () => ({
   readExportPageBundle: mocks.readExportPageBundle,
+  readExportPageSummary: mocks.readExportPageSummary,
 }));
 
 vi.mock("@/lib/services/occurrence.service", () => ({
@@ -55,9 +58,12 @@ vi.mock("@/lib/db/behaviorLogImports.repo", () => ({ listAppliedBehaviorLogImpor
 vi.mock("@/lib/db/notes.repo", () => ({ listImportedNotes: mocks.listImportedNotes }));
 vi.mock("@/lib/db/importedInterventions.repo", () => ({ listImportedInterventions: mocks.listImportedInterventions }));
 
-describe("getExportPageData", () => {
+vi.mock("@/lib/db/launchRateLimits.repo", () => ({ consumeExportDownloadRateLimit: mocks.consumeExportDownloadRateLimit }));
+
+describe("getUserExportBundle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.consumeExportDownloadRateLimit.mockResolvedValue({ allowed: true });
     mocks.listAppliedBehaviorLogImportRuns.mockResolvedValue([]); mocks.listBehaviorLogImportRecordMappings.mockResolvedValue([]);
     mocks.listImportedNotes.mockResolvedValue([]); mocks.listImportedInterventions.mockResolvedValue([]);
     mocks.createClient.mockResolvedValue({});
@@ -97,10 +103,30 @@ describe("getExportPageData", () => {
     mocks.listTimeSessionHistory.mockResolvedValue([]);
   });
 
+  it("opens Export with counts only, without artifact reads or rate-limit consumption", async () => {
+    mocks.readExportPageSummary.mockResolvedValue({ behavior_count: 2, completed_count: 3,
+      not_completed_count: 1, unresolved_count: 6, time_session_count: 5 });
+    const { getExportPageData } = await import("../lib/services/export.service");
+    const page = await getExportPageData({ now: Temporal.Instant.from("2026-06-08T16:00:00Z"),
+      range: "all", includeTimeTracking: true });
+    expect(page).toMatchObject({ behaviorCount: 2, occurrenceCount: 10,
+      overallAdherenceLabel: "75%", timeSessionCount: 5 });
+    expect(page).not.toHaveProperty("markdownSummary");
+    expect(page).not.toHaveProperty("json");
+    for (const fn of [mocks.readExportPageBundle, mocks.listBehaviorDefinitionEvents,
+      mocks.listBehaviorConfigurationEvents, mocks.listTimeSessionHistory,
+      mocks.listAppliedBehaviorLogImportRuns, mocks.ensureUserOccurrencesFresh,
+      mocks.consumeExportDownloadRateLimit]) expect(fn).not.toHaveBeenCalled();
+    expect(mocks.readExportPageSummary).toHaveBeenCalledWith(expect.anything(), {
+      startLocalDate: null, endLocalDate: "9999-12-31", includeArchived: false, includeTimeTracking: true,
+      throughStartedAt: "2026-06-08T16:00:00Z",
+    });
+  });
+
   it("loads user-scoped definition events and maps them into every rich export", async () => {
-    const { getExportPageData } =
+    const { getUserExportBundle } =
       await import("../lib/services/export.service");
-    const bundle = await getExportPageData({
+    const bundle = await getUserExportBundle({
       now: Temporal.Instant.from("2026-06-08T16:00:00Z"),
       range: "all",
     });
@@ -176,10 +202,10 @@ describe("getExportPageData", () => {
       statusEvents: [],
       reminderDeliveries: [],
     });
-    const { getExportPageData } =
+    const { getUserExportBundle } =
       await import("../lib/services/export.service");
 
-    const bundle = await getExportPageData({
+    const bundle = await getUserExportBundle({
       now: Temporal.Instant.from("2026-06-08T16:00:00Z"),
       range: "all",
       includeTimeTracking: true,
@@ -212,11 +238,11 @@ describe("getExportPageData", () => {
       statusEvents: [],
       reminderDeliveries: [],
     });
-    const { getExportPageData } =
+    const { getUserExportBundle } =
       await import("../lib/services/export.service");
 
     await expect(
-      getExportPageData({
+      getUserExportBundle({
         now: Temporal.Instant.from("2026-06-08T16:00:00Z"),
         range: "all",
       }),
@@ -224,17 +250,17 @@ describe("getExportPageData", () => {
   });
 
   it("does not read timing rows unless the exact time-tracking option is enabled", async () => {
-    const { getExportPageData } =
+    const { getUserExportBundle } =
       await import("../lib/services/export.service");
 
-    await getExportPageData({
+    await getUserExportBundle({
       now: Temporal.Instant.from("2026-06-08T16:00:00Z"),
       range: "all",
     });
 
     expect(mocks.listTimeSessionHistory).not.toHaveBeenCalled();
 
-    await getExportPageData({
+    await getUserExportBundle({
       now: Temporal.Instant.from("2026-06-08T16:00:00Z"),
       range: "all",
       includeTimeTracking: true,

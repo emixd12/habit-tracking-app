@@ -8,6 +8,7 @@ import { notifications, type DeliveredReminder, type NativeDeliveryProof, type N
 export type NativePermission = "checking" | "notDetermined" | "authorized" | "provisional" | "denied" | "unknown" | "unavailable";
 export type LocalReminderResult = { permission: NativePermission; state: NativeReminderState };
 let reconciliation: Promise<LocalReminderResult> | undefined;
+let pendingReconciliation: { now: Temporal.Instant; result: Promise<LocalReminderResult> } | undefined;
 const deliveryEvents = new Map<string, NativeDeliveryProof>();
 
 // Retain drained callback evidence until SQLite commits it. A failed write must not turn it into cancellation history.
@@ -20,12 +21,30 @@ export function retainNativeDeliveryEvents(events: NativeEvent[]) {
   }
 }
 
-// One local profile. Serialize focus, screen refresh, and mutation requests.
+// One local profile. Refresh bursts share one pending pass after the running pass.
 export function reconcileLocalReminders(now = Temporal.Now.instant()): Promise<LocalReminderResult> {
-  // Queue every mutation refresh: sharing an earlier in-flight result could leave new data unscheduled.
-  const next = (reconciliation ?? Promise.resolve()).catch(() => undefined).then(() => reconcile(now));
-  reconciliation = next;
-  return next;
+  if (pendingReconciliation) {
+    pendingReconciliation.now = now;
+    return pendingReconciliation.result;
+  }
+  if (reconciliation) {
+    const pending: { now: Temporal.Instant; result: Promise<LocalReminderResult> } = { now, result: reconciliation.catch(() => undefined).then(() => {
+      pendingReconciliation = undefined;
+      return startReconciliation(pending.now);
+    }) };
+    pendingReconciliation = pending;
+    reconciliation = pending.result;
+    return pending.result;
+  }
+  return startReconciliation(now);
+}
+
+function startReconciliation(now: Temporal.Instant): Promise<LocalReminderResult> {
+  const result = reconcile(now);
+  reconciliation = result;
+  const clear = () => { if (reconciliation === result) reconciliation = undefined; };
+  void result.then(clear, clear);
+  return result;
 }
 
 export async function requestLocalNotificationPermission() {

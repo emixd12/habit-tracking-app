@@ -494,3 +494,18 @@ This decision permits a shorter verified horizon, not silent truncation or a
 background helper. Hosted reminder semantics stay unchanged. Native activation
 proof still precedes broad refactoring, and all other implementation, parity,
 and release requirements remain. This decision does not complete Ticket 108.
+
+## 2026-09-07: Recurring Note shortcuts contract (Tickets 126–128)
+
+Implement deterministic repeated-text matching independently of provider selection.
+Use a separate owned shortcut-state table and existing guarded Note saves. This
+preserves historical Note meaning and gives web/desktop the same offline-capable
+review workflow. The finalized limits, source exclusions, lifecycle, and insertion
+rules are in PRODUCT_SPEC; storage and privacy are in DATA_MODEL and EXPORT_FORMATS.
+
+Imported inline Occurrences and saved shortcut-assisted Notes never count as
+fresh evidence. Accepted edits remain user-controlled. Removal retains only a
+90-day suppression key, not the deleted text. Native backups and account sync
+retain state; portable tracking exports omit assistance metadata. Feature switches
+synchronize, but cloud consent never does. Provider evaluation uses synthetic
+Notes only and cannot imply permission to send personal Notes or incur new costs.

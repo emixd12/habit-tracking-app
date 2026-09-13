@@ -106,3 +106,12 @@ The following tests are required before recurrence/timeline/status work is compl
 - `tests/status.resolver.test.ts`: status transition timestamps and no automatic missed state.
 
 Run `npm run resolvers:check` after adding any date/time resolver.
+
+## Ticket 088 sync freshness
+
+Web Behavior creation reads the current profile timezone from the repository,
+bypassing the read cache and ignoring submitted timezone values. The form sends
+no hidden timezone. Existing state-version and configuration-event comparisons
+guard sync completion; a concurrent edit leaves the account stale for retry.
+Freshness summaries derive timezone from the actual generation windows. Mixed
+windows retain the existing `multiple` marker and cannot claim one profile zone.

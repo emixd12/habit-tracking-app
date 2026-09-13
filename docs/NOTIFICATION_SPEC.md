@@ -156,6 +156,10 @@ Fields:
 - scheduled_send_at
 - sent_at
 - processing_started_at (internal claim timestamp for idempotent processing)
+
+Account synchronization retains an existing processing claim when a selected
+reminder version omits it, including a reviewed cancellation. Both ordinary and
+reviewed plans preserve this database invariant; the selected status still applies.
 - import_run_id (nullable provenance for explicitly promoted imported
   interventions)
 - imported_intervention_id (nullable provenance for explicitly promoted
@@ -398,3 +402,10 @@ Sending belongs in services/API routes.
 - Pending reminders are cancelled when occurrence is resolved.
 - Duplicate delivery protection is handled by service/repository layer.
 - Sequenzy provider errors are recorded as failed deliveries by the service layer.
+
+## Hosted processing cadence (Ticket 091)
+
+The web reminder processor runs every five minutes. Due reminders normally wait
+up to about five minutes for the next processing run; provider and queue delays
+can add latency. Existing offset choices remain available. Native desktop
+reminders retain their OS scheduling and verified coverage behavior.

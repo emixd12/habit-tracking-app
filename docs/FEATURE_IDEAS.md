@@ -121,7 +121,19 @@ feature is explicitly scoped and reviewed.
 
 ## Behavior-Scoped Recurring Note Suggestions
 
-Status: idea.
+Status: promoted to Tickets 126–128; implementation not_started.
+
+Promoted tickets:
+
+- Ticket 126: Recurring Note suggestions contract and model evaluation.
+- Ticket 127: Behavior-scoped Note shortcuts on web and desktop.
+- Ticket 128: Bounded recurring Note pattern analysis.
+
+`docs/TICKETS.md` owns the planned scope and acceptance criteria.
+`docs/PRODUCT_SPEC.md` records the planned product boundary. The original idea
+below remains context. Ticket 126 finalizes its open questions before dependent
+implementation. Periodic analysis is deferred; the first analysis trigger is
+on demand.
 
 Why:
 Users may repeatedly type the same explanation for one Behavior. For example,

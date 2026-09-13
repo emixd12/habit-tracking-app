@@ -6325,6 +6325,22 @@ Suggested files:
 
 ## Ticket 088: Background sync freshness and timezone propagation
 
+Status: complete locally (2026-09-04).
+
+Existing version/configuration guards were retained and verified. Current-profile
+timezone creation and generation-window summary fixes pass local checks.
+Evidence: `docs/qa/2026-09-04-tickets-088-091-104-105.md`.
+
+Platform impact:
+
+| Platform | Impact |
+| --- | --- |
+| Web | lib/services/behavior.service.ts; packages/core/src/services/occurrence-sync.ts |
+| Desktop | Shared summary timezone correction in packages/core/src/services/occurrence-sync.ts; existing native scheduling retained. |
+| Marketing | Not applicable: no public-content or navigation change. |
+| Future mobile | No implementation; mobile remains deferred under docs/FUTURE_UPDATES.md. |
+
+
 Stop background synchronization from certifying stale schedules as fresh, and
 stop new behaviors from inheriting an obsolete timezone.
 
@@ -6519,6 +6535,22 @@ Suggested files:
 ---
 
 ## Ticket 091: Reminder delivery cadence and export cost guardrails
+
+Status: in_progress (2026-09-04).
+
+Local implementation and checks pass. Hosted migration, Preview inspection,
+and five-minute delivery acceptance remain pending.
+Evidence: `docs/qa/2026-09-04-tickets-088-091-104-105.md`.
+
+Platform impact:
+
+| Platform | Impact |
+| --- | --- |
+| Web | lib/services/export.service.ts; components/export/ExportPanel.tsx; vercel.json |
+| Desktop | Existing local runtime remains unchanged; this ticket concerns hosted web/provider operations. |
+| Marketing | Not applicable: no public-content or navigation change. |
+| Future mobile | No implementation; mobile remains deferred under docs/FUTURE_UPDATES.md. |
+
 
 Close the gap between the reminder granularity the product offers and the
 granularity it delivers, and stop the Export page from doing unbounded work on
@@ -7861,6 +7893,22 @@ Out of scope:
 
 ## Ticket 104: Security inbox deliverability hardening
 
+Status: blocked (2026-09-04).
+
+Read-only review and monitoring guidance are recorded. Operator diagnostics
+and one separately authorized synthetic send remain required.
+Evidence: `docs/qa/2026-09-04-tickets-088-091-104-105.md`.
+
+Platform impact:
+
+| Platform | Impact |
+| --- | --- |
+| Web | docs/OPERATIONS.md#ticket-104-security-inbox-follow-up |
+| Desktop | Existing local runtime remains unchanged; this ticket concerns hosted web/provider operations. |
+| Marketing | Not applicable: no public-content or navigation change. |
+| Future mobile | No implementation; mobile remains deferred under docs/FUTURE_UPDATES.md. |
+
+
 Close the filtered-folder risk found by the Ticket 099 security-route test
 without weakening mailbox protections or changing Cadence's public reporting
 address.
@@ -7920,6 +7968,22 @@ Out of scope:
 ---
 
 ## Ticket 105: Browser-push dependency compatibility cleanup
+
+Status: in_progress (2026-09-04).
+
+The published dependency has no newer release containing the upstream fix.
+The documented exception and fake-transport checks pass. Preview inspection remains pending.
+Evidence: `docs/qa/2026-09-04-tickets-088-091-104-105.md`.
+
+Platform impact:
+
+| Platform | Impact |
+| --- | --- |
+| Web | tests/web-push-compatibility.test.ts; docs/OPERATIONS.md#ticket-105-browser-push-compatibility-exception |
+| Desktop | Existing local runtime remains unchanged; this ticket concerns hosted web/provider operations. |
+| Marketing | Not applicable: no public-content or navigation change. |
+| Future mobile | No implementation; mobile remains deferred under docs/FUTURE_UPDATES.md. |
+
 
 Remove the non-failing Node `url.parse()` deprecation warning emitted by the
 browser-push dependency while preserving the verified Web Push behavior.
@@ -8920,7 +8984,8 @@ desktop email delivery, mobile implementation, and arbitrary live database paths
 ## Ticket 123: User-defined categories and descriptions
 
 Status: complete locally 2026-09-05. Automated, browser, and native interactive
-acceptance passed. Hosted rollout remains separate. Evidence:
+acceptance passed. Web production deployed through PR #45 at `4260b544` with
+migration `20260905035835`. Desktop production distribution retains Ticket 115. Evidence:
 `docs/qa/2026-09-05-categories-and-behavior-filters.md`.
 
 Let users organize Behaviors with their own categories and explain each
@@ -9012,7 +9077,8 @@ category merging, AI-generated descriptions, team taxonomy, and bulk Behavior ed
 ## Ticket 124: Behaviors category filtering and sorting
 
 Status: complete locally 2026-09-05. Automated, browser, and native interactive
-acceptance passed. Hosted rollout remains separate. Evidence:
+acceptance passed. Web production deployed through PR #45 at `4260b544` with
+migration `20260905035835`. Desktop production distribution retains Ticket 115. Evidence:
 `docs/qa/2026-09-05-categories-and-behavior-filters.md`.
 
 Help users find Behaviors as their list grows. Reuse the existing category
@@ -9087,9 +9153,9 @@ drag ordering, new analytics calculations, pagination, and new dependencies.
 
 ## Ticket 125: Retained Behavior archive notes
 
-Status: complete locally (2026-09-05). User approved implementation on 2026-09-05.
-Evidence: `docs/qa/2026-09-05-archive-notes.md`. Fresh read-only review returned
-ship with no findings. Hosted rollout and signed desktop distribution remain separate.
+Status: complete and deployed to web production (2026-09-05), through PR #46.
+Evidence: `docs/qa/2026-09-05-archive-notes.md`. Fresh read-only reviews returned
+ship with no findings. Signed desktop distribution remains separate.
 
 Record why a Behavior no longer needs tracking. Every archive cycle retains its
 own dated note across Restore and subsequent archives.
@@ -9126,3 +9192,549 @@ Verification: focused lifecycle/privacy/sync tests; real SQLite and Postgres
 contracts; all repository completion checks; responsive browser acceptance.
 Hosted migration, deployment, and signed desktop distribution remain separate
 authorized release actions.
+
+
+---
+
+## Ticket 126: Recurring Note suggestions contract and model evaluation
+
+Status: complete. Final review accepted the contract and deterministic synthetic
+evaluation. The authorized live evaluation records a measured no-go after one recall failure
+under Ticket 128. Evidence: `docs/qa/2026-09-07-note-shortcuts.md`.
+
+Reduce repeated typing through optional text shortcuts for one Behavior.
+Resolve the saved idea's open questions before enabling analysis of real Notes.
+Tickets 127–128 depend on this contract; this ticket does not ship product UI.
+
+Scope and acceptance criteria:
+
+- Define the source as current, nonblank Occurrence Notes for one owner and one
+  Behavior, across Completed, Not Completed, and Unresolved. Exclude descriptions,
+  archive notes, passive imported notes, and other Behaviors. Count distinct
+  Occurrences, not edit history. Document whether imported inline Notes qualify
+  and prevent reused suggestions from becoming self-reinforcing evidence.
+- Evaluate these planning defaults: the latest 100 eligible Notes within 90
+  local calendar days; at least three distinct Occurrences supporting a pattern;
+  at most five proposed shortcuts; at most 160 characters per shortcut.
+  Finalize limits, normalization, stable ordering, and evidence eligibility in
+  the product/data contracts. Inject time and use the existing timezone rules.
+- Compare deterministic repeated-text matching with a small model on synthetic
+  examples: paraphrases, negation, unrelated Notes, one-off statements, and
+  instruction-like Note text. Measure unsupported claims, structured-output
+  validity, latency, and bounded cost. Include the saved Invisalign example
+  without interpreting it as medical advice or changing the Occurrence status.
+- Select a provider/model only from current official capability, retention,
+  training-use, deletion, and cost evidence. Record a go/no-go decision for
+  Ticket 128. Do not send personal Notes during evaluation. If no option meets
+  the contract, preserve Ticket 127's non-AI fallback and record the blocker.
+- Define separate states for proposed, accepted, and dismissed suggestions.
+  Specify editing, removal, deduplication, suppression of dismissed patterns,
+  invalidation after source edits/deletion, and expiry. Accepted text remains
+  user-controlled; fresh analysis must not silently rewrite it.
+- Start with explicit per-Behavior opt-in and on-demand analysis. Define a global
+  off control, persistent consent, and revocation while work is in flight.
+  Automatic schedules remain deferred. No analysis on Note-editor open/save.
+- Selecting an accepted shortcut fills an empty draft or appends on a new line.
+  It never replaces existing text, submits the form, changes status, or sends a
+  reminder. The user reviews and saves through the existing Note action.
+- Specify storage, ownership, deletion, minimal provenance, account sync, backup,
+  and export treatment. Keep suggestion records separate from historical Notes.
+  Define which metadata stays private and how existing Include Notes controls
+  cover shortcut text. Do not silently expand BehaviorLog or export AI proposals
+  as user-authored historical Notes. Specify old-client compatibility.
+- Account-free desktop must keep analysis local and support ordinary Note entry.
+  Linked desktop must require explicit consent before cloud analysis. Define
+  whether consent is device-specific and prevent synchronization from silently
+  enabling analysis. Global off must dominate per-Behavior enablement.
+- Finalize `docs/PRODUCT_SPEC.md`, `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`,
+  `docs/DATA_MODEL.md`, `docs/DESKTOP_DATA_MODEL.md`, `docs/EXPORT_FORMATS.md`,
+  `docs/DESKTOP_BUILD.md`, and `docs/DECISIONS.md` before dependent implementation.
+  Update `docs/ROUTE_MAP.md`, `docs/OPERATIONS.md`, and privacy copy requirements
+  for any selected provider. Record unresolved gates without inventing approvals.
+
+Implementation references:
+
+- `components/timeline/OccurrenceNoteForm.tsx`, `components/timeline/OccurrenceRow.tsx`,
+  and `components/behaviors/BehaviorList.tsx` own existing Note-entry surfaces.
+- `packages/core/src/services/`, `lib/services/occurrence.service.ts`,
+  `lib/db/occurrences.repo.ts`, and `apps/desktop/src/local-occurrence.service.ts`
+  own current guarded Note saves.
+- `interaction-registry.json` owns existing Note intents;
+  `design-system.surfaces.json` references `composite.occurrence-note-form`.
+  Use these inventories for implementation evidence; do not register planned
+  controls as already implemented.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Contract here; shared controls and persistence in Ticket 127, hosted analysis in Ticket 128 |
+| Desktop | Contract here; offline shortcuts and sync in Ticket 127, consented account analysis in Ticket 128 |
+| Marketing | Define factual privacy/documentation changes here; publish applicable claims only after Tickets 127–128 acceptance |
+| Future mobile | No implementation: mobile remains deferred; shared contracts define future parity |
+
+Verification: a reproducible synthetic evaluation with recorded inputs, expected
+boundaries, measured results, and provider go/no-go rationale. Run
+`npm run agents:check`, `npm run interactions:check`, `npm run resolvers:check`,
+and `git diff --check` for the contract. If evaluation code is added, run the
+standard coding checks too. Provider access or spending beyond existing
+authorization must remain an explicit gate.
+
+Out of scope: AI coaching, diagnosis, cross-Behavior analysis, voice, automatic
+Note/status writes, model training on user Notes, and a general agent framework.
+
+---
+
+## Ticket 127: Behavior-scoped Note shortcuts on web and desktop
+
+Status: complete (2026-09-08). Implementation, automated checks, authenticated browser QA,
+and isolated native UI acceptance passed, including keyboard operation and restart.
+Evidence: `docs/qa/2026-09-07-note-shortcuts.md`.
+Does not depend on a successful model selection or Ticket 128.
+
+Ship persistent, user-reviewed Note shortcuts and the non-AI fallback on both
+tracking platforms. Reuse the shared Note form and guarded save flow.
+
+Scope and acceptance criteria:
+
+- Add one pure `packages/core/src/resolvers/note-suggestion.resolver.ts` with
+  `tests/note-suggestion.resolver.test.ts`. Own eligibility, repeated-text
+  matching, count/length bounds, deduplication, and suppression there. No network,
+  storage, environment reads, or UI inside the resolver. Register it in
+  `docs/AGENT_RESOLVERS.md` and the existing resolver checker.
+- Offer deterministic recurring-text proposals from eligible Notes on explicit
+  request. Show no proposal for insufficient evidence. Let users accept, edit,
+  dismiss, and remove shortcuts under the finalized Ticket 126 contract.
+  Preserve accepted text when later analysis proposes different wording.
+- Extend `OccurrenceNoteForm` for Timeline, Needs decision, and Behaviors
+  selected-day review. Display only this Behavior's accepted shortcuts. Insertion
+  changes only the draft and counts as a draft revision, preserving text typed
+  during a pending save. Keep explicit Save note and existing stale-write checks.
+- Add per-Behavior controls in existing Behavior settings and global off in
+  Settings. Persist choices, preserve drafts on errors, and announce outcomes.
+  Turning the feature off hides suggestions and stops new requests without
+  deleting historical Notes. Use Ticket 126's explicit shortcut deletion policy.
+- Implement owner/Behavior-scoped persistence through tracked Postgres and SQLite
+  migrations, generated types, repositories, and atomic DataStore operations.
+  Test RLS, foreign Behavior IDs, stale writes, rollback, and account switching.
+  Reuse account-sync revisions, tombstones, outbox writes, and conflict handling.
+- Keep account-free desktop usable offline. Verify accepted shortcuts,
+  suppression, settings, and deletion through restart, backup/restore, linking,
+  disconnect, two-device sync, and older-client payloads. Never sync consent in
+  a way that silently enables provider analysis.
+- Implement Ticket 126's export/privacy/provenance contract. Saved Note text
+  remains ordinary Note content after explicit review/save; pending proposals
+  must never become historical Notes through export or restore.
+- Read the project-local impeccable context and use design-system-bench before
+  UI edits. Extend existing Note intents and add management intents in
+  `interaction-registry.json` when implemented. Update the existing Note-form
+  bench, surface catalog, user guide, and desktop parity evidence.
+
+Implementation references:
+
+- `components/timeline/OccurrenceNoteForm.tsx`, `components/timeline/OccurrenceRow.tsx`,
+  `components/behaviors/BehaviorList.tsx`, `components/settings/SettingsPanels.tsx`
+- `app/(app)/timeline/actions.ts`, `app/(app)/behaviors/actions.ts`,
+  `app/(app)/settings/actions.ts`, `lib/services/`, `lib/db/`
+- `apps/desktop/src/local-store.ts`, `apps/desktop/src/local-occurrence.service.ts`,
+  `apps/desktop/src/settings-screen.tsx`, `apps/desktop/src/account/`,
+  `apps/desktop/src-tauri/`, `packages/core/src/`
+- `tests/timeline-interactions-ui.test.tsx`, `tests/occurrence.service.test.ts`,
+  `tests/occurrence-notes.repo.test.ts`, and existing desktop contract tests
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Implemented in `components/note-shortcuts/NoteShortcutControls.tsx`, `lib/db/noteShortcuts.repo.ts`, and migration `20260908003245`; browser QA in `docs/qa/2026-09-07-note-shortcuts.md` |
+| Desktop | Implemented in `apps/desktop/src/local-note-shortcut.service.ts`, SQLite migration `0013`, and shared account sync; native UI acceptance awaits Mac unlock in the same QA record |
+| Marketing | Updated `docs/user-guide/timeline.md` and `docs/user-guide/desktop-local.md`; marketing checks/build passed for their generated mirrors; publication remains gated |
+| Future mobile | No implementation: mobile remains deferred; preserve shared contracts and accessible responsive web controls |
+
+Verification: resolver boundary/threshold tests; UI acceptance for empty/nonempty
+and pending-save drafts, cancel, keyboard use, off controls, and all Note-entry
+surfaces; two-owner isolation; real Postgres/SQLite contracts; offline native
+restart, sync deletion/conflicts, and protected-backup upgrade acceptance.
+Run all standard ticket checks plus `npm run core:check`,
+`npm run design-system:check`, `npm run desktop:typecheck`,
+`npm run desktop:build`, `npm run desktop:native:test`,
+`npm run desktop:contract:test`, `npm run desktop:parity:check`, and responsive
+browser/native QA. Run marketing checks/build when generated guidance changes.
+Hosted migrations and releases retain existing authorization gates.
+
+Out of scope: provider calls, scheduled analysis, cross-Behavior shortcuts,
+new navigation, a template library, and automatic form submission.
+
+---
+
+## Ticket 128: Bounded recurring Note pattern analysis
+
+Status: blocked (2026-09-08). Access, funding, privacy checks, and evaluation retention acceptance are complete.
+The authorized live evaluation passed 79/80 quality checks; one negation case omitted its supported proposal.
+Schema and evidence checks passed 80/80. Estimated API cost was $0.0088825; p95 latency was 2,072 ms.
+The measured gate failed. Retain the deterministic fallback; do not integrate this provider candidate.
+See `docs/qa/2026-09-07-note-suggestion-provider-evaluation.md`.
+Ticket 127's persisted proposal lifecycle and native acceptance are complete.
+
+Identify repeated meaning within one Behavior's Notes and offer proposed text
+shortcuts for explicit review. Keep the non-AI fallback available.
+
+Scope and acceptance criteria:
+
+- Add the selected provider behind a server-only service adapter. Authenticate
+  requests, derive the owner from the session, and verify Behavior ownership.
+  Read only the eligible bounded history for that Behavior. Do not accept an
+  arbitrary Note corpus or trust client-supplied owner IDs.
+- Run only on the explicit analysis action after current global/per-Behavior
+  consent checks. Enforce the contract's request/input/output limits, per-owner
+  rate and cost bounds, timeout, and bounded retry policy. Coalesce equivalent
+  in-flight requests without retaining Note text in logs or telemetry.
+- Treat Notes and provider output as untrusted data. Request a bounded structured
+  result with evidence references; verify every reference belongs to the input
+  and each pattern meets the distinct-Occurrence threshold. Reject malformed,
+  oversized, unsupported, instruction-like, or out-of-scope output. Render plain
+  text only; never give the model tools or mutation authority.
+- Recheck consent, Behavior ownership/lifecycle, and source revisions before
+  persisting proposals. Discard stale results after opt-out, deletion, source
+  changes, or account changes. Retries must not duplicate proposals, resurrect
+  dismissed patterns, or overwrite accepted edits.
+- Show proposed text separately from accepted shortcuts. Explain insufficient
+  evidence, unavailable analysis, and failed requests without blocking normal
+  Note entry. Require acceptance before quick-fill and Save note after insertion.
+- Linked desktop calls the authenticated hosted adapter only with explicit
+  consent and connectivity. Account-free/offline desktop retains Ticket 127's
+  local fallback and accepted shortcuts. Never package provider credentials or
+  add a closed-app helper. Do not upload local-only history implicitly.
+- Implement the finalized provider retention/deletion contract and factual
+  consent/privacy copy before enabling the feature. Record sanitized operational
+  evidence and an off switch. Update source-of-truth docs, user guidance,
+  existing interaction/bench records, and cross-platform QA evidence.
+
+Implementation references:
+
+- Ticket 127's shared resolver and proposal persistence; `lib/services/` for
+  provider orchestration and `lib/db/` for owner-scoped reads/writes
+- `app/(app)/behaviors/actions.ts` and an authenticated desktop-callable route
+  documented in `docs/ROUTE_MAP.md`; both call the same service
+- `apps/desktop/src/account/`, shared Note/Behavior controls, existing Settings,
+  `interaction-registry.json`, and `design-system.surfaces.json`
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | This ticket owns the authenticated analysis service, consent gating, bounded provider calls, and proposal review integration |
+| Desktop | This ticket owns consented linked-account requests, offline/unavailable fallback, and native review acceptance |
+| Marketing | This ticket owns accurate analysis/privacy guidance after provider verification; no coaching or medical claims |
+| Future mobile | No implementation: mobile remains deferred; reuse the documented authenticated contract in a separately scoped ticket |
+
+Verification: synthetic provider fixtures for paraphrases, negation, injection,
+unsupported evidence, malformed output, timeout, rate limits, and retry races;
+two-owner/two-Behavior isolation; consent revocation and source deletion during
+analysis; accepted/dismissed state preservation; offline desktop behavior.
+Repeat Ticket 126's evaluation with the integrated adapter. Run all standard
+checks, affected desktop/core/design-system/marketing checks from Ticket 127,
+and responsive browser/native QA. Live provider acceptance uses synthetic Notes
+within authorized access and spending; record unverified gates explicitly.
+
+Out of scope: background schedules, automatic learning from other Behaviors,
+AI coaching, diagnosis, automatic Note/status writes, speech, and model access
+to exports, reminders, or unrelated account data.
+
+
+---
+
+## Desktop repair and updater sequence: Tickets 129–131
+
+Planned 2026-09-08 from the owner's storage, sync, and updater request.
+Deliver Tickets 129 and 130 together first. Ticket 131 must not delay that repair release.
+Preserve account links, local edits, Notes, history, and unrelated workspace changes.
+No production changes occur during planning. Deployment and installed-app acceptance
+are explicit completion steps, governed by the existing release workflows.
+The shared verification and rollout requirements below apply to all three tickets.
+
+## Ticket 129: Bounded reminder bookkeeping and storage recovery
+
+Status: in_progress (2026-09-08).
+
+**Stop the growth at its source.**
+
+- Reuse the existing journal. Store compact receipts for the two native-reminder operations instead of complete requests and reminder-state responses.
+- Retain at most the latest receipt per operation and local profile. Store the mutation ID, request hash, and revision.
+- Mark these receipts as device-local and complete immediately. They must not accumulate as pending account changes.
+- Preserve the existing monotonically increasing sequence used by reminder freshness checks.
+- Return current reminder state for an identical retained retry. Reject changed payloads or stale revisions before writing.
+- Keep domain mutations, pending user edits, tombstones, and account acknowledgements unchanged.
+- Coalesce repeated refresh requests into one running reconciliation and one pending reconciliation. Preserve delivery evidence until SQLite commits it.
+
+**Repair existing installations safely.**
+
+- Add a tracked SQLite migration that compacts existing native-reminder journal entries while preserving sequence continuity.
+- Run recovery before background reconciliation starts. Suspend database writes during maintenance.
+- Create one protected recovery backup using the existing SQLite backup implementation.
+- Remove redundant native-reminder journal payloads, checkpoint the WAL, and compact the live database.
+- Validate database integrity, foreign keys, account identity, baseline, product data, and pending domain mutations before and after cleanup.
+- Reopen the database successfully before deleting this repair’s backup, following the user’s selected preference.
+- Persist a small recovery marker so interrupted maintenance resumes safely. Preserve the backup on any failure.
+- Never delete user-created backups. Report actual before/after disk usage, including WAL and remaining recovery files.
+
+SQLite compaction requires temporary free space. Check available space first and leave the original intact on failure. [SQLite VACUUM documentation](https://www.sqlite.org/lang_vacuum.html)
+
+**Acceptance:** repeated reconciliation on an unchanged dataset retains two compact receipts at most. A 10,000-cycle fixture shows no linear journal growth. The affected database loses its redundant gigabytes without changing user records.
+
+Additional acceptance details:
+
+- Limit compaction to `mutation_outbox` operations `commitNativeReminderPlan`
+  and `recordNativeReminderCoverage`, keyed by `(user_id, operation)` for retention.
+  Preserve mutation retry identity `(user_id, mutation_id)` and the sequence high-water mark.
+- Before implementing recovery, document marker transitions for backup verified,
+  cleanup committed, compaction complete, reopen verified, and optional backup deletion.
+  Inject interruption at each transition. Verify restart resumes without another backup
+  or lost domain writes. Prove all native write entry points honor maintenance exclusion.
+- Compare canonical pre/post fingerprints of account identity, baseline, product rows,
+  and pending domain mutations. Exclude only the authorized reminder bookkeeping changes.
+  Test insufficient space before writes, mid-cleanup failure, rollback, reopen failure,
+  and retained backup recovery. Never resume reconciliation on failed validation.
+
+Implementation references and contract ownership:
+
+- Reuse `apps/desktop/src-tauri/src/local_store/mod.rs`, `reminder.rs`, and
+  `db.rs`; add the next tracked migration under `apps/desktop/src-tauri/migrations/`.
+- Coalesce refreshes in `apps/desktop/src/local-reminder.service.ts` and gate
+  startup in `apps/desktop/src/product.tsx`. Preserve existing delivery evidence handling.
+- Update `docs/DESKTOP_DATA_MODEL.md`, `docs/DESKTOP_BUILD.md`,
+  `docs/NOTIFICATION_SPEC.md`, and `docs/OPERATIONS.md` with implemented behavior.
+- Extend native tests and `tests/desktop-store-contract.test.ts`. Record recovery
+  measurements and failure evidence without Notes, credentials, or record identifiers.
+- Recovery-backup retention is an installed-app acceptance input. Record the
+  owner's preference before deletion; an absent preference retains the backup.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Desktop | This ticket owns compact receipts, maintenance, recovery, and installed-database acceptance in the native store and reminder service above |
+| Web | No storage implementation: the journal and recovery files are device-local; preserve hosted reminder semantics |
+| Marketing | This ticket owns factual repair/help copy in `docs/user-guide/desktop-local.md` and release notes after verification |
+| Future mobile | Implementation deferred; no mobile database or maintenance flow exists |
+
+---
+
+## Ticket 130: Dependency-safe account synchronization
+
+Status: in_progress (2026-09-08).
+
+**Apply the chosen deletion policy.**
+
+- When synchronization accepts legitimate occurrence deletion, delete its attached reminder logs on both copies.
+- Apply this to all delivery statuses. Retain delivery logs while their occurrence remains.
+- Never restore a reminder whose occurrence is absent from the accepted result.
+- Protect occurrences containing Notes, status history, or tracked time. Concurrent user changes must produce reviewable conflicts.
+- Reject incomplete input graphs with an actionable error. Do not treat arbitrary missing parents as authorized deletion.
+
+**Update every enforcement boundary.**
+
+- Adjust the shared planner and both ordinary and reviewed sync paths.
+- Replace blanket reminder-deletion protection with deletion permitted only alongside accepted parent removal.
+- Add matching Postgres and native SQLite validation. Preserve ownership checks, foreign keys, atomic apply, and stale-plan protection.
+- Delete children before parents. Validate that every retained reminder references a retained occurrence.
+- Add a tracked hosted migration for the RPC guard change.
+- Keep baseline advancement and outbox acknowledgement conditional on both hosted and local success.
+
+Deletion acceptance matrix:
+
+- Require complete baseline, local, and hosted graphs before planning. An automatic
+  accepted deletion requires an existing baseline occurrence, its deletion on one
+  copy, an unchanged occurrence on the other, and no protected user content.
+  Compatible deletion on both copies must also preserve the protected-content checks.
+- Notes, status history, tracked time, resolved status, or concurrent user edits
+  prevent automatic deletion. Use existing review controls and stale-plan checks;
+  never interpret a missing parent in an incomplete input as a deletion decision.
+- Cover pending, sent, failed, and cancelled reminders with removable and protected
+  parents, in both deletion directions and reviewed apply. Retain every reminder
+  when its parent remains; delete every attached reminder only with accepted parent removal.
+
+**Repair the affected account through normal sync.**
+
+The 2026-09-10 processing-claim follow-up also repairs ordinary and reviewed
+reminder planning. Preserve existing processing claims when the selected row
+omits them, so choosing a Mac cancellation cannot violate the hosted or SQLite
+guard. Keep explicit conflict review and existing status semantics. This requires
+no schema change. The shared planner and resolver tests below own the repair;
+the platform impact table below also applies to this follow-up.
+
+The subsequent snapshot-timeout follow-up optimizes
+`cadence_private.canonical_account_sync_json(jsonb)` through migration
+`20260911031421_accelerate_account_sync_canonical_json.sql`. Preserve canonical
+bytes, permissions, RLS, statement limits, and all apply guards. Verify the
+unchanged output and synthetic performance with
+`tests/sql/account-sync-canonical-smoke.sql`, then verify owner-account snapshot
+and normal synchronization after authorized deployment. Web owns the hosted
+function; installed desktops benefit through the existing RPC without an app
+update. Marketing has no UI or copy change; future mobile implementation remains
+deferred and inherits the same fingerprint contract.
+
+Timeout follow-up acceptance (2026-09-10): the owner approved the single hosted
+migration. CLI dry-run and deployment applied only `20260911031421`. The hosted
+snapshot retained its exact fingerprint and read in 1.15 seconds versus 4.8
+seconds before deployment. Installed desktop preview.24 applied the owner's
+existing reminder decisions, uploaded six status-history records, cleared both
+conflicts, and displayed Account data is current. This completes the timeout
+follow-up without declaring the broader Ticket 130 complete.
+
+- Verify current local and hosted snapshots read-only before applying the repaired plan.
+- Install the compatible repair build and run normal synchronization.
+- Confirm convergence of Behaviors, occurrences, Notes, histories, and Needs decision for the same timezone and date.
+- Do not reset the account link or overwrite local data from the web copy.
+- Route genuine conflicts through existing review controls.
+
+**Acceptance:** reproduce the original failure before the fix. Then prove convergence, rollback, and retry behavior against real Postgres and SQLite.
+
+Implementation references and contract ownership:
+
+- `packages/core/src/resolvers/account-sync.resolver.ts` owns ordinary and
+  reviewed planning. Trace all callers before changing shared deletion guards.
+- `apps/desktop/src/account/account-sync.ts`, `apps/desktop/src/sync-engine.ts`,
+  and `apps/desktop/src-tauri/src/local_store/sync_apply.rs` own adapter ordering,
+  native validation, atomic apply, baseline advancement, and acknowledgement.
+- Add the next tracked guard migration under `supabase/migrations/`; update
+  `docs/DATA_MODEL.md`, `docs/DESKTOP_DATA_MODEL.md`, `docs/DESKTOP_BUILD.md`,
+  `docs/AGENT_RESOLVERS.md`, and `docs/NOTIFICATION_SPEC.md` with the new contract.
+- Extend `tests/account-sync.resolver.test.ts`,
+  `tests/desktop-account-sync-adapter.test.ts`, `tests/desktop-sync-engine.test.ts`,
+  native tests, and real Postgres/SQLite contracts.
+- The selected all-status child-deletion policy supersedes the delivery-history
+  retention recommendation in `docs/qa/2026-09-08-account-sync-audit.md`.
+  Keep that audit as historical evidence. Existing blanket reminder guards are
+  implementation defects to replace, not permission to discard other history.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Desktop | This ticket owns shared planning, native apply, normal account repair, and convergence acceptance through the references above |
+| Web | This ticket owns the hosted RPC guard migration and shared sync contract; preserve RLS, ownership, and ordinary hosted reminder behavior |
+| Marketing | This ticket owns factual sync-repair help/release copy after acceptance; no marketing account-data implementation |
+| Future mobile | Implementation deferred; the shared dependency-safe sync contract defines future parity |
+
+---
+
+## Ticket 131: Automatic downloads with user-controlled installation
+
+Status: in_progress (2026-09-08); excluded from the Tickets 129–130 repair release.
+
+Extend the existing signed Tauri updater. No new updater service or dependency is needed.
+
+**Checking and downloading**
+
+- Initialize the updater at app startup, independently of Settings.
+- Check after startup, then every 24 hours while running. Resume and connectivity recovery trigger overdue checks.
+- Persist the last attempt time to prevent repeated launch requests. Manual **Check for updates** bypasses this interval.
+- Download a newer release automatically. Retain one candidate per app session and release superseded resources.
+- Split the existing transport into `download`, `install`, and `restart`. Tauri already supports separate download and installation. [Tauri updater API](https://v2.tauri.app/reference/javascript/updater/)
+- Keep the current HTTPS feed, signature verification, version ordering, and downgrade prevention.
+- Provide an enabled-by-default **Download updates automatically** setting. Disabling it retains manual checks and downloads.
+- Run no closed-app background helper. Downloads interrupted by quitting retry during a later app session.
+
+**Prompt and installation experience**
+
+- Show a nonmodal shell notice when the update is ready: version, **Review update**, and **Later**.
+- **Later** suppresses that version’s notice for 24 hours. Settings retains its update status and actions.
+- Settings shows release notes, download progress, installation state, and actionable retry errors.
+- Installation requires **Install update**. Restart requires a separate **Restart Cadence** action.
+- Prevent restart during active writes or maintenance. Require saving or explicitly discarding unsaved drafts before restart.
+- Keep ordinary background-check failures quiet outside Settings. Never steal focus or show recurring launch dialogs. [Apple alert guidance](https://developer.apple.com/design/human-interface-guidelines/alerts)
+- Recognize the existing incompatible-client sync response and show **Update required to synchronize** with a direct update action.
+- Keep local tracking available while an update is required.
+
+Compatibility acceptance details:
+
+- Both errors originate in `cadence_private.apply_account_sync_plan(jsonb)`.
+  Capture the existing hosted compatibility errors from migrations
+  `20260905035835_user_defined_categories.sql` and
+  `20260906010951_add_behavior_archive_notes.sql`: SQLSTATE `22023` with
+  `Update Cadence before synchronizing category changes.` or
+  `Update Cadence before synchronizing Behavior changes.` respectively.
+- Trace these RPC errors through the account adapter and sync engine into desktop UI.
+  Name that response contract and producer in the owning docs before implementation.
+  Test both exact compatibility responses and negative cases: unrelated `22023`,
+  network failure, authorization failure, and ordinary conflicts must not prompt updates.
+- Persist an attempt when a check starts. Coalesce concurrent automatic checks;
+  Settings manual checks bypass the interval. Manual mode exposes explicit download
+  before the separate install and restart actions.
+
+**Acceptance:** verify automatic discovery/download, postponement, manual mode, offline recovery, signature rejection, navigation during download, installation failure, and draft-safe restart.
+
+Implementation references and contract ownership:
+
+- Extend `apps/desktop/src/desktop-updater.ts`, `native-updater.ts`,
+  `desktop-update-panel.tsx`, `product.tsx`, `settings-screen.tsx`, and
+  `apps/desktop/src-tauri/src/updates.rs`. Reuse the signed feed and native restart boundary.
+- Extend `tests/desktop-updater.test.ts` and native tests; verify shell and Settings
+  behavior during navigation, active writes, maintenance, and unsaved Note/Behavior drafts.
+- Update `docs/DESKTOP_BUILD.md`, `docs/DESKTOP_RELEASE.md`, `docs/UI_SPEC.md`,
+  `docs/USER_FLOWS.md`, `docs/OPERATIONS.md`, and `docs/user-guide/desktop-local.md`.
+- Use the project-local impeccable workflow and design-system-bench before UI edits.
+  Extend the existing updater intent in `interaction-registry.json`, its desktop
+  parity evidence, and the existing design-system catalog/bench when implemented.
+  Do not register planned controls as implemented during this planning pass.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Desktop | This ticket owns startup scheduling, automatic downloads, Settings, shell notices, and guarded install/restart through the references above |
+| Web | No updater UI or service: recognize the existing incompatible-client response on desktop; Ticket 130 owns required hosted sync-contract changes |
+| Marketing | This ticket owns factual update/release help copy after acceptance; no new marketing layout |
+| Future mobile | Implementation deferred; native mobile update distribution requires a separately scoped ticket |
+
+---
+
+### Shared verification and rollout for Tickets 129–131
+
+- Record each ticket’s platform impact: desktop implementation; web sync-contract changes where applicable; marketing release/help copy only; mobile implementation deferred.
+- Update ticket status, owning contracts, interaction registry, user guidance, and design-system evidence.
+- Run all required repository checks, plus desktop TypeScript/build, native tests, SQLite contracts, and real Postgres sync contracts.
+- Test interrupted cleanup, insufficient disk space, stale mutations, lost sync responses, and successful restart.
+- Verify updater UI with keyboard navigation, accessible status announcements, reduced motion, and narrow layouts.
+- Build from an isolated release checkout. Include required hosted-contract compatibility without accidentally bundling unfinished features.
+- Apply the hosted guard migration before activating repaired synchronization. Verify the signed desktop artifact and publish its matching feed afterward.
+- Bootstrap preview.19 through its existing manual updater once the repair release is available.
+- Confirm the owner’s database size, sync convergence, and version after installation. Repeat unchanged reminder reconciliation to prove growth has stopped.
+- Keep Apple Developer ID signing and notarization under existing Ticket 115. Do not describe updater signature verification as Apple notarization.
+
+No production changes occur during planning. These tickets include deployment and installed-app acceptance as explicit completion steps.
+
+Required implementation commands (record individual results; do not mark a ticket
+complete from unit checks alone):
+
+```bash
+npm run agents:check
+npm run interactions:check
+npm run resolvers:check
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm run core:check
+npm run desktop:typecheck
+npm run desktop:build
+npm run desktop:native:test
+npm run desktop:contract:test
+npm run desktop:parity:check
+npm run design-system:check
+npm run marketing:check
+npm run marketing:build
+npm run supabase -- db reset
+SUPABASE_TELEMETRY_DISABLED=1 CADENCE_SUPABASE_CONTRACT=1 npx vitest run tests/behavior-store-supabase.contract.test.ts
+npm run smoke:account-sync:local
+```
+
+Run database contracts only against the isolated local service per
+`docs/SUPABASE_WORKFLOW.md`. Add explicit reminder-deletion cases to the real
+sync contracts; existing suites alone do not prove this repair.
+Use `docs/DESKTOP_RELEASE.md` for signed candidate and installed-updater acceptance.
+Document the repair release's exact source and required hosted compatibility.
+Reproduce the audit defect before changing its planner behavior.
+Mark Tickets 129–130 complete only after their shared repair release and owner
+acceptance. Ticket 131 follows separately and cannot delay that release.

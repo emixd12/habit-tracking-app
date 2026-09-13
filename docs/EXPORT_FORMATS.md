@@ -1055,3 +1055,19 @@ provided history. An older bundle omitting the extension preserves existing
 history during restore; an explicitly supplied empty array expresses empty
 history. Archive-only restore retains existing history. Existing Occurrence
 CSV/JSONL formats keep their Occurrence scope.
+
+## Note shortcut privacy (Tickets 126–128)
+
+Shortcut records, proposals, dismissed keys, evidence hashes, exclusions, and
+feature preferences are private assistance metadata. They are excluded from
+JSONL, CSV, Markdown, full JSON, BehaviorLog, and AI-summary exports. Full JSON
+remains a tracking-data export; it does not promise complete application settings.
+Include Notes covers shortcut text only after the user reviews and saves it as
+ordinary Occurrence Note content. Turning Include Notes off removes that content
+through the existing Note exclusion rule. Proposals never become historical Notes.
+
+Native protected SQLite backups retain shortcut state and settings. Account sync
+retains them through its separate typed entity contract. Portable imports/restores
+never invent proposals or change shortcut consent. Imported inline Occurrences
+remain excluded evidence; an export/import roundtrip cannot feed reused Notes
+back into suggestions. BehaviorLog schema remains unchanged.
