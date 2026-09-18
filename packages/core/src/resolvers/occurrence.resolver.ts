@@ -19,9 +19,43 @@ export type OccurrenceGenerationBehavior = {
   scheduleSlots: OccurrenceGenerationScheduleSlot[];
   timezone?: string;
   active: boolean;
+  endDate?: string | null;
   createdAt: string;
   anchorDate?: string;
 };
+
+export type BehaviorEndDateCandidate = {
+  id: string;
+  active: boolean;
+  endDate: string | null | undefined;
+  timezone?: string;
+};
+
+export type DueBehaviorArchive = {
+  id: string;
+  endDate: string;
+  effectiveAt: string;
+  effectiveLocalDate: string;
+};
+
+export function resolveDueBehaviorArchives(input: {
+  behaviors: BehaviorEndDateCandidate[];
+  now: Temporal.Instant;
+}): DueBehaviorArchive[] {
+  return input.behaviors.flatMap((behavior) => {
+    if (!behavior.active || !behavior.endDate) return [];
+    const timezone = behavior.timezone || DEFAULT_TIMEZONE;
+    const endDate = Temporal.PlainDate.from(behavior.endDate);
+    const today = input.now.toZonedDateTimeISO(timezone).toPlainDate();
+    if (Temporal.PlainDate.compare(today, endDate) < 0) return [];
+    return [{
+      id: behavior.id,
+      endDate: endDate.toString(),
+      effectiveAt: endDate.toZonedDateTime({ timeZone: timezone, plainTime: "00:00" }).toInstant().toString(),
+      effectiveLocalDate: endDate.toString(),
+    }];
+  }).sort((left, right) => left.id.localeCompare(right.id));
+}
 
 export type OccurrenceGenerationSchedule = {
   id: string | null;
@@ -147,6 +181,7 @@ export function planOccurrenceGeneration(
     now: input.now,
     timezone,
     horizonDays,
+    behaviorEndDate: input.behavior.endDate,
   });
 
   return planOccurrenceGenerationForWindow(input, generationWindow);
@@ -238,12 +273,15 @@ function planOccurrenceGenerationForWindow(
   generationWindow: OccurrenceGenerationWindow,
 ): OccurrenceGenerationPlan {
   const timezone = input.behavior.timezone || DEFAULT_TIMEZONE;
-  const desiredOccurrences = input.behavior.active
+  const endDate = input.behavior.endDate
+    ? Temporal.PlainDate.from(input.behavior.endDate).toString()
+    : null;
+  const desiredOccurrences = input.behavior.active && (endDate === null || endDate > generationWindow.startLocalDate)
     ? resolveDesiredOccurrences({
         behavior: input.behavior,
         timezone,
         generationWindow,
-      })
+      }).filter((occurrence) => endDate === null || occurrence.localDate < endDate)
     : [];
   const existingOccurrenceKeys = new Set(
     input.existingOccurrences.map(occurrenceIdentityKey),
@@ -336,7 +374,8 @@ function planOccurrenceGenerationForWindow(
             normalizeInstant(occurrence.scheduledFor),
             generationWindow,
           ) &&
-          isAfter(normalizeInstant(occurrence.scheduledFor), input.now) &&
+          (isAfter(normalizeInstant(occurrence.scheduledFor), input.now) ||
+            (endDate !== null && occurrence.localDate >= endDate)) &&
           !hasNonEmptyNote(occurrence.note) &&
           !occurrence.hasTimeSessions &&
           !desiredOccurrenceKeys.has(occurrenceIdentityKey(occurrence)),
@@ -542,6 +581,7 @@ export function resolveGenerationWindow(input: {
   now: Temporal.Instant;
   timezone?: string;
   horizonDays?: number;
+  behaviorEndDate?: string | null;
 }): OccurrenceGenerationWindow {
   const timezone = input.timezone || DEFAULT_TIMEZONE;
   const horizonDays = validateHorizonDays(
@@ -549,7 +589,10 @@ export function resolveGenerationWindow(input: {
   );
   const today = input.now.toZonedDateTimeISO(timezone).toPlainDate();
   const endDate = today.add({ days: horizonDays });
-  const rangeStart = startOfLocalDay(today, timezone);
+  // Read from an expired boundary so delayed reconciliation can remove bare generated rows.
+  const startDate = input.behaviorEndDate && input.behaviorEndDate < today.toString()
+    ? Temporal.PlainDate.from(input.behaviorEndDate) : today;
+  const rangeStart = startOfLocalDay(startDate, timezone);
   const rangeEnd = startOfLocalDay(endDate.add({ days: 1 }), timezone).subtract({
     nanoseconds: 1,
   });
@@ -557,7 +600,7 @@ export function resolveGenerationWindow(input: {
   return {
     rangeStart,
     rangeEnd,
-    startLocalDate: today.toString(),
+    startLocalDate: startDate.toString(),
     endLocalDate: endDate.toString(),
     timezone,
   };

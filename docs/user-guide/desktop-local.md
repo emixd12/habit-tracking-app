@@ -28,10 +28,46 @@ of silently choosing one copy.
 
 After the first account-link choice completes, Settings shows account
 synchronization state. Cadence synchronizes on launch, resume, connectivity
-recovery, and local changes. Choose **Sync now** to retry immediately. Offline
+recovery, and local changes. Changes from another device appear at the next
+synchronization. Choose **Sync now** to refresh immediately. Offline
 and failed states keep local tracking available. A conflict stops the complete
-plan and waits for the conflict-review flow; Cadence does not choose one copy
-silently.
+plan and waits for the conflict-review flow.
+
+Cadence automatically reconciles one reminder case: the account recorded a send
+while this Mac cancelled its older Pending copy. When both records describe the
+same reminder, Cadence keeps the account's send history and synchronizes your
+Completed or Not Completed mark. This does not undo your mark or send another
+reminder. Other reminder conflicts and conflicting user edits still need review.
+
+When the Mac and account independently make the same initial Completed or Not
+Completed mark, Cadence can keep both history records and synchronize them.
+This requires matching Notes and other occurrence fields. Cadence uses the
+latest recorded mark for display timestamps while preserving both original
+timestamps in history. Different decisions or incompatible history still pause
+synchronization.
+
+## Use optional Calendar context on desktop
+
+Calendar requires a linked Cadence account and a desktop build configured with
+the Cadence HTTPS Calendar connector. Google's review of Calendar access is
+pending; the connector is not yet verified for public rollout. Local account-free
+tracking remains available when Calendar is unavailable. The desktop app sends its existing
+Cadence account session to the Cadence server. Google credentials remain on the
+server and never enter the desktop app. The Cadence session and short-lived
+pending Calendar callback state stay in Keychain rather than SQLite.
+
+After connection and calendar selection in Settings, Cadence caches the last
+complete matching normalized event snapshot in `calendar-cache.sqlite3`. The
+cache can contain readable event details. It is separate from `cadence.sqlite3`,
+uses owner-only file permissions, and is disposable. Failed or incomplete
+refreshes keep the last complete snapshot with a stale label when possible.
+
+Calendar disconnect and Cadence account disconnect clear the event cache and
+any pending Calendar callback. Account reconnection also clears prior Calendar
+state. **Keep a local copy** preserves
+the Cadence tracking database, but it does not preserve Calendar event details.
+User-created database backups, restore, exports, and account synchronization
+exclude the Calendar cache.
 
 ## Review synchronization conflicts
 

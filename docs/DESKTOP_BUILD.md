@@ -258,12 +258,28 @@ offer the account or Mac value. Keep both remains unavailable because no current
 synchronized conflict can duplicate its complete identity graph safely.
 Ordinary and reviewed reminder writes retain an existing `processing_started_at`
 when the chosen row has no claim. A conflict choice cannot clear that operational
-marker; both database guards forbid it. This preserves the selected status and
-does not introduce latest-write-wins or automatic reminder conflict resolution.
-Append-only ID collisions and new branches fail before user review. During the
+marker; both database guards forbid it. This preserves the selected status.
+For a Pending baseline, a local Cancelled reminder and hosted Sent reminder
+reconcile automatically when the delivery identity, schedule, provenance, and
+all non-delivery-state fields match across all three copies. The hosted record
+must contain a valid send timestamp; any existing local or baseline processing
+claim must match the hosted claim. Preserve the complete hosted delivery record
+and merge local occurrence decisions independently. This applies to browser push
+and email logs, not native notification evidence. It introduces no
+latest-write-wins rule. Other reminder conflicts and conflicting user edits
+retain the existing whole-plan review gate.
+Append-only ID collisions and incompatible new branches fail before user review.
+Matching initial manual marks may converge after an Unresolved baseline when
+all new events are roots with the same resolved status, provenance, and Behavior.
+Both occurrence copies must match outside status timestamps, and each copy's
+timestamps must match its own event evidence. Retain every event unchanged;
+use existing latest-event ordering only to select display timestamps for the
+agreed status. Corrections and divergent descendants cannot use this exception.
+After convergence, the shared baseline contains every accepted event, so a later
+one-sided correction does not reopen the original duplicate marks. During the
 first automatic hydration of an untouched local profile only, the planner may
 preserve a hosted same-status branch when every local event in that branch is
-already one of the hosted events. Divergent statuses and cross-copy branches
+already one of the hosted events. Divergent statuses and other cross-copy branches
 still fail. A one-sided deletion of protected history is repaired from the
 retained copy.
 
@@ -280,8 +296,11 @@ input. Hosted commit and local apply may not share a transaction, so services
 retry the incomplete side and advance the baseline, cursor, and outbox
 acknowledgements only after both commits succeed. Failures use bounded backoff
 with jitter while the app runs; launch, resume, connectivity recovery, relevant
-mutation, and **Sync now** may retry. Offline writes remain available. No retry
-may duplicate histories, resurrect tombstones, discard newer changes, or apply
+mutation, and **Sync now** may retry. Offline writes remain available.
+Idle desktop sessions do not poll full snapshots.
+Native resume owns foreground synchronization; successful synchronization refreshes
+the displayed local copy directly. Tokens refresh on the next account request.
+No retry may duplicate histories, resurrect tombstones, discard newer changes, or apply
 an unreviewed conflict decision.
 
 ## UI and cross-platform cascade
@@ -499,3 +518,20 @@ their existing classification. Local tracking remains available.
 
 Installed recovery, signed repair upgrade, account convergence, and automatic
 update acceptance remain release gates. Automated tests do not establish these.
+
+## Calendar context integration (Tickets 133–137)
+
+The shared `components/timeline/DayProgressTimeline.tsx` renders the production
+forward timeline. Existing desktop callbacks retain status, Note, timing, and
+notification activation behavior. Pure core resolvers own geometry and estimates.
+
+Optional `VITE_CALENDAR_BROKER_ORIGIN` selects the HTTPS Cadence connector.
+The production and development CSP allow the exact deployed broker origin,
+`https://cadence-blush-three.vercel.app`. Changing the broker requires a matching
+reviewed CSP change; do not widen this allowance to arbitrary HTTPS hosts.
+Desktop authenticates using the existing Supabase session in Keychain. A separate
+short-lived `pending-calendar-state` Keychain entry correlates consent callbacks.
+Google credentials remain on the server. The separate disposable event cache is
+described in `docs/DESKTOP_DATA_MODEL.md`. Local account-free tracking remains usable.
+Live native consent, source links, offline cache, minimization, and prior-version
+upgrade acceptance remain required under `docs/qa/day-progress-release.md`.

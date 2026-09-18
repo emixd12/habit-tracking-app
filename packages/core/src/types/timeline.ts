@@ -1,3 +1,5 @@
+import type { BehaviorDurationEstimate } from "./day-progress";
+
 export type TimelineStatus = "unresolved" | "completed" | "not_completed";
 
 export type TimelineOccurrenceInput = {
@@ -83,6 +85,8 @@ export type TimelineNeedsDecisionGroup = {
 };
 
 export type TimelineView = {
+  archiveNotifications?: Array<{ behaviorId: string; title: string; endDate: string | null }>;
+  durationEstimates?: Record<string, BehaviorDurationEstimate>;
   timezone: string;
   todayLocalDate: string;
   visibleFutureDays: number;

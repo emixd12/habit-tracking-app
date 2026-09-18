@@ -54,6 +54,23 @@ requires npm registry access when that version is not already cached.
 
 ## Standard verification
 
+### Day-progress review bench (Ticket 132)
+
+The development-only `/design-system?preview=day-progress` surface compares
+synthetic layouts using actual Occurrence controls. Select the first free
+loopback port in 4321–4330 and pass it explicitly to Next. The bench is disabled
+in production and must not query account or provider data. Owner layout review
+passed on 2026-09-16; Ticket 132 is complete. `docs/qa/day-progress-layout.md` records
+the accepted baseline; `docs/qa/day-progress-release.md` separates later release gates.
+Ticket 134 starts with `docs/EXTERNAL_EVENT_CONTRACT.md`, then connector
+credentials, retrieval, and cache infrastructure. Minor UI polish is deferred.
+
+Calendar capability research lives in `docs/qa/google-calendar-capabilities.md`.
+Research does not authorize provider configuration or real-account access.
+No Calendar connector or cache is enabled by the synthetic bench.
+
+### Required commands
+
 Before marking a coding task complete, run:
 
 ```bash
@@ -1423,3 +1440,101 @@ deployment, distribution, new provider access, and spending beyond authorization
 remain explicit gates. Marketing/privacy copy must state the actual provider,
 training use, retention/deletion limits, data sent, device-specific consent,
 revocation, and fallback before cloud analysis becomes available.
+
+## Google Calendar connector operation (Tickets 134–137)
+
+Local implementation does not authorize provider setup, live-account access, hosted
+migration, deployment, or desktop distribution. Keep the connector unavailable
+until those gates pass. Use a separate Google Cloud project from Supabase sign-in.
+Request only OpenID and the Calendar-list/events read-only scopes documented in
+`docs/qa/google-calendar-capabilities.md`. Exact scope validation rejects broader
+grants. Complete the provider's sensitive-scope verification before public use.
+
+Server environment names: `GOOGLE_CALENDAR_CLIENT_ID`,
+`GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_CALLBACK_URL`,
+`GOOGLE_CALENDAR_ENCRYPTION_KEY` (canonical base64, 32 bytes),
+`GOOGLE_CALENDAR_KEY_ID`, and optional `GOOGLE_CALENDAR_DECRYPTION_KEYS`
+(JSON map of prior key IDs to canonical base64 keys). The callback must use the
+configured HTTPS `/auth/google-calendar/callback` path. Desktop uses only public
+`VITE_CALENDAR_BROKER_ORIGIN`; it never packages these server secrets.
+
+For key rotation, retain old decrypt keys while credentials use those key IDs.
+New consent seals with the current key. Remove an old key only after every
+connection using it reconnects or disconnects. Missing keys fail closed and
+require reconnect. Never print configuration values or provider payloads.
+
+Global disconnect fences new reads and deletes stored credentials before attempting
+Google revocation. A revocation outage leaves a factual warning to remove the grant
+in Google Account settings. Other devices clear content on their next connector
+check. Account deletion captures revocation work without changing the Calendar connection,
+then attempts revocation only after Auth deletion succeeds. Failed Auth deletion
+preserves the connection; provider outages do not block completed deletion.
+The private credential row cascades with the Auth user. Ordinary web sign-out
+retains the global connection; desktop sign-out clears the local event cache.
+
+Hosted ciphertext can exist in infrastructure backups under the existing retention
+policy. Cadence exports, account synchronization, and user-created desktop backups
+exclude credentials and cached events. Test the local SQL contract before any hosted
+rollout. The combined release ledger remains `docs/qa/day-progress-release.md`.
+
+
+## Public Calendar verification execution (Tickets 138–141)
+
+The 2026-09-17 continuation used the owner-selected Cloudflare dashboard.
+The empty Cadence zone now has two DNS-only Vercel A records and Google's TXT
+challenge. Both domains return HTTPS 200; Search Console confirmed ownership
+for Identity Scaffolding. Nameservers, unrelated zones, and old aliases remain.
+Exact records, callback inventory, isolated release provenance, and rollback
+are in `VERCEL_WORKFLOW.md#authorized-dashboard-continuation-2026-09-17`.
+The CLI wrapper remains unlinked because no Cloudflare token was created.
+
+Supabase retains every old redirect and adds the exact new `/auth/callback`.
+Its Site URL is now `https://app.cadence-me.com`. The separate Calendar client
+retains the legacy callback and adds the exact new callback. Its authorized
+domains retain legacy entries and add verified `cadence-me.com`. The owner
+confirmed production-audience expansion on September 17; Google reports In
+production. Google verified and published the consent name `Cadence` after an
+app-name/homepage mismatch correction. Calendar data-access approval has not
+occurred. The owner retained `info@identityscaffolding.com` as support/developer
+inbox and named Emiliano Bache Rodriguez as its human monitor. The replacement verified-brand video is Unlisted at
+https://youtu.be/vUi5s2B51Uo. Google accepted the data-access submission on
+September 18, 2026 at 10:52 EDT and reports under review. Daily 09:00 local
+Verification Center follow-up is active in the existing task; it reports meaningful
+changes only. Emiliano remains responsible for the inbox. The isolated releases are promoted; production IDs,
+post-promotion public checks, and rollback are recorded in release QA.
+
+Calendar domain migration adds optional server setting
+`GOOGLE_CALENDAR_LEGACY_CALLBACK_URL`. Keep primary and legacy exact callbacks
+registered on the same Calendar OAuth client during the transition. The routes
+select the configured callback matching their request origin, preserving web
+cookies and installed broker compatibility. Encryption settings and scopes do
+not change. Unknown request origins fail before provider access. Deploy and
+smoke-test both origins before treating this local regression evidence as live
+acceptance. Keep the sign-in project separate.
+
+Ticket 139 adds a September 17 Privacy revision after the approved August 31
+baseline. The earlier approval still applies to its original text. The recorded
+September 17 review scope covers the Optional Google Calendar section,
+provider-table corrections,
+Calendar retention rows, and Limited Use disclosure/link. The owner approved
+that text and recorded scope for publication on September 17. This owner decision
+supersedes the separate new-review publication blocker; it is not an independent
+legal review. The August 31 approval remains unchanged. Domain, deployment,
+technical acceptance, and Google review gates still apply.
+Homepage and FAQ now publicly describe pending Calendar review after the
+production-audience change. Repository user-guide copy matches that state;
+production status is not approval.
+Canonical Privacy, Terms, and Trust remain on app routes. Ticket 139 is
+complete after public publication and saved Google link verification. No Terms
+revision or marketing legal-page duplicate was needed.
+
+The timed recording script, scope justifications, playback checklist, and
+submission fields live in `qa/google-calendar-capabilities.md`. Record actual
+English web/native flows only after final domains, disclosures, and callback
+smoke checks pass. The owner approved a dedicated Gmail identity for demonstration
+and ongoing Cadence tests. Use only a known name and harmless test calendars/events.
+Do not invent personal details or reuse a password. A human must choose the
+password, complete verification, and accept account terms. Identify the destination
+YouTube channel before any unlisted upload. A script does not complete Ticket 140,
+and Testing or submission does not complete Ticket 141. Keep Google’s approval
+separate from Ticket 137 technical acceptance and Ticket 115 Apple trust.

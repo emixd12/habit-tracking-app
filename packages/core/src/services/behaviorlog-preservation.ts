@@ -4,7 +4,7 @@ import { sha256 } from "../hash";
 import type { Json } from "../types/json";
 
 export const CONFIGURATION_HISTORY_PATH = "data/behavior_configuration_events.jsonl";
-const MAX_PRESERVATION_BYTES = 262_144;
+const MAX_PRESERVATION_BYTES = 8 * 1024 * 1024;
 const fields = ["category", "schedules", "intervention_rules", "active", "timezone"];
 type RecordValue = Record<string, unknown>;
 
@@ -130,7 +130,7 @@ export function collectBehaviorLogPortability(input: {
     externalId: schedule.externalId, behaviorExternalId: schedule.behaviorExternalId, fingerprint: behaviorLogScheduleIdentity(schedule),
   }));
   const result = { version: 1 as const, configurationEvents: events, occurrences, categories, scheduleIdentities };
-  if (utf8Size(JSON.stringify(result)) > MAX_PRESERVATION_BYTES) fail("Known portability metadata exceeds the 256 KiB import limit. Split the bundle; Cadence will not silently discard history.");
+  if (utf8Size(JSON.stringify(result)) > MAX_PRESERVATION_BYTES) fail("Known portability metadata exceeds the 8 MiB import limit. Split the bundle; Cadence will not silently discard history.");
   return result;
 }
 
@@ -143,7 +143,7 @@ export function behaviorLogScheduleIdentity(schedule: BehaviorLogImportScheduleP
 
 export function withBehaviorLogPortability(summary: Json, portability: BehaviorLogPortabilityData | undefined): Json {
   if (!portability) return summary;
-  if (utf8Size(JSON.stringify(portability)) > MAX_PRESERVATION_BYTES) throw new Error("Known portability metadata exceeds the 256 KiB import limit.");
+  if (utf8Size(JSON.stringify(portability)) > MAX_PRESERVATION_BYTES) throw new Error("Known portability metadata exceeds the 8 MiB import limit.");
   return { ...(summary as { [key: string]: Json }), portability: portability as unknown as Json };
 }
 

@@ -1,3 +1,4 @@
+import { prepareCalendarRevocation } from "./google-calendar.service";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   clearSupabaseAuthCookies,
@@ -42,11 +43,16 @@ export async function deleteCurrentAccountFromFormData(
   await verifyAccountDeletionClient(serviceRole, user.id);
   assertDeletionFailureCanaryInactive(user.id);
 
+  const revokeCalendar = await prepareCalendarRevocation({ client: supabase, user }).catch(() => null);
   const { error: deleteError } = await deleteAuthUser(serviceRole, user.id);
 
   if (deleteError) {
     throw new AccountDeletionUserError(ACCOUNT_DELETION_FAILURE_MESSAGE);
   }
+
+  // Auth deletion cascades local credentials before any external revocation.
+  try { await revokeCalendar?.(); }
+  catch { /* A provider outage must not turn completed deletion into a retry. */ }
 
   try {
     invalidateStableUserData(user.id);

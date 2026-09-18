@@ -6,6 +6,7 @@ import {
   normalizeOccurrenceScheduleGraph,
   planOccurrenceGeneration,
   planOccurrenceRepair,
+  resolveDueBehaviorArchives,
   type ExistingOccurrenceForGeneration,
   type OccurrenceGenerationBehavior,
 } from "../lib/resolvers/occurrence.resolver";
@@ -799,6 +800,69 @@ describe("planOccurrenceGeneration", () => {
 
     expect(plan.create).toEqual([]);
     expect(deleteIds(plan)).toEqual(["future-unresolved"]);
+  });
+
+  it("treats the end date as the first archived local day", () => {
+    const plan = planOccurrenceGeneration({
+      behavior: { ...BASE_BEHAVIOR, endDate: "2026-01-04" },
+      existingOccurrences: [
+        existingOccurrence("end-date-row", "2026-01-04T14:00:00Z", "2026-01-04"),
+      ],
+      now: NOW,
+      horizonDays: 4,
+    });
+
+    expect(plan.create.map(({ localDate }) => localDate)).toEqual([
+      "2026-01-02",
+      "2026-01-03",
+    ]);
+    expect(deleteIds(plan)).toEqual(["end-date-row"]);
+  });
+});
+
+it("cleans delayed end-date rows while preserving decisions, notes, and tracked time", () => {
+  const row = (id: string) => existingOccurrence(id, "2026-01-04T14:00:00Z", "2026-01-04");
+  const plan = planOccurrenceGeneration({
+    behavior: { ...BASE_BEHAVIOR, active: false, endDate: "2026-01-04" },
+    existingOccurrences: [row("bare"), { ...row("note"), note: "Keep" },
+      { ...row("tracked"), hasTimeSessions: true }, { ...row("done"), status: "completed" }],
+    now: Temporal.Instant.from("2026-01-08T15:00:00Z"),
+  });
+  expect(plan.generationWindow.startLocalDate).toBe("2026-01-04");
+  expect(plan.create).toEqual([]);
+  expect(deleteIds(plan)).toEqual(["bare"]);
+});
+
+describe("resolveDueBehaviorArchives", () => {
+  it("uses each Behavior timezone and returns the exact local-midnight boundary", () => {
+    expect(resolveDueBehaviorArchives({
+      behaviors: [
+        { id: "future", active: true, endDate: "2026-01-03", timezone: "America/New_York" },
+        { id: "due", active: true, endDate: "2026-01-02", timezone: "America/New_York" },
+        { id: "havana", active: true, endDate: "2026-11-01", timezone: "America/Havana" },
+        { id: "already-archived", active: false, endDate: "2026-01-01", timezone: "UTC" },
+      ],
+      now: Temporal.Instant.from("2026-11-01T12:00:00Z"),
+    })).toEqual([
+      {
+        id: "due",
+        endDate: "2026-01-02",
+        effectiveAt: "2026-01-02T05:00:00Z",
+        effectiveLocalDate: "2026-01-02",
+      },
+      {
+        id: "future",
+        endDate: "2026-01-03",
+        effectiveAt: "2026-01-03T05:00:00Z",
+        effectiveLocalDate: "2026-01-03",
+      },
+      {
+        id: "havana",
+        endDate: "2026-11-01",
+        effectiveAt: "2026-11-01T04:00:00Z",
+        effectiveLocalDate: "2026-11-01",
+      },
+    ]);
   });
 });
 

@@ -12,7 +12,7 @@ export type ZipReadLimits = {
 };
 
 export const DEFAULT_ZIP_READ_LIMITS: Readonly<ZipReadLimits> = Object.freeze({
-  maxArchiveBytes: 2 * 1024 * 1024,
+  maxArchiveBytes: 3 * 1024 * 1024,
   maxEntries: 128,
   maxEntryUncompressedBytes: 32 * 1024 * 1024,
   maxTotalUncompressedBytes: 64 * 1024 * 1024,

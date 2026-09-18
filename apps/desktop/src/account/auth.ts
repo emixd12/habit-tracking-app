@@ -18,7 +18,7 @@ type Pending = { state: string; createdAt: number };
 export type DesktopAccountState =
   | { status: "local" }
   | { status: "waiting" }
-  | { status: "linked"; userId: string; email: string | null }
+  | { status: "linked"; userId: string; email: string | null; name?: string | null }
   | { status: "error"; message: string };
 
 type SecureStorage = {
@@ -81,6 +81,11 @@ export function parseDesktopAuthCallback(value: string, expectedState: string, n
   return code ? { code } : { error: "The authentication callback did not contain a code." };
 }
 
+export function isDesktopAuthCallback(value: string): boolean {
+  try { const url = new URL(value); return `${url.protocol}//${url.host}${url.pathname}` === DESKTOP_AUTH_CALLBACK; }
+  catch { return false; }
+}
+
 export function desktopAuthRedirect(state: string): string {
   return `${DESKTOP_AUTH_CALLBACK}?state=${encodeURIComponent(state)}`;
 }
@@ -88,7 +93,8 @@ export function desktopAuthRedirect(state: string): string {
 function client(config: { url: string; key: string }): SupabaseClient {
   return createClient(config.url, config.key, { auth: {
     flowType: "pkce", detectSessionInUrl: false, persistSession: true,
-    autoRefreshToken: true, storageKey: STORAGE_KEY, storage: createKeychainStorage(),
+    // Actual account requests refresh expired sessions through getSession().
+    autoRefreshToken: false, storageKey: STORAGE_KEY, storage: createKeychainStorage(),
   } });
 }
 
@@ -112,8 +118,11 @@ export class DesktopAuth {
         this.changed({ status: "error", message: "The saved account session does not match this local profile. Disconnect before using another account." });
       }
     }
-    if (!session || error) this.changed(error ? { status: "error", message: "The saved account session could not be read." } : { status: "local" });
-    else this.changed(account(session));
+    if (!session || error) {
+      await clearDesktopCalendarClientState();
+      this.changed(error ? { status: "error", message: "The saved account session could not be read." } : { status: "local" });
+    }
+    else this.changed(accountStateFromSession(session));
     const stop = await onOpenUrl((urls) => void this.completeCallbacks(urls));
     await this.completeCallbacks((await getCurrent()) ?? []);
     return stop;
@@ -121,7 +130,7 @@ export class DesktopAuth {
 
   async begin(): Promise<void> {
     const { data: current } = await this.supabase.auth.getSession();
-    if (current.session) { this.changed(account(current.session)); return; }
+    if (current.session) { this.changed(accountStateFromSession(current.session)); return; }
     const state = crypto.randomUUID();
     await pending("get", { state, createdAt: Date.now() });
     const redirectTo = desktopAuthRedirect(state);
@@ -155,12 +164,14 @@ export class DesktopAuth {
 
   accountClient(): SupabaseClient { return this.supabase; }
 
+  dispose(): Promise<void> { return this.supabase.auth.dispose(); }
+
   firstLinkBaseline(): Promise<{ hostedUserId: string; idempotencyKey: string; baselineFingerprint: string } | null> {
     return invoke("auth_first_link_baseline");
   }
 
   private async completeCallbacks(urls: string[]): Promise<void> {
-    for (const value of urls) await this.complete(value);
+    for (const value of urls) if (isDesktopAuthCallback(value)) await this.complete(value);
   }
 
   private async complete(value: string): Promise<void> {
@@ -181,7 +192,7 @@ export class DesktopAuth {
     }
     try { await this.record(data.session); }
     catch { await this.clearLocalSession(); this.changed({ status: "error", message: "The account session could not be linked to this local profile." }); return; }
-    this.changed(account(data.session));
+    this.changed(accountStateFromSession(data.session));
   }
 
   private record(session: Session): Promise<void> {
@@ -201,8 +212,18 @@ export class DesktopAuth {
     await Promise.all([
       invoke("auth_secret_remove", { name: "supabase-session" }),
       invoke("auth_secret_remove", { name: "supabase-pkce" }),
+      clearDesktopCalendarClientState(),
     ]);
   }
+}
+
+export async function clearDesktopCalendarClientState(
+  call: (command: string, args?: Record<string, unknown>) => Promise<unknown> = (command, args) => invoke(command, args),
+): Promise<void> {
+  await Promise.all([
+    call("auth_secret_remove", { name: "pending-calendar-state" }),
+    call("calendar_cache_clear"),
+  ]);
 }
 
 export async function disconnectDesktopAccount(mode: "keep" | "remove", clearSecrets: () => Promise<void>, clearPending: () => Promise<unknown>,
@@ -217,8 +238,10 @@ export async function reconnectDesktopAccount(clearLocalSession: () => Promise<v
   await beginOAuth();
 }
 
-function account(session: Session | null): DesktopAccountState {
-  return session ? { status: "linked", userId: session.user.id, email: session.user.email ?? null } : { status: "local" };
+export function accountStateFromSession(session: Session | null): DesktopAccountState {
+  const metadata = session?.user.user_metadata;
+  const name = [metadata?.full_name, metadata?.name].find((value) => typeof value === "string" && value.trim());
+  return session ? { status: "linked", userId: session.user.id, email: session.user.email ?? null, name: name?.trim() ?? null } : { status: "local" };
 }
 
 export function desktopAuthAvailable(): boolean { return isTauri() && readDesktopAuthConfig() !== null; }

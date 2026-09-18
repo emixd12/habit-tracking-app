@@ -64,15 +64,35 @@ export function TimeTracker({
       return;
     }
 
-    const timeout = window.setTimeout(
-      () => setNowMilliseconds(Date.now()),
-      0,
-    );
-    const interval = window.setInterval(() => setNowMilliseconds(Date.now()), 1000);
+    let interval: number | undefined;
+    const refresh = () => setNowMilliseconds(Date.now());
+    const stopRefreshing = () => {
+      if (interval !== undefined) {
+        window.clearInterval(interval);
+        interval = undefined;
+      }
+    };
+    const startRefreshing = () => {
+      stopRefreshing();
+      refresh();
+      interval = window.setInterval(refresh, 1000);
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stopRefreshing();
+      } else {
+        startRefreshing();
+      }
+    };
+
+    if (!document.hidden) {
+      startRefreshing();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
-      window.clearTimeout(timeout);
-      window.clearInterval(interval);
+      stopRefreshing();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [running]);
 

@@ -1,5 +1,67 @@
 # User Flows
 
+## Day progress and optional Google Calendar context (Tickets 132–137)
+
+The production Timeline places forward Occurrences beside a continuous local-day
+axis. The current-time dot advances only within today's section. **Show more
+days**, Notes, manual statuses, timing, and **Needs decision** keep their existing
+flows. Midnight changes the visible forward range. It never deletes a record or
+changes an Occurrence status.
+
+When the deployment configures Calendar, the user opens Settings and chooses
+**Connect Google Calendar**. Google consent is separate from ordinary Cadence
+sign-in. Cadence requires the same Google identity as the signed-in account and
+requests only Calendar-list and event read-only scopes. A different identity,
+denied consent, expired attempt, or revoked credential returns a factual state
+without changing local Cadence data.
+
+After connection, the user selects readable calendars, controls Timeline and
+all-day visibility, and chooses **Save Calendar settings**. The user can choose
+**Refresh Calendar**, **Reconnect Google Calendar**, or **Disconnect Google
+Calendar**. Disconnect removes the live server credential before attempting
+Google grant revocation. A revocation failure tells the user to remove Cadence
+from Google Account permissions. Other devices stop refreshing after they next
+read the changed connection.
+
+The Timeline reads selected events only for the displayed inclusive date range.
+Each timed event has one marker at its start, or at the first visible boundary
+when it began earlier. An overnight event continues into the next day without a
+second marker. Hover, focus, click, or tap opens a persistent preview. **View
+details** opens that event's modal drawer. Close or Escape restores focus.
+Validated source links open outside Cadence.
+
+An all-day control appears only when that day has visible all-day events. It
+shows the first title and an additional count. **Dismiss** hides an item from
+the current presentation. **Restore** brings it back. Neither action changes a
+Google event or creates a Cadence status.
+
+The UI distinguishes no selected calendars, no events, not loaded, stale,
+incomplete, unavailable, and refresh failure. The web keeps only a short-lived
+in-memory result. Desktop can show the last complete matching local snapshot
+with a stale label while offline. A partial or failed refresh never replaces a
+complete desktop snapshot as complete.
+
+Both clients refresh on initial visible use, visibility return, and a 15-minute
+visible interval. Desktop also refreshes on focused resume. Manual refresh skips
+the freshness interval. Hidden or minimized desktop windows stop the recurring
+timer. Range, selection, account, or connection-generation changes fence older
+responses. Desktop stores one complete matching snapshot, so a replacement
+evicts details outside the current request.
+
+Duration estimates use positive stopped totals from at least three Completed
+Occurrences in the preceding 90 complete local days. Insufficient history stays
+unknown. Running timers remain separate activity signals. Possible overlap is
+advisory. Unknown, incomplete, or stale Calendar data cannot prove availability.
+All-day events do not produce timed-overlap warnings.
+
+The web flow is implemented through `app/(app)/settings/page.tsx`,
+`app/(app)/timeline/page.tsx`, and `lib/ui/google-calendar.ts`. Desktop uses
+`apps/desktop/src/calendar/use-google-calendar.ts` and
+`apps/desktop/src/product.tsx`. The implementation remains unavailable for real
+provider use until deployment configuration and live acceptance pass. Desktop
+also requires an HTTPS broker origin. Native and live-provider acceptance remain
+open under Ticket 137.
+
 This document describes the main v1 screens, modules, and user flows.
 
 Cadence is a public product with multiple planned surfaces, but the current
@@ -734,3 +796,8 @@ Automatic update downloads present inline review without replacing an open edito
 Installation and restart require separate actions. Unsaved drafts require saving
 or explicit discard; pending writes prevent restart. Web and marketing expose no
 native update or recovery controls. Future mobile remains deferred.
+
+
+## Set duration and scheduled archive (Tickets 142–143)
+
+Create or edit a Behavior, optionally enter Default duration (minutes) and End date, then Save behavior. Blank fields disable either option. Timeline uses the default ahead of its measured estimate. The Behavior stops generating Occurrences at the start of its end date in its timezone. Automatic archive uses existing archive history and reminder cancellation; a durable in-app notification explains the archive. Open Behaviors to review or restore it. Restoring clears an expired end date.

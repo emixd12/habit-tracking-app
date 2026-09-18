@@ -91,7 +91,7 @@ unchanged. The canonical BehaviorLog schema lives only at
 | Recurrence expansion | `packages/core/src/resolvers/recurrence.resolver.ts` | `lib/services/occurrence.service.ts`, resolver tests | React components, API routes, Supabase repositories, provider adapters, direct `Date` arithmetic | `docs/RECURRENCE_RULES.md`, `docs/DATETIME_STRATEGY.md` | `tests/recurrence.resolver.test.ts` | Resolver must not import React, Next, Supabase, browser globals, provider clients, or env vars. |
 | Occurrence generation and repair planning | `packages/core/src/resolvers/occurrence.resolver.ts` | `lib/services/occurrence.service.ts`, resolver tests | Database inserts inside resolver, UI deciding future occurrence or repair windows, API routes deduplicating occurrences, UI expanding or repairing behavior schedules or time entries | `docs/DATA_MODEL.md`, `docs/RECURRENCE_RULES.md` | `tests/occurrence.resolver.test.ts` | Generated occurrence and explicit repair plans must be pure; repository owns persistence and unique constraints. Schedule normalization returns `valid`, single-parent `repairable`, or typed `invalid` results. Active empty or ambiguous persisted graphs cannot be filtered into a successful no-op or fresh horizon. Multiple valid schedules expand through their own recurrence and time entries; duplicate candidates with the same behavior, local date, start time, and end-time/range identity merge before persistence. The Ticket 060 migration may mirror recurrence rules only for its one-time idempotent repair and must retain parity fixtures. |
 | Behavior definition history planning | `packages/core/src/resolvers/behavior-definition.resolver.ts` | `packages/core/src/services/behavior.service.ts`, web/desktop Behavior adapters, resolver tests | UI or repositories comparing title/description revisions, schedule/reminder/category/archive/timezone edits creating definition events, database writes inside the resolver | `docs/DATA_MODEL.md`, `docs/PRODUCT_SPEC.md`, `docs/EXPORT_FORMATS.md` | `tests/behavior-definition.resolver.test.ts` | Initial events always mark title changed and mark description changed only when it is non-null; edits compare trimmed title/description values, append only for changed definition fields, and retain full previous/next text in the plan. Source is `manual`, `import`, or `system`; user-entered reasons remain schema-only in this ticket. |
-| Behavior configuration history planning | `packages/core/src/resolvers/behavior-configuration.resolver.ts` | `packages/core/src/services/behavior.service.ts`, desktop graph normalization, `lib/services/settings.service.ts`, `lib/services/behaviorlog-import-write.service.ts`, `lib/services/behaviorlog-restore.service.ts`, resolver tests | UI or repositories comparing configuration snapshots, client-supplied prior state being trusted, schedule IDs defining semantic equality, database access or clock reads inside the resolver | `docs/DATA_MODEL.md`, `docs/RECURRENCE_RULES.md`, `docs/DATETIME_STRATEGY.md` | `tests/behavior-configuration.resolver.test.ts` | Baselines contain every tracked field. Revisions compare normalized category, complete ID-free schedule graph, reminder settings, active state, and timezone. Stable JSON keys, weekday order, local-time shape, and schedule sort order define equality. Stored timezone aliases are preserved. Callers inject recorded/effective instants; no-op changes return null. SQL re-derives locked prior and committed next snapshots before inserting append-only events. |
+| Behavior configuration history planning | `packages/core/src/resolvers/behavior-configuration.resolver.ts` | `packages/core/src/services/behavior.service.ts`, desktop graph normalization, `lib/services/settings.service.ts`, `lib/services/behaviorlog-import-write.service.ts`, `lib/services/behaviorlog-restore.service.ts`, resolver tests | UI or repositories comparing configuration snapshots, client-supplied prior state being trusted, schedule IDs defining semantic equality, database access or clock reads inside the resolver | `docs/DATA_MODEL.md`, `docs/RECURRENCE_RULES.md`, `docs/DATETIME_STRATEGY.md` | `tests/behavior-configuration.resolver.test.ts` | Baselines contain every field in the existing configuration-history vocabulary; optional default duration and end date remain current Behavior metadata, with live end-date guards in atomic occurrence writers. Revisions compare normalized category, complete ID-free schedule graph, reminder settings, active state, and timezone. Stable JSON keys, weekday order, local-time shape, and schedule sort order define equality. Stored timezone aliases are preserved. Callers inject recorded/effective instants; no-op changes return null. SQL re-derives locked prior and committed next snapshots before inserting append-only events. |
 | Desktop account synchronization planning | `packages/core/src/resolvers/account-sync.resolver.ts` | `apps/desktop/src/sync-engine.ts`, account-sync services, resolver tests | Network, Supabase, SQLite, Tauri, Keychain, filesystem, environment, UI, or clock access; adapters choosing winners; applying a nonconflicting subset while any conflict remains | `docs/DESKTOP_BUILD.md`, `docs/DESKTOP_DATA_MODEL.md`, `docs/TICKETS.md` | `tests/account-sync.resolver.test.ts` | The planner consumes normalized local, hosted, and saved common-baseline entities. It synchronizes only Ticket 116 fields, preserves domain revisions, removes ownership identity, bounds every collection to 100,000 rows and the complete snapshot to 64 MiB, emits deterministic preconditioned writes, and fails closed with zero writes when any conflict remains. The explicit untouched-profile first hydration may preserve hosted same-status status-event branches; divergent or later branches still fail. |
 | Timeline grouping | `packages/core/src/resolvers/timeline.resolver.ts` | `lib/services/timeline.service.ts`, Timeline UI via service output, resolver tests | Components deriving Needs decision, components filtering prior unresolved or same-day retained decided items, components calculating multi-time grouped completion labels, stored `needs_decision` or partial status | `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, `docs/DATETIME_STRATEGY.md` | `tests/timeline.resolver.test.ts` | UI must receive grouped data or call a service; no `/dashboard` model. Multi-time behavior groups keep row-specific statuses and do not show progress labels. Same-day Needs decision retention is derived from `status_marked_at` and local midnight, without a stored flag. |
 | Optimistic Timeline status projection | `packages/core/src/resolvers/timeline-optimistic-status.resolver.ts` | Timeline client service and UI state adapter, resolver tests | Components duplicating status projection or changing committed history | `docs/UI_SPEC.md` | `tests/timeline-optimistic-status.test.ts` | The resolver projects pending UI state without persistence; confirmed service output remains authoritative. |
@@ -270,3 +270,49 @@ checks. Shared `services/note-shortcut.service` orchestrates the owner-scoped
 `NoteShortcutStore`; web and desktop adapters perform atomic reads and CAS writes.
 UI, API, repositories, and native code must not independently derive patterns.
 No network, storage, environment, clock reads, or UI may enter this resolver.
+
+## Day-progress contract ownership (Tickets 132–137)
+
+Ticket 132 implements pure contracts and a synthetic bench; the owner accepted
+the UI baseline on 2026-09-16. Production Timeline callers follow in 133–136.
+Ticket 134 extends the existing event types through the documented
+`docs/EXTERNAL_EVENT_CONTRACT.md` schema/validation boundary. Register new pure
+owners and paired tests when implemented; no new runtime owner is claimed here.
+
+| Domain | Owner resolver | Allowed callers | Forbidden bypasses | Source of truth | Required test | Drift check |
+|---|---|---|---|---|---|---|
+| Day-progress layout | `packages/core/src/resolvers/day-progress.resolver.ts` | Synthetic design bench and resolver tests; production services after Ticket 132 review | UI calculating independent dot/span mappings, changing actual times for collision spacing, fixed 24-hour local days | `docs/UI_SPEC.md`, `docs/DATETIME_STRATEGY.md` | `tests/day-progress.resolver.test.ts` | Geometry and injected instants only; no DOM, clocks, providers, or writes |
+| Duration and external context | `packages/core/src/resolvers/timeline-context.resolver.ts` | Synthetic fixtures and resolver tests; owner-scoped services in Ticket 136 | Averaging sessions instead of Occurrences, treating unknown as zero, running samples, automatic decisions or schedule writes | `docs/PRODUCT_SPEC.md` | `tests/timeline-context.resolver.test.ts` | Positive stopped Completed totals, explicit unknown/freshness, half-open timed overlaps |
+
+- `packages/core/src/resolvers/timeline.resolver.ts` retains day selection,
+  Needs decision, Occurrence status projection, and future-range ownership.
+- `packages/core/src/resolvers/day-progress.resolver.ts`, paired with
+  `tests/day-progress.resolver.test.ts`, owns monotonic time anchors, collision
+  layout, and dot/span positions from explicit dates, `now`, and geometry inputs.
+  UI may measure rows and render output; it must not duplicate temporal rules.
+- `packages/core/src/resolvers/timeline-context.resolver.ts`, paired
+  with `tests/timeline-context.resolver.test.ts`, owns estimate eligibility,
+  half-open interval overlap, unknown-duration handling, and activity labels.
+  Reuse existing time-tracking totals and analytics mean logic without changing
+  current analytics semantics. Do not duplicate duration rules per platform.
+- Shared Timeline assembly and web/desktop services may call these pure
+  resolvers. Services supply owner-scoped history and normalized event inputs.
+  Provider adapters own Google payload validation, consent, token lifecycle,
+  network access, pagination, and refresh. Repositories/native boundaries own
+  atomic storage; services own cache expiry, freshness, and disconnect cleanup.
+- Resolvers receive injected clocks and typed data. They never read Google,
+  Supabase, Keychain, SQLite, DOM, network, environment, or global clock APIs.
+  Overlap output cannot authorize schedule, status, reminder, or provider writes.
+
+Core wildcard exports expose these new contracts directly. Existing web resolver
+compatibility exports and current Timeline APIs remain unchanged. The new
+contracts do not establish provider, native, or production UI acceptance.
+
+## Day-progress production consumers (Tickets 133–136)
+
+`DayProgressTimeline` consumes the shared day-progress layout resolver and the
+timeline-context resolver. Web and local Timeline services supply bounded
+90-day occurrence/session history through `resolvePersistedTimeline`. Core returns
+per-Behavior estimates; presentation does not calculate sample eligibility.
+Provider adaptation and validated scheduling projection live in the external-event
+contract modules. No Calendar text or geometry drives recurrence or status writes.

@@ -1,3 +1,4 @@
+import { CalendarSettingsBench, CalendarDetailsBench, CalendarTimelineBench } from "./CalendarBench";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -58,6 +59,7 @@ import { TimeTracker } from "@/components/timeline/TimeTracker";
 import { Timeline } from "@/components/timeline/Timeline";
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
 import { GoogleLoginButton } from "@/app/(auth)/login/GoogleLoginButton";
+import { DayProgressBench } from "@/app/design-system/DayProgressBench";
 import { EXPORT_PROMPT_TEMPLATES } from "@/lib/export-prompts";
 import { APP_NAV_ITEMS, type AppNavHref } from "@/lib/navigation";
 import type { AnalyticsView } from "@/lib/types/analytics";
@@ -374,6 +376,20 @@ export default async function DesignSystemPage({
   const params = await searchParams;
   const selectedPreviewId = firstSearchParam(params?.preview);
   const selectedFixtureState = firstSearchParam(params?.state);
+
+  if (selectedPreviewId === "day-progress") {
+    return (
+      <WebRuntimeProvider>
+        <DayProgressBench
+          statusAction={benchOccurrenceAction}
+          noteAction={benchOccurrenceAction}
+          startTimeTrackingAction={benchTimeTrackingAction}
+          stopTimeTrackingAction={benchTimeTrackingAction}
+          resetTimeTrackingAction={benchTimeTrackingAction}
+        />
+      </WebRuntimeProvider>
+    );
+  }
   const usageByComponent = groupUsages(usage.usages);
   const previews = buildPreviews(selectedPreviewId, selectedFixtureState);
 
@@ -1591,6 +1607,10 @@ const previewFactories: Record<
         />
       </ProductPreview>
     ),
+  "module.google-calendar-panel": () => <ProductPreview><CalendarSettingsBench /></ProductPreview>,
+  "composite.external-event-details": () => <ProductPreview><CalendarDetailsBench /></ProductPreview>,
+  "composite.external-event-preview": () => <ProductPreview><CalendarDetailsBench preview /></ProductPreview>,
+  "module.day-progress-timeline": () => <ProductPreview maxHeight="48rem"><CalendarTimelineBench /></ProductPreview>,
   "module.timeline": () => (
       <ProductPreview maxHeight="48rem">
         <Timeline
@@ -1767,7 +1787,7 @@ const previewFactories: Record<
       <ProductPreview maxHeight="50rem">
         <BehaviorList
           activeBehaviors={[activeBehavior]}
-          archivedBehaviors={[archivedBehavior]}
+          archivedBehaviors={[{ ...archivedBehavior, endDate: "2026-06-10", autoArchivedAt: "2026-06-10T04:00:00Z" }]}
           categories={categoryOptions}
           analytics={analyticsFixture}
           updateAction={behaviorAction}
@@ -1812,6 +1832,7 @@ const previewFactories: Record<
   "module.behavior-log-import-panel": (fixtureState) => (
       <ProductPreview maxHeight="38rem">
         <BehaviorLogImportPanel
+          allowNativeReminderConversion
           recentRuns={importPageFixture.recentRuns}
           timezone={exportFixture.timezone}
           action={behaviorLogImportAction}
@@ -1822,6 +1843,7 @@ const previewFactories: Record<
   "module.behavior-log-restore-panel": () => (
       <ProductPreview maxHeight="38rem">
         <BehaviorLogRestorePanel
+          allowNativeReminderConversion
           recentRuns={restorePageFixture.recentRuns}
           timezone={exportFixture.timezone}
           action={behaviorLogRestoreAction}
@@ -2151,9 +2173,9 @@ const futureOccurrence: TimelineOccurrenceView = {
   ...currentOccurrence,
   id: "occurrence-future",
   title: "Plan tomorrow",
-  scheduledFor: "2026-06-09T01:00:00Z",
+  scheduledFor: "2026-06-10T01:00:00Z",
   scheduledTimeLabel: "9:00 PM",
-  localDate: "2026-06-08",
+  localDate: "2026-06-09",
   canShowDecisionActionsWhenUnresolved: false,
   showDecisionActions: false,
   isVisibleInNeedsDecision: false,
@@ -2212,9 +2234,9 @@ const todaySection: TimelineDaySection = {
   emptyMessage: "No behaviors on this day.",
   occurrences: [
     currentOccurrence,
-    currentGroupedCompletedOccurrence,
     completedOccurrence,
     notCompletedOccurrence,
+    currentGroupedCompletedOccurrence,
   ],
   unresolvedOccurrenceCount: 1,
   occurrenceGroups: [
@@ -2242,6 +2264,10 @@ const futureSection: TimelineDaySection = {
 };
 
 const timelineFixture: TimelineView = {
+  archiveNotifications: [{ behaviorId: "archived-fixture", title: "Course practice", endDate: "2026-06-08" }],
+  durationEstimates: {
+    "behavior-water": { kind: "known", seconds: 1800, durationLabel: "30m", sampleCount: 0, lookbackDays: 90, provenance: "behavior_default" },
+  },
   timezone: "America/New_York",
   todayLocalDate: "2026-06-08",
   visibleFutureDays: 7,

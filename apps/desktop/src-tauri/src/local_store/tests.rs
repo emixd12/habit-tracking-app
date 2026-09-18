@@ -141,7 +141,7 @@ fn configuration() -> Value {
 }
 fn create_request(profile: &str) -> Value {
     json!({"operation":"createBehaviorGraph","graph":{
-        "behavior":{"id":id(1),"user_id":profile,"title":"Walk","description":null,"category_id":null,"recurrence_rule":{"frequency":"daily","interval":1},"scheduled_time":"09:00:00","timezone":"America/New_York","browser_reminder_enabled":true,"email_reminder_enabled":false,"reminder_offset_minutes":0,"active":true,"current_configuration_event_id":id(5),"created_at":NOW,"updated_at":NOW,"archived_at":null},
+        "behavior":{"id":id(1),"user_id":profile,"title":"Walk","description":null,"category_id":null,"recurrence_rule":{"frequency":"daily","interval":1},"scheduled_time":"09:00:00","timezone":"America/New_York","browser_reminder_enabled":true,"email_reminder_enabled":false,"reminder_offset_minutes":0,"default_duration_minutes":null,"end_date":null,"auto_archived_at":null,"active":true,"current_configuration_event_id":id(5),"created_at":NOW,"updated_at":NOW,"archived_at":null},
         "schedules":[{"id":id(2),"user_id":profile,"behavior_id":id(1),"recurrence_rule":{"frequency":"daily","interval":1},"sort_order":0,"created_at":NOW,"updated_at":NOW}],
         "slots":[{"id":id(3),"user_id":profile,"behavior_id":id(1),"behavior_schedule_id":id(2),"kind":"exact","preset":null,"start_time":"09:00:00","end_time":null,"sort_order":0,"created_at":NOW,"updated_at":NOW}]},
         "definitionEvent":{"id":id(4),"user_id":profile,"behavior_id":id(1),"previous_title":null,"previous_description":null,"next_title":"Walk","next_description":null,"changed_fields":["title"],"recorded_at":NOW,"source":"manual","reason":null,"created_at":NOW,"updated_at":NOW},
@@ -288,6 +288,29 @@ fn archive_history_validates_and_roundtrips_each_cycle() {
 }
 
 #[test]
+fn behavior_duration_and_archive_boundary_validate_and_roundtrip() {
+    let mut fixture = Fixture::new();
+    fixture.create();
+    let mut behavior: Behavior = db::by_id(&fixture.db, &fixture.profile, &id(1)).unwrap();
+    behavior.default_duration_minutes = Some(45);
+    behavior.end_date = Some("2026-10-01".into());
+    db::update(&fixture.db, &fixture.profile, &behavior.id, &behavior).unwrap();
+    let stored: Behavior = db::by_id(&fixture.db, &fixture.profile, &behavior.id).unwrap();
+    assert_eq!(stored.default_duration_minutes, Some(45));
+    assert_eq!(stored.end_date.as_deref(), Some("2026-10-01"));
+
+    let mut invalid = stored.clone();
+    invalid.default_duration_minutes = Some(0);
+    assert!(db::validate_row(&fixture.profile, &invalid).is_err());
+    invalid = stored.clone();
+    invalid.end_date = Some("2026-02-30".into());
+    assert!(db::validate_row(&fixture.profile, &invalid).is_err());
+    invalid = stored;
+    invalid.auto_archived_at = Some("2026-10-01T04:00:00Z".into());
+    assert!(db::validate_row(&fixture.profile, &invalid).is_err());
+}
+
+#[test]
 fn occurrence_identity_keeps_exact_and_different_ranges_and_rejects_stale_batch() {
     let mut fixture = Fixture::new();
     fixture.create();
@@ -307,6 +330,43 @@ fn occurrence_identity_keeps_exact_and_different_ranges_and_rejects_stale_batch(
     assert!(fixture.run(json!({"operation":"applyOccurrenceGeneration","behaviorId":id(1),"expectedConfigurationEventId":id(5),"create":[fresh,duplicate],"update":[],"delete":[]}),102).is_err());
     assert_eq!(fixture.count("occurrences"), 3);
     assert_eq!(fixture.count("mutation_outbox"), 3);
+}
+
+#[test]
+fn end_date_only_edit_rejects_a_stale_generation_insert() {
+    let mut fixture = Fixture::new();
+    fixture.create();
+    let planned = occurrence_row(&fixture.profile, 10, "exact", None);
+    let mut behavior: Behavior = db::by_id(&fixture.db, &fixture.profile, &id(1)).unwrap();
+    let configuration_id = behavior.current_configuration_event_id.clone();
+    behavior.end_date = Some(planned.local_date.clone());
+    db::update(&fixture.db, &fixture.profile, &behavior.id, &behavior).unwrap();
+    let result = fixture.run(json!({"operation":"applyOccurrenceGeneration","behaviorId":id(1),"expectedConfigurationEventId":configuration_id,"create":[planned],"update":[],"delete":[]}),101);
+    assert_eq!(
+        result.unwrap_err(),
+        "Behavior end date changed after occurrence planning."
+    );
+    assert_eq!(fixture.count("occurrences"), 0);
+}
+
+#[test]
+fn end_date_cleanup_can_delete_elapsed_bare_rows_but_preserves_notes() {
+    let mut fixture = Fixture::new();
+    fixture.create();
+    let mut row = fixture.occurrence();
+    row.local_date = "2026-08-29".into();
+    row.scheduled_for = "2026-08-29T13:00:00Z".into();
+    row.note = Some("Keep this note".into());
+    db::update(&fixture.db, &fixture.profile, &row.id, &row).unwrap();
+    let mut behavior: Behavior = db::by_id(&fixture.db, &fixture.profile, &id(1)).unwrap();
+    behavior.end_date = Some("2026-08-28".into());
+    db::update(&fixture.db, &fixture.profile, &behavior.id, &behavior).unwrap();
+    let request = |row: &Occurrence| json!({"operation":"applyOccurrenceGeneration","behaviorId":id(1),"expectedConfigurationEventId":id(5),"create":[],"update":[],"delete":[row]});
+    assert!(fixture.run(request(&row), 102).is_err());
+    row.note = None;
+    db::update(&fixture.db, &fixture.profile, &row.id, &row).unwrap();
+    fixture.run(request(&row), 103).unwrap();
+    assert_eq!(fixture.count("occurrences"), 0);
 }
 
 #[test]
@@ -438,8 +498,15 @@ fn note_shortcuts_commit_with_notes_atomically_and_survive_restart() {
     };
     fixture.run(json!({"operation":"commitNoteShortcutState","expected":global_context,"next":global_state,"requireEnabled":false}),102).unwrap();
 
-    fixture.db.execute("UPDATE occurrences SET note='Source corpus secret' WHERE user_id=?1 AND id=?2", params![fixture.profile,id(10)]).unwrap();
-    let behavior_context = note_shortcut::read_context(&fixture.db, &fixture.profile, Some(&id(1))).unwrap();
+    fixture
+        .db
+        .execute(
+            "UPDATE occurrences SET note='Source corpus secret' WHERE user_id=?1 AND id=?2",
+            params![fixture.profile, id(10)],
+        )
+        .unwrap();
+    let behavior_context =
+        note_shortcut::read_context(&fixture.db, &fixture.profile, Some(&id(1))).unwrap();
     let behavior_state = NoteShortcutState {
         id: id(1),
         user_id: fixture.profile.clone(),
@@ -459,7 +526,10 @@ fn note_shortcuts_commit_with_notes_atomically_and_survive_restart() {
         updated_at: NOW.into(),
     };
     let behavior_request = json!({"operation":"commitNoteShortcutState","expected":behavior_context,"next":behavior_state,"requireEnabled":false});
-    assert_eq!(fixture.run(behavior_request.clone(),103).unwrap(), json!(behavior_state));
+    assert_eq!(
+        fixture.run(behavior_request.clone(), 103).unwrap(),
+        json!(behavior_state)
+    );
     let (journal_request, journal_result): (String, String) = fixture.db.query_row(
         "SELECT request_json,result_json FROM mutation_outbox WHERE user_id=?1 AND mutation_id=?2",
         params![fixture.profile,id(103)],
@@ -472,21 +542,46 @@ fn note_shortcuts_commit_with_notes_atomically_and_survive_restart() {
     assert!(!journal_request.contains("Source corpus secret"));
     assert!(!journal_request.contains("Accepted shortcut secret"));
     let committed_outbox = fixture.count("mutation_outbox");
-    assert_eq!(fixture.run(behavior_request.clone(),103).unwrap(), json!(behavior_state));
+    assert_eq!(
+        fixture.run(behavior_request.clone(), 103).unwrap(),
+        json!(behavior_state)
+    );
     assert_eq!(fixture.count("mutation_outbox"), committed_outbox);
     let mut changed_request = behavior_request;
     changed_request["next"]["enabled"] = json!(false);
-    assert!(fixture.run(changed_request,103).unwrap_err().contains("different plan"));
+    assert!(fixture
+        .run(changed_request, 103)
+        .unwrap_err()
+        .contains("different plan"));
     assert_eq!(fixture.count("mutation_outbox"), committed_outbox);
-    fixture.db.execute("UPDATE occurrences SET note=NULL WHERE user_id=?1 AND id=?2", params![fixture.profile,id(10)]).unwrap();
+    fixture
+        .db
+        .execute(
+            "UPDATE occurrences SET note=NULL WHERE user_id=?1 AND id=?2",
+            params![fixture.profile, id(10)],
+        )
+        .unwrap();
 
     let outbox = fixture.count("mutation_outbox");
     fixture.db.execute_batch("CREATE TRIGGER reject_shortcut_note_outbox BEFORE INSERT ON mutation_outbox WHEN new.operation='updateOccurrenceNote' BEGIN SELECT RAISE(ABORT,'test rollback'); END;").unwrap();
     assert!(fixture.run(json!({"operation":"updateOccurrenceNote","occurrenceId":id(10),"expectedNote":null,"note":"Routine note","usedShortcut":true}),104).is_err());
     assert_eq!(fixture.count("mutation_outbox"), outbox);
-    assert_eq!(db::by_id::<Occurrence>(&fixture.db, &fixture.profile, &id(10)).unwrap().note, None);
-    assert!(db::by_id::<NoteShortcutState>(&fixture.db, &fixture.profile, &id(1)).unwrap().excluded_occurrence_ids.is_empty());
-    fixture.db.execute_batch("DROP TRIGGER reject_shortcut_note_outbox").unwrap();
+    assert_eq!(
+        db::by_id::<Occurrence>(&fixture.db, &fixture.profile, &id(10))
+            .unwrap()
+            .note,
+        None
+    );
+    assert!(
+        db::by_id::<NoteShortcutState>(&fixture.db, &fixture.profile, &id(1))
+            .unwrap()
+            .excluded_occurrence_ids
+            .is_empty()
+    );
+    fixture
+        .db
+        .execute_batch("DROP TRIGGER reject_shortcut_note_outbox")
+        .unwrap();
 
     fixture.run(json!({"operation":"updateOccurrenceNote","occurrenceId":id(10),"expectedNote":null,"note":"Routine note","usedShortcut":true}),105).unwrap();
     fixture.run(json!({"operation":"updateOccurrenceNote","occurrenceId":id(10),"expectedNote":"Routine note","note":"Edited later"}),106).unwrap();
@@ -494,7 +589,8 @@ fn note_shortcuts_commit_with_notes_atomically_and_survive_restart() {
     assert_eq!(saved.revision, 2);
     assert_eq!(saved.excluded_occurrence_ids, vec![id(10)]);
 
-    let stale_context = note_shortcut::read_context(&fixture.db, &fixture.profile, Some(&id(1))).unwrap();
+    let stale_context =
+        note_shortcut::read_context(&fixture.db, &fixture.profile, Some(&id(1))).unwrap();
     fixture.run(json!({"operation":"updateOccurrenceNote","occurrenceId":id(10),"expectedNote":"Edited later","note":"Source changed"}),107).unwrap();
     let mut stale_next = saved.clone();
     stale_next.revision += 1;
@@ -504,13 +600,26 @@ fn note_shortcuts_commit_with_notes_atomically_and_survive_restart() {
     let mut foreign = saved.clone();
     foreign.user_id = id(999);
     foreign.revision += 1;
-    let current_context = note_shortcut::read_context(&fixture.db, &fixture.profile, Some(&id(1))).unwrap();
+    let current_context =
+        note_shortcut::read_context(&fixture.db, &fixture.profile, Some(&id(1))).unwrap();
     assert!(fixture.run(json!({"operation":"commitNoteShortcutState","expected":current_context,"next":foreign,"requireEnabled":false}),109).is_err());
-    assert_eq!(db::by_id::<NoteShortcutState>(&fixture.db, &fixture.profile, &id(1)).unwrap(), saved);
+    assert_eq!(
+        db::by_id::<NoteShortcutState>(&fixture.db, &fixture.profile, &id(1)).unwrap(),
+        saved
+    );
 
     let reopened = db::open(&fixture.directory.join("data.sqlite3")).unwrap();
-    assert_eq!(db::by_id::<NoteShortcutState>(&reopened, &fixture.profile, &id(1)).unwrap(), saved);
-    assert_eq!(db::by_id::<Occurrence>(&reopened, &fixture.profile, &id(10)).unwrap().note.as_deref(), Some("Source changed"));
+    assert_eq!(
+        db::by_id::<NoteShortcutState>(&reopened, &fixture.profile, &id(1)).unwrap(),
+        saved
+    );
+    assert_eq!(
+        db::by_id::<Occurrence>(&reopened, &fixture.profile, &id(10))
+            .unwrap()
+            .note
+            .as_deref(),
+        Some("Source changed")
+    );
 }
 
 #[test]
@@ -734,7 +843,10 @@ fn failed_migration_rolls_back_ddl_and_ledger_without_changing_profile() {
         "CREATE TABLE must_rollback(id INTEGER); INSERT INTO no_such_table VALUES (1);",
     ));
     assert!(db::migrate(&mut fixture.db, &migrations).is_err());
-    assert_eq!(fixture.count("schema_migrations"), db::MIGRATIONS.len() as i64);
+    assert_eq!(
+        fixture.count("schema_migrations"),
+        db::MIGRATIONS.len() as i64
+    );
     assert_eq!(db::profile(&fixture.db).unwrap(), original);
     let exists: bool = fixture
         .db
@@ -1081,6 +1193,51 @@ fn import_run(profile: &str, number: u32, mode: &str) -> Value {
 }
 
 #[test]
+fn import_ledgers_allow_aggregate_previews_but_keep_bounded_rows() {
+    let mut fixture = Fixture::new();
+    let mut preview = import_run(&fixture.profile, 60, "merge_preview");
+    preview["dry_run_summary"]["warnings"] = json!([{"message":"x".repeat(10 * 1_048_576)}]);
+    let revision = import::domain_revision(&fixture.db, &fixture.profile).unwrap();
+    fixture.run(json!({"operation":"prepareBehaviorLogImport","expectedRevision":revision,"previewRun":preview,"plan":null}), 100).unwrap();
+    let stored: BehaviorLogImportRun = db::by_id(&fixture.db, &fixture.profile, &id(60)).unwrap();
+    assert_eq!(serde_json::to_value(stored).unwrap(), preview);
+
+    let mut oversized: BehaviorLogImportRun = serde_json::from_value(preview).unwrap();
+    oversized.dry_run_summary = json!({"warnings":[{"message":"x".repeat(32 * 1_048_576)}]});
+    assert_eq!(
+        db::validate_row(&fixture.profile, &oversized).unwrap_err(),
+        "A local row exceeds its allowed size."
+    );
+    let mut category = db::owned::<Category>(&fixture.db, &fixture.profile)
+        .unwrap()
+        .remove(0);
+    category.description = Some("x".repeat(1_048_576));
+    assert_eq!(
+        db::validate_row(&fixture.profile, &category).unwrap_err(),
+        "A local row exceeds its allowed size."
+    );
+}
+
+#[test]
+fn oversized_import_requests_fail_before_writing_a_preview() {
+    let mut fixture = Fixture::new();
+    let mut preview = import_run(&fixture.profile, 60, "merge_preview");
+    preview["dry_run_summary"]["padding"] = json!("x".repeat(64 * 1_048_576));
+    let revision = import::domain_revision(&fixture.db, &fixture.profile).unwrap();
+    let error = fixture.run(json!({"operation":"prepareBehaviorLogImport","expectedRevision":revision,"previewRun":preview,"plan":null}), 100).unwrap_err();
+    assert_eq!(error, "The local mutation exceeds its allowed size.");
+    assert!(
+        db::owned::<BehaviorLogImportRun>(&fixture.db, &fixture.profile)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        import::domain_revision(&fixture.db, &fixture.profile).unwrap(),
+        revision
+    );
+}
+
+#[test]
 fn import_history_filters_before_limit_and_keeps_nanosecond_order() {
     let mut fixture = Fixture::new();
     for (number, mode, started) in [
@@ -1283,6 +1440,7 @@ fn passive_intervention_migration_preserves_history_provenance_and_revision_afte
     let mut fixture = Fixture::at_schema(5);
     // Let the current Row type seed the older migration fixture without advancing its ledger.
     fixture.db.execute_batch(db::MIGRATIONS[11].2).unwrap();
+    fixture.db.execute_batch(db::MIGRATIONS[14].2).unwrap();
     let mut plan = import_plan(&fixture.profile);
     let intervention = imported_intervention(&fixture.profile, 200, "browser_push", "sent");
     plan["importedInterventionWrites"] = json!([{"expected":null,"next":intervention}]);
@@ -1326,13 +1484,23 @@ fn passive_intervention_migration_preserves_history_provenance_and_revision_afte
     .is_err());
 
     let mut before = before;
-    for category in before["categories"].as_array_mut().unwrap() { category["description"] = Value::Null; }
+    for category in before["categories"].as_array_mut().unwrap() {
+        category["description"] = Value::Null;
+    }
     fixture
         .db
-        .execute_batch("ALTER TABLE behaviors DROP COLUMN archive_notes")
+        .execute_batch(
+            "ALTER TABLE behaviors DROP COLUMN auto_archived_at;
+             ALTER TABLE behaviors DROP COLUMN end_date;
+             ALTER TABLE behaviors DROP COLUMN default_duration_minutes;
+             ALTER TABLE behaviors DROP COLUMN archive_notes;",
+        )
         .unwrap();
     db::migrate(&mut fixture.db, db::MIGRATIONS).unwrap();
-    assert_eq!(fixture.count("schema_migrations"), db::MIGRATIONS.len() as i64);
+    assert_eq!(
+        fixture.count("schema_migrations"),
+        db::MIGRATIONS.len() as i64
+    );
     assert_eq!(
         import::snapshot(&fixture.db, &fixture.profile).unwrap(),
         before
@@ -1710,7 +1878,9 @@ fn category_management_preserves_history_and_rolls_back_stale_deletion() {
     let mut fixture = Fixture::new();
     let categories: Vec<Category> = db::owned(&fixture.db, &fixture.profile).unwrap();
     let target = categories[0].id.clone();
-    let snapshot = |rows: &[Category]| rows.iter().map(|row| json!({"id":row.id,"name":row.name,"description":row.description,"sort_order":row.sort_order,"updated_at":row.updated_at})).collect::<Vec<_>>();
+    let snapshot = |rows: &[Category]| {
+        rows.iter().map(|row| json!({"id":row.id,"name":row.name,"description":row.description,"sort_order":row.sort_order,"updated_at":row.updated_at})).collect::<Vec<_>>()
+    };
     let mut initial = create_request(&fixture.profile);
     initial["graph"]["behavior"]["category_id"] = json!(target);
     initial["configurationEvent"]["next_configuration"]["categoryId"] = json!(target);
@@ -1727,7 +1897,10 @@ fn category_management_preserves_history_and_rolls_back_stale_deletion() {
     event["reason_code"] = json!("category_changed");
     graph["behavior"]["category_id"] = Value::Null;
     graph["behavior"]["current_configuration_event_id"] = json!(id(501));
-    let next = snapshot(&categories).into_iter().filter(|row| row["id"] != target).collect::<Vec<_>>();
+    let next = snapshot(&categories)
+        .into_iter()
+        .filter(|row| row["id"] != target)
+        .collect::<Vec<_>>();
     let request = json!({"operation":"manageCategories","expectedCategories":snapshot(&categories),"nextCategories":next,
       "updates":[{"graph":graph,"expectedRevision":1,"configurationEvent":event}]});
     let mut stale = request.clone();
@@ -1739,7 +1912,15 @@ fn category_management_preserves_history_and_rolls_back_stale_deletion() {
     assert_eq!(fixture.count("behavior_configuration_events"), 2);
     assert_eq!(fixture.count("occurrences"), 1);
     assert_eq!(fixture.count("tombstones"), 1);
-    let retained: BehaviorConfigurationEvent = db::by_id(&fixture.db, &fixture.profile, &initial["configurationEvent"]["id"].as_str().unwrap().to_string()).unwrap();
+    let retained: BehaviorConfigurationEvent = db::by_id(
+        &fixture.db,
+        &fixture.profile,
+        &initial["configurationEvent"]["id"]
+            .as_str()
+            .unwrap()
+            .to_string(),
+    )
+    .unwrap();
     assert_eq!(retained.next_configuration["categoryId"], target);
 }
 
@@ -1748,13 +1929,16 @@ fn category_upgrade_preserves_duplicate_ids_and_rejects_invalid_new_names() {
     let mut fixture = Fixture::at_schema(10);
     fixture.db.execute("INSERT INTO categories(id,user_id,name,sort_order,created_at,updated_at) VALUES(?1,?2,'home',40,?3,?3)", params![id(601),fixture.profile,NOW]).unwrap();
     db::migrate(&mut fixture.db, db::MIGRATIONS).unwrap();
-    let category = db::by_id::<Category>(&fixture.db,&fixture.profile,&id(601)).unwrap();
-    assert_eq!(category.name,format!("home [{}]",id(601)));
-    assert_eq!(category.description,None);
-    assert_eq!(fixture.count("categories"),9);
+    let category = db::by_id::<Category>(&fixture.db, &fixture.profile, &id(601)).unwrap();
+    assert_eq!(category.name, format!("home [{}]", id(601)));
+    assert_eq!(category.description, None);
+    assert_eq!(fixture.count("categories"), 9);
     for name in ["", " HOME ", "Home", "Invalid\nName"] {
         assert!(fixture.db.execute("INSERT INTO categories(id,user_id,name,sort_order,created_at,updated_at) VALUES(?1,?2,?3,50,?4,?4)",params![id(602),fixture.profile,name,NOW]).is_err());
     }
     let reopened = db::open(&fixture.directory.join("data.sqlite3")).unwrap();
-    assert_eq!(db::by_id::<Category>(&reopened,&fixture.profile,&id(601)).unwrap(),category);
+    assert_eq!(
+        db::by_id::<Category>(&reopened, &fixture.profile, &id(601)).unwrap(),
+        category
+    );
 }

@@ -15,6 +15,7 @@ import {
 } from "@/components/settings/SettingsPanels";
 import { CategoryPanel } from "@/components/settings/CategoryPanel";
 import { GlobalNoteShortcutControl } from "@/components/note-shortcuts/NoteShortcutControls";
+import { WebGoogleCalendarPanel } from "@/components/settings/WebGoogleCalendarPanel";
 import { getNoteShortcutViewForCurrentUser } from "@/lib/services/note-shortcut.service";
 import { manageNoteShortcutAction } from "@/app/(app)/note-shortcuts/actions";
 import { getCategorySettings } from "@/lib/services/category.service";
@@ -61,6 +62,8 @@ async function SettingsContent() {
       <NotificationPermissionPanel
         vapidPublicKey={settings.vapidPublicKey}
       />
+
+      <WebGoogleCalendarPanel timezone={settings.timezone} />
 
       <CategoryPanel {...categorySettings} action={changeCategoryAction} />
 

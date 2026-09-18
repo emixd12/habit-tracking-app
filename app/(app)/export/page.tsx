@@ -99,6 +99,7 @@ async function ExportContent({
 
   return (
     <ExportPanel
+      allowNativeReminderConversion
       exportData={exportData}
       importData={importData}
       restoreData={restoreData}

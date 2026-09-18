@@ -80,7 +80,11 @@
     "agentmail:version": "node scripts/agentmail-cli.mjs --version",
     "supabase": "supabase",
     "sequenzy": "npm exec --yes --package=@sequenzy/cli@0.0.34 -- sequenzy",
-    "desktop:contract:test": "cargo build --offline --manifest-path apps/desktop/src-tauri/Cargo.toml --features contract-harness --bin local-store-contract && CADENCE_SQLITE_CONTRACT=1 vitest run tests/desktop-store-contract.test.ts tests/desktop-portability-contract.test.ts"
+    "desktop:contract:test": "cargo build --offline --manifest-path apps/desktop/src-tauri/Cargo.toml --features contract-harness --bin local-store-contract && CADENCE_SQLITE_CONTRACT=1 vitest run tests/desktop-store-contract.test.ts tests/desktop-portability-contract.test.ts",
+    "services:preflight": "node scripts/service-preflight.mjs",
+    "services:preflight:network": "node scripts/service-preflight.mjs --network",
+    "cloudflare": "node scripts/cloudflare-api.mjs",
+    "cloudflare:verify": "node scripts/cloudflare-api.mjs verify"
   },
   "dependencies": {
     "@cadence/core": "*",
@@ -104,11 +108,12 @@
     "agentmail-cli": "^0.7.14",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
-    "jsdom": "29.0.0",
+    "jsdom": "30.0.1",
     "supabase": "^2.105.0",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "vitest": "^4.1.8"
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "esbuild": "^0.28.2",

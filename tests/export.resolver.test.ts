@@ -2563,12 +2563,21 @@ describe("resolveExportBundle", () => {
         updatedAt: "2026-06-01T12:00:00Z",
       },
     ];
+    const persistence = {
+      defaultDurationMinutes: 45,
+      endDate: "2026-06-01",
+      autoArchivedAt: "2026-06-01T12:00:00Z",
+      active: false,
+      archivedAt: "2026-06-01T12:00:00Z",
+    };
     const withNotes = resolve({
-      behaviors: [behavior({ id: "behavior-brush", archiveNotes })],
+      behaviors: [behavior({ id: "behavior-brush", archiveNotes, ...persistence })],
+      includeArchived: true,
       includeNotes: true,
     });
     const withoutNotes = resolve({
-      behaviors: [behavior({ id: "behavior-brush", archiveNotes })],
+      behaviors: [behavior({ id: "behavior-brush", archiveNotes, ...persistence })],
+      includeArchived: true,
       includeNotes: false,
     });
     const withNotesBehavior = parseJsonl(
@@ -2581,8 +2590,18 @@ describe("resolveExportBundle", () => {
     expect(withNotes.jsonBackup.behaviors[0].archive_notes).toEqual([
       expect.objectContaining({ note: "Paused while traveling." }),
     ]);
+    expect(withNotes.jsonBackup.behaviors[0]).toMatchObject({
+      default_duration_minutes: 45,
+      end_date: "2026-06-01",
+      auto_archived_at: "2026-06-01T12:00:00Z",
+    });
+    expect(withNotesBehavior).toMatchObject({ expected_duration_minutes: 45 });
     expect(withNotesBehavior.extensions).toMatchObject({
-      "app.cadence": { archive_notes: [{ note: "Paused while traveling." }] },
+      "app.cadence": {
+        archive_notes: [{ note: "Paused while traveling." }],
+        end_date: "2026-06-01",
+        auto_archived_at: "2026-06-01T12:00:00Z",
+      },
     });
     expect(withoutNotes.json).not.toContain("Paused while traveling.");
     expect(

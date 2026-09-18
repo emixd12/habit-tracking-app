@@ -107,6 +107,41 @@ The following tests are required before recurrence/timeline/status work is compl
 
 Run `npm run resolvers:check` after adding any date/time resolver.
 
+## Day-progress and external-event contracts (Tickets 132–136)
+
+The synthetic layout contract derives day start and next-day start through
+Temporal in the explicit Timeline timezone. A day can span 23 or 25 hours.
+Never divide elapsed time by a hardcoded 24-hour duration. Timed event spans,
+item anchors, and the current-time dot share a monotonic piecewise mapping.
+Measured row geometry can change spacing without changing any actual instant.
+Equal-time rows share a temporal anchor while retaining readable vertical spacing.
+
+Timed external events use half-open instant intervals. Overnight events retain
+one identity and clip to each intersected local day for display. All-day events
+use a start date and exclusive end date, never invented midnight durations.
+All-day events do not participate in timed-overlap warnings.
+
+The external snapshot request uses an inclusive displayed local-date range.
+The provider adapter converts its inclusive end date to the next local midnight
+in the requested IANA timezone. That boundary can cross a daylight-saving
+transition. Do not add 24 hours to derive it. The normalized all-day event end
+remains exclusive even though the snapshot request end remains inclusive.
+
+A timed event with an unspecified provider end retains its compatibility
+`endAt` for clipping, but exposes unknown duration. It cannot establish a free
+interval. Recurrence instance identity uses the provider's original start fact.
+Cancellation tombstones retain that identity so an atomic cache replacement can
+remove the correct instance. Provider revision, busy/free, and current-user
+response remain source facts. They do not authorize schedule or status changes.
+
+The estimate window is the preceding ninety complete local days:
+`[today - 90 days, today)`. Today is excluded. Three distinct Completed
+Occurrences with positive stopped totals establish a sample. Any running
+session excludes its Occurrence. Estimates remain a separate contract from
+the existing analytics range and averages. The implementation lives in
+`packages/core/src/resolvers/timeline-context.resolver.ts`. It never changes
+recorded timing, a Behavior schedule, or an Occurrence status.
+
 ## Ticket 088 sync freshness
 
 Web Behavior creation reads the current profile timezone from the repository,

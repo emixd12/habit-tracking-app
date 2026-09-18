@@ -1,9 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { LegalPageContent } from "../components/settings/LegalContent";
 import { TrustAndLegalPanel } from "../components/settings/SettingsPanels";
+
+vi.mock("../lib/marketing-site", () => ({
+  MARKETING_SITE_URL: "https://cadence-me.com",
+}));
 
 describe("trust and legal UI content", () => {
   it("renders sparse public legal routes without adding product drift language", () => {
@@ -29,9 +33,7 @@ describe("trust and legal UI content", () => {
     expect(html).toContain('href="/terms"');
     expect(html).toContain('href="/privacy"');
     expect(html).toContain('href="/trust"');
-    expect(html).toContain(
-      'href="https://cadence-marketing-two.vercel.app/cadence"',
-    );
+    expect(html).toContain('href="https://cadence-me.com"');
     expect(html).toContain("Cadence overview");
     expect(html).toContain("delete their account in Settings");
   });
@@ -58,6 +60,12 @@ describe("trust and legal UI content", () => {
     expect(html).toContain("California disclosures");
     expect(html).toContain("only for people age 18 or older");
     expect(html).toContain("does not send behavior data to an AI provider");
+    expect(html).toContain("Limited Use requirements");
+    expect(html).toContain(
+      'href="https://developers.google.com/terms/api-services-user-data-policy"',
+    );
+    expect(html).toContain("review of Calendar access is pending");
+    expect(html).not.toContain("currently limited to Google OAuth test users");
   });
 
   it("renders the approved Terms with the settled legal facts", () => {

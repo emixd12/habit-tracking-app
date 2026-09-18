@@ -1,3 +1,4 @@
+import { BEHAVIORLOG_IMPORT_INITIAL_STATE } from "../lib/types/behaviorlog-import-ui";
 import { createHash } from "node:crypto";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -188,6 +189,21 @@ describe("BehaviorLog import UI workflow", () => {
       completed_at: "2026-06-08T21:10:02Z",
       failure_message: null,
     });
+  });
+
+  it("offers reminder conversion only on the web surface", () => {
+    const props = { action: async (state: typeof BEHAVIORLOG_IMPORT_INITIAL_STATE) => state, recentRuns: [], timezone: TIMEZONE };
+    expect(renderToStaticMarkup(<BehaviorLogImportPanel {...props} />)).not.toContain('name="convert_native_reminders"');
+    expect(renderToStaticMarkup(<BehaviorLogImportPanel {...props} allowNativeReminderConversion />)).toContain('name="convert_native_reminders"');
+  });
+
+  it("rejects changing the conversion choice after accepting an import preview", async () => {
+    const files = behaviorLogFiles();
+    const preview = resolveBehaviorLogImportMergePreview({ files, existing: await listBehaviorLogExistingRecords(await mocks.createClient(), USER_ID), convertNativeRemindersToBrowser: true });
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(createAcceptedPreviewRun(preview, files));
+    const form = createApplyFormData({ files, preview });
+    await expect(applyBehaviorLogImportUploadFromFormData(form)).rejects.toThrow(/preview/i);
+    expect(mocks.applyAcceptedBehaviorLogImportPlanAtomically).not.toHaveBeenCalled();
   });
 
   it("renders the bundle upload and Preview import interactions", () => {
@@ -802,7 +818,7 @@ describe("BehaviorLog import UI workflow", () => {
     const zip = createStoredZip(files);
 
     expect(zip.byteLength).toBeGreaterThan(750 * 1024);
-    expect(zip.byteLength).toBeLessThan(2 * 1024 * 1024);
+    expect(zip.byteLength).toBeLessThan(3 * 1024 * 1024);
 
     const previewFormData = new FormData();
 
@@ -870,8 +886,8 @@ describe("BehaviorLog import UI workflow", () => {
     expect(appliedState.status).toBe("applied");
   });
 
-  it("rejects files above 2 MB with Cadence's exact size error", async () => {
-    expect(getBehaviorLogBundleSizeError(2 * 1024 * 1024 + 1)).toBe(
+  it("rejects files above 3 MiB with Cadence's exact size error", async () => {
+    expect(getBehaviorLogBundleSizeError(3 * 1024 * 1024 + 1)).toBe(
       BEHAVIORLOG_BUNDLE_SIZE_ERROR,
     );
     const formData = new FormData();
@@ -879,7 +895,7 @@ describe("BehaviorLog import UI workflow", () => {
     formData.set(
       "behaviorlog_file",
       new File(
-        [new Uint8Array(2 * 1024 * 1024 + 1)],
+        [new Uint8Array(3 * 1024 * 1024 + 1)],
         "too-large.behaviorlog.zip",
         { type: "application/zip" },
       ),

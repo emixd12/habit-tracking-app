@@ -140,7 +140,7 @@ function eligibleRequests(input: NativeReminderWindow): NativeReminderRequest[] 
     throw new Error("Native reminder horizon cannot precede now.");
   }
   assertUniqueIds(input.requests);
-  const eligible: NativeReminderRequest[] = [];
+  const eligible: { request: NativeReminderRequest; epochMilliseconds: number }[] = [];
 
   for (const request of input.requests) {
     const instant = Temporal.Instant.from(request.fireAt);
@@ -149,14 +149,15 @@ function eligibleRequests(input: NativeReminderWindow): NativeReminderRequest[] 
     // Native calendar triggers retain seconds. Rounding upward prevents early delivery.
     const canonical = instant.round({ smallestUnit: "second", roundingMode: "ceil" });
     if (Temporal.Instant.compare(canonical, input.targetThrough) <= 0) {
-      eligible.push({ ...request, fireAt: canonical.toString() });
+      eligible.push({ request: { ...request, fireAt: canonical.toString() }, epochMilliseconds: canonical.epochMilliseconds });
     }
   }
 
+  // Parse each timestamp once. Sort comparisons must not rebuild Temporal objects.
   return eligible.sort((left, right) =>
-    Temporal.Instant.compare(left.fireAt, right.fireAt) ||
-    (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
-  );
+    left.epochMilliseconds - right.epochMilliseconds ||
+    (left.request.id < right.request.id ? -1 : left.request.id > right.request.id ? 1 : 0),
+  ).map(({ request }) => request);
 }
 
 function assertUniqueIds(requests: readonly { id: string }[]): void {

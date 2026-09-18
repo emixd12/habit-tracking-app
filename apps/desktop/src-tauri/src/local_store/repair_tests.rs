@@ -166,7 +166,10 @@ fn migration_compacts_legacy_payloads_and_preserves_sequence_and_backup() {
     let (db, profile_id, high_water) = schema_thirteen(&path, 100);
     drop(db);
     let mut reopened = db::open(&path).unwrap();
-    assert_eq!(db::schema_version(&reopened).unwrap(), 14);
+    assert_eq!(
+        db::schema_version(&reopened).unwrap(),
+        db::MIGRATIONS.len() as i64
+    );
     assert_eq!(
         reminder::revision(&reopened, &profile_id).unwrap(),
         high_water
@@ -212,7 +215,10 @@ fn schema_twelve_applies_the_unchanged_thirteen_prerequisite_before_repair() {
     db::seed(&mut db).unwrap();
     drop(db);
     let reopened = db::open(&path).unwrap();
-    assert_eq!(db::schema_version(&reopened).unwrap(), 14);
+    assert_eq!(
+        db::schema_version(&reopened).unwrap(),
+        db::MIGRATIONS.len() as i64
+    );
     assert!(recovery::report(&path)
         .unwrap()
         .unwrap()
@@ -254,7 +260,10 @@ fn every_recovery_transition_resumes_without_another_backup() {
         }
         drop(db);
         let reopened = db::open(&path).unwrap();
-        assert_eq!(db::schema_version(&reopened).unwrap(), 14);
+        assert_eq!(
+            db::schema_version(&reopened).unwrap(),
+            db::MIGRATIONS.len() as i64
+        );
         let report = recovery::report(&path).unwrap().unwrap();
         assert!(report.backup_path.as_ref().unwrap().is_file());
         assert_eq!(
@@ -505,7 +514,10 @@ fn resumed_maintenance_rejects_replaced_or_corrupted_protected_backup() {
             let stage_before = recovery::report(&path).unwrap().unwrap().state;
             assert!(db::open(&path).is_err());
             assert_eq!(std::fs::read(&path).unwrap(), live_before);
-            assert_eq!(recovery::report(&path).unwrap().unwrap().state, stage_before);
+            assert_eq!(
+                recovery::report(&path).unwrap().unwrap().state,
+                stage_before
+            );
             assert_eq!(std::fs::read(&backup).unwrap(), b"changed protected backup");
             let db = db::connect(&path).unwrap();
             assert_eq!(db::schema_version(&db).unwrap(), version);

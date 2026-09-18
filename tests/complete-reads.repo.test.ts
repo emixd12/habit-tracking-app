@@ -96,12 +96,12 @@ describe("complete export and restore repository reads", () => {
   });
 
   it("bounds large status-event occurrence-ID filters before merging results", async () => {
-    const occurrenceIds = Array.from({ length: 501 }, (_, index) =>
+    const occurrenceIds = Array.from({ length: 101 }, (_, index) =>
       id("occurrence", index),
     );
     const { supabase, builders } = pagedSupabase([
       [statusEventRow(0)],
-      [statusEventRow(500)],
+      [statusEventRow(100)],
     ]);
 
     const result = await listOccurrenceStatusEventsByOccurrenceIds(
@@ -113,11 +113,11 @@ describe("complete export and restore repository reads", () => {
     expect(result).toHaveLength(2);
     expect(builders[0]?.in).toHaveBeenCalledWith(
       "occurrence_id",
-      occurrenceIds.slice(0, 500),
+      occurrenceIds.slice(0, 100),
     );
     expect(builders[1]?.in).toHaveBeenCalledWith(
       "occurrence_id",
-      occurrenceIds.slice(500),
+      occurrenceIds.slice(100),
     );
   });
 });

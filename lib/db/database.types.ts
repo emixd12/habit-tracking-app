@@ -421,12 +421,15 @@ export type Database = {
           active: boolean
           archive_notes: Json
           archived_at: string | null
+          auto_archived_at: string | null
           browser_reminder_enabled: boolean
           category_id: string | null
           created_at: string
           current_configuration_event_id: string | null
+          default_duration_minutes: number | null
           description: string | null
           email_reminder_enabled: boolean
+          end_date: string | null
           id: string
           recurrence_rule: Json
           reminder_offset_minutes: number
@@ -440,12 +443,15 @@ export type Database = {
           active?: boolean
           archive_notes?: Json
           archived_at?: string | null
+          auto_archived_at?: string | null
           browser_reminder_enabled?: boolean
           category_id?: string | null
           created_at?: string
           current_configuration_event_id?: string | null
+          default_duration_minutes?: number | null
           description?: string | null
           email_reminder_enabled?: boolean
+          end_date?: string | null
           id?: string
           recurrence_rule: Json
           reminder_offset_minutes?: number
@@ -459,12 +465,15 @@ export type Database = {
           active?: boolean
           archive_notes?: Json
           archived_at?: string | null
+          auto_archived_at?: string | null
           browser_reminder_enabled?: boolean
           category_id?: string | null
           created_at?: string
           current_configuration_event_id?: string | null
+          default_duration_minutes?: number | null
           description?: string | null
           email_reminder_enabled?: boolean
+          end_date?: string | null
           id?: string
           recurrence_rule?: Json
           reminder_offset_minutes?: number
@@ -527,6 +536,65 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      google_calendar_connections: {
+        Row: {
+          attempt_hash: string | null
+          generation: number
+          google_subject: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          attempt_hash?: string | null
+          generation?: number
+          google_subject: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          attempt_hash?: string | null
+          generation?: number
+          google_subject?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_calendar_preferences: {
+        Row: {
+          hidden_calendar_ids: string[]
+          selected_calendar_ids: string[]
+          selection_revision: number
+          show_all_day: boolean
+          user_id: string
+          visible: boolean
+        }
+        Insert: {
+          hidden_calendar_ids?: string[]
+          selected_calendar_ids?: string[]
+          selection_revision?: number
+          show_all_day?: boolean
+          user_id: string
+          visible?: boolean
+        }
+        Update: {
+          hidden_calendar_ids?: string[]
+          selected_calendar_ids?: string[]
+          selection_revision?: number
+          show_all_day?: boolean
+          user_id?: string
+          visible?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_calendar_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "google_calendar_connections"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       imported_interventions: {
         Row: {
@@ -1212,8 +1280,65 @@ export type Database = {
         }
         Returns: Json
       }
+      archive_due_behaviors: {
+        Args: { batch_limit?: number; processed_at: string }
+        Returns: {
+          behavior_id: string
+          user_id: string
+        }[]
+      }
+      archive_my_due_behaviors: {
+        Args: { batch_limit?: number }
+        Returns: {
+          behavior_id: string
+          user_id: string
+        }[]
+      }
       bind_behaviorlog_restore_apply_payload: {
         Args: { restore_payload: Json }
+        Returns: string
+      }
+      calendar_begin_attempt: {
+        Args: {
+          client_nonce: string
+          expected_generation: number
+          expected_subject: string
+          owner_id: string
+          return_target: string
+          state_digest: string
+          verifier_ciphertext: string
+        }
+        Returns: number
+      }
+      calendar_consume_attempt: {
+        Args: { state_digest: string }
+        Returns: Json
+      }
+      calendar_disconnect: {
+        Args: {
+          expected_generation: number
+          expected_subject: string
+          next_status: string
+          owner_id: string
+        }
+        Returns: string
+      }
+      calendar_install_credential: {
+        Args: {
+          expected_generation: number
+          expected_state_hash: string
+          expected_subject: string
+          owner_id: string
+          token_ciphertext: string
+        }
+        Returns: boolean
+      }
+      calendar_read_credential: {
+        Args: {
+          expected_generation: number
+          expected_subject: string
+          owner_id: string
+        }
         Returns: string
       }
       commit_note_shortcut_state: {

@@ -74,6 +74,19 @@ describe("native reminder planning and coverage", () => {
     ]);
   });
 
+  it("orders across extended years by instant and breaks rounded-time ties by ID", () => {
+    expect(selectNativeReminderRequests({
+      now: Temporal.Instant.from("9999-12-31T23:59:58Z"),
+      targetThrough: Temporal.Instant.from("+010000-01-01T00:00:02Z"),
+      capacity: 3,
+      requests: [
+        request("next-year", "+010000-01-01T00:00:01Z"),
+        request("b", "9999-12-31T23:59:58.1Z"),
+        request("a", "9999-12-31T18:59:59-05:00"),
+      ],
+    }).map(({ id }) => id)).toEqual(["a", "b", "next-year"]);
+  });
+
   it("stops coverage before a hole or a partially retained same-time group", () => {
     const first = request("first", "2026-08-30T12:00:10Z");
     const secondA = request("second-a", "2026-08-30T12:00:20Z");

@@ -103,11 +103,13 @@ export function previewBehaviorLogImportFromZip(input: {
   zip: BehaviorLogZipInput;
   existing?: BehaviorLogExistingRecords;
   supportedSchemaVersions?: readonly string[];
+  convertNativeRemindersToBrowser?: boolean;
 }): BehaviorLogImportPreview {
   return resolveBehaviorLogImportPreview({
     files: parseBehaviorLogZipFiles(input.zip),
     existing: input.existing,
     supportedSchemaVersions: input.supportedSchemaVersions,
+    convertNativeRemindersToBrowser: input.convertNativeRemindersToBrowser,
   });
 }
 
@@ -115,11 +117,13 @@ export function previewBehaviorLogMergeImportFromZip(input: {
   zip: BehaviorLogZipInput;
   existing?: BehaviorLogExistingRecords;
   supportedSchemaVersions?: readonly string[];
+  convertNativeRemindersToBrowser?: boolean;
 }): BehaviorLogImportMergePreviewResult {
   return resolveBehaviorLogImportMergePreview({
     files: parseBehaviorLogZipFiles(input.zip),
     existing: input.existing,
     supportedSchemaVersions: input.supportedSchemaVersions,
+    convertNativeRemindersToBrowser: input.convertNativeRemindersToBrowser,
   });
 }
 
@@ -176,6 +180,7 @@ export async function previewBehaviorLogImportUploadFromFormData(
   const preview = previewBehaviorLogMergeImportFromFiles({
     files: bundle.files,
     existing,
+    convertNativeRemindersToBrowser: formData.get("convert_native_reminders") === "yes",
   });
   const importRun = await createBehaviorLogImportRunFromPreview(supabase, {
     userId,
@@ -269,6 +274,7 @@ export async function applyBehaviorLogImportUploadFromFormData(
   const preview = previewBehaviorLogMergeImportFromFiles({
     files: bundle.files,
     existing,
+    convertNativeRemindersToBrowser: formData.get("convert_native_reminders") === "yes",
   });
 
   assertFreshAcceptedImportPreview({

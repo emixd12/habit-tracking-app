@@ -42,6 +42,15 @@ const occurrence = (status = "unresolved", note: string | null = null): AccountS
 const reminder = (status: "pending" | "sent" | "failed" | "cancelled" = "pending"): AccountSyncEntity => ({
   kind: "reminder_delivery", id: `r-${status}`, value: { id: `r-${status}`, occurrence_id: "o", status },
 });
+const delivery = (overrides: Partial<Record<string, string | null>> = {}): AccountSyncEntity => ({
+  kind: "reminder_delivery", id: "delivery", value: {
+    id: "delivery", occurrence_id: "o", channel: "browser_push", status: "pending",
+    scheduled_send_at: "2026-09-15T22:00:00Z", sent_at: null, error: null,
+    processing_started_at: null, import_run_id: null, imported_intervention_id: null,
+    created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z", ...overrides,
+  },
+});
+const sentDelivery = { status: "sent", sent_at: "2026-09-15T22:00:44Z", processing_started_at: "2026-09-15T22:00:43Z" };
 const shortcutBehaviorId = "11111111-1111-4111-8111-111111111111";
 const excludedA = "22222222-2222-4222-8222-222222222222";
 const excludedB = "33333333-3333-4333-8333-333333333333";
@@ -59,6 +68,144 @@ const shortcutState = (excluded: string[], revision: number, entry?: ReturnType<
 });
 
 describe("resolveAccountSync", () => {
+  it.each(["completed", "not_completed"])("converges compatible initial %s marks without deleting history", (status) => {
+    const mark = (id: string, stamp: string): AccountSyncEntity => ({ kind: "status_event", id, value: {
+      id, occurrence_id: "o", behavior_id: "b", revises_event_id: null, previous_status: "unresolved", status,
+      status_semantics: "explicit_user_mark", source_capture_method: "manual_tap", source_confidence: "high",
+      recorded_at: stamp, effective_at: stamp, created_at: stamp,
+    } });
+    const projection = (stamp: string): AccountSyncEntity => ({ ...occurrence(status), value: {
+      ...(occurrence(status).value as object), status_marked_at: stamp, completed_at: status === "completed" ? stamp : null,
+    } });
+    const earlier = "2026-09-16T00:30:00Z", later = "2026-09-16T03:30:00Z";
+    const a = mark("a", earlier), b = mark("b", later);
+    const baseline = snapshot([occurrence()]), local = snapshot([projection(earlier), a]), hosted = snapshot([projection(later), b]);
+    const result = plan(baseline, local, hosted);
+    expect(result.conflicts).toEqual([]);
+    expect(result.mergedEntities.filter(({ kind }) => kind === "status_event").map(({ id }) => id)).toEqual(["a", "b"]);
+    expect(result.localWrites).toMatchObject([{ kind: "occurrence", value: { status, status_marked_at: "2026-09-16T03:30:00.000000Z" } }, { kind: "status_event", id: "b", expected: null }]);
+    expect(result.hostedWrites).toMatchObject([{ kind: "status_event", id: "a", expected: null }]);
+    expect(plan(baseline, hosted, local).mergedEntities).toEqual(result.mergedEntities);
+    const merged = { entities: result.mergedEntities };
+    expect(plan(baseline, local, merged)).toMatchObject({ hostedWrites: [], localWrites: result.localWrites });
+    expect(plan(merged, merged, merged)).toMatchObject({ hostedWrites: [], localWrites: [] });
+    expect(resolveReviewedAccountSync({ baseline, local, hosted, reviewedFingerprints: result.fingerprints, decisions: [] }).mergedEntities).toEqual(result.mergedEntities);
+
+    const combinedBase = snapshot([occurrence(), delivery(), row("other", "Original")]);
+    const combinedLocal = snapshot([projection(earlier), a, mark("c", earlier), delivery({ status: "cancelled" }), row("other", "Mac")]);
+    const combinedHosted = snapshot([projection(later), b, delivery(sentDelivery), row("other", "Account")]);
+    const review = plan(combinedBase, combinedLocal, combinedHosted);
+    expect(review.conflicts).toMatchObject([{ kind: "behavior", id: "other" }]);
+    expect(review.localWrites).toEqual([]);
+    const reviewed = resolveReviewedAccountSync({ baseline: combinedBase, local: combinedLocal, hosted: combinedHosted,
+      reviewedFingerprints: review.fingerprints, decisions: [{ kind: "behavior", id: "other", choice: "local" }] });
+    expect(reviewed.mergedEntities.filter(({ kind }) => kind === "status_event").map(({ id }) => id)).toEqual(["a", "b", "c"]);
+    expect(reviewed.mergedEntities.find(({ id }) => id === "delivery")?.value).toMatchObject({ status: "sent", sent_at: "2026-09-15T22:00:44.000000Z" });
+    const accepted = { entities: reviewed.mergedEntities };
+    expect(plan(accepted, accepted, accepted)).toMatchObject({ localWrites: [], hostedWrites: [] });
+
+    // A later correction uses the accepted union as its baseline, without reopening old siblings.
+    const correctedStatus = status === "completed" ? "not_completed" : "completed";
+    const correction: AccountSyncEntity = { ...mark("correction", "2026-09-16T04:00:00Z"), value: {
+      ...(mark("correction", "2026-09-16T04:00:00Z").value as object), revises_event_id: "b", previous_status: status,
+      status: correctedStatus, status_semantics: "explicit_user_correction",
+    } };
+    const corrected = snapshot([...result.mergedEntities.filter(({ kind }) => kind !== "occurrence"), occurrence(correctedStatus), correction]);
+    expect(plan(merged, corrected, merged).conflicts).toEqual([]);
+    expect(resolveAccountSync({ baseline: empty, local: empty, hosted: corrected, firstHostedHydration: true }).conflicts).toEqual([]);
+    expect(() => plan(baseline, local, corrected)).toThrow("branched status history");
+
+    for (const change of [{ status: correctedStatus }, { source_capture_method: "import" }, { behavior_id: "other" },
+      { recorded_at: "invalid" }, { status_semantics: "explicit_user_correction" }]) {
+      const changed = snapshot([projection(later), { ...b, value: { ...(b.value as object), ...change } }]);
+      expect(() => plan(baseline, local, changed)).toThrow("branched status history");
+    }
+    for (const change of [{ note: "Different Note" }, { status_marked_at: earlier }, { completed_at: "invalid" }]) {
+      const changed = snapshot([{ ...projection(later), value: { ...(projection(later).value as object), ...change } }, b]);
+      expect(() => plan(baseline, local, changed)).toThrow("branched status history");
+    }
+    const rewrite = snapshot([projection(later), { ...a, value: { ...(a.value as object), recorded_at: later } }, b]);
+    expect(() => plan(baseline, local, rewrite)).toThrow("incompatible append-only history");
+  });
+
+  it.each(["browser_push", "email"])("preserves a hosted %s send and the offline completion, including retry and review", (channel) => {
+    const baseline = snapshot([occurrence(), delivery({ channel })]);
+    const completion: AccountSyncEntity = { kind: "status_event", id: "completion", value: {
+      id: "completion", occurrence_id: "o", behavior_id: "b", revises_event_id: null, status: "completed",
+    } };
+    const local = snapshot([occurrence("completed", "Local Note"), completion,
+      delivery({ channel, status: "cancelled", updated_at: "2026-09-16T00:30:00Z" })]);
+    const hosted = snapshot([occurrence(), delivery({ channel, ...sentDelivery })]);
+    const result = plan(baseline, local, hosted);
+    expect(result.conflicts).toEqual([]);
+    expect(result.localWrites).toMatchObject([{ kind: "reminder_delivery", expected: { status: "cancelled" },
+      value: { status: "sent", sent_at: "2026-09-15T22:00:44.000000Z", processing_started_at: "2026-09-15T22:00:43.000000Z" } }]);
+    expect(result.hostedWrites.map(({ kind }) => kind)).toEqual(["occurrence", "status_event"]);
+    expect(result.hostedWrites[0].value).toMatchObject({ status: "completed", note: "Local Note" });
+    expect(plan(baseline, local, hosted)).toEqual(result);
+    const merged = { entities: result.mergedEntities };
+    const retry = plan(baseline, local, merged);
+    expect(retry.conflicts).toEqual([]);
+    expect(retry.hostedWrites).toEqual([]);
+    expect(retry.localWrites).toEqual(result.localWrites);
+    expect(plan(merged, merged, merged)).toMatchObject({ localWrites: [], hostedWrites: [], conflicts: [] });
+    expect(resolveReviewedAccountSync({ accountLinkId: "link", baseline, local, hosted,
+      reviewedFingerprints: result.fingerprints, decisions: [] })).toEqual(result);
+  });
+
+  it.each([
+    ["a different schedule", { scheduled_send_at: "2026-09-15T23:00:00Z" }],
+    ["a different channel", { channel: "email" }],
+    ["a different creation timestamp", { created_at: "2026-09-02T00:00:00Z" }],
+    ["a new field", { extra: "changed" }],
+    ["a failed delivery", { status: "failed" }],
+    ["an active processing claim", { status: "pending" }],
+    ["missing send evidence", { sent_at: null }],
+    ["invalid send evidence", { sent_at: "invalid" }],
+  ] as const)("still reviews %s", (_label, change) => {
+    const baseline = snapshot([delivery()]);
+    const result = plan(baseline, snapshot([delivery({ status: "cancelled" })]), snapshot([delivery({ ...sentDelivery, ...change })]));
+    expect(result).toMatchObject({ localWrites: [], hostedWrites: [], conflicts: [{ kind: "reminder_delivery", reason: "concurrent_update" }] });
+  });
+
+  it("does not extend the rule to local send claims, changed identities, or changed baselines", () => {
+    const baseline = snapshot([delivery()]), cancelled = snapshot([delivery({ status: "cancelled" })]), sent = snapshot([delivery(sentDelivery)]);
+    expect(plan(baseline, sent, cancelled).conflicts).toHaveLength(1);
+    expect(plan(empty, cancelled, sent).conflicts).toContainEqual(expect.objectContaining({ kind: "reminder_delivery", reason: "append_id_collision" }));
+    for (const change of [{ status: "failed" }, { scheduled_send_at: "2026-09-15T23:00:00Z" }] as const) {
+      expect(plan(snapshot([delivery(change)]), cancelled, sent).conflicts).toHaveLength(1);
+    }
+    for (const change of [{ occurrence_id: "other" }, { id: "other" }, { import_run_id: "import" },
+      { sent_at: "2026-09-15T21:00:00Z" }, { processing_started_at: "2026-09-15T21:00:00Z" }] as const) {
+      expect(plan(baseline, snapshot([delivery({ status: "cancelled", ...change })]), sent).conflicts)
+        .toContainEqual(expect.objectContaining({ kind: "reminder_delivery" }));
+    }
+  });
+
+  it("keeps occurrence conflicts blocking the full plan while reconciling reminder evidence", () => {
+    const baseline = snapshot([occurrence(), delivery()]);
+    const local = snapshot([occurrence("completed", "Local Note"), delivery({ status: "cancelled" })]);
+    const hosted = snapshot([occurrence("not_completed", "Account Note"), delivery(sentDelivery)]);
+    const review = plan(baseline, local, hosted);
+    expect(review).toMatchObject({ localWrites: [], hostedWrites: [], conflicts: [{ kind: "occurrence", id: "o" }] });
+    expect(review.conflicts).toHaveLength(1);
+    const resolved = resolveReviewedAccountSync({ accountLinkId: "link", baseline, local, hosted,
+      reviewedFingerprints: review.fingerprints, decisions: [{ kind: "occurrence", id: "o", choice: "local" }] });
+    expect(resolved.conflicts).toEqual([]);
+    expect(resolved.hostedWrites).toMatchObject([{ kind: "occurrence", value: { status: "completed", note: "Local Note" } }]);
+    expect(resolved.localWrites).toMatchObject([{ kind: "reminder_delivery", value: { status: "sent" } }]);
+  });
+
+  it("still propagates cancellation before the server sends", () => {
+    const baseline = snapshot([occurrence(), delivery()]);
+    const local = snapshot([occurrence("not_completed"), delivery({ status: "cancelled" })]);
+    const result = plan(baseline, local, baseline);
+    expect(result.conflicts).toEqual([]);
+    expect(result.localWrites).toEqual([]);
+    expect(result.hostedWrites).toMatchObject([{ kind: "occurrence", value: { status: "not_completed" } },
+      { kind: "reminder_delivery", value: { status: "cancelled", sent_at: null } }]);
+  });
+
   it("replaces remapped first-link behavior and history IDs exactly without hosted writes", () => {
     const local = snapshot([row("local-behavior", "Local"), history("local-event", "local-occurrence", null)]);
     const hosted = snapshot([row("hosted-behavior", "Local"), history("hosted-event", "hosted-occurrence", null)]);
@@ -409,7 +556,10 @@ describe("resolveAccountSync", () => {
 
   it("preserves domain revision fields while removing ownership", () => {
     const revised: AccountSyncEntity = { kind: "behavior", id: "a", value: { id: "a", revision: 3, user_id: "local", metadata: { user_id: "provenance-owner" } } };
-    expect(plan(empty, snapshot([revised]), empty).hostedWrites[0].value).toEqual({ archive_notes: [], id: "a", revision: 3, metadata: { user_id: "provenance-owner" } });
+    expect(plan(empty, snapshot([revised]), empty).hostedWrites[0].value).toEqual({
+      archive_notes: [], default_duration_minutes: null, end_date: null, auto_archived_at: null,
+      id: "a", revision: 3, metadata: { user_id: "provenance-owner" },
+    });
   });
 
   it("rejects duplicate identities and collection rows above the ceiling", () => {
@@ -525,5 +675,35 @@ describe("archive notes in account synchronization", () => {
   });
   it("rejects malformed archive history before planning a write", () => {
     expect(() => plan(empty, withNotes([first, first]), empty)).toThrow(/duplicated/);
+  });
+});
+
+describe("Behavior persistence fields in account synchronization", () => {
+  const behavior = (value: Record<string, unknown>): AccountSyncSnapshot => snapshot([{
+    kind: "behavior", id: "b", value: { id: "b", title: "Walk", archive_notes: [], ...value },
+  } as AccountSyncEntity]);
+
+  it("normalizes legacy rows and carries complete fields into writes", () => {
+    const result = plan(snapshot([row("b", "Walk")]), behavior({
+      default_duration_minutes: 30,
+      end_date: "2026-10-01",
+      auto_archived_at: null,
+    }), behavior({}));
+    expect(result.hostedWrites[0].value).toMatchObject({
+      default_duration_minutes: 30,
+      end_date: "2026-10-01",
+      auto_archived_at: null,
+    });
+  });
+
+  it.each([
+    { default_duration_minutes: 0 },
+    { default_duration_minutes: 1.5 },
+    { end_date: "2026-02-30" },
+    { end_date: "0000-01-01" },
+    { auto_archived_at: "not-an-instant" },
+    { auto_archived_at: "2026-09-18T00:00:00Z", active: true, archived_at: null },
+  ])("rejects invalid persistence values %#", (invalid) => {
+    expect(() => plan(empty, behavior(invalid), empty)).toThrow(/Behavior|archive marker/);
   });
 });

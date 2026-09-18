@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/occurrences.repo";
 import {
   listTimeSessionsByOccurrenceIds,
+  listTimeSessionHistory,
 } from "@/lib/db/timeSessions.repo";
 import { resolveGenerationWindow } from "@/lib/resolvers/occurrence.resolver";
 import {
@@ -20,6 +21,7 @@ import { resolvePersistedTimeline } from "@cadence/core/services/timeline.servic
 import { toTimeSession } from "@/lib/services/time-tracking.service";
 import { createFirstRunOnboardingState } from "@/lib/services/onboarding.service";
 import { ensureUserOccurrencesFresh } from "@/lib/services/occurrence.service";
+import { reconcileMyDueBehaviorArchives } from "@/lib/services/behavior-lifecycle.service";
 import { readOccurrenceSyncState } from "@/lib/services/occurrence-sync-state.service";
 import { requireCurrentUserId } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
@@ -51,6 +53,7 @@ export async function getTimelinePageBundle(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
+  await reconcileMyDueBehaviorArchives(supabase, userId);
   const [profileTimezone, behaviors, importRuns, syncState] = await Promise.all([
     readCachedProfileTimezone(supabase, userId),
     readCachedUserBehaviors(supabase, userId),
@@ -83,6 +86,7 @@ export async function getTimelinePageData(
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
   const now = options.now ?? Temporal.Now.instant();
+  await reconcileMyDueBehaviorArchives(supabase, userId);
   const [profileTimezone, behaviors, syncState] = await Promise.all([
     readCachedProfileTimezone(supabase, userId),
     readCachedUserBehaviors(supabase, userId),
@@ -163,7 +167,15 @@ async function getTimelineViewForUser(input: {
     userId,
     occurrenceIds: occurrenceRows.map((occurrence) => occurrence.id),
   });
+  const historyEnd = Temporal.PlainDate.from(timelineWindow.startLocalDate).subtract({ days: 1 }).toString();
+  const historyStart = Temporal.PlainDate.from(timelineWindow.startLocalDate).subtract({ days: 90 }).toString();
+  const [historyOccurrences, historySessions] = await Promise.all([
+    listOccurrencesBetweenLocalDates(supabase, userId, historyStart, historyEnd),
+    listTimeSessionHistory(supabase, { userId, startLocalDate: historyStart, endLocalDate: historyEnd,
+      includeArchived: false, throughStartedAt: now.toString() }),
+  ]);
   return resolvePersistedTimeline({
+    durationHistory: { occurrences: historyOccurrences, timeSessions: historySessions.map(toTimeSession) },
     behaviors,
     occurrences: occurrenceRows,
     timeSessions: timeSessions.map(toTimeSession),

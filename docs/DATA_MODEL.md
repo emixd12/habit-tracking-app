@@ -1592,6 +1592,25 @@ baselines normalize the missing field to an empty history.
 Migration: `20260906010951_add_behavior_archive_notes.sql`. Legacy archived
 rows remain empty; the migration does not fabricate past archive cycles.
 
+## Behavior duration and scheduled archive (Tickets 142–143)
+
+`behaviors.default_duration_minutes` is a nullable integer from 1 through
+1,440. It is independent of measured Occurrence time. `behaviors.end_date` is
+the nullable four-digit-year local date on which the Behavior first becomes
+archived. `behaviors.auto_archived_at` is the nullable, finite automatic-archive
+instant used by the durable in-app notice. A marker requires an inactive
+Behavior with an `archived_at` instant.
+
+Atomic create, edit, import, restore, export, and account-sync paths carry all
+three fields. Legacy edit payloads that omit a field preserve its stored value.
+Account-sync writes must contain all three keys so an older client cannot erase
+newer data. These optional fields are current Behavior metadata, outside the
+existing configuration-history field vocabulary. Automatic archive still records
+an `active` transition. Occurrence writers check the locked, current end date
+for inserts, updates, and elapsed-row cleanup, independent of configuration lineage.
+Migration:
+`20260918010100_add_behavior_duration_and_scheduled_archive.sql`.
+
 ## Note shortcut state (Tickets 126–128)
 
 `note_shortcut_states` stores records separately from historical Notes. Its
@@ -1650,3 +1669,44 @@ reminder deletion only with the parent Occurrence deletion, requires every attac
 reminder deletion, and rejects retained reminders for a deleted parent. Notes,
 status history, tracked time, and resolved Occurrences prevent deletion. The
 existing JWT ownership, RLS, expected-row, transaction, and receipt checks remain.
+
+
+### Full-history BehaviorLog capacity (2026-09-16)
+
+Preserved portability metadata allows 8 MiB per applied import ledger. The
+shared validator rejects overflow before apply, without truncating history.
+No columns or public RPC signatures change. Migration
+`20260916195000_bound_behaviorlog_import_action_memory.sql` changes the private
+merge-action lookup to release per-call memory and indexes accepted actions
+once per SQL import phase. First-match semantics, owner checks, fingerprint
+binding, atomic rollback, and append-only history remain unchanged. Counter
+updates omit the duplicated import ledger until the final response. The import
+RPC receives a bounded 60-second timeout instead of the interactive eight
+seconds. Account snapshot reads allow 25 seconds, inside the existing desktop
+30-second synchronization deadline. The 64 MiB snapshot limit is unchanged.
+Restore preview ledgers retain action, external ID, and local ID for SQL mapping
+authorization. Full preview records are recomputed and fingerprint-checked before
+apply. Applied replay returns its receipt without claiming a compact ledger is a
+full preview. No historical product records are omitted.
+
+## Google Calendar connector (Ticket 134)
+
+Migration `20260917002649_google_calendar_connector.sql` adds owner-scoped
+`google_calendar_connections` and `google_calendar_preferences`. Connections
+are authenticated SELECT-only. Preferences have explicit column UPDATE grants,
+owner SELECT/UPDATE RLS, and a database-incremented selection revision.
+Every row references its Auth owner and cascades on deletion.
+
+The non-exposed `cadence_calendar_private` schema holds sealed refresh credentials
+and five-minute OAuth attempts. Both tables enable RLS and deny client grants.
+Exact `calendar_*` server-only RPC signatures consume attempts atomically, install
+credentials with generation/state compare-and-swap, and fence disconnects. They
+use empty search paths and fully qualified names. PUBLIC, anon, and authenticated
+cannot execute them. The server repository is the only caller. This narrowly
+scoped credential exception does not authorize privileged Cadence domain reads.
+
+AES-256-GCM binds ciphertext to purpose, owner, Google subject, generation, and
+attempt hash where applicable. A key ID selects the decryption keyring. Credentials
+never enter exports, sync snapshots, or desktop backups. Hosting infrastructure
+backups may retain sealed ciphertext under the existing provider retention policy.
+Local ownership/race verification: `tests/sql/google-calendar-contract.sql`.

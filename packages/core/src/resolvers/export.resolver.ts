@@ -452,6 +452,13 @@ function toJsonBehavior(
           })),
         }
       : {}),
+    ...(behavior.defaultDurationMinutes === undefined
+      ? {}
+      : { default_duration_minutes: behavior.defaultDurationMinutes }),
+    ...(behavior.endDate === undefined ? {} : { end_date: behavior.endDate }),
+    ...(behavior.autoArchivedAt === undefined
+      ? {}
+      : { auto_archived_at: behavior.autoArchivedAt }),
     created_at: behavior.createdAt,
     updated_at: behavior.updatedAt,
   };
@@ -1236,7 +1243,7 @@ function toBehaviorLogBehavior(
     description: behavior.description,
     category: toBehaviorLogCategory(behavior.category),
     success_definition: `Complete ${behavior.title} for each scheduled occurrence.`,
-    expected_duration_minutes: null,
+    expected_duration_minutes: behavior.default_duration_minutes ?? null,
     created_at_utc: formatUtc(behavior.created_at),
     archived_at_utc: formatOptionalUtc(behavior.archived_at),
     source: createBehaviorLogSource({
@@ -1257,6 +1264,10 @@ function toBehaviorLogBehavior(
         reminder_offset_minutes: behavior.reminder_offset_minutes,
         ...(behavior.archive_notes !== undefined
           ? { archive_notes: behavior.archive_notes }
+          : {}),
+        ...(behavior.end_date !== undefined ? { end_date: behavior.end_date } : {}),
+        ...(behavior.auto_archived_at !== undefined
+          ? { auto_archived_at: behavior.auto_archived_at }
           : {}),
       },
     },

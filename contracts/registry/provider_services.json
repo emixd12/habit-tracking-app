@@ -1,0 +1,54 @@
+{
+  "schema_version": "2.0",
+  "project": "cadence-tracker",
+  "state_order": [
+    "planned",
+    "detected",
+    "recorded",
+    "locally_configured",
+    "linked",
+    "verified",
+    "mutation_enabled"
+  ],
+  "state_meanings": {
+    "planned": "Named in intake; no evidence in the repo.",
+    "detected": "Found by repo inspection during assessment.",
+    "recorded": "Documented with owner doc and constraints. Initialization stops here.",
+    "locally_configured": "Local credentials/tooling exist; not verified end-to-end.",
+    "linked": "Provider wired to repo/deploy target.",
+    "verified": "Deterministic preflight/readback passed.",
+    "mutation_enabled": "Summary records a mutation-capable scope; it does not authorize an operation."
+  },
+  "services": [
+    {
+      "name": "cloudflare",
+      "state": "locally_configured",
+      "scope_tier": "dns-edit",
+      "owner_doc": "docs/SERVICE_CONNECTIONS.md",
+      "allowed_interfaces": [
+        "cloudflare-api verify (token check)",
+        "cloudflare-api zones list / zone info (read)",
+        "cloudflare-api dns list (read)",
+        "cloudflare-api registrar list/get (read)",
+        "cloudflare-api dns create/update/delete within the bound zone only"
+      ],
+      "required_env": [
+        "CLOUDFLARE_API_TOKEN",
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_ZONE_NAME",
+        "CLOUDFLARE_ZONE_ID"
+      ],
+      "mutation_policy": "mutate_with_approval",
+      "credential_policy": "User-owned scoped API token (account tokens lack Registrar support); lives only in .env.local or process env; never printed, committed, or echoed into logs.",
+      "hard_constraints": [
+        "Never register/purchase/transfer domains via the API - purchases are dashboard-only and non-refundable.",
+        "DNS mutations only within the zone bound via CLOUDFLARE_ZONE_NAME/CLOUDFLARE_ZONE_ID.",
+        "Never print the token or raw response bodies.",
+        "Registrar setting changes (auto_renew/locked/privacy) require explicit approval."
+      ],
+      "preflight_command": "npm run cloudflare:verify",
+      "readback_command": "npm run cloudflare -- dns list",
+      "rollback_or_disable_command": "Roll or delete the API token in the Cloudflare dashboard (My Profile -> API Tokens), remove CLOUDFLARE_* from .env.local, delete scripts/cloudflare-api.mjs."
+    }
+  ]
+}

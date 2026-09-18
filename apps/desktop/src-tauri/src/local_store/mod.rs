@@ -513,7 +513,10 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
         let payload = serde_json::to_string(&request)
             .map_err(|_| "The local request could not be encoded.")?;
         let note_shortcut_commit = matches!(&request, Request::CommitNoteShortcutState { .. });
-        let payload_limit = if note_shortcut_commit {
+        // Full-history restore carries both expected rows and their replacements.
+        let payload_limit = if note_shortcut_commit
+            || matches!(&request, Request::PrepareBehaviorLogImport { .. })
+        {
             64 * 1024 * 1024
         } else {
             32 * 1024 * 1024

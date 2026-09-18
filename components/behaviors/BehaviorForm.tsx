@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useId,
   useState,
   type ReactNode,
 } from "react";
@@ -96,6 +97,7 @@ export function BehaviorForm({
   onSuccess,
   reminderRuntime = "web",
 }: BehaviorFormProps) {
+  const planningId = useId();
   const [selectedCategory, setSelectedCategory] = useState(behavior?.categoryId ?? "");
   const [state, formAction] = useActionState(action, initialState);
   const fieldErrors = state.fieldErrors ?? {};
@@ -295,6 +297,34 @@ export function BehaviorForm({
 
       <fieldset className="grid gap-3 border-0 p-0">
         <legend className="mb-2 text-lg leading-tight">Schedule</legend>
+
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+          <div className="grid min-w-0 gap-1 text-sm">
+            <label htmlFor={`${planningId}-duration`}>Default duration (minutes)</label>
+            <input id={`${planningId}-duration`} name="default_duration_minutes"
+              type="number" min={1} max={1440} step={1}
+              defaultValue={behavior?.defaultDurationMinutes ?? ""}
+              aria-invalid={Boolean(fieldErrors.default_duration_minutes)}
+              aria-describedby={`${planningId}-duration-help`}
+              className="min-h-11 min-w-0 w-full border-0 border-b border-line bg-background px-0 text-base" />
+            <div id={`${planningId}-duration-help`}>
+              <p className="text-muted-readable">Optional. Used for Timeline planning. Tracked time and averages stay separate.</p>
+              <FieldError message={fieldErrors.default_duration_minutes} />
+            </div>
+          </div>
+          <div className="grid min-w-0 gap-1 text-sm">
+            <label htmlFor={`${planningId}-end-date`}>End date</label>
+            <input id={`${planningId}-end-date`} name="end_date" type="date"
+              min="0001-01-01" max="9999-12-31" defaultValue={behavior?.endDate ?? ""}
+              aria-invalid={Boolean(fieldErrors.end_date)}
+              aria-describedby={`${planningId}-end-date-help`}
+              className="min-h-11 min-w-0 w-full border-0 border-b border-line bg-background px-0 text-base" />
+            <div id={`${planningId}-end-date-help`}>
+              <p className="text-muted-readable">Optional. Archives at the start of this date in the Behavior’s timezone. Cadence shows an in-app notification.</p>
+              <FieldError message={fieldErrors.end_date} />
+            </div>
+          </div>
+        </div>
 
         <input
           type="hidden"

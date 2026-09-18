@@ -58,6 +58,64 @@ single-account and non-clinical product boundaries.
 summary. Use Tab and Enter. At high zoom, the title and summary stack while the
 link remains one focus target.
 
+## Google Calendar data and disconnection
+
+**Prerequisites:** The Cadence deployment has enabled the optional Google
+Calendar connector, and you connected the same Google
+identity used for the Cadence account. If Settings says Calendar is not
+configured, the deployment has not enabled provider access. Google's review of
+Calendar access is pending. The connector is not yet verified for public rollout.
+
+Cadence requests read-only Calendar-list and event scopes through a separate
+consent flow. It reads your subscribed calendar list for selection, then reads
+events from selected calendars within the displayed inclusive date range. Depending on Google data and permissions, normalized event details can
+include title, description, time or date span, timezone, location, organizer,
+attendees, conference links, recurrence facts, response, busy/free state,
+attachment links, revision, and a source URL. Cadence does not download
+attachments or create, edit, or delete source events.
+Google processes the consent, token, and Calendar API requests under Google's
+terms and privacy policy. Cadence's use and transfer of Google API information
+adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
+including its Limited Use requirements.
+
+**Data custody:** Vercel runtime processes Calendar API requests and returned
+event details while serving a refresh. Supabase stores the Calendar connection
+and display preferences with the Cadence account. It stores the Google refresh
+credential as account-bound encrypted ciphertext in a private database schema.
+Cadence does not store Google event details in its hosted database. Browser and
+desktop clients receive normalized event snapshots, not the Google credential.
+Desktop may store the last complete normalized snapshot in the separate
+`calendar-cache.sqlite3` file. That file can contain the readable event details
+listed above. It contains no Google credential or raw Google response.
+
+**Exports and backups:** Calendar credentials and event snapshots are excluded
+from JSONL, CSV, App JSON, BehaviorLog, account synchronization, and user-created
+desktop backups. Desktop backup and restore operate on `cadence.sqlite3`, not
+the disposable Calendar cache. Supabase daily infrastructure backups can retain
+sealed credential ciphertext for the current seven-day backup window after live
+deletion. A user-created export cannot restore a Calendar connection.
+
+**Disconnect and deletion:** **Disconnect Google Calendar** marks the connection
+disconnected, clears selected calendar IDs, and deletes the live credential
+before Cadence attempts to revoke the Google grant. If Google cannot confirm
+revocation, Cadence tells you to remove the grant in Google Account permissions.
+Account deletion attempts the same revocation and then removes the Auth user and
+owner-scoped live Calendar records. If revocation fails, Google Account
+permissions may still show the grant. Provider or hosting backup remnants can
+outlast the live record under their retention policies. Other devices stop
+refreshing when they next observe the connection change.
+
+Ordinary web sign-out ends that browser session but keeps the account-level
+Calendar connection. Desktop account disconnect and account reconnection clear
+that Mac's event cache and pending Calendar callback without revoking the global
+Google grant. An offline desktop may retain stale cached event details until it
+reconnects or its Cadence account is disconnected. Keeping a local Cadence copy
+does not keep Calendar event details in the Cadence database backup.
+
+**Recovery or undo:** Reconnect Calendar to grant read-only access again.
+Deleting the Cadence account is permanent and does not recreate any data when a
+new account later connects to the same Google identity.
+
 ## Create an export before deletion
 
 **Prerequisites:** You are signed in and considering account deletion.

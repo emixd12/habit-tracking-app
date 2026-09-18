@@ -412,6 +412,18 @@ describe("processDueEmailReminders", () => {
     ]);
   });
 
+  it("cancels both channels when an active Behavior has reached its end date", async () => {
+    vi.mocked(getBehaviorById).mockResolvedValue({ ...BASE_BEHAVIOR, end_date: "2026-06-08", category: null, schedule_slots: [] });
+    const sendEmail = vi.fn();
+    const sendBrowserPush = vi.fn();
+    await expect(processDueEmailReminders({ supabase: SUPABASE, now: NOW, limit: 1, sendEmail }))
+      .resolves.toMatchObject({ cancelled: 1, sent: 0 });
+    await expect(processDueBrowserPushReminders({ supabase: SUPABASE, now: NOW, limit: 1, sendBrowserPush }))
+      .resolves.toMatchObject({ cancelled: 1, sent: 0 });
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendBrowserPush).not.toHaveBeenCalled();
+  });
+
   it("claims a due email reminder before sending and marks it sent", async () => {
     const sendEmail = vi.fn().mockResolvedValue({ jobId: "job-1" });
 

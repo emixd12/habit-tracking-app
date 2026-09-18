@@ -123,6 +123,25 @@ preserved. A prior missing occurrence is inserted as Unresolved with no
 fabricated completion timestamp or status event; it enters Needs decision only
 through the normal prior-local-date rule.
 
+## Behavior end date
+
+A Behavior may have a nullable `end_date` in its own timezone. The end date is
+the first archived local date. Occurrence generation includes dates before the
+end date and excludes the end date itself.
+
+At or after local midnight on the end date, lifecycle reconciliation archives
+an active Behavior. A delayed reconciliation records the actual processing
+instant while its configuration event keeps the end-date midnight as the
+effective instant. Web reconciliation runs before authenticated product reads
+and in protected background processing. Desktop reconciliation runs on launch,
+resume, local day change, and foreground refresh.
+
+Automatic archival removes unresolved generated rows on or after the end date,
+including rows whose scheduled instant passed before delayed reconciliation.
+Completed, Not Completed, noted, or time-tracked rows remain historical data.
+Restoring an automatically archived Behavior clears an expired end date so the
+next lifecycle reconciliation does not archive it again immediately.
+
 ## Idempotence
 
 Occurrence generation must be idempotent.
@@ -202,6 +221,7 @@ The resolver must be pure:
 - Monthly day 31 falls back to last day of short months.
 - Timezone remains America/New_York.
 - Local midnight boundary behaves correctly.
+- End date is the first excluded local date and automatic archive boundary.
 - Multiple schedules with different recurrences can generate occurrences.
 - Exact-time and time-range entries generate occurrence snapshots.
 - Duplicate generated occurrences merge before analytics/reminders see them.

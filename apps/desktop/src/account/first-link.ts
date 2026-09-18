@@ -76,6 +76,9 @@ export function recoverRejectedFirstLinkReview(reviewed: FirstLinkConflict, mess
 }
 
 export async function finishReviewedFirstAccountLink(input: { client: SupabaseClient; profileId: string; reviewed: FirstLinkConflict; decisions: readonly AccountSyncConflictDecision[] }): Promise<Extract<FirstLinkResult, { status: "complete" }>> {
+  if (input.reviewed.attempt.choice === "ignore") {
+    throw new Error("Ignore no longer uses conflict review. Cancel the account link and start it again.");
+  }
   const [local, hosted] = await Promise.all([
     localCommand("readImportSnapshot", { profileId: input.profileId }),
     readHostedSnapshot(input.client, input.reviewed.inputs.accountLinkId),
@@ -98,7 +101,7 @@ export async function finishReviewedFirstAccountLink(input: { client: SupabaseCl
 async function run({ client, profile, hostedUserId, choice, attemptId: requestedAttemptId = crypto.randomUUID() }: { client: SupabaseClient; profile: Profile; hostedUserId: string; choice: Choice; attemptId?: string }): Promise<FirstLinkResult> {
   let completionCommitted = false;
   const completed = await localCommand("readImportSnapshot", { profileId: profile.id });
-  const proposedLocalFingerprint = fingerprint(completed);
+  const proposedLocalFingerprint = firstLinkLocalFingerprint(completed);
   const preAttemptBaselineJson = canonicalJson({ entities: portabilityEntities(completed) });
   const initialHosted = await readHostedSnapshot(client, hostedUserId);
   const proposedHostedFingerprint = initialHosted.fingerprint;
@@ -194,17 +197,21 @@ async function replaceLocalFromHosted(client: SupabaseClient, profile: Profile, 
   return reconcileLocalFromHosted(client, profile.id, hostedUserId, hosted, local, choice, attemptId, originalLocalFingerprint, hostedFingerprint, backupPath, preAttemptBaselineJson);
 }
 
-export function localChangedSinceFirstLinkAttempt(snapshot: unknown, originalFingerprint: string) {
-  return fingerprint(snapshot) !== originalFingerprint;
+export function firstLinkLocalFingerprint(snapshot: Parameters<typeof portabilityEntities>[0]) {
+  return accountSyncFingerprint({ entities: portabilityEntities(snapshot) });
 }
 
-async function reconcileLocalFromHosted(client: SupabaseClient, profileId: string, hostedUserId: string, hosted: HostedEnvelope, local: PortabilitySnapshot, choice: Choice,
+export function localChangedSinceFirstLinkAttempt(snapshot: Parameters<typeof portabilityEntities>[0], originalFingerprint: string) {
+  return firstLinkLocalFingerprint(snapshot) !== originalFingerprint;
+}
+
+export async function reconcileLocalFromHosted(client: SupabaseClient, profileId: string, hostedUserId: string, hosted: HostedEnvelope, local: PortabilitySnapshot, choice: Choice,
   attemptId: string, localFingerprint: string, hostedFingerprint: string, backupPath: string | null, preAttemptBaselineJson: string) {
   const localSnapshot: AccountSyncSnapshot = { entities: portabilityEntities(local) };
   const hostedSnapshot: AccountSyncSnapshot = { fingerprint: hosted.fingerprint, entities: hosted.entities };
   const baseline = firstLinkAccountSyncBaseline(parseAccountSyncSnapshot(preAttemptBaselineJson), choice);
   const { inputs, plan } = planFirstLinkReconciliation({ accountLinkId: hostedUserId, baseline, local: localSnapshot, hosted: hostedSnapshot, choice,
-    localUnchanged: false, outboxHighWater: local.revision });
+    localUnchanged: !localChangedSinceFirstLinkAttempt(local, localFingerprint), outboxHighWater: local.revision });
   if (plan.conflicts.length) return { inputs, conflicts: plan.conflicts };
   const applied = await applyFirstLinkPlan(client, profileId, inputs, plan, { hostedUserId, choice, attemptId,
     localFingerprint, hostedFingerprint, expectedRevision: local.revision, backupPath });
@@ -216,10 +223,16 @@ export function firstLinkAccountSyncBaseline(baseline: AccountSyncSnapshot, choi
 }
 
 export function planFirstLinkReconciliation(input: { accountLinkId: string; baseline?: AccountSyncSnapshot; local: AccountSyncSnapshot; hosted: AccountSyncSnapshot; choice: Choice; localUnchanged: boolean; outboxHighWater: number }) {
+  if (input.choice === "ignore" && !input.localUnchanged) {
+    throw new Error("Local data changed after the first-link choice. Cancel the account link and start it again before replacing local data.");
+  }
   const baseline = input.baseline ?? (input.localUnchanged ? input.local : { entities: [] });
   const inputs: AccountSyncInputs = { accountLinkId: input.accountLinkId, baseline, local: input.local, hosted: input.hosted,
     baselineFingerprint: accountSyncFingerprint(baseline), hostedFingerprint: accountSyncFingerprint(input.hosted), outboxHighWater: input.outboxHighWater };
-  return { inputs, plan: resolveAccountSync({ ...inputs, firstLink: true, firstHostedHydration: input.choice === "hydrate", noteShortcutExclusionPolicy: input.choice === "import" ? "preserve" : "discard_local" }) };
+  const plan = input.choice === "ignore"
+    ? resolveFirstLinkReplacement(inputs)
+    : resolveAccountSync({ ...inputs, firstLink: true, firstHostedHydration: input.choice === "hydrate", noteShortcutExclusionPolicy: input.choice === "import" ? "preserve" : "discard_local" });
+  return { inputs, plan };
 }
 
 function parseAccountSyncSnapshot(value: string): AccountSyncSnapshot {
@@ -231,7 +244,11 @@ function parseAccountSyncSnapshot(value: string): AccountSyncSnapshot {
 async function applyFirstLinkPlan(client: SupabaseClient, profileId: string, inputs: AccountSyncInputs, plan: AccountSyncPlan,
   guard: { hostedUserId: string; choice: Choice; attemptId: string; localFingerprint: string; hostedFingerprint: string; expectedRevision: number; backupPath: string | null }) {
   const completedAt = Temporal.Now.instant().toString();
-  return applyVerifiedFirstLinkPlan(plan.fingerprints.merged, () => applyHostedAccountSync(client, inputs, plan), async (applied) => {
+  if (guard.choice === "ignore" && plan.hostedWrites.length) throw new Error("Ignore cannot write hosted account data.");
+  const applyHosted = guard.choice === "ignore"
+    ? async () => ({ fingerprint: inputs.hostedFingerprint, snapshot: inputs.hosted })
+    : () => applyHostedAccountSync(client, inputs, plan);
+  return applyVerifiedFirstLinkPlan(plan.fingerprints.merged, applyHosted, async (applied) => {
     const baseline = normalizeAccountSyncBaseline(applied.snapshot as AccountSyncSnapshot | PortabilitySnapshot);
     await localCommand("applyFirstLinkAccountSync", { profileId, ...guard, idempotencyKey: plan.idempotencyKey!, baselineFingerprint: accountSyncFingerprint(baseline),
       baselineJson: canonicalJson(baseline), completedAt, writes: [...plan.localWrites] });
@@ -248,5 +265,4 @@ export async function applyVerifiedFirstLinkPlan<T extends { fingerprint: string
 async function invokeBegin(value: Record<string, unknown>): Promise<Attempt> { const { invoke } = await import("@tauri-apps/api/core"); return invoke("auth_begin_first_link", value); }
 function visiblePreview(preview: BehaviorLogImportMergePreviewResult) { const value = { ...preview } as Record<string, unknown>; delete value.portability; return value; }
 function manifestHash(files: BehaviorLogFile[]) { return sha256(files.find(({ path }) => path === "manifest.json")?.content ?? ""); }
-function fingerprint(value: unknown) { return sha256(canonicalJson(value)); }
 function uuidFrom(seed: string, label: string) { const hex = sha256(`${seed}:${label}`).slice(0, 32).split(""); hex[12] = "4"; hex[16] = "8"; return `${hex.slice(0,8).join("")}-${hex.slice(8,12).join("")}-${hex.slice(12,16).join("")}-${hex.slice(16,20).join("")}-${hex.slice(20).join("")}`; }

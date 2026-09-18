@@ -787,7 +787,11 @@ fn run_inner(db: &mut Connection, live_path: &Path, point: Option<Interrupt>) ->
         }
     }
     if marker.state == Stage::BackupVerified {
-        if let Err(failure) = db::migrate(db, db::MIGRATIONS) {
+        let recovery_count = db::MIGRATIONS
+            .iter()
+            .take_while(|migration| migration.0 <= db::STORAGE_RECOVERY_SCHEMA_VERSION)
+            .count();
+        if let Err(failure) = db::migrate(db, &db::MIGRATIONS[..recovery_count]) {
             return Err(failure);
         }
         if let Err(failure) = validate_after(db, &marker) {

@@ -179,6 +179,40 @@ export async function exerciseRestoreSqlContract(client: AppSupabaseClient, user
   expect(afterMixed.graphs[0].schedules.map((row) => row.id)).toEqual(beforeMixed.graphs[0].schedules.map((row) => row.id));
   expect(snapshotHash(afterMixed.statusEvents)).toBe(snapshotHash(beforeMixed.statusEvents));
   expect(snapshotHash(afterMixed.timeSessions)).toBe(snapshotHash(beforeMixed.timeSessions));
+
+  // A pre-feature bundle can reactivate an automatically archived Behavior.
+  await updateBehavior(createBehaviorStore(client, userId), { behaviorId: current.behavior.id,
+    expectedUpdatedAt: afterMixed.graphs[0].behavior.updated_at,
+    values: { ...addedValues, endDate: "2000-01-01" }, recordedAt: now.add({ seconds: 114 }).toString() });
+  const archived = await client.rpc("archive_my_due_behaviors", {});
+  expect(archived.error).toBeNull();
+  expect(archived.data).toHaveLength(1);
+  const legacyFiles = twoFiles.map((file) => ({ ...file }));
+  const legacyBehaviors = legacyFiles.find((file) => file.path === "data/behaviors.jsonl")!;
+  legacyBehaviors.content = legacyBehaviors.content.trim().split("\n").map((line) => {
+    const row = JSON.parse(line);
+    delete row.expected_duration_minutes;
+    delete row.extensions["app.cadence"].end_date;
+    delete row.extensions["app.cadence"].auto_archived_at;
+    return JSON.stringify(row);
+  }).join("\n") + "\n";
+  const manifestFile = legacyFiles.find((file) => file.path === "manifest.json")!;
+  const manifest = JSON.parse(manifestFile.content);
+  manifest.files.find((file: { path: string }) => file.path === legacyBehaviors.path).sha256 =
+    createHash("sha256").update(legacyBehaviors.content).digest("hex");
+  manifestFile.content = JSON.stringify(manifest);
+  const legacyZip = Buffer.from(createStoredZip(legacyFiles));
+  const legacyFingerprint = createHash("sha256").update(legacyZip).digest("hex");
+  const legacyPreview = await createBehaviorLogRestorePreviewRun(client, { userId,
+    files: legacyFiles, archiveFingerprint: legacyFingerprint });
+  expect(legacyPreview.preview.valid).toBe(true);
+  const legacyResult = await applyBehaviorLogRestoreUploadFromFormData(restoreForm(
+    legacyZip, legacyPreview.preview, legacyPreview.importRun.id, legacyFingerprint));
+  expect(legacyResult.status).toBe("applied");
+  const legacyRestored = await readPortabilitySqlSnapshot(client, base);
+  expect(legacyRestored.graphs[0].behavior).toMatchObject({
+    active: true, default_duration_minutes: 45, end_date: null, auto_archived_at: null,
+  });
 }
 
 export function restoreForm(zip: Buffer, preview: BehaviorLogRestorePreview, importRunId: string, archiveFingerprint: string) {

@@ -31,6 +31,181 @@ For new rough ideas, add:
 - `Open questions`: decisions needed before ticketing.
 - `Scope guardrails`: what must not be accidentally pulled into v1.
 
+## Day-Progress Timeline And Optional External Context
+
+Status: promoted to Tickets 132–137; implementation not_started.
+
+Promoted on 2026-09-15. `docs/TICKETS.md` owns the implementation sequence;
+the planned sections in `docs/PRODUCT_SPEC.md` and `docs/UI_SPEC.md` own scope.
+The exploration below remains context where those contracts are more specific.
+
+The owner selected web and desktop together, the same signed-in Google account
+for Calendar, tracked averages with an unknown-duration fallback, overlap cues
+without rearranging, and a bounded desktop event cache with stale-data labels.
+
+Why:
+Users need to see where they are in the day alongside the Occurrences they
+mark Completed or Not Completed. External events could add context and help
+users notice possible scheduling conflicts without switching applications.
+
+Direction recorded from the owner, 2026-09-15:
+
+- Place one continuous vertical time line to the **left of the existing ledger
+  rows**. It spans the whole current day and continues through future days.
+  Include time before the first item and after the last item, plus empty days
+  within the displayed range. Day boundaries remain identifiable.
+- Show clock-time labels only where a Cadence Occurrence or external event
+  exists. Do not add an hourly ruler through empty space.
+- A single moving dot indicates the current temporal position. It progresses
+  dynamically through today's segment. At the day boundary, remove past days
+  from the forward feed and keep the new current day at the top, following the
+  existing behavior. This removes sections from view, not historical records.
+- Prior unresolved Occurrences retain the existing Needs decision flow.
+- Favor a clear, ergonomic view of what happened and what comes next.
+  Proportional spacing is desirable, but item legibility takes priority.
+  Preserve current row sizing and existing expanded-row behavior.
+- Use platform icons for external events, connected to the line by short
+  perpendicular stems. Vary their distance from the line to separate nearby
+  or overlapping items. Distance indicates collision avoidance, not importance.
+- Provide a separate all-day-event lane with a show/hide toggle. All-day items
+  need not compete with timed items or imply a Behavior conflict.
+- Hover expands an external item's preview inline near its icon. Clicking
+  opens a modal with fuller details and a link to open the source app.
+- Explore Google Calendar first and other sources, such as Focus Keeper,
+  later. Expose the available event detail, including description, time,
+  duration, and location. Scope each connector independently.
+
+Layout proposal, not a finalized design:
+
+Use minimum item spacing with connector lines to true time anchors. Preserve
+the current row typography, internal spacing, square surfaces, and controls.
+Allocate space around rows and within the new timeline gutter instead of
+stretching or shrinking the rows themselves.
+
+- For isolated Occurrences, align the row with its scheduled-time anchor.
+  The current-time dot reaches that anchor when the scheduled time arrives.
+- For simultaneous Occurrences, use one time anchor and a bracket connecting
+  their separate rows. Do not imply that stacked rows happened sequentially.
+- For closely spaced items, keep rows distinguishable and expand the gap
+  between time anchors as needed. External icons can occupy staggered lanes
+  with different stem lengths. If lanes fill, a count cluster could reveal
+  the individual events on hover or activation.
+- Compress long empty gaps, with a quiet scale-break cue where useful.
+  Empty time still belongs to the day even when it occupies little space.
+- Map the dot and event spans through the same time anchors as the rows.
+  The dot's screen speed may vary through expanded and compressed intervals;
+  its temporal meaning must remain accurate. Avoid implying uniform scale.
+- Keep previews inside the event gutter where possible. They should not
+  resize ledger rows or cover their status controls. Keyboard focus should
+  expose the preview; click, tap, Enter, or Space should open the modal.
+  Provide readable event names, dismissible previews, and reduced-motion support.
+
+Duration and overlap options, for discussion:
+
+Cadence already records timing sessions and shows Average tracked time in
+Behavior analytics. That average uses recorded totals per timed Occurrence.
+It describes recorded activity, which may be partial; it is not an expected
+duration contract. See `packages/core/src/resolvers/analytics.resolver.ts` and
+`components/behaviors/BehaviorList.tsx`.
+
+| Option | Treatment | Pros | Cons |
+| --- | --- | --- | --- |
+| Scheduled instant only | Flag an Occurrence whose scheduled time falls inside an external event. | Simple; works without timing history. | Misses a Behavior that starts before an event but continues into it. Cannot support duration-aware rearranging. |
+| Conditional duration estimate | Use that Behavior's average tracked time when history is sufficient; otherwise keep a point with duration unknown. | Reuses recorded history; enables estimated overlap spans and later scheduling suggestions without requiring new input. | Partial tracking, outliers, and small samples can mislead. Unknown duration cannot establish that a slot is free. |
+| User-set expected duration | Let the user supply or confirm an expected duration, optionally seeded from tracking history. | Handles new Behaviors and gives the user control over planning assumptions. | Adds setup and a new product field. Estimates can become stale. |
+| Current-activity overlay | Highlight relevant ledger rows while the gutter emphasizes active external events near the dot. | Preserves row size and keeps the timeline sparse. Works alongside any duration option. | A highlight alone cannot predict future conflicts. A scheduled window or estimate does not prove actual activity. |
+
+Selected for ticketing: conditional estimates plus supplementary activity cues.
+User-set expected duration remains a later option. Ticket 132 validates sample
+eligibility and the layout before dependent implementation.
+
+- For estimated overlap, compare time intervals rather than only start times.
+  A Behavior estimated for 09:00–09:30 could overlap an event at 09:20–10:00.
+  An unknown-duration Behavior at 09:00 remains uncertain in that example.
+- Define a minimum sample, recent history window, and treatment of partial
+  sessions before using averages. Do not count missing tracking as zero or
+  treat running-session elapsed time as a completed duration sample.
+- Label estimates and their sample counts. Call overlap a possibility, not
+  proof that the user cannot perform both activities.
+- Distinguish Scheduled now or Estimated window from Tracking now. Only a
+  running Cadence timer supplies the latter signal; even it records timer
+  state rather than independently verifying activity.
+- An activity tint or overlay must preserve Completed and Not Completed
+  colors and labels. Include a text cue so color does not carry the meaning
+  alone. Multiple rows may be active simultaneously.
+- Duration could later support intelligent rearranging suggestions. Moving
+  icons to avoid visual collisions never changes scheduled times. Actual
+  rescheduling would need separate scope and explicit user review.
+
+Connector policy exploration, now refined by Ticket 134:
+
+- Start with read-only access and explicit selection of calendars or sources.
+  Offer per-source visibility controls and a separate all-day-lane toggle.
+  Hiding a source changes presentation; disconnecting ends its connection.
+- Investigate reuse of the existing Google account-linking entry point.
+  Do not assume Google sign-in already grants Calendar access. Request any
+  additional access explicitly when enabling the connector. Whether existing
+  credentials can support this flow remains unverified.
+- Preserve rich event details wherever the provider and granted access allow.
+  Define a field contract for each connector: title, description, start/end,
+  duration, location, source link, and any supported organizer, attendee,
+  meeting, recurrence, or attachment-link details. Show fields progressively
+  in the preview and modal, with a fuller-details disclosure if needed.
+- Distinguish unavailable or restricted details from empty fields. Do not
+  claim full fidelity until the connector's field coverage has been verified.
+  Render provider descriptions safely and keep attachments as links initially.
+- Use a bounded desktop cache covering the displayed days, with stale labels.
+  Ticket 134 finalizes refresh and retention details before implementation.
+  Rich detail access does not require an indefinite archive.
+- Show last successful refresh and stale/unavailable states. A refresh failure
+  must not make an empty lane appear to prove that no events exist.
+- Disconnect should stop refresh, remove Cadence-held connector credentials,
+  and clear cached external details. Define provider-grant revocation per
+  connector. Preserve Cadence Behaviors, Occurrences, Notes, and timing history.
+- Keep external content out of Cadence logs, exports, account synchronization,
+  and external analysis by default. Any inclusion needs its own explicit scope.
+  Connector secrets require secure storage under the existing platform rules.
+
+Design and provider questions assigned to Tickets 132 and 134:
+
+- Retain today's section plus seven future days initially, extending in
+  seven-day steps to the existing thirty-future-day cap. Validate continuous
+  line behavior as later days load.
+- How should existing multiple-time Behavior stacks connect to chronological
+  anchors without resizing rows or suggesting false ordering?
+- What minimum sample and history window make a duration estimate useful?
+  How should users correct an estimate without editing their recorded history?
+- What lane width and overflow treatment keep dense event clusters usable
+  beside unchanged rows, especially in narrow windows?
+- Which details, permissions, retention, refresh guarantees, and source-app
+  links can each connector actually provide?
+
+Deferred design work:
+Defer timezone and daylight-saving presentation refinements to future upgrades.
+This idea introduces no new timezone controls. Preserve Cadence's existing
+local-time and day-boundary contract in `docs/DATETIME_STRATEGY.md`; deferring
+design exploration does not authorize incorrect event placement.
+
+Potential platform impact:
+
+- Web: explore the left-side time line beside the existing Timeline list.
+- Desktop: explore the same presentation; local tracking remains useful
+  offline and without a connector. External refresh behavior needs later scope.
+- Marketing: verified privacy/help copy in Tickets 134 and 137; avoid promises
+  before implementation acceptance.
+- Future mobile: explore a compact left-side gutter with tap-accessible event
+  details. No mobile implementation is proposed here.
+
+Scope guardrails:
+This is now planned work under Tickets 132–137, not implemented launch scope.
+Read-only Google Calendar context is the scoped extension. Two-way Calendar
+sync, source-event editing, rearranging, and other connectors remain deferred.
+External items remain context, separate from Cadence Occurrences. They must
+not automatically create Behaviors or change manual statuses. Passing a time
+anchor must not imply Not Completed. Do not turn the concept into a calendar
+replacement or broad productivity hub. No connector research or capability
+verification has been performed for this idea.
+
 ## Conversational Voice And Speech-To-Action Logging
 
 Status: idea.

@@ -87,6 +87,9 @@ export type ExportBehaviorInput = {
   active: boolean;
   archivedAt: string | null;
   archiveNotes?: ArchiveNote[];
+  defaultDurationMinutes?: number | null;
+  endDate?: string | null;
+  autoArchivedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };
@@ -290,6 +293,9 @@ export type ExportJsonBehavior = {
     note: string | null;
     updated_at: string;
   }>;
+  default_duration_minutes?: number | null;
+  end_date?: string | null;
+  auto_archived_at?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };

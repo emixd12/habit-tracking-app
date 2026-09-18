@@ -127,6 +127,50 @@ This is product UI, not a poster. The look can be distinctive, but every screen 
   Cadence the first narrative position and treating BehaviorLog as the open
   portability layer behind Cadence exports.
 
+## Ticket 132 review bench
+
+Each timed event gets one marker at its start, or on the first visible day if it
+started earlier. Later days retain duration segments without repeated markers.
+Drawers fit their content with 16px padding and reserve only their rendered height.
+
+All-day controls are absent when the day has no all-day events. Otherwise they
+show “All day: {first event title}”, with “+N more” for additional visible events.
+Dismissed events retain a Restore control. Hover, focus, click, and tap open the
+same persistent preview. The preview has no repeated heading or divider. Each
+event owns a View details button that opens only that event in the modal details
+drawer. Closing details returns focus to the original timeline control.
+
+
+`app/design-system/DayProgressBench.tsx` compares current grouped rows with
+proposed chronological rows using the actual OccurrenceRow component. It is
+development-only synthetic evidence, excluded from product usage and interaction
+counts. The revised candidate keeps timed Calendar context left of one continuous axis
+and the ledger exclusively right. Restore action padding is 12px on narrow layouts and 16px on desktop. Day headers align
+with the ledger while the axis continues through headers and days. Equal-time
+peers keep visible actual-time labels without Behavior-facing ticks, nodes, or a
+bracket. Desktop keeps Completed and Not Completed text visible by default and
+hides it only when the measured title and actions do not fit. Mobile uses
+icon-only actions with screen-reader labels, tooltips, and 44px targets. The
+current grouped reference stays unchanged. There is no right-side All day
+column. All Day Events sits beside the ledger-header day title and wraps on narrow
+layouts. It uses
+the same fixed bottom non-modal hover/focus preview drawer as timed Calendar events. The drawer reserves
+matching viewport space, is at most `min(18rem, 40dvh)` (a maximum, never a fixed height), and scrolls internally. It persists until explicit
+dismissal or replacement so a pointer can reach it. Each event’s View details action opens its own bottom native modal details drawer.
+Close or Escape returns focus without reopening the preview. Dismiss and restore change local presentation
+only. Use centered perpendicular stems without axis nodes for Calendar events;
+group only identical original start instants in one event lane. Nearby starts remain separate. Timed-event hover/focus previews show actual
+duration as a thickened axis segment from the displayed original-day perpendicular-stem contact. It preserves mapped
+length to the day body bottom. An overnight continuation starts at the next section top above its heading, continues to the event end without another marker or stem; details retain actual times. No
+permanent duration bars appear. The current-time dot uses brand blue without a
+row tint. No persistent teal overlap fill or edge appears. Hover/focus outlines only overlapping Behaviors. Point
+overlap uses `start <= activation < end`; estimated-duration overlap is half-open.
+Completed and Not Completed fills remain unchanged. Preserve all other layout, colors, and
+typography. `docs/qa/day-progress-layout.md` records
+geometry and acceptance limits. The owner accepted the seventh-revision baseline
+on 2026-09-16. Minor polish is deferred; production stacking stays unchanged
+until Ticket 133 integration.
+
 ## 1.1 Surface Model
 
 Cadence has one canonical design system with surface-scoped implementations.
@@ -339,6 +383,11 @@ A boundary's space always exceeds every boundary one level below it; header rule
 - **Routes:** Use the documented primary app screens: Timeline, Behaviors, Export, Settings. `/analytics` is only a compatibility redirect to Behaviors. Do not copy placeholder labels from the reference screens.
 - **Page banner:** Behaviors, Export, and Settings may start with the shared decorative page banner image as a full app-content-width banner with a tiny top inset and no bottom margin. Timeline keeps its own decorative image treatment and hides the visible page title below it.
 
+Desktop signed-in footer uses the web account row geometry: 60px height,
+64px icon column, square 32px initials, and a truncated display name. Collapsed
+navigation retains the initials and account-name tooltip. Activation opens
+Settings. Local mode keeps Local profile. Disconnect choices remain in Settings.
+
 ### First-Run Setup
 
 - **Placement:** Timeline may render a dismissible fixed setup pop-up only while required public-launch setup items remain incomplete. It must not take space above the feed. Once the user dismisses it in the current browser, or behavior/notification/timezone setup is complete, the Timeline returns to the normal feed-first rule.
@@ -505,3 +554,18 @@ Archive note controls reuse the Behavior details textareas and underlined text
 actions. Archived Behavior details display dated Archive history with Save note
 and Remove note. The shared web/desktop component stacks entries vertically
 and wraps actions on narrow screens. No token or navigation changes.
+
+## Production day-progress presentation
+
+`components/timeline/DayProgressTimeline.tsx` shares the accepted continuous axis
+across web and desktop. `ExternalEventDetails` owns persistent preview and native
+dialog presentation. `GoogleCalendarPanel` reuses SettingsPanel and native form
+controls. Synthetic Calendar bench adapters perform no provider or account reads.
+
+The production current-time dot updates on visible minute boundaries without an
+SVG position transition. This avoids an animation continuing after minimization.
+
+
+## Behavior planning fields
+
+The shared Behavior form now uses native optional number/date inputs for default duration and scheduled archive. Existing tokens and field styling remain. Timeline and Behaviors reuse divider-led status text for automatic archive notifications. No new visual primitive or token was introduced.

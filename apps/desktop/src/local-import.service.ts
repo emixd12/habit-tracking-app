@@ -34,12 +34,14 @@ export async function applyLocalBehaviorLogImport(profile: Profile, form: FormDa
     const storedPreview = object(accepted.dry_run_summary) as unknown as BehaviorLogImportMergePreviewResult;
     const capabilities = resolveBehaviorLogImportCapabilities(storedPreview);
     if (mode === "create_missing_only" ? !capabilities.canApplyCreateOnly : !capabilities.canApplyMerge) throw new Error("The selected import mode is unavailable for this preview.");
-    if (previewRequiresSensitiveNoteConfirmation(storedPreview) && form.get("confirm_sensitive_notes") !== "yes") throw new Error("Review and acknowledge high or restricted note sensitivity before importing notes.");
+    if ((object(accepted.dry_run_summary).requiresSensitiveNoteConfirmation === true || (storedPreview.plan && previewRequiresSensitiveNoteConfirmation(storedPreview))) && form.get("confirm_sensitive_notes") !== "yes") throw new Error("Review and acknowledge high or restricted note sensitivity before importing notes.");
     let result;
+    let reviewedPreview: BehaviorLogImportMergePreviewResult | null = null;
     try { result = await applyStoredPlan(profile.id, accepted, now, mode); }
     catch (error) {
       if (!(error instanceof Error) || error.message !== "The preview has no applicable write plan.") throw error;
       const preview = resolveBehaviorLogImportMergePreview({ files: bundle.files, existing: existingRecords(snapshot), reminderChannel: "other" }); assertFreshPreview(accepted, preview);
+      reviewedPreview = preview;
       const plan = planBehaviorLogImportWrite({ snapshot, applyRun: applyRun(accepted, mode, now), now, newId: () => crypto.randomUUID(), preview, mode, interventionRulesPresent: bundle.files.some(({ path }) => path === "data/intervention_rules.jsonl") });
       await localCommand("prepareBehaviorLogImport", { ...localMutation(profile.id, now), expectedRevision: snapshot.revision, previewRun: accepted, plan });
       result = await applyStoredPlan(profile.id, accepted, now, mode);
@@ -47,7 +49,7 @@ export async function applyLocalBehaviorLogImport(profile: Profile, form: FormDa
     const applied = checkedApplyResult(result);
     if (applied.importRun.import_mode !== mode) throw new Error("This preview was already accepted with another import mode.");
     const counts = object(applied.result);
-    return { status: "applied", message: "BehaviorLog import applied.", upload: { fileName: bundle.fileName, fileSize: bundle.fileSize }, archiveFingerprint: bundle.archiveFingerprint, preview: storedPreview, previewRun: toImportRunView(accepted), capabilities,
+    return { status: "applied", message: "BehaviorLog import applied.", upload: { fileName: bundle.fileName, fileSize: bundle.fileSize }, archiveFingerprint: bundle.archiveFingerprint, preview: reviewedPreview, previewRun: toImportRunView(accepted), capabilities,
       applyResult: { mode, importRun: toImportRunView(applied.importRun), created: counts.created as NonNullable<BehaviorLogImportActionState["applyResult"]>["created"], mapped: counts.mapped as NonNullable<BehaviorLogImportActionState["applyResult"]>["mapped"], skipped: counts.skipped as NonNullable<BehaviorLogImportActionState["applyResult"]>["skipped"] } };
   } catch (error) { return { ...BEHAVIORLOG_IMPORT_INITIAL_STATE, status: "error", message: portabilityError(error) }; }
 }

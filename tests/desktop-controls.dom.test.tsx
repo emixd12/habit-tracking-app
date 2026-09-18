@@ -230,6 +230,32 @@ describe("desktop preference and dialog side effects", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it("shows the connected account in both footers and opens Settings from the collapsed rail and drawer", async () => {
+    const navigate = vi.fn();
+    const props = { activeScreen: "timeline" as const, availableScreens: ["timeline", "settings"] as const, onNavigate: navigate };
+    await render(<DesktopApp {...props} account={{ status: "linked", userId: "hosted", email: "owner@example.test", name: "Cadence User" }}>Content</DesktopApp>);
+    const rail = container.querySelector('[aria-label="Desktop navigation"]')!;
+    const accountButton = () => rail.querySelector<HTMLButtonElement>('[aria-label="Open account settings"]')!;
+    expect(accountButton().textContent).toBe("CUCadence User");
+    expect(container.textContent).not.toContain("Local profile");
+    await click(button("Collapse navigation"));
+    expect(accountButton().title).toBe("Cadence User");
+    await click(accountButton());
+    expect(navigate).toHaveBeenLastCalledWith("settings", undefined);
+    await click(button("Open navigation"));
+    await click(container.querySelector<HTMLButtonElement>('#desktop-mobile-navigation [aria-label="Open account settings"]')!);
+    expect(button("Open navigation").getAttribute("aria-expanded")).toBe("false");
+    expect(navigate).toHaveBeenCalledTimes(2);
+    await render(<DesktopApp {...props} account={{ status: "linked", userId: "hosted", email: "owner@example.test" }}>Content</DesktopApp>);
+    expect(accountButton().textContent).toBe("Oowner@example.test");
+    await render(<DesktopApp {...props} account={{ status: "linked", userId: "hosted", email: null }}>Content</DesktopApp>);
+    expect(accountButton().textContent).toBe("AAccount");
+    await render(<DesktopApp {...props} account={{ status: "local" }}>Content</DesktopApp>);
+    expect(accountButton()).toBeNull();
+    await click(button("Expand navigation"));
+    expect(rail.textContent).toContain("Local profile");
+  });
+
   it("keeps the conflict cue in a sticky flow banner and navigates to conflict review", async () => {
     const navigate = vi.fn();
     await render(<DesktopApp activeScreen="timeline" availableScreens={["timeline", "behaviors", "export", "settings"]} conflictCount={2} onNavigate={navigate}>Content</DesktopApp>);

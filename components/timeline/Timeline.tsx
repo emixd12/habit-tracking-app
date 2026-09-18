@@ -4,6 +4,7 @@ import type { NoteShortcut } from "@cadence/core/types/note-shortcut";
 
 import { MobileTimelinePullToRefresh } from "@/components/timeline/MobileTimelinePullToRefresh";
 import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
+import { DayProgressTimeline, type DayProgressContext } from "@/components/timeline/DayProgressTimeline";
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
 import type {
   OccurrenceFormAction,
@@ -19,6 +20,9 @@ type TimelineProps = Readonly<{
   stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
   shortcutsByBehavior?: Record<string, NoteShortcut[]>;
+  dayProgress?: DayProgressContext;
+  onDayChange?: () => void;
+  liveCalendar?: boolean;
 }>;
 
 export function Timeline({
@@ -29,10 +33,21 @@ export function Timeline({
   stopTimeTrackingAction,
   resetTimeTrackingAction,
   shortcutsByBehavior = {},
+  dayProgress,
+  onDayChange,
+  liveCalendar = false,
 }: TimelineProps) {
   return (
     <MobileTimelinePullToRefresh>
       <div className="grid gap-8 pb-32 sm:pb-24">
+        {timeline.archiveNotifications?.length ? (
+          <div role="status" className="grid gap-2 border-b border-line pb-4 text-sm">
+            {timeline.archiveNotifications.map((notice) => (
+              <p key={notice.behaviorId}>“{notice.title}” was automatically archived{notice.endDate ? ` for its ${notice.endDate} end date` : ""}. History is preserved.</p>
+            ))}
+            <Link href="/behaviors" className="product-action product-action-primary justify-self-start">Review archived behaviors</Link>
+          </div>
+        ) : null}
         <NeedsDecisionDialog
           title={timeline.needsDecision.title}
           occurrenceCount={timeline.needsDecision.occurrenceCount}
@@ -64,20 +79,18 @@ export function Timeline({
           )}
         </NeedsDecisionDialog>
 
-        <div className="grid gap-5">
-          {timeline.daySections.map((section) => (
-            <TimelineGroup
-              key={section.key}
-              section={section}
-              statusAction={statusAction}
-              noteAction={noteAction}
-              startTimeTrackingAction={startTimeTrackingAction}
-              stopTimeTrackingAction={stopTimeTrackingAction}
-              resetTimeTrackingAction={resetTimeTrackingAction}
-              shortcutsByBehavior={shortcutsByBehavior}
-            />
-          ))}
-        </div>
+        <DayProgressTimeline
+          timeline={timeline}
+          context={dayProgress}
+          statusAction={statusAction}
+          noteAction={noteAction}
+          startTimeTrackingAction={startTimeTrackingAction}
+          stopTimeTrackingAction={stopTimeTrackingAction}
+          resetTimeTrackingAction={resetTimeTrackingAction}
+          shortcutsByBehavior={shortcutsByBehavior}
+          onDayChange={onDayChange}
+          liveCalendar={liveCalendar}
+        />
 
         {timeline.nextFutureDays ? (
           <div className="border-t border-line pt-5">

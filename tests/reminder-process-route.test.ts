@@ -3,10 +3,15 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetAuthFailureRateLimitersForTests } from "@/lib/security/auth-failure-rate-limits";
 import { processDueReminders } from "@/lib/services/reminder.service";
+import { processDueBehaviorArchives } from "@/lib/services/behavior-lifecycle.service";
 import { GET, POST } from "../app/api/reminders/process/route";
 
 vi.mock("@/lib/services/reminder.service", () => ({
   processDueReminders: vi.fn(),
+}));
+
+vi.mock("@/lib/services/behavior-lifecycle.service", () => ({
+  processDueBehaviorArchives: vi.fn(),
 }));
 
 const ORIGINAL_SECRET = process.env.REMINDER_PROCESS_SECRET;
@@ -28,6 +33,7 @@ describe("reminder process route", () => {
       failed: 0,
       cancelled: 0,
     });
+    vi.mocked(processDueBehaviorArchives).mockResolvedValue([]);
   });
 
   afterAll(() => {
@@ -95,6 +101,9 @@ describe("reminder process route", () => {
     expect(processDueReminders).toHaveBeenCalledWith({
       limit: 3,
     });
+    expect(processDueBehaviorArchives).toHaveBeenCalledWith({ limit: 3 });
+    expect(vi.mocked(processDueBehaviorArchives).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(processDueReminders).mock.invocationCallOrder[0]);
   });
 
   it("bounds the manual processing limit", async () => {

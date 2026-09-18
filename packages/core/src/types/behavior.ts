@@ -34,6 +34,9 @@ export type ArchiveNote = {
 };
 
 export type BehaviorView = {
+  defaultDurationMinutes?: number | null;
+  endDate?: string | null;
+  autoArchivedAt?: string | null;
   id: string;
   title: string;
   description: string;
@@ -69,6 +72,8 @@ export const BEHAVIOR_FORM_FIELDS = [
   "behavior_id",
   "title",
   "description",
+  "default_duration_minutes",
+  "end_date",
   "category_id",
   "schedule",
   "recurrence",

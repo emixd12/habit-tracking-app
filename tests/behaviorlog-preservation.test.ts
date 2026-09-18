@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveBehaviorLogImportPreview } from "@cadence/core/resolvers/behaviorlog-import.resolver";
+import { withBehaviorLogPortability } from "@cadence/core/services/behaviorlog-preservation";
 import { portabilityFiles } from "./helpers/portability-fixture";
 
 function files() { return structuredClone(portabilityFiles()); }
@@ -59,9 +60,17 @@ describe("bounded BehaviorLog preservation", () => {
     expect(preview.warnings.filter((issue) => issue.code === "portability_loss").map((issue) => issue.message).join(" ")).toContain("unknown_profile");
     expect(JSON.stringify(preview.portability)).not.toContain("discard");
   });
-  it("fails closed above the metadata byte limit", () => {
+  it("preserves metadata above the former 256 KiB limit", () => {
     const input = files(); update(input, config, (value) => {value.next.category = "é".repeat(140_000);});
-    expect(resolveBehaviorLogImportPreview({files: input}).errors.some((issue) => issue.message.includes("256 KiB"))).toBe(true);
+    const preview = resolveBehaviorLogImportPreview({files: input});
+    expect(preview.errors).toEqual([]);
+    expect(withBehaviorLogPortability({}, preview.portability)).toHaveProperty("portability", preview.portability);
+  });
+  it("fails closed above 8 MiB in both preview and write preparation, counting UTF-8 bytes", () => {
+    const input = files(); update(input, config, (value) => {value.next.category = "é".repeat(4 * 1024 * 1024);});
+    const preview = resolveBehaviorLogImportPreview({files: input});
+    expect(preview.errors.some((issue) => issue.message.includes("8 MiB"))).toBe(true);
+    expect(() => withBehaviorLogPortability({}, preview.portability)).toThrow("8 MiB");
   });
   it("preserves validated unused categories and fractional configuration times", () => {
     const input = files();
@@ -74,7 +83,7 @@ describe("bounded BehaviorLog preservation", () => {
     expect(resolveBehaviorLogImportPreview({files: input}).plan.schedules[0].localTime).toBe("22:00:01.123456");
     expect(resolveBehaviorLogImportPreview({files: input}).plan.schedules[0].skipReasons).toContain("unsupported_schedule_precision");
   });
-  it("maps explicit native reminder intent only in the desktop adapter", () => {
+  it("requires an explicit web choice to convert recognized native reminders", () => {
     const input = files(); update(input, "data/intervention_rules.jsonl", (value) => {
       if (value.channel === "browser_push") {value.channel = "other"; value.extensions = {"app.cadence":{native_notification:true}};}
     });

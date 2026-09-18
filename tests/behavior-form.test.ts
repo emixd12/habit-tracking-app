@@ -54,6 +54,8 @@ describe("parseBehaviorFormData", () => {
 
     expect(result).toEqual({
       behaviorId: "",
+      defaultDurationMinutes: null,
+      endDate: null,
       title: "Brush teeth",
       description: "Evening routine",
       categoryId: CATEGORY_ID,
@@ -418,5 +420,24 @@ describe("stored recurrence helpers", () => {
     expect(summarizeRecurrenceRule(recurrenceRule)).toBe(
       "Every 2 months on day 31",
     );
+  });
+});
+
+describe("Behavior planning fields", () => {
+  function planningForm(duration: string, endDate: string) {
+    return formData([["title", "Walk"], ["scheduled_time", "09:00"], ["recurrence_kind", "daily"],
+      ["daily_interval", "1"], ["reminder_offset", "0"], ["default_duration_minutes", duration], ["end_date", endDate]]);
+  }
+  it("accepts and clears a default duration and real calendar end date", () => {
+    expect(parseBehaviorFormData(planningForm("45", "2028-02-29"), { mode: "create" }))
+      .toMatchObject({ defaultDurationMinutes: 45, endDate: "2028-02-29" });
+    expect(parseBehaviorFormData(planningForm("", ""), { mode: "create" }))
+      .toMatchObject({ defaultDurationMinutes: null, endDate: null });
+  });
+  it.each(["0", "-1", "1.5", "1441", "Infinity", "abc"])("rejects invalid duration %s", (duration) => {
+    expect(() => parseBehaviorFormData(planningForm(duration, ""), { mode: "create" })).toThrow(BehaviorValidationError);
+  });
+  it.each(["2027-02-29", "2026-13-01", "2026-9-18", "0000-01-01", "2026-09-18T00:00:00Z"])("rejects invalid date %s", (date) => {
+    expect(() => parseBehaviorFormData(planningForm("", date), { mode: "create" })).toThrow(BehaviorValidationError);
   });
 });

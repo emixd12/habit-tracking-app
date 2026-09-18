@@ -10,15 +10,29 @@ import { Product } from "../apps/desktop/src/product";
 import { LocalExportScreen } from "../apps/desktop/src/export-screen";
 
 const mocks = vi.hoisted(() => ({ timeline: vi.fn(), behaviors: vi.fn(), command: vi.fn(), exportData: vi.fn(), imports: vi.fn(), restores: vi.fn(),
-  listen: vi.fn(), events: vi.fn(), reminders: vi.fn(), retainDeliveries: vi.fn(), shortcutContext: vi.fn(), shortcutStates: vi.fn(), shortcutCommit: vi.fn() }));
+  listen: vi.fn(), events: vi.fn(), reminders: vi.fn(), reconcileEndDates: vi.fn(), retainDeliveries: vi.fn(), shortcutContext: vi.fn(), shortcutStates: vi.fn(), shortcutCommit: vi.fn(), linked: false, sync: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true, invoke: vi.fn(async (command: string) => {
   if (command === "read_update_configuration") return { configured: false, version: "0.1.0" };
   throw new Error(`Unexpected native command: ${command}`);
 }) }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: mocks.listen }));
+vi.mock("../apps/desktop/src/account/auth", () => ({
+  readDesktopAuthConfig: () => mocks.linked ? { url: "https://example.invalid", key: "synthetic" } : null,
+  DesktopAuth: class {
+    constructor(_config: unknown, private changed: (state: unknown) => void) {}
+    async initialize() { this.changed({ status: "linked", userId: "synthetic-account", email: "owner@example.test", name: "Cadence User" }); return () => {}; }
+    async firstLinkBaseline() { return "synthetic-baseline"; }
+    accountClient() { return {}; }
+    async dispose() {}
+  },
+}));
+vi.mock("../apps/desktop/src/account/account-sync", () => ({
+  synchronizeAccount: mocks.sync, planAccountSync: vi.fn(), synchronizeReviewedAccount: vi.fn(),
+}));
 vi.mock("../apps/desktop/src/native-spike", () => ({ readNativeEvents: mocks.events }));
 vi.mock("../apps/desktop/src/local-timeline.service", () => ({ loadLocalTimeline: mocks.timeline }));
 vi.mock("../apps/desktop/src/local-behaviors-read.service", () => ({ getLocalBehaviorsPageData: mocks.behaviors }));
+vi.mock("../apps/desktop/src/local-behavior-lifecycle.service", () => ({ reconcileLocalBehaviorEndDates: mocks.reconcileEndDates }));
 vi.mock("../apps/desktop/src/local-store", () => ({ localCommand: mocks.command }));
 vi.mock("../apps/desktop/src/local-note-shortcut.service", () => ({
   createLocalNoteShortcutStore: () => ({
@@ -51,16 +65,18 @@ async function retry() {
   await act(() => button!.click()); await settle();
 }
 beforeEach(() => {
-  vi.clearAllMocks(); Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  vi.clearAllMocks(); mocks.linked = false; mocks.sync.mockResolvedValue({ state: "current", completedAt: "2026-08-30T12:00:00Z" }); Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
   localStorage.setItem("cadence-first-run-dismissed", "true");
   mocks.listen.mockResolvedValue(() => {}); mocks.events.mockResolvedValue([]);
+  mocks.reconcileEndDates.mockResolvedValue(0);
   mocks.reminders.mockRejectedValue(new Error("OS readback unavailable in this test"));
   container = document.createElement("div"); document.body.append(container); root = createRoot(container);
   mocks.command.mockImplementation(async (operation: string) => {
     if (operation === "readProfile") return profile;
     if (operation === "readImportRuns") return [];
+    if (operation === "readImportSnapshot") return {};
     throw new Error(`Unexpected mutation or read: ${operation}`);
   });
   mocks.shortcutContext.mockImplementation(async (behaviorId: string | null) => ({
@@ -88,6 +104,134 @@ describe("desktop lifecycle refresh", () => {
     await act(() => vi.advanceTimersByTimeAsync(0));
   }
 
+  it.each([false, true])("does no periodic reads, sync, or reminder work during six idle hours (linked=%s)", async (linked) => {
+    mocks.linked = linked;
+    await mountAt("2026-08-30T12:00:00Z");
+    const accountRow = container.querySelector('[aria-label="Desktop navigation"] [aria-label="Open account settings"]');
+    expect(accountRow?.textContent ?? null).toBe(linked ? "CUCadence User" : null);
+    const reads = mocks.timeline.mock.calls.length;
+    const syncs = mocks.sync.mock.calls.length;
+    const reminders = mocks.reminders.mock.calls.length;
+    await act(() => vi.advanceTimersByTimeAsync(6 * 60 * 60_000));
+    expect(mocks.timeline).toHaveBeenCalledTimes(reads);
+    expect(mocks.sync).toHaveBeenCalledTimes(syncs);
+    expect(mocks.reminders).toHaveBeenCalledTimes(reminders);
+  });
+
+  it("runs one synchronization on launch and native resume with stable profile identity", async () => {
+    mocks.linked = true;
+    await mountAt("2026-08-30T12:00:00Z");
+    expect(mocks.sync).toHaveBeenCalledTimes(1);
+    const loaded = await mocks.timeline.mock.results[0].value;
+    mocks.timeline.mockResolvedValue({ ...loaded, profile: { ...profile } });
+    mocks.events.mockResolvedValueOnce([{ kind: "resume", at: "2026-08-30T12:00:00Z" }]);
+    await act(async () => { mocks.listen.mock.calls[0][1]({ payload: null }); });
+    expect(mocks.sync).toHaveBeenCalledTimes(2);
+    await act(async () => { window.dispatchEvent(new Event("online")); });
+    expect(mocks.sync).toHaveBeenCalledTimes(3);
+  });
+
+  it("coalesces native refresh bursts behind a slow read", async () => {
+    const loaded = await mocks.timeline();
+    mocks.timeline.mockClear();
+    let finish!: (value: unknown) => void;
+    mocks.timeline.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    await mountAt("2026-08-30T12:00:00Z");
+    for (let index = 0; index < 8; index++) {
+      mocks.events.mockResolvedValueOnce([{ kind: "resume", at: "2026-08-30T12:00:00Z" }]);
+      await act(async () => { mocks.listen.mock.calls[0][1]({ payload: null }); });
+    }
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(mocks.timeline).toHaveBeenCalledTimes(1);
+    // Reminder cancellation must not wait for this blocked screen read.
+    expect(mocks.reminders).toHaveBeenCalledTimes(9);
+    await act(async () => { finish(loaded); });
+    expect(mocks.timeline).toHaveBeenCalledTimes(2);
+    expect(mocks.timeline.mock.calls[1][1].epochMilliseconds).toBe(Date.parse("2026-08-30T12:01:00Z"));
+    expect(mocks.reminders).toHaveBeenCalledTimes(9);
+    expect(mocks.behaviors).toHaveBeenCalledTimes(1);
+  });
+
+  it("awaits the newest archive reconciliation before a coalesced read", async () => {
+    const loaded = await mocks.timeline();
+    mocks.timeline.mockClear();
+    let finishRead!: (value: unknown) => void;
+    mocks.timeline.mockImplementationOnce(() => new Promise((resolve) => { finishRead = resolve; }));
+    await mountAt("2026-08-30T12:00:00Z");
+    let finishArchive!: (value: number) => void;
+    mocks.reconcileEndDates.mockImplementationOnce(() => new Promise((resolve) => { finishArchive = resolve; }));
+    mocks.events.mockResolvedValueOnce([{ kind: "resume", at: "2026-08-30T12:00:00Z" }]);
+    await act(async () => { mocks.listen.mock.calls[0][1]({ payload: null }); });
+    await act(async () => { finishRead(loaded); });
+    expect(mocks.timeline).toHaveBeenCalledTimes(1);
+    await act(async () => { finishArchive(1); });
+    expect(mocks.timeline).toHaveBeenCalledTimes(2);
+    expect(mocks.behaviors).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs the queued refresh after the active read fails", async () => {
+    let fail!: (reason: Error) => void;
+    mocks.timeline.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = reject; }));
+    await mountAt("2026-08-30T12:00:00Z");
+    mocks.events.mockResolvedValueOnce([{ kind: "resume", at: "2026-08-30T12:00:00Z" }]);
+    await act(async () => { mocks.listen.mock.calls[0][1]({ payload: null }); });
+    await act(async () => { fail(new Error("Superseded read failed")); });
+    expect(mocks.timeline).toHaveBeenCalledTimes(2);
+    expect(container.querySelector("h1")?.textContent).toBe("Timeline");
+    expect(container.textContent).not.toContain("Superseded read failed");
+  });
+
+  it("keeps one pending synchronization when refreshed data arrives during a synchronization", async () => {
+    mocks.linked = true;
+    let finish!: (value: unknown) => void;
+    mocks.sync.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    await mountAt("2026-08-30T12:00:00Z");
+    mocks.events.mockResolvedValueOnce([{ kind: "resume", at: "2026-08-30T12:02:00Z" }]);
+    await act(async () => { mocks.listen.mock.calls[0][1]({ payload: null }); });
+    expect(mocks.sync).toHaveBeenCalledTimes(1);
+    await act(async () => { finish({ state: "current", completedAt: "2026-08-30T12:02:00Z" }); });
+    expect(mocks.sync).toHaveBeenCalledTimes(2);
+  });
+
+  it("finishes occurrence generation before synchronizing a refreshed local copy", async () => {
+    mocks.linked = true;
+    await mountAt("2026-08-30T12:00:00Z");
+    const loaded = await mocks.timeline.mock.results[0].value;
+    let finish!: (value: unknown) => void;
+    mocks.timeline.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    mocks.events.mockResolvedValueOnce([{ kind: "resume", at: "2026-08-30T12:00:00Z" }]);
+    await act(async () => { mocks.listen.mock.calls[0][1]({ payload: null }); });
+    expect(mocks.sync).toHaveBeenCalledTimes(1);
+    await act(async () => { finish(loaded); });
+    expect(mocks.sync).toHaveBeenCalledTimes(2);
+  });
+
+  it("reloads local data after sync finishes without starting another sync", async () => {
+    mocks.linked = true;
+    let finish!: (value: unknown) => void;
+    mocks.sync.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    await mountAt("2026-08-30T12:00:00Z");
+    expect(mocks.timeline).toHaveBeenCalledTimes(1);
+    await act(async () => { finish({ state: "current", completedAt: "2026-08-30T12:00:00Z" }); });
+    expect(mocks.timeline).toHaveBeenCalledTimes(2);
+    expect(mocks.sync).toHaveBeenCalledTimes(1);
+    // macOS native resume owns foreground refresh; DOM events must not duplicate it.
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(mocks.sync).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a failed synchronization without another bundle or duplicate immediate attempt", async () => {
+    mocks.linked = true;
+    mocks.sync.mockResolvedValueOnce({ state: "failed", message: "Synthetic failure" });
+    await mountAt("2026-08-30T12:00:00Z");
+    expect(mocks.sync).toHaveBeenCalledTimes(1);
+    await act(() => vi.advanceTimersByTimeAsync(1_251));
+    expect(mocks.sync).toHaveBeenCalledTimes(2);
+  });
+
   it.each(["wake", "resume"])("refreshes Timeline and reminder state after %s without leaving the selected screen", async (kind) => {
     await mountAt("2026-08-30T12:00:00Z");
     const behaviors = Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Behaviors")!;
@@ -101,7 +245,7 @@ describe("desktop lifecycle refresh", () => {
     expect(container.querySelector("h1")?.textContent).toBe("Behaviors");
   });
 
-  it("refreshes at profile-local midnight before the next minute poll and stops after unmount", async () => {
+  it("refreshes at profile-local midnight and stops after unmount", async () => {
     mocks.timeline.mockImplementation(async (_days, at: Temporal.Instant) => ({ profile, behaviors: [], categories: [],
       timeline: resolveTimeline({ now: at, timezone: profile.timezone, occurrences: [{
         id: "midnight-occurrence", behaviorId: "midnight-behavior", title: "Evening walk", description: "", categoryName: "No category",

@@ -8,7 +8,7 @@ import { createLocalBehaviorStore } from "../apps/desktop/src/local-behavior.ser
 import { getLocalExportDownload, getLocalExportPageData } from "../apps/desktop/src/local-export.service";
 import { ensureLocalOccurrencesFresh } from "../apps/desktop/src/local-generation.service";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -29,11 +29,19 @@ vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true, invoke: (command: 
   return transport.send(args.request);
 } }));
 
+import { capacityExport, capacityHistory, CAPACITY_NOW } from "./helpers/behaviorlog-capacity-fixture";
+import { resolveBehaviorLogImportMergePreview, resolveBehaviorLogImportPreview } from "@cadence/core/resolvers/behaviorlog-import.resolver";
+import { resolveBehaviorLogRestorePreview } from "@cadence/core/resolvers/behaviorlog-restore.resolver";
+import { existingRecords } from "@cadence/core/services/behaviorlog-write-plan";
+import { accountSyncFingerprint } from "@cadence/core/resolvers/account-sync.resolver";
+import { portabilityEntities } from "../apps/desktop/src/account/account-sync";
+
 const NOW = Temporal.Instant.from("2026-08-30T12:00:00Z");
 describe.skipIf(!process.env.CADENCE_SQLITE_CONTRACT)("BehaviorLog clients against real SQLite", () => {
   let directory: string;
   let child: ChildProcessWithoutNullStreams;
   let stopped: Promise<void>;
+  let maximumRequestBytes = 0;
   async function start() {
     child = spawn(path.resolve("apps/desktop/src-tauri/target/debug/local-store-contract"), [path.join(directory, "contract.sqlite3")]);
     const pending: { resolve: (value: unknown) => void; reject: (error: Error) => void }[] = [];
@@ -55,12 +63,90 @@ describe.skipIf(!process.env.CADENCE_SQLITE_CONTRACT)("BehaviorLog clients again
     }));
     transport.send = (request) => new Promise((resolve, reject) => {
       pending.push({ resolve, reject });
-      child.stdin.write(`${JSON.stringify(request)}\n`);
+      const payload = JSON.stringify(request);
+      maximumRequestBytes = Math.max(maximumRequestBytes, Buffer.byteLength(payload));
+      if (process.env.CADENCE_CAPACITY_TRACE === "1") console.info(JSON.stringify({ nativeRequestBytes: Buffer.byteLength(payload) }));
+      child.stdin.write(`${payload}\n`);
     });
   }
   async function stop() { child.stdin.end(); await stopped; }
-  beforeEach(async () => { directory = await mkdtemp(path.join(tmpdir(), "cadence-ts-sqlite-")); await start(); });
+  beforeEach(async () => { maximumRequestBytes = 0; directory = await mkdtemp(path.join(tmpdir(), "cadence-ts-sqlite-")); await start(); });
   afterEach(async () => { vi.restoreAllMocks(); await stop(); await rm(directory, { recursive: true, force: true }); });
+
+  it.skipIf(!process.env.CADENCE_PRIVATE_DATABASE)("previews the private all-time database copy without applying writes", async () => {
+    await stop();
+    await copyFile(process.env.CADENCE_PRIVATE_DATABASE!, path.join(directory, "contract.sqlite3"));
+    await start();
+    const profile = await localCommand("readProfile", {});
+    const bundle = await getLocalExportPageData(profile, { range: "all", includeNotes: true, includeTimeTracking: true });
+    const existing = existingRecords(await localCommand("readImportSnapshot", { profileId: profile.id }));
+    const webImport = resolveBehaviorLogImportMergePreview({ files: bundle.behaviorLog.files, existing, convertNativeRemindersToBrowser: true });
+    expect(webImport.errors.map(error => error.code)).toEqual([]); expect(webImport.valid).toBe(true);
+    // Web conversion is an explicit choice; desktop previews keep native intent.
+    const webRestore = resolveBehaviorLogRestorePreview({ importPreview: resolveBehaviorLogImportPreview({ files: bundle.behaviorLog.files, convertNativeRemindersToBrowser: true }), existing });
+    expect(webRestore.errors.map(error => error.code)).toEqual([]);
+    expect(webRestore.valid).toBe(true);
+
+    const zip = createDesktopZip(bundle.behaviorLog.files);
+    for (const kind of ["import", "restore"] as const) {
+      const result = kind === "import"
+        ? await previewLocalBehaviorLogImport(profile, upload(zip, "behaviorlog_file"), NOW)
+        : await previewLocalBehaviorLogRestore(profile, upload(zip, "restore_behaviorlog_file"), NOW);
+      expect(result.status, result.message ?? "").toBe("previewed");
+      expect(result.preview?.errors.map(error => error.code)).toEqual([]);
+      expect(result.preview?.valid).toBe(true);
+      console.info(JSON.stringify({ privateCopy: true, kind, zipBytes: zip.length,
+        previewBytes: Buffer.byteLength(JSON.stringify(result.preview)),
+        metadataBytes: Buffer.byteLength(JSON.stringify(result.preview && "portability" in result.preview ? result.preview.portability : null)) }));
+    }
+  }, 120_000);
+
+  it("imports, restores and re-exports five years without losing history", async () => {
+    const profile = await localCommand("readProfile", {});
+    const source = capacityExport();
+    const zip = createDesktopZip(source.behaviorLog.files);
+    const preview = await previewLocalBehaviorLogImport(profile, upload(zip, "behaviorlog_file"), CAPACITY_NOW);
+    expect(preview.status, preview.message ?? "").toBe("previewed");
+    expect(preview.preview?.errors).toEqual([]);
+    const form = accepted(zip, preview, "import"); form.set("confirm_sensitive_notes", "yes");
+    const applied = await applyLocalBehaviorLogImport(profile, form, CAPACITY_NOW);
+    expect(applied.status, applied.message ?? "").toBe("applied");
+    const exported = await getLocalExportPageData(profile, { range: "all", now: CAPACITY_NOW, includeNotes: true, includeTimeTracking: true });
+    expect(exported.jsonBackup.occurrences).toHaveLength(7304);
+    expect(capacityHistory(exported.behaviorLog.files)).toEqual(capacityHistory(source.behaviorLog.files));
+    const rezip = createDesktopZip(exported.behaviorLog.files);
+
+    const restore = await previewLocalBehaviorLogRestore(profile, upload(rezip, "restore_behaviorlog_file"), CAPACITY_NOW);
+    expect(restore.status, restore.message ?? "").toBe("previewed");
+    expect(restore.preview?.errors).toEqual([]);
+    const restoreForm = accepted(rezip, restore, "restore"); restoreForm.set("confirm_sensitive_notes", "yes");
+    const restored = await applyLocalBehaviorLogRestore(profile, restoreForm, CAPACITY_NOW);
+    expect(restored.status, restored.message ?? "").toBe("applied");
+    const after = await getLocalExportPageData(profile, { range: "all", now: CAPACITY_NOW, includeNotes: true, includeTimeTracking: true });
+    expect(capacityHistory(after.behaviorLog.files)).toEqual(capacityHistory(exported.behaviorLog.files));
+    const snapshot = await localCommand("readImportSnapshot", { profileId: profile.id });
+    const entities = portabilityEntities(snapshot);
+    expect(() => accountSyncFingerprint({ entities })).not.toThrow();
+    const report = { desktopCapacity: true, zipBytes: zip.length, reexportZipBytes: rezip.length,
+      previewBytes: Buffer.byteLength(JSON.stringify(preview.preview)),
+      syncBytes: Buffer.byteLength(JSON.stringify(entities)), syncRows: entities.length, maximumRequestBytes,
+      extractedBytes: exported.behaviorLog.files.reduce((sum, file) => sum + Buffer.byteLength(file.content), 0),
+      metadataBytes: Buffer.byteLength(JSON.stringify(preview.preview?.portability)), ledgerBytes: snapshot.importRuns.map(row => Buffer.byteLength(JSON.stringify(row))) };
+    console.info(JSON.stringify(report));
+    if (process.env.CADENCE_CAPACITY_REPORT) await writeFile(process.env.CADENCE_CAPACITY_REPORT, JSON.stringify(report));
+  }, 180_000);
+
+  it("rejects oversized and malformed uploads without tracking or ledger writes", async () => {
+    const profile = await localCommand("readProfile", {});
+    const before = await localCommand("readImportSnapshot", { profileId: profile.id });
+    for (const bytes of [new Uint8Array(3 * 1024 * 1024 + 1), new TextEncoder().encode("not a ZIP")]) {
+      const imported = await previewLocalBehaviorLogImport(profile, upload(bytes, "behaviorlog_file"), NOW);
+      const restored = await previewLocalBehaviorLogRestore(profile, upload(bytes, "restore_behaviorlog_file"), NOW);
+      expect(imported.status).toBe("error"); expect(imported.message).toBeTruthy();
+      expect(restored.status).toBe("error"); expect(restored.message).toBeTruthy();
+      expect(await localCommand("readImportSnapshot", { profileId: profile.id })).toEqual(before);
+    }
+  });
 
   it("roundtrips 0.3 source history, unknown lineage and passive native observations with private defaults", async () => {
     const notify = vi.spyOn(transport, "notify");

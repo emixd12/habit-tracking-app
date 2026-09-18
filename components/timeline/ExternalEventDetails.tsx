@@ -1,0 +1,186 @@
+"use client";
+
+import { Temporal } from "@js-temporal/polyfill";
+import { ExternalLink, X } from "lucide-react";
+import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+import type { NormalizedExternalEvent } from "@cadence/core/types/day-progress";
+
+import styles from "./day-progress-timeline.module.css";
+
+type ExternalEventPreviewProps = Readonly<{
+  id: string;
+  events: readonly NormalizedExternalEvent[];
+  timezone: string;
+  onDismiss: () => void;
+  onOpen: (event: NormalizedExternalEvent) => void;
+}>;
+
+export function ExternalEventPreview({
+  id,
+  events,
+  timezone,
+  onDismiss,
+  onOpen,
+}: ExternalEventPreviewProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    ref.current?.showPopover?.();
+  }, []);
+
+  if (events.length === 0) return null;
+  const allDay = events.every((event) => event.kind === "all_day");
+  return (
+    <div
+      ref={ref}
+      id={id}
+      popover="manual"
+      role="dialog"
+      aria-label={allDay ? "All Day Events preview" : `Calendar preview: ${events[0]!.title || "Untitled event"}`}
+      className={styles.drawer}
+      data-calendar-drawer="preview"
+    >
+      <div className={styles.drawerContent}>
+        <div className={styles.drawerEvents}>
+          {events.map((event) => (
+            <article key={event.id} className="min-w-0">
+              <h3 className="break-words font-bold">{event.title || "Untitled event"}</h3>
+              <p className="mt-1 text-xs text-muted-readable">
+                {event.calendarName} · {eventTimeLabel(event, timezone)}
+              </p>
+              {event.location ? <p className="mt-2 break-words text-xs">{event.location}</p> : null}
+              <button
+                type="button"
+                onClick={() => onOpen(event)}
+                aria-label={`View details: ${event.title || "Untitled event"}`}
+                className="min-h-11 font-bold underline underline-offset-4"
+              >
+                View details
+              </button>
+            </article>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss Calendar preview"
+          className="grid h-11 w-11 shrink-0 place-items-center"
+        >
+          <X size={16} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type ExternalEventDetailsProps = Readonly<{
+  event: NormalizedExternalEvent | null;
+  timezone: string;
+  onClose: () => void;
+  onDismissAllDay: (eventId: string) => void;
+  onOpenExternal?: (url: string) => void | Promise<void>;
+}>;
+
+export const ExternalEventDetails = forwardRef<HTMLDialogElement, ExternalEventDetailsProps>(
+  function ExternalEventDetails({ event, timezone, onClose, onDismissAllDay, onOpenExternal }, ref) {
+    const dialogRef = useRef<HTMLDialogElement>(null);
+    const [linkError, setLinkError] = useState(false);
+    const openExternal = (url: string) => {
+      setLinkError(false);
+      void Promise.resolve().then(() => onOpenExternal?.(url)).catch(() => setLinkError(true));
+    };
+
+    useEffect(() => {
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      if (!event) { if (dialog.open) dialog.close(); return; }
+      dialog.showModal();
+    }, [event]);
+
+    const setRef = (node: HTMLDialogElement | null) => {
+      dialogRef.current = node;
+      if (typeof ref === "function") ref(node);
+      else if (ref) ref.current = node;
+    };
+    const close = () => dialogRef.current?.close();
+
+    return (
+      <dialog
+        ref={setRef}
+        onClose={onClose}
+        aria-labelledby="calendar-details-title"
+        className={styles.drawer}
+        data-calendar-drawer="details"
+      >
+        <div className="flex items-start justify-between border-b border-line p-4">
+          <div>
+            <p className="text-xs font-bold text-muted-readable">Calendar details</p>
+            <h2 id="calendar-details-title" className="mt-1 text-xl font-bold">
+              {event?.title || "Untitled event"}
+            </h2>
+          </div>
+          <button type="button" onClick={close} className="grid h-11 w-11 place-items-center" aria-label="Close Calendar details">
+            <X aria-hidden="true" />
+          </button>
+        </div>
+        {event ? <div className="grid gap-4 p-4">
+          {linkError ? <p role="alert">The link could not open. Try again.</p> : null}
+          <article className="grid min-w-0 gap-2 border border-line p-3 text-sm leading-6">
+            <p className="break-words">{event.description || unavailable(event, "description")}</p>
+            <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3">
+              <dt className="font-bold">Calendar</dt><dd>{event.calendarName}</dd>
+              <dt className="font-bold">Time</dt><dd>{eventTimeLabel(event, timezone)}</dd>
+              <dt className="font-bold">Duration</dt><dd>{event.duration.kind === "known" ? `${event.duration.seconds / 60} minutes` : event.duration.kind === "calendar_days" ? `${event.duration.days} calendar days` : "Unknown"}</dd>
+              <dt className="font-bold">Location</dt><dd className="break-words">{event.location || unavailable(event, "location")}</dd>
+              <dt className="font-bold">Organizer</dt><dd className="break-words">{event.organizer ? [event.organizer.displayName, event.organizer.email].filter(Boolean).join(" · ") : unavailable(event, "organizer")}</dd>
+              <dt className="font-bold">Attendees</dt><dd className="break-words">{event.attendees?.map((item) => `${item.displayName ?? item.email ?? "Unnamed attendee"} (${item.responseStatus.replaceAll("_", " ")})`).join(", ") || unavailable(event, "attendees")}</dd>
+              <dt className="font-bold">Conference</dt><dd className="break-words">{event.conference?.name ?? unavailable(event, "conference")}</dd>
+              <dt className="font-bold">Attachments</dt><dd className="break-words">{event.attachments?.map((item) => item.title ?? "Untitled attachment").join(", ") || unavailable(event, "attachments")}</dd>
+              <dt>State</dt><dd>{event.state} · {event.availability}</dd>
+              <dt>Source timezone</dt><dd>{event.sourceTimezone}</dd>
+              <dt>Recurrence</dt><dd className="break-words">{event.recurrence ? `${event.recurrence.seriesId} · ${event.recurrence.originalStart.kind === "timed" ? event.recurrence.originalStart.startAt : event.recurrence.originalStart.startLocalDate}` : "Not recurring or unavailable"}</dd>
+              <dt>Updated</dt><dd>{event.revision.providerUpdatedAt ?? "Not provided"}</dd>
+            </dl>
+            {Object.entries(event.detailCompleteness).filter(([, state]) => state !== "complete").map(([field, state]) => <p key={field} className="text-muted-readable">{field.replaceAll("_", " ")}: {state?.replaceAll("_", " ")}</p>)}
+            {event.conference?.notes ? <p className="break-words">{event.conference.notes}</p> : null}
+            {event.conference?.entryPoints.map((entry, index) => safeHref(entry.uri) ? <a key={index} href={safeHref(entry.uri)!} onClick={onOpenExternal ? (event) => { event.preventDefault(); openExternal(safeHref(entry.uri)!); } : undefined} target="_blank" rel="noreferrer" className="min-h-11 underline">{entry.label ?? entry.type}</a> : <p key={index} className="break-words">{entry.label ?? entry.type}: {entry.uri}</p>)}
+            {event.attachments?.map((attachment, index) => safeHref(attachment.url) ? <a key={index} href={safeHref(attachment.url)!} onClick={onOpenExternal ? (event) => { event.preventDefault(); openExternal(safeHref(attachment.url)!); } : undefined} target="_blank" rel="noreferrer" className="min-h-11 underline">{attachment.title ?? "Open attachment"}</a> : null)}
+            {event.kind === "all_day" ? <button type="button" onClick={() => onDismissAllDay(event.id)} className="min-h-11 text-left font-bold underline underline-offset-4" aria-label={`Dismiss all-day event: ${event.title || "Untitled event"}`}>Dismiss from timeline</button> : null}
+            {safeHref(event.sourceUrl) ? <a href={safeHref(event.sourceUrl)!} onClick={onOpenExternal ? (click) => { click.preventDefault(); openExternal(safeHref(event.sourceUrl)!); } : undefined} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold underline underline-offset-4">Open source event <ExternalLink size={14} aria-hidden="true" /></a> : null}
+          </article>
+        </div> : null}
+      </dialog>
+    );
+  },
+);
+
+export function eventTimeLabel(event: NormalizedExternalEvent, timezone: string): string {
+  if (event.kind === "all_day") return `${event.startLocalDate} through ${event.endLocalDate} (exclusive)`;
+  const start = Temporal.Instant.from(event.startAt).toZonedDateTimeISO(timezone);
+  const end = Temporal.Instant.from(event.endAt).toZonedDateTimeISO(timezone);
+  const zone = start.offset !== end.offset ? { timeZoneName: "short" as const } : {};
+  const options = start.toPlainDate().equals(end.toPlainDate())
+    ? { hour: "numeric", minute: "2-digit", ...zone } as const
+    : { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", ...zone } as const;
+  if (event.endUnspecified) return `${start.toLocaleString("en-US", options)} · End unknown`;
+  return `${start.toLocaleString("en-US", options)}–${end.toLocaleString("en-US", options)}`;
+}
+
+function unavailable(event: NormalizedExternalEvent, field: "description" | "location" | "organizer" | "attendees" | "conference" | "attachments"): string {
+  const reason = event.fieldAvailability[field];
+  if (reason === "restricted") return "Restricted by the source.";
+  if (reason === "provider_omitted") return "The source omitted this detail.";
+  if (reason === "not_provided") return "Not provided.";
+  return "No detail available.";
+}
+
+function safeHref(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}

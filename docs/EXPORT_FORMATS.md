@@ -51,7 +51,7 @@ unchanged current recurrence, anchor, timezone, time shape, and active state.
 Current configuration-period dates remain the normal comparison. Legacy
 ledgers without this proof cannot establish a date alias; mismatches remain
 explicit conflicts. The ledger does not store raw
-archive bytes. The 256 KiB metadata limit fails explicitly instead of
+archive bytes. The 8 MiB metadata limit fails explicitly instead of
 truncating history. Notes retain the existing user-consent gates. Original
 history is preservation-only; it does not become invented local capture history.
 
@@ -642,15 +642,15 @@ User-facing import UI rules:
   import entry point.
 - Uploads must be `.behaviorlog.zip` bundles; unsupported files should fail
   before preview.
-- The compressed archive ceiling is 2 MB. Cadence authenticates
+- The compressed archive ceiling is 3 MiB. Cadence authenticates
   the account before it reads archive entries, then rejects archives with more
   than 128 entries, an extracted entry larger than 32 MiB, more than 64 MiB
   extracted in total, or an entry whose declared compression ratio exceeds
   100:1. These bounds apply to import and restore, including accepted-preview
   apply.
-- The Next.js Server Action request ceiling is 4 MB. A 2 MB ZIP is about
-  2.7 MB when base64-encoded, leaving margin below Vercel's 4.5 MB Function
-  request cap.
+- The Next.js Server Action request ceiling is 4.25 MiB. A 3 MiB ZIP is
+  4 MiB when base64-encoded, leaving 256 KiB for multipart fields and staying
+  below Vercel's 4.5 MB Function request cap.
 - Apply transports the base64 archive once in the submitted form. Action state
   retains only the SHA-256 fingerprint of the exact archive bytes accepted at
   preview. Apply recomputes that fingerprint, refuses a mismatch, and still
@@ -902,6 +902,12 @@ and high/restricted-note acknowledgement. Import keeps the existing apply and
 note-sensitivity acknowledgements. Imported intervention records remain passive.
 Standard native Interventions remain passive on import and re-export.
 Native reminder extension records do not restore OS requests or delivery receipts.
+Web Import and Restore offer an unchecked native-to-browser conversion choice.
+It maps only `channel: other` rules with `app.cadence.native_notification: true`.
+Preview warnings disclose conversion and browser permission requirements. The
+choice is bound to the accepted preview; changing it requires another preview.
+Historical configuration snapshots and passive observations remain unchanged.
+Desktop keeps its existing native reminder intent mapping.
 Normal occurrence/reminder repair runs separately after a
 successful product commit.
 
@@ -1055,6 +1061,19 @@ provided history. An older bundle omitting the extension preserves existing
 history during restore; an explicitly supplied empty array expresses empty
 history. Archive-only restore retains existing history. Existing Occurrence
 CSV/JSONL formats keep their Occurrence scope.
+
+## Behavior duration and scheduled archive (Tickets 142–143)
+
+Full JSON Behavior records include nullable `default_duration_minutes`,
+`end_date`, and `auto_archived_at`. BehaviorLog maps the default to the standard
+`expected_duration_minutes` field. It stores `end_date` and
+`auto_archived_at` under `extensions.app.cadence`. Older bundles that omit a
+field preserve an existing value during restore; an explicit null clears it.
+Reactivating an archived Behavior clears its automatic marker and any expired
+end date, including when an older bundle omits those fields.
+Import validates the minute bound, real ISO local date, UTC instant, and the
+automatic marker's archived state. App-native JSONL and CSV remain focused on
+Occurrence snapshots and do not add Behavior columns.
 
 ## Note shortcut privacy (Tickets 126–128)
 

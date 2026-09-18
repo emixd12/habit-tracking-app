@@ -38,6 +38,8 @@ export function createLocalBehaviorStore(profileId: string, now: Temporal.Instan
       const behaviorId = crypto.randomUUID();
       const configurationEvent = configurationRow(input.configurationEventPlan, profileId, behaviorId, timestamp);
       const behavior: Behavior = { ...input.behavior, archive_notes: input.behavior.archive_notes ?? [], id: behaviorId,
+        default_duration_minutes: input.behavior.default_duration_minutes ?? null,
+        end_date: input.behavior.end_date ?? null, auto_archived_at: input.behavior.auto_archived_at ?? null,
         current_configuration_event_id: configurationEvent.id,
         scheduled_time: canonicalTime(input.behavior.scheduled_time),
         created_at: input.definitionEventPlan.recordedAt, updated_at: timestamp };
@@ -60,6 +62,11 @@ export function createLocalBehaviorStore(profileId: string, now: Temporal.Instan
       const configurationEvent = input.configurationEventPlan
         ? configurationRow(input.configurationEventPlan, profileId, input.behaviorId, timestamp) : null;
       const behavior: Behavior = { ...previous.behavior, ...input.behavior,
+        default_duration_minutes: input.behavior.default_duration_minutes === undefined
+          ? previous.behavior.default_duration_minutes ?? null : input.behavior.default_duration_minutes,
+        end_date: input.behavior.end_date === undefined ? previous.behavior.end_date ?? null : input.behavior.end_date,
+        auto_archived_at: input.behavior.auto_archived_at === undefined
+          ? previous.behavior.auto_archived_at ?? null : input.behavior.auto_archived_at,
         scheduled_time: canonicalTime(input.behavior.scheduled_time),
         current_configuration_event_id: configurationEvent?.id ?? previous.behavior.current_configuration_event_id,
         updated_at: timestamp };

@@ -28,6 +28,9 @@ export function toBehaviorView(behavior: BehaviorGraphRecord): BehaviorView {
 
   return {
     id: behavior.id,
+    defaultDurationMinutes: behavior.default_duration_minutes ?? null,
+    endDate: behavior.end_date ?? null,
+    autoArchivedAt: behavior.auto_archived_at ?? null,
     title: behavior.title,
     description: behavior.description ?? "",
     categoryId: behavior.category_id ?? "",

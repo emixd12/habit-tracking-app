@@ -25,6 +25,7 @@ type BehaviorLogRestorePanelProps = Readonly<{
   recentRuns: BehaviorLogRestoreRunView[];
   timezone: string;
   action: BehaviorLogRestoreFormAction;
+  allowNativeReminderConversion?: boolean;
   initialState?: BehaviorLogRestoreActionState;
 }>;
 
@@ -54,6 +55,7 @@ export function BehaviorLogRestorePanel({
   recentRuns,
   timezone,
   action,
+  allowNativeReminderConversion = false,
   initialState = BEHAVIORLOG_RESTORE_INITIAL_STATE,
 }: BehaviorLogRestorePanelProps) {
   const [state, formAction, isPending] = useActionState(
@@ -67,6 +69,7 @@ export function BehaviorLogRestorePanel({
   const [previewBundleReadVersion, setPreviewBundleReadVersion] = useState<
     number | null
   >(initialState.preview ? 0 : null);
+  const [convertNativeReminders, setConvertNativeReminders] = useState(false);
   const [bundlePayload, setBundlePayload] = useState<string | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const [isPreparingBundle, setIsPreparingBundle] = useState(false);
@@ -188,9 +191,31 @@ export function BehaviorLogRestorePanel({
             className="min-h-11 w-full bg-background px-0 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-transparent file:px-0 file:py-1 file:text-sm file:font-bold file:text-foreground file:underline file:decoration-1 file:underline-offset-4"
           />
           <span className="text-sm text-muted-readable">
-            Maximum file size: 2 MB.
+            Maximum file size: 3 MiB.
           </span>
         </label>
+        {allowNativeReminderConversion ? (
+          <label className="flex items-start gap-3 text-sm text-muted-readable">
+            <input
+              type="checkbox"
+              name="convert_native_reminders"
+              value="yes"
+              checked={convertNativeReminders}
+              disabled={isPending || isPreparingBundle}
+              onChange={(event) => {
+                setConvertNativeReminders(event.currentTarget.checked);
+                bundleReadVersionRef.current += 1;
+                setSelectedBundleReadVersion(bundleReadVersionRef.current);
+                setPreviewBundleReadVersion(null);
+              }}
+              className="mt-1 size-4"
+            />
+            <span>
+              Convert Cadence desktop reminders to browser reminders. Browser
+              notification permission is still required. Configuration history stays unchanged.
+            </span>
+          </label>
+        ) : null}
         <div>
           <button
             type="submit"
@@ -224,6 +249,7 @@ export function BehaviorLogRestorePanel({
       {preview && state.archiveFingerprint && state.previewRun ? (
         <RestoreApplyControls
           key={`${state.previewRun.id}:${preview.previewFingerprint}`}
+          convertNativeReminders={convertNativeReminders}
           bundlePayload={bundlePayload}
           formAction={formAction}
           state={state}
@@ -381,11 +407,13 @@ export function BehaviorLogRestorePreviewDetails({
 }
 
 function RestoreApplyControls({
+  convertNativeReminders = false,
   bundlePayload,
   formAction,
   state,
   isPending,
 }: Readonly<{
+  convertNativeReminders?: boolean;
   bundlePayload: string | null;
   formAction: (formData: FormData) => void;
   state: BehaviorLogRestoreActionState;
@@ -436,7 +464,8 @@ function RestoreApplyControls({
       ) : null}
       <form action={formAction} className="mt-4 grid gap-4 border-t border-line pt-4">
         <input type="hidden" name="intent" value="restore_apply" />
-        <input type="hidden" name="bundle_payload" value={bundlePayload ?? ""} />
+        <input type="hidden" name="convert_native_reminders" value={convertNativeReminders ? "yes" : "no"} />
+      <input type="hidden" name="bundle_payload" value={bundlePayload ?? ""} />
         <input
           type="hidden"
           name="archive_fingerprint"

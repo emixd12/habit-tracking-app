@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { MARKETING_SITE_URL } from "../../lib/marketing-site";
 
 import {
   exportFormats,
@@ -11,6 +12,7 @@ type LegalSection = Readonly<{
   title: string;
   paragraphs: readonly string[];
   items?: readonly string[];
+  links?: readonly Readonly<{ label: string; href: string }>[];
   table?: Readonly<{
     caption: string;
     headers: readonly string[];
@@ -36,7 +38,7 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
     title: "Privacy",
     summary:
       "Privacy policy for the Cadence marketing site and hosted personal behavior tracker.",
-    updated: "August 31, 2026",
+    updated: "September 17, 2026",
     sections: [
       {
         title: "Scope and operator",
@@ -51,6 +53,24 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
           "Google sign-in can provide an account identifier, email address, and profile information. Cadence stores the profile timezone and the records needed to operate the account.",
           "Those records can include categories, Behaviors, Schedules, reminders, Occurrences, Decisions, notes, optional timing data, definition and Decision history, imports, export activity, push subscriptions, and reminder delivery records.",
           "Notes are free text. Users should not enter information they do not want stored in Cadence.",
+        ],
+      },
+      {
+        title: "Optional Google Calendar",
+        paragraphs: [
+          "The Google Calendar connector is optional. Google's review of Calendar access is pending; the connector is not yet verified for public rollout. Where enabled, it requires separate read-only consent for the same Google account used to sign in. Cadence reads your subscribed calendar list so you can choose calendars, then reads events from selected calendars intersecting displayed days, including readable titles, descriptions, times, locations, organizers, attendees, conference details, attachment links, and Google event links. It does not create, edit, or delete Google events or download attachments automatically.",
+          "Cadence uses Calendar information to show selected events in Timeline and provide advisory overlap context. It does not sell Calendar information, use it for advertising, or send it to AI providers.",
+          "Vercel runtime processes Calendar API requests and returned event details while serving a refresh. Supabase stores the account's connector status, calendar selections, display preferences, and encrypted Google refresh credential. Cadence does not store Google event details in its hosted database. The web app holds returned event details in memory. Desktop can store the last complete normalized event snapshot in a separate account-bound cache for offline display; its account session and pending consent state use macOS Keychain.",
+          "Calendar details and credentials are excluded from Cadence exports, account synchronization, and user-created desktop tracking backups. Supabase daily infrastructure backups can retain deleted connector records and sealed credential ciphertext for no more than seven days.",
+          "Disconnect Google Calendar marks the account connection disconnected, clears selected calendar IDs, deletes the live server credential, and requests Google grant revocation. If Google cannot confirm revocation, the user must remove Cadence in Google Account permissions. Other clients stop refreshing after they next receive the connection change; an offline desktop device may retain stale cached event details until it reconnects or its Cadence account is disconnected.",
+          "Ordinary web sign-out ends that browser's Cadence session but leaves the account-level Calendar connection active. Desktop Cadence account disconnect or reconnect clears that Mac's Calendar cache and pending consent state but does not revoke the global Google grant. Account deletion attempts revocation and removes the live Auth user and owner-scoped connector records. If revocation fails, Google Account permissions may still show the grant.",
+          "Cadence's use and transfer of information received from Google APIs adheres to the Google API Services User Data Policy, including its Limited Use requirements.",
+        ],
+        links: [
+          {
+            label: "Read the Google API Services User Data Policy",
+            href: "https://developers.google.com/terms/api-services-user-data-policy",
+          },
         ],
       },
       {
@@ -78,18 +98,18 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
           rows: [
             [
               "Vercel",
-              "Application and marketing hosting",
-              "Request and runtime data",
+              "Application and marketing hosting, including Calendar refresh processing",
+              "Request and runtime data, including returned Calendar details during a refresh",
             ],
             [
               "Supabase",
               "Google authentication and database storage",
-              "Account and Cadence records",
+              "Account and Cadence records, Calendar connector records, selections, and sealed credential ciphertext",
             ],
             [
               "Google",
-              "User-selected Google sign-in",
-              "Google account and authentication data",
+              "User-selected Google sign-in and optional Google Calendar consent and API access",
+              "Google account, authentication, selected-calendar, and readable event data",
             ],
             [
               "Browser push services",
@@ -143,6 +163,16 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
               "Deleted-account backup remnants",
               "No more than 7 days",
               "Supabase daily backups: 7 days",
+            ],
+            [
+              "Google Calendar connector records",
+              "Live credential until Calendar disconnect, access revocation, or account deletion; connector status and preferences until account deletion",
+              "Disconnect deletes the live credential; Supabase daily backup remnants retain for no more than 7 days",
+            ],
+            [
+              "Desktop Google Calendar cache",
+              "Until replacement, Calendar disconnect, Cadence account disconnect or reconnect, or local app-data removal",
+              "Separate local cache; excluded from Cadence exports, account synchronization, and user-created desktop backups",
             ],
             [
               "Browser-push payloads",
@@ -397,6 +427,15 @@ export function LegalPageContent({
                   ))}
                 </ul>
               ) : null}
+              {section.links?.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className="product-action product-action-secondary justify-self-start py-2 text-sm"
+                >
+                  {link.label}
+                </a>
+              ))}
               {section.table ? (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[36rem] border-collapse text-left text-sm leading-6">
@@ -443,7 +482,7 @@ export function LegalPageContent({
 
       <footer className="flex flex-wrap gap-3 text-sm leading-6">
         <a
-          href="https://cadence-marketing-two.vercel.app/cadence"
+          href={MARKETING_SITE_URL}
           className="product-action product-action-secondary py-2"
         >
           Cadence overview

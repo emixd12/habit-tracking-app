@@ -51,6 +51,13 @@ treatment: icon plus label in the expanded desktop rail and mobile drawer, and
 an icon-only cell with the accessible name and tooltip Sign out in the
 collapsed desktop rail. Submitting from mobile closes the drawer.
 
+The native desktop account row uses the same 60px height, square 32px initials,
+64px icon column, and display-name typography. A signed-in session supplies the
+name, falling back to email and then Account. The row opens desktop Settings
+in expanded, collapsed, and narrow navigation. Local mode keeps Local profile.
+Desktop disconnect remains in Settings with Keep a local copy and Remove account
+data choices; the web-only Sign out POST control does not apply to desktop.
+
 On mobile, do not use the collapsed rail. Use a sticky 64px top header that
 opens a left drawer. At the top of a page, the header does not draw a bottom
 divider; as the page scrolls, a 1px Ash Line divider fades in over the first
@@ -131,6 +138,87 @@ dev-only.
 ## Timeline screen
 
 This is the main screen.
+
+Tickets 133–136 implement a continuous day-progress line on web and desktop.
+`components/timeline/DayProgressTimeline.tsx` renders the shared production
+surface. The line sits left of the ledger and spans complete visible local days.
+Item-only clock labels and one blue dot show temporal position. Behavior rows
+retain their typography, status colors, Notes, and manual controls. Desktop
+keeps action text while it fits. Narrow layouts use accessible icon actions and
+44px targets.
+
+The layout uses one axis. Calendar markers use centered perpendicular stems
+without axis nodes. Behavior rows have no axis-facing ticks or nodes. Exact
+original start instants can group in one Calendar lane. Nearby starts stay
+separate. Collision spacing can move a control for readability, but its label,
+details, and duration retain the actual time. The current future-day range,
+**Show more days**, and **Needs decision** rules remain unchanged. Day rollover
+removes past sections from the forward view, not stored records.
+
+Each timed event gets one marker at its start, or on the first visible day if it
+started earlier. Later days retain duration segments without repeated markers.
+Drawers fit their content with 16px padding and reserve only their rendered height.
+
+All-day controls are absent when the day has no all-day events. Otherwise they
+show “All day: {first event title}”, with “+N more” for additional visible events.
+Dismissed events retain a Restore control. Hover, focus, click, and tap open the
+same persistent preview. The preview has no repeated heading or divider. Each
+event owns a View details button that opens only that event in the modal details
+drawer. Closing details returns focus to the original timeline control.
+Keep timed Calendar context left of the axis and the ledger exclusively right.
+Use 12px restore-action padding on narrow layouts and 16px on desktop. Align day
+headers with the ledger while the axis continues through every header and day.
+Place **All Day Events** beside the day title. Do not add a right-side all-day
+column. The control can wrap on a narrow screen.
+
+The layout uses piecewise interpolation between measured item anchors and
+local day boundaries. Readable spacing takes precedence over proportional
+scale; the presentation must disclose compressed spacing. A timed-event hover/
+focus preview shows duration as a temporary thickened axis segment and can
+highlight overlapping Behavior rows. An overnight continuation starts at the
+next day section and ends at the event's mapped end. It adds no second marker or
+stem. No permanent duration bar appears. All-day events retain date-only meaning.
+
+Optional Calendar context uses the same Google identity as the Cadence account.
+`components/settings/GoogleCalendarPanel.tsx` provides explicit connection,
+calendar selection, visibility, refresh, reconnect, and disconnect controls.
+The panel shows a factual unavailable state when the deployment lacks Calendar
+OAuth configuration. Desktop shows an unavailable build state when it lacks a
+valid HTTPS broker origin. Account-free desktop mode has no Calendar controls.
+
+Hover, focus, click, and tap open the same fixed bottom non-modal preview. The
+preview persists until dismissal or replacement. It reserves only its rendered
+height, has 16px inner padding, and caps at `min(18rem, 40dvh)`. It scrolls
+internally when needed. Hover does not move focus. **View details** opens one
+event in a bottom modal drawer. Close or Escape returns focus without reopening
+the preview. A validated source link can open the event in its source app.
+
+All-day controls appear only when the day has visible all-day events. They show
+**All day: {first event title}** and **+N more** when needed. Dismissed items
+retain **Restore**. Dismissal and restore change local presentation only. They
+never delete a Google event or write a Cadence status. The UI distinguishes no
+selection, no events, not loaded, incomplete, stale, and refresh failure.
+
+The current-time dot updates once per visible minute without SVG interpolation.
+It stops recurring work on blur/hide and refreshes on return.
+The current-time dot uses brand blue and does not tint a row. No persistent teal
+overlap fill or edge appears. Hover/focus outlines only overlapping Behaviors. Point
+Behaviors overlap only when `start <= activation < end`; estimated-duration
+Behaviors use half-open interval overlap. Completed and Not Completed fills stay
+unchanged. Preserve all other layout, colors, and typography.
+
+Ticket 136 implements conditional duration estimates and possible-overlap cues.
+Scheduled/estimated activity must remain distinct from an actually running
+timer and from manual Completed/Not Completed status. No automatic schedule
+changes occur. Missing history remains unknown. Stale, incomplete, or unavailable
+Calendar data cannot establish availability. All-day events never create timed
+overlap warnings.
+
+The implementation references appear in `interaction-registry.json` as
+`INT-CALENDAR-001` through `INT-CALENDAR-007`. The connector stays unavailable
+for real provider use until deployment configuration and live OAuth acceptance
+pass. Local component and fixture tests do not establish native or live release
+acceptance. See `docs/qa/day-progress-release.md` for the remaining gates.
 
 The current day should be prominent and should begin the forward timeline.
 
@@ -873,3 +961,8 @@ review inline, preserving the mounted editor. Later snoozes one release for 24
 hours. Restart offers Keep editing or explicit draft discard when necessary.
 These controls use existing square layouts and text actions. Web and marketing
 are not applicable; future mobile implementation remains deferred.
+
+
+## Behavior planning inputs (Tickets 142–143)
+
+The shared create/edit form places optional Default duration (minutes) and End date inputs under Schedule. Use native number/date controls and the existing line-led styling. Explain that duration is separate from tracked averages and archiving starts at midnight on the chosen date. Timeline details label Default duration separately from measured Estimated duration. Timeline and Behaviors show an accessible persistent notification for automatically archived Behaviors, with history preserved. Restore clears an expired end date and the current notification.

@@ -3,7 +3,7 @@
   "schema_version": "1.3.0",
   "registry_id": "cadence.user-interactions",
   "product": "Cadence",
-  "updated": "2026-09-05",
+  "updated": "2026-09-18",
   "scope": {
     "unit": "One entry per meaningful user intent; equivalent controls with the same effect are represented as variants or multiple triggers.",
     "includes": [
@@ -217,14 +217,15 @@
     {
       "path": "apps/desktop/src/desktop-app.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 19,
+      "interaction_marker_count": 21,
       "interaction_ids": [
         "INT-SHELL-001",
         "INT-SHELL-002",
         "INT-SHELL-004",
         "INT-SHELL-005",
         "INT-SHELL-006",
-        "INT-AUTH-010"
+        "INT-AUTH-010",
+        "INT-SHELL-003"
       ]
     },
     {
@@ -258,7 +259,9 @@
         "INT-BEHAVIOR-025",
         "INT-BEHAVIOR-026",
         "INT-BEHAVIOR-027",
-        "INT-BEHAVIOR-028"
+        "INT-BEHAVIOR-028",
+        "INT-BEHAVIOR-030",
+        "INT-BEHAVIOR-031"
       ]
     },
     {
@@ -270,7 +273,11 @@
         "INT-NOTIFICATION-001",
         "INT-TIMELINE-011",
         "INT-BEHAVIOR-029",
-        "INT-SETTINGS-014"
+        "INT-SETTINGS-014",
+        "INT-CALENDAR-001",
+        "INT-CALENDAR-002",
+        "INT-CALENDAR-003",
+        "INT-CALENDAR-004"
       ]
     },
     {
@@ -287,14 +294,18 @@
         "INT-TIMELINE-008",
         "INT-TIMELINE-009",
         "INT-TIMELINE-002",
-        "INT-TIMELINE-003"
+        "INT-TIMELINE-003",
+        "INT-CALENDAR-005",
+        "INT-CALENDAR-006",
+        "INT-CALENDAR-007",
+        "INT-SHELL-001"
       ],
       "reason": "Product Timeline uses a local show-more callback. Full native workflow verification remains pending."
     },
     {
       "path": "apps/desktop/src/settings-bench.tsx",
       "classification": "excluded",
-      "interaction_marker_count": 2,
+      "interaction_marker_count": 4,
       "interaction_ids": [],
       "reason": "Synthetic developer-only Settings fixtures; no native updates or file mutations."
     },
@@ -321,6 +332,13 @@
         "INT-AUTH-002",
         "INT-AUTH-003"
       ]
+    },
+    {
+      "path": "app/design-system/DayProgressBench.tsx",
+      "classification": "excluded",
+      "interaction_marker_count": 27,
+      "interaction_ids": [],
+      "reason": "Ticket 132 development-only synthetic comparison bench. No production interaction or provider access."
     },
     {
       "path": "app/design-system/page.tsx",
@@ -403,7 +421,7 @@
     {
       "path": "components/behaviors/BehaviorForm.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 41,
+      "interaction_marker_count": 43,
       "interaction_ids": [
         "INT-BEHAVIOR-007",
         "INT-BEHAVIOR-008",
@@ -416,7 +434,9 @@
         "INT-BEHAVIOR-015",
         "INT-BEHAVIOR-019",
         "INT-BEHAVIOR-020",
-        "INT-BEHAVIOR-021"
+        "INT-BEHAVIOR-021",
+        "INT-BEHAVIOR-030",
+        "INT-BEHAVIOR-031"
       ]
     },
     {
@@ -463,7 +483,7 @@
     {
       "path": "components/export/BehaviorLogImportPanel.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 22,
+      "interaction_marker_count": 25,
       "interaction_ids": [
         "INT-EXPORT-010",
         "INT-EXPORT-011",
@@ -474,7 +494,7 @@
     {
       "path": "components/export/BehaviorLogRestorePanel.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 23,
+      "interaction_marker_count": 26,
       "interaction_ids": [
         "INT-EXPORT-014",
         "INT-EXPORT-015",
@@ -567,7 +587,7 @@
     {
       "path": "components/settings/LegalContent.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 4,
+      "interaction_marker_count": 5,
       "interaction_ids": [
         "INT-LEGAL-001",
         "INT-LEGAL-002"
@@ -672,9 +692,10 @@
     {
       "path": "components/timeline/Timeline.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 1,
+      "interaction_marker_count": 2,
       "interaction_ids": [
-        "INT-TIMELINE-001"
+        "INT-TIMELINE-001",
+        "INT-SHELL-001"
       ]
     },
     {
@@ -695,6 +716,44 @@
         "INT-SETTINGS-013"
       ],
       "interaction_marker_count": 22
+    },
+    {
+      "path": "components/settings/GoogleCalendarPanel.tsx",
+      "classification": "cataloged",
+      "interaction_marker_count": 19,
+      "interaction_ids": [
+        "INT-CALENDAR-001",
+        "INT-CALENDAR-002",
+        "INT-CALENDAR-003",
+        "INT-CALENDAR-004"
+      ]
+    },
+    {
+      "path": "components/timeline/DayProgressTimeline.tsx",
+      "classification": "cataloged",
+      "interaction_marker_count": 6,
+      "interaction_ids": [
+        "INT-TIMELINE-001",
+        "INT-CALENDAR-005",
+        "INT-CALENDAR-006"
+      ]
+    },
+    {
+      "path": "components/timeline/ExternalEventDetails.tsx",
+      "classification": "cataloged",
+      "interaction_marker_count": 14,
+      "interaction_ids": [
+        "INT-CALENDAR-005",
+        "INT-CALENDAR-006",
+        "INT-CALENDAR-007"
+      ]
+    },
+    {
+      "path": "app/design-system/CalendarBench.tsx",
+      "classification": "excluded",
+      "interaction_marker_count": 2,
+      "interaction_ids": [],
+      "reason": "Development-only synthetic Calendar bench; no provider or account access."
     }
   ],
   "interactions": [
@@ -1334,7 +1393,7 @@
     },
     {
       "id": "INT-LEGAL-002",
-      "name": "Leave a public account-information page",
+      "name": "Leave or open supporting policy from a public account-information page",
       "user_guidance": {
         "audience": "user",
         "references": [
@@ -1354,24 +1413,24 @@
         "/trust",
         "/login",
         "/settings",
-        "/cadence"
+        "/"
       ],
       "journeys": [
         "J02",
         "J18"
       ],
-      "intent": "Continue to the Cadence overview, sign in, or return to Settings.",
+      "intent": "Continue to the Cadence overview, sign in, return to Settings, or read a linked provider policy.",
       "triggers": [
         {
           "kind": "activate",
-          "control": "Cadence overview, Sign in, or Open settings footer link"
+          "control": "Cadence overview, Sign in, Open settings, or linked provider-policy link"
         }
       ],
       "variants": [
         {
           "id": "overview",
           "label": "Cadence overview",
-          "result": "Open the public marketing product page."
+          "result": "Open the configured public marketing homepage (https://cadence-me.com in production)."
         },
         {
           "id": "sign_in",
@@ -1382,9 +1441,14 @@
           "id": "settings",
           "label": "Open settings",
           "result": "Navigate to /settings or be redirected to sign in when unauthenticated."
+        },
+        {
+          "id": "google_api_user_data_policy",
+          "label": "Read the Google API Services User Data Policy",
+          "result": "Open Google's current Google API Services User Data Policy."
         }
       ],
-      "availability": "Available in the footer of each public account-information page.",
+      "availability": "Destination links are available in each public account-information footer. Linked provider policies are available in the relevant legal section.",
       "success_result": "Navigates to the selected destination.",
       "failure_result": "Normal internal or external navigation failure behavior applies.",
       "effects": [
@@ -1401,7 +1465,7 @@
         "references": [
           "tests/legal-content.test.tsx"
         ],
-        "notes": "Footer destinations are asserted."
+        "notes": "Footer destinations and the Google API Services User Data Policy link are asserted."
       },
       "platforms": {
         "web": {
@@ -2452,7 +2516,7 @@
         }
       ],
       "availability": "Available to authenticated users in the desktop rail and mobile drawer.",
-      "success_result": "Loads the selected protected route and closes the mobile drawer when applicable.",
+      "success_result": "Loads the selected protected route and closes the mobile drawer when applicable. Automatic-archive notices link to Behaviors for review.",
       "failure_result": "An invalid session redirects to /login with the requested route preserved.",
       "effects": [
         "navigation",
@@ -2465,7 +2529,9 @@
         "lib/navigation.ts",
         "apps/desktop/src/product.tsx#Product",
         "apps/desktop/src/desktop-navigation.ts",
-        "apps/desktop/src/desktop-app.tsx"
+        "apps/desktop/src/desktop-app.tsx",
+        "components/timeline/Timeline.tsx",
+        "apps/desktop/src/timeline-screen.tsx"
       ],
       "test_coverage": {
         "level": "direct",
@@ -2630,9 +2696,9 @@
           "control": "Account row"
         }
       ],
-      "availability": "Available to authenticated users in desktop and mobile navigation.",
-      "success_result": "Navigates to /settings and closes the mobile drawer when applicable.",
-      "failure_result": "An invalid session redirects to /login.",
+      "availability": "Available to authenticated web users and signed-in desktop users in expanded, collapsed, and narrow navigation.",
+      "success_result": "Opens Settings and closes the narrow drawer when applicable. Desktop uses its existing Settings account and disconnect controls.",
+      "failure_result": "Web redirects invalid sessions to /login. Desktop local mode retains the Local profile footer and primary Settings navigation.",
       "effects": [
         "navigation",
         "ui_state"
@@ -2657,9 +2723,18 @@
           "evidence": []
         },
         "desktop": {
-          "applicability": "not_applicable",
-          "status": "not_applicable",
-          "reason": "Desktop has one local profile and no cloud account pill. Local Settings remains reachable through primary navigation (INT-SHELL-001)."
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/desktop-app.tsx",
+            "apps/desktop/src/product.tsx",
+            "apps/desktop/src/account/auth.ts"
+          ],
+          "evidence": [
+            "tests/desktop-controls.dom.test.tsx",
+            "tests/desktop-auth.test.tsx"
+          ],
+          "reason": "Signed-in account name and initials open Settings from the expanded rail, collapsed rail, and narrow drawer. Local mode retains Local profile."
         },
         "marketing": {
           "applicability": "not_applicable",
@@ -3371,7 +3446,7 @@
         }
       ],
       "availability": "Available while the current visible-day count is below the generated horizon.",
-      "success_result": "Navigates to the same Timeline with a larger bounded days query while preserving useful scroll context.",
+      "success_result": "Navigates to the same Timeline with a larger bounded days query while preserving useful scroll context. Extends the shared day-progress axis and the bounded Calendar request range.",
       "failure_result": "Invalid day values are normalized to the supported range.",
       "effects": [
         "navigation",
@@ -3381,7 +3456,8 @@
       "confirmation": "none",
       "implementation": [
         "components/timeline/Timeline.tsx",
-        "lib/resolvers/timeline.resolver.ts"
+        "lib/resolvers/timeline.resolver.ts",
+        "components/timeline/DayProgressTimeline.tsx"
       ],
       "test_coverage": {
         "level": "direct",
@@ -5934,7 +6010,7 @@
         }
       ],
       "availability": "Available when the create form is open and required browser validation passes.",
-      "success_result": "Atomically creates the owned behavior, initial definition event, schedules, and time slots; marks occurrence and reminder coverage stale; closes and resets the form; adds the behavior row to the UI; and immediately attempts occurrence and reminder repair without overturning the durable save if retryable repair fails.",
+      "success_result": "Atomically creates the owned behavior, initial definition event, schedules, and time slots; marks occurrence and reminder coverage stale; closes and resets the form; adds the behavior row to the UI; and immediately attempts occurrence and reminder repair without overturning the durable save if retryable repair fails. Optional default duration and end date persist with the Behavior.",
       "failure_result": "Shows field or form errors without creating a partial behavior graph.",
       "effects": [
         "database_write",
@@ -6026,7 +6102,7 @@
         }
       ],
       "availability": "Available inside an opened behavior Details and Settings edit form.",
-      "success_result": "Atomically updates the owner-scoped behavior graph, appends a definition event when title or description changed, marks occurrence and reminder coverage stale, and immediately attempts repair without overturning the durable save if retryable repair fails.",
+      "success_result": "Atomically updates the owner-scoped behavior graph, appends a definition event when title or description changed, marks occurrence and reminder coverage stale, and immediately attempts repair without overturning the durable save if retryable repair fails. Default duration and end date can be changed or cleared.",
       "failure_result": "Shows field or form errors and preserves the last stored behavior graph. A stale edit reports a conflict and retains the draft until the user deliberately reloads the current Behavior.",
       "effects": [
         "database_write",
@@ -6295,7 +6371,7 @@
         }
       ],
       "availability": "Available on behavior rows inside Archived behaviors.",
-      "success_result": "Atomically marks the behavior active with a durable occurrence/reminder stale marker, immediately moves the row to Active behaviors, and attempts to regenerate occurrences and eligible reminders; retryable repair failure does not overturn the committed restore.",
+      "success_result": "Atomically marks the behavior active with a durable occurrence/reminder stale marker, immediately moves the row to Active behaviors, and attempts to regenerate occurrences and eligible reminders; retryable repair failure does not overturn the committed restore. Restore clears an expired end date and its automatic archive notification.",
       "failure_result": "A transaction failure shows a factual error and leaves the behavior archived; a post-commit repair failure remains queued by the durable stale marker.",
       "effects": [
         "database_write",
@@ -7290,10 +7366,14 @@
         {
           "kind": "submit",
           "control": "Preview import"
+        },
+        {
+          "kind": "change",
+          "control": "Convert Cadence desktop reminders to browser reminders (web only)"
         }
       ],
-      "availability": "Available in the BehaviorLog import section for authenticated users with a .behaviorlog.zip bundle no larger than 2 MB.",
-      "success_result": "Selecting a file immediately clears any prior preview. Previewing parses and validates the selected bundle, gathers current owned data, persists the preview run, and renders counts, warnings, conflicts, privacy notes, fingerprints, and supported apply modes without product writes. Standard native observations remain passive; omitted extensions produce explicit loss warnings.",
+      "availability": "Available in the BehaviorLog import section for authenticated users with a .behaviorlog.zip bundle no larger than 3 MiB.",
+      "success_result": "Selecting a file or changing the explicit web native-to-browser reminder conversion choice immediately clears any prior preview. Previewing parses and validates the selected bundle, gathers current owned data, persists the preview run, and renders counts, warnings, conflicts, privacy notes, fingerprints, and supported apply modes without product writes. Standard native observations remain passive; omitted extensions produce explicit loss warnings.",
       "failure_result": "Shows validation or processing errors and exposes no apply control for an unsafe preview.",
       "effects": [
         "file_read",
@@ -7670,10 +7750,14 @@
         {
           "kind": "submit",
           "control": "Preview restore"
+        },
+        {
+          "kind": "change",
+          "control": "Convert Cadence desktop reminders to browser reminders (web only)"
         }
       ],
-      "availability": "Available in the BehaviorLog restore section for authenticated users with a trusted .behaviorlog.zip bundle no larger than 2 MB.",
-      "success_result": "Selecting a file immediately clears any prior preview. Previewing parses and validates the selected bundle, gathers current owned data, persists the preview run, and renders create/replace/archive/delete/keep/skip actions, destructive counts, boundaries, warnings, and fingerprints without product writes.",
+      "availability": "Available in the BehaviorLog restore section for authenticated users with a trusted .behaviorlog.zip bundle no larger than 3 MiB.",
+      "success_result": "Selecting a file or changing the explicit web native-to-browser reminder conversion choice immediately clears any prior preview. Previewing parses and validates the selected bundle, gathers current owned data, persists the preview run, and renders create/replace/archive/delete/keep/skip actions, destructive counts, boundaries, warnings, and fingerprints without product writes.",
       "failure_result": "Shows validation or processing errors and does not enable restore apply.",
       "effects": [
         "file_read",
@@ -8816,7 +8900,7 @@
         }
       ],
       "availability": "Enabled only when the export acknowledgement and exact typed confirmation are both present and no deletion is pending.",
-      "success_result": "Server revalidates both gates, verifies the server-only service-role client, hard-deletes the Supabase Auth user and its server session rows, then attempts global sign-out to clear the current browser session and redirects to the public login confirmation.",
+      "success_result": "Server revalidates both gates, verifies the server-only service-role client, hard-deletes the Supabase Auth user and its server session rows, then attempts captured Calendar grant revocation and global sign-out to clear the current browser session and redirects to the public login confirmation.",
       "failure_result": "A validation, service-role verification, or user-deletion failure shows a specific recoverable error and preserves both account and session. A post-deletion sign-out error cannot restore the deleted account and does not block the success redirect.",
       "effects": [
         "authentication_session_end",
@@ -8837,7 +8921,7 @@
           "tests/account-deletion.service.test.ts",
           "tests/supabase-server-cookies.test.ts"
         ],
-        "notes": "Tests prove the client gates plus service-role verification and hard deletion before sign-out. Verification and deletion failures preserve the session; post-delete sign-out errors stay successful and current Auth cookies expire explicitly."
+        "notes": "Tests prove the client gates plus service-role verification and hard deletion before sign-out. Verification and deletion failures preserve the session and Calendar connection; post-delete revocation and sign-out errors stay successful and current Auth cookies expire explicitly."
       },
       "platforms": {
         "web": {
@@ -9619,7 +9703,7 @@
         }
       ],
       "availability": "Available after the first account link saves a common baseline.",
-      "success_result": "Applies one conflict-free typed plan to hosted and local storage, then advances the baseline and captured outbox acknowledgement.",
+      "success_result": "Automatically preserves hosted Sent evidence over a local Cancelled reminder from a Pending baseline when identity, schedule, provenance, and other non-delivery-state fields match, with a valid send timestamp and compatible processing claims. Also preserves compatible initial manual status marks and their original history while reconciling display timestamps. Applies one conflict-free typed plan including independent occurrence decisions, advances the baseline and captured outbox acknowledgement, and refreshes the displayed local copy.",
       "failure_result": "Shows offline, failed, or conflict state without advancing the baseline or discarding local writes.",
       "effects": [
         "network_request",
@@ -9638,9 +9722,11 @@
         "references": [
           "tests/desktop-account-sync-ui.test.tsx",
           "tests/desktop-account-sync-adapter.test.ts",
-          "tests/desktop-sync-engine.test.ts"
+          "tests/desktop-sync-engine.test.ts",
+          "tests/desktop-retry.dom.test.tsx",
+          "tests/account-sync.resolver.test.ts"
         ],
-        "notes": "Tests cover every status, deterministic hosted requests, conflict fail-closed behavior, and commit-boundary acknowledgement."
+        "notes": "Tests cover every status, deterministic hosted requests, matching Sent/Cancelled reconciliation, conflict fail-closed behavior, and commit-boundary acknowledgement."
       },
       "platforms": {
         "web": {
@@ -9700,7 +9786,7 @@
           "control": "Review sync conflicts"
         }
       ],
-      "availability": "Shown persistently while one or more first-link or later synchronization conflicts pause reconciliation.",
+      "availability": "Shown persistently while one or more first-link or later synchronization conflicts pause reconciliation. Matching hosted Sent/local Cancelled reminders with valid evidence and compatible initial manual status marks reconcile automatically; other reminder conflicts and conflicting user edits still require review.",
       "success_result": "Opens Settings at the conflict review and keeps both copies unchanged.",
       "failure_result": "The cue remains available until review opens or the account disconnects.",
       "effects": [
@@ -9774,7 +9860,7 @@
         }
       ],
       "availability": "Available after every conflict has one valid decision. Keep both stays hidden when graph identity cannot be duplicated safely.",
-      "success_result": "Revalidates all three fingerprints, retains existing reminder processing claims when a selected version omits them, applies the complete reviewed plan, and advances either the pending first-link baseline or the existing synchronization baseline.",
+      "success_result": "Revalidates all three fingerprints, automatically reconciles matching hosted Sent/local Cancelled reminders and compatible initial manual status marks without deleting history, retains existing reminder processing claims when a selected version omits them, applies the complete reviewed plan, and advances either the pending first-link baseline or the existing synchronization baseline.",
       "failure_result": "Rejects stale or invalid decisions and leaves both copies and the baseline unchanged.",
       "effects": [
         "network_request",
@@ -11184,6 +11270,741 @@
           "applicability": "deferred",
           "status": "deferred",
           "reason": "Future mobile remains deferred."
+        }
+      }
+    },
+    {
+      "id": "INT-CALENDAR-001",
+      "name": "Connect or reconnect Google Calendar",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#day-progress-and-optional-calendar-context"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings"
+      ],
+      "journeys": [
+        "J14"
+      ],
+      "intent": "Bind a separate read-only grant to the same Google identity.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Connect Google Calendar"
+        }
+      ],
+      "availability": "Explicit action is available after Cadence sign-in and provider configuration.",
+      "success_result": "Opens provider consent; same-account verification installs sealed server credentials.",
+      "failure_result": "Consent denial, wrong-account selection, and expired state leave Cadence data unchanged. Wrong-account recovery links to Google Account connections and discloses project-wide revocation; Cadence never revokes automatically.",
+      "effects": [
+        "authentication_session",
+        "external_navigation",
+        "network_request"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/settings/GoogleCalendarPanel.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/google-calendar-panel.dom.test.tsx"
+        ],
+        "notes": "Synthetic integration checks; live provider/native release acceptance remains in Ticket 137."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/GoogleCalendarPanel.tsx"
+          ],
+          "evidence": [
+            "tests/google-calendar-panel.dom.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/GoogleCalendarPanel.tsx",
+            "apps/desktop/src/calendar/google-calendar.ts",
+            "apps/desktop/src/product.tsx"
+          ],
+          "evidence": [
+            "tests/google-calendar-panel.dom.test.tsx",
+            "tests/desktop-calendar.test.ts"
+          ],
+          "reason": "Shared controls and native adapter contracts; live provider/native release acceptance remains open in Ticket 137."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-CALENDAR-002",
+      "name": "Select calendars and Calendar visibility",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#day-progress-and-optional-calendar-context"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings"
+      ],
+      "journeys": [
+        "J14"
+      ],
+      "intent": "Select readable calendars and control timed/all-day visibility.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Save Calendar settings"
+        }
+      ],
+      "availability": "A configured connected account can edit its Calendar preferences.",
+      "success_result": "Saves owner-scoped selections and visibility; invalidates old range receipts.",
+      "failure_result": "Invalid or unavailable selections keep a visible error.",
+      "effects": [
+        "database_write",
+        "local_preference"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/settings/GoogleCalendarPanel.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/google-calendar-panel.dom.test.tsx"
+        ],
+        "notes": "Synthetic integration checks; live provider/native release acceptance remains in Ticket 137."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/GoogleCalendarPanel.tsx"
+          ],
+          "evidence": [
+            "tests/google-calendar-panel.dom.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/GoogleCalendarPanel.tsx",
+            "apps/desktop/src/calendar/google-calendar.ts",
+            "apps/desktop/src/product.tsx"
+          ],
+          "evidence": [
+            "tests/google-calendar-panel.dom.test.tsx",
+            "tests/desktop-calendar.test.ts"
+          ],
+          "reason": "Shared controls and native adapter contracts; live provider/native release acceptance remains open in Ticket 137."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-CALENDAR-003",
+      "name": "Refresh Calendar context",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#day-progress-and-optional-calendar-context"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings"
+      ],
+      "journeys": [
+        "J14"
+      ],
+      "intent": "Read a complete bounded event snapshot.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Refresh now"
+        }
+      ],
+      "availability": "Connected selected calendars permit explicit refresh.",
+      "success_result": "Replaces complete matching snapshots atomically and shows last refreshed state.",
+      "failure_result": "A failed or incomplete read preserves the last complete stale snapshot.",
+      "effects": [
+        "network_request",
+        "database_read"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/settings/GoogleCalendarPanel.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/google-calendar-client.test.tsx"
+        ],
+        "notes": "Synthetic integration checks; live provider/native release acceptance remains in Ticket 137."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/GoogleCalendarPanel.tsx"
+          ],
+          "evidence": [
+            "tests/google-calendar-client.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/GoogleCalendarPanel.tsx",
+            "apps/desktop/src/calendar/google-calendar.ts",
+            "apps/desktop/src/product.tsx"
+          ],
+          "evidence": [
+            "tests/google-calendar-client.test.tsx",
+            "tests/desktop-calendar.test.ts"
+          ],
+          "reason": "Shared controls and native adapter contracts; live provider/native release acceptance remains open in Ticket 137."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-CALENDAR-004",
+      "name": "Disconnect Google Calendar",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#day-progress-and-optional-calendar-context"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings"
+      ],
+      "journeys": [
+        "J14"
+      ],
+      "intent": "Remove the account-wide grant and clear external context.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Disconnect Google Calendar everywhere"
+        }
+      ],
+      "availability": "Available for an existing connection; the UI explains other-device effects.",
+      "success_result": "Fences reads, deletes credentials, attempts provider revocation, and clears local cache.",
+      "failure_result": "A revocation outage requires grant removal in Google settings; deleted local credentials stay deleted.",
+      "effects": [
+        "database_delete",
+        "network_request"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/settings/GoogleCalendarPanel.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/google-calendar-panel.dom.test.tsx"
+        ],
+        "notes": "Synthetic integration checks; live provider/native release acceptance remains in Ticket 137."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/GoogleCalendarPanel.tsx"
+          ],
+          "evidence": [
+            "tests/google-calendar-panel.dom.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/GoogleCalendarPanel.tsx",
+            "apps/desktop/src/calendar/google-calendar.ts",
+            "apps/desktop/src/product.tsx"
+          ],
+          "evidence": [
+            "tests/google-calendar-panel.dom.test.tsx",
+            "tests/desktop-calendar.test.ts"
+          ],
+          "reason": "Shared controls and native adapter contracts; live provider/native release acceptance remains open in Ticket 137."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-CALENDAR-005",
+      "name": "Preview Calendar context and view details",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#day-progress-and-optional-calendar-context"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "timeline"
+      ],
+      "routes": [
+        "/timeline"
+      ],
+      "journeys": [
+        "J08"
+      ],
+      "intent": "Inspect external context without changing Cadence status.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Calendar marker or All Day Events"
+        }
+      ],
+      "availability": "Available when validated visible events intersect the displayed dates.",
+      "success_result": "Hover/focus/click/tap opens a persistent preview; View details opens one modal and closing returns focus.",
+      "failure_result": "Unavailable details display their field-specific missing-data state.",
+      "effects": [
+        "ui_state",
+        "focus_navigation"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/timeline/ExternalEventDetails.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/day-progress-timeline.dom.test.tsx"
+        ],
+        "notes": "Synthetic integration checks; live provider/native release acceptance remains in Ticket 137."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/timeline/ExternalEventDetails.tsx"
+          ],
+          "evidence": [
+            "tests/day-progress-timeline.dom.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/timeline/ExternalEventDetails.tsx",
+            "apps/desktop/src/calendar/google-calendar.ts",
+            "apps/desktop/src/timeline-screen.tsx"
+          ],
+          "evidence": [
+            "tests/day-progress-timeline.dom.test.tsx",
+            "tests/desktop-calendar.test.ts"
+          ],
+          "reason": "Shared controls and native adapter contracts; live provider/native release acceptance remains open in Ticket 137."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-CALENDAR-006",
+      "name": "Dismiss or restore all-day context",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#day-progress-and-optional-calendar-context"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "timeline"
+      ],
+      "routes": [
+        "/timeline"
+      ],
+      "journeys": [
+        "J08"
+      ],
+      "intent": "Change local presentation of all-day events.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Dismiss from timeline or Restore"
+        }
+      ],
+      "availability": "Available for all-day events and dismissed all-day context.",
+      "success_result": "Hides or restores only the local marker; no provider or Cadence status write occurs.",
+      "failure_result": "The source event remains unchanged.",
+      "effects": [
+        "ui_state"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/timeline/DayProgressTimeline.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/day-progress-timeline.dom.test.tsx"
+        ],
+        "notes": "Synthetic integration checks; live provider/native release acceptance remains in Ticket 137."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/timeline/DayProgressTimeline.tsx"
+          ],
+          "evidence": [
+            "tests/day-progress-timeline.dom.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/timeline/DayProgressTimeline.tsx",
+            "apps/desktop/src/calendar/google-calendar.ts",
+            "apps/desktop/src/timeline-screen.tsx"
+          ],
+          "evidence": [
+            "tests/day-progress-timeline.dom.test.tsx",
+            "tests/desktop-calendar.test.ts"
+          ],
+          "reason": "Shared controls and native adapter contracts; live provider/native release acceptance remains open in Ticket 137."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-CALENDAR-007",
+      "name": "Open an external event or linked detail",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#day-progress-and-optional-calendar-context"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "timeline"
+      ],
+      "routes": [
+        "/timeline"
+      ],
+      "journeys": [
+        "J08"
+      ],
+      "intent": "Open a validated external URL without automatic download.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Open source event or attachment link"
+        }
+      ],
+      "availability": "Available only for a safe source, conference, or attachment URL.",
+      "success_result": "Opens the external source through the browser or desktop system-browser boundary.",
+      "failure_result": "Unsafe or missing URLs are not actionable.",
+      "effects": [
+        "external_navigation"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/timeline/ExternalEventDetails.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/day-progress-timeline.dom.test.tsx"
+        ],
+        "notes": "Synthetic integration checks; live provider/native release acceptance remains in Ticket 137."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/timeline/ExternalEventDetails.tsx"
+          ],
+          "evidence": [
+            "tests/day-progress-timeline.dom.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/timeline/ExternalEventDetails.tsx",
+            "apps/desktop/src/calendar/google-calendar.ts",
+            "apps/desktop/src/timeline-screen.tsx"
+          ],
+          "evidence": [
+            "tests/day-progress-timeline.dom.test.tsx",
+            "tests/desktop-calendar.test.ts"
+          ],
+          "reason": "Shared controls and native adapter contracts; live provider/native release acceptance remains open in Ticket 137."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-BEHAVIOR-030",
+      "name": "Set default Behavior duration",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/behaviors-and-review.md#default-duration-and-end-date"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "behaviors"
+      ],
+      "routes": [
+        "/behaviors"
+      ],
+      "journeys": [
+        "J05",
+        "J06"
+      ],
+      "intent": "Set or clear an optional default duration for Timeline planning, separate from tracked time and measured averages.",
+      "triggers": [
+        {
+          "kind": "input",
+          "control": "Default duration (minutes) number input"
+        }
+      ],
+      "availability": "Available in open create and edit forms.",
+      "success_result": "Updates only the client form draft until Save behavior is submitted.",
+      "failure_result": "Required and server validation errors remain attached to their fields after submission.",
+      "effects": [
+        "form_draft"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/behaviors/BehaviorForm.tsx",
+        "apps/desktop/src/behaviors-screen.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/behavior-review-ui.test.tsx"
+        ],
+        "notes": "Shared form rendering covers the optional native planning inputs; parser tests verify bounds and clearing."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/behaviors/BehaviorForm.tsx"
+          ],
+          "evidence": [
+            "tests/behavior-review-ui.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/behaviors-screen.tsx",
+            "components/behaviors/BehaviorForm.tsx"
+          ],
+          "evidence": [
+            "tests/behavior-review-ui.test.tsx"
+          ],
+          "reason": "The desktop screen consumes the shared Behavior form."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-BEHAVIOR-031",
+      "name": "Set Behavior end date",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/behaviors-and-review.md#default-duration-and-end-date"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "behaviors"
+      ],
+      "routes": [
+        "/behaviors"
+      ],
+      "journeys": [
+        "J05",
+        "J06"
+      ],
+      "intent": "Set or clear an optional first archived local date; automatic archive preserves history and shows a durable notification.",
+      "triggers": [
+        {
+          "kind": "input",
+          "control": "End date date input"
+        }
+      ],
+      "availability": "Available in open create and edit forms.",
+      "success_result": "Updates only the client form draft until Save behavior is submitted.",
+      "failure_result": "Required and server validation errors remain attached to their fields after submission.",
+      "effects": [
+        "form_draft"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/behaviors/BehaviorForm.tsx",
+        "apps/desktop/src/behaviors-screen.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/behavior-review-ui.test.tsx"
+        ],
+        "notes": "Shared form rendering covers the optional native planning inputs; parser tests verify bounds and clearing."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/behaviors/BehaviorForm.tsx"
+          ],
+          "evidence": [
+            "tests/behavior-review-ui.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/behaviors-screen.tsx",
+            "components/behaviors/BehaviorForm.tsx"
+          ],
+          "evidence": [
+            "tests/behavior-review-ui.test.tsx"
+          ],
+          "reason": "The desktop screen consumes the shared Behavior form."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
         }
       }
     }

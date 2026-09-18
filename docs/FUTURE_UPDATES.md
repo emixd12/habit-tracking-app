@@ -8,6 +8,39 @@ Rough feature ideas that are not ready for tickets live in
 `docs/FEATURE_IDEAS.md`. That file is an idea inbox, not an implementation
 contract.
 
+## Day-progress timeline follow-ups
+
+Tickets 132–137 now plan the continuous left-side timeline and read-only Google
+Calendar context on web and desktop. Their planned product/UI contracts own
+that scope; the original idea remains in `docs/FEATURE_IDEAS.md`.
+
+The owner accepted Ticket 132's UI baseline on 2026-09-16 and prioritized
+Ticket 134 infrastructure. Its `docs/EXTERNAL_EVENT_CONTRACT.md` preserves
+scheduling facts for future consumers without implementing those consumers.
+
+Tickets 144–145 cover documentation and consumer planning only: a reusable
+integration playbook, followed by a concrete Cadence access proposal. They do not
+activate the deferred capabilities below. Planner/coach scope and any API or MCP
+implementation require explicit product decisions and follow-up tickets.
+
+Still deferred:
+
+- Minor Timeline visual polish after connector infrastructure.
+- Intelligent rearranging, including user-reviewed Occurrence moves, model
+  invocation, and an MCP server. Future scheduling must consume the documented
+  normalized contract and separately define uncertainty/availability policy.
+- User-set expected Behavior durations beyond tracked-average estimates.
+- Two-way Calendar sync and source-event editing.
+- Other connectors, including Focus Keeper, whose capabilities remain unverified.
+- Different or multiple Google accounts for one Cadence account, and Calendar
+  connections in account-free desktop mode.
+- New timezone controls and daylight-saving presentation refinements. Existing
+  timezone and day-boundary correctness remains required for the planned feature.
+- Native mobile implementation, web offline caching, and closed-app helpers.
+
+Promote these separately only when their own scope is approved. Ticket 134
+capability research is recorded in `docs/qa/google-calendar-capabilities.md`.
+
 ## Public product surfaces
 
 Cadence's public-product direction is documented in

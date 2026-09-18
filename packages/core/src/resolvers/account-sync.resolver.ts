@@ -38,6 +38,7 @@ export function resolveAccountSync(input: Readonly<{ accountLinkId?: string; bas
   const accountLinkId = input.accountLinkId ?? "account-link";
   const baseline = prepare(input.baseline), local = prepare(input.local), hosted = prepare(input.hosted);
   validateInputGraphs(input.firstLink === true, baseline, local, hosted);
+  const compatibleMarks = compatibleInitialMarks(baseline, local, hosted);
   const baselineProtectedOccurrences = protectedOccurrenceIds(baseline);
   const protectedOccurrences = protectedOccurrenceIds(baseline, local, hosted);
   const fingerprints = { baseline: fingerprint(baseline.values()), local: fingerprint(local.values()), hosted: fingerprint(hosted.values()) };
@@ -61,9 +62,11 @@ export function resolveAccountSync(input: Readonly<{ accountLinkId?: string; bas
     else if (same(left, right)) { if (left) mergedEntities.push(left); }
     else if (same(left, base)) { if (right) mergedEntities.push(right); }
     else if (same(right, base)) { if (left) mergedEntities.push(left); }
+    else if (left?.kind === "occurrence" && compatibleMarks.has(left.id)) mergedEntities.push(compatibleMarks.get(left.id)!);
+    else if (hostedSendSupersedesCancellation(base, left, right)) mergedEntities.push(right);
     else conflicts.push(conflict(base, left, right, !base ? "append_id_collision" : !left || !right ? "delete_vs_update" : "concurrent_update"));
   }
-  historyBranches(baseline, local, hosted, input.firstHostedHydration === true);
+  historyBranches(baseline, local, hosted, input.firstHostedHydration === true, compatibleMarks);
   if (conflicts.length) return { localWrites: [], hostedWrites: [], conflicts: uniqueConflicts(conflicts), mergedEntities: [], fingerprints: { ...fingerprints, merged: null }, idempotencyKey: null };
   const retained = reconcileOccurrenceReminders(
     retainReminderProcessingClaims(retainNoteShortcutExclusions(mergedEntities, exclusionSources(input.noteShortcutExclusionPolicy, baseline, local, hosted)), baseline, local, hosted),
@@ -101,12 +104,7 @@ export function resolveReviewedAccountSync(input: Readonly<{
       && ((decision.choice === "local" && conflict.local === null) || (decision.choice === "hosted" && conflict.hosted === null))) {
       throw new Error("An Occurrence with a Note, status history, tracked time, or resolved status cannot be deleted during synchronization.");
     }
-    if (conflict.reason === "history_branch") {
-      const localKey = `${conflict.kind}:${jsonId(conflict.local) ?? conflict.id}`, hostedKey = `${conflict.kind}:${jsonId(conflict.hosted) ?? conflict.id}`;
-      if (decision.choice === "hosted") { local.delete(localKey); replace(local, hostedKey, hosted.get(hostedKey) ?? null); }
-      else if (decision.choice === "local") { hosted.delete(hostedKey); replace(hosted, localKey, local.get(localKey) ?? null); }
-      else throw new Error("Keep both is unavailable for this synchronization conflict.");
-    } else if (decision.choice === "hosted") replace(local, key, hosted.get(key) ?? null);
+    if (decision.choice === "hosted") replace(local, key, hosted.get(key) ?? null);
     else if (decision.choice === "local") replace(hosted, key, local.get(key) ?? null);
     else {
       if (!canKeepBothAccountSyncConflict(conflict) || !decision.duplicateId) throw new Error("Keep both is unavailable for this synchronization conflict.");
@@ -197,7 +195,6 @@ function sameStrings(left: readonly string[], right: readonly string[]): boolean
 }
 
 function replace(target: Map<string, AccountSyncEntity>, key: string, value: AccountSyncEntity | null) { if (value) target.set(key, value); else target.delete(key); }
-function jsonId(value: Json | null): string | null { return value && !Array.isArray(value) && typeof value === "object" && typeof value.id === "string" ? value.id : null; }
 function writesBetween(previous: Map<string, AccountSyncEntity>, next: Map<string, AccountSyncEntity>): AccountSyncWrite[] {
   return [...new Set([...previous.keys(), ...next.keys()])].sort().flatMap((key) => same(previous.get(key) ?? null, next.get(key) ?? null) ? [] : [writeFor(previous.get(key) ?? null, next.get(key) ?? null)])
     .sort((left, right) => writeOrder(left) - writeOrder(right) || compareText(`${left.kind}:${left.id}`, `${right.kind}:${right.id}`));
@@ -217,6 +214,28 @@ function reconcileOccurrenceReminders(entities: readonly AccountSyncEntity[]): A
     const occurrenceId = field(entity.value, "occurrence_id");
     return occurrenceId === null || occurrenceIds.has(occurrenceId);
   });
+}
+
+function hostedSendSupersedesCancellation(base: AccountSyncEntity | null, local: AccountSyncEntity | null, hosted: AccountSyncEntity | null): hosted is AccountSyncEntity {
+  if (base?.kind !== "reminder_delivery" || local?.kind !== "reminder_delivery" || hosted?.kind !== "reminder_delivery"
+    || field(base.value, "status") !== "pending" || field(local.value, "status") !== "cancelled"
+    || field(hosted.value, "status") !== "sent") return false;
+  const rows = [base, local, hosted];
+  if (!rows.every((row) => field(row.value, "id") === row.id)
+    || !["browser_push", "email"].includes(field(hosted.value, "channel") ?? "")
+    || field(base.value, "sent_at") !== null || field(local.value, "sent_at") !== null) return false;
+  const sentAt = field(hosted.value, "sent_at"), scheduledAt = field(hosted.value, "scheduled_send_at");
+  if (!sentAt || !scheduledAt) return false;
+  try { Temporal.Instant.from(sentAt); Temporal.Instant.from(scheduledAt); } catch { return false; }
+  const claim = field(hosted.value, "processing_started_at");
+  if ([base, local].some((row) => {
+    const existing = field(row.value, "processing_started_at");
+    return existing !== null && existing !== claim;
+  })) return false;
+  // A recorded hosted send survives a stale local cancellation, never a changed delivery identity or schedule.
+  const identities = rows.map((row) => canonical(Object.fromEntries(Object.entries(row.value as Record<string, Json>)
+    .filter(([key]) => !["status", "error", "sent_at", "processing_started_at", "updated_at"].includes(key)))));
+  return identities[0] === identities[1] && identities[0] === identities[2];
 }
 
 function retainReminderProcessingClaims(entities: readonly AccountSyncEntity[], ...sources: readonly Map<string, AccountSyncEntity>[]): AccountSyncEntity[] {
@@ -328,11 +347,44 @@ function normalize(entity: AccountSyncEntity): AccountSyncEntity {
   if (entity.kind === "note_shortcut_state") noteShortcutState({ ...entity, value });
   value = normalizeRow(value);
   if (entity.kind === "behavior" && value && !Array.isArray(value) && typeof value === "object") {
+    // Older saved baselines predate these columns. Normalization keeps them
+    // comparable while every generated write carries the complete row shape.
+    value = {
+      archive_notes: [],
+      default_duration_minutes: null,
+      end_date: null,
+      auto_archived_at: null,
+      ...value,
+    };
     parseArchiveNotes(value.archive_notes);
-    // Older saved baselines predate the column; omission means an empty history.
-    value = { archive_notes: [], ...value };
+    validateBehaviorPersistenceFields(value);
   }
   return { kind: entity.kind, id: entity.id, value };
+}
+
+function validateBehaviorPersistenceFields(value: Record<string, Json | undefined>): void {
+  const duration = value.default_duration_minutes;
+  if (duration !== null
+    && (typeof duration !== "number" || !Number.isInteger(duration) || duration < 1 || duration > 1_440)) {
+    throw new Error("The account Behavior default duration is invalid.");
+  }
+  const endDate = value.end_date;
+  if (endDate !== null) {
+    if (typeof endDate !== "string") throw new Error("The account Behavior end date is invalid.");
+    try {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < "0001-01-01"
+        || Temporal.PlainDate.from(endDate).toString() !== endDate) throw new Error();
+    } catch { throw new Error("The account Behavior end date is invalid."); }
+  }
+  const autoArchivedAt = value.auto_archived_at;
+  if (autoArchivedAt !== null) {
+    if (typeof autoArchivedAt !== "string") throw new Error("The account automatic archive marker is invalid.");
+    try { Temporal.Instant.from(autoArchivedAt); }
+    catch { throw new Error("The account automatic archive marker is invalid."); }
+    if (value.active !== false || typeof value.archived_at !== "string") {
+      throw new Error("The account automatic archive marker requires an archived Behavior.");
+    }
+  }
 }
 function normalizeRow(value: Json): Json {
   if (!value || Array.isArray(value) || typeof value !== "object") return value;
@@ -362,7 +414,54 @@ function historyProblem(base: AccountSyncEntity | null, left: AccountSyncEntity 
 function protectedDelete(entity: AccountSyncEntity): boolean {
   return PROTECTED_DELETE.has(entity.kind) || (entity.kind === "occurrence" && field(entity.value, "status") !== "unresolved");
 }
-function historyBranches(baseline: Map<string, AccountSyncEntity>, local: Map<string, AccountSyncEntity>, hosted: Map<string, AccountSyncEntity>, firstHostedHydration: boolean): void {
+// Equal initial manual marks carry the same decision, but retain distinct audit evidence.
+// Corrections and divergent descendants require causal resolution, not timestamp arbitration.
+function compatibleInitialMarks(baseline: Map<string, AccountSyncEntity>, local: Map<string, AccountSyncEntity>, hosted: Map<string, AccountSyncEntity>): Map<string, AccountSyncEntity> {
+  const events = new Map<string, Map<string, AccountSyncEntity>>(), result = new Map<string, AccountSyncEntity>();
+  const priorOccurrences = new Set([...baseline.values()].filter(({ kind }) => kind === "status_event").map((row) => field(row.value, "occurrence_id")));
+  for (const graph of [local, hosted]) for (const row of graph.values()) {
+    if (row.kind !== "status_event") continue;
+    const occurrenceId = field(row.value, "occurrence_id");
+    if (!occurrenceId || priorOccurrences.has(occurrenceId)) continue;
+    if (!events.has(occurrenceId)) events.set(occurrenceId, new Map());
+    events.get(occurrenceId)!.set(row.id, row);
+  }
+  for (const [id, byId] of events) {
+    const rows = [...byId.values()], base = baseline.get(`occurrence:${id}`), left = local.get(`occurrence:${id}`), right = hosted.get(`occurrence:${id}`);
+    if (rows.length < 2 || !base || !left || !right || field(base.value, "status") !== "unresolved") continue;
+    const status = field(left.value, "status"), behaviorId = field(left.value, "behavior_id");
+    if (!["completed", "not_completed"].includes(status ?? "") || field(right.value, "status") !== status
+      || field(left.value, "id") !== id || field(right.value, "id") !== id
+      || withoutFields(left.value, ["completed_at", "status_marked_at", "updated_at"]) !== withoutFields(right.value, ["completed_at", "status_marked_at", "updated_at"])) continue;
+    const evidence = withoutFields(rows[0].value, ["id", "recorded_at", "effective_at", "created_at", "updated_at"]);
+    if (!rows.every((row) => field(row.value, "id") === row.id && field(row.value, "behavior_id") === behaviorId
+      && field(row.value, "status") === status && field(row.value, "previous_status") === "unresolved"
+      && field(row.value, "revises_event_id") === null && field(row.value, "status_semantics") === "explicit_user_mark"
+      && field(row.value, "source_capture_method") === "manual_tap" && field(row.value, "source_confidence") === "high"
+      && withoutFields(row.value, ["id", "recorded_at", "effective_at", "created_at", "updated_at"]) === evidence)) continue;
+    try {
+      for (const row of rows) for (const key of ["recorded_at", "effective_at", "created_at"]) Temporal.Instant.from(field(row.value, key) ?? "");
+    } catch { continue; }
+    const matches = (occurrence: AccountSyncEntity, event: AccountSyncEntity) => field(occurrence.value, "status_marked_at") === field(event.value, "recorded_at")
+      && (status === "completed" ? field(occurrence.value, "completed_at") === field(event.value, "effective_at")
+        : field(occurrence.value, "completed_at") === null && field(occurrence.value, "status_marked_at") === field(event.value, "effective_at"));
+    if (!rows.some((row) => local.has(entityKey(row)) && matches(left, row))
+      || !rows.some((row) => hosted.has(entityKey(row)) && matches(right, row))) continue;
+    // Match existing latest-event ordering only to select display timestamps for an agreed status.
+    rows.sort((a, b) => Temporal.Instant.compare(field(a.value, "recorded_at")!, field(b.value, "recorded_at")!)
+      || Temporal.Instant.compare(field(a.value, "created_at")!, field(b.value, "created_at")!) || compareText(a.id, b.id));
+    const latest = rows[rows.length - 1];
+    if (matches(left, latest)) result.set(id, left);
+    else if (matches(right, latest)) result.set(id, right);
+  }
+  return result;
+}
+
+function withoutFields(value: Json, excluded: readonly string[]): string {
+  return canonical(Object.fromEntries(Object.entries(value as Record<string, Json>).filter(([key]) => !excluded.includes(key))));
+}
+
+function historyBranches(baseline: Map<string, AccountSyncEntity>, local: Map<string, AccountSyncEntity>, hosted: Map<string, AccountSyncEntity>, firstHostedHydration: boolean, compatibleMarks: ReadonlyMap<string, AccountSyncEntity>): void {
   const successors = (rows: Map<string, AccountSyncEntity>) => {
     const result = new Map<string, AccountSyncEntity[]>();
     for (const row of rows.values()) {
@@ -381,6 +480,7 @@ function historyBranches(baseline: Map<string, AccountSyncEntity>, local: Map<st
     const status = field(hostedRows[0]?.value ?? null, "status");
     if (firstHostedHydration && !hasStatusBaseline && hostedRows.length > 1 && status !== null
       && hostedRows.every((row) => field(row.value, "status") === status) && localRows.every(({ id }) => hostedIds.has(id))) continue;
+    if ([...localRows, ...hostedRows].every((row) => compatibleMarks.has(field(row.value, "occurrence_id") ?? ""))) continue;
     if (localRows.length > 1) throw new Error("The local account snapshot contains branched status history.");
     if (hostedRows.length > 1) throw new Error("The hosted account snapshot contains branched status history.");
     if (localRows[0] && hostedRows[0] && localRows[0].id !== hostedRows[0].id) throw new Error("The account snapshot contains branched status history.");

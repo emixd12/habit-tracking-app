@@ -1,4 +1,5 @@
 mod auth;
+mod calendar_cache;
 mod files;
 mod local_store;
 mod notifications;
@@ -45,6 +46,9 @@ pub fn run() {
             let local = local_store::open(&directory.join("cadence.sqlite3"))
                 .map_err(std::io::Error::other)?;
             app.manage(local);
+            let calendar = calendar_cache::open(&directory.join("calendar-cache.sqlite3"))
+                .map_err(std::io::Error::other)?;
+            app.manage(calendar);
             if updates::is_configured(app.handle()) {
                 app.handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -66,6 +70,11 @@ pub fn run() {
             auth::auth_account_sync_context,
             auth::auth_complete_account_sync,
             auth::auth_begin_first_link,
+            calendar_cache::calendar_cache_begin,
+            calendar_cache::calendar_cache_read,
+            calendar_cache::calendar_cache_read_current,
+            calendar_cache::calendar_cache_replace,
+            calendar_cache::calendar_cache_clear,
             notifications::native_notifications,
             notifications::native_events,
             local_store::local_store,

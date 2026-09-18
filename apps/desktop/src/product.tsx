@@ -3,6 +3,9 @@ import { Temporal } from "@js-temporal/polyfill";
 import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { DesktopApp, type DesktopScreen } from "./desktop-app";
+import { openCalendarSourceUrl } from "./calendar/google-calendar";
+import { GoogleCalendarPanel } from "@/components/settings/GoogleCalendarPanel";
+import { useDesktopGoogleCalendar } from "./calendar/use-google-calendar";
 import { TimelineScreen } from "./timeline-screen";
 import { BehaviorsScreen } from "./behaviors-screen";
 import { CategoryPanel } from "@/components/settings/CategoryPanel";
@@ -28,6 +31,7 @@ import { loadLocalTimeline } from "./local-timeline.service";
 import { latestNotificationOccurrenceId, loadNotificationOccurrence, type NotificationTarget } from "./notification-activation";
 import { scrollAfterDesktopNavigation } from "./desktop-navigation";
 import { scheduleLocalDayRefresh } from "./desktop-lifecycle";
+import { reconcileLocalBehaviorEndDates } from "./local-behavior-lifecycle.service";
 import type { AnalyticsSelection } from "@cadence/core/services/analytics";
 import "./timeline.css";
 import { AccountConflictReview, AccountDisconnectPanel, AccountPanel, AccountSyncPanel, FirstAccountLinkChoice } from "./account/account-panel";
@@ -73,13 +77,17 @@ export function Product() {
   const syncRetry = useRef(0);
   const syncRetryTimer = useRef<number | null>(null);
   const auth = useRef<DesktopAuth | null>(null);
+  const [calendarClient, setCalendarClient] = useState<ReturnType<DesktopAuth["accountClient"]> | null>(null);
   const [notificationTarget, setNotificationTarget] = useState<NotificationTarget | null>(null);
   const [navigationRequest, setNavigationRequest] = useState<{ anchor?: string } | null>(null);
   const activation = useRef<{ occurrenceId: string; requestKey: number } | null>(null);
   const activationSequence = useRef(0);
   const reminderRevision = useRef(0);
+  const archiveLifecycle = useRef<Promise<void>>(Promise.resolve());
   const parameters = useRef<{ days: number; analytics: AnalyticsSelection }>({ days: 7, analytics: {} });
   const revision = useRef(0);
+  const refreshRunning = useRef(false);
+  const syncAfterRefresh = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
     if (navigationRequest) return scrollAfterDesktopNavigation(navigationRequest.anchor);
@@ -98,46 +106,71 @@ export function Product() {
       if (mounted.current && current === reminderRevision.current) setReminderBusy(false);
     });
   }, []);
-  const refresh = useCallback(() => {
-    const current = ++revision.current;
-    const requestedActivation = activation.current;
+  const refreshScreen = useCallback(() => {
+    revision.current += 1;
     if (!isTauri()) { setLoading(false); return; }
-    refreshReminders();
-    const now = Temporal.Now.instant();
+    archiveLifecycle.current = reconcileLocalBehaviorEndDates(Temporal.Now.instant())
+      .then(() => refreshReminders())
+      .catch((failure) => {
+        if (mounted.current) setReminderError(localErrorMessage(failure));
+      });
+    if (refreshRunning.current) return;
+    refreshRunning.current = true;
     void (async () => {
-      try {
-        const timeline = await loadLocalTimeline(parameters.current.days, now);
-        const [behaviors, imports, global, accepted, behaviorViews] = await Promise.all([
-          getLocalBehaviorsPageData(timeline.profile, { ...parameters.current.analytics, now }),
-          localCommand("readImportRuns", { profileId: timeline.profile.id, limit: 1 }),
-          getNoteShortcutView(createLocalNoteShortcutStore(timeline.profile.id), null, now),
-          listAcceptedNoteShortcuts(createLocalNoteShortcutStore(timeline.profile.id)),
-          Promise.all(timeline.behaviors.map(async (behavior) => [behavior.id, await getNoteShortcutView(createLocalNoteShortcutStore(timeline.profile.id), behavior.id, now)] as const)),
-        ]);
-        if (requestedActivation) {
-          let target: NotificationTarget;
-          try {
-            const occurrence = await loadNotificationOccurrence({ occurrenceId: requestedActivation.occurrenceId,
-              profile: timeline.profile, behaviors: timeline.behaviors, now });
-            target = occurrence ? { requestKey: requestedActivation.requestKey, status: "available", occurrence }
-              : { requestKey: requestedActivation.requestKey, status: "unavailable" };
-          } catch (failure) {
-            target = { requestKey: requestedActivation.requestKey, status: "error", message: localErrorMessage(failure) };
+      // Keep one running read and one latest request, including edits arriving during a read.
+      let current: number;
+      do {
+        current = revision.current;
+        const requestedActivation = activation.current;
+        const now = Temporal.Now.instant();
+        try {
+          await archiveLifecycle.current;
+          const timeline = await loadLocalTimeline(parameters.current.days, now);
+          if (!mounted.current || current !== revision.current) continue;
+          const [behaviors, imports, global, accepted, behaviorViews] = await Promise.all([
+            getLocalBehaviorsPageData(timeline.profile, { ...parameters.current.analytics, now }),
+            localCommand("readImportRuns", { profileId: timeline.profile.id, limit: 1 }),
+            getNoteShortcutView(createLocalNoteShortcutStore(timeline.profile.id), null, now),
+            listAcceptedNoteShortcuts(createLocalNoteShortcutStore(timeline.profile.id)),
+            Promise.all(timeline.behaviors.map(async (behavior) => [behavior.id, await getNoteShortcutView(createLocalNoteShortcutStore(timeline.profile.id), behavior.id, now)] as const)),
+          ]);
+          if (requestedActivation) {
+            let target: NotificationTarget;
+            try {
+              const occurrence = await loadNotificationOccurrence({ occurrenceId: requestedActivation.occurrenceId,
+                profile: timeline.profile, behaviors: timeline.behaviors, now });
+              target = occurrence ? { requestKey: requestedActivation.requestKey, status: "available", occurrence }
+                : { requestKey: requestedActivation.requestKey, status: "unavailable" };
+            } catch (failure) {
+              target = { requestKey: requestedActivation.requestKey, status: "error", message: localErrorMessage(failure) };
+            }
+            if (mounted.current && current === revision.current && activation.current?.requestKey === requestedActivation.requestKey) setNotificationTarget(target);
           }
-          if (mounted.current && current === revision.current && activation.current?.requestKey === requestedActivation.requestKey) setNotificationTarget(target);
+          if (mounted.current && current === revision.current) {
+            setBundle({ timeline, behaviors, hasImportRuns: imports.length > 0, shortcuts: { global, accepted, views: Object.fromEntries(behaviorViews) } });
+            setError("");
+            if (syncAfterRefresh.current) {
+              syncAfterRefresh.current = false;
+              setSyncRequest((value) => value + 1);
+            }
+          }
+        } catch (failure) {
+          if (mounted.current && current === revision.current) {
+            setError(localErrorMessage(failure));
+            if (requestedActivation && activation.current?.requestKey === requestedActivation.requestKey) setNotificationTarget({ requestKey: requestedActivation.requestKey,
+              status: "error", message: localErrorMessage(failure) });
+          }
+        } finally {
+          if (mounted.current && current === revision.current) setLoading(false);
         }
-        if (mounted.current && current === revision.current) { setBundle({ timeline, behaviors, hasImportRuns: imports.length > 0, shortcuts: { global, accepted, views: Object.fromEntries(behaviorViews) } }); setError(""); }
-      } catch (failure) {
-        if (mounted.current && current === revision.current) {
-          setError(localErrorMessage(failure));
-          if (requestedActivation && activation.current?.requestKey === requestedActivation.requestKey) setNotificationTarget({ requestKey: requestedActivation.requestKey,
-            status: "error", message: localErrorMessage(failure) });
-        }
-      } finally {
-        if (mounted.current && current === revision.current) setLoading(false);
-      }
+      } while (mounted.current && current !== revision.current);
+      refreshRunning.current = false;
     })();
   }, [refreshReminders]);
+  const refresh = useCallback(() => {
+    syncAfterRefresh.current = true;
+    refreshScreen();
+  }, [refreshScreen]);
   useEffect(() => {
     mounted.current = true;
     const browserRefresh = !isTauri() ? window.setTimeout(refresh, 0) : undefined;
@@ -168,17 +201,17 @@ export function Product() {
       await nativeChanged();
       if (mounted.current) refresh();
     }).catch((failure) => { if (mounted.current) { refresh(); setReminderError(localErrorMessage(failure)); } });
-    const timer = window.setInterval(refresh, 60_000);
-    return () => { mounted.current = false; unlisten?.(); window.clearTimeout(browserRefresh); window.clearInterval(timer); };
+    return () => { mounted.current = false; unlisten?.(); window.clearTimeout(browserRefresh); };
   }, [refresh]);
   useEffect(() => {
     const config = readDesktopAuthConfig();
     if (!isTauri() || !config) return;
-    const service = new DesktopAuth(config, setAccount);
+    let active = true;
+    const service = new DesktopAuth(config, (state) => { if (active) { setAccount(state); setCalendarClient(state.status === "linked" ? service.accountClient() : null); } });
     auth.current = service;
     let stop: (() => void) | undefined;
-    void service.initialize().then((value) => { stop = value; }).catch(() => setAccount({ status: "error", message: "The saved account session could not be read." }));
-    return () => { auth.current = null; stop?.(); };
+    void service.initialize().then((value) => { if (active) stop = value; else value(); }).catch(() => { if (active) setAccount({ status: "error", message: "The saved account session could not be read." }); });
+    return () => { active = false; auth.current = null; stop?.(); void service.dispose(); };
   }, []);
   const runAccount = (action: () => Promise<void>) => {
     setAccountBusy(true);
@@ -237,20 +270,40 @@ export function Product() {
   // The authenticated user ID is the stable first-link identity.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account.status === "linked" ? account.userId : null, profile?.id]);
+  const profileId = profile?.id;
+  const accountUserId = account.status === "linked" ? account.userId : null;
+  const calendarRange = {
+    startLocalDate: bundle?.timeline.timeline.todayLocalDate ?? "1970-01-01",
+    endLocalDate: bundle?.timeline.timeline.daySections.at(-1)?.localDate ?? "1970-01-01",
+  };
+  const calendar = useDesktopGoogleCalendar({
+    client: calendarClient,
+    screen: activeScreen === "timeline" || activeScreen === "settings" ? activeScreen : null,
+    accountId: accountUserId, timezone: profile?.timezone ?? "America/New_York", range: calendarRange,
+    enabled: isTauri() && Boolean(bundle && accountUserId) && (activeScreen === "timeline" || activeScreen === "settings"),
+  });
+  const calendarContext = {
+    events: calendar.preferences?.visible ? calendar.snapshot?.events.filter((event) =>
+      !calendar.preferences!.hiddenCalendarIds.includes(event.calendarId)
+      && (calendar.preferences!.showAllDay || event.kind !== "all_day")) ?? [] : [],
+    freshness: calendar.snapshot ? { ...calendar.snapshot.freshness, label: calendar.label,
+      ...(calendar.stale ? { state: "stale" as const, canAssertNoOverlap: false } : {}) }
+      : { state: "unavailable" as const, refreshedAt: null, label: calendar.label, canAssertNoOverlap: false },
+  };
   const syncAccount = useCallback(() => {
-    if (!syncReady || account.status !== "linked" || !profile || !auth.current) return;
+    if (!syncReady || !accountUserId || !profileId || !auth.current) return;
     if (syncRunning.current) { syncPending.current = true; return; }
     syncRunning.current = true;
     syncPending.current = false;
     if (syncRetryTimer.current !== null) { window.clearTimeout(syncRetryTimer.current); syncRetryTimer.current = null; }
     setSyncStatus({ state: "syncing" });
-    void synchronizeAccount(profile.id, auth.current.accountClient()).then((status) => {
+    void synchronizeAccount(profileId, auth.current.accountClient()).then((status) => {
       if (!mounted.current) return;
       setSyncStatus(status);
-      if (status.state === "current") { syncRetry.current = 0; setConflictReview(null); }
+      if (status.state === "current") { syncRetry.current = 0; setConflictReview(null); refreshScreen(); }
       else if (status.state === "conflict") {
         syncRetry.current = 0;
-        void planAccountSync(profile.id, auth.current!.accountClient()).then(({ inputs, plan }) => {
+        void planAccountSync(profileId, auth.current!.accountClient()).then(({ inputs, plan }) => {
           if (mounted.current) setConflictReview({ inputs, conflicts: plan.conflicts });
         }).catch((failure) => { if (mounted.current) setSyncStatus({ state: "failed", message: localErrorMessage(failure) }); });
       }
@@ -263,18 +316,14 @@ export function Product() {
       syncRunning.current = false;
       if (syncPending.current && mounted.current) setSyncRequest((value) => value + 1);
     });
-  }, [account.status, profile, syncReady]);
+  }, [accountUserId, profileId, refreshScreen, syncReady]);
   useEffect(() => {
     if (!syncReady) return;
     const trigger = () => syncAccount();
-    const resume = () => { if (document.visibilityState === "visible") trigger(); };
     window.addEventListener("online", trigger);
-    window.addEventListener("focus", trigger);
-    document.addEventListener("visibilitychange", resume);
-    trigger();
-    return () => { window.removeEventListener("online", trigger); window.removeEventListener("focus", trigger); document.removeEventListener("visibilitychange", resume); if (syncRetryTimer.current !== null) window.clearTimeout(syncRetryTimer.current); };
-  }, [syncAccount, syncReady, syncRequest]);
-  useEffect(() => { if (syncReady && bundle) syncAccount(); }, [bundle, syncAccount, syncReady]);
+    return () => { window.removeEventListener("online", trigger); if (syncRetryTimer.current !== null) window.clearTimeout(syncRetryTimer.current); };
+  }, [syncAccount, syncReady]);
+  useEffect(() => { if (syncReady) syncAccount(); }, [syncAccount, syncReady, syncRequest]);
   useEffect(() => {
     if (profile?.timezone) return scheduleLocalDayRefresh(profile.timezone, refresh);
   }, [profile?.timezone, refresh]);
@@ -330,7 +379,7 @@ export function Product() {
       : synchronizeReviewedAccount(profile.id, auth.current.accountClient(), conflictReview.inputs, decisions);
     void reviewed.then((status) => {
       setSyncStatus(status);
-      if (status.state === "current") { setConflictReview(null); refresh(); }
+      if (status.state === "current") { setConflictReview(null); refreshScreen(); }
       else if (status.state === "failed") setConflictReview((value) => value ? { ...value, error: status.message } : value);
     }).catch((failure) => {
       if (firstLinkReview) {
@@ -352,7 +401,7 @@ export function Product() {
     {conflictReview ? <AccountConflictReview conflicts={conflictReview.conflicts} busy={accountBusy} error={conflictReview.error} onResolve={resolveConflicts} /> : null}
     {account.status === "linked" || syncReady || disconnectResult ? <AccountDisconnectPanel busy={accountBusy} result={disconnectResult} error={disconnectError} onDisconnect={disconnect} /> : null}</>;
 
-  return <DesktopApp activeScreen={activeScreen} onNavigate={navigate} availableScreens={AVAILABLE_SCREENS} conflictCount={conflictReview?.conflicts.length ?? 0}>
+  return <DesktopApp account={account} activeScreen={activeScreen} onNavigate={navigate} availableScreens={AVAILABLE_SCREENS} conflictCount={conflictReview?.conflicts.length ?? 0}>
     {!isTauri() ? <div className="p-8"><h1 className="text-3xl font-bold">Open Cadence on your Mac</h1>
       <p className="mt-4">Local tracking uses the desktop app’s SQLite database. This browser preview cannot read or change it.</p></div> : null}
     <DesktopUpdateNotice required={syncStatus.state === "update_required"} {...restartActions} />
@@ -365,18 +414,20 @@ export function Product() {
         hasAnyBehavior={bundle.timeline.behaviors.length > 0} hasImportRuns={bundle.hasImportRuns} currentTimezone={bundle.timeline.profile.timezone}
         permission={permission} coverage={coverage} onNavigate={navigate} availableScreens={AVAILABLE_SCREENS} /> : null}
       {activeScreen === "timeline" ? <TimelineScreen timeline={bundle.timeline.timeline} {...occurrenceActions}
-        shortcutsByBehavior={bundle.shortcuts.accepted}
+        shortcutsByBehavior={bundle.shortcuts.accepted} dayProgress={calendarContext}
         notificationTarget={notificationTarget}
-        onRefresh={refresh} onShowMore={(days) => { parameters.current.days = days; refresh(); }} /> : null}
+        onRefresh={refresh} onShowMore={(days) => { parameters.current.days = days; refreshScreen(); }} /> : null}
       {activeScreen === "behaviors" ? <BehaviorsScreen {...bundle.behaviors.behaviors} analytics={bundle.behaviors.analytics}
         {...occurrenceActions} {...behaviorActions} onRefresh={refresh}
         noteShortcutViews={bundle.shortcuts.views} noteShortcutAction={noteShortcutAction}
-        onNavigateReview={(selection) => { parameters.current.analytics = selection; refresh(); }} /> : null}
+        onNavigateReview={(selection) => { parameters.current.analytics = selection; refreshScreen(); }} /> : null}
       {activeScreen === "settings" ? <SettingsScreen currentTimezone={bundle.timeline.profile.timezone} accountConnected={syncReady}
         noteShortcutControls={<GlobalNoteShortcutControl view={bundle.shortcuts.global} action={noteShortcutAction} />}
         categoryControls={<CategoryPanel categories={bundle.timeline.categories}
           assignments={bundle.timeline.behaviors.map((behavior) => ({ id: behavior.id, categoryId: behavior.category_id, active: behavior.active, updatedAt: behavior.updated_at }))} action={categoryAction} />}
         accountControls={completeAccountControls}
+        calendarControls={calendar.coordinator ? <GoogleCalendarPanel key={accountUserId ?? "local"} coordinator={calendar.coordinator} refreshRange={calendarRange} refreshVersion={calendar.panelVersion} wrongAccount={calendar.wrongAccount} openExternalUrl={openCalendarSourceUrl} />
+          : <section className="py-4"><h2 className="text-xl">Google Calendar</h2><p className="mt-3 text-sm text-muted-readable">{calendar.label}</p></section>}
         updates={<div id="app-updates" tabIndex={-1} className="scroll-mt-20"><DesktopUpdatePanel {...restartActions} /></div>}
         databaseControls={<LocalDatabaseControls onRestored={refresh} />}
         updateTimezoneAction={timezoneAction} permission={permission} coverage={coverage}

@@ -162,6 +162,7 @@ function bundleFiles(input: {
   statusEvents?: ExportStatusEventInput[];
   reminderDeliveries?: ExportReminderDeliveryInput[];
   timeSessions?: ExportTimeSessionInput[];
+  includeArchived?: boolean;
 } = {}): BehaviorLogFile[] {
   return resolveExportBundle({
     profile: {
@@ -178,6 +179,7 @@ function bundleFiles(input: {
     now: NOW,
     timezone: DEFAULT_TIMEZONE,
     range: "30",
+    includeArchived: input.includeArchived,
     includeNotes: true,
     includeTimeTracking: Boolean(input.timeSessions),
   }).behaviorLog.files;
@@ -275,11 +277,23 @@ describe("resolveBehaviorLogImportPreview", () => {
       note: "Paused while traveling.",
       updatedAt: "2026-06-01T12:00:00Z",
     }];
-    const files = bundleFiles({ behaviors: [behavior({ archiveNotes })] });
+    const files = bundleFiles({ includeArchived: true, behaviors: [behavior({
+      archiveNotes,
+      defaultDurationMinutes: 45,
+      endDate: "2026-06-01",
+      autoArchivedAt: "2026-06-01T12:00:00Z",
+      active: false,
+      archivedAt: "2026-06-01T12:00:00Z",
+    })] });
     const preview = resolveBehaviorLogImportPreview({ files });
 
     expect(preview.valid).toBe(true);
     expect(preview.plan.behaviors[0].cadenceArchiveNotes).toEqual(archiveNotes);
+    expect(preview.plan.behaviors[0]).toMatchObject({
+      expectedDurationMinutes: 45,
+      cadenceEndDate: "2026-06-01",
+      cadenceAutoArchivedAt: "2026-06-01T12:00:00Z",
+    });
 
     const invalid = replaceJsonlRecords(files, "data/behaviors.jsonl", (records) =>
       records.map((record) => ({
@@ -289,6 +303,27 @@ describe("resolveBehaviorLogImportPreview", () => {
     );
     expect(resolveBehaviorLogImportPreview({ files: invalid }).errors).toEqual(
       expect.arrayContaining([expect.objectContaining({ code: "cadence_archive_notes_invalid" })]),
+    );
+
+    const invalidFields = replaceJsonlRecords(files, "data/behaviors.jsonl", (records) =>
+      records.map((record) => ({
+        ...record,
+        archived_at_utc: null,
+        expected_duration_minutes: 0,
+        extensions: {
+          "app.cadence": {
+            ...(record.extensions as Record<string, Record<string, unknown>>)["app.cadence"],
+            end_date: "2026-02-30",
+          },
+        },
+      })),
+    );
+    expect(resolveBehaviorLogImportPreview({ files: invalidFields }).errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "behavior_expected_duration_invalid" }),
+        expect.objectContaining({ code: "cadence_end_date_invalid" }),
+        expect.objectContaining({ code: "cadence_auto_archived_at_without_archive" }),
+      ]),
     );
   });
 

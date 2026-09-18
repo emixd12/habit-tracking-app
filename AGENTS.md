@@ -128,7 +128,8 @@ Out of scope for v1:
 - Medication dose tracking
 - Supply/refill inventory
 - AI coaching inside the app
-- Calendar sync
+- Calendar sync and event editing, except the planned read-only Google Calendar
+  context in Tickets 132–137
 - Payment/subscription infrastructure
 - Admin dashboards
 - PWA offline cache

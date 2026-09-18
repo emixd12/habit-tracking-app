@@ -1,6 +1,6 @@
-export const MAX_BEHAVIORLOG_BUNDLE_BYTES = 2 * 1024 * 1024;
+export const MAX_BEHAVIORLOG_BUNDLE_BYTES = 3 * 1024 * 1024;
 export const BEHAVIORLOG_BUNDLE_SIZE_ERROR =
-  "This file is larger than the 2 MB limit for BehaviorLog bundles.";
+  "This file is larger than the 3 MiB limit for BehaviorLog bundles.";
 
 export function getBehaviorLogBundleSizeError(
   fileSize: number,

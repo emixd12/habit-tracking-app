@@ -28,7 +28,8 @@ export function planPersistedOccurrences(input: {
       configurationEventId: behavior.current_configuration_event_id,
       recurrenceRule: normalizeRecurrenceRule(behavior.recurrence_rule),
       schedules, scheduleSlots: schedules.flatMap((schedule) => schedule.timeEntries),
-      timezone: behavior.timezone, active: behavior.active, createdAt: behavior.created_at,
+      timezone: behavior.timezone, active: behavior.active, endDate: behavior.end_date,
+      createdAt: behavior.created_at,
     },
     existingOccurrences: input.occurrences.map((row) =>
       toExistingOccurrenceForGeneration(row, input.timeSessionOccurrenceIds)),

@@ -664,3 +664,13 @@ function analyticsView(
     },
   };
 }
+
+it("renders optional planning inputs separately from measured time", () => {
+  const html = renderToStaticMarkup(<BehaviorForm mode="create" action={behaviorAction} categories={[]} />);
+  expect(html).toContain('name="default_duration_minutes"');
+  expect(html).toContain('type="number"');
+  expect(html).toContain('name="end_date"');
+  expect(html).toContain('type="date"');
+  expect(html).toContain("Tracked time and averages stay separate.");
+  expect(html).toContain("Archives at the start of this date");
+});

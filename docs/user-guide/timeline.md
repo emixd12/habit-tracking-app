@@ -239,3 +239,72 @@ inside until close. Tab and Shift+Tab cycle through the dialog; Escape closes
 it and returns focus. On mobile, the launcher spans the lower safe-area width
 and the dialog fills the viewport. Dates, counts, status words, and icons
 communicate meaning without relying on color.
+
+## Day progress and optional Calendar context
+
+The forward Timeline places occurrences chronologically beside a continuous day
+line. A blue dot shows the current position. Expanding Notes keeps the same time
+mapping. Show more days extends the same line. Manual statuses and Needs decision
+keep their existing meaning. No status changes automatically at midnight.
+
+Google's review of Calendar access is pending. The connector is not yet verified
+for public rollout. When the Cadence deployment is configured, connect Calendar separately in
+Settings with the same Google account used for Cadence. Ordinary Google sign-in
+does not grant Calendar access. Cadence tracking remains available without
+Calendar.
+
+1. Open **Settings** and choose **Connect Google Calendar**.
+2. Review Google's consent screen. Cadence requests read-only access to the
+   Calendar list and events. Choose the same Google identity as the Cadence
+   account.
+3. Select the readable calendars Cadence may show. Set **Show Calendar context
+   on Timeline**, **Show all-day events**, and each calendar's visibility.
+4. Choose **Save Calendar settings**. Choose **Refresh Calendar** to request the
+   displayed date range immediately.
+5. On Timeline, preview an event by hovering, focusing, clicking, or tapping its
+   marker. Choose **View details** for that event's drawer. Close or Escape
+   returns focus to the marker.
+6. Choose a validated source link to open that event outside Cadence.
+7. For an all-day item, choose **Dismiss** to hide it from this presentation.
+   Choose **Restore** to show it again.
+
+**Result and persistence:** Cadence reads only selected calendars for the
+displayed inclusive local-date range. It never creates, edits, or deletes a
+Google event. Calendar data never changes a Behavior schedule, Occurrence
+status, Note, or reminder. All-day dismissal is local presentation state only.
+The web keeps a memory-only snapshot. Desktop stores the last complete
+matching snapshot in a separate local cache so it can show stale context while
+offline. The cache is tied to the linked account and selected range. Cadence
+refreshes on visible use and about every 15 minutes while visible. Desktop also
+refreshes after a focused resume. Hidden or minimized desktop windows stop the
+recurring refresh. A new complete request replaces details outside its selected
+range and calendars.
+
+**Recovery or undo:** A failed refresh keeps existing context when available
+and labels it stale or unavailable. **Reconnect Google Calendar** starts fresh
+consent when access expires or Google revokes it. **Disconnect Google Calendar**
+deletes the live server credential and stops refresh. If Google cannot confirm
+grant revocation, remove Cadence from Google Account permissions. Other devices
+clear the connection when they next check it. Desktop account disconnect or
+reconnect clears that Mac's Calendar cache while preserving Cadence history.
+
+**Privacy and safety:** Cadence stores the Google refresh credential as encrypted
+server-side ciphertext. The web and desktop apps do not receive that credential.
+Desktop's event cache can contain event titles, descriptions, times, locations,
+attendees, conference links, and attachment links that Google returned and the
+selected permissions allowed. Cadence does not download attachments. Calendar
+credentials and cached events stay outside Cadence exports, BehaviorLog bundles,
+account synchronization, and user-created desktop backups. Supabase daily
+backups may retain sealed credential ciphertext for the current seven-day window.
+See [Privacy, account information, and deletion](privacy-and-account.md#google-calendar-data-and-disconnection).
+
+**Keyboard and mobile:** Calendar markers have descriptive names and 44px
+targets. Hover does not move focus. The preview does not trap focus. The details
+drawer traps focus while open and returns it on close. Touch uses the same
+preview and details actions.
+
+Duration estimates use positive stopped-session totals from at least three Completed
+occurrences in the previous 90 local days. Insufficient history shows unknown.
+Running timers remain separate activity signals. Possible overlap is advisory;
+unknown, incomplete, or stale Calendar data cannot establish availability. All-day
+events do not create timed-overlap warnings.

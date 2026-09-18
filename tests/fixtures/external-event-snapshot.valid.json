@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "1.0.0",
+  "adapterVersion": "google-calendar-v1",
+  "accountId": "account-1",
+  "connectionGeneration": 3,
+  "source": "google_calendar",
+  "requestedRange": {
+    "startLocalDate": "2026-11-01",
+    "endLocalDate": "2026-11-03",
+    "timezone": "America/New_York",
+    "selectedCalendarIds": ["calendar-1"]
+  },
+  "fetchedAt": "2026-11-01T13:00:00Z",
+  "completeness": "complete",
+  "freshness": {
+    "state": "current",
+    "refreshedAt": "2026-11-01T13:00:00Z",
+    "label": "Calendar current",
+    "canAssertNoOverlap": true
+  },
+  "capabilities": {
+    "calendar_listing": { "support": "supported", "permission": "granted", "availability": "available" },
+    "timed_events": { "support": "supported", "permission": "granted", "availability": "available" },
+    "all_day_events": { "support": "supported", "permission": "granted", "availability": "available" },
+    "recurrence": { "support": "supported", "permission": "granted", "availability": "available" },
+    "details": { "support": "supported", "permission": "granted", "availability": "available" },
+    "source_links": { "support": "supported", "permission": "granted", "availability": "available" }
+  },
+  "coverage": [
+    {
+      "calendarId": "calendar-1",
+      "startLocalDate": "2026-11-01",
+      "endLocalDate": "2026-11-03",
+      "paginationComplete": true,
+      "itemCount": 2
+    }
+  ],
+  "failures": [],
+  "events": [
+    {
+      "id": "google_calendar/calendar-1/timed-1",
+      "providerEventId": "timed-1",
+      "logicalInstanceId": "google_calendar/series%40example.com/2026-11-01T05%3A00%3A00Z",
+      "calendarId": "calendar-1",
+      "source": "google_calendar",
+      "calendarName": "Work",
+      "sourceTimezone": "America/New_York",
+      "sourceTimezoneFallback": "none",
+      "state": "confirmed",
+      "availability": "busy",
+      "currentUserResponse": "accepted",
+      "revision": {
+        "availability": "available",
+        "providerUpdatedAt": "2026-11-01T12:00:00Z",
+        "providerEtag": "revision-1"
+      },
+      "title": "DST review",
+      "description": "Review notes",
+      "location": "",
+      "sourceUrl": "https://calendar.google.com/event",
+      "fieldAvailability": { "location": "not_provided" },
+      "detailCompleteness": { "attendees": "complete" },
+      "organizer": null,
+      "attendees": [
+        {
+          "displayName": "Cadence User",
+          "email": "user@example.com",
+          "responseStatus": "accepted",
+          "optional": false,
+          "organizer": false,
+          "self": true
+        }
+      ],
+      "attendeesOmitted": false,
+      "conference": null,
+      "recurrence": {
+        "seriesId": "series-1",
+        "originalStart": { "kind": "timed", "startAt": "2026-11-01T05:00:00Z" }
+      },
+      "attachments": null,
+      "kind": "timed",
+      "startAt": "2026-11-01T05:30:00Z",
+      "endAt": "2026-11-01T06:30:00Z",
+      "endUnspecified": false,
+      "duration": { "kind": "known", "seconds": 3600 }
+    },
+    {
+      "id": "google_calendar/calendar-1/all-day-1",
+      "providerEventId": "all-day-1",
+      "logicalInstanceId": "google_calendar/calendar-1/all-day-1",
+      "calendarId": "calendar-1",
+      "source": "google_calendar",
+      "calendarName": "Work",
+      "sourceTimezone": "America/New_York",
+      "sourceTimezoneFallback": "calendar",
+      "state": "tentative",
+      "availability": "free",
+      "currentUserResponse": null,
+      "revision": {
+        "availability": "unavailable",
+        "providerUpdatedAt": null,
+        "providerEtag": null
+      },
+      "title": "Conference",
+      "description": "",
+      "location": "",
+      "sourceUrl": null,
+      "fieldAvailability": {
+        "description": "not_provided",
+        "location": "not_provided",
+        "source_url": "not_provided",
+        "organizer": "not_provided",
+        "attendees": "not_provided",
+        "conference": "not_provided",
+        "recurrence": "not_provided",
+        "attachments": "not_provided"
+      },
+      "detailCompleteness": {},
+      "organizer": null,
+      "attendees": null,
+      "attendeesOmitted": false,
+      "conference": null,
+      "recurrence": null,
+      "attachments": null,
+      "kind": "all_day",
+      "startLocalDate": "2026-11-01",
+      "endLocalDate": "2026-11-03",
+      "duration": { "kind": "calendar_days", "days": 2 }
+    }
+  ],
+  "tombstones": []
+}
