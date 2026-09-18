@@ -155,3 +155,14 @@ export async function disconnectCalendar(caller: CalendarCaller) {
   }
   return { ...await getCalendarConnection(caller), revocationFailed };
 }
+
+// Capture only the revocation work; failed Auth deletion must leave the connection intact.
+export async function prepareCalendarRevocation(caller: CalendarCaller): Promise<(() => Promise<void>) | null> {
+  const settings = readCalendarOAuthConfig();
+  if (!settings) return null;
+  const connection = await readCalendarConnection(caller.client, caller.user.id);
+  if (!connection) return null;
+  if (connection.googleSubject !== calendarGoogleSubject(caller.user)) throw new CalendarConnectionError("same_account_required");
+  const sealed = await readCalendarCredential(connection);
+  return () => revokeCalendarToken(openCalendarSecret(settings, sealed, { ...connection, purpose: "refresh" }));
+}

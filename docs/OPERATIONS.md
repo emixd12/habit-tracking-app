@@ -1466,7 +1466,9 @@ require reconnect. Never print configuration values or provider payloads.
 Global disconnect fences new reads and deletes stored credentials before attempting
 Google revocation. A revocation outage leaves a factual warning to remove the grant
 in Google Account settings. Other devices clear content on their next connector
-check. Account deletion attempts revocation but must proceed during provider outages.
+check. Account deletion captures revocation work without changing the Calendar connection,
+then attempts revocation only after Auth deletion succeeds. Failed Auth deletion
+preserves the connection; provider outages do not block completed deletion.
 The private credential row cascades with the Auth user. Ordinary web sign-out
 retains the global connection; desktop sign-out clears the local event cache.
 

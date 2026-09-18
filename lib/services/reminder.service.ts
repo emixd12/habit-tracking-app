@@ -1,4 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
+import { resolveDueBehaviorArchives } from "@/lib/resolvers/occurrence.resolver";
 
 import type {
   AppSupabaseClient,
@@ -481,6 +482,13 @@ export async function processDueBrowserPushReminders(
   return result;
 }
 
+function behaviorHasEnded(behavior: Behavior, processedAt: string): boolean {
+  return resolveDueBehaviorArchives({
+    now: Temporal.Instant.from(processedAt),
+    behaviors: [{ id: behavior.id, active: behavior.active, endDate: behavior.end_date, timezone: behavior.timezone }],
+  }).length > 0;
+}
+
 async function processClaimedEmailReminder(input: {
   supabase: AppSupabaseClient;
   delivery: ReminderDelivery;
@@ -510,6 +518,7 @@ async function processClaimedEmailReminder(input: {
   if (
     !behavior ||
     !behavior.active ||
+    behaviorHasEnded(behavior, input.processedAt) ||
     !isCurrentExpectedEmailDelivery(input.delivery, behavior, occurrence)
   ) {
     await cancelPendingReminderDeliveryById(input.supabase, {
@@ -594,6 +603,7 @@ async function processClaimedBrowserPushReminder(input: {
   if (
     !behavior ||
     !behavior.active ||
+    behaviorHasEnded(behavior, input.processedAt) ||
     !isCurrentExpectedBrowserPushDelivery(input.delivery, behavior, occurrence)
   ) {
     await cancelPendingReminderDeliveryById(input.supabase, {

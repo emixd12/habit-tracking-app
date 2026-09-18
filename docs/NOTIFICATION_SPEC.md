@@ -433,3 +433,6 @@ The web reminder processor runs every five minutes. Due reminders normally wait
 up to about five minutes for the next processing run; provider and queue delays
 can add latency. Existing offset choices remain available. Native desktop
 reminders retain their OS scheduling and verified coverage behavior.
+
+Send-time email and browser-push checks reject a Behavior whose end date has
+arrived in its timezone, even when a bounded archive batch has not processed it.

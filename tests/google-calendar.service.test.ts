@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { User } from "@supabase/supabase-js";
-import { startCalendarConnection, finishCalendarConnection, listCalendarCalendars, getCalendarEvents } from "@/lib/services/google-calendar.service";
+import { startCalendarConnection, finishCalendarConnection, listCalendarCalendars, getCalendarEvents, prepareCalendarRevocation } from "@/lib/services/google-calendar.service";
 import { GOOGLE_CALENDAR_SCOPES, hashCalendarState, readCalendarOAuthConfig, sealCalendarSecret } from "@/lib/services/google-calendar-oauth";
 const repo = vi.hoisted(() => ({ beginCalendarAttempt: vi.fn(), consumeCalendarAttempt: vi.fn(), readCalendarCallbackUser: vi.fn(), installCalendarCredential: vi.fn(), readCalendarConnection: vi.fn(), readCalendarCredential: vi.fn(), removeCalendarCredential: vi.fn() }));
 vi.mock("@/lib/db/google-calendar.repo", () => repo);
@@ -92,4 +92,18 @@ describe("Calendar broker typed failures", () => {
     const today = Temporal.Now.instant().toZonedDateTimeISO("UTC").toPlainDate().toString();
     await expect(getCalendarEvents(caller, today, today)).rejects.toMatchObject({ code, message: code });
   });
+});
+
+it("prepares Calendar revocation without mutating the surviving account", async () => {
+  const connection = { userId: user.id, googleSubject: "subject", generation: 1, selectionRevision: 1, status: "connected",
+    preferences: { selectedCalendarIds: ["work"], hiddenCalendarIds: [], visible: true, showAllDay: true } };
+  repo.readCalendarConnection.mockResolvedValue(connection);
+  repo.readCalendarCredential.mockResolvedValue(sealCalendarSecret(readCalendarOAuthConfig()!, "refresh", { ...connection, purpose: "refresh" }));
+  const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+  const revoke = await prepareCalendarRevocation({ client: {} as CalendarCaller["client"], user });
+  expect(repo.removeCalendarCredential).not.toHaveBeenCalled();
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(revoke).not.toBeNull();
+  await revoke!();
+  expect(fetcher).toHaveBeenCalledOnce();
 });

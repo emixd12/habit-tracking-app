@@ -449,7 +449,7 @@ function resolveContexts(
 }
 
 function sameDay(left: MeasuredDay | undefined, right: MeasuredDay): boolean {
-  return !!left && left.top === right.top && left.bottom === right.bottom && left.axisX === right.axisX && left.iconX === right.iconX && left.rows.length === right.rows.length && left.rows.every((row, index) => row.occurrenceId === right.rows[index]?.occurrenceId && row.center === right.rows[index]?.center);
+  return !!left && left.top === right.top && left.bottom === right.bottom && left.axisX === right.axisX && left.iconX === right.iconX && left.rows.length === right.rows.length && left.rows.every((row, index) => row.occurrenceId === right.rows[index]?.occurrenceId && row.center === right.rows[index]?.center && row.scheduledFor === right.rows[index]?.scheduledFor);
 }
 
 function sameIconState(left: Record<string, boolean>, right: Record<string, boolean>): boolean {

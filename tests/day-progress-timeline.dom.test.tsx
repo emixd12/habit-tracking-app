@@ -129,6 +129,16 @@ describe("DayProgressTimeline", () => {
     expect(launcher.textContent).toBe("All day: Design offsite");
   });
 
+  it("remeasures scheduling changes even when row geometry stays fixed", async () => {
+    const marker = () => container.querySelector("[data-current-time-marker]")!.getAttribute("cy");
+    const before = marker();
+    const input = props();
+    input.timeline.daySections[0]!.occurrences[0]!.scheduledFor = "2026-09-16T15:00:00Z";
+    await act(() => root.render(<RefreshProvider onRefresh={() => {}}><DayProgressTimeline {...input} /></RefreshProvider>));
+    await act(() => { observers.forEach((callback) => callback()); });
+    expect(marker()).not.toBe(before);
+  });
+
   it("stops the current-time work while hidden and restarts it on visibility", async () => {
     expect(container.querySelector("[data-current-time-marker]")).not.toBeNull();
     expect(vi.getTimerCount()).toBeGreaterThan(0);

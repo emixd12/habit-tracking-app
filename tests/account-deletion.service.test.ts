@@ -11,6 +11,9 @@ import {
   deleteCurrentAccountFromFormData,
 } from "@/lib/services/account.service";
 
+import { prepareCalendarRevocation } from "@/lib/services/google-calendar.service";
+vi.mock("@/lib/services/google-calendar.service", () => ({ prepareCalendarRevocation: vi.fn() }));
+
 const CANARY_ENV = "CADENCE_ACCOUNT_DELETION_FAILURE_CANARY_USER_ID";
 const USER_ID = "00000000-0000-4000-8000-000000000001";
 const OTHER_USER_ID = "00000000-0000-4000-8000-000000000002";
@@ -31,11 +34,29 @@ vi.mock("@/lib/cache/stable-user-data.cache", () => ({
 describe("account deletion service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prepareCalendarRevocation).mockResolvedValue(null);
     vi.stubEnv(CANARY_ENV, "");
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it.each([false, true])("revokes Calendar only after successful Auth deletion (failure=%s)", async (fails) => {
+    const { deleteUser, signOut } = mockSignedInAccount();
+    const revoke = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(prepareCalendarRevocation).mockResolvedValue(revoke);
+    if (fails) deleteUser.mockResolvedValue({ data: { user: null }, error: new Error("unavailable") } as never);
+    const deletion = deleteCurrentAccountFromFormData(confirmedDeletionForm());
+    if (fails) {
+      await expect(deletion).rejects.toThrow("account and session are unchanged");
+      expect(revoke).not.toHaveBeenCalled();
+      expect(signOut).not.toHaveBeenCalled();
+    } else {
+      await deletion;
+      expect(revoke).toHaveBeenCalledOnce();
+      expect(deleteUser.mock.invocationCallOrder[0]).toBeLessThan(revoke.mock.invocationCallOrder[0]!);
+    }
   });
 
   it("requires the export acknowledgement before deleting", async () => {

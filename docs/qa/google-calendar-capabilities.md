@@ -1017,3 +1017,12 @@ or monitor that inbox. Private reviewer correspondence must stay out of git.
 Final documentation checks passed: `agents:check`, `interactions:check`,
 `resolvers:check`, and `git diff --check`. No new runtime change required another
 full build or test run.
+
+## PR 55 event-list parameter review — September 18, 2026
+
+Google's [Events.list reference](https://developers.google.com/workspace/calendar/api/v3/reference/events/list)
+does not define `conferenceDataVersion`. The [Events.insert reference](https://developers.google.com/workspace/calendar/api/v3/reference/events/insert)
+defines it for conference copying/creation and explicitly refers to event
+modification requests. Keep the read-only list request's `conferenceData` fields
+projection. The review suggestion to add a write-only parameter to every list
+page does not apply. Existing adapter tests cover conference entry points.

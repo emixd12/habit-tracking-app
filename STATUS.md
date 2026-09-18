@@ -53,11 +53,16 @@ types, and the marketing font import names its existing CSS entry explicitly.
 
 Local governance, source-boundary, Trust fixtures, lint, web/desktop type checks,
 all three builds, and marketing checks pass. The combined test suite passed
-1,787 tests with 29 skipped, including the added Calendar text regression.
+1,792 tests with 29 skipped, including Calendar text and PR-review regressions.
 PR CodeQL findings prompted a shared text-conversion fix: removed markup leaves
 separators, and entity decoding runs once. A regression covers nested markup and
 encoded entities; final PR checks validate the combined result. Native tests passed 106 before dependency-only
 reconciliation. Lint retains ten warnings; Vite reports directive/chunk warnings.
+PR review also corrected account-deletion ordering, send-time end-date eligibility
+for both hosted reminder channels, and stale shared Timeline measurements. Failed
+Auth deletion preserves Calendar state; external revocation follows successful
+deletion. The suggested conferenceDataVersion list parameter does not apply, as
+verified against Google’s read/write references in Calendar QA.
 GitHub requires passing PR validation before merging into protected `main`.
 Existing product-release gates and pending provider/native acceptance remain unchanged.
 
