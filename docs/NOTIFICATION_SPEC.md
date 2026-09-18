@@ -160,6 +160,16 @@ Fields:
 Account synchronization retains an existing processing claim when a selected
 reminder version omits it, including a reviewed cancellation. Both ordinary and
 reviewed plans preserve this database invariant; the selected status still applies.
+
+Account synchronization automatically retains a hosted Sent record over a local
+Cancelled record from a Pending baseline when their identity, schedule,
+provenance, and other non-delivery-state fields match. Require a valid hosted
+send timestamp and compatible existing processing claims. Keep the hosted send
+evidence while merging occurrence decisions independently. A cancellation that
+reaches the account before sending still cancels the pending reminder. Other
+reminder conflicts and conflicting user edits require review. See
+`docs/DESKTOP_BUILD.md` for the precise reconciliation boundary.
+
 - import_run_id (nullable provenance for explicitly promoted imported
   interventions)
 - imported_intervention_id (nullable provenance for explicitly promoted

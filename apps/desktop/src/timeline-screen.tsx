@@ -4,6 +4,8 @@ import { Plus } from "lucide-react";
 import type { NoteShortcut } from "@cadence/core/types/note-shortcut";
 
 import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
+import { openCalendarSourceUrl } from "./calendar/google-calendar";
+import { DayProgressTimeline, type DayProgressContext } from "@/components/timeline/DayProgressTimeline";
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
 import { OccurrenceRow } from "@/components/timeline/OccurrenceRow";
 import type { NotificationTarget } from "./notification-activation";
@@ -15,6 +17,7 @@ import type {
 
 export type TimelineScreenProps = Readonly<{
   timeline: TimelineView;
+  dayProgress?: DayProgressContext;
   statusAction: OccurrenceFormAction;
   noteAction: OccurrenceFormAction;
   startTimeTrackingAction: TimeTrackingFormAction;
@@ -28,6 +31,7 @@ export type TimelineScreenProps = Readonly<{
 
 export function TimelineScreen({
   timeline,
+  dayProgress,
   onRefresh,
   onShowMore,
   notificationTarget,
@@ -120,16 +124,8 @@ export function TimelineScreen({
                 </div>
               )}
             </NeedsDecisionDialog>
-            <div className="grid gap-5">
-              {timeline.daySections.map((section) => (
-                <TimelineGroup
-                  key={section.key}
-                  section={section}
-                  {...actions}
-                  shortcutsByBehavior={shortcutsByBehavior}
-                />
-              ))}
-            </div>
+            <DayProgressTimeline timeline={timeline} context={dayProgress} {...actions}
+              shortcutsByBehavior={shortcutsByBehavior} onDayChange={onRefresh} onOpenExternal={openCalendarSourceUrl} />
             {nextFutureDays ? (
               <div className="border-t border-line pt-5">
                 <button

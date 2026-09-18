@@ -4,6 +4,7 @@ import type { NoteShortcut } from "@cadence/core/types/note-shortcut";
 
 import { MobileTimelinePullToRefresh } from "@/components/timeline/MobileTimelinePullToRefresh";
 import { NeedsDecisionDialog } from "@/components/timeline/NeedsDecisionDialog";
+import { DayProgressTimeline, type DayProgressContext } from "@/components/timeline/DayProgressTimeline";
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
 import type {
   OccurrenceFormAction,
@@ -19,6 +20,9 @@ type TimelineProps = Readonly<{
   stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
   shortcutsByBehavior?: Record<string, NoteShortcut[]>;
+  dayProgress?: DayProgressContext;
+  onDayChange?: () => void;
+  liveCalendar?: boolean;
 }>;
 
 export function Timeline({
@@ -29,6 +33,9 @@ export function Timeline({
   stopTimeTrackingAction,
   resetTimeTrackingAction,
   shortcutsByBehavior = {},
+  dayProgress,
+  onDayChange,
+  liveCalendar = false,
 }: TimelineProps) {
   return (
     <MobileTimelinePullToRefresh>
@@ -64,20 +71,18 @@ export function Timeline({
           )}
         </NeedsDecisionDialog>
 
-        <div className="grid gap-5">
-          {timeline.daySections.map((section) => (
-            <TimelineGroup
-              key={section.key}
-              section={section}
-              statusAction={statusAction}
-              noteAction={noteAction}
-              startTimeTrackingAction={startTimeTrackingAction}
-              stopTimeTrackingAction={stopTimeTrackingAction}
-              resetTimeTrackingAction={resetTimeTrackingAction}
-              shortcutsByBehavior={shortcutsByBehavior}
-            />
-          ))}
-        </div>
+        <DayProgressTimeline
+          timeline={timeline}
+          context={dayProgress}
+          statusAction={statusAction}
+          noteAction={noteAction}
+          startTimeTrackingAction={startTimeTrackingAction}
+          stopTimeTrackingAction={stopTimeTrackingAction}
+          resetTimeTrackingAction={resetTimeTrackingAction}
+          shortcutsByBehavior={shortcutsByBehavior}
+          onDayChange={onDayChange}
+          liveCalendar={liveCalendar}
+        />
 
         {timeline.nextFutureDays ? (
           <div className="border-t border-line pt-5">

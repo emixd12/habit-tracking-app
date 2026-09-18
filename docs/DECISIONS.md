@@ -388,6 +388,14 @@ and show a shell cue plus Settings conflict review when intent cannot be
 preserved automatically. Do not add a hosted change journal until measurements
 show the snapshot ceiling is insufficient.
 
+The owner approved a narrow reminder reconciliation exception on 2026-09-15.
+A hosted Sent record takes precedence over a stale local Cancelled record from
+a Pending baseline when the delivery identity, schedule, and provenance match.
+Preserve hosted send evidence while synchronizing local occurrence decisions;
+a local cancellation cannot undo a recorded send. Conflicting user edits and
+other reminder conflicts still pause the whole plan. The full matching and
+evidence requirements live in `docs/DESKTOP_BUILD.md`.
+
 Reject rather than truncate a snapshot when a collection exceeds 100,000 rows,
 canonical JSON exceeds 64 MiB, or a complete attempt exceeds 30 seconds. Advance
 the baseline and acknowledge the local outbox only after hosted and local atomic
@@ -407,6 +415,32 @@ delivery, mobile implementation, or an account switcher.
 The first schema-changing desktop release in this track must upgrade an older
 installed version through the real updater after a protected database backup.
 Ticket 115 remains a separate deferred Apple-trust gate.
+
+## Preserve compatible initial manual marks during synchronization
+
+Decision date: 2026-09-16. Ticket: 130.
+
+The owner requested a history-preserving repair after independent Mac and web
+Completed marks blocked reminder reconciliation. Retain both initial manual
+marks when their status and provenance agree and occurrence copies differ only
+in status timestamps. Require an Unresolved baseline without status history,
+root explicit user marks, and timestamps backed by each copy's own events.
+Choose display timestamps with existing latest-event ordering; clocks never
+choose between divergent statuses. Retain IDs, timestamps, and provenance on
+every original event. Corrections and divergent descendants remain blocked.
+Remove the unused review handler that deleted the losing history event.
+
+This narrowly extends the earlier first-hydration compatibility decision.
+The existing three-way planner, outbox, compare-and-set apply, and baseline
+acknowledgement remain unchanged. No new framework or schema is needed.
+Current [PowerSync conflict guidance](https://docs.powersync.com/handling-writes/custom-conflict-resolution)
+supports domain-specific reconciliation and explicit unresolved conflicts.
+[Automerge conflict semantics](https://automerge.org/docs/reference/documents/conflicts/)
+also distinguish deterministic convergence from preserving conflicting values.
+Neither requires replacing Cadence's existing transport to handle equal marks.
+Desktop owns the shared planner and tests; web retains existing atomic apply
+and append-only protection. Marketing has no runtime change; desktop guidance
+explains the rule. Future mobile remains deferred.
 
 ## Preserve same-status hosted history during first hydration
 
@@ -509,3 +543,39 @@ fresh evidence. Accepted edits remain user-controlled. Removal retains only a
 retain state; portable tracking exports omit assistance metadata. Feature switches
 synchronize, but cloud consent never does. Provider evaluation uses synthetic
 Notes only and cannot imply permission to send personal Notes or incur new costs.
+
+## 2026-09-15: Day-progress timeline promoted to Tickets 132–137
+
+The owner approved ticket creation for a continuous left-side timeline beside
+unchanged ledger rows. Whole current/future days remain connected; item-only
+time labels and a moving dot provide temporal orientation. Readability takes
+priority over exact proportional spacing when items collide.
+
+The owner answered five scope questions:
+
+- Deliver web and desktop together.
+- Require Cadence sign-in and use the same Google account for Calendar.
+- Estimate duration from tracked averages when sufficient; otherwise use unknown.
+- Show overlap cues only; leave rearranging for a future ticket.
+- Cache the displayed external-event range on desktop and label stale data.
+
+The planned product/UI contracts and Tickets 132–137 own the details. Google
+access is read-only. Calendar editing, other accounts/connectors, and native
+mobile stay deferred. Ticket 132 validates layout and statistical defaults;
+Ticket 134 verifies provider capabilities and secure credential custody.
+This decision authorizes planning, not implementation or provider deployment.
+
+
+## 2026-09-16: Day-progress UI accepted; external-event infrastructure next
+
+The owner explicitly closed the seventh-revision UI review and requested connector
+infrastructure before minor design polish. Ticket 132 is complete; this does not
+claim production or native release acceptance. Tickets 133–137 retain those gates.
+
+Ticket 134 owns a documented, versioned external-event interface, using the
+existing shared types. Preserve scheduled starts, ends, derived duration or
+unknown, timezone, recurrence identity, availability, provenance, and coverage
+for future consumers. `docs/EXTERNAL_EVENT_CONTRACT.md` defines acceptance.
+Use MCP's schema/capability ideas without adding an MCP server or generic plugin
+framework. Dynamic rearranging, model invocation, and Calendar writes remain
+deferred. Ticket 137 verifies interface documentation alongside the combined release.

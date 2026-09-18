@@ -36,16 +36,18 @@ export async function applyLocalBehaviorLogRestore(profile: Profile, form: FormD
     if (storedPreview.errors.length || storedPreview.summary.skippedCount || storedPreview.summary.unsupportedActionCount || storedPreview.statusHistoryPolicy.selected !== "preserve_append_only_history" || !storedPreview.statusHistoryPolicy.applySupportedInThisTicket) throw new Error("Restore preview still contains skipped or unsupported actions.");
     if (storedPreview.sensitivity.highOrRestrictedNotesPresent && form.get("confirm_sensitive_notes") !== "yes") throw new Error("Review and acknowledge high or restricted note sensitivity before restoring.");
     let result;
+    let reviewedPreview: BehaviorLogRestorePreview | null = null;
     try { result = await applyStoredPlan(profile.id, accepted, now, "restore_apply"); }
     catch (error) {
       if (!(error instanceof Error) || error.message !== "The preview has no applicable write plan.") throw error;
       const importPreview = resolveBehaviorLogImportPreview({ files: bundle.files, reminderChannel: "other" });
       const preview = resolveBehaviorLogRestorePreview({ importPreview, existing: existingRecords(snapshot) }); assertFreshPreview(accepted, preview);
+      reviewedPreview = preview;
       const plan = planBehaviorLogRestoreWrite({ snapshot, applyRun: applyRun(accepted, "restore_apply", now), now, newId: () => crypto.randomUUID(), importPreview, preview });
       await localCommand("prepareBehaviorLogImport", { ...localMutation(profile.id, now), expectedRevision: snapshot.revision, previewRun: accepted, plan });
       result = await applyStoredPlan(profile.id, accepted, now, "restore_apply");
     }
     const applied = checkedApplyResult(result);
-    return { status: "applied", message: "BehaviorLog restore applied.", upload: { fileName: bundle.fileName, fileSize: bundle.fileSize }, archiveFingerprint: bundle.archiveFingerprint, preview: storedPreview, previewRun: view(accepted), applyResult: { importRun: view(applied.importRun), appliedCounts: Object.fromEntries(Object.entries(object(applied.result)).filter((entry): entry is [string, number] => typeof entry[1] === "number")) } };
+    return { status: "applied", message: "BehaviorLog restore applied.", upload: { fileName: bundle.fileName, fileSize: bundle.fileSize }, archiveFingerprint: bundle.archiveFingerprint, preview: reviewedPreview, previewRun: view(accepted), applyResult: { importRun: view(applied.importRun), appliedCounts: Object.fromEntries(Object.entries(object(applied.result)).filter((entry): entry is [string, number] => typeof entry[1] === "number")) } };
   } catch (error) { return { ...BEHAVIORLOG_RESTORE_INITIAL_STATE, status: "error", message: portabilityError(error) }; }
 }

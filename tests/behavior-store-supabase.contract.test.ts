@@ -1,3 +1,4 @@
+import { exerciseCapacitySqlContract } from "./helpers/behaviorlog-capacity-sql-contract";
 import { exerciseCategorySqlContract } from "./helpers/category-sql-contract";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
@@ -44,7 +45,7 @@ describe.skipIf(process.env.CADENCE_SUPABASE_CONTRACT !== "1")("BehaviorDataStor
         const endpoint = new URL(requestUrl).pathname;
         const started = performance.now();
         if (endpoint.includes("restore")) trace(`request ${endpoint} (${typeof init?.body === "string" ? Buffer.byteLength(init.body) : 0} bytes)`);
-        try { return await fetch(input, { ...init, signal: AbortSignal.timeout(15_000) }); }
+        try { return await fetch(input, { ...init, signal: AbortSignal.timeout(process.env.CADENCE_CAPACITY_CONTRACT === "1" ? 120_000 : 15_000) }); }
         catch (error) {
           const failure = error instanceof Error ? error.name : "UnknownError";
           throw new Error(`Local contract request failed or timed out: ${endpoint} (${failure}, ${Math.round(performance.now() - started)}ms)`);
@@ -54,7 +55,7 @@ describe.skipIf(process.env.CADENCE_SUPABASE_CONTRACT !== "1")("BehaviorDataStor
     const admin = createClient<Database>(config.url, config.serviceRoleKey, options);
     const users: { id: string; client: AppSupabaseClient | null }[] = [];
     try {
-      for (const slot of ["a", "b", "restore", "lineage"]) {
+      for (const slot of (process.env.CADENCE_CAPACITY_CONTRACT === "1" ? ["capacity"] : ["a", "b", "restore", "lineage"])) {
         const token = randomUUID();
         const email = `cadence-store-contract-${token}-${slot}@example.invalid`;
         const password = `CadenceContract-${randomUUID()}-aA1!`;
@@ -68,6 +69,11 @@ describe.skipIf(process.env.CADENCE_SUPABASE_CONTRACT !== "1")("BehaviorDataStor
         const signedIn = await client.auth.signInWithPassword({ email, password });
         if (signedIn.error || !signedIn.data.session) throw new Error("Could not sign in a temporary local contract account.");
         account.client = client;
+      }
+      if (process.env.CADENCE_CAPACITY_CONTRACT === "1") {
+        authenticatedRuntime.client = users[0].client;
+        await exerciseCapacitySqlContract(users[0].client!, users[0].id);
+        return;
       }
       const owner = users[0];
       const stranger = users[1];
@@ -114,20 +120,27 @@ describe.skipIf(process.env.CADENCE_SUPABASE_CONTRACT !== "1")("BehaviorDataStor
       await exerciseBehaviorLog03SqlContract(users[3].client!, users[3].id);
       authenticatedRuntime.client = client;
       await exerciseCategorySqlContract(client, owner.id, stranger.client!);
+    } catch (error) {
+      trace(error instanceof Error ? error.message : "Local contract failed");
+      throw error;
     } finally {
       trace("cleaning temporary accounts");
       let cleanupFailures = 0;
       for (const user of users) {
         if (user.client) {
           const signedOut = await user.client.auth.signOut();
-          if (signedOut.error) cleanupFailures += 1;
+          if (signedOut.error) trace("Temporary session logout failed; deleting its account revokes the session.");
         }
-        const deleted = await admin.auth.admin.deleteUser(user.id);
+        let deleted = await admin.auth.admin.deleteUser(user.id);
+        for (let retry = 0; deleted.error && retry < 5; retry++) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          deleted = await admin.auth.admin.deleteUser(user.id);
+        }
         if (deleted.error) cleanupFailures += 1;
       }
       if (cleanupFailures) throw new Error(`Local contract cleanup failed for ${cleanupFailures} operation(s).`);
     }
-  }, 60_000);
+  }, process.env.CADENCE_CAPACITY_CONTRACT === "1" ? 300_000 : 60_000);
 });
 
 async function readOwnerSnapshot(client: AppSupabaseClient, userId: string): Promise<BehaviorStoreSnapshot> {

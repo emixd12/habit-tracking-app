@@ -26,6 +26,7 @@ export type ExportPanelProps = Readonly<{
   restoreAction: BehaviorLogRestoreFormAction;
   onApplyOptions?: (formData: FormData) => void;
   onDownload?: (format: ExportDownloadFormat) => void;
+  allowNativeReminderConversion?: boolean;
   busy?: boolean;
   downloadStatus?: string;
   error?: string;
@@ -66,6 +67,7 @@ export function ExportPanel({
   restoreAction,
   onApplyOptions,
   onDownload,
+  allowNativeReminderConversion = false,
   busy = false,
   downloadStatus,
   error,
@@ -308,11 +310,13 @@ export function ExportPanel({
           </p>
         </div>
         <BehaviorLogImportPanel
+          allowNativeReminderConversion={allowNativeReminderConversion}
           recentRuns={importData.recentRuns}
           timezone={exportData.timezone}
           action={importAction}
         />
         <BehaviorLogRestorePanel
+          allowNativeReminderConversion={allowNativeReminderConversion}
           recentRuns={restoreData.recentRuns}
           timezone={exportData.timezone}
           action={restoreAction}

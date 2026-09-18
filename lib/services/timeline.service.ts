@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/occurrences.repo";
 import {
   listTimeSessionsByOccurrenceIds,
+  listTimeSessionHistory,
 } from "@/lib/db/timeSessions.repo";
 import { resolveGenerationWindow } from "@/lib/resolvers/occurrence.resolver";
 import {
@@ -163,7 +164,15 @@ async function getTimelineViewForUser(input: {
     userId,
     occurrenceIds: occurrenceRows.map((occurrence) => occurrence.id),
   });
+  const historyEnd = Temporal.PlainDate.from(timelineWindow.startLocalDate).subtract({ days: 1 }).toString();
+  const historyStart = Temporal.PlainDate.from(timelineWindow.startLocalDate).subtract({ days: 90 }).toString();
+  const [historyOccurrences, historySessions] = await Promise.all([
+    listOccurrencesBetweenLocalDates(supabase, userId, historyStart, historyEnd),
+    listTimeSessionHistory(supabase, { userId, startLocalDate: historyStart, endLocalDate: historyEnd,
+      includeArchived: false, throughStartedAt: now.toString() }),
+  ]);
   return resolvePersistedTimeline({
+    durationHistory: { occurrences: historyOccurrences, timeSessions: historySessions.map(toTimeSession) },
     behaviors,
     occurrences: occurrenceRows,
     timeSessions: timeSessions.map(toTimeSession),

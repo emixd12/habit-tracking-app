@@ -84,7 +84,10 @@ pub fn read_context(
     let behavior = db::read::<Behavior>(
         db,
         "SELECT * FROM behaviors WHERE user_id=?1 AND id=?2",
-        &[profile_id.to_string().into(), behavior_id.to_string().into()],
+        &[
+            profile_id.to_string().into(),
+            behavior_id.to_string().into(),
+        ],
     )?
     .into_iter()
     .next()
@@ -132,7 +135,9 @@ fn checked_context(context: NoteShortcutContext) -> Result<NoteShortcutContext> 
     let bytes = serde_json::to_vec(&context)
         .map_err(|_| "The Note shortcut context could not be encoded.".to_string())?;
     if bytes.len() > CONTEXT_LIMIT_BYTES {
-        return Err("The Note shortcut context exceeds 64 MiB; no partial result was returned.".into());
+        return Err(
+            "The Note shortcut context exceeds 64 MiB; no partial result was returned.".into(),
+        );
     }
     Ok(context)
 }
@@ -166,9 +171,14 @@ pub fn commit(
         if require_enabled
             && (!behavior.active
                 || !next.enabled
-                || !current.global_state.as_ref().is_some_and(|state| state.enabled))
+                || !current
+                    .global_state
+                    .as_ref()
+                    .is_some_and(|state| state.enabled))
         {
-            return Err("Enable Note shortcuts globally and for this active Behavior first.".into());
+            return Err(
+                "Enable Note shortcuts globally and for this active Behavior first.".into(),
+            );
         }
     } else if require_enabled {
         return Err("Choose a Behavior for shortcut management.".into());

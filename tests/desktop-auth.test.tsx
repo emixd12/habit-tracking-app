@@ -2,11 +2,25 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 import { readFileSync } from "node:fs";
-import { createKeychainStorage, DESKTOP_AUTH_CALLBACK, desktopAuthRedirect, disconnectDesktopAccount, parseDesktopAuthCallback, readDesktopAuthConfig, reconnectDesktopAccount } from "../apps/desktop/src/account/auth";
+import type { Session } from "@supabase/supabase-js";
+import { accountStateFromSession, createKeychainStorage, DESKTOP_AUTH_CALLBACK, desktopAuthRedirect, disconnectDesktopAccount, parseDesktopAuthCallback, readDesktopAuthConfig, reconnectDesktopAccount } from "../apps/desktop/src/account/auth";
 import { localErrorMessage } from "../apps/desktop/src/local-actions";
 import { AccountPanel } from "../apps/desktop/src/account/account-panel";
 
 describe("desktop authentication", () => {
+  it("reads the account name from session metadata with safe fallbacks", () => {
+    for (const [metadata, name] of [
+      [{ full_name: " Cadence User ", name: "Other" }, "Cadence User"],
+      [{ full_name: " ", name: " Display Name " }, "Display Name"],
+      [{ full_name: 42, name: {} }, null],
+      [{}, null],
+    ] as const) {
+      const session = { user: { id: "hosted", email: "owner@example.test", user_metadata: metadata } } as unknown as Session;
+      expect(accountStateFromSession(session)).toEqual({ status: "linked", userId: "hosted", email: "owner@example.test", name });
+    }
+    expect(accountStateFromSession(null)).toEqual({ status: "local" });
+  });
+
   it("preserves sanitized native command errors", () => {
     expect(localErrorMessage("macOS Keychain did not save the authentication session.")).toBe("macOS Keychain did not save the authentication session.");
   });

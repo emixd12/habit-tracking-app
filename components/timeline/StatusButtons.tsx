@@ -25,6 +25,7 @@ type StatusButtonsProps = Readonly<{
   action: OccurrenceFormAction;
   compact?: boolean;
   singleLine?: boolean;
+  iconOnly?: boolean;
   includeUnresolved?: boolean;
   unresolvedLabel?: string;
   disabled?: boolean;
@@ -131,6 +132,7 @@ export function StatusButtons({
   action,
   compact = false,
   singleLine = false,
+  iconOnly = false,
   includeUnresolved = false,
   unresolvedLabel = "Unmark",
   disabled = false,
@@ -218,6 +220,7 @@ export function StatusButtons({
           onStatusSubmit={onStatusSubmit}
           disabled={disabled || isPending}
           pendingStatus={pendingStatus}
+          iconOnly={iconOnly}
           singleLine={singleLine}
         />
         <StatusSubmitForm
@@ -230,6 +233,7 @@ export function StatusButtons({
           onStatusSubmit={onStatusSubmit}
           disabled={disabled || isPending}
           pendingStatus={pendingStatus}
+          iconOnly={iconOnly}
           singleLine={singleLine}
         />
         {includeUnresolved ? (
@@ -243,6 +247,7 @@ export function StatusButtons({
             onStatusSubmit={onStatusSubmit}
             disabled={disabled || isPending}
             pendingStatus={pendingStatus}
+            iconOnly={iconOnly}
             singleLine={singleLine}
           />
         ) : null}
@@ -263,6 +268,7 @@ function StatusSubmitForm({
   disabled,
   pendingStatus,
   singleLine,
+  iconOnly,
 }: Readonly<{
   occurrenceId: string;
   currentStatus: TimelineStatus;
@@ -274,6 +280,7 @@ function StatusSubmitForm({
   disabled: boolean;
   pendingStatus: StatusButtonValue | null;
   singleLine: boolean;
+  iconOnly: boolean;
 }>) {
   const submissionEventHandlers = createStatusSubmissionEventHandlers({
     onStatusIntent: () => {
@@ -300,6 +307,7 @@ function StatusSubmitForm({
         onClick={submissionEventHandlers.onClick}
         disabled={disabled}
         pendingStatus={pendingStatus}
+        iconOnly={iconOnly}
         singleLine={singleLine}
       />
     </form>
@@ -314,6 +322,7 @@ function StatusSubmitButton({
   disabled,
   pendingStatus,
   singleLine,
+  iconOnly,
 }: Readonly<{
   status: StatusButtonValue;
   label: string;
@@ -322,6 +331,7 @@ function StatusSubmitButton({
   disabled: boolean;
   pendingStatus: StatusButtonValue | null;
   singleLine: boolean;
+  iconOnly: boolean;
 }>) {
   const { pending } = useFormStatus();
   const Icon =
@@ -337,6 +347,7 @@ function StatusSubmitButton({
       type="submit"
       disabled={pending || disabled}
       aria-disabled={pending || disabled ? "true" : undefined}
+      title={iconOnly ? label : undefined}
       data-single-line={singleLine ? "true" : undefined}
       onClick={onClick}
       onPointerDown={onPointerDown}
@@ -352,7 +363,7 @@ function StatusSubmitButton({
         size={singleLine ? 16 : 14}
         strokeWidth={2.5}
       />
-      <span>{isSavingThisStatus ? `Saving ${label}...` : label}</span>
+      <span className={iconOnly ? "sr-only" : undefined}>{isSavingThisStatus ? `Saving ${label}...` : label}</span>
     </button>
   );
 }

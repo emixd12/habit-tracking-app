@@ -1,5 +1,52 @@
 # Desktop parity baseline
 
+Each timed event gets one marker at its start, or on the first visible day if it
+started earlier. Later days retain duration segments without repeated markers.
+Drawers fit their content with 16px padding and reserve only their rendered height.
+
+All-day controls are absent when the day has no all-day events. Otherwise they
+show “All day: {first event title}”, with “+N more” for additional visible events.
+Dismissed events retain a Restore control. Hover, focus, click, and tap open the
+same persistent preview. The preview has no repeated heading or divider. Each
+event owns a View details button that opens only that event in the modal details
+drawer. Closing details returns focus to the original timeline control.
+
+
+Tickets 132–137: shared layout/context contracts and a synthetic web review bench
+passed owner UI review on 2026-09-16. This does not establish desktop feature parity. Ticket 133
+must wire the accepted layout into TimelineScreen without changing local tracking.
+The accepted desktop baseline keeps timed Calendar context left of one continuous
+day-progress axis and the ledger exclusively right. Restore action padding is
+12px on narrow layouts and 16px on desktop.
+Day headers align with the ledger while the axis continues through headers and
+days. Equal-time peers use visible actual-time labels without Behavior-facing
+ticks, nodes, or a bracket. Calendar events keep centered-icon stems without
+axis nodes. Only identical original start instants group; nearby starts remain separate. Desktop shows Completed and Not Completed text by default and
+hides it only when the measured title and actions do not fit. Mobile uses
+icon-only accessible actions with 44px targets. The current grouped reference
+stays unchanged. There is no right-side All day column. All Day Events sits
+beside the ledger-header day title and wraps on narrow layouts. Its hover/focus
+preview is a fixed bottom drawer that matches timed Calendar previews and stays non-modal. It reserves
+matching viewport space, is at most `min(18rem, 40dvh)` (a maximum, never a fixed height), and scrolls internally. It persists until explicit dismissal
+or replacement so a pointer can reach it. Each event’s View details action opens its own bottom native modal details drawer;
+Close or Escape returns focus without reopening the preview. All-day dismissal
+is restorable local presentation state, never a provider deletion or Cadence
+status. Timed-event hover/focus previews show duration on a thickened axis segment from
+the displayed original-day perpendicular-stem contact and highlight matching Behavior rows. Preserve mapped length
+to the day body bottom. An overnight continuation starts at the next section top above its heading, continues to the event end without another marker or stem; details retain actual times. No permanent duration bars
+appear. Calendar icons use centered perpendicular stems without axis nodes.
+No persistent teal overlap fill or edge appears. Hover/focus outlines only overlapping Behaviors. Point overlap uses
+`start <= activation < end`; estimated-duration overlap is half-open. Completed
+and Not Completed fills remain unchanged. The current-time dot uses brand blue and
+does not tint a row. All other layout, colors, and typography remain
+unchanged. The owner accepted the seventh-revision layout on 2026-09-16.
+Ticket 132 is complete; production parity remains in Tickets 133–137.
+Ticket 134 must implement the shared `docs/EXTERNAL_EVENT_CONTRACT.md` boundary.
+Tickets 134–137 still require native consent, account-scoped cache cleanup,
+source-link, offline, lifecycle, and performance acceptance. Existing interaction
+registry entries remain the production inventory. See
+`docs/qa/day-progress-release.md` for the combined acceptance gates.
+
 The baseline is the BehaviorLog 0.3 working web build on 2026-08-30, including its
 uncommitted marketing changes. The four desktop product screens now use local
 services and shared UI. Tracking parity is complete locally. Ticket 113's ad hoc
@@ -222,3 +269,24 @@ description edits, ordering, filtering, sorting, cancellation, confirmed deletio
 and restart passed in the isolated Category QA app on 2026-09-05. Shared DOM and
 real SQLite checks are recorded in the ticket QA note. Hosted rollout and release
 publication remain separate.
+
+## Day-progress and Calendar context (Tickets 133–137)
+
+Web and desktop now consume `DayProgressTimeline`, the same layout/context
+resolvers, and the versioned event snapshot. Shared synthetic DOM evidence and
+native cache contracts establish local implementation. Installed preview.36
+passes same-account reconnect, selection, refresh, disconnect/cache cleanup,
+preview/details focus return, source links, and tracking-row preservation.
+Preview.37 adds the reviewed callback-message correction and restarts with
+Calendar context. Installed offline restart preserves cached events with stale
+labels; Wi-Fi recovery is verified. The four-state CPU comparison is recorded.
+Preview.38 passes live wrong-account rejection. Preview.40 passes protected
+there-and-back account switching,
+secondary Calendar isolation/cleanup, and primary data restoration at the documented
+timestamp precision. Installed future-range extension passes. An isolated WKWebView
+app renders the production shared Timeline and passes two-day all-day dismissal and
+restoration, repeated-DST-hour labels, preview/details, Escape, and visible focus
+return. This bench does not exercise the desktop service lifecycle. Dense/overnight
+native fixtures and multi-day resume remain open.
+The interaction registry records implemented controls separately from Ticket 137
+release acceptance. Marketing has no runtime change; native mobile remains deferred.

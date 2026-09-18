@@ -286,13 +286,13 @@ describe("BehaviorLog restore apply service", () => {
     expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
   });
 
-  it("rejects restore files above 2 MB with Cadence's exact size error", async () => {
+  it("rejects restore files above 3 MiB with Cadence's exact size error", async () => {
     const formData = new FormData();
 
     formData.set(
       "restore_behaviorlog_file",
       new File(
-        [new Uint8Array(2 * 1024 * 1024 + 1)],
+        [new Uint8Array(3 * 1024 * 1024 + 1)],
         "too-large.behaviorlog.zip",
         { type: "application/zip" },
       ),
@@ -370,6 +370,18 @@ describe("BehaviorLog restore apply service", () => {
         }),
       }),
     );
+  });
+
+  it("binds native reminder conversion to the accepted restore preview", async () => {
+    const zip = createStoredZip(bundleFiles({ nativeReminders: true }));
+    expect(previewBehaviorLogRestoreFromZip({ zip, existing: emptyExisting() }).valid).toBe(false);
+    const preview = previewBehaviorLogRestoreFromZip({ zip, existing: emptyExisting(), convertNativeRemindersToBrowser: true });
+    expect(preview.valid).toBe(true);
+    expect(preview.warnings.some(issue => issue.code === "native_reminder_converted_to_browser")).toBe(true);
+    mocks.getBehaviorLogImportRunById.mockResolvedValue(restorePreviewRun(preview, zip));
+    await expect(applyBehaviorLogRestoreUploadFromFormData(restoreApplyFormData(zip, preview))).rejects.toThrow(/preview/i);
+    expect(mocks.createBehaviorLogImportRun).not.toHaveBeenCalled();
+    expect(mocks.bindBehaviorLogRestoreApplyPayload).not.toHaveBeenCalled();
   });
 
   it("requires typed restore confirmation before auth or writes", async () => {
@@ -549,7 +561,8 @@ describe("BehaviorLog restore apply service", () => {
 
     expect(result.status).toBe("applied");
     expect(result.message).toContain("already applied");
-    expect(result.preview?.previewFingerprint).toBe(preview.previewFingerprint);
+    expect(result.preview).toBeNull();
+    expect(result.previewRun?.id).toBe("22222222-2222-4222-8222-222222222222");
     expect(
       mocks.repairUserOccurrenceReminderGraphBestEffort,
     ).toHaveBeenCalledWith(expect.anything(), USER_ID, {
@@ -1452,7 +1465,7 @@ function existingRecordsFromRestorePayload(payload: RestorePayloadForTest) {
 }
 
 function bundleFiles(
-  input: { timeSessions?: ExportTimeSessionInput[] } = {},
+  input: { timeSessions?: ExportTimeSessionInput[]; nativeReminders?: boolean } = {},
 ) {
   const categories: ExportCategoryInput[] = [
     {
@@ -1531,6 +1544,7 @@ function bundleFiles(
 
   return resolveExportBundle({
     profile: {
+      reminderChannel: input.nativeReminders ? "other" : "browser_push",
       timezone: DEFAULT_TIMEZONE,
       subjectId: "subject_test",
     },

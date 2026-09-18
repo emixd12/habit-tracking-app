@@ -298,3 +298,15 @@ records the six image/audio files, hashes, and owner authorization. Bundled
 font and Lucide notices are verified separately. The owner's 2026-08-31 statement
 now authorizes all six exact files inside Cadence; that authorization does not
 change MIT exclusions, trademark rights, or third-party notices.
+
+## Pending day-progress/Calendar release (Tickets 133–137)
+
+Do not publish this working tree as an accepted Calendar release. Local checks
+and fresh review pass. The owner approved provider setup, hosted rollout, live
+consent, installed desktop acceptance, and similar task actions on 2026-09-17.
+Preview.40 is installed with a protected database backup and preview.39 rollback
+app. Its 11 artifact checks pass; its signature remains ad hoc.
+Protect the installed database before native acceptance. Verify real consent,
+wrong-account refusal, offline cache after restart, revocation/cleanup, source
+links, day rollover, minimized work, and upgrade preservation. Evidence belongs
+in `docs/qa/day-progress-release.md`. Existing Ticket 115 Apple-trust gates remain.

@@ -1,0 +1,63 @@
+{
+  "nextPageToken": "page-2",
+  "items": [
+    {
+      "id": "moved-dst-instance",
+      "status": "confirmed",
+      "iCalUID": "series@example.com",
+      "summary": "DST review",
+      "description": "<p>Review &amp; notes</p><script>ignore()</script>",
+      "location": "Room 3",
+      "htmlLink": "https://calendar.google.com/calendar/event?eid=one",
+      "start": {
+        "dateTime": "2026-11-01T01:30:00-04:00",
+        "timeZone": "America/New_York"
+      },
+      "end": {
+        "dateTime": "2026-11-01T01:30:00-05:00",
+        "timeZone": "America/New_York"
+      },
+      "recurringEventId": "series-1",
+      "originalStartTime": {
+        "dateTime": "2026-11-01T05:00:00Z",
+        "timeZone": "America/New_York"
+      },
+      "updated": "2026-10-31T14:00:00Z",
+      "etag": "revision-one",
+      "attendees": [
+        {
+          "displayName": "Cadence User",
+          "email": "user@example.com",
+          "responseStatus": "tentative",
+          "self": true
+        }
+      ],
+      "conferenceData": {
+        "conferenceSolution": { "name": "Meet" },
+        "entryPoints": [
+          {
+            "entryPointType": "video",
+            "uri": "https://meet.google.com/example",
+            "label": "Join"
+          }
+        ],
+        "notes": "<b>Use the lobby</b>"
+      },
+      "attachments": [
+        {
+          "title": "Agenda",
+          "mimeType": "text/plain",
+          "fileUrl": "https://example.com/agenda"
+        }
+      ]
+    },
+    {
+      "id": "all-day-two-days",
+      "status": "tentative",
+      "summary": "Conference",
+      "start": { "date": "2026-11-01" },
+      "end": { "date": "2026-11-03" },
+      "transparency": "transparent"
+    }
+  ]
+}

@@ -3,7 +3,12 @@ use rusqlite::{OptionalExtension, TransactionBehavior};
 use std::ffi::{c_char, CStr, CString};
 use tauri::State;
 
-const ALLOWED_KEYS: &[&str] = &["supabase-session", "supabase-pkce", "pending-state"];
+const ALLOWED_KEYS: &[&str] = &[
+    "supabase-session",
+    "supabase-pkce",
+    "pending-state",
+    "pending-calendar-state",
+];
 
 extern "C" {
     fn cadence_auth_open_url(value: *const c_char) -> bool;

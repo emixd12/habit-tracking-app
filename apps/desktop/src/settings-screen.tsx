@@ -31,6 +31,7 @@ export type SettingsScreenProps = Readonly<{
   updates?: ReactNode;
   databaseControls?: ReactNode;
   accountControls?: ReactNode;
+  calendarControls?: ReactNode;
   categoryControls?: ReactNode;
   noteShortcutControls?: ReactNode;
 }>;
@@ -59,6 +60,7 @@ export function SettingsScreen({
   updates,
   databaseControls,
   accountControls,
+  calendarControls,
   categoryControls,
   noteShortcutControls,
 }: SettingsScreenProps) {
@@ -84,6 +86,7 @@ export function SettingsScreen({
           </p>
         </section>
         {accountControls}
+        {calendarControls}
         <TimezonePanel
           currentTimezone={currentTimezone}
           updateTimezoneAction={updateTimezoneAction}

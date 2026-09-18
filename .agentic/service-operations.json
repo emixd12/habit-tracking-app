@@ -1,0 +1,299 @@
+{
+  "schema_version": "1.0",
+  "source_skill": "service-connections-bootstrap",
+  "unknown_command_effect": "external_write",
+  "external_writer_limit": 1,
+  "evidence": {
+    "path": ".agentic/runtime/service-operation-evidence.json",
+    "scope": "host_local",
+    "tracked": false
+  },
+  "providers": [
+    {
+      "name": "cloudflare",
+      "active_tier": "dns-edit",
+      "tiers": [
+        "read",
+        "dns-edit",
+        "zone-admin"
+      ],
+      "payload_paths": [
+        "scripts/cloudflare-api.mjs"
+      ],
+      "dependencies": [
+        {
+          "id": "cloudflare-wrapper",
+          "executable": "scripts/cloudflare-api.mjs",
+          "package": {
+            "manager": "bundled",
+            "name": "scripts/cloudflare-api.mjs"
+          },
+          "version": {
+            "requirement": "file_hash"
+          },
+          "lock_evidence": {
+            "kind": "file_hash",
+            "paths": [
+              "scripts/cloudflare-api.mjs"
+            ],
+            "key": "cloudflare-wrapper"
+          },
+          "provisioning": {
+            "mode": "installer",
+            "argv": null
+          }
+        }
+      ],
+      "operations": [
+        {
+          "id": "service-connections.cloudflare.zones.read",
+          "effect": "external_read",
+          "minimum_tier": "read",
+          "target_selectors": [
+            {
+              "name": "account_id",
+              "source": {
+                "kind": "argument",
+                "key": "account_id"
+              },
+              "required": true
+            },
+            {
+              "name": "zone",
+              "source": {
+                "kind": "argument",
+                "key": "zone"
+              },
+              "required": true
+            }
+          ],
+          "dependencies": [
+            "cloudflare-wrapper"
+          ],
+          "preflight": {
+            "kind": "command",
+            "argv": [
+              "npm",
+              "run",
+              "cloudflare:verify"
+            ],
+            "authority": "none"
+          },
+          "readback": {
+            "kind": "command",
+            "argv": [
+              "npm",
+              "run",
+              "cloudflare",
+              "--",
+              "zone",
+              "info"
+            ],
+            "authority": "none"
+          },
+          "approval": {
+            "mode": "not_required",
+            "scope": "none",
+            "ttl_seconds": 0
+          },
+          "revoke": {
+            "kind": "manual",
+            "steps": [
+              "Remove or revoke the scoped Cloudflare token."
+            ]
+          },
+          "rollback": {
+            "kind": "none",
+            "steps": [
+              "Read-only zone inspection creates no provider state."
+            ]
+          },
+          "ttl_seconds": 900,
+          "retry": {
+            "classifier": "exit_code",
+            "transient": {
+              "max_attempts": 2,
+              "backoff_seconds": 2,
+              "exit_codes": [
+                75
+              ]
+            },
+            "permanent": {
+              "max_attempts": 1
+            }
+          }
+        },
+        {
+          "id": "service-connections.cloudflare.dns.write",
+          "effect": "external_write",
+          "minimum_tier": "dns-edit",
+          "target_selectors": [
+            {
+              "name": "account_id",
+              "source": {
+                "kind": "argument",
+                "key": "account_id"
+              },
+              "required": true
+            },
+            {
+              "name": "zone",
+              "source": {
+                "kind": "argument",
+                "key": "zone"
+              },
+              "required": true
+            },
+            {
+              "name": "record",
+              "source": {
+                "kind": "argument",
+                "key": "record"
+              },
+              "required": true
+            }
+          ],
+          "dependencies": [
+            "cloudflare-wrapper"
+          ],
+          "preflight": {
+            "kind": "command",
+            "argv": [
+              "npm",
+              "run",
+              "cloudflare",
+              "--",
+              "dns",
+              "list"
+            ],
+            "authority": "none"
+          },
+          "readback": {
+            "kind": "command",
+            "argv": [
+              "npm",
+              "run",
+              "cloudflare",
+              "--",
+              "dns",
+              "list"
+            ],
+            "authority": "none"
+          },
+          "approval": {
+            "mode": "explicit",
+            "scope": "exact_operation_and_target",
+            "ttl_seconds": 900
+          },
+          "revoke": {
+            "kind": "manual",
+            "steps": [
+              "Remove DNS edit permission or revoke the Cloudflare token."
+            ]
+          },
+          "rollback": {
+            "kind": "command",
+            "steps": [
+              "Restore or delete the exact DNS record, then read it back."
+            ]
+          },
+          "ttl_seconds": 900,
+          "retry": {
+            "classifier": "exit_code",
+            "transient": {
+              "max_attempts": 1,
+              "backoff_seconds": 0,
+              "exit_codes": [
+                75
+              ]
+            },
+            "permanent": {
+              "max_attempts": 1
+            }
+          }
+        },
+        {
+          "id": "service-connections.cloudflare.zone.admin",
+          "effect": "external_write",
+          "minimum_tier": "zone-admin",
+          "target_selectors": [
+            {
+              "name": "account_id",
+              "source": {
+                "kind": "argument",
+                "key": "account_id"
+              },
+              "required": true
+            },
+            {
+              "name": "zone",
+              "source": {
+                "kind": "argument",
+                "key": "zone"
+              },
+              "required": true
+            }
+          ],
+          "dependencies": [
+            "cloudflare-wrapper"
+          ],
+          "preflight": {
+            "kind": "command",
+            "argv": [
+              "npm",
+              "run",
+              "cloudflare",
+              "--",
+              "zone",
+              "info"
+            ],
+            "authority": "none"
+          },
+          "readback": {
+            "kind": "command",
+            "argv": [
+              "npm",
+              "run",
+              "cloudflare",
+              "--",
+              "zones",
+              "list"
+            ],
+            "authority": "none"
+          },
+          "approval": {
+            "mode": "explicit",
+            "scope": "exact_operation_and_target",
+            "ttl_seconds": 900
+          },
+          "revoke": {
+            "kind": "manual",
+            "steps": [
+              "Remove Zone Edit and Registrar Edit or revoke the token."
+            ]
+          },
+          "rollback": {
+            "kind": "manual",
+            "steps": [
+              "Restore the exact prior zone or registrar setting when possible."
+            ]
+          },
+          "ttl_seconds": 900,
+          "retry": {
+            "classifier": "exit_code",
+            "transient": {
+              "max_attempts": 1,
+              "backoff_seconds": 0,
+              "exit_codes": [
+                75
+              ]
+            },
+            "permanent": {
+              "max_attempts": 1
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

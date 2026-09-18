@@ -119,8 +119,9 @@ In Supabase Auth URL configuration, keep the production site URL and redirect
 URL aligned with the Vercel production alias:
 
 ```text
-Site URL: https://cadence-blush-three.vercel.app
-Redirect URL: https://cadence-blush-three.vercel.app/auth/callback
+Site URL: https://app.cadence-me.com
+Redirect URL: https://app.cadence-me.com/auth/callback
+Legacy redirect retained: https://cadence-blush-three.vercel.app/auth/callback
 ```
 
 Only add preview callback URLs when preview OAuth QA is intentionally supported.
@@ -468,3 +469,180 @@ on Pro, so five-minute reminder processing fits the existing plan. Deploy
 authorized Preview before Production; Preview does not execute Vercel Cron.
 Production cadence acceptance requires the deployed schedule and a bounded
 owner-authorized delivery check.
+
+
+## Ticket 138 domain migration checkpoint, 2026-09-17
+
+The attachment/preparation checkpoint below is historical. The authorized
+dashboard continuation records the subsequent DNS, ownership, and publication.
+
+The existing team remains `team_BxWfRYU1gqrl6Ba6t7Vm3wp1`.
+The Vercel CLI account readback was `emilianobache-3890` (CLI 59.7.0,
+Node 24.19.0). The owner requested both attachments through Ticket 138:
+
+| Domain | Existing project | Readback |
+|---|---|---|
+| `cadence-me.com` | `cadence-marketing` (`prj_BLlsxoaz1wSvWuK7xcZLLkHglQcR`) | Attached; DNS not configured |
+| `app.cadence-me.com` | `cadence` (`prj_9tZKRXZ6IdT56ZLKVSmoJH5AAYhs`) | Attached; DNS not configured |
+
+`vercel domains inspect` returned an A record target of `76.76.21.21` for
+both hosts. Recheck at execution time. Keep records DNS-only and preserve
+Cloudflare nameservers. Do not substitute a remembered CNAME or change registrar
+settings. Public DNS returned `pam.ns.cloudflare.com` and
+`vick.ns.cloudflare.com`; apex A/AAAA/MX/TXT and app/www CNAME queries returned
+no answer. This is not a complete zone inventory; authenticated DNS readback is
+still required before writing. HTTPS and ownership verification have not passed.
+
+The Cloudflare pathway is installed at `dns-edit` scope. Its credential preflight
+fails because `.env.local` lacks Cloudflare access. See `SERVICE_CONNECTIONS.md`.
+No DNS record, deployment, or hosted environment value changed at this checkpoint.
+
+### Origin inventory and cutover order
+
+| Surface | Existing source | Final target or compatibility treatment |
+|---|---|---|
+| Marketing canonical, Open Graph, sitemap, robots, Markdown/agent links | `apps/marketing/astro.config.mjs`, `src/data/site.ts`, `src/data/agent-output.ts`, `src/layouts/BaseLayout.astro`; `MARKETING_SITE_URL` | `https://cadence-me.com` after DNS/TLS acceptance |
+| Marketing app, privacy, terms, trust links | `PUBLIC_CADENCE_APP_URL` and `src/data/site.ts` | `https://app.cadence-me.com`; legal text stays on app routes |
+| Web marketing link | `lib/marketing-site.ts`; `NEXT_PUBLIC_MARKETING_SITE_URL` | `https://cadence-me.com` |
+| Reminder and push links | `NEXT_PUBLIC_SITE_URL`, reminder/web-push services | `https://app.cadence-me.com` |
+| Supabase web sign-in | Site URL and exact `/auth/callback` allowlist; `app/auth/callback/route.ts` | Add new exact callback before cutover; preserve old callback and existing native allowlist |
+| Google sign-in project | `habit-tracker-498717`, Supabase provider callback | Keep separate from Calendar; the Supabase provider callback does not become the app callback |
+| Calendar OAuth project | `cadence-calendar-498717`, `GOOGLE_CALENDAR_CALLBACK_URL`, `lib/services/google-calendar-oauth.ts` | Final callback `https://app.cadence-me.com/auth/google-calendar/callback`; retain old registered callback until safe migration |
+| Installed Calendar broker | Build-time `VITE_CALENDAR_BROKER_ORIGIN`, `apps/desktop/src/calendar/google-calendar.ts`, native CSP | Keep old HTTPS API origin working without redirects; future builds need new exact CSP origin and installed QA |
+| Native returns | `cadence://auth/callback`, `cadence://calendar/callback` | Keep both contracts unchanged |
+| Calendar CORS | `lib/services/google-calendar-request.ts` | Same-origin web or the existing three exact Tauri origins; no wildcard needed |
+| Public Trust collection | `.github/workflows/public-trust-evidence.yml` protected environment origin variables | Update both production origins and regenerate evidence bound to Ready deployments |
+| `www.cadence-me.com` | No configured alias observed | Keep unconfigured for this first cutover; do not claim www support or add a third route implicitly |
+| Old marketing/app aliases | Existing Vercel domains | Retain through web/native acceptance; never apply blanket app-origin redirects |
+
+The prepared Calendar callback code accepts the primary
+`GOOGLE_CALENDAR_CALLBACK_URL` and optional `GOOGLE_CALENDAR_LEGACY_CALLBACK_URL`.
+Both must be exact HTTPS callback URLs registered on the same Google client.
+The connection and callback routes select only the configured URL matching the
+request origin. Consent, token exchange, and the Settings return therefore keep
+the same host and its existing session cookie. Unknown origins fail closed.
+The same-account, PKCE, one-use state, and native return checks remain intact.
+Tests cover both origins and malicious/unconfigured callback hosts. The
+authorized continuation deployed this code. Keep the previous URL in the legacy
+setting before switching the primary setting. Keep both stable for in-flight
+attempts and while installed clients require the old origin. Do not broaden
+CORS or bypass the callback user check.
+
+Execution order: authenticate Cloudflare and save the complete existing record
+inventory privately; add only the provider-confirmed routing records; verify
+DNS and HTTPS; publish reviewed copy and coordinated origin configuration; add
+and test exact auth callbacks; verify Google ownership and branding; smoke-test
+new and old web login plus installed native handoff/refresh. Keep old aliases
+until all compatibility checks pass. No code default or hosted canonical was
+switched while DNS remained unavailable.
+
+Rollback: revert changed canonical/environment values to the captured previous
+values and redeploy the prior Ready deployments. Keep old aliases and callback
+allowlists available. Restore only changed DNS records from the private inventory;
+remove only records created by this change. Remove each new Vercel project-domain
+attachment if abandoning setup. Do not delete the domain, nameservers, mail
+records, existing OAuth client, or credentials. Domain attachment alone did not
+replace a previous production alias.
+
+### Authorized dashboard continuation, 2026-09-17
+
+The owner selected the existing Cloudflare dashboard session. Authenticated
+readback showed zero DNS records for `cadence-me.com` before this change. The
+operator added only these three records, with Auto TTL:
+
+| Name | Type | Content | Proxy |
+|---|---|---|---|
+| `cadence-me.com` | A | `76.76.21.21` | DNS only |
+| `app.cadence-me.com` | A | `76.76.21.21` | DNS only |
+| `cadence-me.com` | TXT | Google Search Console ownership challenge | Not applicable |
+
+Vercel re-confirmed the A targets before execution. Public DNS returns both
+A records and the exact TXT challenge. Vercel reports `misconfigured: false`.
+Certificate issuance succeeded; both HTTPS homepage and app Privacy returned
+200. Search Console confirmed **Ownership verified** through Domain name
+provider for Identity Scaffolding (`info@identityscaffolding.com`). Keep the
+TXT record installed. This proves domain ownership, not OAuth review approval.
+Nameservers, registrar, other zones, and existing aliases remain unchanged.
+The zone contained no pre-existing mail or unrelated records to replace.
+
+The Calendar client retains its old exact callback and now also registers
+`https://app.cadence-me.com/auth/google-calendar/callback`. Branding retains
+legacy domains and adds `cadence-me.com`. Supabase now uses Site URL
+`https://app.cadence-me.com` and adds its exact `/auth/callback`, preserving
+all six prior redirect entries, including native callbacks. No schema changed.
+
+Six Production settings now coordinate the cutover: the app's canonical URL,
+marketing URL, primary Calendar callback, and legacy Calendar callback; the
+marketing site's canonical URL and application URL. Vercel required replacing
+the old public site URL's Secret entry with Config; its value is public. No
+provider secret was changed. Sensitive Vercel values cannot be exported; the
+private environment capture contains placeholders for those existing values.
+Rollback must restore only the known changed URL settings, never placeholders.
+
+Release candidates use isolated source stages at
+`/private/tmp/cadence-domain-release-20260917`. The web baseline is the reviewed
+source patch `ac1d998dc500e06d20fdc935059e793a28968decbd1e3072011cbe65804fe291`
+from deployment `dpl_4VbtFaFa4qEYQ2WJPdPo5fWWw9Vs`, with five approved runtime
+files and three regression tests overlaid. The final stage also includes only
+the matching legal-link registry entries and legacy callback environment-example
+name. Marketing starts at exact commit
+`b047d59a368136f283cf981f42e21b937ec13101` from
+`dpl_9NYrBAxhXgjThfnqKYvyVmxxBiEV`, with four approved copy files overlaid.
+The unrelated dirty workspace is excluded. Promotion and live acceptance are
+recorded separately after candidate checks.
+
+
+Final Production app: `dpl_CHQVE4LWvUPG6LN4dpW3YwTTAgua`.
+Final Production marketing: `dpl_5WtNGHwxYgRpfrGMuR4tKYhaivrg`.
+Both promotions succeeded. The final app stage passed all seven required
+commands and 1,685 tests. Its legal footer uses `NEXT_PUBLIC_MARKETING_SITE_URL`
+through the existing helper. The Google branding homepage/privacy/terms fields
+now match the canonical public domains and were read back after saving.
+
+Public Trust protected-environment variables now use the new application and
+marketing origins. `CADENCE_TRUST_MARKETING_DEPLOYMENT_ID` now names the final
+marketing deployment above. The previous value was
+`dpl_A5FZef6LSZ3c3yRfWiETDju4C75s`. Fresh Trust evidence requires a matching
+committed source revision and exact deployment IDs; no workflow or fabricated
+Passed result was published for these isolated uncommitted overlays.
+
+For rollback, promote prior app `dpl_4VbtFaFa4qEYQ2WJPdPo5fWWw9Vs` and prior
+marketing `dpl_9NYrBAxhXgjThfnqKYvyVmxxBiEV`. Restore the old app and marketing
+URL configuration together, including Supabase Site URL and Google branding
+links when abandoning the new canonical domains. Preserve both callback
+allowlists and legacy aliases while rollback is evaluated. Existing deployment
+artifacts retain their build-time configuration; restoring project settings
+only affects subsequent builds. Never import sensitive placeholders from the
+private environment capture. Keep the ownership TXT unless intentionally
+abandoning verification. `www` remains unconfigured.
+
+
+### Calendar review-copy publication — September 17, 2026
+
+Marketing deployment `dpl_8t2tdswkbtotmut2Pbs5B44uA1BE` is Ready and promoted.
+Its isolated source stage is `/private/tmp/cadence-domain-release-20260917/marketing`.
+Only three previously reviewed marketing copy files changed for this continuation:
+`src/pages/index.astro`, `src/data/faq.ts`, and `src/data/routes.ts`. They replace
+the obsolete Testing-only limit with pending Calendar-access review. The public
+homepage and FAQ both return the new copy and no longer state the old test limit.
+The authenticated candidate check also verified the canonical Cadence URL.
+Deployment protection remains enabled. Marketing checks and build pass.
+
+The application deployment remains `dpl_CHQVE4LWvUPG6LN4dpW3YwTTAgua`. Its
+Production `CADENCE_TRUST_MARKETING_DEPLOYMENT_ID` setting now names the new
+marketing deployment. This affects subsequent builds; the running app retains
+its old build-time reference. Fresh commit-bound Trust evidence remains pending.
+No new Trust Passed claim or app release was made for this copy correction.
+Rollback for this correction: promote marketing
+`dpl_5WtNGHwxYgRpfrGMuR4tKYhaivrg` and restore its deployment-reference setting.
+
+Repository user-guide copy now describes the same pending-review state.
+`agents:check`, `interactions:check`, `resolvers:check`, and `git diff --check`
+pass. Full app lint/typecheck/tests/build from the preceding isolated release
+remain the code evidence; this continuation changes copy and records only.
+Logs are under `/private/tmp/cadence-domain-release-20260917/logs`.
+
+The recording page is isolated and signed into the dedicated test account.
+Chrome focus changed before recorder startup completed. No new recording was
+confirmed. The page and unsubmitted Google questionnaire remain open for
+continuation when Chrome can remain on Cadence during capture.

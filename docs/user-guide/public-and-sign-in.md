@@ -145,9 +145,10 @@ sign-in preserves the intended protected destination when supported.
 **Privacy and safety:** Read Privacy before putting sensitive text into Behavior
 descriptions or Occurrence Notes. Trust explains durable commitments separately
 from bounded, time-specific verification. A Passed check is not a certification
-or a claim that defects are absent. Terms explains that Cadence is not
-an emergency, clinical decision, medication dosing, refill, or calendar-sync
-system.
+or a claim that defects are absent. Terms explains that Cadence is not an
+emergency, clinical decision, medication dosing, refill, or two-way Calendar
+sync system. Optional Google Calendar context is read-only and requires separate
+consent when the deployment enables it.
 
 **Keyboard and mobile:** Legal links are ordinary focusable links with a
 current-page state that does not depend on color alone. At 200% zoom, allow
@@ -169,7 +170,8 @@ screens are outside Cadence.
 **Result and persistence:** Supabase Auth creates a signed-in browser session.
 For a first-time account, Cadence creates the profile data needed by the app.
 The session remains available according to the browser and authentication
-session policy.
+session policy. This sign-in does not grant Google Calendar access. Calendar
+uses a separate consent flow in Settings and requires the same Google identity.
 
 **Recovery or undo:** If Cadence returns to `/login`, read the displayed error
 and choose **Continue with Google** again. A failed exchange does not expose

@@ -1,3 +1,4 @@
+import { previewRequiresSensitiveNoteConfirmation } from "@cadence/core/services/behaviorlog-preview";
 import { Temporal } from "@js-temporal/polyfill";
 import { sha256 } from "@cadence/core/hash";
 import type { Json } from "@cadence/core/types/json";
@@ -35,8 +36,13 @@ export async function readLocalBundle(formData: FormData, field: "behaviorlog_fi
   return { fileName, fileSize: bytes.length, files, archiveFingerprint: Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("") };
 }
 export function previewRun(profileId: string, bundle: LocalUploadBundle, preview: BehaviorLogImportMergePreviewResult | BehaviorLogRestorePreview, now: string): PortabilityImportRunRow {
-  const visiblePreview = { ...preview };
-  if ("portability" in visiblePreview) delete visiblePreview.portability;
+  // Keep review bindings and native restore authorization, not duplicated parsed records.
+  const visiblePreview = "mode" in preview
+    ? { ...preview, actions: Object.fromEntries(Object.entries(preview.actions).map(([group, actions]) =>
+      [group, actions.map(({ action, externalId, localId }) => ({ action, externalId, localId }))])) }
+    : { ...preview, portability: undefined, plan: undefined,
+      requiresSensitiveNoteConfirmation: previewRequiresSensitiveNoteConfirmation(preview),
+      mergePreview: { ...preview.mergePreview, actions: undefined } };
   const manifestFile = bundle.files.find(({ path }) => path === "manifest.json");
   let manifest: Record<string, unknown> = {}; try { manifest = JSON.parse(manifestFile?.content ?? "{}"); } catch { /* The resolver reports malformed manifests. */ }
   const producer = object(manifest.producer), privacy = object(manifest.privacy);

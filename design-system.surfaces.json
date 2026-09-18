@@ -298,7 +298,7 @@
             "docs/qa/2026-08-30-desktop-native-boundary.md"
           ],
           "implementationIds": [],
-          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
+          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned. Signed-in footer matches web account name, shared initials, 60px row, 64px icon column, square 32px avatar, collapsed label, and Settings navigation. Local mode retains Local profile. Synthetic account states render in apps/desktop/?bench=settings; DOM evidence is tests/desktop-controls.dom.test.tsx."
         },
         {
           "surfaceId": "mobile",
@@ -507,7 +507,8 @@
         "Completed, Not Completed, and Unresolved language stays exact",
         "Occurrence notes attach to the occurrence, not the behavior",
         "Mobile pull-to-refresh reads current Timeline data once without mutating an occurrence",
-        "Accepted Behavior Note shortcuts fill or append only to the draft; global and Behavior off hide them; Save note remains explicit."
+        "Accepted Behavior Note shortcuts fill or append only to the draft; global and Behavior off hide them; Save note remains explicit.",
+        "A shared continuous day-progress axis shows read-only Calendar context, explicit stale coverage, and advisory duration estimates without changing manual occurrence statuses."
       ],
       "surfaceImplementations": [
         {
@@ -521,7 +522,10 @@
             "components/timeline/OccurrenceRow.tsx",
             "components/timeline/TimeTracker.tsx",
             "components/timeline/OccurrenceNoteForm.tsx",
-            "tests/occurrence-note-shortcuts-ui.test.tsx"
+            "tests/occurrence-note-shortcuts-ui.test.tsx",
+            "components/timeline/DayProgressTimeline.tsx",
+            "components/timeline/ExternalEventDetails.tsx",
+            "docs/qa/day-progress-release.md"
           ],
           "implementationIds": [
             "module.timeline",
@@ -529,9 +533,12 @@
             "module.timeline-group",
             "composite.occurrence-row",
             "module.time-tracker",
-            "composite.occurrence-note-form"
+            "composite.occurrence-note-form",
+            "module.day-progress-timeline",
+            "composite.external-event-details",
+            "composite.external-event-preview"
           ],
-          "notes": "Live fixture-backed Timeline modules are rendered in the current bench. The mobile wrapper owns threshold feedback, native-refresh suppression, and one in-flight route refresh."
+          "notes": "Tickets 133\u2013137 wire the accepted Ticket 132 day-progress layout into both production clients. Synthetic DOM and resolver checks cover the shared implementation. Live Calendar, installed desktop, idle/minimized, and release acceptance remain pending in docs/qa/day-progress-release.md."
         },
         {
           "surfaceId": "marketing",
@@ -554,12 +561,18 @@
             "components/timeline/OccurrenceRow.tsx",
             "docs/qa/2026-08-30-desktop-native-boundary.md",
             "components/timeline/OccurrenceNoteForm.tsx",
-            "tests/occurrence-note-shortcuts-ui.test.tsx"
+            "tests/occurrence-note-shortcuts-ui.test.tsx",
+            "components/timeline/DayProgressTimeline.tsx",
+            "components/timeline/ExternalEventDetails.tsx",
+            "docs/qa/day-progress-release.md"
           ],
           "implementationIds": [
-            "composite.occurrence-note-form"
+            "composite.occurrence-note-form",
+            "module.day-progress-timeline",
+            "composite.external-event-details",
+            "composite.external-event-preview"
           ],
-          "notes": "Desktop consumes this shared implementation. Actual native evidence is bounded in the QA record; remaining visual and interaction variants keep parity planned."
+          "notes": "Tickets 133\u2013137 wire the accepted Ticket 132 day-progress layout into both production clients. Synthetic DOM and resolver checks cover the shared implementation. Live Calendar, installed desktop, idle/minimized, and release acceptance remain pending in docs/qa/day-progress-release.md."
         },
         {
           "surfaceId": "mobile",
@@ -719,7 +732,8 @@
         "Timezone uses browser/OS data without geolocation",
         "Account deletion requires export acknowledgement and typed confirmation",
         "Category drafts retain errors; deletion confirms assignment counts and preserves Behavior history; reorder uses accessible buttons.",
-        "Global Note shortcuts hides quick-fill and proposals without deleting accepted shortcuts or saved Notes."
+        "Global Note shortcuts hides quick-fill and proposals without deleting accepted shortcuts or saved Notes.",
+        "Optional read-only Google Calendar requires separate consent for the signed-in Google account; connect, selection, refresh, and disconnect stay explicit."
       ],
       "surfaceImplementations": [
         {
@@ -733,7 +747,8 @@
             "components/settings/SettingsPanels.tsx",
             "components/settings/AccountDeletionPanel.tsx",
             "components/settings/CategoryPanel.tsx",
-            "components/note-shortcuts/NoteShortcutControls.tsx"
+            "components/note-shortcuts/NoteShortcutControls.tsx",
+            "components/settings/GoogleCalendarPanel.tsx"
           ],
           "implementationIds": [
             "module.timezone-panel",
@@ -741,7 +756,8 @@
             "module.trust-and-legal-panel",
             "flow.account-deletion-panel",
             "module.category-panel",
-            "module.note-shortcut-controls"
+            "module.note-shortcut-controls",
+            "module.google-calendar-panel"
           ],
           "notes": "Settings modules are fixture-backed in the bench with bench-only actions for mutable controls."
         },
@@ -769,12 +785,13 @@
             "apps/desktop/src/product.tsx",
             "apps/desktop/src/settings-bench.tsx",
             "apps/desktop/src/desktop-update-panel.tsx",
-            "apps/desktop/src/local-database-controls.tsx",
-            "tests/desktop-update-panel.test.tsx"
+            "tests/desktop-update-panel.test.tsx",
+            "components/settings/GoogleCalendarPanel.tsx"
           ],
           "implementationIds": [
             "module.category-panel",
-            "module.note-shortcut-controls"
+            "module.note-shortcut-controls",
+            "module.google-calendar-panel"
           ],
           "notes": "The local screen reuses timezone controls, reports native reminder coverage, exposes database controls, and presents the first account-link data choice. Automated account-choice and native protected-backup checks pass; live hosted first-link acceptance remains in progress. The settings fixture bench is apps/desktop/?bench=settings. Tickets 129 and 131 add verified recovery totals and explicit backup deletion, automatic-download controls, nonmodal update review, and draft-safe restart. Native release acceptance remains pending."
         },

@@ -97,11 +97,13 @@ export function previewBehaviorLogRestoreFromZip(input: {
   zip: BehaviorLogZipInput;
   existing?: BehaviorLogExistingRecords;
   statusHistoryPolicy?: BehaviorLogRestoreStatusHistoryPolicy;
+  convertNativeRemindersToBrowser?: boolean;
 }): BehaviorLogRestorePreview {
   return previewBehaviorLogRestoreFromFiles({
     files: parseBehaviorLogZipFiles(input.zip),
     existing: input.existing,
     statusHistoryPolicy: input.statusHistoryPolicy,
+    convertNativeRemindersToBrowser: input.convertNativeRemindersToBrowser,
   });
 }
 
@@ -109,9 +111,11 @@ export function previewBehaviorLogRestoreFromFiles(input: {
   files: BehaviorLogImportFile[];
   existing?: BehaviorLogExistingRecords;
   statusHistoryPolicy?: BehaviorLogRestoreStatusHistoryPolicy;
+  convertNativeRemindersToBrowser?: boolean;
 }): BehaviorLogRestorePreview {
   const importPreview = resolveBehaviorLogImportPreview({
     files: input.files,
+    convertNativeRemindersToBrowser: input.convertNativeRemindersToBrowser,
   });
 
   return resolveBehaviorLogRestorePreview({
@@ -127,6 +131,7 @@ export async function previewCurrentUserBehaviorLogRestoreFromFiles(
     userId: string;
     files: BehaviorLogImportFile[];
     statusHistoryPolicy?: BehaviorLogRestoreStatusHistoryPolicy;
+    convertNativeRemindersToBrowser?: boolean;
   },
 ): Promise<BehaviorLogRestorePreview> {
   const existing = await listBehaviorLogExistingRecords(supabase, input.userId);
@@ -135,6 +140,7 @@ export async function previewCurrentUserBehaviorLogRestoreFromFiles(
     files: input.files,
     existing,
     statusHistoryPolicy: input.statusHistoryPolicy,
+    convertNativeRemindersToBrowser: input.convertNativeRemindersToBrowser,
   });
 }
 
@@ -145,6 +151,7 @@ export async function createBehaviorLogRestorePreviewRun(
     files: BehaviorLogImportFile[];
     archiveFingerprint: string;
     statusHistoryPolicy?: BehaviorLogRestoreStatusHistoryPolicy;
+    convertNativeRemindersToBrowser?: boolean;
   },
 ): Promise<{
   preview: BehaviorLogRestorePreview;
@@ -155,6 +162,7 @@ export async function createBehaviorLogRestorePreviewRun(
     userId: input.userId,
     files: input.files,
     statusHistoryPolicy: input.statusHistoryPolicy,
+    convertNativeRemindersToBrowser: input.convertNativeRemindersToBrowser,
   });
   const completedAt = new Date().toISOString();
   const manifest = readManifestMetadata(input.files);
@@ -218,6 +226,7 @@ export async function previewBehaviorLogRestoreUploadFromFormData(
       userId,
       files: bundle.files,
       archiveFingerprint: bundle.archiveFingerprint,
+      convertNativeRemindersToBrowser: formData.get("convert_native_reminders") === "yes",
     },
   );
 
@@ -303,6 +312,7 @@ export async function applyBehaviorLogRestoreUploadFromFormData(
   const existing = await listBehaviorLogExistingRecords(supabase, userId);
   const importPreview = resolveBehaviorLogImportPreview({
     files: bundle.files,
+    convertNativeRemindersToBrowser: formData.get("convert_native_reminders") === "yes",
   });
   const preview = resolveBehaviorLogRestorePreview({
     importPreview,
@@ -506,7 +516,9 @@ function toRestorePreviewSnapshot(
     warningCount: preview.warnings.length,
     errors: preview.errors,
     warnings: preview.warnings,
-    actions: preview.actions,
+    // SQL authorizes mappings with these fields; apply recomputes full records.
+    actions: Object.fromEntries(Object.entries(preview.actions).map(([group, actions]) =>
+      [group, actions.map(({ action, externalId, localId }) => ({ action, externalId, localId }))])),
   };
 }
 
@@ -525,29 +537,13 @@ function createAlreadyAppliedRestoreState(input: {
       fileSize: input.bundle.fileSize,
     },
     archiveFingerprint: null,
-    preview: readRestorePreviewSnapshot(input.previewRun),
+    preview: null,
     previewRun: toRestoreRunView(input.previewRun),
     applyResult: {
       importRun: toRestoreRunView(input.appliedRun),
       appliedCounts: normalizeRpcResult(appliedSummary?.applyResult),
     },
   };
-}
-
-function readRestorePreviewSnapshot(
-  previewRun: BehaviorLogImportRun,
-): BehaviorLogRestorePreview {
-  const snapshot = readObject(previewRun.dry_run_summary);
-
-  if (snapshot?.mode !== "restore_preview") {
-    throw new BehaviorLogRestoreUserError(
-      "The accepted restore preview snapshot is unavailable. Preview the restore again.",
-    );
-  }
-
-  assertAcceptedRestorePreviewSnapshotCanApply(snapshot);
-
-  return snapshot as BehaviorLogRestorePreview;
 }
 
 function assertRestoreApplyAcknowledgements(formData: FormData): void {

@@ -194,7 +194,8 @@ export async function listOccurrenceStatusEventsByOccurrenceIds(
   );
 }
 
-const OCCURRENCE_ID_FILTER_BATCH_SIZE = 500;
+// 100 UUIDs keep the encoded REST URL below the gateway request-line limit.
+const OCCURRENCE_ID_FILTER_BATCH_SIZE = 100;
 
 function compareOccurrenceStatusEvents(
   left: OccurrenceStatusEvent,

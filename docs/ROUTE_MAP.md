@@ -134,3 +134,23 @@ provenance. No new navigation route is added. Authenticated actions call a share
 shortcut service, which calls owner-scoped repositories. A desktop-callable cloud
 analysis route remains unavailable until Ticket 126 provider/privacy acceptance;
 never expose an arbitrary client-supplied Note corpus or owner ID to a provider.
+
+## Read-only Google Calendar connector (Ticket 134)
+
+These routes remain unavailable until separate server provider configuration exists.
+All API responses are no-store. Cookie writes require same-origin requests; native
+clients use verified Supabase bearer sessions and the fixed Tauri origin allowlist.
+No route creates, changes, or deletes a provider event.
+
+| Route | Methods | Purpose |
+|---|---|---|
+| `/api/google-calendar/connection` | GET, POST, DELETE | Read status, start explicit consent, globally disconnect |
+| `/auth/google-calendar/callback` | GET | Consume five-minute state, verify the same Google identity, install sealed credentials |
+| `/api/google-calendar/calendars` | GET, PUT | List readable calendars; save owner selections and visibility |
+| `/api/google-calendar/events?start=YYYY-MM-DD&end=YYYY-MM-DD` | GET | Complete normalized snapshot; inclusive dates from today through at most today + 30 |
+
+`lib/services/google-calendar.service.ts` owns lifecycle and reads.
+`lib/services/google-calendar-request.ts` verifies sessions and request bounds.
+`lib/db/google-calendar.repo.ts` owns exact database access. Web callbacks require
+the initiating cookie user. Desktop callbacks use a fixed result and opaque
+Keychain-correlated state, never credentials.

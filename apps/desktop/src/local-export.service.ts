@@ -33,9 +33,11 @@ export async function getLocalExportDownload(profile: Profile, format: ExportDow
   return buildExportDownload(await getLocalExportPageData(profile, options), format, createDesktopZip);
 }
 
-// Native graph history stores the core's camelCase snapshot; web history stores snake_case JSON.
+// Local edits store camelCase; synchronized web history already uses the export payload shape.
 function toStoredConfigurationSnapshot(value: Json): Json {
   const snapshot = object(value);
+  // Shared export assembly validates both paths after normalization.
+  if ("schedule_graph" in snapshot) return value;
   const schedules = snapshot.scheduleGraph;
   if (!Array.isArray(schedules)) throw new Error("Invalid native configuration schedule graph.");
   return {

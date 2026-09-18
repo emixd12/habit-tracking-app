@@ -1,0 +1,433 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cadence.local/schemas/external-event-snapshot-1.0.0.json",
+  "title": "Cadence external event snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "adapterVersion",
+    "accountId",
+    "connectionGeneration",
+    "source",
+    "requestedRange",
+    "fetchedAt",
+    "completeness",
+    "freshness",
+    "capabilities",
+    "coverage",
+    "failures",
+    "events",
+    "tombstones"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "adapterVersion": { "const": "google-calendar-v1" },
+    "accountId": { "$ref": "#/$defs/nonEmptyString" },
+    "connectionGeneration": { "type": "integer", "minimum": 1 },
+    "source": { "const": "google_calendar" },
+    "requestedRange": { "$ref": "#/$defs/requestedRange" },
+    "fetchedAt": { "$ref": "#/$defs/instant" },
+    "completeness": { "enum": ["complete", "incomplete"] },
+    "freshness": { "$ref": "#/$defs/freshness" },
+    "capabilities": { "$ref": "#/$defs/capabilities" },
+    "coverage": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/coverage" },
+      "maxItems": 32
+    },
+    "failures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/failure" }
+    },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/event" }
+    },
+    "tombstones": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/tombstone" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "nullableString": { "type": ["string", "null"] },
+    "instant": { "type": "string", "format": "date-time" },
+    "date": { "type": "string", "format": "date" },
+    "httpsUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "requestedRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startLocalDate", "endLocalDate", "timezone", "selectedCalendarIds"],
+      "properties": {
+        "startLocalDate": {
+          "allOf": [{ "$ref": "#/$defs/date" }],
+          "description": "First displayed local date, inclusive."
+        },
+        "endLocalDate": {
+          "allOf": [{ "$ref": "#/$defs/date" }],
+          "description": "Last displayed local date, inclusive."
+        },
+        "timezone": { "$ref": "#/$defs/nonEmptyString" },
+        "selectedCalendarIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "refreshedAt", "label", "canAssertNoOverlap"],
+      "properties": {
+        "state": { "enum": ["current", "stale", "incomplete", "unavailable"] },
+        "refreshedAt": { "oneOf": [{ "$ref": "#/$defs/instant" }, { "type": "null" }] },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "canAssertNoOverlap": { "type": "boolean" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["support", "permission", "availability"],
+      "properties": {
+        "support": { "enum": ["supported", "unsupported", "unknown"] },
+        "permission": { "enum": ["granted", "denied", "unknown"] },
+        "availability": { "enum": ["available", "degraded", "unavailable", "unknown"] }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calendar_listing", "timed_events", "all_day_events", "recurrence", "details", "source_links"],
+      "properties": {
+        "calendar_listing": { "$ref": "#/$defs/capability" },
+        "timed_events": { "$ref": "#/$defs/capability" },
+        "all_day_events": { "$ref": "#/$defs/capability" },
+        "recurrence": { "$ref": "#/$defs/capability" },
+        "details": { "$ref": "#/$defs/capability" },
+        "source_links": { "$ref": "#/$defs/capability" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calendarId", "startLocalDate", "endLocalDate", "paginationComplete", "itemCount"],
+      "properties": {
+        "calendarId": { "$ref": "#/$defs/nonEmptyString" },
+        "startLocalDate": { "$ref": "#/$defs/date" },
+        "endLocalDate": { "$ref": "#/$defs/date" },
+        "paginationComplete": { "type": "boolean" },
+        "itemCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "calendarId", "retryable", "retryAfterSeconds", "message"],
+      "properties": {
+        "code": {
+          "enum": [
+            "unauthenticated",
+            "not_connected",
+            "permission_denied",
+            "wrong_account",
+            "reconnect_required",
+            "rate_limited",
+            "provider_unavailable",
+            "timeout",
+            "malformed_provider_response",
+            "incomplete_pagination",
+            "invalid_request",
+            "unsupported_schema_version"
+          ]
+        },
+        "calendarId": { "$ref": "#/$defs/nullableString" },
+        "retryable": { "type": "boolean" },
+        "retryAfterSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "message": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "providerUpdatedAt", "providerEtag"],
+      "properties": {
+        "availability": { "enum": ["available", "unavailable"] },
+        "providerUpdatedAt": { "oneOf": [{ "$ref": "#/$defs/instant" }, { "type": "null" }] },
+        "providerEtag": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "originalStart": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "startAt"],
+          "properties": {
+            "kind": { "const": "timed" },
+            "startAt": { "$ref": "#/$defs/instant" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "startLocalDate"],
+          "properties": {
+            "kind": { "const": "all_day" },
+            "startLocalDate": { "$ref": "#/$defs/date" }
+          }
+        }
+      ]
+    },
+    "recurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seriesId", "originalStart"],
+      "properties": {
+        "seriesId": { "$ref": "#/$defs/nonEmptyString" },
+        "originalStart": { "$ref": "#/$defs/originalStart" }
+      }
+    },
+    "fieldAvailability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "$ref": "#/$defs/fieldAvailabilityValue" },
+        "description": { "$ref": "#/$defs/fieldAvailabilityValue" },
+        "location": { "$ref": "#/$defs/fieldAvailabilityValue" },
+        "source_url": { "$ref": "#/$defs/fieldAvailabilityValue" },
+        "organizer": { "$ref": "#/$defs/fieldAvailabilityValue" },
+        "attendees": { "$ref": "#/$defs/fieldAvailabilityValue" },
+        "conference": { "$ref": "#/$defs/fieldAvailabilityValue" },
+        "recurrence": { "$ref": "#/$defs/fieldAvailabilityValue" },
+        "attachments": { "$ref": "#/$defs/fieldAvailabilityValue" }
+      }
+    },
+    "fieldAvailabilityValue": {
+      "enum": ["not_provided", "restricted", "provider_omitted", "unsupported", "unknown"]
+    },
+    "detailCompleteness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attendees": { "$ref": "#/$defs/detailCompletenessValue" },
+        "conference_entry_points": { "$ref": "#/$defs/detailCompletenessValue" },
+        "attachments": { "$ref": "#/$defs/detailCompletenessValue" }
+      }
+    },
+    "detailCompletenessValue": {
+      "enum": ["complete", "provider_omitted", "client_truncated", "restricted", "unsupported", "unknown"]
+    },
+    "organizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["displayName", "email", "self"],
+      "properties": {
+        "displayName": { "$ref": "#/$defs/nullableString" },
+        "email": { "$ref": "#/$defs/nullableString" },
+        "self": { "type": "boolean" }
+      }
+    },
+    "attendee": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["displayName", "email", "responseStatus", "optional", "organizer", "self"],
+      "properties": {
+        "displayName": { "$ref": "#/$defs/nullableString" },
+        "email": { "$ref": "#/$defs/nullableString" },
+        "responseStatus": { "enum": ["needs_action", "declined", "tentative", "accepted", "unknown"] },
+        "optional": { "type": "boolean" },
+        "organizer": { "type": "boolean" },
+        "self": { "type": "boolean" }
+      }
+    },
+    "conferenceEntryPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "uri", "label"],
+      "properties": {
+        "type": { "enum": ["video", "phone", "sip", "more", "unknown"] },
+        "uri": { "$ref": "#/$defs/nonEmptyString" },
+        "label": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "conference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "entryPoints", "notes"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nullableString" },
+        "entryPoints": {
+          "type": "array",
+          "maxItems": 10,
+          "items": { "$ref": "#/$defs/conferenceEntryPoint" }
+        },
+        "notes": { "$ref": "#/$defs/nullableString" }
+      }
+    },
+    "attachment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "mimeType", "url"],
+      "properties": {
+        "title": { "$ref": "#/$defs/nullableString" },
+        "mimeType": { "$ref": "#/$defs/nullableString" },
+        "url": { "$ref": "#/$defs/httpsUrl" }
+      }
+    },
+    "eventBase": {
+      "type": "object",
+      "required": [
+        "id",
+        "providerEventId",
+        "logicalInstanceId",
+        "calendarId",
+        "source",
+        "calendarName",
+        "sourceTimezone",
+        "sourceTimezoneFallback",
+        "state",
+        "availability",
+        "currentUserResponse",
+        "revision",
+        "title",
+        "description",
+        "location",
+        "sourceUrl",
+        "fieldAvailability",
+        "detailCompleteness",
+        "organizer",
+        "attendees",
+        "attendeesOmitted",
+        "conference",
+        "recurrence",
+        "attachments"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "providerEventId": { "$ref": "#/$defs/nonEmptyString" },
+        "logicalInstanceId": { "$ref": "#/$defs/nonEmptyString" },
+        "calendarId": { "$ref": "#/$defs/nonEmptyString" },
+        "source": { "const": "google_calendar" },
+        "calendarName": { "$ref": "#/$defs/nonEmptyString" },
+        "sourceTimezone": { "$ref": "#/$defs/nonEmptyString" },
+        "sourceTimezoneFallback": { "enum": ["none", "calendar", "request"] },
+        "state": { "enum": ["confirmed", "tentative", "unknown"] },
+        "availability": { "enum": ["busy", "free", "unknown"] },
+        "currentUserResponse": {
+          "type": ["string", "null"],
+          "enum": ["needs_action", "declined", "tentative", "accepted", "unknown", null]
+        },
+        "revision": { "$ref": "#/$defs/revision" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "location": { "type": "string" },
+        "sourceUrl": { "oneOf": [{ "$ref": "#/$defs/httpsUrl" }, { "type": "null" }] },
+        "fieldAvailability": { "$ref": "#/$defs/fieldAvailability" },
+        "detailCompleteness": { "$ref": "#/$defs/detailCompleteness" },
+        "organizer": { "oneOf": [{ "$ref": "#/$defs/organizer" }, { "type": "null" }] },
+        "attendees": {
+          "oneOf": [
+            { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/attendee" } },
+            { "type": "null" }
+          ]
+        },
+        "attendeesOmitted": { "type": "boolean" },
+        "conference": { "oneOf": [{ "$ref": "#/$defs/conference" }, { "type": "null" }] },
+        "recurrence": { "oneOf": [{ "$ref": "#/$defs/recurrence" }, { "type": "null" }] },
+        "attachments": {
+          "oneOf": [
+            { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/attachment" } },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "timedEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/eventBase" },
+        {
+          "type": "object",
+          "required": ["kind", "startAt", "endAt", "endUnspecified", "duration"],
+          "properties": {
+            "kind": { "const": "timed" },
+            "startAt": { "$ref": "#/$defs/instant" },
+            "endAt": { "$ref": "#/$defs/instant" },
+            "endUnspecified": { "type": "boolean" },
+            "duration": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["kind", "seconds"],
+                  "properties": {
+                    "kind": { "const": "known" },
+                    "seconds": { "type": "number", "exclusiveMinimum": 0 }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["kind", "reason"],
+                  "properties": {
+                    "kind": { "const": "unknown" },
+                    "reason": { "const": "end_unspecified" }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "allDayEvent": {
+      "allOf": [
+        { "$ref": "#/$defs/eventBase" },
+        {
+          "type": "object",
+          "required": ["kind", "startLocalDate", "endLocalDate", "duration"],
+          "properties": {
+            "kind": { "const": "all_day" },
+            "startLocalDate": { "$ref": "#/$defs/date" },
+            "endLocalDate": { "$ref": "#/$defs/date" },
+            "duration": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "days"],
+              "properties": {
+                "kind": { "const": "calendar_days" },
+                "days": { "type": "integer", "minimum": 1 }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "event": {
+      "oneOf": [
+        { "$ref": "#/$defs/timedEvent" },
+        { "$ref": "#/$defs/allDayEvent" }
+      ]
+    },
+    "tombstone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "providerEventId", "logicalInstanceId", "calendarId", "source", "recurrence", "revision"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "providerEventId": { "$ref": "#/$defs/nonEmptyString" },
+        "logicalInstanceId": { "$ref": "#/$defs/nonEmptyString" },
+        "calendarId": { "$ref": "#/$defs/nonEmptyString" },
+        "source": { "const": "google_calendar" },
+        "recurrence": { "oneOf": [{ "$ref": "#/$defs/recurrence" }, { "type": "null" }] },
+        "revision": { "$ref": "#/$defs/revision" }
+      }
+    }
+  }
+}

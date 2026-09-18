@@ -66,6 +66,7 @@ describe("timeline service time-session routing", () => {
     );
     mocks.listUnresolvedOccurrencesBeforeLocalDate.mockResolvedValue([]);
     mocks.listTimeSessionsByOccurrenceIds.mockResolvedValue([]);
+    mocks.listTimeSessionHistory.mockResolvedValue([]);
     mocks.resolveGenerationWindow.mockReturnValue({
       startLocalDate: "2026-08-08",
       endLocalDate: "2026-09-07",
@@ -86,6 +87,9 @@ describe("timeline service time-session routing", () => {
       expect.anything(),
       { userId: "user-1", occurrenceIds: [] },
     );
-    expect(mocks.listTimeSessionHistory).not.toHaveBeenCalled();
+    expect(mocks.listTimeSessionHistory).toHaveBeenCalledWith(expect.anything(), {
+      userId: "user-1", startLocalDate: "2026-05-10", endLocalDate: "2026-08-07",
+      includeArchived: false, throughStartedAt: "2026-08-08T16:00:00Z",
+    });
   });
 });

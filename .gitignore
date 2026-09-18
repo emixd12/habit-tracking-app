@@ -31,7 +31,9 @@ pnpm-debug.log*
 /load-tests/.hosted/
 /load-tests/.runs/
 /load-tests/**/__pycache__/
-/load-tests/**/*.py[cod]
+/load-tests/**/*.pyc
+/load-tests/**/*.pyo
+/load-tests/**/*.pyd
 /.launch-safety/
 
 # Local Popmelt annotations, screenshots, threads, and Imprint
@@ -52,3 +54,6 @@ pnpm-debug.log*
 .claude/
 .vercel
 .env*
+.env.*
+!.env.example
+.agentic/runtime/

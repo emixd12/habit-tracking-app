@@ -30,6 +30,7 @@ type BehaviorLogImportPanelProps = Readonly<{
   recentRuns: BehaviorLogImportRunView[];
   timezone: string;
   action: BehaviorLogImportFormAction;
+  allowNativeReminderConversion?: boolean;
   initialState?: BehaviorLogImportActionState;
 }>;
 
@@ -55,6 +56,7 @@ export function BehaviorLogImportPanel({
   recentRuns,
   timezone,
   action,
+  allowNativeReminderConversion = false,
   initialState = BEHAVIORLOG_IMPORT_INITIAL_STATE,
 }: BehaviorLogImportPanelProps) {
   const [state, formAction, isPending] = useActionState(
@@ -68,6 +70,7 @@ export function BehaviorLogImportPanel({
   const [previewBundleReadVersion, setPreviewBundleReadVersion] = useState<
     number | null
   >(initialState.preview ? 0 : null);
+  const [convertNativeReminders, setConvertNativeReminders] = useState(false);
   const [bundlePayload, setBundlePayload] = useState<string | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const [isPreparingBundle, setIsPreparingBundle] = useState(false);
@@ -188,9 +191,31 @@ export function BehaviorLogImportPanel({
             className="min-h-11 w-full bg-background px-0 py-2 text-sm text-foreground file:mr-4 file:border-0 file:bg-transparent file:px-0 file:py-1 file:text-sm file:font-bold file:text-foreground file:underline file:decoration-1 file:underline-offset-4"
           />
           <span className="text-sm text-muted-readable">
-            Maximum file size: 2 MB.
+            Maximum file size: 3 MiB.
           </span>
         </label>
+        {allowNativeReminderConversion ? (
+          <label className="flex items-start gap-3 text-sm text-muted-readable">
+            <input
+              type="checkbox"
+              name="convert_native_reminders"
+              value="yes"
+              checked={convertNativeReminders}
+              disabled={isPending || isPreparingBundle}
+              onChange={(event) => {
+                setConvertNativeReminders(event.currentTarget.checked);
+                bundleReadVersionRef.current += 1;
+                setSelectedBundleReadVersion(bundleReadVersionRef.current);
+                setPreviewBundleReadVersion(null);
+              }}
+              className="mt-1 size-4"
+            />
+            <span>
+              Convert Cadence desktop reminders to browser reminders. Browser
+              notification permission is still required. Configuration history stays unchanged.
+            </span>
+          </label>
+        ) : null}
         <div>
           <button
             type="submit"
@@ -234,6 +259,7 @@ export function BehaviorLogImportPanel({
       {preview && state.archiveFingerprint && state.capabilities ? (
         <ApplyControls
           key={`${state.previewRun?.id ?? "no-run"}:${state.archiveFingerprint}`}
+          convertNativeReminders={convertNativeReminders}
           bundlePayload={bundlePayload}
           formAction={formAction}
           state={state}
@@ -485,12 +511,14 @@ export function BehaviorLogImportPreviewDetails({
 }
 
 function ApplyControls({
+  convertNativeReminders = false,
   bundlePayload,
   formAction,
   state,
   capabilities,
   isPending,
 }: Readonly<{
+  convertNativeReminders?: boolean;
   bundlePayload: string | null;
   formAction: (formData: FormData) => void;
   state: BehaviorLogImportActionState;
@@ -511,6 +539,7 @@ function ApplyControls({
           requiresSensitiveNoteConfirmation={previewRequiresSensitiveNoteConfirmation(
             state.preview,
           )}
+          convertNativeReminders={convertNativeReminders}
           bundlePayload={bundlePayload}
           formAction={formAction}
           state={state}
@@ -525,6 +554,7 @@ function ApplyControls({
           requiresSensitiveNoteConfirmation={previewRequiresSensitiveNoteConfirmation(
             state.preview,
           )}
+          convertNativeReminders={convertNativeReminders}
           bundlePayload={bundlePayload}
           formAction={formAction}
           state={state}
@@ -541,6 +571,7 @@ export function BehaviorLogImportApplyForm({
   disabled,
   disabledReason,
   requiresSensitiveNoteConfirmation,
+  convertNativeReminders = false,
   bundlePayload,
   formAction,
   state,
@@ -551,6 +582,7 @@ export function BehaviorLogImportApplyForm({
   disabled: boolean;
   disabledReason: string | null;
   requiresSensitiveNoteConfirmation: boolean;
+  convertNativeReminders?: boolean;
   bundlePayload: string | null;
   formAction: (formData: FormData) => void;
   state: BehaviorLogImportActionState;
@@ -570,6 +602,7 @@ export function BehaviorLogImportApplyForm({
     <form action={formAction} className="grid gap-4 border-t border-line pt-4">
       <input type="hidden" name="intent" value="apply" />
       <input type="hidden" name="import_mode" value={mode} />
+      <input type="hidden" name="convert_native_reminders" value={convertNativeReminders ? "yes" : "no"} />
       <input type="hidden" name="bundle_payload" value={bundlePayload ?? ""} />
       <input
         type="hidden"

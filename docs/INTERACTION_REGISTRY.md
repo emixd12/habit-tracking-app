@@ -154,6 +154,27 @@ It does not complete an interaction. Ticket 111 owns tracking parity; Ticket
 `docs/DESKTOP_PARITY.md` records the current domain baseline without creating
 another list of interaction IDs.
 
+### Google Calendar release state
+
+`INT-CALENDAR-001` through `INT-CALENDAR-007` record implemented source paths
+for web and desktop. Their implementation status means the controls and local
+logic exist. It does not mean that Google OAuth, hosted migration, deployment,
+native behavior, or distribution passed live acceptance.
+
+The server returns `not_configured` unless every required Calendar OAuth and
+encryption setting is valid. Desktop exposes Calendar only when its build has a
+valid HTTPS connector origin and the user linked a Cadence account. Keep manual
+or missing provider/native evidence classified honestly. Do not promote local
+fixture, DOM, or structural evidence to live-provider or native acceptance.
+
+The registry's source references cover the user intent. Data custody, cache,
+revocation, deletion, and backup promises live in the product and user guides.
+Ticket 137 and `docs/qa/day-progress-release.md` own the combined release gate.
+Local automated coverage includes `tests/google-calendar-panel.dom.test.tsx`,
+`tests/google-calendar-client.test.tsx`,
+`tests/day-progress-timeline.dom.test.tsx`, and the connector service tests.
+These tests do not replace authorized Google or installed desktop acceptance.
+
 ## Updating the registry
 
 Update the registry in the same change whenever a user-facing interaction is

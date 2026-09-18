@@ -1,0 +1,139 @@
+{
+  "activation": {
+    "mode": "on_demand",
+    "predicates": [
+      "explicit_connection_request",
+      "provider_configuration_changed",
+      "provider_action_requested",
+      "external_mutation_imminent",
+      "release_provider_readiness"
+    ],
+    "recordingActivates": false
+  },
+  "canonicalSources": [
+    ".agentic/capabilities/service-connections.json",
+    ".agentic/scripts/check-service-operations.mjs",
+    ".agentic/service-operations.json"
+  ],
+  "capabilityId": "service-connections",
+  "commands": {
+    "service-connections.operations.check": {
+      "argv": [
+        "node",
+        ".agentic/scripts/check-service-operations.mjs",
+        "check",
+        "--json"
+      ],
+      "dependencies": [
+        "node"
+      ],
+      "effect": "none",
+      "evidenceFormat": "exit_code_and_json",
+      "network": "none",
+      "outputs": [],
+      "phase": "local",
+      "retryPolicy": {
+        "transientAttempts": 1
+      },
+      "workspace": "read_only"
+    },
+    "service-connections.operations.status": {
+      "argv": [
+        "node",
+        ".agentic/scripts/check-service-operations.mjs",
+        "status",
+        "--json"
+      ],
+      "dependencies": [
+        "node"
+      ],
+      "effect": "none",
+      "evidenceFormat": "exit_code_and_json",
+      "network": "none",
+      "outputs": [],
+      "phase": "local",
+      "retryPolicy": {
+        "transientAttempts": 1
+      },
+      "workspace": "read_only"
+    }
+  },
+  "contractVersion": "1.0.0",
+  "exclusiveResources": [
+    "service-connections.external-writer"
+  ],
+  "generatedOutputs": [],
+  "health": {
+    "checkCommand": "service-connections.operations.check",
+    "descriptor": ".agentic/runtime/service-operations-health.json",
+    "evidence": ".agentic/runtime/service-operation-evidence.json",
+    "persistence": "runtime_untracked",
+    "runtimeStateTracked": false,
+    "scope": "host_local"
+  },
+  "operationPolicy": {
+    "approvalScope": "exact_operation_and_target",
+    "effects": [
+      "external_read",
+      "external_write",
+      "none",
+      "repo_write"
+    ],
+    "evidenceActivates": false,
+    "externalWriterLimit": 1,
+    "ordinaryLocalPatchUnaffected": true,
+    "unknownCommandEffect": "external_write"
+  },
+  "ownedPaths": [
+    {
+      "allowMultipleOwners": false,
+      "classification": "capability_source",
+      "kind": "exact",
+      "path": ".agentic/capabilities/service-connections.json",
+      "sourceEffects": ["none"]
+    },
+    {
+      "allowMultipleOwners": false,
+      "classification": "operation_check_executable",
+      "kind": "exact",
+      "path": ".agentic/scripts/check-service-operations.mjs",
+      "sourceEffects": ["none"]
+    },
+    {
+      "allowMultipleOwners": false,
+      "classification": "operation_catalog",
+      "kind": "exact",
+      "path": ".agentic/service-operations.json",
+      "protectedSurfaces": ["production_deployment", "provider_mutation"],
+      "sourceEffects": ["external_write"]
+    }
+  ],
+  "ownerDocs": [
+    "docs/SERVICE_CONNECTIONS.md"
+  ],
+  "schemaVersion": 1,
+  "sourceSkill": "service-connections-bootstrap",
+  "status": "recorded",
+  "validation": {
+    "build": "none",
+    "database": "none",
+    "deferredEvidence": [
+      {
+        "id": "service-connections.provider-preflight-readback",
+        "kind": "provider",
+        "path": ".agentic/runtime/service-operation-evidence.json",
+        "requiredFor": ["release"],
+        "status": "deferred"
+      }
+    ],
+    "fixedLocalChecks": [
+      "service-connections.operations.check"
+    ],
+    "focusedTests": [],
+    "unit": "affected",
+    "unknownExecutable": {
+      "development": "affected",
+      "production": "explicit_review"
+    }
+  }
+}

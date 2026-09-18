@@ -408,7 +408,10 @@ pub fn note(
         let existing = db::read::<NoteShortcutState>(
             db,
             "SELECT * FROM note_shortcut_states WHERE user_id=?1 AND id=?2",
-            &[profile_id.to_string().into(), row.behavior_id.clone().into()],
+            &[
+                profile_id.to_string().into(),
+                row.behavior_id.clone().into(),
+            ],
         )?
         .into_iter()
         .next();
@@ -423,7 +426,11 @@ pub fn note(
             revision: 0,
             updated_at: now.into(),
         });
-        if !state.excluded_occurrence_ids.iter().any(|id| id == occurrence_id) {
+        if !state
+            .excluded_occurrence_ids
+            .iter()
+            .any(|id| id == occurrence_id)
+        {
             if state.excluded_occurrence_ids.len() == 100_000 {
                 return Err("Note shortcut exclusions exceed 100,000 Occurrences.".into());
             }

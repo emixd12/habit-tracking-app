@@ -9574,6 +9574,39 @@ function; installed desktops benefit through the existing RPC without an app
 update. Marketing has no UI or copy change; future mobile implementation remains
 deferred and inherits the same fingerprint contract.
 
+The owner-approved 2026-09-15 reminder reconciliation follow-up adds one narrow
+exception to manual delivery conflict review. From a Pending baseline, preserve
+a hosted Sent record over a local Cancelled copy only when identity, schedule,
+provenance, and other non-delivery-state fields match. Require a valid send
+timestamp and compatible existing claims. Merge occurrence decisions independently;
+conflicting user edits and other reminder conflicts still block the whole plan.
+The shared account-sync resolver and paired tests own the rule in ordinary and
+reviewed synchronization. Verify offline completion, preserved send evidence,
+retry after hosted commit, unchanged replay, cancellation before sending, and
+continued review for changed identities, schedules, evidence, and user content.
+Platform impact: desktop changes its planner and INT-AUTH-009–011 conditions;
+web keeps its existing hosted apply and reminder processor, with no migration.
+Marketing has no runtime change; update the existing desktop user guidance.
+Future mobile remains deferred. Installed preview rollout remains separate.
+
+The 2026-09-16 compatible-mark follow-up preserves independent initial manual
+marks after an Unresolved baseline without status history. Require matching
+resolved status, provenance, non-status occurrence fields, and each copy's own
+timestamp evidence. Preserve every event; select display timestamps with the
+existing latest-event ordering. Corrections and divergent descendants remain
+blocked. Remove the dormant history-deleting review handler. Verify hosted-commit
+retry, unchanged replay, later corrections, fresh hydration, incompatible fields,
+and combined reminder reconciliation with unrelated conflict review.
+Platform impact and implementation ownership match the preceding planner
+follow-up. No schema or provider deployment is required. Install a protected
+preview and verify convergence through normal authenticated synchronization.
+Installed acceptance: preview.29 reached Account data is current on startup and
+repeat sync. All 1,196 original status events remained unchanged; all four
+matching-mark pairs and the three original Sent reminders converged. The outbox
+has no unacknowledged rows. Read-only hosted verification matched 27 affected
+history/reminder rows to the accepted baseline. SQLite integrity and foreign
+keys pass; a protected app/database rollback remains available.
+
 Timeout follow-up acceptance (2026-09-10): the owner approved the single hosted
 migration. CLI dry-run and deployment applied only `20260911031421`. The hosted
 snapshot retained its exact fingerprint and read in 1.15 seconds versus 4.8
@@ -9738,3 +9771,795 @@ Document the repair release's exact source and required hosted compatibility.
 Reproduce the audit defect before changing its planner behavior.
 Mark Tickets 129–130 complete only after their shared repair release and owner
 acceptance. Ticket 131 follows separately and cannot delay that release.
+
+---
+
+## Day-progress timeline sequence: Tickets 132–137
+
+Planning authorized 2026-09-15; implementation requested 2026-09-16.
+Ticket 132 is complete: the owner accepted the seventh-revision UI baseline on
+2026-09-16 and deferred minor design polish. Tickets 133–137 now have local
+production integration, a versioned connector contract, and regression coverage.
+Hosted rollout and same-account web consent passed on 2026-09-17.
+Installed preview.36 reads live Calendar events; remaining native acceptance is open.
+The owner selected web and desktop together, a Calendar connection using the
+same signed-in Google account, tracked duration estimates with an unknown
+fallback, advisory overlap cues only, and a local desktop event cache.
+
+Source of truth: the planned day-progress sections in `docs/PRODUCT_SPEC.md`
+and `docs/UI_SPEC.md`. `docs/FEATURE_IDEAS.md` retains the original exploration.
+The 2026-09-16 owner request authorizes implementation of this sequence, subject
+to its explicit review gates. Provider configuration, hosted deployment, and
+desktop distribution still require their respective authorization and evidence.
+Provider setup and protected native acceptance were explicitly approved on
+2026-09-16. The owner approved hosted rollout, live consent, installed desktop
+acceptance, and similar task actions on 2026-09-17. Hosted rollout succeeded.
+Public distribution still requires acceptance evidence and applicable provider approval.
+Google capability verification belongs to Ticket 134.
+
+Dependency order:
+
+- 132 closes the accepted UI baseline and synthetic layout contracts.
+- 134 starts with the versioned event interface, then OAuth, retrieval, and cache.
+  Its contract requirements live in `docs/EXTERNAL_EVENT_CONTRACT.md`.
+- 133 implements Cadence's own timeline after 132, independently of Google.
+  Prioritize 134 infrastructure before further visual polish.
+- 135 combines 133 and 134 into the external-event experience.
+- 136 adds estimated duration and overlap cues after 135; pure synthetic work
+  may proceed after 132 without live provider access.
+- 137 verifies the combined web and desktop release after 133–136.
+
+Each implementation ticket must preserve existing interaction intent and use
+`interaction-registry.json` and the existing design-system catalog for evidence.
+Do not register planned controls as implemented. Use impeccable and
+design-system-bench before editing reusable UI. Preserve typography, manual
+status semantics, local tracking, and Needs decision. The revised review
+candidate keeps timed Calendar context left of the axis and the ledger right.
+All Day Events sits beside the ledger-header day title and wraps on narrow
+layouts. Desktop status text stays visible unless natural text does not fit.
+Mobile uses icon-only 44px actions. The current-time dot has no row tint. Hover/focus
+uses a fixed bottom preview drawer with reserved viewport space. The owner has
+accepted the seventh-revision baseline. Minor design polish does not block 133–137.
+
+This candidate correction affects the web synthetic bench now. Desktop shares
+the candidate for follow-up in Tickets 133–137. Marketing has no change. Native
+mobile remains deferred; the responsive web candidate is tested at 390px.
+
+## Ticket 132: Day-progress timeline contract and layout validation
+
+Status: complete. Dependencies: none. Owner accepted the seventh-revision UI
+baseline on 2026-09-16 and requested infrastructure work before minor design polish.
+
+Closeout: synthetic layout/context contracts, eight bench DOM tests, complete
+repository checks/build, desktop and 390px browser evidence, and independent
+review are recorded in `docs/qa/day-progress-layout.md`. Native production
+acceptance remains in 133–137. Provider wire/schema finalization belongs to 134,
+not a reopened UI gate. No live connector or release is implied.
+
+Each timed event gets one marker at its start, or on the first visible day if it
+started earlier. Later days retain duration segments without repeated markers.
+Drawers fit their content with 16px padding and reserve only their rendered height.
+
+All-day controls are absent when the day has no all-day events. Otherwise they
+show “All day: {first event title}”, with “+N more” for additional visible events.
+Dismissed events retain a Restore control. Hover, focus, click, and tap open the
+same persistent preview. The preview has no repeated heading or divider. Each
+event owns a View details button that opens only that event in the modal details
+drawer. Closing details returns focus to the original timeline control.
+
+
+Goal: prove a readable continuous time line beside responsive ledger rows
+before connecting external data or changing the production Timeline.
+
+Scope and acceptance:
+
+- Use one line to the left of today's and future days' rows. Cover each full
+  local day, including empty time, and show clock-time labels only at items.
+  Retain today plus seven future days, Show more days in seven-day steps, and
+  the existing thirty-future-day cap. Extend the same line when days load.
+- Define a monotonic time-to-position mapping shared by the moving dot,
+  selected-event span previews, and anchors. Minimum readable spacing overrides
+  exact scale;
+  compressed gaps must not imply uniform scale. Keep day boundaries clear.
+- Validate isolated rows, equal-time labels, close items, long
+  gaps, empty days, expanded rows, simultaneous timers, overnight events, all-day areas,
+  and dense external-icon clusters. Use one day-progress axis with centered
+  perpendicular stems without axis nodes. Behavior rows have no
+  axis-facing ticks or nodes. Group only identical original start instants inside one event lane;
+  do not add parallel timeline columns.
+- Resolve the current multiple-time Behavior stacks explicitly. Compare
+  chronological placement of responsive rows with connectors into the existing
+  stacks. Reduce the unused gap between each Behavior title and its actions.
+  Show Completed and Not Completed text by default on desktop. Hide it only when
+  the measured title and actions do not fit. Use icon-only mobile actions with
+  screen-reader labels, tooltips, and 44px targets; resolved status text may
+  remain. Record one coherent choice before Ticket 133; do not
+  silently reorder historical data or alter typography or status treatment.
+- Keep timed Calendar context left of the axis and the ledger exclusively right.
+  Restore action padding is 12px on narrow layouts and 16px on desktop. Align day headers with the
+  right of the axis and continue the axis across headers and days. Keep equal-time
+  peers on visible actual-time labels without Behavior-facing ticks, nodes, or
+  the bracket that made Calendar icons look connected. The pure layout contract may
+  retain shared-time peer mapping.
+- Do not add an All day column on the right. Place All Day Events beside the day
+  title in the ledger header and allow it to wrap on narrow layouts. Hover or focus opens the
+  same fixed bottom non-modal preview drawer used for timed Calendar events. Reserve matching
+  viewport space; cap it at `min(18rem, 40dvh)` (a maximum, never a fixed height) and scroll internally. Persist it until explicit
+  dismissal or replacement so a pointer can reach it. Each event’s View details action opens its own bottom native modal details drawer. Close or Escape returns focus without reopening the preview. Dismissal and restore cause no provider or status writes.
+- Timed-event hover/focus previews show duration as a temporary thickened
+  axis segment from the displayed original-day perpendicular-stem contact and highlight matching
+  Behavior rows. Preserve mapped length to the day body bottom. An overnight continuation starts at
+  the next section top above its heading, continues to the event end without another marker or stem.
+  Details retain actual times. Do not show permanent
+  duration bars. Calendar icons use centered perpendicular stems without axis
+  nodes. Group only exact original-start-instant peers; nearby starts remain
+  separate. Dense icons may displace vertically into 44px non-overlapping
+  targets. Actual timestamps remain unchanged; displayed duration follows stem offsets.
+- Validate fixed bottom non-modal preview drawers on hover/focus. They reserve matching viewport
+  space, cap at `min(18rem, 40dvh)` (a maximum, never a fixed height), and scroll internally. They persist until explicit dismissal or
+  replacement. Hover must not move focus. Each event’s View details action opens its own bottom native modal details drawer;
+  Close or Escape returns focus without reopening the preview. Validate source links and easily restorable all-day
+  dismissal. Dismissal changes local presentation only and must not delete a
+  Google event or write a Cadence status. Existing status colors and Completed/
+  Not Completed/Note controls remain clear.
+- Render the current-time dot in brand blue without a row tint. No persistent teal overlap fill
+  or edge appears. Hover/focus outlines only overlapping Behaviors. Point Behaviors use
+  `start <= activation < end`; estimated-duration Behaviors use half-open
+  interval overlap. Completed and Not Completed fills remain unchanged.
+- Record the layout choice with synthetic fixtures in the existing design
+  bench. Compare current and proposed rows at desktop and 390px widths. Obtain
+  owner review of the proposed layout before production UI implementation.
+- Include two 8:00 AM morning events, three 12:45 PM lunch events, separate
+  7:50 AM and 8:05 AM events, and an evening-water toggle. The three-hour
+  duration overlaps a 23:30 train event; the 21:30 point does not. Use the Calendar
+  badge for same-start groups without changing group data or actions.
+- Establish typed synthetic external-event, freshness, duration-estimate, and layout
+  contracts; Ticket 134 finalizes the provider wire/schema boundary. Distinguish actual timestamps, estimated windows, unknown duration,
+  all-day dates, and display displacement. No raw provider payload enters core.
+- Validate the proposed estimate default: positive stopped-session totals for
+  at least three Completed Occurrences of the same Behavior in the preceding
+  ninety local days; exclude Occurrences with running sessions. Use their
+  arithmetic mean. Missing or insufficient history means unknown, never zero.
+  Treat this as a planning default, not an owner-specified statistical threshold.
+- Update owning UI, flow, datetime, resolver, and desktop parity docs with the
+  chosen layout and contracts. Existing Temporal/local-midnight correctness
+  remains required; new timezone controls and presentation refinements stay deferred.
+
+Implementation references:
+
+- `components/timeline/Timeline.tsx`, `TimelineGroup.tsx`, `OccurrenceRow.tsx`,
+  `TimeTracker.tsx`, `app/globals.css`, and `apps/desktop/src/product.tsx`.
+- `packages/core/src/resolvers/timeline.resolver.ts`,
+  `analytics.resolver.ts`, `time-tracking.resolver.ts`, and `types/timeline.ts`.
+- `app/design-system/`, `design-system.surfaces.json`, `DESIGN.md`,
+  `docs/INTERACTION_REGISTRY.md`, and `docs/DESKTOP_PARITY.md`.
+- Add synthetic evidence in `docs/qa/day-progress-layout.md`; pair any new
+  layout logic with `tests/day-progress.resolver.test.ts`.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Synthetic design bench only; production UI follows in 133 and 135–136 |
+| Desktop | Shared candidate only; production integration and acceptance follow in 133–137 |
+| Marketing | Not applicable: no product claim or layout change |
+| Future mobile | Native implementation deferred; responsive web is tested at 390px now |
+
+Verification: document fixture outcomes, row-size comparisons, keyboard/touch
+behavior, and owner layout review. Run governance checks below; any prototype
+code also requires the standard coding checks. Provider access is unnecessary.
+
+## Ticket 133: Continuous day-progress timeline on web and desktop
+
+Status: in_progress (local implementation; native acceptance pending). Dependency: Ticket 132.
+
+Goal: ship the time line and moving current-time dot using Cadence data alone.
+
+Scope and acceptance:
+
+- Implement the accepted left-side layout with a continuous full-day span
+  across the visible range, item-only time labels, clear day boundaries,
+  centered perpendicular stems without Calendar axis nodes, and one Calendar lane.
+  Only identical original start instants group; nearby starts remain separate. Behavior rows have no axis-facing ticks or nodes.
+  Use the accepted responsive Behavior width and reviewed collapsed-row treatment
+  without changing typography or status treatment.
+- Keep timed Calendar context left of the continuous axis and the ledger exclusively
+  right with 12px narrow and 16px desktop action padding. Align day headers with the ledger and
+  continue the axis through headers and days. Preserve visible actual-time labels
+  without Behavior-facing ticks, nodes, or a bracket. Ticket 135 adds the reviewed
+  All Day Events control beside the ledger-header day title.
+- Share pure layout decisions through
+  `packages/core/src/resolvers/day-progress.resolver.ts`, paired with
+  `tests/day-progress.resolver.test.ts`. Extend existing Timeline types and
+  service output; preserve the web compatibility exports and Needs decision.
+  UI owns element measurement, resize observation, and rendering only.
+- Reuse current future-day limits and Show more days. Keep the same mapping
+  for rows and the dot when loading days or expanding a row. Preserve focus,
+  drafts, and scroll context during ordinary refresh; do not auto-scroll to now.
+- Advance one dot through today's segment. Recompute on resume, visibility
+  return, day change, and relevant layout/data changes. Suspend animation and
+  recurring display work while hidden or minimized. Do not refetch account data
+  or write storage on animation frames. Record an idle-performance comparison.
+- Render the dot in brand blue without a row tint. Scheduled time ranges affect
+  presentation geometry only, never estimated duration or status.
+- At local midnight, the new current day becomes the first forward section.
+  Prior unresolved items still use Needs decision. Removing past sections
+  never deletes records or automatically changes status.
+- Support reduced motion and an accessible current-position description without
+  a constantly announcing live region or a new permanent hourly ruler.
+- Keep the timeline usable offline in desktop local mode and when no Calendar
+  account is connected. Preserve existing web online-only mutation behavior.
+
+Implementation references:
+
+- Existing Timeline components above and a proposed
+  `components/timeline/DayProgressTimeline.tsx` shared presentation component.
+- `packages/core/src/services/timeline.service.ts`,
+  `lib/services/timeline.service.ts`, `apps/desktop/src/local-timeline.service.ts`,
+  and `apps/desktop/src/product.tsx` own view assembly and platform wiring.
+- Extend `tests/timeline.resolver.test.ts`, `tests/timeline.service.test.ts`,
+  `tests/local-timeline.service.test.ts`, and Timeline DOM interaction checks.
+- Update INT-TIMELINE-001 and affected existing Timeline intents only when
+  their implemented behavior changes. Update design-system and parity evidence.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Shared presentation and existing web Timeline service above |
+| Desktop | Shared presentation, local Timeline service, and Product wiring above; offline/native acceptance required |
+| Marketing | No site layout; 137 documents verified timeline behavior |
+| Future mobile | Native implementation deferred; shared layout must pass narrow web checks |
+
+Verification: pure mapping tests, DOM status/Note regression checks, midnight
+and resume cases, responsive-row collision fixtures, narrow browser QA, native
+WKWebView QA, and idle/minimized performance evidence. Run applicable shared checks.
+
+## Ticket 134: Google Calendar connector and documented external-event interface
+
+Status: in_progress (hosted rollout and same/wrong-account live checks pass; remaining native/provider acceptance is open).
+Dependency: Ticket 132 (complete). Next priority: infrastructure.
+
+Goal: provide rich read-only events from the same Google identity used to sign
+into Cadence, with a bounded local desktop cache and honest freshness states.
+
+Implementation order and contract acceptance:
+
+1. Finalize the versioned normalized event/snapshot contract in
+   `docs/EXTERNAL_EVENT_CONTRACT.md`. Extend existing core types; deliver a
+   machine-readable schema, runtime validation, field dictionary, and examples.
+   Preserve start/end, explicit derived duration or unknown, source timezone,
+   recurrence identity, revision, event state, busy/free facts, and coverage.
+2. Record the named read operations, typed errors, capability/permission matrix,
+   credential custody, cache lifetime, and compatibility policy. Resolve the
+   server-owned connector recommendation in `docs/qa/google-calendar-capabilities.md`
+   before provider configuration. MCP informs schemas and capabilities only;
+   no MCP server or generic connector framework is required.
+3. Implement same-account OAuth, bounded retrieval, normalized adaptation, and
+   atomic account-scoped cache refresh/cleanup. Keep the ordinary timeline
+   independent from connector availability.
+4. Prove the same contract on web and desktop with schema/provider/cache fixtures,
+   including a minimal scheduling projection. This is reusable data infrastructure,
+   not model inference, dynamic rearrangement, source editing, or automatic writes.
+
+The owner explicitly requested documentation suitable for future scheduling
+consumers. This contract is a required deliverable, not optional follow-up prose.
+
+Scope and acceptance:
+
+- Verify provider capabilities before selecting scopes, credential flow,
+  callback routes, or schemas. Inspect current Google login/account-linking
+  code first. Record whether existing authentication can support incremental
+  Calendar consent; do not assume a Cadence login token grants Calendar access.
+- Require Cadence sign-in and bind the connector to that account's Google
+  identity. Reject a different provider identity without switching Cadence
+  accounts or mutating local data. Account-free desktop tracking remains usable;
+  Calendar connection is unavailable there.
+- Offer explicit Calendar connection, calendar selection, visibility controls,
+  reconnect, refresh, and disconnect in Settings on web and desktop. Use
+  read-only provider access; never create, edit, or delete source events.
+- Document a field-coverage matrix for title, description, time, duration,
+  location, source URL, and supported organizer, attendees, conference,
+  recurrence, and attachment links. Mark unavailable/restricted fields honestly.
+  Preserve rich details through a safe typed adapter; sanitize descriptions and
+  validate external links. Do not download attachments automatically.
+- Bound reads to selected calendars and displayed days, including events that
+  intersect the range. Handle pagination, recurrence instances/exceptions,
+  cancellations, duplicates, rate limits, and interrupted refresh. Do not
+  replace a complete cache with an incomplete response presented as complete.
+- Desktop caches selected event details for the displayed date range, scoped
+  to the signed-in account. Evict past/out-of-range data on reconciliation.
+  Offline reads retain last-refreshed/stale labels. A missing cache or failed
+  refresh never means the calendar is empty. Web gets no new PWA/offline cache.
+- Refresh coalesces across Timeline and Settings. Define bounded on-open,
+  resume, visible-app refresh, and manual-refresh behavior; avoid per-dot
+  network calls, unbounded polling, webhooks, or a closed-app desktop helper.
+- Define credential custody before coding. Web secrets remain server-only;
+  desktop-held secrets use Keychain. No tokens enter SQLite, browser storage,
+  logs, exports, backups, account-sync snapshots, or shipped frontend bundles.
+  Preserve RLS and ownership for any new hosted records.
+- Keep external events and connector credentials outside BehaviorLog exports
+  and ordinary Cadence account synchronization. Both clients fetch Google data
+  through the reviewed connector architecture, not by syncing cached events.
+- Disconnect stops that connection's refresh and clears its credentials and
+  cached external details. Define grant revocation and other-device effects
+  accurately for the chosen architecture. Cadence sign-out/account disconnect
+  clears the current client's event cache even when Cadence records are kept.
+  Handle account deletion, remote revocation, and reauthentication explicitly.
+- Update `docs/ROUTE_MAP.md`, `docs/OPERATIONS.md`, `docs/DATA_MODEL.md`,
+  `docs/DESKTOP_DATA_MODEL.md`, `docs/DESKTOP_BUILD.md`, and privacy/help copy
+  before enabling the integration. Add migrations, generated types, RLS/ownership
+  checks, cache backup exclusions, and compatibility tests if storage changes.
+
+Implementation references:
+
+- Inspect `app/auth/google/route.ts`, `app/auth/callback/route.ts`,
+  `lib/auth/`, `apps/desktop/src/account/auth.ts`, and existing Keychain boundary.
+- Extend `app/(app)/settings/`, `components/settings/`, and
+  `apps/desktop/src/settings-screen.tsx` for reviewed account-bound controls.
+- Proposed service/adapter ownership: `lib/services/google-calendar.service.ts`,
+  `lib/db/` for required hosted records, and
+  `apps/desktop/src/calendar/google-calendar.ts` for the desktop adapter.
+  Native code owns secure storage and atomic local cache operations only.
+- Add paired connector service/adapter tests and provider-response fixtures.
+  Test synthetic accounts before any separately authorized real-account check.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Settings, server connector service, and reviewed OAuth/routes above; protect account ownership |
+| Desktop | Settings, connector adapter, Keychain boundary, and account-scoped offline cache above |
+| Marketing | This ticket owns accurate privacy/connector help requirements; 137 publishes verified claims |
+| Future mobile | Native implementation deferred; record reusable event/consent contract only |
+
+Verification: same-account success, wrong-account rejection, consent denial,
+revocation, reconnect, selected calendars, complete paginated refresh, stale
+offline cache, cache cleanup on account changes, safe content, and secret
+absence in exports/sync/backups/logs. Verify live web and native flows before
+claiming integration completion. Provider setup and release remain explicit gates.
+
+## Ticket 135: External event lanes, previews, and details
+
+Status: in_progress (shared production presentation; combined acceptance pending). Dependencies: Tickets 133 and 134.
+
+Goal: integrate the accepted Calendar interface beside the ledger, using the
+Ticket 134 normalized contract. Preserve the seventh-revision interaction baseline:
+hover/focus/click/tap previews, no repeated drawer heading/divider, per-event
+details, and conditional title-based all-day labels. Minor visual polish is deferred.
+
+Scope and acceptance:
+
+- Render source icons in one left Calendar lane on one day-progress axis. Use
+  centered perpendicular stems without axis nodes. Group only identical original
+  start instants. Keep nearby starts separate with non-overlapping 44px controls.
+  Display displacement must never change an event's actual time.
+- Derive timed-event hover/focus spans from the same time mapping as the current-
+  time dot, then apply the displayed stem offsets. Show duration as a temporary thickened axis segment from the displayed
+  original-day perpendicular-stem contact and highlight matching Behavior rows. Preserve mapped length
+  to the day body bottom. An overnight continuation starts at the next section top above its heading,
+  continues to the event end without another marker or stem. Details retain actual times. Do not show permanent duration bars.
+  Preserve multi-day/overnight continuity without counting one source event
+  as multiple distinct events. Show external activity near the dot without
+  overlaying ledger controls or implying a Cadence completion decision.
+- Keep All Day Events beside the ledger-header day title and allow narrow wrapping.
+  It uses the same fixed bottom non-modal hover/focus preview drawer as timed Calendar events.
+  The drawer reserves matching viewport space, caps at `min(18rem, 40dvh)` (a maximum, never a fixed height), and scrolls internally.
+  It persists until explicit dismissal or replacement. Each event’s View details action opens its own bottom native modal details drawer.
+  The user can dismiss items and restore
+  them easily. Dismissal is local presentation state,
+  not source-event deletion or a stored Cadence status. Preserve date-only
+  meaning; do not invent midnight durations or timed-conflict warnings.
+- Hover/focus reveals the fixed bottom non-modal preview drawer. It persists until explicit dismissal or replacement.
+  Hover must not move focus. Each event’s View details action opens its own bottom native modal details drawer. Close or Escape returns focus without reopening the preview. Include
+  every supported readable detail and a source link where available. Handle
+  restricted, missing, long, and stale content.
+- Keep icons keyboard accessible with descriptive names. Test preview dismissal,
+  modal focus containment/return, Escape, touch access, reduced motion, and
+  narrow layouts without covering status buttons. Verify responsive row widths
+  keep Completed and Not Completed readable.
+- Preserve last-refreshed and offline/error states from the connector service.
+  Distinguish no selected calendar, no events, not loaded, and refresh failure.
+  The ordinary Cadence timeline remains usable in every connector state.
+- Register new implemented event/settings intents in the existing interaction
+  registry and extend the existing design-system catalog and desktop parity.
+
+Implementation references:
+
+- `components/timeline/DayProgressTimeline.tsx` from 133; proposed
+  `components/timeline/ExternalEventDetails.tsx` for shared previews/details.
+- `packages/core/src/resolvers/day-progress.resolver.ts` owns layout inputs
+  and collision decisions; UI renders its results with measured row geometry.
+- `lib/services/timeline.service.ts`, `apps/desktop/src/local-timeline.service.ts`,
+  `apps/desktop/src/product.tsx`, and the Ticket 134 connector services.
+- Add `tests/external-event-timeline.dom.test.tsx` and extend layout fixtures.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Shared event presentation wired through web Timeline service |
+| Desktop | Same controls in Product, with cached offline details and native source-link opening |
+| Marketing | No site layout; verified interaction help follows in 137 |
+| Future mobile | Native implementation deferred; touch interactions and 390px web support required now |
+
+Verification: synthetic dense/all-day/overnight fixtures, connector state matrix,
+keyboard/touch browser checks, restorable local all-day dismissal, native hover/
+click/source-link checks, and existing status/Note/timer regression tests. Run
+applicable shared checks.
+
+## Ticket 136: Estimated Behavior durations and advisory overlap cues
+
+Status: in_progress (bounded history and shared presentation wiring). Dependencies: Tickets 132 and 135.
+
+Goal: distinguish estimated scheduling overlap from actual running timers
+without changing Behavior schedules or manual statuses. Consume Ticket 134's
+validated scheduling projection and explicit coverage/unknown states. Do not
+parse Google fields or formatted event labels inside UI or overlap logic.
+
+Scope and acceptance:
+
+- Implement the duration sample policy finalized in 132. Reuse stopped-session
+  totals and arithmetic-mean logic from the existing time-tracking and analytics
+  resolvers; preserve existing analytics semantics and APIs. Do not average
+  separate sessions when the intended sample is an Occurrence total.
+- Return an estimated duration, sample count, and provenance or explicit unknown.
+  Missing/insufficient history is not zero. Running timers are activity signals,
+  not finished samples. Refresh estimates after timing edits/reset and relevant
+  status changes, without rewriting recorded sessions.
+- Compare a known estimated interval with timed external-event intervals.
+  Use half-open boundaries: a Behavior ending at 10:00 does not overlap an
+  event starting at 10:00. Unknown-duration items may show scheduled-time overlap,
+  but never imply that an unflagged slot is conflict-free.
+- Use Possible overlap language and distinguish Scheduled now, Estimated
+  window, and Tracking now. Multiple simultaneous signals are valid. Keep
+  Completed/Not Completed colors and text authoritative; activity cues are
+  supplementary and accessible without color perception.
+- Label assessments based on stale calendar data. Do not claim that current
+  availability is verified when external events are unavailable or incomplete.
+- Exclude all-day items from timed-overlap warnings in this release. Do not
+  infer completion, reschedule Occurrences, modify recurrence, write Google
+  events, or add a user-set expected-duration field.
+
+Implementation references:
+
+- `packages/core/src/resolvers/analytics.resolver.ts` and
+  `time-tracking.resolver.ts` retain recorded-duration ownership.
+- Proposed `packages/core/src/resolvers/timeline-context.resolver.ts` and
+  `tests/timeline-context.resolver.test.ts` own estimate eligibility, interval
+  overlap, and current-activity presentation state with injected `now`.
+- `packages/core/src/services/timeline.service.ts`, web/local Timeline adapters,
+  and `lib/db/timeSessions.repo.ts` supply bounded owner-scoped history.
+- `components/timeline/OccurrenceRow.tsx` and the shared timeline gutter render
+  resolver results; neither computes estimates or conflicts independently.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Shared context resolver and owner-scoped Timeline service history reads |
+| Desktop | Same resolver over local history and cached event inputs; stale state remains explicit |
+| Marketing | This ticket defines estimate limitations for help copy; 137 publishes verified wording |
+| Future mobile | Native implementation deferred; shared resolver contract defines future parity |
+
+Verification: threshold boundary, untimed/partial/running sessions, multiple
+sessions per Occurrence, reset/recomputed estimates, interval adjacency,
+unknown duration, simultaneous activity, and stale data. Assert no status,
+schedule, reminder, or provider writes occur. Run applicable shared checks.
+
+## Ticket 137: Combined timeline acceptance and release documentation
+
+Status: in_progress (local checks; live/native release gates pending). Dependencies: Tickets 133–136.
+
+Goal: verify the complete experience on both platforms before publishing claims
+or distributing the feature.
+
+Infrastructure/documentation closeout is mandatory: `docs/EXTERNAL_EVENT_CONTRACT.md`
+must link the shipped schema, examples, field/provider mapping, capabilities,
+errors, compatibility policy, ownership, and cleanup procedures to passing tests.
+Verify equal scheduling facts across web and desktop, unknown duration and partial
+coverage handling, and all exclusions from exports/sync/backups/model calls.
+Record deferred minor visual polish separately; do not reopen Ticket 132 unless
+the accepted functionality or accessibility contract materially changes.
+
+Scope and acceptance:
+
+- Verify the same synthetic day across web and native desktop: empty/full days,
+  closely spaced and simultaneous rows, existing multi-time stacks, expanded
+  Notes, active timers, overnight/all-day events, restorable all-day dismissal,
+  bottom preview drawers, and native dialog details.
+- Verify same-Google-account connection, calendar selection, wrong-account
+  rejection, revocation, refresh failure, offline desktop cache, disconnect
+  cleanup, and unchanged account-free desktop tracking.
+- Verify day rollover, resume after multiple days, future-range extension,
+  stale overlap labels, unchanged Needs decision, and no auto-status or schedule
+  changes. Run real keyboard/touch and native source-app-link acceptance.
+- Compare idle, visible, hidden, and minimized performance with the prior app.
+  The moving dot must not reintroduce hidden clock polling, repeated Keychain
+  reads, duplicate sync, or per-frame network work.
+- If migrations exist, prove clean replay, ownership/RLS, prior-version upgrade,
+  rollback/retry behavior, account isolation, and external-cache exclusions from
+  normal synchronization, exports, and backups. Protect real desktop data
+  before authorized installed-app acceptance.
+- Update `docs/user-guide/`, `docs/DESKTOP_PARITY.md`, `docs/DESKTOP_RELEASE.md`,
+  `docs/OPERATIONS.md`, implemented interaction/design-system evidence, and
+  factual privacy/help content. Publish only verified connector capabilities.
+- Record implementation validation separately from deployment/distribution.
+  Both platforms must pass acceptance for this combined release. Existing
+  Apple-trust requirements remain under Ticket 115; do not weaken them or
+  describe an ad hoc preview as notarized.
+
+Implementation references: Tickets 133–136 above, existing release procedures,
+and a consolidated evidence report at `docs/qa/day-progress-release.md`.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Browser/provider acceptance and authorized deployment under `docs/VERCEL_WORKFLOW.md` |
+| Desktop | Native/offline/upgrade acceptance and authorized distribution under `docs/DESKTOP_RELEASE.md` |
+| Marketing | Verified connector/privacy/help copy in `apps/marketing/` and `docs/user-guide/`; no speculative redesign |
+| Future mobile | Native implementation deferred; report responsive web evidence without claiming a mobile app |
+
+### Shared verification for Tickets 132–137
+
+Planning/contract-only changes: `npm run agents:check`,
+`npm run interactions:check`, `npm run resolvers:check`, and `git diff --check`.
+These do not establish implementation or provider acceptance.
+
+For coding tickets, run the standard repository gates and applicable platform
+checks. Record each result; tests must exercise the added contract:
+
+```bash
+npm run agents:check
+npm run interactions:check
+npm run resolvers:check
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm run core:check
+npm run desktop:typecheck
+npm run desktop:build
+npm run desktop:parity:check
+npm run design-system:check
+```
+
+Add native tests and real SQLite contracts when native/storage code changes.
+Schema changes also require clean local migration replay, generated types, and
+real ownership/adapter contracts. Marketing changes require its check/build.
+Use loopback ports 4321–4330 for browser QA. Synthetic fixtures cannot stand in
+for real provider or native acceptance. No implementation is complete merely
+because the planning checks pass.
+
+## Ticket 138: Public domain setup and Google ownership verification
+
+Status: complete (2026-09-17). Related: Tickets 134, 137, and 139–141.
+DNS, TLS, Search Console ownership, public routing, new callback registrations,
+and dedicated-account new-domain sign-in/Calendar consent passed. Installed
+preview.40 completed the preserved legacy broker's fresh consent, selected only
+the demo calendar, refreshed all three demo events, and passed global disconnect.
+The primary account is restored and current. Tracking IDs, counts, and values
+match the private backup; one reminder advanced from pending to sent. Integrity
+and foreign keys pass. Immediate callback rendering was not observed; completed
+authentication and subsequent native operations were verified. Existing aliases
+and callbacks remain available. Required workspace and isolated-candidate checks
+passed. Evidence: `docs/qa/day-progress-release.md`. Google OAuth approval remains
+Ticket 141's separate gate.
+
+Goal: connect the owner's available `cadence-me.com` domain to the existing
+Cadence deployments and verify ownership for Google OAuth review. The owner's
+2026-09-17 Cloudflare screenshot establishes availability, not working routing
+or Google verification.
+
+Scope and acceptance:
+
+- Planned routing: `https://cadence-me.com` to existing Vercel project
+  `cadence-marketing`; `https://app.cadence-me.com` to existing project `cadence`.
+  Preserve the two-project architecture. Inspect DNS before changing records;
+  preserve mail and unrelated records. Verify HTTPS and record rollback steps.
+- Inventory canonical URLs, sitemap/metadata, marketing-to-app links, Supabase
+  redirects, Google sign-in and separate Calendar callbacks, native broker
+  origins, and CORS allowlists. Migrate them together without stranding installed
+  desktop clients. Record deliberate handling of old URLs and `www`.
+- Verify the root domain in Google Search Console using DNS and a Google account
+  with the required Calendar Cloud project ownership. Save sanitized confirmation.
+- Configure the Calendar authorized domain and exact callback. Preserve separation
+  from the Google sign-in project. Record final URLs in `docs/VERCEL_WORKFLOW.md`
+  and `docs/OPERATIONS.md`.
+- Verify public pages, web sign-in, Calendar consent, native browser handoff and
+  refresh, and old-link compatibility before retiring any existing origin.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Existing Vercel settings, OAuth routes, and `docs/VERCEL_WORKFLOW.md` |
+| Desktop | Broker/auth origin compatibility in `apps/desktop/src/account/`, `apps/desktop/src/calendar/`, and native configuration |
+| Marketing | `apps/marketing/src/data/site.ts`, Astro site configuration, and canonical links |
+| Future mobile | No implementation; preserve reusable HTTPS endpoint contracts for future clients |
+
+Verification: DNS/certificate readback, Search Console confirmation, redirect and
+canonical checks, web/native authentication smoke tests, and affected code checks.
+Filing this ticket does not change DNS, hosting, credentials, or OAuth settings.
+
+## Ticket 139: Calendar website copy and privacy disclosure readiness
+
+Status: complete (2026-09-17). Homepage, FAQ, owner-approved Privacy revision,
+canonical public links, and Google branding links are published and verified.
+Required workspace and isolated-candidate checks pass. Ticket 138 owns the
+remaining real OAuth/native compatibility checks; Tickets 140–141 own the
+recording and Google review. Evidence: the authorized continuation in
+`docs/qa/day-progress-release.md`. Related: Tickets 134 and 137.
+
+Goal: explain optional Calendar access using existing homepage, FAQ, footer,
+and canonical legal pages. No site redesign or duplicate legal pages.
+
+Scope and acceptance:
+
+- Add one homepage paragraph covering selected-calendar context, optional
+  read-only consent, no source-event editing, and Settings disconnect. Starting
+  draft, subject to implementation checks and copy review:
+  "Optionally connect Google Calendar to see events alongside your behaviors.
+  Choose which calendars appear in your Timeline. Cadence requests read-only
+  access and cannot create, change, or delete your Google Calendar events.
+  Disconnect Calendar in Settings at any time."
+- Add FAQ answers: Is Calendar required? What can Cadence read? Can it change
+  Google events? How do I disconnect? Explain same-account consent, global
+  disconnect versus sign-out, and offline cache cleanup where relevant.
+- Audit the existing Optional Google Calendar privacy section against actual
+  access, purpose, storage, sharing, disconnect, deletion, and backup retention.
+  Update the provider table's sign-in-only Google description and accurately
+  describe hosting/database processing. Check applicable Google Limited Use
+  disclosures and link its policy. Do not invent retention or compliance claims.
+- Check Calendar-specific facts against current provider settings and the existing
+  legal-review process. Preserve the recorded August 31 baseline approvals. The
+  owner approved the September 17 Calendar Privacy text and recorded review scope
+  for publication. This owner decision supersedes the separate September 17
+  new-review publication blocker; record it as owner approval, not an independent
+  legal review. Technical, domain, and Google gates remain unchanged.
+- Update footer and Google consent-screen links and keep app names and contact
+  details consistent. Preserve app-origin canonical `/privacy`, `/terms`, and
+  `/trust` per `docs/PUBLIC_PRODUCT_ARCHITECTURE.md`; do not duplicate legal text
+  on marketing. Make only relevant Terms corrections.
+- Publish capability claims only when verified and available for the stated
+  audience. Update existing user-guide, interaction-registry, and design-system
+  evidence where implemented links or interactions change.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | `components/settings/LegalContent.tsx`, canonical legal routes, and Settings disclosure/link consistency |
+| Desktop | Shared Calendar disclosures and Settings legal links; no account-free tracking changes |
+| Marketing | `apps/marketing/src/pages/index.astro`, `src/data/faq.ts`, `src/data/site.ts`, and `src/layouts/BaseLayout.astro` |
+| Future mobile | No native implementation; verify narrow responsive public pages without claiming a mobile app |
+
+Verification: source-to-copy review, no-login public links, consent-link matching,
+keyboard/narrow-layout inspection, marketing check/build, and affected repository
+checks. Record final copy and evidence in existing docs. Draft text is not a
+publication or provider-compliance claim.
+
+## Ticket 140: Google Calendar verification demonstration video
+
+Status: in_progress (reopened after brand verification). Dependencies: Tickets 138–139 and stable live web/native
+Calendar flows from 134–137; full Ticket 137 closure is not a prerequisite.
+
+September 17 continuation: the owner completed `cadence.testing.is@gmail.com`.
+Browser identity, a private demonstration calendar with three harmless events,
+and Calendar OAuth test-user enrollment are verified. New-domain Cadence sign-in,
+read-only Calendar consent, selection, refresh, timed preview/details, and two-day
+all-day placement pass. The owner approved the temporary desktop switch and
+primary-account restoration. Installed desktop consent, selection, refresh,
+read-only details, disconnect, and primary-account restoration passed. A four-minute
+production web video now covers the complete consent and read-only feature flow.
+Privacy masks protect unrelated account identities and transient OAuth parameters.
+Playback and decoding pass. The owner confirmed YouTube’s upload agreement.
+The video is Unlisted on brittlebeliefs at https://youtu.be/FFlbGp-_6bE.
+YouTube checks found no issues; signed-out Incognito playback passes. Desktop uses the same Calendar client; its installed
+acceptance remains separate QA evidence, not footage in this video. The actual
+unverified consent label is cadence-me.com. Google subsequently verified and
+published the consent name Cadence. This ticket is reopened for an actual updated
+recording that matches that branding. The original video remains available;
+it is not the final matching-brand evidence for sensitive-scope submission.
+
+Goal: produce the screen recording required for Google's sensitive-scope review.
+Use harmless test events and a plain demonstration, not a promotional film.
+
+Scope and acceptance:
+
+- Prepare a short script showing Cadence's purpose, Google sign-in, separate
+  Calendar consent, calendar selection, refresh, and Timeline events. Demonstrate
+  each requested permission's use. Include installed desktop browser handoff
+  where needed to explain the submitted client experience.
+- Capture the actual flow in English with the correct app name and OAuth client
+  ID visible in the consent browser address bar. Exclude secrets, access/refresh
+  tokens, private event content, unrelated tabs, and notifications.
+- Show preview/details and disconnect using a controlled test calendar. Inspect
+  the complete recording before uploading it to YouTube as unlisted.
+- Create a dedicated Gmail identity for demonstration and ongoing Cadence tests.
+  Use only a known name and harmless test calendars/events. Do not invent personal
+  details or reuse a password. A human must choose the password, complete any
+  verification, and accept account terms.
+- Identify and record the destination YouTube channel before any unlisted upload.
+  Do not assume the signed-in Google account owns the intended channel.
+- Verify reviewer access to the unlisted link. Record the script, local artifact
+  reference, video URL, demonstrated build, and covered scopes in the existing
+  Calendar QA records. A script or planned recording does not complete this ticket.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Record actual consent, selection, and Timeline controls from Tickets 134–135 |
+| Desktop | Record the installed handoff/read-only flow when needed; no runtime changes |
+| Marketing | Use final homepage/privacy links from 139; no new marketing video embed |
+| Future mobile | Not applicable: no native mobile app is part of this submission |
+
+Verification: complete playback, readable consent/client identity, demonstrated
+scope use, privacy inspection, and unlisted-link access. Recheck Google's current
+video requirements before recording. Filing this ticket uploads nothing.
+
+## Ticket 141: Google Calendar verification submission and review follow-up
+
+Status: in_progress. Dependencies: Tickets 138–140 and relevant technical evidence
+from 134/137. Full Ticket 137 closure is not a prerequisite; this ticket supplies
+its public-verification evidence.
+
+September 17 submission checkpoint: the reviewed video is published and accessible
+without sign-in. The owner confirmed the production-audience expansion, and Google
+reports In production. Google found an app-name/homepage mismatch. Changing the
+consent name from Cadence Calendar to Cadence resolved it. Google verified the
+branding, and the verified branding is published. Scope justification and the
+submission summary are saved. Final sensitive-scope submission waits for a new
+recording that matches the verified branding. Google has not approved Calendar
+data access. The verification questionnaire remains unsubmitted.
+
+Goal: submit the separate Calendar OAuth project for brand/data-access review,
+answer reviewer questions, and record Google's actual decision.
+
+Scope and acceptance:
+
+- Prepare final justification for each scope: OpenID associates consent with the
+  signed-in identity; calendar-list read-only supports calendar choice; events
+  read-only supplies displayed event context. Explain why narrower access cannot
+  provide the feature. Request no write or unrelated scopes.
+- Check final branding, verified domains, public links, exact callbacks, scopes,
+  and reviewed video. Keep the Google sign-in project separate.
+- Confirm the support/developer inbox and identify who monitors it. The current
+  configured contact remains `info@identityscaffolding.com` by owner decision.
+  The owner named Emiliano Bache Rodriguez as the human monitor on September 17,
+  2026. Record reviewer requests and
+  responses without copying private messages or credentials into git.
+- Follow Google's current branding and data-access submission sequence. Record
+  project, submission date, requested scopes, review state, and required follow-up.
+- Complete only when Google's approval covers the actual production client and
+  scopes, and the approved public configuration passes consent smoke tests.
+  Submission or Testing-mode status is not approval.
+- Keep public rollout subject to remaining Ticket 137 technical acceptance.
+  Provider approval cannot close native/provider test gaps or replace Ticket 115's
+  separate Apple-trust requirements. Update existing QA records and `STATUS.md`.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Dedicated Calendar OAuth project, `docs/OPERATIONS.md`, and live consent evidence |
+| Desktop | Existing hosted Calendar broker shares the reviewed grant; installed handoff smoke check required |
+| Marketing | Identity/privacy links from 139; no unearned Google-approval claim |
+| Future mobile | Not applicable: future clients/scopes require their own applicability review |
+
+Verification: actual Google decision and console status, matching production
+client/scopes, public links, and web/native smoke evidence. Recheck requirements:
+
+- <https://support.google.com/cloud/answer/13804266?hl=en>
+- <https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification>
+- <https://developers.google.com/terms/api-services-user-data-policy>
+
+### Shared planning verification for Tickets 138–141
+
+Run `npm run agents:check`, `npm run interactions:check`,
+`npm run resolvers:check`, and `git diff --check` for the ticket-only addition.
+Execution requires each ticket's stated acceptance and applicable code/provider
+checks. Native/provider/Workspace coverage remains under Tickets 134–137;
+these follow-ups do not change their status or duplicate their test matrices.

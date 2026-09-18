@@ -455,6 +455,85 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - Optional desktop Google account linking and synchronization under Tickets 116–122
 - Incremental shared domain code and design tokens, with preserved web APIs
 
+## Day-progress timeline and gated Calendar context (Tickets 132–137)
+
+The repository implements the accepted day-progress layout on web and desktop.
+`packages/core/src/resolvers/day-progress.resolver.ts` owns layout decisions.
+`components/timeline/DayProgressTimeline.tsx` renders the shared Timeline.
+`lib/services/timeline.service.ts` and
+`apps/desktop/src/local-timeline.service.ts` assemble platform data.
+The ordinary Timeline remains usable without Google Calendar and in desktop
+local mode.
+
+The Timeline uses one continuous local-day axis. A blue dot marks the current
+position without changing a row. Behavior rows keep their time labels, status,
+Notes, and manual actions. Calendar markers sit left of the axis. Only events
+with the same original start instant group. Display displacement does not change
+an event time. Local midnight advances the forward range without deleting a
+record or changing an Occurrence status.
+
+The repository also implements optional read-only Google Calendar context.
+`docs/EXTERNAL_EVENT_CONTRACT.md` defines the versioned snapshot contract.
+`lib/services/google-calendar.service.ts` owns same-account consent and reads.
+`components/settings/GoogleCalendarPanel.tsx` owns connection, selection,
+visibility, refresh, reconnect, and disconnect controls. Desktop uses
+`apps/desktop/src/calendar/google-calendar.ts` and the same server connector.
+It does not receive a Google credential.
+
+The connector requests Calendar-list and event read-only scopes after ordinary
+Cadence sign-in. It accepts only the Google identity already attached to the
+Cadence account. It reads only selected readable calendars and displayed days.
+It never creates, edits, or deletes a Google event. All-day dismissal changes
+local presentation only. External events never change Behavior schedules,
+Occurrence statuses, Notes, or reminders.
+
+Timed and all-day events can open a persistent non-modal preview. **View
+details** opens one event in a modal drawer and restores focus when closed.
+Validated Google source links open outside Cadence. The UI preserves missing,
+restricted, stale, incomplete, and unknown facts. It does not turn a failed or
+partial refresh into an empty Calendar claim.
+
+Desktop stores the last complete matching snapshot in the separate disposable
+`calendar-cache.sqlite3` file. The cache contains normalized selected event
+details, range, account, generation, and freshness. It contains no Google
+credential or raw provider response. A failed refresh may retain stale data
+with an explicit label. Calendar disconnect and desktop account disconnect clear
+the cache while preserving Cadence history. Reconnecting the desktop account
+also clears the prior local Calendar state.
+
+The server stores the Calendar connection and display preferences with the
+Cadence account. It stores the Google refresh credential as owner-bound
+AES-256-GCM ciphertext in a non-exposed database schema. The web and desktop
+clients receive normalized event data, not that credential. Cadence exports,
+BehaviorLog bundles, account synchronization, and user-created desktop backups
+exclude Google credentials and cached events. Hosting infrastructure backups
+may retain sealed credential ciphertext under the current hosting backup policy
+after live deletion. The current Supabase daily-backup window is seven days.
+
+Disconnect deletes the live credential before Cadence attempts Google grant
+revocation. If Google revocation is unavailable, Settings tells the user to
+remove Cadence from Google Account permissions. Account deletion attempts the
+same revocation, then deletes the Auth user and owner-scoped Calendar records.
+Other devices stop refreshing and clear their local content when they next
+observe the changed connection. Ordinary web sign-out keeps the account-level
+Calendar connection. Desktop account disconnect clears that Mac's Calendar cache.
+
+Duration estimates use positive stopped-session totals from at least three
+Completed Occurrences in the previous 90 complete local days. A running session
+is not a finished sample. Missing history remains unknown. Possible-overlap
+cues are advisory. They use half-open timed intervals and exclude all-day events.
+They never prove availability or change a schedule or status.
+
+The implementation remains inactive for real provider use until deployment and
+live acceptance complete. The server reports `not_configured` unless all
+required Calendar OAuth and encryption settings are valid. Desktop additionally
+requires a valid HTTPS `VITE_CALENDAR_BROKER_ORIGIN`. The repository does not
+contain live credentials. Hosted migration, provider verification, real-account
+OAuth, native cache/source-link tests, performance evidence, deployment, and
+distribution remain Ticket 137 gates. Local and synthetic checks do not complete
+Tickets 133–137. Native mobile remains deferred. Dynamic rearrangement and
+non-Google connectors remain deferred in `docs/FUTURE_UPDATES.md`.
+
 ## Out of scope
 
 - Structured measurement templates
@@ -464,7 +543,8 @@ Future offline/PWA work is tracked in `/docs/FUTURE_UPDATES.md`.
 - Social features
 - Gamification
 - AI coaching
-- Calendar sync
+- Two-way Calendar sync and source-event editing; Tickets 132–137 cover only
+  gated read-only Google Calendar context
 - PWA offline cache
 - Web offline writes
 - Payment/subscription infrastructure

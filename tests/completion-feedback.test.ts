@@ -162,6 +162,61 @@ describe("completion feedback", () => {
     expect(dispatchEvent).not.toHaveBeenCalled();
   });
 
+  it("suspends the prepared context when a failed save never starts playback", async () => {
+    const { MockAudioContext } = installAudioMocks();
+    const { prepareCompletionChimeForUserGesture } = await import(
+      "../lib/ui/completion-feedback"
+    );
+
+    prepareCompletionChimeForUserGesture();
+    await flushPromises();
+
+    expect(MockAudioContext.instances[0]?.suspend).toHaveBeenCalledTimes(1);
+  });
+
+  it("suspends a new gesture even when the prior suspension is still settling", async () => {
+    const { MockAudioContext } = installAudioMocks();
+    const { prepareCompletionChimeForUserGesture } = await import(
+      "../lib/ui/completion-feedback"
+    );
+    prepareCompletionChimeForUserGesture();
+    await flushPromises();
+    const context = MockAudioContext.instances[0]!;
+    let suspended!: () => void;
+    context.suspend.mockImplementationOnce(() => new Promise<void>((resolve) => { suspended = resolve; }));
+    prepareCompletionChimeForUserGesture();
+    await flushPromises();
+    prepareCompletionChimeForUserGesture();
+    await flushPromises();
+    suspended();
+    await flushPromises();
+    expect(context.state).toBe("suspended");
+    expect(context.suspend).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps an unlocked context running through pending resume and decode work", async () => {
+    const { MockAudioContext, resumeCalls } = installAudioMocks({
+      deferResume: true,
+    });
+    const { prepareCompletionChimeForUserGesture, playCompletionChime } =
+      await import("../lib/ui/completion-feedback");
+
+    prepareCompletionChimeForUserGesture();
+    const playback = playCompletionChime();
+    await flushPromises();
+
+    const context = MockAudioContext.instances[0]!;
+    expect(context.decodeAudioData).toHaveBeenCalledTimes(1);
+    expect(context.suspend).not.toHaveBeenCalled();
+    for (const resume of resumeCalls) {
+      resume();
+    }
+    await playback;
+
+    expect(context.startedSources).toBe(2);
+    expect(context.suspend).not.toHaveBeenCalled();
+  });
+
   it("reports when buffer playback starts", async () => {
     const { MockAudioContext, dispatchEvent } = installAudioMocks();
     const { prepareCompletionChimeForUserGesture, playCompletionChime } =
@@ -175,6 +230,7 @@ describe("completion feedback", () => {
     const context = MockAudioContext.instances[0];
 
     expect(context.startedSources).toBe(2);
+    expect(context.resume).toHaveBeenCalledTimes(2);
     expect(dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         detail: {
@@ -186,7 +242,9 @@ describe("completion feedback", () => {
   });
 
   it("starts one media element after a prepared successful completion", async () => {
-    const { dispatchEvent, MockAudio } = installMediaMocks();
+    const { dispatchEvent, MockAudio, MockAudioContext } = installAudioMocks({
+      mediaPlay: "resolve",
+    });
     const { prepareCompletionChimeForUserGesture, playCompletionChime } =
       await import("../lib/ui/completion-feedback");
 
@@ -209,6 +267,7 @@ describe("completion feedback", () => {
         type: COMPLETION_CHIME_PLAYED_EVENT,
       }),
     );
+    expect(MockAudioContext.instances[0]?.suspend).toHaveBeenCalledTimes(1);
   });
 
   it("does not start media playback while preparing the user gesture", async () => {
@@ -285,6 +344,69 @@ describe("completion feedback", () => {
         type: COMPLETION_CHIME_BLOCKED_EVENT,
       }),
     );
+    expect(context.suspend).not.toHaveBeenCalled();
+    context.oscillators[0]?.onended?.(new Event("ended"));
+    expect(context.suspend).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the context running until overlapping buffer fallbacks both end", async () => {
+    const { MockAudioContext } = installAudioMocks();
+    const { playCompletionChime } = await import(
+      "../lib/ui/completion-feedback"
+    );
+
+    await Promise.all([playCompletionChime(), playCompletionChime()]);
+
+    const context = MockAudioContext.instances[0]!;
+
+    expect(context.startedSources).toBe(2);
+    expect(context.suspend).not.toHaveBeenCalled();
+    context.bufferSources[0]?.onended?.(new Event("ended"));
+    expect(context.suspend).not.toHaveBeenCalled();
+    context.bufferSources[1]?.onended?.(new Event("ended"));
+    expect(context.suspend).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps two plays alive while their shared decode is pending", async () => {
+    const { MockAudioContext, decodeResolvers } = installAudioMocks({
+      deferDecode: true,
+    });
+    const { playCompletionChime } = await import(
+      "../lib/ui/completion-feedback"
+    );
+
+    const first = playCompletionChime();
+    const second = playCompletionChime();
+    await flushPromises();
+
+    const context = MockAudioContext.instances[0]!;
+    expect(context.decodeAudioData).toHaveBeenCalledTimes(1);
+    expect(context.suspend).not.toHaveBeenCalled();
+    decodeResolvers[0]?.();
+    await Promise.all([first, second]);
+
+    expect(context.startedSources).toBe(2);
+    context.bufferSources[0]?.onended?.(new Event("ended"));
+    expect(context.suspend).not.toHaveBeenCalled();
+    context.bufferSources[1]?.onended?.(new Event("ended"));
+    expect(context.suspend).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases failed buffer and synth sources", async () => {
+    const { MockAudioContext } = installAudioMocks({
+      bufferStartFails: true,
+      oscillatorStartFails: true,
+    });
+    const { playCompletionChime } = await import(
+      "../lib/ui/completion-feedback"
+    );
+
+    await playCompletionChime();
+
+    const context = MockAudioContext.instances[0]!;
+    expect(context.bufferSources[0]?.disconnect).toHaveBeenCalledTimes(1);
+    expect(context.oscillators[0]?.disconnect).toHaveBeenCalledTimes(1);
+    expect(context.suspend).toHaveBeenCalledTimes(1);
   });
 
   it("reports blocked when media and decode fail with no oscillator support", async () => {
@@ -311,6 +433,7 @@ describe("completion feedback", () => {
         type: COMPLETION_CHIME_BLOCKED_EVENT,
       }),
     );
+    expect(context.suspend).not.toHaveBeenCalled();
   });
 
   it("reports blocked playback when no browser audio API is available", async () => {
@@ -334,13 +457,19 @@ describe("completion feedback", () => {
 
 function installAudioMocks(
   options: Readonly<{
+    bufferStartFails?: boolean;
     decodeFails?: boolean;
+    deferDecode?: boolean;
+    deferResume?: boolean;
     mediaPlay?: "none" | "reject" | "resolve";
+    oscillatorStartFails?: boolean;
     oscillator?: boolean;
   }> = {},
 ) {
   const dispatchEvent = vi.fn();
+  const decodeResolvers: Array<() => void> = [];
   const mediaPlay = options.mediaPlay ?? "none";
+  const resumeCalls: Array<() => void> = [];
 
   class MockCustomEvent<T = unknown> extends Event {
     detail: T;
@@ -355,11 +484,26 @@ function installAudioMocks(
     static instances: MockAudioContext[] = [];
 
     currentTime = 0;
+    bufferSources: AudioBufferSourceNode[] = [];
     destination = {};
-    resume = vi.fn(async () => {
-      this.state = "running";
+    resume = vi.fn(() => {
+      if (!options.deferResume) {
+        this.state = "running";
+        return Promise.resolve();
+      }
+
+      return new Promise<void>((resolve) => {
+        resumeCalls.push(() => {
+          this.state = "running";
+          resolve();
+        });
+      });
+    });
+    suspend = vi.fn(async () => {
+      this.state = "suspended";
     });
     sampleRate = 44100;
+    oscillators: OscillatorNode[] = [];
     state: AudioContextState = "suspended";
     startedOscillators = 0;
     startedSources = 0;
@@ -373,44 +517,65 @@ function installAudioMocks(
     }
 
     createBufferSource(): AudioBufferSourceNode {
-      return {
+      const source = {
         buffer: null,
         connect: vi.fn(),
+        disconnect: vi.fn(),
+        onended: null,
         start: vi.fn(() => {
+          if (options.bufferStartFails) {
+            throw new Error("buffer start failed");
+          }
           this.startedSources += 1;
         }),
       } as unknown as AudioBufferSourceNode;
+      this.bufferSources.push(source);
+      return source;
     }
 
     createOscillator =
       options.oscillator === false
         ? undefined
         : vi.fn(() => {
-            return {
+            const oscillator = {
               connect: vi.fn(),
+              disconnect: vi.fn(),
               frequency: createMockAudioParam(),
+              onended: null,
               start: vi.fn(() => {
+                if (options.oscillatorStartFails) {
+                  throw new Error("oscillator start failed");
+                }
                 this.startedOscillators += 1;
               }),
               stop: vi.fn(),
               type: "sine",
             } as unknown as OscillatorNode;
+            this.oscillators.push(oscillator);
+            return oscillator;
           });
 
     createGain(): GainNode {
       return {
         connect: vi.fn(),
+        disconnect: vi.fn(),
         gain: createMockAudioParam(),
       } as unknown as GainNode;
     }
 
-    async decodeAudioData(): Promise<AudioBuffer> {
+    decodeAudioData = vi.fn(async (): Promise<AudioBuffer> => {
       if (options.decodeFails) {
         throw new Error("decode failed");
       }
 
+      if (options.deferDecode) {
+        return new Promise<AudioBuffer>((resolve) => {
+          decodeResolvers.push(() => resolve({ duration: 0.4 } as AudioBuffer));
+        });
+      }
+
       return { duration: 0.4 } as AudioBuffer;
-    }
+    });
   }
 
   class MockAudio {
@@ -446,7 +611,13 @@ function installAudioMocks(
     dispatchEvent,
   });
 
-  return { dispatchEvent, MockAudio, MockAudioContext };
+  return {
+    decodeResolvers,
+    dispatchEvent,
+    MockAudio,
+    MockAudioContext,
+    resumeCalls,
+  };
 }
 
 function createMockAudioParam(): AudioParam {

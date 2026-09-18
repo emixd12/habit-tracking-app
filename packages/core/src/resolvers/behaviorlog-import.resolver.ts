@@ -289,6 +289,7 @@ type ParsedJsonlRecord = {
 
 export type ResolveBehaviorLogImportPreviewInput = {
   reminderChannel?: "browser_push" | "other";
+  convertNativeRemindersToBrowser?: boolean;
   files: BehaviorLogImportFile[];
   existing?: BehaviorLogExistingRecords;
   supportedSchemaVersions?: readonly string[];
@@ -445,7 +446,7 @@ export function resolveBehaviorLogImportPreview(
     ...(fileMap.has(JSONL_FILES.interventionRules)
       ? {
           interventionRules: interventionRuleRows
-            .map((row) => toInterventionRulePlan(row, errors, warnings, input.reminderChannel))
+            .map((row) => toInterventionRulePlan(row, errors, warnings, input.reminderChannel, input.convertNativeRemindersToBrowser))
             .filter(
               (record): record is BehaviorLogImportInterventionRulePlan =>
                 Boolean(record),
@@ -501,6 +502,7 @@ export function resolveBehaviorLogImportMergePreview(
     files: input.files,
     supportedSchemaVersions: input.supportedSchemaVersions,
     reminderChannel: input.reminderChannel,
+    convertNativeRemindersToBrowser: input.convertNativeRemindersToBrowser,
   });
   const mergePreview = buildMergePreview({
     plan: preview.plan,
@@ -517,6 +519,7 @@ export function resolveBehaviorLogImportMergePreview(
       bundleFingerprint,
       localDataFingerprint,
       mergePreview,
+      ...(input.convertNativeRemindersToBrowser ? { convertNativeRemindersToBrowser: true } : {}),
       semanticsVersion: 1,
     }),
   );
@@ -1337,6 +1340,7 @@ function toInterventionRulePlan(
   errors: BehaviorLogImportIssue[],
   warnings: BehaviorLogImportIssue[],
   reminderChannel: "browser_push" | "other" = "browser_push",
+  convertNativeRemindersToBrowser = false,
 ): BehaviorLogImportInterventionRulePlan | null {
   const externalId = readRequiredString(row, "rule_id", errors);
   const interventionType = readRequiredString(
@@ -1347,8 +1351,17 @@ function toInterventionRulePlan(
   const sourceChannel = readRequiredString(row, "channel", errors);
   // The desktop adapter uses the existing browser reminder setting for native
   // intent. Never infer this mapping for another producer's generic `other`.
-  const channel = reminderChannel === "other" && sourceChannel === "other" && readCadenceExtension(row.record)?.native_notification === true
+  const channel = (reminderChannel === "other" || convertNativeRemindersToBrowser) && sourceChannel === "other" && readCadenceExtension(row.record)?.native_notification === true
     ? "browser_push" : sourceChannel;
+  if (channel !== sourceChannel && reminderChannel === "browser_push") {
+    warnings.push({
+      severity: "warning",
+      code: "native_reminder_converted_to_browser",
+      message: `Native reminder ${externalId} will become a browser reminder. Browser notification permission is still required. Configuration history stays unchanged.`,
+      file: row.file,
+      row: row.row,
+    });
+  }
   const behaviorExternalId = readOptionalString(row, "behavior_id", errors);
   const enabled = readRequiredBoolean(row, "enabled", errors);
   const offsetMinutes = readOptionalInteger(row, "offset_minutes", errors);

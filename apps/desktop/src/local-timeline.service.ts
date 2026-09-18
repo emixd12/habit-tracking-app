@@ -19,8 +19,12 @@ export async function loadLocalTimeline(futureDays = 7, now = Temporal.Now.insta
   ]);
   const occurrences = [...priorUnresolved, ...visibleOccurrences];
   const history = await localCommand("readOccurrenceHistory", { profileId, occurrenceIds: occurrences.map(({ id }) => id) });
+  const historyOccurrences = await localCommand("readOccurrences", { profileId,
+    startLocalDate: Temporal.PlainDate.from(window.startLocalDate).subtract({ days: 90 }).toString(), endLocalDate: priorDate });
+  const durationHistory = await localCommand("readOccurrenceHistory", { profileId,
+    occurrenceIds: historyOccurrences.map(({ id }) => id) });
   const behaviors = graphs.map((graph) => toLocalBehaviorGraphRecord(graph, categories));
   return { profile, behaviors, categories,
-    timeline: resolvePersistedTimeline({ behaviors, occurrences, timeSessions: history.timeSessions.map(toTimeSession),
+    timeline: resolvePersistedTimeline({ durationHistory: { occurrences: historyOccurrences, timeSessions: durationHistory.timeSessions.map(toTimeSession) }, behaviors, occurrences, timeSessions: history.timeSessions.map(toTimeSession),
       now, timezone: profile.timezone, futureDays }) };
 }

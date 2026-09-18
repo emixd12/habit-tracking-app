@@ -270,3 +270,49 @@ checks. Shared `services/note-shortcut.service` orchestrates the owner-scoped
 `NoteShortcutStore`; web and desktop adapters perform atomic reads and CAS writes.
 UI, API, repositories, and native code must not independently derive patterns.
 No network, storage, environment, clock reads, or UI may enter this resolver.
+
+## Day-progress contract ownership (Tickets 132–137)
+
+Ticket 132 implements pure contracts and a synthetic bench; the owner accepted
+the UI baseline on 2026-09-16. Production Timeline callers follow in 133–136.
+Ticket 134 extends the existing event types through the documented
+`docs/EXTERNAL_EVENT_CONTRACT.md` schema/validation boundary. Register new pure
+owners and paired tests when implemented; no new runtime owner is claimed here.
+
+| Domain | Owner resolver | Allowed callers | Forbidden bypasses | Source of truth | Required test | Drift check |
+|---|---|---|---|---|---|---|
+| Day-progress layout | `packages/core/src/resolvers/day-progress.resolver.ts` | Synthetic design bench and resolver tests; production services after Ticket 132 review | UI calculating independent dot/span mappings, changing actual times for collision spacing, fixed 24-hour local days | `docs/UI_SPEC.md`, `docs/DATETIME_STRATEGY.md` | `tests/day-progress.resolver.test.ts` | Geometry and injected instants only; no DOM, clocks, providers, or writes |
+| Duration and external context | `packages/core/src/resolvers/timeline-context.resolver.ts` | Synthetic fixtures and resolver tests; owner-scoped services in Ticket 136 | Averaging sessions instead of Occurrences, treating unknown as zero, running samples, automatic decisions or schedule writes | `docs/PRODUCT_SPEC.md` | `tests/timeline-context.resolver.test.ts` | Positive stopped Completed totals, explicit unknown/freshness, half-open timed overlaps |
+
+- `packages/core/src/resolvers/timeline.resolver.ts` retains day selection,
+  Needs decision, Occurrence status projection, and future-range ownership.
+- `packages/core/src/resolvers/day-progress.resolver.ts`, paired with
+  `tests/day-progress.resolver.test.ts`, owns monotonic time anchors, collision
+  layout, and dot/span positions from explicit dates, `now`, and geometry inputs.
+  UI may measure rows and render output; it must not duplicate temporal rules.
+- `packages/core/src/resolvers/timeline-context.resolver.ts`, paired
+  with `tests/timeline-context.resolver.test.ts`, owns estimate eligibility,
+  half-open interval overlap, unknown-duration handling, and activity labels.
+  Reuse existing time-tracking totals and analytics mean logic without changing
+  current analytics semantics. Do not duplicate duration rules per platform.
+- Shared Timeline assembly and web/desktop services may call these pure
+  resolvers. Services supply owner-scoped history and normalized event inputs.
+  Provider adapters own Google payload validation, consent, token lifecycle,
+  network access, pagination, and refresh. Repositories/native boundaries own
+  atomic storage; services own cache expiry, freshness, and disconnect cleanup.
+- Resolvers receive injected clocks and typed data. They never read Google,
+  Supabase, Keychain, SQLite, DOM, network, environment, or global clock APIs.
+  Overlap output cannot authorize schedule, status, reminder, or provider writes.
+
+Core wildcard exports expose these new contracts directly. Existing web resolver
+compatibility exports and current Timeline APIs remain unchanged. The new
+contracts do not establish provider, native, or production UI acceptance.
+
+## Day-progress production consumers (Tickets 133–136)
+
+`DayProgressTimeline` consumes the shared day-progress layout resolver and the
+timeline-context resolver. Web and local Timeline services supply bounded
+90-day occurrence/session history through `resolvePersistedTimeline`. Core returns
+per-Behavior estimates; presentation does not calculate sample eligibility.
+Provider adaptation and validated scheduling projection live in the external-event
+contract modules. No Calendar text or geometry drives recurrence or status writes.

@@ -85,7 +85,9 @@ are not complete decision history. Use Full JSON `status_events` or BehaviorLog
 `data/status_events.jsonl` for corrections and chronology. Only a BehaviorLog
 bundle can be uploaded to the current import or restore controls; a full JSON
 backup is not a restore input. Any downloaded file can leave Cadence's account
-boundary when shared or synced.
+boundary when shared or synced. No Cadence export contains a Google Calendar
+credential, Calendar connection, Calendar preference, external event, or desktop
+Calendar cache. Export and restore cannot recreate a Calendar connection.
 
 **Keyboard and mobile:** Each repeated visible **Download** link has an
 accessible name such as **Download JSONL (.jsonl)**. Use that name to confirm
@@ -158,8 +160,14 @@ and the copy action stays in the disclosure's reading order.
 **Prerequisites:** You are signed in and have a `.behaviorlog.zip` bundle.
 Create an export first if you need a rollback reference. Import is for supported
 create or merge behavior-data actions, not a full account restore. Cadence's
-bundle limit is **2 MB**; the file picker workflow and server both enforce it.
-Cadence also limits entries, expanded bytes, and compression ratio. A 2 MB ZIP
+bundle limit is **3 MiB**; the file picker workflow and server both enforce it.
+On the web, select **Convert Cadence desktop reminders to browser reminders**
+when importing a desktop export. The choice also appears in Restore. Preview
+again after changing it. Cadence converts only explicitly marked native reminder
+rules. Browser notification permission is still required. Configuration history
+and passive delivery observations stay unchanged.
+
+Cadence also limits entries, expanded bytes, and compression ratio. A 3 MiB ZIP
 fits the 4 MB Server Action ceiling after base64 encoding with margin below the
 hosted 4.5 MB request cap.
 
@@ -217,9 +225,9 @@ zoom, large action and conflict lists may require vertical scrolling.
 **Prerequisites:** Use only a trusted `.behaviorlog.zip` bundle. First create or
 download a fresh backup of the current account. Restore is destructive and can
 replace, archive, or delete records represented by the accepted plan. The same
-2 MB bundle limit and archive-safety limits described for Import apply here.
+3 MiB bundle limit and archive-safety limits described for Import apply here.
 Preview and Apply both refuse a larger file with **This file is larger than the
-2 MB limit for BehaviorLog bundles.**
+3 MiB limit for BehaviorLog bundles.**
 
 1. In **BehaviorLog restore**, choose a file in
    **Upload trusted .behaviorlog.zip**.
@@ -261,7 +269,8 @@ backup or manual changes.
 acknowledgement and typed `RESTORE` are mandatory safeguards. BehaviorLog is
 behavior-data portability, not a full account image: it does not restore the
 Google identity, profile email, browser permissions, push subscriptions,
-provider accounts, secrets, or external provider state. JSONL and
+provider accounts, Google Calendar connection or cache, secrets, or external
+provider state. JSONL and
 `data/status_events.jsonl` are authoritative; CSV files do not drive restore
 decisions, and Unresolved is never converted to Not Completed.
 

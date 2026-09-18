@@ -18,8 +18,14 @@ This snapshot prevents a retry from confusing a post-attempt deletion with
 preexisting absence. The baseline row stores the completed first-link
 choice, deterministic idempotency key, local/hosted/common fingerprints, exact
 canonical hosted snapshot, optional protected-backup path, and completion time.
-It is written only after hosted commit and local atomic apply succeed. Exact
-retries return the saved result; another baseline is rejected.
+It is written only after any required hosted commit and local atomic apply succeed.
+Ignore never writes hosted data. It fingerprints synchronized product entities,
+excluding derived native reminder bookkeeping, and rejects changed local data.
+The native transaction also checks the current domain revision. First-link
+replacement deletes validated old rows before inserting hosted rows, defers
+foreign-key checks until commit, and rolls back failures atomically. Existing
+pending attempts using the older raw-snapshot fingerprint must be cancelled and
+restarted. Exact retries return the saved result; another baseline is rejected.
 
 The local-profile-owned account metadata row maps
 the stable local profile to one hosted user ID and may retain email and
@@ -260,7 +266,7 @@ a new future horizon. Export snapshots also include passive imported notes,
 passive interventions, applied import runs, and provenance mappings. Notes
 still require the export option. Applied-run portability metadata retains
 validated source configuration history, Occurrence timezone/lineage, and known
-category registry values. Its 256 KiB limit rejects overflow. Preview ledgers
+category registry values. Its 8 MiB limit rejects overflow. Preview ledgers
 omit this metadata; retained history never becomes an OS notification request.
 
 The native save command keeps the user-selected destination outside frontend
@@ -338,6 +344,22 @@ expected/next Occurrence and time-session Rows, category creates, passive
 note/intervention writes and deletes, mappings, and a result summary. Graph
 writes include a configuration-event chain ending at the exact final graph.
 Native validation rejects unknown fields and accepts no SQL or table names.
+
+Import-run ledgers allow up to 32 MiB per row. Preview ledgers retain review
+fingerprints, validation counts, sensitive-note consent, and compact restore
+actions. Parsed import plans and redundant merge-action detail stay out of the
+ledger. Native restore authorization still checks every accepted action ID.
+The initial response includes the full preview; apply reconstructs it from the
+exact archive and checks freshness before binding the write plan. Repeated
+apply returns the stored result without presenting a new review.
+
+Ordinary domain rows retain the 1 MiB limit; Note shortcut states retain 8 MiB.
+Import preparation allows 64 MiB because restore carries expected and next
+rows together. Other mutations retain 32 MiB, except the existing 64 MiB Note
+shortcut commit. Account snapshots retain 64 MiB and 100,000 entities.
+Oversized requests fail before writes; oversized ledgers fail atomically.
+Older desktop versions with the 1 MiB ledger limit need an update before
+accepting larger synchronized import runs.
 
 An import preview may initially store a null plan while the user chooses a mode.
 One later binding may replace null with a typed plan. That binding requires
@@ -468,3 +490,16 @@ guard. A failed apply leaves the saved baseline and pending outbox unchanged.
 Recovery fails closed if a crash leaves a reserved staging file before its
 identity reaches the durable marker. Cadence preserves that file and stops before
 cleanup. Operator inspection is required; Cadence never adopts an unproven file.
+
+## Disposable Calendar cache (Ticket 134)
+
+`calendar-cache.sqlite3` is separate from `cadence.sqlite3`. It holds the validated
+versioned external-event snapshot, owner, generation, range, and freshness receipt.
+Native replacement is atomic and accepts only complete matching requests. Failed
+refreshes retain the last complete snapshot. Clear invalidates in-flight writes.
+Account-free mode cannot read cached external details. Sign-out and account
+disconnect clear content even when the user keeps local Cadence records.
+
+No Google credential, Supabase session, raw provider payload, or sync baseline
+belongs in this file. Existing backup/restore and account sync continue to operate
+on `cadence.sqlite3` only. The cache is disposable and never a restore input.

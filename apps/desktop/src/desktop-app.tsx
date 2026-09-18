@@ -9,6 +9,8 @@ import {
   Settings,
   X,
 } from "lucide-react";
+import { getAccountInitials } from "@/lib/ui/account";
+import type { DesktopAccountState } from "./account/auth";
 import { APP_NAV_ITEMS } from "@/lib/navigation";
 import { getFocusableElements } from "@/components/timeline/NeedsDecisionDialog";
 
@@ -19,6 +21,7 @@ export type DesktopAppProps = Readonly<{
   children: ReactNode;
   availableScreens?: readonly DesktopScreen[];
   conflictCount?: number;
+  account?: DesktopAccountState;
 }>;
 const INITIAL_SCREENS: readonly DesktopScreen[] = ["timeline", "behaviors"];
 const ICONS = {
@@ -34,6 +37,7 @@ export function DesktopApp({
   children,
   availableScreens = INITIAL_SCREENS,
   conflictCount = 0,
+  account = { status: "local" },
 }: DesktopAppProps) {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     try {
@@ -175,9 +179,7 @@ export function DesktopApp({
           onNavigate={navigate}
           collapsed={false}
         />
-        <p className="border-t border-line px-4 py-4 text-sm text-muted-readable">
-          Local profile
-        </p>
+        <AccountFooter account={account} collapsed={false} onNavigate={() => navigate("settings")} />
       </aside>
       <aside
         aria-label="Desktop navigation"
@@ -231,11 +233,7 @@ export function DesktopApp({
           onNavigate={navigate}
           collapsed={!sidebarOpen}
         />
-        {sidebarOpen ? (
-          <p className="border-t border-line px-4 py-4 text-sm text-muted-readable">
-            Local profile
-          </p>
-        ) : null}
+        <AccountFooter account={account} collapsed={!sidebarOpen} onNavigate={() => navigate("settings")} />
       </aside>
       <main
         className={[
@@ -333,4 +331,31 @@ function BrandMark({
       className={className}
     />
   );
+}
+
+function AccountFooter({ account, collapsed, onNavigate }: Readonly<{
+  account: DesktopAccountState;
+  collapsed: boolean;
+  onNavigate: () => void;
+}>) {
+  if (account.status !== "linked") return collapsed ? null : (
+    <p className="border-t border-line px-4 py-4 text-sm text-muted-readable">Local profile</p>
+  );
+  const displayName = account.name?.trim() || account.email?.trim() || "Account";
+  return <div className="border-t border-line">
+    <button type="button" aria-label="Open account settings" title={collapsed ? displayName : undefined} onClick={onNavigate}
+      className="group flex h-[60px] w-full items-center overflow-hidden text-left text-sm text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+      <span className="flex h-[60px] w-16 shrink-0 items-center justify-center">
+        <span className="flex h-8 w-8 items-center justify-center border border-line bg-background text-xs text-foreground">
+          {getAccountInitials(displayName)}
+        </span>
+      </span>
+      <span className={[
+        "min-w-0 overflow-hidden whitespace-nowrap transition-opacity duration-200",
+        collapsed ? "pointer-events-none w-0 opacity-0" : "w-[calc(100%-4rem)] opacity-100",
+      ].join(" ")}>
+        <span className="block truncate">{displayName}</span>
+      </span>
+    </button>
+  </div>;
 }

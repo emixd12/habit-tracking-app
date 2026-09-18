@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useId, useState } from "react";
+import type { TimelineOccurrenceContext } from "@cadence/core/types/day-progress";
 import type { NoteShortcut } from "@cadence/core/types/note-shortcut";
 
 import { OccurrenceNoteForm } from "@/components/timeline/OccurrenceNoteForm";
@@ -29,6 +30,8 @@ type OccurrenceRowProps = Readonly<{
   stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
   shortcuts?: readonly NoteShortcut[];
+  statusIconsOnly?: boolean;
+  context?: TimelineOccurrenceContext;
 }>;
 
 type KeyedOptimisticStatusState = Readonly<{
@@ -68,6 +71,8 @@ export function OccurrenceRow({
   stopTimeTrackingAction,
   resetTimeTrackingAction,
   shortcuts,
+  statusIconsOnly = false,
+  context,
 }: OccurrenceRowProps) {
   const serverStatusKey = [
     occurrence.id,
@@ -153,6 +158,7 @@ export function OccurrenceRow({
         >
           <summary
             aria-controls={detailsId}
+            aria-describedby={context ? `${detailsId}-context` : undefined}
             data-label-density={labelDensity}
             className={[
               "product-disclosure-trigger timeline-occurrence-summary grid min-h-12 items-center py-1.5 pl-3 sm:py-2 sm:pl-4",
@@ -194,6 +200,14 @@ export function OccurrenceRow({
               label="Schedule"
               value={visibleOccurrence.scheduleSummary}
             />
+
+            {context ? <div id={`${detailsId}-context`} className="grid gap-1" aria-label="Scheduling context">
+              <h4 className="font-bold text-foreground">Scheduling context</h4>
+              <p>{context.estimate.kind === "known" ? `Estimated duration: ${context.estimate.durationLabel}. Mean of ${context.estimate.sampleCount} completed Occurrences in the preceding ${context.estimate.lookbackDays} days.`
+                : `Duration unknown. ${context.estimate.sampleCount} of ${context.estimate.requiredSampleCount} required completed Occurrences have usable timing.`}</p>
+              <p>{context.overlapLabel}</p>
+              {context.activitySignals.map((signal) => <p key={signal}>{signal === "scheduled_now" ? "Scheduled now" : signal === "estimated_window" ? "Estimated window" : "Tracking now"}</p>)}
+            </div> : null}
 
             <TimeTracker
               occurrenceId={visibleOccurrence.id}
@@ -248,6 +262,7 @@ export function OccurrenceRow({
               onStatusSubmit={handleOptimisticStatus}
               onStatusSuccess={handleStatusConfirmed}
               onStatusError={handleStatusRejected}
+              iconOnly={statusIconsOnly}
               singleLine
             />
           </div>

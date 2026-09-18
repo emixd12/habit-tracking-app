@@ -43,6 +43,364 @@ When updating a ticket row:
 
 ## Current repository state
 
+Tickets 138–141 continuation reached publication on 2026-09-17. Ticket 139 is
+complete. Ticket 138 is complete after native reconnection and primary-account
+restoration. Ticket 140 is reopened for a recording with the verified Cadence
+branding. Ticket 141 is in progress; Google verified branding, but sensitive-scope
+submission is not complete. Unrelated working-tree changes were preserved
+and excluded from the isolated releases.
+
+Ticket 138: Cloudflare's initially empty `cadence-me.com` zone now has two
+DNS-only Vercel A records and Google's TXT challenge. DNS, TLS, HTTPS, and Search
+Console ownership pass. Exact new Supabase/Calendar callbacks and canonical
+URLs are configured. Every existing web/native callback and legacy alias remains.
+New-domain dedicated-account sign-in, Calendar consent, selection, refresh, and
+Timeline details passed. Installed dedicated-account sign-in, isolated account
+replacement, refresh, two-day details, and global disconnect also pass. Fresh
+legacy-broker Calendar consent completed. Native selection, refresh, and all three
+demo events passed. The primary account and its existing Calendar selection are
+restored; Settings reports Account data is current. All tracking IDs, counts, and
+values match the private backup. One reminder advanced from pending to sent.
+SQLite integrity and foreign keys pass. Immediate callback rendering was not observed.
+No Cloudflare token was created.
+
+Ticket 139: homepage, FAQ, Privacy, public links, and Google branding links are
+published and verified. The owner approved the September 17 Privacy text and
+recorded scope. This is owner approval, not independent legal review; the August
+31 baseline approval remains. App production is
+`dpl_CHQVE4LWvUPG6LN4dpW3YwTTAgua`; marketing production is
+`dpl_8t2tdswkbtotmut2Pbs5B44uA1BE` after the verified-brand review-copy correction. All seven required commands pass in both
+workspace and isolated app candidate. Candidate tests: 1,685 passed, 26 skipped;
+workspace tests: 1,748 passed, 29 skipped. Marketing and narrow-layout checks pass.
+Fresh review returned `ship` after correcting staged registry/environment metadata.
+Public Trust origins are aligned. The Production marketing-deployment setting
+now names the new marketing deployment; the running app still has its previous
+build-time reference until a later app deployment. Fresh commit-bound evidence
+remains pending. No fresh Trust Passed claim was made.
+
+Ticket 140: the owner completed Gmail setup for `cadence.testing.is@gmail.com`.
+Browser readback confirms that identity. Google Calendar now contains the private
+`Cadence demonstration` calendar and three harmless events: Demo planning,
+Demo afternoon walk, and the September 17–18 all-day Demo workshop. No guests,
+locations, or event reminders were added. Google Cloud now includes this identity
+in the Calendar project's Testing audience, preserving existing test users.
+The owner completed Cadence sign-in. The dedicated account granted the two
+read-only Calendar permissions. Only the demonstration calendar is selected.
+Timeline displays both timed events and the two-day all-day event; timed preview
+and read-only details pass. Installed desktop acceptance and primary-account
+restoration passed. The private backups remain outside the repository. A four-minute
+production web demonstration is recorded and privacy-reviewed. Complete playback
+and full-file decoding pass. The owner confirmed YouTube’s agreement; the video
+is published as Unlisted at https://youtu.be/FFlbGp-_6bE on brittlebeliefs.
+YouTube checks found no issues. Signed-out Incognito playback passes. The video uses
+the same Calendar client as desktop; installed acceptance is documented separately.
+A second desktop switch/restoration matches all rows in all 15 tracking tables.
+Settings reports Account data is current. The dedicated Calendar grant is disconnected.
+
+Ticket 141: scope justifications, client/domain details, and submission fields
+are prepared, including the original published video. The owner confirmed the
+production-audience expansion on September 17. Google now reports In production.
+Google rejected the app-name/homepage mismatch; changing the consent name from
+Cadence Calendar to Cadence resolved it. Google verified the branding, which is
+now published. Sensitive-scope submission remains open at the questionnaire.
+The original video shows the pre-verification domain label and must be replaced
+with an actual recording of the verified branding before final submission.
+Google has not approved Calendar data access. `info@identityscaffolding.com` remains the owner-confirmed support and
+developer inbox. The owner named Emiliano Bache Rodriguez as its human monitor.
+
+Current evidence and rollback are in `docs/VERCEL_WORKFLOW.md`,
+`docs/qa/day-progress-release.md`, and `docs/qa/google-calendar-capabilities.md`.
+Owner approval, technical verification, and Google's eventual decision remain
+separate. No schema, native package, or private provider credential changed.
+
+Tickets 133–137 remain in progress (2026-09-17). Implementation and the reviewed
+hosted rollout pass required checks. The shared Timeline, normalized external-event
+contract, same-account Calendar broker, native disposable cache, and duration
+estimates are integrated. Production uses the separate Calendar Google project in
+Testing mode. Google Cloud administration uses Identity Scaffolding Chrome;
+second-account acceptance uses the owner-approved Emi Chrome profile.
+
+Live web/native same-account connection, wrong-account rejection, selection,
+refresh, preview/details/source links, disconnect cleanup, and installed offline
+restart pass. Protected preview.40 is installed with 11 passing artifact checks,
+a consistent database backup, and preview.39 rollback app. Its signature remains
+ad hoc; Ticket 115 owns Apple-trusted distribution.
+
+Account-switch acceptance exposed three first-link defects: Ignore could upload
+concurrent local changes; category replacement inserted conflicting names before
+deleting old IDs; derived native reminder changes invalidated the choice fingerprint.
+The corrections enforce zero hosted writes for Ignore, compare synchronized product
+entities, retain the native revision guard, and apply replacement in one atomic
+transaction with safe ordering. Full-graph and rollback regressions pass; fresh
+independent review returned ship. All required checks pass: 1,743 tests (29 skipped),
+103 native tests, governance, lint, both TypeScript checks, web and desktop builds.
+Earlier clean migrations, RLS/replay/CAS and 20 real SQLite contracts also pass.
+
+The installed secondary account switch and Calendar isolation passed. Secondary
+Calendar disconnect cleared its cache. The primary account and Calendar are restored;
+account sync and Calendar refresh are current, and Timeline shows seven markers.
+All primary product IDs and counts match the protected backup. Product values match
+at the documented microsecond precision, excluding synchronization `updated_at`
+metadata. Integrity and foreign-key checks pass. No tracking edits were submitted.
+
+Installed future-range extension also passes. An isolated WKWebView app renders
+the production shared Timeline and passes two-day all-day dismissal/restoration,
+repeated-DST-hour labels, preview/details, Escape, and visible focus return.
+This synthetic rendering evidence does not exercise the desktop service lifecycle.
+
+Remaining combined acceptance includes native dense/overnight/multi-day cases, controlled
+provider-failure and Workspace field evidence, and Google sensitive-scope public
+verification. Public branding links are saved; publishing remains Testing. No combined
+release ticket is complete. Existing unrelated working-tree changes are preserved.
+See `docs/qa/day-progress-release.md` for precise evidence and remaining gates.
+
+Full-history BehaviorLog capacity repair (2026-09-16): complete; preview.32 installed.
+After the owner completed the macOS Keychain prompt, Timeline and Export & Import
+opened successfully. Both preview controls show the 3 MiB limit without the original error.
+Metadata now allows 8 MiB. Evidence requires a 3 MiB ZIP limit, 4.25 MiB web
+request limit, 64 MiB native import preparation, compact preview ledgers, bounded
+SQL action lookups/counter updates, and a 25-second account snapshot read timeout.
+Web Import and Restore offer explicit native-to-browser reminder conversion.
+Validation, ownership, preview binding, restore confirmations, and passive history
+remain intact. The owner's private all-time copy passes previews on both platforms.
+Actual writes used disposable SQLite and local Supabase databases only.
+Five-year/four-Behavior roundtrips preserve 7,304 Occurrences, 6,972 status events,
+1,044 Notes, 1,464 timing sessions, and all captured definition/configuration history.
+All required checks pass: 1,678 default tests, 21 real SQLite contracts, 95 native
+tests, real local SQL capacity and ownership/rollback contracts, and both builds.
+Core, desktop TypeScript/parity, design-system checks, clean migration reset, and
+type regeneration also pass. Existing lint and bundle-size warnings remain.
+Preview.32 is installed with protected preview.30 and database rollback copies.
+All database table hashes match before and after installation. No hosted migration,
+release publication, or web deployment occurred. Platform impact: shared core and
+web/desktop adapters; marketing has no runtime change; future mobile is deferred.
+Files and measured capacity/remaining limits: `docs/qa/2026-09-16-behaviorlog-capacity.md`,
+`docs/EXPORT_FORMATS.md`, `docs/DATA_MODEL.md`, `docs/DESKTOP_DATA_MODEL.md`,
+`docs/user-guide/data-portability.md`, and the linked service/contract tests.
+
+Desktop Export & Import mixed-history repair (2026-09-16): complete and installed.
+The desktop export adapter rejected synchronized snake_case configuration history
+while accepting locally authored camelCase history. Preserve stored history and
+normalize only the export read, retaining shared validation. Regression coverage
+checks both history formats, mixed previous/next snapshots, every download format,
+and malformed data rejection. Copied-data QA also exposed the 1 MiB import-run
+row limit rejecting aggregate previews. Native validation now allows import-run
+rows within the existing 32 MiB import request ceiling. Ordinary row, ownership,
+fingerprint, stale-preview, and destructive-restore guards remain intact.
+Platform impact: desktop export adapter and native import-run validation; web keeps
+its existing shared export/import/restore implementation. Marketing has no runtime
+change. Future mobile remains deferred. Existing export/import interactions remain
+unchanged. Files: `apps/desktop/src/local-export.service.ts`, native
+`local_store/db.rs` and `local_store/tests.rs`, `tests/local-export.service.test.ts`,
+and `docs/DESKTOP_DATA_MODEL.md`. No schema change or data repair was needed.
+Both regressions failed before their fixes. All 1,667 default-suite tests pass
+(26 skipped), as do 18 real-SQLite adapter/portability tests and 94 native tests.
+Agent, interaction, resolver, core, lint, web/desktop type checks, desktop parity,
+web production build, and desktop preview build pass. Existing fixture lint and
+desktop chunk-size warnings remain. The initial sandbox suite could not bind
+the fake email server; the authorized rerun passes.
+A private SQLite backup verified every download format against the user's data.
+Its 30-day BehaviorLog export passes import and restore previews. Its all-time
+bundle exceeds the shared 256 KiB portability-metadata import limit; both previews
+now display that validation result instead of failing to store the preview.
+The full-history repair above supersedes that metadata limitation.
+Older desktops need this update to synchronize import ledgers exceeding 1 MiB.
+Preview.30 is installed at `/Applications/Cadence.app`; its binary matches the
+verified signed candidate. Native UI confirms Export & Import renders and saves
+a BehaviorLog ZIP; all 17 manifest file hashes match. Twenty-three database tables,
+including all tracking data, match the protected backup. Startup changed only
+account/sync, outbox, sequence, and native-reminder bookkeeping. SQLite integrity
+and foreign keys pass. The previous preview.29 app and consistent database backup
+remain in `~/Library/Application Support/Cadence Release/export-import-2026-09-16`.
+Import/restore applies ran only against synthetic SQLite fixtures; no real tracking
+data was imported or restored. Nothing was published or deployed to the web.
+
+Ticket 130 compatible initial status marks (2026-09-16): implemented and installed.
+Read-only comparison confirmed four independent initial Completed marks on each
+copy. Only event identities and timestamps differ. Extend the shared planner to
+retain matching initial manual marks with identical provenance and matching
+occurrence projections. Choose display timestamps using existing latest-event
+ordering, without using clocks to resolve different decisions. Preserve every
+original event. Keep corrections, divergent history, and incompatible product
+fields blocked. Remove the dormant review path that would delete losing history.
+This supersedes the cross-copy rejection rule only for this narrow case.
+Platform impact: desktop shared planner and INT-AUTH-009–011 conditions; web
+uses unchanged atomic apply and append-only guards. Marketing has no runtime
+change; existing desktop guidance documents compatibility. Future mobile stays
+deferred. No schema change, sync framework, or provider migration is required.
+Focused regression tests fail before the fix and pass afterward. All 74 focused
+planner/adapter/engine tests and 1,647 full-suite tests pass (26 skipped).
+Thirteen native SQLite sync tests pass. Agent, interaction, resolver, core,
+lint, web/desktop type checks, and web/desktop builds pass. Existing lint fixture
+warnings and desktop chunk-size warnings remain unchanged. Read-only architecture
+review found no blocker; it confirmed preserving initial marks without inferring
+causality from clocks. Preview.29 is installed at `/Applications/Cadence.app`.
+The verified executable matches the release candidate. Both startup and a second
+manual sync display Account data is current. All 1,196 pre-update status events
+remain byte-for-byte unchanged; 12 hosted events were added. Each of the four
+affected occurrences remains Completed with both original marks retained.
+All three original reminder conflicts now retain hosted Sent evidence. The
+updated baseline contains every event, and no outbox row remains unacknowledged.
+Read-only hosted verification confirms 27 affected history/reminder rows match
+the accepted baseline. Behaviors, definition/configuration history, and tracked
+time remain unchanged. One account Note downloaded normally; its local copy
+had not changed since the previous baseline. SQLite integrity and foreign keys
+pass. The protected rollback directory is
+`~/Library/Application Support/Cadence Release/compatible-marks-2026-09-16`.
+No migration, admin data repair, release publication, or account relink occurred.
+Native reminder coverage remains separately limited (two retained requests);
+this synchronization repair does not claim to fix OS reminder capacity.
+All listed release checks passed before packaging. A later final ledger check
+encountered a concurrent, unrelated addition in
+`packages/core/src/resolvers/day-progress.resolver.ts`: assignment to readonly
+`count` fails core portability. That file is outside this repair and was not
+changed here. The verified installed synchronization result remains current.
+
+Day-progress interface closeout and infrastructure plan (2026-09-16):
+The owner accepted the seventh-revision UI baseline and explicitly requested
+connector infrastructure before remaining minor design polish. Ticket 132 is
+complete. Tickets 133–137 now have the local implementation described above.
+
+| Ticket | Status | Next action |
+|---|---|---|
+| 132: Day-progress timeline contract and layout validation | complete | Owner accepted baseline; minor visual polish deferred |
+| 133: Continuous day-progress timeline on web and desktop | in_progress | Shared production layout integrated; browser checks pass; native lifecycle acceptance pending |
+| 134: Google Calendar connector and documented external-event interface | in_progress | Versioned contract, OAuth broker, migration and disposable native cache implemented; local SQL isolation checks pass; Google testing client configured; hosted rollout/live consent pending |
+| 135: External event lanes, previews, and details | in_progress | Shared event lanes, preview/details and Settings integrated; browser interaction checks pass; native acceptance pending |
+| 136: Estimated Behavior durations and advisory overlap cues | in_progress | Persisted duration history and advisory context wired on both platforms; resolver checks pass; combined acceptance pending |
+| 137: Combined timeline acceptance and release documentation | in_progress | Contract/help/privacy/registry documentation updated; local checks and fresh review pass; live/native/rollout gates remain open |
+
+`docs/EXTERNAL_EVENT_CONTRACT.md` defines Ticket 134's required normalized
+scheduling facts, versioned schemas, capabilities, coverage/errors, lifecycle,
+and examples. Ticket 137 verifies the shipped interface documentation.
+Wire validation, metadata, scheduling projection, server broker, Settings, and
+desktop cache are implemented locally. Dynamic rearrangement and model invocation remain
+deferred. MCP supplies design inspiration, not a new server or transport.
+
+UI evidence remains in `docs/qa/day-progress-layout.md`: 1,680 tests passed
+(29 skipped), required checks/build, desktop and 390px browser checks, and a
+fresh ship review. Native touch/WKWebView and production connector acceptance
+remain open in 133–137. `docs/qa/day-progress-release.md` tracks release gates.
+No provider setup, live-account access, schema migration, or release occurred.
+
+Planning verification: agents, interactions, resolvers, and design-system checks
+passed; `git diff --check` passed. Fresh read-only review returned `ship` after
+correcting stale approval gates and clarifying availability mappings/enum work.
+No runtime tests were rerun for this documentation-only closeout.
+
+Original 2026-09-15 planning updates: `docs/TICKETS.md`, `docs/FEATURE_IDEAS.md`,
+`docs/PRODUCT_SPEC.md`, `docs/UI_SPEC.md`, `docs/AGENT_RESOLVERS.md`,
+`docs/FUTURE_UPDATES.md`, `docs/DECISIONS.md`, and the narrow `AGENTS.md` scope
+exception for planned read-only Calendar context. Existing implementation and
+interaction inventory remain unchanged by this planning task. No provider
+research, account access, schema migration, or deployment occurred.
+Planning verification: `npm run agents:check`, `npm run interactions:check`,
+and `npm run resolvers:check` pass under Node 24.19.0; `git diff --check` passes
+for the planning files. No application tests/builds ran for this docs-only task.
+
+Ticket 130 reminder-delivery reconciliation follow-up (2026-09-15): complete locally.
+The owner approved automatic reconciliation of matching hosted Sent and local
+Cancelled reminders from a Pending baseline. Preserve the hosted send evidence
+and synchronize local occurrence decisions through the existing atomic plan.
+Other reminder conflicts and conflicting user edits still require review.
+Implementation: shared account-sync resolver and its paired tests. Desktop owns
+the updated planner; web retains its existing hosted apply and reminder processor.
+Marketing has no runtime change; desktop user guidance documents the rule.
+Future mobile remains deferred. Existing INT-AUTH-009 through INT-AUTH-011
+entries describe the changed synchronization and review conditions.
+The regression failed before the change and passes afterward. The 72 focused
+planner/adapter/engine tests pass. The full suite passes 1,645 tests (26 skipped).
+Agent, interaction, resolver, core, lint, web/desktop type checks, and web/desktop
+frontend builds pass. Lint retains seven existing fixture warnings; desktop build
+retains its existing chunk-size warning. The initial sandbox test run blocked
+five fake-provider tests from binding localhost; the authorized rerun passes.
+The implementation task made no database migration, hosted data change, or
+installed-app update. The owner subsequently authorized installation.
+Preview.28 is now installed in `/Applications/Cadence.app` (2026-09-15).
+The release helper verified the signature/seal, arm64 binary, DMG contents,
+updater signature/archive, and preview Keychain marker. Installed executable
+hash and Settings version match the verified candidate. No assets or feed were
+published. The previous preview.27 app and a consistent database backup remain
+in the owner-only `~/Library/Application Support/Cadence Release/sync-reconciliation-2026-09-15`
+directory. SQLite integrity and foreign keys pass; 25 tables match the backup
+exactly, including Behaviors, occurrences, Notes, status/time history, reminder
+deliveries, and the sync baseline. Only account/native-reminder bookkeeping
+tables changed during startup.
+Installed verification exposed a separate blocker: Settings reports
+"The account snapshot contains branched status history." The local copy has
+four new status events since the saved baseline and no local branch. The
+cross-copy history guard stops the plan before writes; the baseline remains
+unchanged. Production reconciliation initially remained
+unverified until the subsequent compatible-mark follow-up above repaired it. No history was
+rewritten or conflict decision applied during this installation.
+The broader Ticket 130 retains its separate native/hosted acceptance gates.
+
+Desktop account footer follow-up (2026-09-14): complete locally. The desktop shell
+now receives signed-in session metadata and renders the web account-name and
+initials treatment. Both rail states and the narrow drawer open Settings.
+Local mode retains Local profile; disconnect choices remain in Settings.
+Platform impact: desktop account footer and synthetic Settings bench; web only
+reuses the extracted initials helper without behavior changes. Marketing has no
+account footer; future mobile implementation remains deferred. INT-SHELL-003 and
+the existing navigation catalog record the platform applicability correction.
+Implementation: `apps/desktop/src/desktop-app.tsx`, `account/auth.ts`, and
+`product.tsx`; shared initials in `lib/ui/account.ts` and web `AppShell.tsx`.
+Agent, interaction, resolver, core, design-system, lint, and web/desktop type
+checks pass. Web, desktop frontend, and marketing builds/checks pass. The full
+suite passes 1,632 tests (26 skipped); 54 focused tests also prove Product passes
+account metadata to the shell. Lint retains seven existing fixture warnings;
+the desktop build retains its existing large-chunk warning. Browser QA at desktop
+and 390px widths verifies expanded/collapsed initials, Settings activation,
+drawer dismissal, long-name truncation, and local-mode fallback. Fresh read-only
+review returned ship without findings. Design-system mappings remain synchronized.
+The owner explicitly approved signing and installation after the initial approval
+review rejection. Preview.27 is now installed in `/Applications/Cadence.app`.
+Local release verification passes app signature/seal, architecture, DMG equality,
+and updater signature/archive checks. No release or update feed was published.
+Installed WKWebView verification shows the account name and initials, opens
+Settings from the footer, and preserves the initials/name tooltip when collapsed.
+Settings reports signed-in account data current. Expanded navigation was restored.
+SQLite integrity and foreign keys pass. Twenty-three tables match the protected
+prelaunch backup exactly. Seven account-sync/reminder bookkeeping tables changed
+on launch; account identity matches and only its authentication timestamp changed.
+No Behavior, Occurrence, Note, status history, or time session changed.
+The previous preview.26 app and a consistent database backup remain in the
+owner-only `~/Library/Application Support/Cadence Release/account-footer-2026-09-14`
+directory. Native accessibility initially timed out after replacement; it recovered
+and the final account-row interaction checks passed.
+
+Desktop performance loop (2026-09-14): complete. Two measured iterations remove
+minute refresh polling, duplicate synchronization, idle auth Keychain polling,
+hidden clock updates, and retained running audio contexts. Refresh reads coalesce;
+reminder sorting reuses parsed timestamps. The 4,408-request benchmark fell from
+218.82 ms to 50.74 ms. Matched fresh synthetic WebContent mean CPU fell from
+1.108% to 0.045%; an 11-minute minimized run averaged 0.004%.
+
+Reviewed and locally verified preview.26 is installed in `/Applications/Cadence.app`.
+Installed WebContent mean CPU fell from 34.683% to 0.128% in two-minute samples.
+Every updated app process had zero median CPU. The old process was four days old;
+these samples do not prove long-term memory behavior. The old audio sleep assertion
+is gone. Signed-in account synchronization and native reminder reconciliation pass.
+Fifteen principal data/schema tables match their protected prelaunch backup exactly;
+account-link metadata differs only in `authenticated_at`. No user history changed.
+The previous app and SQLite backup remain in the protected Cadence Release folder.
+No release assets or update feed were published.
+
+All agent, interaction, resolver, core, lint, web/desktop TypeScript checks pass.
+The full suite passes 1,630 tests (26 skipped). Web, desktop, marketing builds and
+marketing/design-system checks pass. Final artifact verification and fresh review
+pass. Lint retains seven existing fixture warnings; desktop retains its existing
+large-chunk warning. Long-term memory aging, native foreground restoration,
+audible chimes, and timed notification delivery remain unverified in this run.
+
+Platform impact: desktop lifecycle, authentication, and reminders; web shares audio
+cleanup and hidden time-display cleanup. Marketing and future mobile implementation
+are not applicable. Existing interaction intents and design-system mappings remain;
+account-sync result documentation now includes display refresh. No schema changed.
+Evidence, changed files, research, and repeatable loop commands:
+`docs/qa/2026-09-14-desktop-performance.md`.
+
+
 Production rollout (2026-09-12): PR #52 contains the latest workspace changes.
 The owner authorized production deployment. Hosted migrations `20260905020741`
 and `20260908003245` are applied; all 61 migration versions now match locally.
@@ -7031,3 +7389,15 @@ data is current, automatic downloads are enabled, and live update checks succeed
 Ticket 131 is implemented and released, but remains in progress until a newer
 signed release verifies the corrected download/install lifecycle. No owner action
 is currently required to use preview.24.
+
+Calendar release review correction: wrong-account cleanup now has a Google Account connections link and project-wide revocation disclosure. Native source preserves the mismatch result. Preview.34 predates this correction; native acceptance remains open. Hosted rollout remains unapproved.
+
+Final Calendar correction review: `ship` with no findings. Main checks passed with 1,739 tests (29 skipped); isolated web candidate passed with 1,681 tests (26 skipped). Hosted rollout proposal is `/tmp/cadence-calendar-hosted-rollout.md`. Hosted migration/configuration/deployment approval, live grant, and installed native acceptance remain open.
+
+2026-09-17 Calendar rollout: owner approved remaining operational gates. Calendar migration, private Vercel settings, and reviewed web candidate are deployed. Same-account web consent, primary selection, refresh, Timeline rendering, details/focus, and 390px targets pass. Native preview.35 exposed a fetch receiver issue; source fix and tests pass with independent ship review. Preview.36 acceptance is in progress. Tickets 133–137 remain in progress.
+
+2026-09-17 native continuation: preview.36 live reconnect, selection, refresh, disconnect/cache cleanup, details/focus, and source-link acceptance pass. Protected tracking rows remain unchanged. Preview.37 installs the reviewed callback-message correction, restarts with Calendar context, and passes artifact checks. All required affected checks pass with 1,740 tests (29 skipped). Evidence and remaining native/provider acceptance are recorded in `docs/qa/day-progress-release.md`. No further owner approval is requested for already authorized task actions.
+
+Preview.37 offline restart acceptance passed with cached Calendar markers and an explicit stale/last-refreshed label. Wi-Fi was restored and confirmed connected. Short native CPU samples cover visible, hidden, minimized, settled minimized, and unfocused states; the settled minimized repeat measured zero CPU. Remaining gates include live wrong-account/provider-failure cases, native account-switch/synthetic/multi-day cases, and Google public verification.
+
+Final Calendar recovery correction: preview.38 is installed with protected preview.37 rollback and consistent database backup. All 11 artifact checks pass. Required affected checks pass with 1,740 tests (29 skipped), and fresh independent review returns ship. The primary Calendar is restored. Second-account acceptance awaits the owner's Chrome-profile choice because the requested account is absent from Identity Scaffolding.

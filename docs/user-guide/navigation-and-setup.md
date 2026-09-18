@@ -15,7 +15,8 @@ sign-in.
 3. Choose **Export & Import** for downloads, AI-readable Markdown, BehaviorLog
    import, and restore.
 4. Choose **Settings** for the profile timezone, this device's browser
-   notifications, public account information, and account deletion.
+   notifications, optional Google Calendar controls when configured, public
+   account information, and account deletion.
 5. In the expanded desktop rail or mobile navigation, choose the **Cadence**
    brand, whose accessible name is **Open Timeline**, to return to Timeline.
 6. Choose the account row, whose accessible name is

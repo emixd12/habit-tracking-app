@@ -451,6 +451,62 @@
       "trackUsages": "required",
       "status": "active",
       "notes": ""
+    },
+    {
+      "id": "module.day-progress-timeline",
+      "name": "DayProgressTimeline",
+      "kind": "module",
+      "source": "components/timeline/DayProgressTimeline.tsx",
+      "exportName": "DayProgressTimeline",
+      "usageNames": [
+        "DayProgressTimeline"
+      ],
+      "benchAnchor": "design-system#ds-module-day-progress-timeline",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Tickets 133\u2013137; synthetic bench never contacts a provider."
+    },
+    {
+      "id": "module.google-calendar-panel",
+      "name": "GoogleCalendarPanel",
+      "kind": "module",
+      "source": "components/settings/GoogleCalendarPanel.tsx",
+      "exportName": "GoogleCalendarPanel",
+      "usageNames": [
+        "GoogleCalendarPanel"
+      ],
+      "benchAnchor": "design-system#ds-module-google-calendar-panel",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Tickets 133\u2013137; synthetic bench never contacts a provider."
+    },
+    {
+      "id": "composite.external-event-details",
+      "name": "ExternalEventDetails",
+      "kind": "composite",
+      "source": "components/timeline/ExternalEventDetails.tsx",
+      "exportName": "ExternalEventDetails",
+      "usageNames": [
+        "ExternalEventDetails"
+      ],
+      "benchAnchor": "design-system#ds-composite-external-event-details",
+      "trackUsages": "optional",
+      "status": "active",
+      "notes": "Tickets 133\u2013137; synthetic bench never contacts a provider."
+    },
+    {
+      "id": "composite.external-event-preview",
+      "name": "ExternalEventPreview",
+      "kind": "composite",
+      "source": "components/timeline/ExternalEventDetails.tsx",
+      "exportName": "ExternalEventPreview",
+      "usageNames": [
+        "ExternalEventPreview"
+      ],
+      "benchAnchor": "design-system#ds-composite-external-event-preview",
+      "trackUsages": "optional",
+      "status": "active",
+      "notes": "Tickets 133\u2013137; synthetic bench never contacts a provider."
     }
   ]
 }

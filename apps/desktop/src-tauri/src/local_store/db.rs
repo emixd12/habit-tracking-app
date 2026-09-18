@@ -670,7 +670,10 @@ pub fn update<T: StoredRow>(db: &Connection, profile_id: &str, id: &str, row: &T
 
 pub fn validate_row<T: StoredRow>(profile_id: &str, row: &T) -> Result<()> {
     let value = serde_json::to_value(row).map_err(|_| "The row could not be encoded.")?;
-    let size_limit = if T::TABLE == "note_shortcut_states" {
+    // Import ledgers aggregate records; keep their ceiling aligned with import requests.
+    let size_limit = if T::TABLE == "behaviorlog_import_runs" {
+        32 * 1_048_576
+    } else if T::TABLE == "note_shortcut_states" {
         8 * 1_048_576
     } else {
         1_048_576

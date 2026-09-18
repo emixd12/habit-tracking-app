@@ -95,6 +95,7 @@ async function TimelineContent({
         stopTimeTrackingAction={stopTimeTrackingAction}
         resetTimeTrackingAction={resetTimeTrackingAction}
         shortcutsByBehavior={shortcutsByBehavior}
+        liveCalendar
       />
     </>
   );

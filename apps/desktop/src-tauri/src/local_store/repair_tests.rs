@@ -505,7 +505,10 @@ fn resumed_maintenance_rejects_replaced_or_corrupted_protected_backup() {
             let stage_before = recovery::report(&path).unwrap().unwrap().state;
             assert!(db::open(&path).is_err());
             assert_eq!(std::fs::read(&path).unwrap(), live_before);
-            assert_eq!(recovery::report(&path).unwrap().unwrap().state, stage_before);
+            assert_eq!(
+                recovery::report(&path).unwrap().unwrap().state,
+                stage_before
+            );
             assert_eq!(std::fs::read(&backup).unwrap(), b"changed protected backup");
             let db = db::connect(&path).unwrap();
             assert_eq!(db::schema_version(&db).unwrap(), version);

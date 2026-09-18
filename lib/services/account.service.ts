@@ -1,3 +1,5 @@
+import { disconnectCalendar } from "./google-calendar.service";
+import { readCalendarOAuthConfig } from "./google-calendar-oauth";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   clearSupabaseAuthCookies,
@@ -42,6 +44,10 @@ export async function deleteCurrentAccountFromFormData(
   await verifyAccountDeletionClient(serviceRole, user.id);
   assertDeletionFailureCanaryInactive(user.id);
 
+  if (readCalendarOAuthConfig()) {
+    try { await disconnectCalendar({ client: supabase, user }); }
+    catch { /* Auth deletion still cascades Calendar credentials during provider outages. */ }
+  }
   const { error: deleteError } = await deleteAuthUser(serviceRole, user.id);
 
   if (deleteError) {

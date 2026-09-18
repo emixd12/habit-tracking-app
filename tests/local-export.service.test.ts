@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getLocalExportDownload, getLocalExportPageData } from "../apps/desktop/src/local-export.service";
 import { readZipEntries } from "../lib/services/zip";
 import type { Profile } from "../lib/types/database";
-import { USER_ID, storedBehavior, storedExportOccurrence } from "./helpers/export-row-fixture";
+import { USER_ID, storedBehavior, storedConfigurationEvent, storedExportOccurrence } from "./helpers/export-row-fixture";
 
 const mocks = vi.hoisted(() => ({ command: vi.fn(), fresh: vi.fn() }));
 vi.mock("../apps/desktop/src/local-store", () => ({ localCommand: mocks.command }));
@@ -36,6 +36,43 @@ beforeEach(() => {
 });
 
 describe("desktop export read and download", () => {
+  it.each(["hosted", "mixed"])("preserves %s configuration history in the page and every download format", async (shape) => {
+    const snapshot = await mocks.command();
+    const event = snapshot.behaviorConfigurationEvents[0];
+    const native = event.next_configuration;
+    const hosted = storedConfigurationEvent().next_configuration;
+    snapshot.behaviorConfigurationEvents = [
+      { ...event, id: "configuration-baseline" },
+      { ...event, event_kind: "revision", previous_configuration: native },
+    ];
+    const options = { now, range: "all", includeNotes: true };
+    const expected = await getLocalExportPageData(profile, options);
+    const formats = ["jsonl", "csv", "json", "markdown", "behaviorlog"] as const;
+    const downloads = await Promise.all(formats.map((format) => getLocalExportDownload(profile, format, options)));
+    snapshot.behaviorConfigurationEvents[0].next_configuration = hosted;
+    snapshot.behaviorConfigurationEvents[1].previous_configuration = hosted;
+    if (shape === "hosted") snapshot.behaviorConfigurationEvents[1].next_configuration = hosted;
+    const before = structuredClone(snapshot);
+
+    expect(await getLocalExportPageData(profile, options)).toEqual(expected);
+    for (const [index, format] of formats.entries()) {
+      expect(await getLocalExportDownload(profile, format, options)).toEqual(downloads[index]);
+    }
+    expect(snapshot).toEqual(before);
+  });
+
+  it.each(["schedule", "reminder"])("rejects malformed hosted %s data instead of exporting partial history", async (field) => {
+    const snapshot = await mocks.command();
+    const configuration = storedConfigurationEvent().next_configuration;
+    const invalid = field === "schedule"
+      ? { ...configuration, schedule_graph: [{ ...configuration.schedule_graph[0], time_entries: null }] }
+      : { ...configuration, browser_reminder_enabled: "true" };
+    snapshot.behaviorConfigurationEvents[0].next_configuration = invalid;
+    await expect(getLocalExportDownload(profile, "json", { now, range: "all" })).rejects.toThrow(
+      field === "schedule" ? "Invalid configuration time_entries." : "Invalid configuration browser_reminder_enabled.",
+    );
+  });
+
   it("reads saved all-time records without generating future occurrences and defaults sensitive options off", async () => {
     const bundle = await getLocalExportPageData(profile, { now, range: "all" });
     expect(mocks.fresh).not.toHaveBeenCalled();

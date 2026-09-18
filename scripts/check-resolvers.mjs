@@ -45,6 +45,18 @@ function walk(relativePath) {
 
 const resolverRegistry = [
   {
+    domain: "day-progress layout",
+    resolver: "packages/core/src/resolvers/day-progress.resolver.ts",
+    test: "tests/day-progress.resolver.test.ts",
+    source: "docs/UI_SPEC.md",
+  },
+  {
+    domain: "timeline duration and external context",
+    resolver: "packages/core/src/resolvers/timeline-context.resolver.ts",
+    test: "tests/timeline-context.resolver.test.ts",
+    source: "docs/PRODUCT_SPEC.md",
+  },
+  {
     domain: "Note shortcuts",
     resolver: "packages/core/src/resolvers/note-suggestion.resolver.ts",
     test: "tests/note-suggestion.resolver.test.ts",

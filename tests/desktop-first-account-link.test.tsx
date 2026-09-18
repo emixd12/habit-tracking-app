@@ -3,11 +3,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 import { hasRecognizedLocalData } from "@cadence/core/services/first-account-link";
 import { DEFAULT_CATEGORY_NAMES } from "@cadence/core/types/database";
-import { sha256 } from "@cadence/core/hash";
-import type { AccountSyncEntity, AccountSyncSnapshot } from "@cadence/core/resolvers/account-sync.resolver";
+import { accountSyncFingerprint, type AccountSyncEntity, type AccountSyncSnapshot } from "@cadence/core/resolvers/account-sync.resolver";
 import type { PortabilitySnapshot } from "@cadence/core/types/portability-rows";
 import { FirstAccountLinkChoice } from "../apps/desktop/src/account/account-panel";
-import { applyVerifiedFirstLinkPlan, assertFirstLinkLocalUnchanged, commitFirstLink, completedFirstLinkState, existingRecordsFromHostedEnvelope, firstLinkAccountSyncBaseline, firstLinkFailureBackupPath, localChangedSinceFirstLinkAttempt, planFirstLinkReconciliation, recoverRejectedFirstLinkReview, stabilizeFirstLinkAttempt } from "../apps/desktop/src/account/first-link";
+import { portabilityEntities } from "../apps/desktop/src/account/account-sync";
+import { canonicalJson } from "../apps/desktop/src/account/canonical-json";
+import { applyVerifiedFirstLinkPlan, assertFirstLinkLocalUnchanged, commitFirstLink, completedFirstLinkState, existingRecordsFromHostedEnvelope, finishReviewedFirstAccountLink, firstLinkAccountSyncBaseline, firstLinkFailureBackupPath, firstLinkLocalFingerprint, localChangedSinceFirstLinkAttempt, planFirstLinkReconciliation, reconcileLocalFromHosted, recoverRejectedFirstLinkReview, stabilizeFirstLinkAttempt } from "../apps/desktop/src/account/first-link";
 
 function snapshot(): PortabilitySnapshot {
   const profile = { id: "local", timezone: "America/New_York", email: "", display_name: null, created_at: "now", updated_at: "now" };
@@ -214,11 +215,47 @@ describe("first desktop account link", () => {
     });
   });
 
-  it("does not treat changed local Ignore data as the common baseline", () => {
+  it("rejects changed local Ignore data instead of planning hosted writes", () => {
     const value = (title: string) => graph([{ kind: "behavior", id: "shared", value: { id: "shared", title } }]);
-    const { inputs, plan } = planFirstLinkReconciliation({ accountLinkId: "hosted", local: value("Edited after choice"), hosted: value("Account"), choice: "ignore", localUnchanged: false, outboxHighWater: 5 });
-    expect(inputs.baseline.entities).toEqual([]);
-    expect(plan.conflicts).toHaveLength(1);
+    expect(() => planFirstLinkReconciliation({ accountLinkId: "hosted", local: value("Edited after choice"), hosted: value("Account"), choice: "ignore", localUnchanged: false, outboxHighWater: 5 }))
+      .toThrow("before replacing local data");
+  });
+
+  it("aborts Ignore after a post-choice local mutation before invoking the hosted provider", async () => {
+    const original = snapshot();
+    const changed = { ...snapshot(), revision: 1, profile: { ...snapshot().profile, timezone: "Europe/Rome" } };
+    const hostedEntities = portabilityEntities(original);
+    const hostedFingerprint = accountSyncFingerprint({ entities: hostedEntities });
+    let hostedProviderInvoked = false;
+    const client = new Proxy({}, { get: () => { hostedProviderInvoked = true; throw new Error("Hosted provider must not be invoked."); } });
+    await expect(reconcileLocalFromHosted(client as never, original.profile.id, "hosted", {
+      schemaVersion: 1, userId: "hosted", fingerprint: hostedFingerprint, entities: hostedEntities,
+    }, changed, "ignore", "attempt", firstLinkLocalFingerprint(original), hostedFingerprint, "/protected.sqlite3",
+    canonicalJson({ entities: hostedEntities }))).rejects.toThrow("before replacing local data");
+    expect(hostedProviderInvoked).toBe(false);
+  });
+
+  it("plans unchanged Ignore as a local-only hosted replacement", () => {
+    const local = graph([{ kind: "behavior", id: "local", value: { id: "local", title: "Mac" } }]);
+    const hosted = graph([{ kind: "behavior", id: "hosted", value: { id: "hosted", title: "Account" } }]);
+    const { plan } = planFirstLinkReconciliation({ accountLinkId: "hosted", local, hosted, choice: "ignore", localUnchanged: true, outboxHighWater: 5 });
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.hostedWrites).toEqual([]);
+    expect(plan.localWrites).toMatchObject([
+      { kind: "behavior", id: "hosted", operation: "upsert" },
+      { kind: "behavior", id: "local", operation: "delete" },
+    ]);
+  });
+
+  it("rejects legacy reviewed Ignore before invoking the hosted provider", async () => {
+    let hostedProviderInvoked = false;
+    const client = new Proxy({}, { get: () => { hostedProviderInvoked = true; throw new Error("Hosted provider must not be invoked."); } });
+    await expect(finishReviewedFirstAccountLink({ client: client as never, profileId: "local", reviewed: {
+      inputs: { accountLinkId: "hosted", baseline: graph(), local: graph(), hosted: graph(), baselineFingerprint: "b", hostedFingerprint: "h", outboxHighWater: 1 },
+      conflicts: [], attempt: { attemptId: "attempt", localFingerprint: "l", hostedFingerprint: "h", preAttemptBaselineJson: '{"entities":[]}', choice: "ignore" },
+      backupPath: "/protected.sqlite3",
+    }, decisions: [] })).rejects.toThrow("Cancel the account link and start it again");
+    expect(hostedProviderInvoked).toBe(false);
   });
 
   it("returns actionable typed review inputs for import-preview conflicts", async () => {
@@ -245,11 +282,13 @@ describe("first desktop account link", () => {
     expect(existingRecordsFromHostedEnvelope(envelope).mappings).toEqual([{ recordType: "behavior", externalId: "external", localId: "local" }]);
   });
 
-  it("detects post-attempt local changes before either restore path", () => {
-    const original = { revision: 1, rows: [{ id: "one" }] };
-    const originalFingerprint = sha256(JSON.stringify(original));
-    expect(localChangedSinceFirstLinkAttempt(original, originalFingerprint)).toBe(false);
-    expect(localChangedSinceFirstLinkAttempt({ ...original, revision: 2 }, originalFingerprint)).toBe(true);
+  it("detects replacement-domain changes but ignores native reminder bookkeeping", () => {
+    const original = snapshot();
+    const originalFingerprint = firstLinkLocalFingerprint(original);
+    expect(localChangedSinceFirstLinkAttempt({ ...original, revision: original.revision + 1,
+      nativeReminders: [{ id: "native-only" }] } as typeof original, originalFingerprint)).toBe(false);
+    expect(localChangedSinceFirstLinkAttempt({ ...original,
+      profile: { ...original.profile, timezone: "Europe/Rome" } }, originalFingerprint)).toBe(true);
   });
 
   it.each(["read", "apply"] as const)("preserves the Ignore backup path after a %s failure", async (failure) => {

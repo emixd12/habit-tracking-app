@@ -51,6 +51,10 @@ fn apply_mode(
     writes: &[AccountSyncWrite],
     replacement: bool,
 ) -> db::Result<()> {
+    if replacement {
+        db.execute_batch("PRAGMA defer_foreign_keys = ON;")
+            .map_err(db::error)?;
+    }
     validate_entity_counts(writes.iter().map(|write| write.kind))?;
     let occurrence_deletes: HashSet<String> = writes
         .iter()
@@ -99,7 +103,7 @@ fn apply_mode(
             _ => 0,
         };
         (
-            mutation_order(write),
+            mutation_order(write, replacement),
             if write.operation == AccountSyncOperation::Delete {
                 usize::MAX - depth
             } else {
@@ -516,7 +520,7 @@ where
     Ok(())
 }
 
-fn mutation_order(write: &AccountSyncWrite) -> (u8, u8) {
+fn mutation_order(write: &AccountSyncWrite, replacement: bool) -> (u8, u8) {
     let parent_first = match write.kind {
         AccountSyncEntityKind::Profile => 0,
         AccountSyncEntityKind::Category | AccountSyncEntityKind::ImportRun => 1,
@@ -540,7 +544,11 @@ fn mutation_order(write: &AccountSyncWrite) -> (u8, u8) {
         parent_first
     };
     (
-        (write.operation == AccountSyncOperation::Delete) as u8,
+        if replacement {
+            (write.operation == AccountSyncOperation::Upsert) as u8
+        } else {
+            (write.operation == AccountSyncOperation::Delete) as u8
+        },
         rank,
     )
 }
@@ -692,6 +700,9 @@ mod tests {
     use super::*;
     use crate::local_store::{behavior, execute, Request};
     use serde_json::json;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static DATABASE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
     #[test]
     fn utc_instant_normalization_uses_half_even_microseconds() {
@@ -733,39 +744,44 @@ mod tests {
             value: None,
         };
         assert!(
-            mutation_order(&write(AccountSyncEntityKind::ConfigurationEvent))
-                < mutation_order(&write(AccountSyncEntityKind::Occurrence))
+            mutation_order(&write(AccountSyncEntityKind::ConfigurationEvent), false)
+                < mutation_order(&write(AccountSyncEntityKind::Occurrence), false)
         );
         assert!(
-            mutation_order(&write(AccountSyncEntityKind::ImportRun))
-                < mutation_order(&write(AccountSyncEntityKind::ImportedIntervention))
+            mutation_order(&write(AccountSyncEntityKind::ImportRun), false)
+                < mutation_order(&write(AccountSyncEntityKind::ImportedIntervention), false)
         );
         assert!(
-            mutation_order(&write(AccountSyncEntityKind::ImportedIntervention))
-                < mutation_order(&write(AccountSyncEntityKind::ReminderDelivery))
+            mutation_order(&write(AccountSyncEntityKind::ImportedIntervention), false)
+                < mutation_order(&write(AccountSyncEntityKind::ReminderDelivery), false)
         );
         assert!(
-            mutation_order(&write(AccountSyncEntityKind::ReminderDelivery))
-                < mutation_order(&write(AccountSyncEntityKind::NoteShortcutState))
+            mutation_order(&write(AccountSyncEntityKind::ReminderDelivery), false)
+                < mutation_order(&write(AccountSyncEntityKind::NoteShortcutState), false)
         );
         let delete = |kind| AccountSyncWrite {
             operation: AccountSyncOperation::Delete,
             ..write(kind)
         };
         assert!(
-            mutation_order(&delete(AccountSyncEntityKind::NoteShortcutState))
-                < mutation_order(&delete(AccountSyncEntityKind::Occurrence))
+            mutation_order(&delete(AccountSyncEntityKind::NoteShortcutState), false)
+                < mutation_order(&delete(AccountSyncEntityKind::Occurrence), false)
+        );
+        assert!(
+            mutation_order(&delete(AccountSyncEntityKind::Category), true)
+                < mutation_order(&write(AccountSyncEntityKind::Category), true)
         );
     }
 
     fn database() -> (std::path::PathBuf, rusqlite::Connection, String, Category) {
         let directory = std::env::temp_dir().join(format!(
-            "cadence-sync-{}-{}",
+            "cadence-sync-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+            DATABASE_SEQUENCE.fetch_add(1, Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&directory).unwrap();
         let connection = db::open(&directory.join("sync.sqlite3")).unwrap();
@@ -774,6 +790,192 @@ mod tests {
             .unwrap()
             .remove(0);
         (directory, connection, profile, category)
+    }
+
+    struct CompleteGraph {
+        category: Category,
+        behavior: Behavior,
+        schedule: BehaviorSchedule,
+        slot: BehaviorScheduleSlot,
+        occurrence: Occurrence,
+        status: OccurrenceStatusEvent,
+        time: OccurrenceTimeSession,
+        reminder: ReminderDelivery,
+    }
+
+    fn complete_graph(profile: &str, category: Category, digit: char) -> CompleteGraph {
+        let id = |suffix: u8| format!("{digit}0000000-0000-4000-8000-{suffix:012}");
+        let stamp = "2026-09-01T12:00:00.000000Z".to_string();
+        let behavior = Behavior {
+            id: id(1),
+            user_id: profile.into(),
+            category_id: Some(category.id.clone()),
+            title: "Graph".into(),
+            description: None,
+            active: true,
+            archive_notes: vec![],
+            archived_at: None,
+            recurrence_rule: json!({"type":"daily","interval":1}),
+            scheduled_time: "09:00:00".into(),
+            timezone: "America/New_York".into(),
+            browser_reminder_enabled: true,
+            email_reminder_enabled: false,
+            reminder_offset_minutes: 0,
+            current_configuration_event_id: None,
+            created_at: stamp.clone(),
+            updated_at: stamp.clone(),
+        };
+        let schedule = BehaviorSchedule {
+            id: id(2),
+            user_id: profile.into(),
+            behavior_id: behavior.id.clone(),
+            recurrence_rule: behavior.recurrence_rule.clone(),
+            sort_order: 0,
+            created_at: stamp.clone(),
+            updated_at: stamp.clone(),
+        };
+        let slot = BehaviorScheduleSlot {
+            id: id(3),
+            user_id: profile.into(),
+            behavior_id: behavior.id.clone(),
+            behavior_schedule_id: Some(schedule.id.clone()),
+            kind: "exact".into(),
+            preset: None,
+            start_time: "09:00:00".into(),
+            end_time: None,
+            sort_order: 0,
+            created_at: stamp.clone(),
+            updated_at: stamp.clone(),
+        };
+        let occurrence = Occurrence {
+            id: id(4),
+            user_id: profile.into(),
+            behavior_id: behavior.id.clone(),
+            behavior_configuration_event_id: None,
+            behavior_schedule_slot_id: Some(slot.id.clone()),
+            scheduled_for: "2026-09-01T13:00:00.000000Z".into(),
+            local_date: "2026-09-01".into(),
+            schedule_kind: "exact".into(),
+            schedule_preset: None,
+            schedule_start_time: "09:00:00".into(),
+            schedule_end_time: None,
+            schedule_range_identity: None,
+            status: "completed".into(),
+            completed_at: Some(stamp.clone()),
+            status_marked_at: Some(stamp.clone()),
+            note: None,
+            created_at: stamp.clone(),
+            updated_at: stamp.clone(),
+        };
+        let status = OccurrenceStatusEvent {
+            id: id(5),
+            user_id: profile.into(),
+            behavior_id: behavior.id.clone(),
+            occurrence_id: occurrence.id.clone(),
+            previous_status: Some("unresolved".into()),
+            status: "completed".into(),
+            reason_code: None,
+            status_semantics: "explicit_user_mark".into(),
+            source_capture_method: "manual".into(),
+            source_confidence: "declared".into(),
+            timezone: "America/New_York".into(),
+            local_date: "2026-09-01".into(),
+            effective_at: None,
+            revises_event_id: None,
+            recorded_at: stamp.clone(),
+            created_at: stamp.clone(),
+            updated_at: stamp.clone(),
+        };
+        let time = OccurrenceTimeSession {
+            id: id(6),
+            user_id: profile.into(),
+            behavior_id: behavior.id.clone(),
+            occurrence_id: occurrence.id.clone(),
+            started_at: "2026-09-01T11:30:00.000000Z".into(),
+            stopped_at: Some(stamp.clone()),
+            created_at: stamp.clone(),
+            updated_at: stamp.clone(),
+        };
+        let reminder = ReminderDelivery {
+            id: id(7),
+            user_id: profile.into(),
+            occurrence_id: occurrence.id.clone(),
+            channel: "browser_push".into(),
+            scheduled_send_at: "2026-09-01T11:00:00.000000Z".into(),
+            sent_at: Some(stamp.clone()),
+            status: "sent".into(),
+            error: None,
+            processing_started_at: None,
+            import_run_id: None,
+            imported_intervention_id: None,
+            created_at: stamp.clone(),
+            updated_at: stamp,
+        };
+        CompleteGraph {
+            category,
+            behavior,
+            schedule,
+            slot,
+            occurrence,
+            status,
+            time,
+            reminder,
+        }
+    }
+
+    fn insert_complete_graph(db: &Connection, profile: &str, graph: &CompleteGraph) {
+        db::insert(db, profile, &graph.behavior).unwrap();
+        db::insert(db, profile, &graph.schedule).unwrap();
+        db::insert(db, profile, &graph.slot).unwrap();
+        db::insert(db, profile, &graph.occurrence).unwrap();
+        db::insert(db, profile, &graph.status).unwrap();
+        db::insert(db, profile, &graph.time).unwrap();
+        db::insert(db, profile, &graph.reminder).unwrap();
+    }
+
+    fn graph_rows(graph: &CompleteGraph) -> [(AccountSyncEntityKind, String, Value); 8] {
+        [
+            (
+                AccountSyncEntityKind::Category,
+                graph.category.id.clone(),
+                normalized(&graph.category).unwrap(),
+            ),
+            (
+                AccountSyncEntityKind::Behavior,
+                graph.behavior.id.clone(),
+                normalized(&graph.behavior).unwrap(),
+            ),
+            (
+                AccountSyncEntityKind::Schedule,
+                graph.schedule.id.clone(),
+                normalized(&graph.schedule).unwrap(),
+            ),
+            (
+                AccountSyncEntityKind::ScheduleSlot,
+                graph.slot.id.clone(),
+                normalized(&graph.slot).unwrap(),
+            ),
+            (
+                AccountSyncEntityKind::Occurrence,
+                graph.occurrence.id.clone(),
+                normalized(&graph.occurrence).unwrap(),
+            ),
+            (
+                AccountSyncEntityKind::StatusEvent,
+                graph.status.id.clone(),
+                normalized(&graph.status).unwrap(),
+            ),
+            (
+                AccountSyncEntityKind::TimeSession,
+                graph.time.id.clone(),
+                normalized(&graph.time).unwrap(),
+            ),
+            (
+                AccountSyncEntityKind::ReminderDelivery,
+                graph.reminder.id.clone(),
+                normalized(&graph.reminder).unwrap(),
+            ),
+        ]
     }
 
     #[test]
@@ -1027,6 +1229,189 @@ mod tests {
                 .unwrap(),
             0
         );
+    }
+
+    #[test]
+    fn first_link_replacement_clears_unique_category_before_inserting_its_replacement() {
+        let (_directory, mut connection, profile, category) = database();
+        let replacement = Category {
+            id: "90000000-0000-4000-8000-000000000001".into(),
+            user_id: profile.clone(),
+            ..category.clone()
+        };
+        let writes = vec![
+            AccountSyncWrite {
+                kind: AccountSyncEntityKind::Category,
+                id: replacement.id.clone(),
+                operation: AccountSyncOperation::Upsert,
+                expected: None,
+                value: Some(normalized(&replacement).unwrap()),
+            },
+            AccountSyncWrite {
+                kind: AccountSyncEntityKind::Category,
+                id: category.id.clone(),
+                operation: AccountSyncOperation::Delete,
+                expected: Some(normalized(&category).unwrap()),
+                value: None,
+            },
+        ];
+        let tx = connection.transaction().unwrap();
+        apply_first_link(&tx, &profile, &writes).unwrap();
+        tx.commit().unwrap();
+        assert!(db::by_id::<Category>(&connection, &profile, &category.id).is_err());
+        assert_eq!(
+            db::by_id::<Category>(&connection, &profile, &replacement.id)
+                .unwrap()
+                .name,
+            category.name
+        );
+    }
+
+    #[test]
+    fn first_link_replacement_swaps_a_complete_graph_without_foreign_key_damage() {
+        let (_directory, mut connection, profile, category) = database();
+        let local = complete_graph(&profile, category.clone(), '6');
+        insert_complete_graph(&connection, &profile, &local);
+        let replacement_category = Category {
+            id: "70000000-0000-4000-8000-000000000008".into(),
+            ..category
+        };
+        let hosted = complete_graph(&profile, replacement_category, '7');
+        let writes = graph_rows(&local)
+            .into_iter()
+            .map(|(kind, id, expected)| AccountSyncWrite {
+                kind,
+                id,
+                operation: AccountSyncOperation::Delete,
+                expected: Some(expected),
+                value: None,
+            })
+            .chain(
+                graph_rows(&hosted)
+                    .into_iter()
+                    .map(|(kind, id, value)| AccountSyncWrite {
+                        kind,
+                        id,
+                        operation: AccountSyncOperation::Upsert,
+                        expected: None,
+                        value: Some(value),
+                    }),
+            )
+            .collect::<Vec<_>>();
+        let tx = connection.transaction().unwrap();
+        apply_first_link(&tx, &profile, &writes).unwrap();
+        tx.commit().unwrap();
+        assert!(db::by_id::<Behavior>(&connection, &profile, &local.behavior.id).is_err());
+        assert!(db::by_id::<Occurrence>(&connection, &profile, &local.occurrence.id).is_err());
+        assert_eq!(
+            db::by_id::<Category>(&connection, &profile, &hosted.category.id)
+                .unwrap()
+                .name,
+            local.category.name
+        );
+        assert_eq!(
+            db::by_id::<Occurrence>(&connection, &profile, &hosted.occurrence.id)
+                .unwrap()
+                .behavior_id,
+            hosted.behavior.id
+        );
+        assert_eq!(
+            db::by_id::<OccurrenceStatusEvent>(&connection, &profile, &hosted.status.id)
+                .unwrap()
+                .occurrence_id,
+            hosted.occurrence.id
+        );
+        assert_eq!(
+            db::by_id::<OccurrenceTimeSession>(&connection, &profile, &hosted.time.id)
+                .unwrap()
+                .occurrence_id,
+            hosted.occurrence.id
+        );
+        assert_eq!(
+            db::by_id::<ReminderDelivery>(&connection, &profile, &hosted.reminder.id)
+                .unwrap()
+                .occurrence_id,
+            hosted.occurrence.id
+        );
+        let foreign_key_errors: i64 = connection
+            .query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(foreign_key_errors, 0);
+    }
+
+    #[test]
+    fn first_link_replacement_rolls_back_when_a_parent_delete_cascades_a_retained_child() {
+        let (_directory, mut connection, profile, category) = database();
+        let local = complete_graph(&profile, category.clone(), '8');
+        insert_complete_graph(&connection, &profile, &local);
+        let next_behavior = Behavior {
+            id: "90000000-0000-4000-8000-000000000001".into(),
+            ..local.behavior.clone()
+        };
+        let mut next_occurrence = local.occurrence.clone();
+        next_occurrence.behavior_id = next_behavior.id.clone();
+        next_occurrence.behavior_schedule_slot_id = None;
+        let writes = vec![
+            AccountSyncWrite {
+                kind: AccountSyncEntityKind::Behavior,
+                id: local.behavior.id.clone(),
+                operation: AccountSyncOperation::Delete,
+                expected: Some(normalized(&local.behavior).unwrap()),
+                value: None,
+            },
+            AccountSyncWrite {
+                kind: AccountSyncEntityKind::Behavior,
+                id: next_behavior.id.clone(),
+                operation: AccountSyncOperation::Upsert,
+                expected: None,
+                value: Some(normalized(&next_behavior).unwrap()),
+            },
+            AccountSyncWrite {
+                kind: AccountSyncEntityKind::Occurrence,
+                id: local.occurrence.id.clone(),
+                operation: AccountSyncOperation::Upsert,
+                expected: Some(normalized(&local.occurrence).unwrap()),
+                value: Some(normalized(&next_occurrence).unwrap()),
+            },
+        ];
+        let tx = connection.transaction().unwrap();
+        assert_eq!(
+            apply_first_link(&tx, &profile, &writes).unwrap_err(),
+            "A local record changed after sync planning."
+        );
+        tx.rollback().unwrap();
+        assert_eq!(
+            db::by_id::<Behavior>(&connection, &profile, &local.behavior.id).unwrap(),
+            local.behavior
+        );
+        assert_eq!(
+            normalized(
+                &db::by_id::<Occurrence>(&connection, &profile, &local.occurrence.id).unwrap()
+            )
+            .unwrap(),
+            normalized(&local.occurrence).unwrap()
+        );
+        assert!(db::by_id::<Behavior>(&connection, &profile, &next_behavior.id).is_err());
+        assert_eq!(
+            db::by_id::<OccurrenceStatusEvent>(&connection, &profile, &local.status.id).unwrap(),
+            local.status
+        );
+        assert_eq!(
+            db::by_id::<OccurrenceTimeSession>(&connection, &profile, &local.time.id).unwrap(),
+            local.time
+        );
+        assert_eq!(
+            db::by_id::<ReminderDelivery>(&connection, &profile, &local.reminder.id).unwrap(),
+            local.reminder
+        );
+        let foreign_key_errors: i64 = connection
+            .query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(foreign_key_errors, 0);
     }
 
     #[test]
