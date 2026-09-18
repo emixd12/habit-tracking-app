@@ -55,8 +55,8 @@ Local governance, source-boundary, Trust fixtures, lint, web/desktop type checks
 all three builds, and marketing checks pass. The combined test suite passed
 1,786 tests with 29 skipped. Native tests passed 106 before dependency-only
 reconciliation. Lint retains ten warnings; Vite reports directive/chunk warnings.
-GitHub PR validation and merge remain pending. Existing product-release gates
-and pending provider/native acceptance remain unchanged.
+GitHub requires passing PR validation before merging into protected `main`.
+Existing product-release gates and pending provider/native acceptance remain unchanged.
 
 Tickets 144–145 were filed on September 18, 2026. Both are `not_started`.
 Ticket 144 covers the integration playbook, reusable brief, and evidence-backed
