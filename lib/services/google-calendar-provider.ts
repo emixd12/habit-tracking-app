@@ -440,20 +440,20 @@ export function sanitizeGoogleCalendarText(
 ): string {
   let text = value;
   if (html) {
+    // Convert to display text, never trusted HTML. Spaces prevent joining markup fragments.
     text = text
-      .replace(/<!--[\s\S]*?-->/g, "")
-      .replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
+      .replace(/<!--[\s\S]*?-->/g, " ")
+      .replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi, "\n")
-      .replace(/<[^>]*>/g, "")
-      .replace(/&(?:nbsp|#160);/gi, " ")
-      .replace(/&amp;/gi, "&")
-      .replace(/&lt;/gi, "<")
-      .replace(/&gt;/gi, ">")
-      .replace(/&quot;/gi, "\"")
-      .replace(/&#(?:39|x27);/gi, "'")
-      .replace(/&#(\d+);/g, (_, digits: string) => safeCodePoint(Number(digits)))
-      .replace(/&#x([\da-f]+);/gi, (_, digits: string) => safeCodePoint(Number.parseInt(digits, 16)));
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&(nbsp|amp|lt|gt|quot|#\d+|#x[\da-f]+);/gi, (match, entity: string) => {
+        const name = entity.toLowerCase();
+        const named: Record<string, string> = { nbsp: " ", amp: "&", lt: "<", gt: ">", quot: "\"" };
+        if (!name.startsWith("#")) return named[name] ?? match;
+        const codePoint = name.startsWith("#x") ? Number.parseInt(name.slice(2), 16) : Number(name.slice(1));
+        return codePoint === 160 ? " " : safeCodePoint(codePoint);
+      });
   }
   return text
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")

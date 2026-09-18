@@ -216,6 +216,17 @@ describe("Google Calendar provider adapter", () => {
     ]);
   });
 
+  it("does not join removed markup or decode nested entities twice", () => {
+    expect(sanitizeGoogleCalendarText("<scr<script>ignored</script>ipt>visible</script>"))
+      .toBe("visible");
+    expect(sanitizeGoogleCalendarText("left<!-- removed -->right"))
+      .toBe("left right");
+    expect(sanitizeGoogleCalendarText("&amp;lt; &#38;lt; &#x26;lt;"))
+      .toBe("&lt; &lt; &lt;");
+    expect(sanitizeGoogleCalendarText("&lt;note&gt; &quot;yes&quot; &#39;ok&#x27; &#160;"))
+      .toBe('<note> "yes" \'ok\'');
+  });
+
   it("sanitizes provider HTML and handles an identity-only cancellation", () => {
     expect(sanitizeGoogleCalendarText("<p>Hello&nbsp;world</p><style>bad</style>", 100, true))
       .toBe("Hello world");
