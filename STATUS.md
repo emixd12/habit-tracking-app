@@ -43,6 +43,21 @@ When updating a ticket row:
 
 ## Current repository state
 
+Branch reconciliation on September 18, 2026 combines the outstanding product work,
+18 dependency-update branches, and older legal/desktop release histories. Existing
+newer implementations resolve historical conflicts; recovered desktop QA records
+remain historical evidence. TypeScript 7 runs standalone and desktop type checks.
+The TypeScript 6 compatibility API supports governance, ESLint, and Next.js build
+checks; Astro retains TypeScript 6. Desktop declares its existing Node ambient
+types, and the marketing font import names its existing CSS entry explicitly.
+
+Local governance, source-boundary, Trust fixtures, lint, web/desktop type checks,
+all three builds, and marketing checks pass. The combined test suite passed
+1,786 tests with 29 skipped. Native tests passed 106 before dependency-only
+reconciliation. Lint retains ten warnings; Vite reports directive/chunk warnings.
+GitHub PR validation and merge remain pending. Existing product-release gates
+and pending provider/native acceptance remain unchanged.
+
 Tickets 144–145 were filed on September 18, 2026. Both are `not_started`.
 Ticket 144 covers the integration playbook, reusable brief, and evidence-backed
 Calendar lessons. Ticket 145 defines the first external consumer and proposes
