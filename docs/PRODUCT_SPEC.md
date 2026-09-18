@@ -625,3 +625,8 @@ selection and synthetic live acceptance remain separately recorded in Ticket
 Web and desktop share the resolver, review lifecycle, and Note form. Marketing
 updates existing guidance only after verified acceptance. Future mobile remains
 deferred and inherits this contract without implementation here.
+
+
+## Behavior planning fields (Tickets 142–143)
+
+Behaviors optionally store a default duration in whole minutes (1–1,440) and an end date. The default supplies Timeline planning duration; measured time and averages remain independent. The end date is the first archived local day. Automatic archive preserves history and produces a durable in-app notification. Web processes due dates through its existing scheduled and foreground lifecycle. Desktop catches up on launch, resume, and day change without a background helper.

@@ -1494,9 +1494,11 @@ confirmed production-audience expansion on September 17; Google reports In
 production. Google verified and published the consent name `Cadence` after an
 app-name/homepage mismatch correction. Calendar data-access approval has not
 occurred. The owner retained `info@identityscaffolding.com` as support/developer
-inbox and named Emiliano Bache Rodriguez as its human monitor. The original
-recording shows the previous domain label; replace it before final sensitive-scope
-submission. The isolated releases are promoted; production IDs,
+inbox and named Emiliano Bache Rodriguez as its human monitor. The replacement verified-brand video is Unlisted at
+https://youtu.be/vUi5s2B51Uo. Google accepted the data-access submission on
+September 18, 2026 at 10:52 EDT and reports under review. Daily 09:00 local
+Verification Center follow-up is active in the existing task; it reports meaningful
+changes only. Emiliano remains responsible for the inbox. The isolated releases are promoted; production IDs,
 post-promotion public checks, and rollback are recorded in release QA.
 
 Calendar domain migration adds optional server setting

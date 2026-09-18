@@ -5,6 +5,8 @@ import type { RecurrenceRule } from "./types/recurrence";
 import type { BehaviorScheduleInput } from "./types/schedule";
 
 export type BehaviorInput = {
+  defaultDurationMinutes?: number | null;
+  endDate?: string | null;
   title: string;
   description: string | null;
   categoryId: string | null;
@@ -18,6 +20,9 @@ export type BehaviorInput = {
 };
 
 export type BehaviorFields = {
+  default_duration_minutes?: number | null;
+  end_date?: string | null;
+  auto_archived_at?: string | null;
   category_id: string | null;
   title: string;
   description: string | null;

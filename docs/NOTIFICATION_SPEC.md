@@ -14,6 +14,18 @@ Email reminders default to off and are enabled per behavior.
 Public launch does not include marketing or product lifecycle emails. Reminder
 emails remain transactional behavior reminders.
 
+## Automatic archive notice
+
+Automatic end-date archival creates a durable in-app notice from the
+Behavior's `auto_archived_at` marker. Timeline and Behaviors show the notice
+after reconciliation. The notice does not depend on browser, email, or native
+notification permission. It does not create a `reminder_deliveries` row.
+
+Automatic archival cancels pending reminder deliveries for the Behavior before
+the background reminder processor sends its batch. Desktop reminder
+reconciliation removes the corresponding native requests after the same atomic
+local Behavior update.
+
 The reminder processor reads the recipient from `profiles.email`. Auth
 creation and email-update triggers synchronize that value from
 `auth.users.email`. Authenticated Data API clients cannot write the profile
@@ -251,7 +263,9 @@ schedule in v1. Per-schedule reminder overrides are future scope unless a later
 ticket explicitly adds them.
 
 Operational delivery planning belongs on occurrence-generation write paths,
-not ordinary page reads. Behavior create/edit/archive/restore, timezone changes,
+not ordinary page reads. Due end-date reconciliation is a lifecycle write that
+runs before the read; it may cancel reminders but does not plan new ones.
+Behavior create/edit/archive/restore, timezone changes,
 approved import/restore apply work, and protected/background occurrence horizon
 syncs may create missing pending deliveries or cancel pending deliveries for
 inactive behavior occurrences. Timeline, Analytics, and Export read-route

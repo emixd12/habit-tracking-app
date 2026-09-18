@@ -71,10 +71,19 @@ export function resolveExternalEventFreshness(input: Readonly<{
 
 export function resolveBehaviorDurationEstimate(input: Readonly<{
   behaviorId: string;
+  defaultDurationMinutes?: number | null;
   occurrences: BehaviorDurationHistoryOccurrence[];
   now: Temporal.Instant;
   timezone: string;
 }>): BehaviorDurationEstimate {
+  if (input.defaultDurationMinutes != null) {
+    if (!Number.isInteger(input.defaultDurationMinutes) || input.defaultDurationMinutes < 1 || input.defaultDurationMinutes > 1440) {
+      throw new Error("Default duration must be a whole number from 1 to 1,440 minutes.");
+    }
+    return { kind: "known", seconds: input.defaultDurationMinutes * 60,
+      durationLabel: formatRecordedDuration(input.defaultDurationMinutes * 60),
+      sampleCount: 0, lookbackDays: DURATION_ESTIMATE_LOOKBACK_DAYS, provenance: "behavior_default" };
+  }
   const today = input.now.toZonedDateTimeISO(input.timezone).toPlainDate();
   const start = today.subtract({ days: DURATION_ESTIMATE_LOOKBACK_DAYS });
   const occurrenceIds = new Set<string>();

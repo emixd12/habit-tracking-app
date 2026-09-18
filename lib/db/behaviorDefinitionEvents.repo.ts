@@ -341,6 +341,13 @@ function toBehaviorPayload(
     active: behavior.active,
     archived_at: behavior.archived_at ?? null,
     archive_notes: behavior.archive_notes,
+    ...("default_duration_minutes" in behavior
+      ? { default_duration_minutes: behavior.default_duration_minutes ?? null }
+      : {}),
+    ...("end_date" in behavior ? { end_date: behavior.end_date ?? null } : {}),
+    ...("auto_archived_at" in behavior
+      ? { auto_archived_at: behavior.auto_archived_at ?? null }
+      : {}),
     created_at: "created_at" in behavior ? behavior.created_at ?? null : null,
   };
 }

@@ -32,21 +32,23 @@ export function resolvePersistedTimeline(input: {
     row, activeBehaviorById, sessionsByOccurrence.get(row.id) ?? [],
   )).filter((row): row is TimelineOccurrenceInput => row !== null);
   const timeline = resolveTimeline({ occurrences, now: input.now, timezone: input.timezone, futureDays: input.futureDays });
-  if (input.durationHistory) {
+  if (input.durationHistory || input.behaviors.some((behavior) => behavior.default_duration_minutes != null)) {
     const historySessions = new Map<string, TimeSession[]>();
-    for (const session of input.durationHistory.timeSessions) {
+    for (const session of (input.durationHistory?.timeSessions ?? [])) {
       const group = historySessions.get(session.occurrenceId) ?? [];
       group.push(session);
       historySessions.set(session.occurrenceId, group);
     }
-    const history: BehaviorDurationHistoryOccurrence[] = input.durationHistory.occurrences.map((row) => ({
+    const history: BehaviorDurationHistoryOccurrence[] = (input.durationHistory?.occurrences ?? []).map((row) => ({
       id: row.id, behaviorId: row.behavior_id, localDate: row.local_date,
       status: normalizeOccurrenceStatus(row.status), sessions: historySessions.get(row.id) ?? [],
     }));
     timeline.durationEstimates = Object.fromEntries([...activeBehaviorById.keys()].map((behaviorId) => [behaviorId,
-      resolveBehaviorDurationEstimate({ behaviorId, occurrences: history, now: input.now, timezone: input.timezone }),
+      resolveBehaviorDurationEstimate({ behaviorId, defaultDurationMinutes: activeBehaviorById.get(behaviorId)?.default_duration_minutes, occurrences: history, now: input.now, timezone: input.timezone }),
     ]));
   }
+  timeline.archiveNotifications = input.behaviors.filter((behavior) => !behavior.active && behavior.auto_archived_at)
+    .map((behavior) => ({ behaviorId: behavior.id, title: behavior.title, endDate: behavior.end_date ?? null }));
   return timeline;
 }
 

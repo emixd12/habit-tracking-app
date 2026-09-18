@@ -64,7 +64,8 @@ describe("trust and legal UI content", () => {
     expect(html).toContain(
       'href="https://developers.google.com/terms/api-services-user-data-policy"',
     );
-    expect(html).toContain("currently limited to Google OAuth test users");
+    expect(html).toContain("review of Calendar access is pending");
+    expect(html).not.toContain("currently limited to Google OAuth test users");
   });
 
   it("renders the approved Terms with the settled legal facts", () => {

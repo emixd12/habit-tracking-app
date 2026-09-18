@@ -1592,6 +1592,25 @@ baselines normalize the missing field to an empty history.
 Migration: `20260906010951_add_behavior_archive_notes.sql`. Legacy archived
 rows remain empty; the migration does not fabricate past archive cycles.
 
+## Behavior duration and scheduled archive (Tickets 142–143)
+
+`behaviors.default_duration_minutes` is a nullable integer from 1 through
+1,440. It is independent of measured Occurrence time. `behaviors.end_date` is
+the nullable four-digit-year local date on which the Behavior first becomes
+archived. `behaviors.auto_archived_at` is the nullable, finite automatic-archive
+instant used by the durable in-app notice. A marker requires an inactive
+Behavior with an `archived_at` instant.
+
+Atomic create, edit, import, restore, export, and account-sync paths carry all
+three fields. Legacy edit payloads that omit a field preserve its stored value.
+Account-sync writes must contain all three keys so an older client cannot erase
+newer data. These optional fields are current Behavior metadata, outside the
+existing configuration-history field vocabulary. Automatic archive still records
+an `active` transition. Occurrence writers check the locked, current end date
+for inserts, updates, and elapsed-row cleanup, independent of configuration lineage.
+Migration:
+`20260918010100_add_behavior_duration_and_scheduled_archive.sql`.
+
 ## Note shortcut state (Tickets 126–128)
 
 `note_shortcut_states` stores records separately from historical Notes. Its

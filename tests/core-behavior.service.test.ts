@@ -148,3 +148,37 @@ describe("shared Behavior orchestration", () => {
     expect(adapter.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledOnce();
   });
 });
+
+it("preserves planning fields across ordinary edits and archive-note writes", async () => {
+  const existing = { ...stored, default_duration_minutes: 45, end_date: "2026-09-18", auto_archived_at: null };
+  const adapter = store(existing);
+  await updateBehavior(adapter, { behaviorId: stored.id, expectedUpdatedAt: stored.updated_at, values, recordedAt });
+  expect(adapter.updateBehaviorWithAtomicScheduleGraph.mock.lastCall![0].behavior).toMatchObject({
+    default_duration_minutes: 45, end_date: "2026-09-18", auto_archived_at: null,
+  });
+  await updateBehavior(adapter, { behaviorId: stored.id, expectedUpdatedAt: stored.updated_at,
+    values: { ...values, defaultDurationMinutes: null, endDate: null }, recordedAt });
+  expect(adapter.updateBehaviorWithAtomicScheduleGraph.mock.lastCall![0].behavior).toMatchObject({ default_duration_minutes: null, end_date: null });
+});
+
+it("records automatic archive once and clears an expired end date on restore", async () => {
+  const archivedAt = "2026-09-18T12:00:00Z";
+  const adapter = store({ ...stored, end_date: "2026-09-18", default_duration_minutes: 30 });
+  await setBehaviorActive(adapter, { behaviorId: stored.id, active: false, automatic: true,
+    recordedAt: archivedAt, effectiveAt: "2026-09-18T04:00:00Z", newArchiveNoteId: "11111111-1111-4111-8111-111111111111" });
+  const commit = adapter.updateBehaviorWithAtomicScheduleGraph.mock.lastCall![0];
+  expect(commit.behavior).toMatchObject({ active: false, auto_archived_at: archivedAt, end_date: "2026-09-18", default_duration_minutes: 30 });
+  expect(commit.configurationEventPlan).toMatchObject({ source: "system", effectiveAt: "2026-09-18T04:00:00Z", reasonCode: "behavior_end_date_reached" });
+  adapter.getBehaviorById.mockResolvedValue({ ...stored, ...commit.behavior });
+  await setBehaviorActive(adapter, { behaviorId: stored.id, active: false, automatic: true, recordedAt: archivedAt });
+  expect(adapter.updateBehaviorWithAtomicScheduleGraph).toHaveBeenCalledTimes(1);
+  await setBehaviorActive(adapter, { behaviorId: stored.id, active: true, recordedAt: archivedAt });
+  expect(adapter.updateBehaviorWithAtomicScheduleGraph.mock.lastCall![0].behavior).toMatchObject({ active: true, end_date: null, auto_archived_at: null, default_duration_minutes: 30 });
+});
+
+it("clears an expired date when the edit form restores a Behavior", async () => {
+  const adapter = store({ ...stored, active: false, end_date: "2026-08-29", auto_archived_at: recordedAt });
+  await updateBehavior(adapter, { behaviorId: stored.id, expectedUpdatedAt: stored.updated_at, recordedAt,
+    values: { ...values, active: true, endDate: "2026-08-29" } });
+  expect(adapter.updateBehaviorWithAtomicScheduleGraph.mock.lastCall![0].behavior).toMatchObject({ active: true, end_date: null, auto_archived_at: null });
+});

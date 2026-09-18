@@ -2,7 +2,12 @@ import type { Tables, TablesInsert, TablesUpdate } from "@/lib/db/database.types
 
 export type Profile = Tables<"profiles">;
 export type Category = Tables<"categories">;
-export type Behavior = Tables<"behaviors">;
+type BehaviorPersistenceField =
+  | "default_duration_minutes"
+  | "end_date"
+  | "auto_archived_at";
+export type Behavior = Omit<Tables<"behaviors">, BehaviorPersistenceField> &
+  Partial<Pick<Tables<"behaviors">, BehaviorPersistenceField>>;
 export type BehaviorDefinitionEvent = Tables<"behavior_definition_events">;
 export type BehaviorConfigurationEvent =
   Tables<"behavior_configuration_events">;

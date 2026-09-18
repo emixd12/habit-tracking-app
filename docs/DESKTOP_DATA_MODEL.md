@@ -433,6 +433,15 @@ each archive cycle atomically. Restore/rearchive preserves prior entries.
 Validated schema-11 backups upgrade before replacement. Older archives receive
 no fabricated history. Account-sync conflicts require explicit review.
 
+## Behavior duration and scheduled archive (Tickets 142–143)
+
+SQLite schema 15 adds nullable `behaviors.default_duration_minutes`,
+`behaviors.end_date`, and `behaviors.auto_archived_at`. SQLite and native row
+validation enforce the 1–1,440 minute bound, real ISO local dates, valid
+instants, and marker-to-archive consistency. Full graph, import, restore,
+export, and account-sync rows carry the fields. Direct synchronization rejects
+older Behavior rows missing the new keys; normalized legacy baselines use null.
+
 ## Note shortcut state (Tickets 126–128)
 
 Schema 13 mirrors the owned `note_shortcut_states` contract in DATA_MODEL with

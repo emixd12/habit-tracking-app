@@ -961,3 +961,8 @@ review inline, preserving the mounted editor. Later snoozes one release for 24
 hours. Restart offers Keep editing or explicit draft discard when necessary.
 These controls use existing square layouts and text actions. Web and marketing
 are not applicable; future mobile implementation remains deferred.
+
+
+## Behavior planning inputs (Tickets 142–143)
+
+The shared create/edit form places optional Default duration (minutes) and End date inputs under Schedule. Use native number/date controls and the existing line-led styling. Explain that duration is separate from tracked averages and archiving starts at midnight on the chosen date. Timeline details label Default duration separately from measured Estimated duration. Timeline and Behaviors show an accessible persistent notification for automatically archived Behaviors, with history preserved. Restore clears an expired end date and the current notification.

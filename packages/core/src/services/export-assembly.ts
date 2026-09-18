@@ -415,6 +415,9 @@ function toExportBehaviorInput(
     active: behavior.active,
     archivedAt: behavior.archived_at,
     archiveNotes: parseArchiveNotes(behavior.archive_notes),
+    defaultDurationMinutes: behavior.default_duration_minutes ?? null,
+    endDate: behavior.end_date ?? null,
+    autoArchivedAt: behavior.auto_archived_at ?? null,
     createdAt: behavior.created_at,
     updatedAt: behavior.updated_at,
   };

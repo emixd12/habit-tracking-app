@@ -210,3 +210,16 @@ function occurrence(
     ...overrides,
   };
 }
+
+it("shows the durable automatic archive notification in both Timeline shells", () => {
+  const timeline = { ...timelineView([]), archiveNotifications: [{ behaviorId: "ended", title: "Course practice", endDate: "2026-09-18" }] };
+  const props = { timeline, statusAction: occurrenceAction, noteAction: occurrenceAction,
+    startTimeTrackingAction: timeTrackingAction, stopTimeTrackingAction: timeTrackingAction, resetTimeTrackingAction: timeTrackingAction };
+  for (const element of [<Timeline key="web" {...props} />, <TimelineScreen key="desktop" {...props} onRefresh={vi.fn()} onShowMore={vi.fn()} />]) {
+    const html = renderToStaticMarkup(element);
+    expect(html).toContain('role="status"');
+    expect(html).toContain("was automatically archived for its 2026-09-18 end date");
+    expect(html).toContain('href="/behaviors"');
+    expect(html).toContain("Review archived behaviors");
+  }
+});

@@ -1,3 +1,4 @@
+import { reconcileMyDueBehaviorArchives } from "./behavior-lifecycle.service";
 import { assembleBehaviorPageData, toBehaviorView } from "@cadence/core/services/behavior-views";
 import {
   createBehavior, setBehaviorActive, updateBehavior, updateBehaviorArchiveNote,
@@ -32,6 +33,7 @@ export { behaviorErrorToActionState };
 export async function getBehaviorPageData(): Promise<BehaviorPageData> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
+  await reconcileMyDueBehaviorArchives(supabase, userId);
   const [categories, behaviors, profileTimezone] = await Promise.all([
     readCachedBehaviorCategories(supabase, userId),
     readCachedUserBehaviors(supabase, userId),

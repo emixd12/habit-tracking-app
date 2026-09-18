@@ -1040,6 +1040,42 @@ function toBehaviorPlan(
   const cadence = readCadenceExtension(row.record);
   const cadenceActive = readExtensionBoolean(cadence, "active");
   const cadenceArchiveNotes = readArchiveNotes(cadence, row, errors);
+  const expectedDurationMinutes = readOptionalInteger(
+    row,
+    "expected_duration_minutes",
+    errors,
+  );
+  const cadenceEndDate = readExtensionLocalDate(cadence, "end_date", row, errors);
+  const cadenceAutoArchivedAt = readExtensionInstant(
+    cadence,
+    "auto_archived_at",
+    row,
+    errors,
+  );
+
+  if (
+    expectedDurationMinutes !== null &&
+    (expectedDurationMinutes < 1 || expectedDurationMinutes > 1_440)
+  ) {
+    errors.push({
+      severity: "error",
+      code: "behavior_expected_duration_invalid",
+      message: `${row.file} row ${row.row}: expected_duration_minutes must be 1 through 1,440 or null.`,
+      file: row.file,
+      row: row.row,
+      path: "expected_duration_minutes",
+    });
+  }
+  if (cadenceAutoArchivedAt && !archivedAtUtc) {
+    errors.push({
+      severity: "error",
+      code: "cadence_auto_archived_at_without_archive",
+      message: `${row.file} row ${row.row}: auto_archived_at requires archived_at_utc.`,
+      file: row.file,
+      row: row.row,
+      path: "extensions.app.cadence.auto_archived_at",
+    });
+  }
 
   if (!id || !title || !category) {
     return null;
@@ -1066,6 +1102,11 @@ function toBehaviorPlan(
     createdAtUtc,
     archivedAtUtc,
     ...(cadenceArchiveNotes === undefined ? {} : { cadenceArchiveNotes }),
+    ...(Object.hasOwn(row.record, "expected_duration_minutes")
+      ? { expectedDurationMinutes }
+      : {}),
+    ...(cadenceEndDate === undefined ? {} : { cadenceEndDate }),
+    ...(cadenceAutoArchivedAt === undefined ? {} : { cadenceAutoArchivedAt }),
     active: archivedAtUtc === null,
     cadenceActive,
     cadenceBrowserReminderEnabled: readExtensionBoolean(
@@ -5551,6 +5592,46 @@ function readArchiveNotes(
     });
     return undefined;
   }
+}
+
+function readExtensionLocalDate(
+  extension: JsonRecord | null,
+  field: string,
+  row: ParsedJsonlRecord,
+  errors: BehaviorLogImportIssue[],
+): string | null | undefined {
+  if (!extension || !Object.hasOwn(extension, field)) return undefined;
+  const value = extension[field];
+  if (value === null) return null;
+  if (typeof value === "string") {
+    try {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value) && value >= "0001-01-01"
+        && Temporal.PlainDate.from(value).toString() === value) return value;
+    } catch { /* report below */ }
+  }
+  errors.push({ severity: "error", code: `cadence_${field}_invalid`,
+    message: `${row.file} row ${row.row}: extensions.app.cadence.${field} must be an ISO local date or null.`,
+    file: row.file, row: row.row, path: `extensions.app.cadence.${field}` });
+  return undefined;
+}
+
+function readExtensionInstant(
+  extension: JsonRecord | null,
+  field: string,
+  row: ParsedJsonlRecord,
+  errors: BehaviorLogImportIssue[],
+): string | null | undefined {
+  if (!extension || !Object.hasOwn(extension, field)) return undefined;
+  const value = extension[field];
+  if (value === null) return null;
+  if (typeof value === "string") {
+    try { return Temporal.Instant.from(value).toString(); }
+    catch { /* report below */ }
+  }
+  errors.push({ severity: "error", code: `cadence_${field}_invalid`,
+    message: `${row.file} row ${row.row}: extensions.app.cadence.${field} must be a UTC instant or null.`,
+    file: row.file, row: row.row, path: `extensions.app.cadence.${field}` });
+  return undefined;
 }
 
 function readExtensionString(

@@ -1062,6 +1062,19 @@ history during restore; an explicitly supplied empty array expresses empty
 history. Archive-only restore retains existing history. Existing Occurrence
 CSV/JSONL formats keep their Occurrence scope.
 
+## Behavior duration and scheduled archive (Tickets 142–143)
+
+Full JSON Behavior records include nullable `default_duration_minutes`,
+`end_date`, and `auto_archived_at`. BehaviorLog maps the default to the standard
+`expected_duration_minutes` field. It stores `end_date` and
+`auto_archived_at` under `extensions.app.cadence`. Older bundles that omit a
+field preserve an existing value during restore; an explicit null clears it.
+Reactivating an archived Behavior clears its automatic marker and any expired
+end date, including when an older bundle omits those fields.
+Import validates the minute bound, real ISO local date, UTC instant, and the
+automatic marker's archived state. App-native JSONL and CSV remain focused on
+Occurrence snapshots and do not add Behavior columns.
+
 ## Note shortcut privacy (Tickets 126–128)
 
 Shortcut records, proposals, dismissed keys, evidence hashes, exclusions, and

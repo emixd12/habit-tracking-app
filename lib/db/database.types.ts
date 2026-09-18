@@ -421,12 +421,15 @@ export type Database = {
           active: boolean
           archive_notes: Json
           archived_at: string | null
+          auto_archived_at: string | null
           browser_reminder_enabled: boolean
           category_id: string | null
           created_at: string
           current_configuration_event_id: string | null
+          default_duration_minutes: number | null
           description: string | null
           email_reminder_enabled: boolean
+          end_date: string | null
           id: string
           recurrence_rule: Json
           reminder_offset_minutes: number
@@ -440,12 +443,15 @@ export type Database = {
           active?: boolean
           archive_notes?: Json
           archived_at?: string | null
+          auto_archived_at?: string | null
           browser_reminder_enabled?: boolean
           category_id?: string | null
           created_at?: string
           current_configuration_event_id?: string | null
+          default_duration_minutes?: number | null
           description?: string | null
           email_reminder_enabled?: boolean
+          end_date?: string | null
           id?: string
           recurrence_rule: Json
           reminder_offset_minutes?: number
@@ -459,12 +465,15 @@ export type Database = {
           active?: boolean
           archive_notes?: Json
           archived_at?: string | null
+          auto_archived_at?: string | null
           browser_reminder_enabled?: boolean
           category_id?: string | null
           created_at?: string
           current_configuration_event_id?: string | null
+          default_duration_minutes?: number | null
           description?: string | null
           email_reminder_enabled?: boolean
+          end_date?: string | null
           id?: string
           recurrence_rule?: Json
           reminder_offset_minutes?: number
@@ -1270,6 +1279,20 @@ export type Database = {
           target_occurrence_id: string
         }
         Returns: Json
+      }
+      archive_due_behaviors: {
+        Args: { batch_limit?: number; processed_at: string }
+        Returns: {
+          behavior_id: string
+          user_id: string
+        }[]
+      }
+      archive_my_due_behaviors: {
+        Args: { batch_limit?: number }
+        Returns: {
+          behavior_id: string
+          user_id: string
+        }[]
       }
       bind_behaviorlog_restore_apply_payload: {
         Args: { restore_payload: Json }

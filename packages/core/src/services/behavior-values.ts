@@ -1,3 +1,4 @@
+import { Temporal } from "@js-temporal/polyfill";
 import type { Json } from "../types/json";
 import type { BehaviorFormField, BehaviorRecurrenceFormDefaults } from "../types/behavior";
 import type { RecurrenceRule, Weekday } from "../types/recurrence";
@@ -246,4 +247,21 @@ export function isWeekday(value: string): value is Weekday {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function validateBehaviorPlanningFields(input: {
+  defaultDurationMinutes?: number | null; endDate?: string | null;
+}): void {
+  const errors: Partial<Record<BehaviorFormField, string>> = {};
+  if (input.defaultDurationMinutes != null && (!Number.isInteger(input.defaultDurationMinutes) ||
+      input.defaultDurationMinutes < 1 || input.defaultDurationMinutes > 1440)) {
+    errors.default_duration_minutes = "Enter a whole number from 1 to 1,440 minutes, or leave blank.";
+  }
+  if (input.endDate != null) {
+    try {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(input.endDate) || input.endDate < "0001-01-01" ||
+          Temporal.PlainDate.from(input.endDate).toString() !== input.endDate) throw new Error("Invalid date");
+    } catch { errors.end_date = "Enter a valid end date, or leave blank."; }
+  }
+  if (Object.keys(errors).length) throw new BehaviorValidationError("Check the highlighted fields.", errors);
 }

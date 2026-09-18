@@ -141,7 +141,7 @@ fn configuration() -> Value {
 }
 fn create_request(profile: &str) -> Value {
     json!({"operation":"createBehaviorGraph","graph":{
-        "behavior":{"id":id(1),"user_id":profile,"title":"Walk","description":null,"category_id":null,"recurrence_rule":{"frequency":"daily","interval":1},"scheduled_time":"09:00:00","timezone":"America/New_York","browser_reminder_enabled":true,"email_reminder_enabled":false,"reminder_offset_minutes":0,"active":true,"current_configuration_event_id":id(5),"created_at":NOW,"updated_at":NOW,"archived_at":null},
+        "behavior":{"id":id(1),"user_id":profile,"title":"Walk","description":null,"category_id":null,"recurrence_rule":{"frequency":"daily","interval":1},"scheduled_time":"09:00:00","timezone":"America/New_York","browser_reminder_enabled":true,"email_reminder_enabled":false,"reminder_offset_minutes":0,"default_duration_minutes":null,"end_date":null,"auto_archived_at":null,"active":true,"current_configuration_event_id":id(5),"created_at":NOW,"updated_at":NOW,"archived_at":null},
         "schedules":[{"id":id(2),"user_id":profile,"behavior_id":id(1),"recurrence_rule":{"frequency":"daily","interval":1},"sort_order":0,"created_at":NOW,"updated_at":NOW}],
         "slots":[{"id":id(3),"user_id":profile,"behavior_id":id(1),"behavior_schedule_id":id(2),"kind":"exact","preset":null,"start_time":"09:00:00","end_time":null,"sort_order":0,"created_at":NOW,"updated_at":NOW}]},
         "definitionEvent":{"id":id(4),"user_id":profile,"behavior_id":id(1),"previous_title":null,"previous_description":null,"next_title":"Walk","next_description":null,"changed_fields":["title"],"recorded_at":NOW,"source":"manual","reason":null,"created_at":NOW,"updated_at":NOW},
@@ -288,6 +288,29 @@ fn archive_history_validates_and_roundtrips_each_cycle() {
 }
 
 #[test]
+fn behavior_duration_and_archive_boundary_validate_and_roundtrip() {
+    let mut fixture = Fixture::new();
+    fixture.create();
+    let mut behavior: Behavior = db::by_id(&fixture.db, &fixture.profile, &id(1)).unwrap();
+    behavior.default_duration_minutes = Some(45);
+    behavior.end_date = Some("2026-10-01".into());
+    db::update(&fixture.db, &fixture.profile, &behavior.id, &behavior).unwrap();
+    let stored: Behavior = db::by_id(&fixture.db, &fixture.profile, &behavior.id).unwrap();
+    assert_eq!(stored.default_duration_minutes, Some(45));
+    assert_eq!(stored.end_date.as_deref(), Some("2026-10-01"));
+
+    let mut invalid = stored.clone();
+    invalid.default_duration_minutes = Some(0);
+    assert!(db::validate_row(&fixture.profile, &invalid).is_err());
+    invalid = stored.clone();
+    invalid.end_date = Some("2026-02-30".into());
+    assert!(db::validate_row(&fixture.profile, &invalid).is_err());
+    invalid = stored;
+    invalid.auto_archived_at = Some("2026-10-01T04:00:00Z".into());
+    assert!(db::validate_row(&fixture.profile, &invalid).is_err());
+}
+
+#[test]
 fn occurrence_identity_keeps_exact_and_different_ranges_and_rejects_stale_batch() {
     let mut fixture = Fixture::new();
     fixture.create();
@@ -307,6 +330,43 @@ fn occurrence_identity_keeps_exact_and_different_ranges_and_rejects_stale_batch(
     assert!(fixture.run(json!({"operation":"applyOccurrenceGeneration","behaviorId":id(1),"expectedConfigurationEventId":id(5),"create":[fresh,duplicate],"update":[],"delete":[]}),102).is_err());
     assert_eq!(fixture.count("occurrences"), 3);
     assert_eq!(fixture.count("mutation_outbox"), 3);
+}
+
+#[test]
+fn end_date_only_edit_rejects_a_stale_generation_insert() {
+    let mut fixture = Fixture::new();
+    fixture.create();
+    let planned = occurrence_row(&fixture.profile, 10, "exact", None);
+    let mut behavior: Behavior = db::by_id(&fixture.db, &fixture.profile, &id(1)).unwrap();
+    let configuration_id = behavior.current_configuration_event_id.clone();
+    behavior.end_date = Some(planned.local_date.clone());
+    db::update(&fixture.db, &fixture.profile, &behavior.id, &behavior).unwrap();
+    let result = fixture.run(json!({"operation":"applyOccurrenceGeneration","behaviorId":id(1),"expectedConfigurationEventId":configuration_id,"create":[planned],"update":[],"delete":[]}),101);
+    assert_eq!(
+        result.unwrap_err(),
+        "Behavior end date changed after occurrence planning."
+    );
+    assert_eq!(fixture.count("occurrences"), 0);
+}
+
+#[test]
+fn end_date_cleanup_can_delete_elapsed_bare_rows_but_preserves_notes() {
+    let mut fixture = Fixture::new();
+    fixture.create();
+    let mut row = fixture.occurrence();
+    row.local_date = "2026-08-29".into();
+    row.scheduled_for = "2026-08-29T13:00:00Z".into();
+    row.note = Some("Keep this note".into());
+    db::update(&fixture.db, &fixture.profile, &row.id, &row).unwrap();
+    let mut behavior: Behavior = db::by_id(&fixture.db, &fixture.profile, &id(1)).unwrap();
+    behavior.end_date = Some("2026-08-28".into());
+    db::update(&fixture.db, &fixture.profile, &behavior.id, &behavior).unwrap();
+    let request = |row: &Occurrence| json!({"operation":"applyOccurrenceGeneration","behaviorId":id(1),"expectedConfigurationEventId":id(5),"create":[],"update":[],"delete":[row]});
+    assert!(fixture.run(request(&row), 102).is_err());
+    row.note = None;
+    db::update(&fixture.db, &fixture.profile, &row.id, &row).unwrap();
+    fixture.run(request(&row), 103).unwrap();
+    assert_eq!(fixture.count("occurrences"), 0);
 }
 
 #[test]
@@ -1380,6 +1440,7 @@ fn passive_intervention_migration_preserves_history_provenance_and_revision_afte
     let mut fixture = Fixture::at_schema(5);
     // Let the current Row type seed the older migration fixture without advancing its ledger.
     fixture.db.execute_batch(db::MIGRATIONS[11].2).unwrap();
+    fixture.db.execute_batch(db::MIGRATIONS[14].2).unwrap();
     let mut plan = import_plan(&fixture.profile);
     let intervention = imported_intervention(&fixture.profile, 200, "browser_push", "sent");
     plan["importedInterventionWrites"] = json!([{"expected":null,"next":intervention}]);
@@ -1428,7 +1489,12 @@ fn passive_intervention_migration_preserves_history_provenance_and_revision_afte
     }
     fixture
         .db
-        .execute_batch("ALTER TABLE behaviors DROP COLUMN archive_notes")
+        .execute_batch(
+            "ALTER TABLE behaviors DROP COLUMN auto_archived_at;
+             ALTER TABLE behaviors DROP COLUMN end_date;
+             ALTER TABLE behaviors DROP COLUMN default_duration_minutes;
+             ALTER TABLE behaviors DROP COLUMN archive_notes;",
+        )
         .unwrap();
     db::migrate(&mut fixture.db, db::MIGRATIONS).unwrap();
     assert_eq!(

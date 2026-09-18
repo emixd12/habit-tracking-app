@@ -14,6 +14,7 @@ use std::{
 };
 
 pub type Result<T> = std::result::Result<T, String>;
+pub(super) const STORAGE_RECOVERY_SCHEMA_VERSION: i64 = 14;
 pub const READ_LIMIT: usize = 100_000;
 pub(super) const MIGRATIONS: &[(i64, &str, &str)] = &[
     (
@@ -86,6 +87,11 @@ pub(super) const MIGRATIONS: &[(i64, &str, &str)] = &[
         "bounded_native_reminder_receipts",
         include_str!("../../migrations/0014_bounded_native_reminder_receipts.sql"),
     ),
+    (
+        15,
+        "behavior_duration_and_scheduled_archive",
+        include_str!("../../migrations/0015_behavior_duration_and_scheduled_archive.sql"),
+    ),
 ];
 
 pub fn open(path: &Path) -> Result<Connection> {
@@ -94,15 +100,20 @@ pub fn open(path: &Path) -> Result<Connection> {
     if latest == 0 {
         migrate(&mut db, MIGRATIONS)?;
         seed(&mut db)?;
-    } else if latest >= MIGRATIONS.last().unwrap().0 {
-        migrate(&mut db, MIGRATIONS)?;
+    } else if latest >= STORAGE_RECOVERY_SCHEMA_VERSION {
         seed(&mut db)?;
         recovery::run(&mut db, path)?;
+        migrate(&mut db, MIGRATIONS)?;
     } else {
         recovery::preflight_initial(path)?;
-        migrate(&mut db, &MIGRATIONS[..MIGRATIONS.len() - 1])?;
+        let recovery_index = MIGRATIONS
+            .iter()
+            .position(|migration| migration.0 == STORAGE_RECOVERY_SCHEMA_VERSION)
+            .ok_or("The storage recovery migration is unavailable.")?;
+        migrate(&mut db, &MIGRATIONS[..recovery_index])?;
         seed(&mut db)?;
         recovery::run(&mut db, path)?;
+        migrate(&mut db, MIGRATIONS)?;
     }
     Ok(db)
 }
@@ -711,6 +722,24 @@ pub fn validate_row<T: StoredRow>(profile_id: &str, row: &T) -> Result<()> {
     }
     if T::TABLE == "behaviors" {
         validate_archive_notes(&value["archive_notes"])?;
+        if value["default_duration_minutes"]
+            .as_i64()
+            .is_some_and(|minutes| !(1..=1_440).contains(&minutes))
+            || !value["default_duration_minutes"].is_null()
+                && value["default_duration_minutes"].as_i64().is_none()
+        {
+            return Err("A Behavior default duration must be 1 through 1,440 minutes.".into());
+        }
+        if let Some(end_date) = value["end_date"].as_str() {
+            valid_date(end_date)?;
+        } else if !value["end_date"].is_null() {
+            return Err("A Behavior end date is invalid.".into());
+        }
+        if !value["auto_archived_at"].is_null()
+            && (value["active"] != false || value["archived_at"].is_null())
+        {
+            return Err("An automatic archive marker requires an archived Behavior.".into());
+        }
     } else if T::TABLE == "note_shortcut_states" {
         validate_note_shortcut_state(&value)?;
     }

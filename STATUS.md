@@ -43,12 +43,44 @@ When updating a ticket row:
 
 ## Current repository state
 
-Tickets 138–141 continuation reached publication on 2026-09-17. Ticket 139 is
-complete. Ticket 138 is complete after native reconnection and primary-account
-restoration. Ticket 140 is reopened for a recording with the verified Cadence
-branding. Ticket 141 is in progress; Google verified branding, but sensitive-scope
-submission is not complete. Unrelated working-tree changes were preserved
-and excluded from the isolated releases.
+Tickets 144–145 were filed on September 18, 2026. Both are `not_started`.
+Ticket 144 covers the integration playbook, reusable brief, and evidence-backed
+Calendar lessons. Ticket 145 defines the first external consumer and proposes
+its access contract after using that brief. Consumer discovery may begin earlier.
+These are documentation/planning tickets. No new connector, API/MCP server,
+coaching feature, provider action, or product-scope expansion is authorized.
+The filing changes `docs/TICKETS.md`, this ledger, and the planning pointer in
+`docs/FUTURE_UPDATES.md`. Existing ticket states and release gates remain unchanged.
+Filing verification passed: `agents:check`, `interactions:check`,
+`resolvers:check`, and `git diff --check`. Runtime tests and builds were not
+rerun because this filing changes documentation only.
+
+Tickets 142–143 are complete in source (2026-09-17): optional default duration
+and end-date automatic archive with durable in-app notifications. Web and desktop
+share validation and lifecycle rules; Postgres/SQLite, synchronization, and
+portability preserve the fields. Live database guards reject stale generation
+plans after end-date edits. Older-bundle restore clears expired archive metadata.
+
+Required checks and web/desktop builds passed. The full suite passed 1,786 tests;
+native tests passed 106. Real SQLite contracts passed 20 tests with one skipped;
+the authenticated Supabase contract, clean migration reset, and rollback SQL
+lifecycle contract passed. Responsive shared-form and Timeline QA passed. Fresh
+independent acceptance review returned `ship`. Evidence and changed-file summary:
+`docs/qa/behavior-planning-fields.md`. Web production deployed on 2026-09-18 as
+`dpl_DqLBYnrVyJQfDFV3YFcCRWicT29f`; both feature migrations are hosted.
+The isolated production candidate passed all required checks, 1,745 tests,
+hosted rollback SQL, public route checks, and signed-in form QA. Native release
+acceptance remains pending. Older desktop clients require the native update to
+synchronize Behavior changes; local tracking remains available. Unrelated
+working-tree changes and the older pending import migration were preserved.
+
+
+Tickets 138–140 are complete as of September 18, 2026. The replacement
+verified-brand demonstration is published as Unlisted and reviewer playback passes.
+Ticket 141 is in progress: Google accepted the Calendar data-access submission on
+September 18 at 10:52 EDT and reports under review. Branding is already verified;
+Calendar scope approval and post-approval smoke checks remain outstanding.
+Unrelated working-tree changes were excluded from the isolated releases.
 
 Ticket 138: Cloudflare's initially empty `cadence-me.com` zone now has two
 DNS-only Vercel A records and Google's TXT challenge. DNS, TLS, HTTPS, and Search
@@ -68,45 +100,47 @@ Ticket 139: homepage, FAQ, Privacy, public links, and Google branding links are
 published and verified. The owner approved the September 17 Privacy text and
 recorded scope. This is owner approval, not independent legal review; the August
 31 baseline approval remains. App production is
-`dpl_CHQVE4LWvUPG6LN4dpW3YwTTAgua`; marketing production is
+`dpl_2J1VKxrPY6gDvxVTNzFf8hpMRZ4b`; marketing production is
 `dpl_8t2tdswkbtotmut2Pbs5B44uA1BE` after the verified-brand review-copy correction. All seven required commands pass in both
 workspace and isolated app candidate. Candidate tests: 1,685 passed, 26 skipped;
 workspace tests: 1,748 passed, 29 skipped. Marketing and narrow-layout checks pass.
 Fresh review returned `ship` after correcting staged registry/environment metadata.
-Public Trust origins are aligned. The Production marketing-deployment setting
-now names the new marketing deployment; the running app still has its previous
-build-time reference until a later app deployment. Fresh commit-bound evidence
-remains pending. No fresh Trust Passed claim was made.
+Public Trust origins and the running app marketing-deployment reference are
+aligned after the Privacy-copy redeployment. Fresh commit-bound evidence remains
+pending. No fresh Trust Passed claim was made.
 
 Ticket 140: the owner completed Gmail setup for `cadence.testing.is@gmail.com`.
 Browser readback confirms that identity. Google Calendar now contains the private
 `Cadence demonstration` calendar and three harmless events: Demo planning,
 Demo afternoon walk, and the September 17–18 all-day Demo workshop. No guests,
-locations, or event reminders were added. Google Cloud now includes this identity
-in the Calendar project's Testing audience, preserving existing test users.
+locations, or event reminders were added. Google Cloud added this identity
+to the Calendar project's earlier Testing audience, preserving existing test users.
 The owner completed Cadence sign-in. The dedicated account granted the two
 read-only Calendar permissions. Only the demonstration calendar is selected.
 Timeline displays both timed events and the two-day all-day event; timed preview
 and read-only details pass. Installed desktop acceptance and primary-account
-restoration passed. The private backups remain outside the repository. A four-minute
-production web demonstration is recorded and privacy-reviewed. Complete playback
-and full-file decoding pass. The owner confirmed YouTube’s agreement; the video
-is published as Unlisted at https://youtu.be/FFlbGp-_6bE on brittlebeliefs.
-YouTube checks found no issues. Signed-out Incognito playback passes. The video uses
-the same Calendar client as desktop; installed acceptance is documented separately.
-A second desktop switch/restoration matches all rows in all 15 tracking tables.
-Settings reports Account data is current. The dedicated Calendar grant is disconnected.
+restoration passed. The private backups remain outside the repository. The final 3:35 production web demonstration shows actual Cadence branding,
+both read-only Calendar permissions, selection, refresh, timed/all-day details,
+and disconnect. It is Unlisted at https://youtu.be/vUi5s2B51Uo on brittlebeliefs.
+YouTube checks found no issues. Complete local playback, decoding, privacy inspection,
+and unauthenticated privacy-enhanced YouTube playback pass. The final labeled
+client-ID reference comes from an earlier recording of the same production client;
+no consent label was simulated. Installed acceptance remains separate evidence.
+The earlier FFlbGp-_6bE video is superseded. A second desktop switch/restoration
+matches every row in all 15 tracking tables. The primary account reports current;
+the dedicated Calendar grant is disconnected.
 
-Ticket 141: scope justifications, client/domain details, and submission fields
-are prepared, including the original published video. The owner confirmed the
-production-audience expansion on September 17. Google now reports In production.
-Google rejected the app-name/homepage mismatch; changing the consent name from
-Cadence Calendar to Cadence resolved it. Google verified the branding, which is
-now published. Sensitive-scope submission remains open at the questionnaire.
-The original video shows the pre-verification domain label and must be replaced
-with an actual recording of the verified branding before final submission.
-Google has not approved Calendar data access. `info@identityscaffolding.com` remains the owner-confirmed support and
-developer inbox. The owner named Emiliano Bache Rodriguez as its human monitor.
+Ticket 141: Google accepted the final questionnaire with the replacement video
+and accurate recording provenance. Verification Center reports data access under
+review; Trust and Safety confirms receipt. The three declared scopes remain
+OpenID, calendar-list read-only, and events read-only. No restricted/write scopes
+were requested. Brand verification, the owner's Privacy approval, and technical
+acceptance remain separate from Google's pending Calendar-access decision.
+Emiliano Bache Rodriguez monitors info@identityscaffolding.com. Daily 09:00 local
+Verification Center follow-up is active in this task; it notifies only on meaningful
+changes or required action and does not monitor the inbox. No private correspondence
+or credentials are committed. Documentation checks pass; earlier required candidate
+runtime checks remain valid because this final continuation changes media/records only.
 
 Current evidence and rollback are in `docs/VERCEL_WORKFLOW.md`,
 `docs/qa/day-progress-release.md`, and `docs/qa/google-calendar-capabilities.md`.
@@ -116,8 +150,8 @@ separate. No schema, native package, or private provider credential changed.
 Tickets 133–137 remain in progress (2026-09-17). Implementation and the reviewed
 hosted rollout pass required checks. The shared Timeline, normalized external-event
 contract, same-account Calendar broker, native disposable cache, and duration
-estimates are integrated. Production uses the separate Calendar Google project in
-Testing mode. Google Cloud administration uses Identity Scaffolding Chrome;
+estimates are integrated. Production uses the separate Calendar Google project, now In production
+with Calendar data access under review. Google Cloud administration uses Identity Scaffolding Chrome;
 second-account acceptance uses the owner-approved Emi Chrome profile.
 
 Live web/native same-account connection, wrong-account rejection, selection,

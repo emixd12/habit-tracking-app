@@ -609,12 +609,12 @@ emails, or private message text in git.
 |---|---|
 | Google Cloud project ID and final Calendar OAuth client ID | `cadence-calendar-498717`; `567431620531-jilr3qg9oob1pbbvfhqkdnh797ep21uf.apps.googleusercontent.com`. Sign-in project remains separate. |
 | Final homepage, privacy policy, terms URL if configured, authorized domains, redirect URI, and JavaScript origins | Saved and read back: `https://cadence-me.com`, `https://app.cadence-me.com/privacy`, `https://app.cadence-me.com/terms`. Added authorized `cadence-me.com` and exact `https://app.cadence-me.com/auth/google-calendar/callback`; retained legacy domains/callback. JavaScript origins unchanged. |
-| Branding verification status, publish time, and Data Access request time | Search Console ownership verified September 17, 2026. Owner confirmed In production. Google verified and published Cadence branding; Calendar data-access submission remains incomplete. |
+| Branding verification status, publish time, and Data Access request time | Search Console ownership verified September 17, 2026. Owner confirmed In production. Google verified and published Cadence branding. Calendar data-access submission accepted September 18, 2026 at 10:52 EDT; under review. |
 | Exact declared scopes | `openid`, `calendar.calendarlist.readonly`, and `calendar.events.readonly`; console readback confirmed all three September 17. Calendar-list/OpenID appear under non-sensitive; events-readonly appears under sensitive. No restricted scopes are listed. |
-| Demonstration artifact path, SHA-256, duration, unlisted YouTube URL, and signed-out playback result | Four-minute reviewed local export recorded below. Unlisted https://youtu.be/FFlbGp-_6bE; signed-out Incognito playback passes. |
+| Demonstration artifact path, SHA-256, duration, unlisted YouTube URL, and signed-out playback result | Final 214.833-second export and SHA-256 recorded below. Unlisted https://youtu.be/vUi5s2B51Uo; unauthenticated privacy-enhanced embed playback passes. Earlier FFlbGp-_6bE is superseded. |
 | Demonstrated web deployment and installed desktop build | Video: dpl_CHQVE4LWvUPG6LN4dpW3YwTTAgua. Separate installed QA: preview.40; no native footage in this export. |
 | Developer contact and support inbox monitor | Owner retained `info@identityscaffolding.com` and named Emiliano Bache Rodriguez as its human monitor on September 17, 2026. |
-| Reviewer request date, requested evidence, response date, and current Verification Center status | Not recorded yet. |
+| Reviewer request date, requested evidence, response date, and current Verification Center status | Submitted September 18, 2026, 10:52 EDT. Under review; Trust and Safety confirms receipt. No reviewer question or decision yet. |
 | Final decision, approved scopes, approved client, and post-decision web/native consent smoke result | Not recorded yet. |
 
 Before submission, identify any genuinely test-only clients, preview callbacks,
@@ -916,3 +916,104 @@ The owner retained info@identityscaffolding.com and named Emiliano Bache Rodrigu
 as the human monitor. The September 17 Privacy approval remains owner approval,
 not independent legal review. No Calendar data-access submission or approval has
 occurred. Reference: https://support.google.com/cloud/answer/13464321 .
+
+
+### Updated-brand recording — September 17, 2026, 21:29 EDT
+
+A new continuous local recording completed in Awesome Screen Recorder. It shows
+actual Google sign-in, the pending-review warning, the verified Cadence consent
+name, both read-only Calendar scopes, demonstration-calendar selection, refresh,
+timed and two-day event details, and successful disconnect. The dedicated account
+remains disconnected. The recorder shows approximately 3 minutes 40 seconds.
+Download, privacy editing, playback review, and replacement upload remain pending;
+this checkpoint does not complete Ticket 140.
+
+Automatic approval review blocked reading the live OAuth address to select the
+client ID. No OAuth parameters were extracted through that rejected action. The
+previous reviewed recording contains the same client's readable address-bar ID;
+retain truthful capture provenance if using it as supplemental client evidence.
+Browser URL policy separately blocked automated access to the extension's saved
+video page. The user was asked to download the completed recording. No alternate
+extension-access route was attempted after that block.
+
+The Privacy page still contained a Testing-mode availability sentence. The
+continuation corrects only that obsolete availability statement to pending review.
+Data handling, retention, scope, and Limited Use disclosures remain as owner
+approved. This operational correction is not independent legal review.
+
+
+September 18 download checkpoint: the user downloaded
+`Cadence-·-Decide-your-days-own-every-record.mp4`. Its 3,694,663 bytes and
+SHA-256 `6b23892aea067bcb247de486615eb342f37e035c60228c8d25f23624f28612a9`
+match the earlier raw four-minute recording exactly. It is not the updated-brand
+recording. The requested replacement remains the recorder's Settings | Cadence
+Tracker item, approximately 3:40. No replacement upload or final Google submission
+was made from the older file.
+
+
+### Final verified-brand video and submission — September 18, 2026
+
+The user downloaded the correct `Settings-Cadence-Tracker.mp4` recording.
+The final privacy-reviewed export is:
+`/private/tmp/cadence-oauth-demo-20260917/verified-brand/cadence-calendar-verified-brand.mp4`.
+SHA-256: `a2d7b2ae0d8b974776c5f4fc24939b605aea367c73309b2bb02b06a2e3130c14`.
+It is 2,042,323 bytes, 214.833 seconds, H.264, 1146×720, 30 fps, with no audio.
+The raw recording and review artifacts remain private and outside git.
+
+The actual September 17 main recording shows dedicated-account sign-in, the
+expected pending-sensitive-review warning, Cadence identity consent, both Calendar
+read-only permissions, only the demonstration calendar selected, refresh, timed
+preview/details, two-day all-day details, and disconnect. Three unrelated account
+chooser identities and transient OAuth address parameters are masked. The ending
+Privacy segment was trimmed because it showed the obsolete Testing-mode sentence;
+the subsequent production correction is recorded in release QA.
+
+At 3:25, a separately labeled ten-second client reference shows the public client
+ID from the earlier reviewed recording. It identifies that earlier capture and the
+unchanged production client. It is not presented as continuous current-brand footage.
+No consent wording or app identity was replaced. Web deployment demonstrated:
+`dpl_CHQVE4LWvUPG6LN4dpW3YwTTAgua`; installed preview.40 acceptance remains separate
+QA evidence. Both surfaces share the same hosted Calendar client.
+
+Privacy inspection covered 215 one-second samples in 14 contact sheets, plus
+full-resolution consent/client-reference frames. Full-file decoding passed.
+QuickTime completed playback at 3:35 with the final client reference visible.
+YouTube published the export as Unlisted on brittlebeliefs
+(`UCXSp9JAdGUai5kTss6E8MCQ`): https://youtu.be/vUi5s2B51Uo .
+Checks found no issues; the video is not made for kids. The prior video remains
+available but is superseded as submission evidence.
+
+Reviewer access passed through the unauthenticated `youtube-nocookie.com` player
+embedded on a temporary loopback page in Chrome. Its title/channel matched, and
+playback advanced to 0:03 of 3:34. The direct embed first returned Error 153 because
+it lacked an embedding referrer; the normal embedded player resolved that setup
+error. No Google account sign-in was performed for the privacy-enhanced player.
+This check is not claimed as a new Incognito-window test. The temporary server
+and test tabs were removed afterward.
+
+Google saved the replacement link and the unchanged 965-character scope
+justification. The 941-character additional information names both Google projects,
+the production client, shared desktop broker, legacy callback compatibility, test
+data, masking, explicitly earlier client-reference provenance, and inbox monitor.
+All four questionnaire eligibility questions were answered No. The requirements
+acknowledgment and conditional restricted-scope acknowledgment were checked; no
+restricted scopes are requested.
+
+The final Submit for verification action succeeded on September 18 at 10:52 EDT
+(14:52 UTC). Verification Center reports: **Your app's data access is under review.**
+Trust and Safety confirms receipt. All seven review steps show in progress.
+The console estimates a first email within 3–5 days and review within 4–6 weeks;
+these are Google's estimates, not guaranteed dates. The last approved consent
+screen remains in use. Branding remains verified and shown to users.
+
+Ticket 140 is complete. Ticket 141 remains in progress until Google's decision
+covers the actual client/scopes and post-approval web/native smoke checks pass.
+Owner Privacy approval, technical acceptance, and provider approval remain distinct.
+Emiliano Bache Rodriguez monitors info@identityscaffolding.com. Task heartbeat
+`cadence-google-review-follow-up` checks Verification Center daily at 09:00 local,
+notifies only for meaningful changes or required participation, and does not read
+or monitor that inbox. Private reviewer correspondence must stay out of git.
+
+Final documentation checks passed: `agents:check`, `interactions:check`,
+`resolvers:check`, and `git diff --check`. No new runtime change required another
+full build or test run.

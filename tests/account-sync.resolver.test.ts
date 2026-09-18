@@ -556,7 +556,10 @@ describe("resolveAccountSync", () => {
 
   it("preserves domain revision fields while removing ownership", () => {
     const revised: AccountSyncEntity = { kind: "behavior", id: "a", value: { id: "a", revision: 3, user_id: "local", metadata: { user_id: "provenance-owner" } } };
-    expect(plan(empty, snapshot([revised]), empty).hostedWrites[0].value).toEqual({ archive_notes: [], id: "a", revision: 3, metadata: { user_id: "provenance-owner" } });
+    expect(plan(empty, snapshot([revised]), empty).hostedWrites[0].value).toEqual({
+      archive_notes: [], default_duration_minutes: null, end_date: null, auto_archived_at: null,
+      id: "a", revision: 3, metadata: { user_id: "provenance-owner" },
+    });
   });
 
   it("rejects duplicate identities and collection rows above the ceiling", () => {
@@ -672,5 +675,35 @@ describe("archive notes in account synchronization", () => {
   });
   it("rejects malformed archive history before planning a write", () => {
     expect(() => plan(empty, withNotes([first, first]), empty)).toThrow(/duplicated/);
+  });
+});
+
+describe("Behavior persistence fields in account synchronization", () => {
+  const behavior = (value: Record<string, unknown>): AccountSyncSnapshot => snapshot([{
+    kind: "behavior", id: "b", value: { id: "b", title: "Walk", archive_notes: [], ...value },
+  } as AccountSyncEntity]);
+
+  it("normalizes legacy rows and carries complete fields into writes", () => {
+    const result = plan(snapshot([row("b", "Walk")]), behavior({
+      default_duration_minutes: 30,
+      end_date: "2026-10-01",
+      auto_archived_at: null,
+    }), behavior({}));
+    expect(result.hostedWrites[0].value).toMatchObject({
+      default_duration_minutes: 30,
+      end_date: "2026-10-01",
+      auto_archived_at: null,
+    });
+  });
+
+  it.each([
+    { default_duration_minutes: 0 },
+    { default_duration_minutes: 1.5 },
+    { end_date: "2026-02-30" },
+    { end_date: "0000-01-01" },
+    { auto_archived_at: "not-an-instant" },
+    { auto_archived_at: "2026-09-18T00:00:00Z", active: true, archived_at: null },
+  ])("rejects invalid persistence values %#", (invalid) => {
+    expect(() => plan(empty, behavior(invalid), empty)).toThrow(/Behavior|archive marker/);
   });
 });

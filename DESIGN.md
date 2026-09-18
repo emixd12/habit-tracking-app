@@ -564,3 +564,8 @@ controls. Synthetic Calendar bench adapters perform no provider or account reads
 
 The production current-time dot updates on visible minute boundaries without an
 SVG position transition. This avoids an animation continuing after minimization.
+
+
+## Behavior planning fields
+
+The shared Behavior form now uses native optional number/date inputs for default duration and scheduled archive. Existing tokens and field styling remain. Timeline and Behaviors reuse divider-led status text for automatic archive notifications. No new visual primitive or token was introduced.

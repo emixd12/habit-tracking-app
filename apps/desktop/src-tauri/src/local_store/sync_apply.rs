@@ -288,6 +288,19 @@ fn validate_write(
             validate_row_write::<Category>(db, profile, write, false, false)
         }
         AccountSyncEntityKind::Behavior => {
+            if write.operation == AccountSyncOperation::Upsert {
+                let value = write
+                    .value
+                    .as_ref()
+                    .and_then(Value::as_object)
+                    .ok_or("An account sync upsert requires a value.")?;
+                if ["default_duration_minutes", "end_date", "auto_archived_at"]
+                    .iter()
+                    .any(|field| !value.contains_key(*field))
+                {
+                    return Err("Update Cadence before synchronizing Behavior changes.".into());
+                }
+            }
             validate_row_write::<Behavior>(db, profile, write, false, false)
         }
         AccountSyncEntityKind::Schedule => {
@@ -815,6 +828,9 @@ mod tests {
             active: true,
             archive_notes: vec![],
             archived_at: None,
+            auto_archived_at: None,
+            default_duration_minutes: None,
+            end_date: None,
             recurrence_rule: json!({"type":"daily","interval":1}),
             scheduled_time: "09:00:00".into(),
             timezone: "America/New_York".into(),
@@ -909,7 +925,7 @@ mod tests {
             import_run_id: None,
             imported_intervention_id: None,
             created_at: stamp.clone(),
-            updated_at: stamp,
+            updated_at: stamp.clone(),
         };
         CompleteGraph {
             category,
@@ -1514,6 +1530,9 @@ mod tests {
                 updated_at: stamp.clone(),
             }],
             archived_at: Some(stamp.clone()),
+            auto_archived_at: Some(stamp.clone()),
+            default_duration_minutes: Some(45),
+            end_date: Some("2026-09-01".into()),
             recurrence_rule: json!({"type":"daily","interval":1}),
             scheduled_time: "09:00:00".into(),
             timezone: "America/New_York".into(),
@@ -1544,7 +1563,7 @@ mod tests {
             preset: None,
             sort_order: 0,
             created_at: stamp.clone(),
-            updated_at: stamp,
+            updated_at: stamp.clone(),
         };
         let rows = [
             (
@@ -1619,10 +1638,43 @@ mod tests {
                 .behavior_id,
             behavior.id
         );
+        let stored_behavior = db::by_id::<Behavior>(&connection, &profile, &behavior.id).unwrap();
+        assert_eq!(stored_behavior.archive_notes, behavior.archive_notes);
+        assert_eq!(stored_behavior.default_duration_minutes, Some(45));
+        assert_eq!(stored_behavior.end_date.as_deref(), Some("2026-09-01"));
+        assert_eq!(
+            stored_behavior.auto_archived_at.as_deref(),
+            Some("2026-09-01T00:00:00.000000Z")
+        );
+
+        let expected_behavior = normalized(&stored_behavior).unwrap();
+        let mut legacy_behavior = expected_behavior.clone();
+        let legacy_object = legacy_behavior.as_object_mut().unwrap();
+        legacy_object.remove("default_duration_minutes");
+        legacy_object.remove("end_date");
+        legacy_object.remove("auto_archived_at");
+        let failure = execute(
+            &mut connection,
+            Request::ApplyAccountSync {
+                profile_id: profile.clone(),
+                writes: vec![AccountSyncWrite {
+                    kind: AccountSyncEntityKind::Behavior,
+                    id: behavior.id.clone(),
+                    operation: AccountSyncOperation::Upsert,
+                    expected: Some(expected_behavior.clone()),
+                    value: Some(legacy_behavior),
+                }],
+            },
+        )
+        .unwrap_err();
+        assert_eq!(
+            failure,
+            "Update Cadence before synchronizing Behavior changes."
+        );
         assert_eq!(
             normalized(&db::by_id::<Behavior>(&connection, &profile, &behavior.id).unwrap())
-                .unwrap()["archive_notes"],
-            normalized(&behavior).unwrap()["archive_notes"]
+                .unwrap(),
+            expected_behavior
         );
         let mut detached_behavior = behavior.clone();
         detached_behavior.category_id = None;

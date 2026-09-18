@@ -286,3 +286,10 @@ Archive notes sync with the account when linked and work offline on desktop.
 They appear in Full JSON and BehaviorLog exports when **Include Notes** is on.
 Turn that option off to omit their text from an export. The fields have visible
 labels and support keyboard input; controls wrap on narrow screens.
+
+
+## Default duration and end date
+
+Default duration (minutes) is optional. Enter a whole number from 1 to 1,440. Timeline uses this value for planning while your tracked time and measured averages stay separate. Clear it to return to the measured estimate.
+
+End date is optional. Cadence archives the Behavior at the start of that date in its timezone. No Occurrences are scheduled on that date or later. Your history stays available under Archived behaviors. Cadence shows an in-app archive notification, including when you return after being offline. Desktop catches up when it opens or resumes. Restoring clears an expired end date.

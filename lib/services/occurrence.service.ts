@@ -59,6 +59,7 @@ import {
 import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { processDueBehaviorArchives } from "@/lib/services/behavior-lifecycle.service";
 import type {
   Behavior,
   Occurrence,
@@ -169,6 +170,7 @@ export async function syncUserOccurrences(
         generationWindow: resolveGenerationWindow({
           now,
           timezone: behavior.timezone,
+          behaviorEndDate: behavior.end_date,
           horizonDays: options.horizonDays,
         }),
       }));
@@ -232,6 +234,7 @@ export async function syncUserOccurrences(
                   ),
                   timezone: behavior.timezone,
                   active: behavior.active,
+                  endDate: behavior.end_date,
                   createdAt: behavior.created_at,
                 },
                 existingOccurrences: behaviorOccurrences.map(
@@ -531,6 +534,11 @@ export async function processOccurrenceSyncHorizons(
   const supabase = options.supabase ?? createServiceRoleClient();
   const now = options.now ?? Temporal.Now.instant();
   const horizonDays = options.horizonDays ?? DEFAULT_OCCURRENCE_HORIZON_DAYS;
+  await processDueBehaviorArchives({
+    supabase,
+    now,
+    limit: options.limit,
+  });
   const targets = await listProfileOccurrenceSyncTargets(supabase, {
     limit: normalizeOccurrenceSyncProcessLimit(options.limit),
   });
@@ -603,6 +611,7 @@ export async function syncBehaviorOccurrences(
   const generationWindow = resolveGenerationWindow({
     now,
     timezone: currentBehavior.timezone,
+    behaviorEndDate: currentBehavior.end_date,
     horizonDays: options.horizonDays,
   });
   const [existingOccurrences, schedules] = await Promise.all([
@@ -631,6 +640,7 @@ export async function syncBehaviorOccurrences(
       scheduleSlots: schedules.flatMap((schedule) => schedule.timeEntries),
       timezone: currentBehavior.timezone,
       active: currentBehavior.active,
+      endDate: currentBehavior.end_date,
       createdAt: currentBehavior.created_at,
     },
     existingOccurrences: existingOccurrences.map(

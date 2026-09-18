@@ -10387,8 +10387,8 @@ Filing this ticket does not change DNS, hosting, credentials, or OAuth settings.
 
 Status: complete (2026-09-17). Homepage, FAQ, owner-approved Privacy revision,
 canonical public links, and Google branding links are published and verified.
-Required workspace and isolated-candidate checks pass. Ticket 138 owns the
-remaining real OAuth/native compatibility checks; Tickets 140–141 own the
+Required workspace and isolated-candidate checks pass. Ticket 138 records the
+completed OAuth/native compatibility checks; Tickets 140–141 own the
 recording and Google review. Evidence: the authorized continuation in
 `docs/qa/day-progress-release.md`. Related: Tickets 134 and 137.
 
@@ -10442,26 +10442,22 @@ publication or provider-compliance claim.
 
 ## Ticket 140: Google Calendar verification demonstration video
 
-Status: in_progress (reopened after brand verification). Dependencies: Tickets 138–139 and stable live web/native
-Calendar flows from 134–137; full Ticket 137 closure is not a prerequisite.
+Status: complete (2026-09-18). Dependencies: Tickets 138–139 and stable live
+web/native Calendar flows from 134–137; full Ticket 137 closure is not a prerequisite.
 
-September 17 continuation: the owner completed `cadence.testing.is@gmail.com`.
-Browser identity, a private demonstration calendar with three harmless events,
-and Calendar OAuth test-user enrollment are verified. New-domain Cadence sign-in,
-read-only Calendar consent, selection, refresh, timed preview/details, and two-day
-all-day placement pass. The owner approved the temporary desktop switch and
-primary-account restoration. Installed desktop consent, selection, refresh,
-read-only details, disconnect, and primary-account restoration passed. A four-minute
-production web video now covers the complete consent and read-only feature flow.
-Privacy masks protect unrelated account identities and transient OAuth parameters.
-Playback and decoding pass. The owner confirmed YouTube’s upload agreement.
-The video is Unlisted on brittlebeliefs at https://youtu.be/FFlbGp-_6bE.
-YouTube checks found no issues; signed-out Incognito playback passes. Desktop uses the same Calendar client; its installed
-acceptance remains separate QA evidence, not footage in this video. The actual
-unverified consent label is cadence-me.com. Google subsequently verified and
-published the consent name Cadence. This ticket is reopened for an actual updated
-recording that matches that branding. The original video remains available;
-it is not the final matching-brand evidence for sensitive-scope submission.
+The final 3:35 video is Unlisted at https://youtu.be/vUi5s2B51Uo on brittlebeliefs.
+It shows actual verified Cadence branding, separate sign-in/Calendar consent,
+both read-only permissions, calendar selection, refresh, timed/two-day event details,
+and disconnect. Only the dedicated test identity and harmless events are exposed.
+Privacy inspection, full decoding, complete local playback, and unauthenticated
+privacy-enhanced YouTube playback pass. YouTube checks found no issues.
+The separately labeled final client-ID reference uses an earlier capture of the
+same unchanged production client. No consent name was altered or simulated.
+The original FFlbGp-_6bE video is superseded for submission. Installed desktop
+acceptance is separate QA evidence; desktop shares the hosted Calendar client.
+Primary-account restoration passed, including exact equality in all 15 tracking
+tables. The dedicated Calendar grant is disconnected. Required candidate checks
+pass. Artifact provenance and evidence: `docs/qa/google-calendar-capabilities.md`.
 
 Goal: produce the screen recording required for Google's sensitive-scope review.
 Use harmless test events and a plain demonstration, not a promotional film.
@@ -10506,14 +10502,16 @@ Status: in_progress. Dependencies: Tickets 138–140 and relevant technical evid
 from 134/137. Full Ticket 137 closure is not a prerequisite; this ticket supplies
 its public-verification evidence.
 
-September 17 submission checkpoint: the reviewed video is published and accessible
-without sign-in. The owner confirmed the production-audience expansion, and Google
-reports In production. Google found an app-name/homepage mismatch. Changing the
-consent name from Cadence Calendar to Cadence resolved it. Google verified the
-branding, and the verified branding is published. Scope justification and the
-submission summary are saved. Final sensitive-scope submission waits for a new
-recording that matches the verified branding. Google has not approved Calendar
-data access. The verification questionnaire remains unsubmitted.
+September 18 submission checkpoint: Google accepted the final data-access
+submission at 10:52 EDT for `cadence-calendar-498717`. Verification Center reports
+under review, and Trust and Safety confirms form receipt. The submitted video is
+https://youtu.be/vUi5s2B51Uo; additional information accurately identifies its earlier
+client-ID reference. Branding is verified and published. The three declared scopes
+remain unchanged; no write/restricted scopes were requested. Google has not approved
+Calendar data access. Ticket completion still requires that approval and the
+post-approval consent smoke checks. Emiliano Bache Rodriguez monitors the unchanged
+support/developer inbox. A daily 09:00 local task follow-up checks Verification
+Center and stays quiet without meaningful changes; it does not monitor the inbox.
 
 Goal: submit the separate Calendar OAuth project for brand/data-access review,
 answer reviewer questions, and record Google's actual decision.
@@ -10563,3 +10561,211 @@ Run `npm run agents:check`, `npm run interactions:check`,
 Execution requires each ticket's stated acceptance and applicable code/provider
 checks. Native/provider/Workspace coverage remains under Tickets 134–137;
 these follow-ups do not change their status or duplicate their test matrices.
+
+
+## Ticket 142: Default Behavior duration
+
+Status: complete in source; web production deployed September 18, 2026.
+Evidence: `docs/qa/behavior-planning-fields.md`. Installed-native release
+acceptance remains pending under the desktop release workflow.
+
+Goal: let users set an optional default duration when creating or editing a Behavior.
+
+Scope and acceptance:
+
+- Accept a whole number of minutes from 1 through 1,440; blank means no default.
+- Store the value separately from tracked time and measured averages.
+- Timeline uses the explicit default when present; otherwise retain the existing
+  estimate from completed, stopped Occurrences. Clearly label the source.
+- Preserve values through web/desktop edits, archive/restore, synchronization,
+  and full-data/BehaviorLog portability. Older records default to null.
+- Validate at form and persistence boundaries. Cover invalid values, clearing,
+  measured-average isolation, and Timeline duration precedence.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Shared Behavior form, core services, Postgres migration, Timeline context |
+| Desktop | Shared form/context, SQLite adapter, synchronization and portability |
+| Marketing | No runtime change; existing tracking claims remain accurate |
+| Future mobile | No implementation; shared optional field available to a future client |
+
+Verification: required repository checks, database/SQLite contracts, responsive
+form and Timeline QA, and fresh independent review. Existing measured-time
+analytics must retain their current results.
+
+## Ticket 143: Scheduled Behavior archive and notification
+
+Status: complete in source; web production deployed September 18, 2026.
+Evidence: `docs/qa/behavior-planning-fields.md`. Installed-native release
+acceptance remains pending under the desktop release workflow.
+
+Goal: let users choose an optional end date that automatically archives a Behavior
+and notifies them when archiving occurs.
+
+Scope and acceptance:
+
+- End date is the first archived day, beginning at local midnight in the Behavior
+  timezone. The form explains this boundary. Blank means no scheduled archive.
+- Do not generate Occurrences on or after that date. Preserve historical records,
+  resolved Occurrences, Notes, and tracked time during reconciliation.
+- Reuse atomic archive/history/configuration writes and cancel pending reminders.
+- Hosted processing and foreground reconciliation archive due Behaviors. Desktop
+  reconciles on launch/resume/day change; no closed-app background helper.
+- Retain a durable, accessible in-app archive notification, including after an
+  offline interval or denied OS notification permission.
+- Preserve the date and automatic-archive marker through synchronization and
+  portability. Restoring clears an expired end date to prevent immediate rearchive.
+- Cover local midnight, DST, retries, concurrent edits, reminder cancellation,
+  offline catch-up, and notification rendering.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Shared form, hosted processing, archive services, Timeline/Behaviors notice |
+| Desktop | Shared rules, local lifecycle reconciliation, durable notice and SQLite |
+| Marketing | No runtime change; user-guide copy documents the boundary |
+| Future mobile | No implementation; shared lifecycle contract available to a future client |
+
+Verification: required repository checks, clean migrations, owner isolation and
+atomicity contracts, desktop contracts, responsive UI QA, and fresh independent
+review. Release evidence must distinguish source verification from deployed behavior.
+
+## Ticket 144: Service integration playbook and reusable integration brief
+
+Status: not_started. Filed September 18, 2026. Documentation only.
+
+Goal: turn the Google Calendar integration lessons into instructions future agents
+can use when integrating another service with Cadence.
+
+Dependencies and evidence:
+
+- Use Tickets 132–141, `docs/EXTERNAL_EVENT_CONTRACT.md`,
+  `docs/qa/google-calendar-capabilities.md`, `docs/qa/day-progress-release.md`,
+  and the latest `STATUS.md` checkpoints. Open Calendar acceptance gates do not
+  block this documentation; distinguish verified results from remaining gaps.
+- Inspect the shared external-event types, validation, scheduling projection,
+  provider/service adapters, desktop coordinator/cache, and their contract tests.
+- Reuse `docs/SERVICE_CONNECTIONS.md` and provider runbooks for operational setup.
+  Keep runtime product connections distinct from agent access to provider accounts.
+
+Scope and acceptance:
+
+- Create `docs/INTEGRATION_PLAYBOOK.md`, with one reusable integration brief
+  inside it. Link it from `AGENTS.md` and `docs/OPERATIONS.md`.
+- Tie each lesson to evidence. Cover native CSP/transport/callback failures,
+  stale responses, account-switch isolation, partial reads, and public-release
+  prerequisites. Label proposed improvements separately from observed outcomes.
+- Require the brief to name the user benefit, data direction, account mapping,
+  source of truth, read/write authority, platform impact, and explicit exclusions.
+- Require capability research before scope commitments: provider fields,
+  missing-value meanings, permissions, limits, revocation effects, and release
+  requirements. Distinguish documented support, fixture evidence, and live proof.
+- Specify operation inputs/results, runtime validation, schema compatibility,
+  identity/provenance, freshness/coverage, errors, bounded retries, and side effects.
+  Reuse existing domain models where meanings match. Do not force unrelated
+  service data into the Calendar event model or create a generic plugin framework.
+- Define credential custody, data minimization, retention/export exclusions,
+  connect/cancel/refresh/reconnect/disconnect/deletion behavior, and account-switch
+  cleanup. Fence obsolete account, connection, selection, and range responses.
+- Require an early consent → bounded read → render → disconnect slice on web
+  and installed desktop. Include offline restart, failure recovery, cancellation,
+  cross-account isolation, and data-preservation evidence where applicable.
+- Identify domain, disclosure, test-account, demonstration, provider-review, and
+  deployment dependencies early. Carry forward existing authorization; request
+  only missing authority or human-only actions with the exact target and purpose.
+- Define separate evidence for source checks, native runtime, live provider,
+  deployed behavior, and public approval. Include rollback and cleanup ownership.
+- Reconcile stale Calendar status summaries against dated evidence in the existing
+  docs. Preserve historical checkpoints and unverified gates. Keep `STATUS.md`
+  as the current ledger; do not create another status or decision inventory.
+- Demonstrate the brief using Calendar, including its remaining gaps. Do not
+  connect a second provider, change runtime code, or mark Calendar gates complete.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Documentation for existing services, API routes, ownership, and release evidence; no runtime change |
+| Desktop | Document existing broker/cache and installed lifecycle checks; no package or storage change |
+| Marketing | Document capability/disclosure readiness; no new public capability claims or publication |
+| Future mobile | Require an explicit future-client impact entry; no implementation |
+
+Verification: review every lesson and code reference against current evidence.
+Run the shared documentation checks below. Completion delivers the playbook and
+brief, not another integration or a new product capability.
+
+## Ticket 145: First external consumer and Cadence access contract planning
+
+Status: not_started. Filed September 18, 2026. Planning only.
+
+Goal: define one concrete consumer of Cadence data and the smallest interface
+needed to support it, informed by the owner's future daily planner/coach direction.
+
+Dependencies and evidence:
+
+- Use Ticket 144's brief before finalizing the proposal. Consumer discovery can
+  begin independently. No new provider access or Google approval is needed to plan.
+- Read `docs/PRODUCT_SPEC.md`, `docs/FUTURE_UPDATES.md`, `docs/DECISIONS.md`,
+  `docs/EXTERNAL_EVENT_CONTRACT.md`, `docs/EXPORT_FORMATS.md`,
+  `docs/AGENT_RESOLVERS.md`, and `docs/ROUTE_MAP.md`.
+- Inspect existing services, BehaviorLog portability, and the minimal scheduling
+  projection before proposing new interfaces. Current event schema/source values
+  are Google-specific; internal contract readiness is not public API/MCP support.
+
+Scope and acceptance:
+
+- Use the brief to propose one named consumer, its user, invocation context,
+  concrete use case, required data, and example request/result. Obtain the owner's
+  consumer choice before treating it as an accepted implementation target.
+- Distinguish services supplying Cadence from external clients consuming Cadence.
+  Identify any inbound connector dependency without inventing a second provider.
+- Define what the consumer may observe, suggest, and execute separately. Keep
+  reading context, proposing a schedule, and applying changes as distinct powers.
+- Map each required fact to an existing contract/service or a documented gap.
+  Cover Behaviors, Occurrences, duration source, external scheduling facts,
+  ownership, provenance, uncertainty, and freshness only as the use case requires.
+- Compare existing export, a bounded authenticated API, and an MCP adapter.
+  Recommend the smallest sufficient option and explain when another is needed.
+  Any future transport must use existing services and shared domain rules.
+- Specify authentication, per-account authorization, consent, minimum data,
+  retention, revocation, operation bounds, versioning, and stable failure results.
+  Treat external text as data; do not grant model access merely because Cadence
+  can read it. Exclude rich event details unless the use case justifies them.
+- If writes are proposed, define preview/approval, stale-data revalidation,
+  idempotency, audit/history, and conflict behavior. Calendar access or busy/free
+  facts cannot authorize event edits or automatic Behavior status changes.
+- Record explicit proposed changes to current coaching/rearrangement boundaries.
+  Update product decisions/specification only after the owner accepts those changes.
+  Ticket creation itself does not remove current exclusions.
+- Deliver one proposal at `docs/plans/first-external-consumer.md`, with examples,
+  acceptance scenarios, unresolved decisions, and bounded follow-up ticket scopes.
+  Accepted decisions belong in `docs/DECISIONS.md`; the proposal is not a parallel
+  source of product truth. Create execution tickets only for accepted scope.
+- Do not implement endpoints, an MCP server, model calls, schedule writes, new
+  connectors, credentials, or a generic integration framework in this ticket.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Map proposed access to existing services/resolvers and auth boundaries; implementation requires a follow-up ticket |
+| Desktop | Specify local-only versus linked-account availability and offline/freshness limits; preserve account-free tracking |
+| Marketing | Not applicable to runtime; publish no API, MCP, or coaching claims from a planning proposal |
+| Future mobile | Review shared contract compatibility only; no client implementation |
+
+Verification: trace each proposed operation to an owner and contract. Include
+examples for denied access, incomplete/stale context, account changes, and any
+proposed write conflicts. Run the shared documentation checks below. Completion
+requires the owner's consumer choice and scope decision; unresolved choices remain
+explicit and cannot silently become execution authority.
+
+### Shared documentation verification for Tickets 144–145
+
+Run `npm run agents:check`, `npm run interactions:check`,
+`npm run resolvers:check`, and `git diff --check` for documentation-only work.
+Use the existing interaction registry and design-system catalog as evidence;
+do not register proposed interactions as implemented. Record why runtime tests
+and builds were not rerun when no runtime files changed.

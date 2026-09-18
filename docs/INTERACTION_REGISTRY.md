@@ -278,3 +278,11 @@ List interaction guide references:
 ```bash
 jq -r '.interactions[] | .id as $id | .user_guidance.references[] | $id + "\t" + .' interaction-registry.json
 ```
+
+
+## Behavior planning fields (Tickets 142–143)
+
+`INT-BEHAVIOR-030` and `INT-BEHAVIOR-031` cover optional duration and end-date
+drafts in the shared web/desktop form. Existing create/edit intents persist them.
+Restore clears an expired date and the current automatic-archive notification.
+Automatic background archival itself is a system action, outside this registry.

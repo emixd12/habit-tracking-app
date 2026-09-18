@@ -81,10 +81,16 @@ fn history_rows<T: StoredRow>(db: &Connection, profile_id: &str, ids: &[String])
     Ok(output)
 }
 
-fn protected(db: &Connection, profile_id: &str, row: &Occurrence, now: &str) -> Result<bool> {
+fn protected(
+    db: &Connection,
+    profile_id: &str,
+    row: &Occurrence,
+    now: &str,
+    allow_elapsed: bool,
+) -> Result<bool> {
     let has_session:bool=db.query_row("SELECT EXISTS(SELECT 1 FROM occurrence_time_sessions WHERE user_id=?1 AND occurrence_id=?2)",params![profile_id,row.id],|row|row.get(0)).map_err(error)?;
     Ok(row.status != "unresolved"
-        || db::instant_key(&row.scheduled_for)? <= db::instant_key(now)?
+        || (!allow_elapsed && db::instant_key(&row.scheduled_for)? <= db::instant_key(now)?)
         || !row
             .note
             .as_deref()
@@ -131,6 +137,14 @@ pub fn generate(db: &Connection, request: &Request) -> Result<Value> {
     if behavior.current_configuration_event_id.as_ref() != Some(expected_configuration_event_id) {
         return Err("Behavior configuration changed after occurrence planning.".into());
     }
+    if behavior.end_date.as_ref().is_some_and(|end| {
+        create.iter().any(|row| &row.local_date >= end)
+            || update
+                .iter()
+                .any(|replacement| &replacement.next.local_date >= end)
+    }) {
+        return Err("Behavior end date changed after occurrence planning.".into());
+    }
     if create.len() + update.len() + delete.len() > db::READ_LIMIT {
         return Err("The generation plan exceeds 100,000 rows.".into());
     }
@@ -155,7 +169,7 @@ pub fn generate(db: &Connection, request: &Request) -> Result<Value> {
             || next.id != before.id
             || before.behavior_id != *behavior_id
             || next.behavior_id != *behavior_id
-            || protected(db, profile_id, &before, now)?
+            || protected(db, profile_id, &before, now, false)?
             || before.behavior_configuration_event_id.is_none()
             || next.behavior_configuration_event_id.as_ref()
                 != Some(expected_configuration_event_id)
@@ -180,7 +194,16 @@ pub fn generate(db: &Connection, request: &Request) -> Result<Value> {
         if !ids.insert(&expected.id)
             || before != *expected
             || before.behavior_id != *behavior_id
-            || protected(db, profile_id, &before, now)?
+            || protected(
+                db,
+                profile_id,
+                &before,
+                now,
+                behavior
+                    .end_date
+                    .as_ref()
+                    .is_some_and(|end| &before.local_date >= end),
+            )?
         {
             return Err("An occurrence delete target changed or is protected.".into());
         }

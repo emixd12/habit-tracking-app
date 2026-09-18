@@ -357,3 +357,12 @@ it("uses projected busy facts and retains Scheduled now through its display minu
   expect(context.overlappingEventIds).toEqual(["busy"]);
   expect(context.activitySignals).toContain("scheduled_now");
 });
+
+it("prefers the explicit default without creating tracked-time samples", () => {
+  const input = { behaviorId: "walk", occurrences: [], now: Temporal.Instant.from("2026-09-18T12:00:00Z"), timezone: "America/New_York" };
+  expect(resolveBehaviorDurationEstimate({ ...input, defaultDurationMinutes: 45 })).toMatchObject({
+    kind: "known", seconds: 2700, provenance: "behavior_default", sampleCount: 0,
+  });
+  expect(resolveBehaviorDurationEstimate({ ...input, defaultDurationMinutes: null })).toMatchObject({ kind: "unknown" });
+  expect(() => resolveBehaviorDurationEstimate({ ...input, defaultDurationMinutes: 0 })).toThrow("Default duration");
+});

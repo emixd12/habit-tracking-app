@@ -18,6 +18,11 @@ The owner accepted Ticket 132's UI baseline on 2026-09-16 and prioritized
 Ticket 134 infrastructure. Its `docs/EXTERNAL_EVENT_CONTRACT.md` preserves
 scheduling facts for future consumers without implementing those consumers.
 
+Tickets 144–145 cover documentation and consumer planning only: a reusable
+integration playbook, followed by a concrete Cadence access proposal. They do not
+activate the deferred capabilities below. Planner/coach scope and any API or MCP
+implementation require explicit product decisions and follow-up tickets.
+
 Still deferred:
 
 - Minor Timeline visual polish after connector infrastructure.

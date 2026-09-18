@@ -203,7 +203,7 @@ export function OccurrenceRow({
 
             {context ? <div id={`${detailsId}-context`} className="grid gap-1" aria-label="Scheduling context">
               <h4 className="font-bold text-foreground">Scheduling context</h4>
-              <p>{context.estimate.kind === "known" ? `Estimated duration: ${context.estimate.durationLabel}. Mean of ${context.estimate.sampleCount} completed Occurrences in the preceding ${context.estimate.lookbackDays} days.`
+              <p>{context.estimate.kind === "known" ? context.estimate.provenance === "behavior_default" ? `Default duration: ${context.estimate.durationLabel}. Set on this Behavior; separate from tracked time.` : `Estimated duration: ${context.estimate.durationLabel}. Mean of ${context.estimate.sampleCount} completed Occurrences in the preceding ${context.estimate.lookbackDays} days.`
                 : `Duration unknown. ${context.estimate.sampleCount} of ${context.estimate.requiredSampleCount} required completed Occurrences have usable timing.`}</p>
               <p>{context.overlapLabel}</p>
               {context.activitySignals.map((signal) => <p key={signal}>{signal === "scheduled_now" ? "Scheduled now" : signal === "estimated_window" ? "Estimated window" : "Tracking now"}</p>)}

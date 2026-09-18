@@ -538,6 +538,9 @@ export async function applyCreateMissingBehaviorLogImportPlan(
             : behavior.cadenceActive ?? true,
           archived_at: behavior.archivedAtUtc,
           archive_notes: serializeArchiveNotes(behavior.cadenceArchiveNotes ?? []),
+          default_duration_minutes: behavior.expectedDurationMinutes ?? null,
+          end_date: behavior.cadenceEndDate ?? null,
+          auto_archived_at: behavior.cadenceAutoArchivedAt ?? null,
           created_at: behavior.createdAtUtc ?? undefined,
         } satisfies NewBehavior,
       );
@@ -1046,6 +1049,9 @@ export async function applyApprovedBehaviorLogMergePlan(
             : behavior.cadenceActive ?? true,
           archived_at: behavior.archivedAtUtc,
           archive_notes: serializeArchiveNotes(behavior.cadenceArchiveNotes ?? []),
+          default_duration_minutes: behavior.expectedDurationMinutes ?? null,
+          end_date: behavior.cadenceEndDate ?? null,
+          auto_archived_at: behavior.cadenceAutoArchivedAt ?? null,
           created_at: behavior.createdAtUtc ?? undefined,
         } satisfies NewBehavior,
       );

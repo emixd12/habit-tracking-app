@@ -3,7 +3,7 @@
   "schema_version": "1.3.0",
   "registry_id": "cadence.user-interactions",
   "product": "Cadence",
-  "updated": "2026-09-17",
+  "updated": "2026-09-18",
   "scope": {
     "unit": "One entry per meaningful user intent; equivalent controls with the same effect are represented as variants or multiple triggers.",
     "includes": [
@@ -259,7 +259,9 @@
         "INT-BEHAVIOR-025",
         "INT-BEHAVIOR-026",
         "INT-BEHAVIOR-027",
-        "INT-BEHAVIOR-028"
+        "INT-BEHAVIOR-028",
+        "INT-BEHAVIOR-030",
+        "INT-BEHAVIOR-031"
       ]
     },
     {
@@ -295,7 +297,8 @@
         "INT-TIMELINE-003",
         "INT-CALENDAR-005",
         "INT-CALENDAR-006",
-        "INT-CALENDAR-007"
+        "INT-CALENDAR-007",
+        "INT-SHELL-001"
       ],
       "reason": "Product Timeline uses a local show-more callback. Full native workflow verification remains pending."
     },
@@ -418,7 +421,7 @@
     {
       "path": "components/behaviors/BehaviorForm.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 41,
+      "interaction_marker_count": 43,
       "interaction_ids": [
         "INT-BEHAVIOR-007",
         "INT-BEHAVIOR-008",
@@ -431,7 +434,9 @@
         "INT-BEHAVIOR-015",
         "INT-BEHAVIOR-019",
         "INT-BEHAVIOR-020",
-        "INT-BEHAVIOR-021"
+        "INT-BEHAVIOR-021",
+        "INT-BEHAVIOR-030",
+        "INT-BEHAVIOR-031"
       ]
     },
     {
@@ -687,9 +692,10 @@
     {
       "path": "components/timeline/Timeline.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 1,
+      "interaction_marker_count": 2,
       "interaction_ids": [
-        "INT-TIMELINE-001"
+        "INT-TIMELINE-001",
+        "INT-SHELL-001"
       ]
     },
     {
@@ -2510,7 +2516,7 @@
         }
       ],
       "availability": "Available to authenticated users in the desktop rail and mobile drawer.",
-      "success_result": "Loads the selected protected route and closes the mobile drawer when applicable.",
+      "success_result": "Loads the selected protected route and closes the mobile drawer when applicable. Automatic-archive notices link to Behaviors for review.",
       "failure_result": "An invalid session redirects to /login with the requested route preserved.",
       "effects": [
         "navigation",
@@ -2523,7 +2529,9 @@
         "lib/navigation.ts",
         "apps/desktop/src/product.tsx#Product",
         "apps/desktop/src/desktop-navigation.ts",
-        "apps/desktop/src/desktop-app.tsx"
+        "apps/desktop/src/desktop-app.tsx",
+        "components/timeline/Timeline.tsx",
+        "apps/desktop/src/timeline-screen.tsx"
       ],
       "test_coverage": {
         "level": "direct",
@@ -6002,7 +6010,7 @@
         }
       ],
       "availability": "Available when the create form is open and required browser validation passes.",
-      "success_result": "Atomically creates the owned behavior, initial definition event, schedules, and time slots; marks occurrence and reminder coverage stale; closes and resets the form; adds the behavior row to the UI; and immediately attempts occurrence and reminder repair without overturning the durable save if retryable repair fails.",
+      "success_result": "Atomically creates the owned behavior, initial definition event, schedules, and time slots; marks occurrence and reminder coverage stale; closes and resets the form; adds the behavior row to the UI; and immediately attempts occurrence and reminder repair without overturning the durable save if retryable repair fails. Optional default duration and end date persist with the Behavior.",
       "failure_result": "Shows field or form errors without creating a partial behavior graph.",
       "effects": [
         "database_write",
@@ -6094,7 +6102,7 @@
         }
       ],
       "availability": "Available inside an opened behavior Details and Settings edit form.",
-      "success_result": "Atomically updates the owner-scoped behavior graph, appends a definition event when title or description changed, marks occurrence and reminder coverage stale, and immediately attempts repair without overturning the durable save if retryable repair fails.",
+      "success_result": "Atomically updates the owner-scoped behavior graph, appends a definition event when title or description changed, marks occurrence and reminder coverage stale, and immediately attempts repair without overturning the durable save if retryable repair fails. Default duration and end date can be changed or cleared.",
       "failure_result": "Shows field or form errors and preserves the last stored behavior graph. A stale edit reports a conflict and retains the draft until the user deliberately reloads the current Behavior.",
       "effects": [
         "database_write",
@@ -6363,7 +6371,7 @@
         }
       ],
       "availability": "Available on behavior rows inside Archived behaviors.",
-      "success_result": "Atomically marks the behavior active with a durable occurrence/reminder stale marker, immediately moves the row to Active behaviors, and attempts to regenerate occurrences and eligible reminders; retryable repair failure does not overturn the committed restore.",
+      "success_result": "Atomically marks the behavior active with a durable occurrence/reminder stale marker, immediately moves the row to Active behaviors, and attempts to regenerate occurrences and eligible reminders; retryable repair failure does not overturn the committed restore. Restore clears an expired end date and its automatic archive notification.",
       "failure_result": "A transaction failure shows a factual error and leaves the behavior archived; a post-commit repair failure remains queued by the durable stale marker.",
       "effects": [
         "database_write",
@@ -11825,6 +11833,168 @@
             "tests/desktop-calendar.test.ts"
           ],
           "reason": "Shared controls and native adapter contracts; live provider/native release acceptance remains open in Ticket 137."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-BEHAVIOR-030",
+      "name": "Set default Behavior duration",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/behaviors-and-review.md#default-duration-and-end-date"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "behaviors"
+      ],
+      "routes": [
+        "/behaviors"
+      ],
+      "journeys": [
+        "J05",
+        "J06"
+      ],
+      "intent": "Set or clear an optional default duration for Timeline planning, separate from tracked time and measured averages.",
+      "triggers": [
+        {
+          "kind": "input",
+          "control": "Default duration (minutes) number input"
+        }
+      ],
+      "availability": "Available in open create and edit forms.",
+      "success_result": "Updates only the client form draft until Save behavior is submitted.",
+      "failure_result": "Required and server validation errors remain attached to their fields after submission.",
+      "effects": [
+        "form_draft"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/behaviors/BehaviorForm.tsx",
+        "apps/desktop/src/behaviors-screen.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/behavior-review-ui.test.tsx"
+        ],
+        "notes": "Shared form rendering covers the optional native planning inputs; parser tests verify bounds and clearing."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/behaviors/BehaviorForm.tsx"
+          ],
+          "evidence": [
+            "tests/behavior-review-ui.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/behaviors-screen.tsx",
+            "components/behaviors/BehaviorForm.tsx"
+          ],
+          "evidence": [
+            "tests/behavior-review-ui.test.tsx"
+          ],
+          "reason": "The desktop screen consumes the shared Behavior form."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing consumes approved claims; it does not implement application tracking or account controls."
+        },
+        "mobile": {
+          "applicability": "deferred",
+          "status": "deferred",
+          "reason": "Future mobile implementation and parity remain unscheduled."
+        }
+      }
+    },
+    {
+      "id": "INT-BEHAVIOR-031",
+      "name": "Set Behavior end date",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/behaviors-and-review.md#default-duration-and-end-date"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "behaviors"
+      ],
+      "routes": [
+        "/behaviors"
+      ],
+      "journeys": [
+        "J05",
+        "J06"
+      ],
+      "intent": "Set or clear an optional first archived local date; automatic archive preserves history and shows a durable notification.",
+      "triggers": [
+        {
+          "kind": "input",
+          "control": "End date date input"
+        }
+      ],
+      "availability": "Available in open create and edit forms.",
+      "success_result": "Updates only the client form draft until Save behavior is submitted.",
+      "failure_result": "Required and server validation errors remain attached to their fields after submission.",
+      "effects": [
+        "form_draft"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/behaviors/BehaviorForm.tsx",
+        "apps/desktop/src/behaviors-screen.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/behavior-review-ui.test.tsx"
+        ],
+        "notes": "Shared form rendering covers the optional native planning inputs; parser tests verify bounds and clearing."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/behaviors/BehaviorForm.tsx"
+          ],
+          "evidence": [
+            "tests/behavior-review-ui.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/behaviors-screen.tsx",
+            "components/behaviors/BehaviorForm.tsx"
+          ],
+          "evidence": [
+            "tests/behavior-review-ui.test.tsx"
+          ],
+          "reason": "The desktop screen consumes the shared Behavior form."
         },
         "marketing": {
           "applicability": "not_applicable",

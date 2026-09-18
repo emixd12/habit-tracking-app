@@ -646,3 +646,75 @@ The recording page is isolated and signed into the dedicated test account.
 Chrome focus changed before recorder startup completed. No new recording was
 confirmed. The page and unsubmitted Google questionnaire remain open for
 continuation when Chrome can remain on Cadence during capture.
+
+
+### Privacy availability correction published — September 17, 2026
+
+Production app `dpl_2J1VKxrPY6gDvxVTNzFf8hpMRZ4b` replaces
+`dpl_CHQVE4LWvUPG6LN4dpW3YwTTAgua`. The existing isolated web candidate changed
+only the obsolete Privacy Testing-mode availability sentence and its existing
+assertion. It now says Calendar-access review is pending. Data handling and
+retention disclosures remain unchanged. This follows the authorized provider
+status change; it is not a new independent legal review.
+
+All seven required candidate commands pass: agents, interactions, resolvers, lint,
+typecheck, test, and build. Tests: 1,685 passed, 26 skipped. The initial sandboxed
+run rejected the loopback test listener; the authorized rerun passed. The workspace
+focused legal test also passes (5 tests). Candidate and public Privacy responses
+contain pending-review copy, retain Limited Use disclosure, and omit the stale
+test-user limit. The new app build picks up marketing deployment
+`dpl_8t2tdswkbtotmut2Pbs5B44uA1BE`; fresh commit-bound Trust evidence remains pending.
+Rollback for this copy-only app release is the preceding app deployment above.
+Logs: `/private/tmp/cadence-domain-release-20260917/logs/privacy-production-*`.
+
+The updated-brand recording completed and the test grant is disconnected.
+The user must download the recorder artifact because browser URL policy blocks
+automated access to the extension video page. Download, privacy review, readable
+client-ID evidence, and unlisted replacement upload remain pending. The final
+Google data-access questionnaire is still unsubmitted.
+
+
+### Final demonstration and Google submission — September 18, 2026
+
+The downloaded replacement video passed privacy inspection, decoding, complete
+local playback, and unauthenticated privacy-enhanced YouTube playback. It is
+Unlisted at https://youtu.be/vUi5s2B51Uo on brittlebeliefs. The main recording shows
+actual verified Cadence branding; a separately labeled ending uses an earlier
+capture of the same production client ID. Detailed provenance is recorded in
+`docs/qa/google-calendar-capabilities.md` (repository-relative).
+
+Google accepted the final data-access submission at 10:52 EDT. Verification Center
+reports under review and Trust and Safety confirms receipt. Branding remains
+verified; Calendar data-access approval is still pending. Ticket 140 is complete;
+Ticket 141 remains open for Google's decision and post-approval smoke checks.
+Emiliano Bache Rodriguez monitors info@identityscaffolding.com. Daily 09:00 local
+task follow-up checks Verification Center and stays quiet without meaningful changes.
+
+No deployment or runtime code changed in this final submission continuation.
+App production remains `dpl_2J1VKxrPY6gDvxVTNzFf8hpMRZ4b`; marketing remains
+`dpl_8t2tdswkbtotmut2Pbs5B44uA1BE`. Earlier required runtime checks remain valid.
+Fresh commit-bound Trust evidence is still pending; no new Trust Passed claim.
+Owner Privacy approval remains distinct from independent legal review and Google approval.
+
+Final documentation checks passed: `agents:check`, `interactions:check`,
+`resolvers:check`, and `git diff --check`. No new runtime change required another
+full build or test run.
+
+
+### Behavior planning release — September 18, 2026
+
+Deployment `dpl_DqLBYnrVyJQfDFV3YFcCRWicT29f` is READY and promoted at
+`https://app.cadence-me.com`. It adds Tickets 142–143 to the preceding production
+source, `dpl_2J1VKxrPY6gDvxVTNzFf8hpMRZ4b`, preserving its Privacy correction.
+The release excludes unrelated workspace web changes and pending migration
+`20260916195000`. Only migrations `20260918010100` and `20260918010200` were pushed.
+
+All seven candidate checks passed; 1,745 tests passed and 26 skipped. Hosted
+rollback SQL, authenticated form QA, public redirects, processing-route auth,
+and production-domain readback passed. No runtime errors appeared in the
+post-promotion check. Marketing and native packages were not published.
+Older native clients require the pending update to synchronize Behavior writes.
+
+This CLI deployment has a source manifest, not a matching Git commit claim.
+See `docs/qa/behavior-planning-fields.md` for the source hash, rollback reference,
+verification boundaries, and local evidence directory.

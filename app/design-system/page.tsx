@@ -1787,7 +1787,7 @@ const previewFactories: Record<
       <ProductPreview maxHeight="50rem">
         <BehaviorList
           activeBehaviors={[activeBehavior]}
-          archivedBehaviors={[archivedBehavior]}
+          archivedBehaviors={[{ ...archivedBehavior, endDate: "2026-06-10", autoArchivedAt: "2026-06-10T04:00:00Z" }]}
           categories={categoryOptions}
           analytics={analyticsFixture}
           updateAction={behaviorAction}
@@ -2173,9 +2173,9 @@ const futureOccurrence: TimelineOccurrenceView = {
   ...currentOccurrence,
   id: "occurrence-future",
   title: "Plan tomorrow",
-  scheduledFor: "2026-06-09T01:00:00Z",
+  scheduledFor: "2026-06-10T01:00:00Z",
   scheduledTimeLabel: "9:00 PM",
-  localDate: "2026-06-08",
+  localDate: "2026-06-09",
   canShowDecisionActionsWhenUnresolved: false,
   showDecisionActions: false,
   isVisibleInNeedsDecision: false,
@@ -2264,6 +2264,10 @@ const futureSection: TimelineDaySection = {
 };
 
 const timelineFixture: TimelineView = {
+  archiveNotifications: [{ behaviorId: "archived-fixture", title: "Course practice", endDate: "2026-06-08" }],
+  durationEstimates: {
+    "behavior-water": { kind: "known", seconds: 1800, durationLabel: "30m", sampleCount: 0, lookbackDays: 90, provenance: "behavior_default" },
+  },
   timezone: "America/New_York",
   todayLocalDate: "2026-06-08",
   visibleFutureDays: 7,

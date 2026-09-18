@@ -1,3 +1,5 @@
+import { Temporal } from "@js-temporal/polyfill";
+import { validateBehaviorPlanningFields } from "./behavior-values";
 import type {
   BehaviorDataStore, BehaviorFields, BehaviorGraphRecord, BehaviorInput,
   BehaviorScheduleGraphMutation,
@@ -21,8 +23,12 @@ export async function createBehavior(
   input: { values: BehaviorInput; userId: string; timezone: string; recordedAt: string },
 ): Promise<BehaviorGraphRecord> {
   const values = input.values;
+  validateBehaviorPlanningFields(values);
   const behavior: BehaviorFields & { user_id: string } = {
     user_id: input.userId,
+    default_duration_minutes: values.defaultDurationMinutes ?? null,
+    end_date: values.endDate ?? null,
+    auto_archived_at: null,
     category_id: values.categoryId,
     title: values.title,
     description: values.description,
@@ -78,11 +84,18 @@ export async function updateBehavior(
     source: "manual",
   });
   const values = input.values;
+  validateBehaviorPlanningFields(values);
   const archiveNotes = parseArchiveNotes(existing.archive_notes);
   if (existing.active && !values.active && !input.newArchiveNoteId) {
     throw new Error("Archive note id is required when archiving a behavior.");
   }
+  const endDate = values.endDate === undefined ? existing.end_date ?? null : values.endDate;
+  const restoringExpiredDate = !existing.active && values.active && endDate &&
+    endDate <= Temporal.Instant.from(input.recordedAt).toZonedDateTimeISO(existing.timezone).toPlainDate().toString();
   const behavior: BehaviorFields = {
+    default_duration_minutes: values.defaultDurationMinutes === undefined ? existing.default_duration_minutes ?? null : values.defaultDurationMinutes,
+    end_date: restoringExpiredDate ? null : endDate,
+    auto_archived_at: values.active ? null : existing.auto_archived_at ?? null,
     category_id: values.categoryId,
     title: definitionEventPlan?.nextTitle ?? existing.title,
     description: definitionEventPlan ? definitionEventPlan.nextDescription : existing.description,
@@ -135,9 +148,15 @@ export async function setBehaviorActive(
     recordedAt: string;
     newArchiveNoteId?: string;
     archiveNote?: string | null;
+    automatic?: boolean;
+    effectiveAt?: string;
   },
 ) {
   const existing = await requireBehavior(store, input.behaviorId);
+  if (input.automatic && (input.active || !existing.active || !existing.end_date ||
+      existing.end_date > Temporal.Instant.from(input.recordedAt).toZonedDateTimeISO(existing.timezone).toPlainDate().toString())) {
+    return existing;
+  }
   const schedules = toStoredBehaviorScheduleGraph(existing);
   const expectedDefinition = { title: existing.title, description: existing.description };
   const archiveNotes = parseArchiveNotes(existing.archive_notes);
@@ -145,6 +164,10 @@ export async function setBehaviorActive(
     throw new Error("Archive note id is required when archiving a behavior.");
   }
   const behavior: BehaviorFields = {
+    default_duration_minutes: existing.default_duration_minutes ?? null,
+    end_date: input.active && existing.end_date && existing.end_date <= Temporal.Instant.from(input.recordedAt)
+      .toZonedDateTimeISO(existing.timezone).toPlainDate().toString() ? null : existing.end_date ?? null,
+    auto_archived_at: input.active ? null : input.automatic ? input.recordedAt : existing.auto_archived_at ?? null,
     category_id: existing.category_id,
     title: existing.title,
     description: existing.description,
@@ -159,7 +182,7 @@ export async function setBehaviorActive(
     archive_notes: serializeArchiveNotes(existing.active && !input.active
       ? appendArchiveNote(archiveNotes, {
           id: input.newArchiveNoteId!, archivedAt: input.recordedAt,
-          note: normalizeArchiveNote(input.archiveNote ?? ""), updatedAt: input.recordedAt,
+          note: normalizeArchiveNote(input.automatic ? "Automatically archived on the end date." : input.archiveNote ?? ""), updatedAt: input.recordedAt,
         })
       : archiveNotes),
   };
@@ -167,9 +190,9 @@ export async function setBehaviorActive(
     previousConfiguration: toBehaviorConfigurationSnapshot(existing, schedules),
     nextConfiguration: toBehaviorConfigurationSnapshot(behavior, schedules),
     recordedAt: input.recordedAt,
-    effectiveAt: input.recordedAt,
-    source: "manual",
-    reasonCode: input.active ? "behavior_restored" : "behavior_archived",
+    effectiveAt: input.effectiveAt ?? input.recordedAt,
+    source: input.automatic ? "system" : "manual",
+    reasonCode: input.automatic ? "behavior_end_date_reached" : input.active ? "behavior_restored" : "behavior_archived",
   });
   const updated = await store.updateBehaviorWithAtomicScheduleGraph({
     behaviorId: existing.id,
@@ -202,6 +225,9 @@ export async function updateBehaviorArchiveNote(
   const schedules = toStoredBehaviorScheduleGraph(existing);
   const expectedDefinition = { title: existing.title, description: existing.description };
   const behavior: BehaviorFields = {
+    default_duration_minutes: existing.default_duration_minutes ?? null,
+    end_date: existing.end_date ?? null,
+    auto_archived_at: existing.auto_archived_at ?? null,
     category_id: existing.category_id,
     title: existing.title,
     description: existing.description,

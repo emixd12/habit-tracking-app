@@ -85,6 +85,7 @@ export type TimelineNeedsDecisionGroup = {
 };
 
 export type TimelineView = {
+  archiveNotifications?: Array<{ behaviorId: string; title: string; endDate: string | null }>;
   durationEstimates?: Record<string, BehaviorDurationEstimate>;
   timezone: string;
   todayLocalDate: string;

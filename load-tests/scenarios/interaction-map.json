@@ -1022,6 +1022,8 @@
     {"id": "INT-CALENDAR-004", "classification": "destructive_serial_only", "reason": "Calendar provider consent and external reads require separate synthetic provider authorization."},
     {"id": "INT-CALENDAR-005", "classification": "browser_only", "reason": "Presentation-only event preview/dismissal or external source navigation has no Cadence mutation."},
     {"id": "INT-CALENDAR-006", "classification": "browser_only", "reason": "Presentation-only event preview/dismissal or external source navigation has no Cadence mutation."},
-    {"id": "INT-CALENDAR-007", "classification": "external_provider", "reason": "Presentation-only event preview/dismissal or external source navigation has no Cadence mutation."}
+    {"id": "INT-CALENDAR-007", "classification": "external_provider", "reason": "Presentation-only event preview/dismissal or external source navigation has no Cadence mutation."},
+    {"id": "INT-BEHAVIOR-030", "classification": "not_load_bearing", "reason": "Optional Behavior planning inputs change the local form draft; existing save interactions own HTTP writes."},
+    {"id": "INT-BEHAVIOR-031", "classification": "not_load_bearing", "reason": "Optional Behavior planning inputs change the local form draft; existing save interactions own HTTP writes."}
   ]
 }

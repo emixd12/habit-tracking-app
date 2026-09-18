@@ -272,7 +272,7 @@ export type BehaviorDurationEstimate =
       durationLabel: string;
       sampleCount: number;
       lookbackDays: number;
-      provenance: "completed_stopped_occurrence_mean";
+      provenance: "completed_stopped_occurrence_mean" | "behavior_default";
     }>
   | Readonly<{
       kind: "unknown";

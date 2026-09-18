@@ -1,4 +1,4 @@
-import { BehaviorValidationError, isWeekday } from "@cadence/core/services/behavior-values";
+import { BehaviorValidationError, isWeekday, validateBehaviorPlanningFields } from "@cadence/core/services/behavior-values";
 export { BehaviorValidationError, normalizeRecurrenceRule, recurrenceRuleToJson, recurrenceDefaultsFromRule, defaultRecurrenceDefaults, summarizeRecurrenceRule, normalizeScheduledTime, formatScheduledTimeLabel, formatScheduleSlotLabel, summarizeReminders, formatReminderOffset } from "@cadence/core/services/behavior-values";
 import type { BehaviorInput } from "@cadence/core/behavior-store";
 import type {
@@ -44,6 +44,14 @@ export function parseBehaviorFormData(
   const title = getOptionalString(formData, "title").trim();
   const description = getOptionalString(formData, "description").trim();
   const categoryId = getOptionalString(formData, "category_id").trim();
+  const duration = getOptionalString(formData, "default_duration_minutes").trim();
+  const defaultDurationMinutes = duration ? Number(duration) : null;
+  const endDate = getOptionalString(formData, "end_date").trim() || null;
+  try { validateBehaviorPlanningFields({ defaultDurationMinutes, endDate }); }
+  catch (error) {
+    if (!(error instanceof BehaviorValidationError)) throw error;
+    Object.assign(fieldErrors, error.fieldErrors);
+  }
 
   if (options.mode === "update" && !UUID_PATTERN.test(behaviorId)) {
     fieldErrors.behavior_id = "Choose an existing behavior to edit.";
@@ -80,6 +88,8 @@ export function parseBehaviorFormData(
 
   return {
     behaviorId,
+    defaultDurationMinutes,
+    endDate,
     title,
     description: description || null,
     categoryId: categoryId || null,

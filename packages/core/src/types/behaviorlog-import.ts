@@ -134,6 +134,9 @@ export type BehaviorLogExistingBehavior = {
   active?: boolean | null;
   archivedAt?: string | null;
   archiveNotes?: ArchiveNote[];
+  defaultDurationMinutes?: number | null;
+  endDate?: string | null;
+  autoArchivedAt?: string | null;
   sourceOriginalId?: string | null;
   schedules?: BehaviorLogExistingSchedule[];
   configurationSnapshot?: BehaviorConfigurationSnapshot;
@@ -275,6 +278,9 @@ export type BehaviorLogImportBehaviorPlan = {
   createdAtUtc: string | null;
   archivedAtUtc: string | null;
   cadenceArchiveNotes?: ArchiveNote[];
+  expectedDurationMinutes?: number | null;
+  cadenceEndDate?: string | null;
+  cadenceAutoArchivedAt?: string | null;
   active?: boolean;
   cadenceActive: boolean | null;
   cadenceBrowserReminderEnabled: boolean | null;

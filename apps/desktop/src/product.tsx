@@ -31,6 +31,7 @@ import { loadLocalTimeline } from "./local-timeline.service";
 import { latestNotificationOccurrenceId, loadNotificationOccurrence, type NotificationTarget } from "./notification-activation";
 import { scrollAfterDesktopNavigation } from "./desktop-navigation";
 import { scheduleLocalDayRefresh } from "./desktop-lifecycle";
+import { reconcileLocalBehaviorEndDates } from "./local-behavior-lifecycle.service";
 import type { AnalyticsSelection } from "@cadence/core/services/analytics";
 import "./timeline.css";
 import { AccountConflictReview, AccountDisconnectPanel, AccountPanel, AccountSyncPanel, FirstAccountLinkChoice } from "./account/account-panel";
@@ -82,6 +83,7 @@ export function Product() {
   const activation = useRef<{ occurrenceId: string; requestKey: number } | null>(null);
   const activationSequence = useRef(0);
   const reminderRevision = useRef(0);
+  const archiveLifecycle = useRef<Promise<void>>(Promise.resolve());
   const parameters = useRef<{ days: number; analytics: AnalyticsSelection }>({ days: 7, analytics: {} });
   const revision = useRef(0);
   const refreshRunning = useRef(false);
@@ -107,7 +109,11 @@ export function Product() {
   const refreshScreen = useCallback(() => {
     revision.current += 1;
     if (!isTauri()) { setLoading(false); return; }
-    refreshReminders();
+    archiveLifecycle.current = reconcileLocalBehaviorEndDates(Temporal.Now.instant())
+      .then(() => refreshReminders())
+      .catch((failure) => {
+        if (mounted.current) setReminderError(localErrorMessage(failure));
+      });
     if (refreshRunning.current) return;
     refreshRunning.current = true;
     void (async () => {
@@ -118,6 +124,7 @@ export function Product() {
         const requestedActivation = activation.current;
         const now = Temporal.Now.instant();
         try {
+          await archiveLifecycle.current;
           const timeline = await loadLocalTimeline(parameters.current.days, now);
           if (!mounted.current || current !== revision.current) continue;
           const [behaviors, imports, global, accepted, behaviorViews] = await Promise.all([

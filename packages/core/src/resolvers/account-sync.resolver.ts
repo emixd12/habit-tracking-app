@@ -347,11 +347,44 @@ function normalize(entity: AccountSyncEntity): AccountSyncEntity {
   if (entity.kind === "note_shortcut_state") noteShortcutState({ ...entity, value });
   value = normalizeRow(value);
   if (entity.kind === "behavior" && value && !Array.isArray(value) && typeof value === "object") {
+    // Older saved baselines predate these columns. Normalization keeps them
+    // comparable while every generated write carries the complete row shape.
+    value = {
+      archive_notes: [],
+      default_duration_minutes: null,
+      end_date: null,
+      auto_archived_at: null,
+      ...value,
+    };
     parseArchiveNotes(value.archive_notes);
-    // Older saved baselines predate the column; omission means an empty history.
-    value = { archive_notes: [], ...value };
+    validateBehaviorPersistenceFields(value);
   }
   return { kind: entity.kind, id: entity.id, value };
+}
+
+function validateBehaviorPersistenceFields(value: Record<string, Json | undefined>): void {
+  const duration = value.default_duration_minutes;
+  if (duration !== null
+    && (typeof duration !== "number" || !Number.isInteger(duration) || duration < 1 || duration > 1_440)) {
+    throw new Error("The account Behavior default duration is invalid.");
+  }
+  const endDate = value.end_date;
+  if (endDate !== null) {
+    if (typeof endDate !== "string") throw new Error("The account Behavior end date is invalid.");
+    try {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < "0001-01-01"
+        || Temporal.PlainDate.from(endDate).toString() !== endDate) throw new Error();
+    } catch { throw new Error("The account Behavior end date is invalid."); }
+  }
+  const autoArchivedAt = value.auto_archived_at;
+  if (autoArchivedAt !== null) {
+    if (typeof autoArchivedAt !== "string") throw new Error("The account automatic archive marker is invalid.");
+    try { Temporal.Instant.from(autoArchivedAt); }
+    catch { throw new Error("The account automatic archive marker is invalid."); }
+    if (value.active !== false || typeof value.archived_at !== "string") {
+      throw new Error("The account automatic archive marker requires an archived Behavior.");
+    }
+  }
 }
 function normalizeRow(value: Json): Json {
   if (!value || Array.isArray(value) || typeof value !== "object") return value;

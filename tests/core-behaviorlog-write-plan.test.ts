@@ -71,7 +71,7 @@ describe("portable accepted BehaviorLog writes", () => {
     expect(plan.mappings.map((row) => row.record_type)).toEqual(expect.arrayContaining(["behavior", "schedule", "occurrence"]));
   });
 
-  it("preserves prior archive history when an older restore bundle omits the Cadence extension", () => {
+  it.each([false, true])("restores omitted planning fields safely (automatically archived=%s)", (archived) => {
     const input = context();
     const initial = planBehaviorLogImportWrite({
       ...input,
@@ -90,7 +90,15 @@ describe("portable accepted BehaviorLog writes", () => {
       graphs: initial.graphWrites.map(({ graph }) => ({
         ...graph,
         revision: 1,
-        behavior: { ...graph.behavior, archive_notes: archiveNotes },
+        behavior: {
+          ...graph.behavior,
+          archive_notes: archiveNotes,
+          default_duration_minutes: 45,
+          active: !archived,
+          archived_at: archived ? "2026-06-01T12:00:00Z" : null,
+          end_date: archived ? "2026-06-01" : "2099-12-31",
+          auto_archived_at: archived ? "2026-06-01T12:00:00Z" : null,
+        },
       })),
       definitionEvents: initial.definitionEvents,
       configurationEvents: initial.graphWrites.flatMap((write) => write.configurationEvents),
@@ -98,7 +106,7 @@ describe("portable accepted BehaviorLog writes", () => {
       mappings: initial.mappings,
       importRuns: [{ ...initial.applyRun, status: "applied" as const }],
     };
-    const files = withoutArchiveNotes(portabilityFiles());
+    const files = withoutNewBehaviorFields(portabilityFiles());
     const importPreview = resolveBehaviorLogImportPreview({ files });
     const preview = resolveBehaviorLogRestorePreview({
       importPreview,
@@ -107,6 +115,12 @@ describe("portable accepted BehaviorLog writes", () => {
     const plan = planBehaviorLogRestoreWrite({ ...input, snapshot, preview, importPreview });
 
     expect(plan.graphWrites[0].graph.behavior.archive_notes).toEqual(archiveNotes);
+    expect(plan.graphWrites[0].graph.behavior).toMatchObject({
+      default_duration_minutes: 45,
+      active: true,
+      end_date: archived ? null : "2099-12-31",
+      auto_archived_at: null,
+    });
   });
 
   it("rejects a conflicted plan before projecting rows", () => {
@@ -145,11 +159,14 @@ describe("portable accepted BehaviorLog writes", () => {
 
 });
 
-function withoutArchiveNotes(files: ReturnType<typeof portabilityFiles>) {
+function withoutNewBehaviorFields(files: ReturnType<typeof portabilityFiles>) {
   const cloned = files.map((file) => ({ ...file }));
   const behaviorFile = cloned.find((file) => file.path === "data/behaviors.jsonl")!;
   const behavior = JSON.parse(behaviorFile.content);
+  delete behavior.expected_duration_minutes;
   delete behavior.extensions["app.cadence"].archive_notes;
+  delete behavior.extensions["app.cadence"].end_date;
+  delete behavior.extensions["app.cadence"].auto_archived_at;
   behavior.title = "Brush teeth after dinner";
   behaviorFile.content = `${JSON.stringify(behavior)}\n`;
   const manifestFile = cloned.find((file) => file.path === "manifest.json")!;

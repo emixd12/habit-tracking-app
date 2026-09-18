@@ -796,3 +796,8 @@ Automatic update downloads present inline review without replacing an open edito
 Installation and restart require separate actions. Unsaved drafts require saving
 or explicit discard; pending writes prevent restart. Web and marketing expose no
 native update or recovery controls. Future mobile remains deferred.
+
+
+## Set duration and scheduled archive (Tickets 142–143)
+
+Create or edit a Behavior, optionally enter Default duration (minutes) and End date, then Save behavior. Blank fields disable either option. Timeline uses the default ahead of its measured estimate. The Behavior stops generating Occurrences at the start of its end date in its timezone. Automatic archive uses existing archive history and reminder cancellation; a durable in-app notification explains the archive. Open Behaviors to review or restore it. Restoring clears an expired end date.

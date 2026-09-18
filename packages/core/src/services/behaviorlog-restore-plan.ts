@@ -408,6 +408,15 @@ export function buildRestorePayload(input: {
             ...(behavior.cadenceArchiveNotes === undefined
               ? {}
               : { archive_notes: serializeArchiveNotes(behavior.cadenceArchiveNotes) }),
+            ...(behavior.expectedDurationMinutes === undefined
+              ? {}
+              : { default_duration_minutes: behavior.expectedDurationMinutes }),
+            ...(behavior.cadenceEndDate === undefined
+              ? {}
+              : { end_date: behavior.cadenceEndDate }),
+            ...(behavior.cadenceAutoArchivedAt === undefined
+              ? {}
+              : { auto_archived_at: behavior.cadenceAutoArchivedAt }),
             created_at:
               action?.action === "create"
                 ? behavior.createdAtUtc ?? restoreRecordedAt
