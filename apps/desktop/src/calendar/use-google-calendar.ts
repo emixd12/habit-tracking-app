@@ -26,7 +26,7 @@ export type DesktopGoogleCalendarHookResult = Readonly<{
   stale: boolean;
   label: string;
   error: string | null;
-  refresh(trigger?: CalendarRefreshTrigger): Promise<void>;
+  refresh(trigger?: CalendarRefreshTrigger): Promise<boolean>;
 }>;
 
 export function useDesktopGoogleCalendar(options: DesktopGoogleCalendarHookOptions): DesktopGoogleCalendarHookResult {
@@ -59,13 +59,13 @@ export function useDesktopGoogleCalendar(options: DesktopGoogleCalendarHookOptio
   [broker, connection, panelChanged, snapshots, scope]);
 
   const refresh = useCallback(async (trigger: CalendarRefreshTrigger = "manual") => {
-    if (trigger !== "manual" && !desktopVisible()) return;
+    if (trigger !== "manual" && !desktopVisible()) return false;
     const currentLease = ++lease.current;
-    if (!enabled || !broker || !snapshots || !accountId) return;
+    if (!enabled || !broker || !snapshots || !accountId) return true;
     let offline: Awaited<ReturnType<DesktopCalendarCache["readCurrent"]>> = null;
     try {
       offline = await cache.readCurrent({ accountId, startLocalDate: range.startLocalDate, endLocalDate: range.endLocalDate, timezone });
-      if (currentLease !== lease.current) return;
+      if (currentLease !== lease.current) return false;
       if (offline?.request.visible) setState({ snapshot: offline.snapshot, preferences: preferences(offline.request), stale: true, label: freshnessLabel(offline.snapshot, true), error: null });
     } catch (error) {
       if (currentLease === lease.current) setState({ snapshot: null, preferences: null, stale: true, label: "Calendar cache is unavailable.", error: code(error) });
@@ -73,44 +73,46 @@ export function useDesktopGoogleCalendar(options: DesktopGoogleCalendarHookOptio
 
     try {
       const view = await broker.connection();
-      if (currentLease !== lease.current) return;
+      if (currentLease !== lease.current) return false;
       if (view.accountId !== accountId || view.status !== "connected") {
         await snapshots.clear();
-        if (currentLease !== lease.current) return;
+        if (currentLease !== lease.current) return false;
         setState({ snapshot: null, preferences: null, stale: true, label: view.status === "reconnect_required" ? "Reconnect Google Calendar." : "Google Calendar is not connected.", error: null });
-        return;
+        return view.accountId === accountId && (view.status === "disconnected" || view.status === "not_configured");
       }
       if (!view.preferences.visible || view.preferences.selectedCalendarIds.length === 0) {
         await snapshots.clear();
         if (currentLease === lease.current) setState({ snapshot: null, preferences: view.preferences, stale: false,
           label: view.preferences.visible ? "No calendars are selected." : "Calendar context is hidden.", error: null });
-        return;
+        return currentLease === lease.current;
       }
       const request: CalendarCacheRequest = { accountId, connectionGeneration: view.generation,
         selectionRevision: view.selectionRevision, startLocalDate: range.startLocalDate, endLocalDate: range.endLocalDate,
         timezone, selectedCalendarIds: [...view.preferences.selectedCalendarIds], hiddenCalendarIds: [...view.preferences.hiddenCalendarIds],
         visible: view.preferences.visible, showAllDay: view.preferences.showAllDay };
       const result = await snapshots.refresh(request, trigger);
-      if (currentLease !== lease.current) return;
+      if (currentLease !== lease.current) return false;
       if (critical(result.refreshError)) {
         await snapshots.clear();
-        if (currentLease !== lease.current) return;
+        if (currentLease !== lease.current) return false;
         setState({ snapshot: null, preferences: null, stale: true, label: "Reconnect Google Calendar.", error: result.refreshError });
-        return;
+        return false;
       }
       setState({ snapshot: result.snapshot, preferences: view.preferences, stale: result.stale,
         label: result.snapshot ? freshnessLabel(result.snapshot, result.stale) : "Calendar data is unavailable.",
         error: result.refreshError });
+      return Boolean(result.snapshot && !result.stale && !result.refreshError && result.snapshot.freshness.state === "current");
     } catch (error) {
-      if (currentLease !== lease.current) return;
+      if (currentLease !== lease.current) return false;
       const errorCode = code(error);
       if (critical(errorCode)) {
         await snapshots.clear();
-        if (currentLease !== lease.current) return;
+        if (currentLease !== lease.current) return false;
         setState({ snapshot: null, preferences: null, stale: true, label: "Reconnect Google Calendar.", error: errorCode });
       } else {
         setState((current) => ({ ...current, stale: true, label: current.snapshot ? freshnessLabel(current.snapshot, true) : "Calendar data is unavailable.", error: errorCode }));
       }
+      return false;
     }
   }, [accountId, broker, cache, enabled, range.endLocalDate, range.startLocalDate, snapshots, timezone]);
 

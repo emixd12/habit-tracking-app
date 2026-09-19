@@ -1,7 +1,6 @@
 "use client";
 
 import { projectExternalEventSchedulingEvent } from "@cadence/core/services/external-event-projection";
-import { CalendarDays } from "lucide-react";
 import { Temporal } from "@js-temporal/polyfill";
 import { useRefresh } from "@cadence/ui/runtime";
 import {
@@ -96,7 +95,9 @@ export function DayProgressTimeline({
   const runtimeRefresh = useRefresh();
   const rootRef = useRef<HTMLDivElement>(null);
   const drawerLauncher = useRef<HTMLElement | null>(null);
+  const restoringFocus = useRef(false);
   const [measured, setMeasured] = useState<Record<string, MeasuredDay>>({});
+  const measurements = useRef(new Map<string, () => MeasuredDay>());
   const [preview, setPreview] = useState<Preview | null>(null);
   const [detailEvent, setDetailEvent] = useState<NormalizedExternalEvent | null>(null);
   const [dismissedAllDay, setDismissedAllDay] = useState<string[]>([]);
@@ -126,15 +127,22 @@ export function DayProgressTimeline({
     const event = events.find((item) => item.id === id);
     return event ? [event] : [];
   }), [activeIds, events]);
-  const updateMeasured = useCallback((day: MeasuredDay) => {
-    setMeasured((previous) => sameDay(previous[day.localDate], day) ? previous : { ...previous, [day.localDate]: day });
+  const measureDays = useCallback(() => {
+    // Read the whole range together: a resized day also moves every later day.
+    const next = Object.fromEntries([...measurements.current].map(([date, measure]) => [date, measure()]));
+    setMeasured((previous) => Object.keys(previous).length === Object.keys(next).length
+      && Object.entries(next).every(([date, day]) => sameDay(previous[date], day)) ? previous : next);
+  }, []);
+  const registerMeasurement = useCallback((date: string, measure: () => MeasuredDay) => {
+    measurements.current.set(date, measure);
+    return () => { measurements.current.delete(date); };
   }, []);
   const dismissPreview = useCallback((restoreFocus = false) => {
     if (restoreFocus) preview?.launcher.focus();
     setPreview(null);
   }, [preview]);
   const openPreview = useCallback((ids: string[], launcher: HTMLElement) => {
-    setPreview({ ids, launcher });
+    if (!restoringFocus.current) setPreview({ ids, launcher });
   }, []);
   const openDetails = useCallback((event: NormalizedExternalEvent) => {
     drawerLauncher.current = preview?.launcher ?? null;
@@ -143,7 +151,9 @@ export function DayProgressTimeline({
   }, [preview]);
   const closeDetails = useCallback(() => {
     setDetailEvent(null);
+    restoringFocus.current = true;
     drawerLauncher.current?.focus();
+    restoringFocus.current = false;
     drawerLauncher.current = null;
   }, []);
 
@@ -183,7 +193,7 @@ export function DayProgressTimeline({
       ref={rootRef}
       className={styles.timeline}
       style={dayProgressStyle}
-      data-drawer-open={preview || detailEvent ? "true" : undefined}
+      data-drawer-open={preview ? "true" : undefined}
     >
       {firstMeasured ? <div className={styles.spine} style={{ left: firstMeasured.axisX }} aria-hidden="true" /> : null}
       {calendarState ? <p className={styles.calendarState} data-calendar-state={liveCalendar && !context ? live.state : fresh.state}>{calendarState}</p> : null}
@@ -205,7 +215,8 @@ export function DayProgressTimeline({
         activeIds={activeIds}
         contexts={resolveContexts(section, events, fresh, now, context?.durationEstimates ?? timeline.durationEstimates)}
         shortcutsByBehavior={shortcutsByBehavior}
-        onMeasure={updateMeasured}
+        onMeasure={measureDays}
+        registerMeasurement={registerMeasurement}
         onPreview={openPreview}
         onRestoreAllDay={() => setDismissedAllDay([])}
         statusAction={statusAction}
@@ -244,7 +255,8 @@ type DayProgressDayProps = Omit<DayProgressTimelineProps, "timeline" | "context"
   dismissedAllDay: readonly string[];
   activeIds: readonly string[];
   contexts: ReadonlyMap<string, TimelineOccurrenceContext>;
-  onMeasure: (day: MeasuredDay) => void;
+  onMeasure: () => void;
+  registerMeasurement: (date: string, measure: () => MeasuredDay) => () => void;
   onPreview: (ids: string[], launcher: HTMLElement) => void;
   onRestoreAllDay: () => void;
 }>;
@@ -258,6 +270,7 @@ function DayProgressDay({
   activeIds,
   contexts,
   onMeasure,
+  registerMeasurement,
   onPreview,
   onRestoreAllDay,
   statusAction,
@@ -289,6 +302,7 @@ function DayProgressDay({
       const parentRect = parent.getBoundingClientRect();
       const sectionRect = sectionElement.getBoundingClientRect();
       const bodyRect = body.getBoundingClientRect();
+      const nextSection = sectionElement.nextElementSibling;
       const style = getComputedStyle(parent);
       const axisX = bodyRect.left - parentRect.left + Number.parseFloat(style.getPropertyValue("--timeline-axis-x"));
       const iconX = bodyRect.left - parentRect.left + Number.parseFloat(style.getPropertyValue("--calendar-node-x"));
@@ -310,24 +324,27 @@ function DayProgressDay({
         return [{ occurrenceId: occurrence.id, scheduledFor: occurrence.scheduledFor, center: rect.top - parentRect.top + rect.height / 2 }];
       });
       setIconsOnly((previous) => sameIconState(previous, nextIconsOnly) ? previous : nextIconsOnly);
-      onMeasure({
+      return {
         localDate: section.localDate,
         top: sectionRect.top - parentRect.top,
-        bottom: sectionRect.bottom - parentRect.top,
+        // Adjacent DOMRect bottom/top can differ fractionally under browser zoom.
+        // Use the next section's top as their single shared boundary.
+        bottom: (nextSection?.matches("section") ? nextSection.getBoundingClientRect().top : sectionRect.bottom) - parentRect.top,
         rows: measuredRows,
         axisX,
         iconX,
-      });
+      };
     };
     if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
+    const unregister = registerMeasurement(section.localDate, measure);
+    const observer = new ResizeObserver(onMeasure);
     observer.observe(parent);
     observer.observe(sectionElement);
     for (const row of rows.current.values()) observer.observe(row);
-    measure();
-    document.fonts?.ready.then(measure);
-    return () => observer.disconnect();
-  }, [onMeasure, root, section]);
+    onMeasure();
+    document.fonts?.ready.then(onMeasure);
+    return () => { observer.disconnect(); unregister(); };
+  }, [onMeasure, registerMeasurement, root, section]);
 
   return (
     <section ref={sectionRef} className={styles.day} aria-labelledby={`${section.key}-title`}>
@@ -414,13 +431,16 @@ function DayOverlay({
     <div className="pointer-events-none absolute inset-0" aria-hidden={false}>
       <svg className="absolute inset-0 h-full w-full overflow-visible text-muted-readable" aria-hidden="true">
         {controls.map((control) => <line key={control.id} data-calendar-stem={control.id} x1={control.iconX} x2={control.axisX} y1={control.position} y2={control.position} stroke="currentColor" />)}
-        {layout.days.flatMap((day) => day.timedEventSpans.filter((span) => activeIds.includes(span.eventId) && span.endPosition !== null).map((span) => <line key={`${day.localDate}-${span.eventId}`} data-event-duration={span.eventId} x1={measured[day.localDate]!.axisX} x2={measured[day.localDate]!.axisX} y1={span.continuesBefore && span.iconLane === null && !span.overflowGroupId ? day.top : span.iconPosition} y2={span.continuesAfter ? day.bottom : Math.min(day.bottom, span.iconPosition + Math.max(2, span.endPosition! - span.startPosition))} stroke="var(--calendar-overlap)" strokeWidth={6} strokeOpacity={0.65} />))}
+        {layout.days.flatMap((day) => day.timedEventSpans.filter((span) => activeIds.includes(span.eventId) && span.endPosition !== null).map((span) => <line key={`${day.localDate}-${span.eventId}`} data-event-duration={span.eventId} x1={measured[day.localDate]!.axisX + 0.5} x2={measured[day.localDate]!.axisX + 0.5} y1={span.continuesBefore && span.iconLane === null && !span.overflowGroupId ? day.top : span.iconPosition} y2={span.continuesAfter ? day.bottom : Math.min(day.bottom, span.iconPosition + Math.max(2, span.endPosition! - span.startPosition))} stroke="var(--calendar-overlap)" strokeWidth={1} />))}
         {layout.days.flatMap((day) => day.movingDot ? [<circle key={day.localDate} className={styles.currentTime} data-current-time-marker cx={measured[day.localDate]!.axisX} cy={day.movingDot.displayPosition} r={5} fill="var(--primary)" stroke="var(--background)" strokeWidth={2} />] : [])}
       </svg>
       {controls.map((control) => {
         const event = events.find((item) => item.id === control.eventIds[0]);
         if (!event) return null;
-        return <button key={control.id} type="button" data-calendar-node={control.id} className="pointer-events-auto absolute z-20 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center" style={{ left: control.iconX, top: control.position }} aria-label={control.count > 1 ? `Preview ${control.count} Calendar events starting at the same time` : `Preview Calendar event: ${event.title || "Untitled event"}`} aria-describedby={control.eventIds.some((id) => activeIds.includes(id)) ? previewId : undefined} onPointerEnter={(pointer) => { if (pointer.pointerType !== "touch") onPreview([...control.eventIds], pointer.currentTarget); }} onFocus={(focus) => onPreview([...control.eventIds], focus.currentTarget)} onClick={(click) => onPreview([...control.eventIds], click.currentTarget)}><span className={styles.eventMarker} data-group-variant={control.count > 1 ? "badge" : undefined} aria-hidden="true">{control.count > 1 ? <><CalendarDays size={18} /><span className={styles.countBadge}>×{control.count}</span></> : <CalendarDays size={14} />}</span></button>;
+        return <button key={control.id} type="button" data-calendar-node={control.id} className="pointer-events-auto absolute z-20 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center" style={{ left: control.iconX, top: control.position }} aria-label={control.count > 1 ? `Preview ${control.count} Google Calendar events starting at the same time` : `Preview Google Calendar event: ${event.title || "Untitled event"}`} aria-describedby={control.eventIds.some((id) => activeIds.includes(id)) ? previewId : undefined} onPointerEnter={(pointer) => { if (pointer.pointerType !== "touch") onPreview([...control.eventIds], pointer.currentTarget); }} onFocus={(focus) => onPreview([...control.eventIds], focus.currentTarget)} onClick={(click) => onPreview([...control.eventIds], click.currentTarget)}><span className={styles.eventMarker} data-group-variant={control.count > 1 ? "badge" : undefined} aria-hidden="true">{/* Provider artwork stays bundled for offline desktop use. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/google-calendar.svg" alt="" width={18} height={18} />
+          {control.count > 1 ? <span className={styles.countBadge}>×{control.count}</span> : null}</span></button>;
       })}
     </div>
   );
@@ -463,7 +483,7 @@ function calendarStateLabel(
   freshness: ExternalEventFreshness | undefined,
   timezone: string,
 ): string {
-  if (state === "ready") return freshness?.label ?? "Calendar current.";
+  if (state === "ready") return "";
   if (state === "empty") return "No Calendar events in the displayed days.";
   if (state === "stale") return freshness ? calendarFreshnessLabel(freshness, timezone) : "Calendar context may be out of date.";
   if (state === "error") return `Calendar context could not refresh: ${error ?? "unavailable"}.${freshness ? ` ${calendarFreshnessLabel(freshness, timezone)}` : ""}`;
@@ -474,6 +494,7 @@ function calendarStateLabel(
 }
 
 function calendarFreshnessLabel(freshness: ExternalEventFreshness, timezone: string): string {
+  if (freshness.state === "current") return "";
   if (freshness.state !== "stale" && freshness.state !== "incomplete") return freshness.label;
   if (!freshness.refreshedAt) return freshness.label;
   try {

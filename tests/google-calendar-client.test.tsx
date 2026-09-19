@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useWebGoogleCalendarTimeline, webGoogleCalendarCoordinator, type CalendarEventRange } from "@/lib/ui/google-calendar";
+import { reloadWebTimelineConnectors, useWebGoogleCalendarTimeline, webGoogleCalendarCoordinator, type CalendarEventRange } from "@/lib/ui/google-calendar";
 
 const range: CalendarEventRange = { startLocalDate: "2026-09-16", endLocalDate: "2026-09-17" };
 
@@ -98,6 +98,50 @@ describe("web Google Calendar coordinator", () => {
     await act(async () => { releaseFirst(); await Promise.resolve(); });
     expect(container.textContent).toBe(secondRange.startLocalDate);
     await act(() => root!.unmount());
+    container.remove();
+  });
+
+  it("forces the mounted Timeline connector past its fresh in-memory cache", async () => {
+    const accountId = "web-manual-reload";
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input);
+      return response(path.startsWith("/api/google-calendar/connection")
+        ? connection(accountId)
+        : snapshot({ accountId }));
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const View = () => {
+      const state = useWebGoogleCalendarTimeline({ enabled: true, localDates: [range.startLocalDate, range.endLocalDate], timezone: "America/New_York" });
+      return <output>{state.state}</output>;
+    };
+    await act(async () => { root.render(<View />); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    await vi.waitFor(() => expect(container.textContent).toBe("empty"));
+    fetcher.mockClear();
+
+    await expect(reloadWebTimelineConnectors()).resolves.toBe(true);
+    expect(fetcher.mock.calls.filter(([input]) => String(input).startsWith("/api/google-calendar/events"))).toHaveLength(1);
+
+    await act(() => root.unmount());
+    container.remove();
+  });
+
+  it("does not report a reconnect-required connector as reloaded", async () => {
+    const accountId = "web-reconnect-required";
+    vi.stubGlobal("fetch", vi.fn(async () => response({ ...connection(accountId), status: "reconnect_required" })));
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const View = () => {
+      const state = useWebGoogleCalendarTimeline({ enabled: true, localDates: [range.startLocalDate, range.endLocalDate], timezone: "America/New_York" });
+      return <output>{state.state}</output>;
+    };
+    await act(async () => { root.render(<View />); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    await vi.waitFor(() => expect(container.textContent).toBe("disconnected"));
+    await expect(reloadWebTimelineConnectors()).resolves.toBe(false);
+    await act(() => root.unmount());
     container.remove();
   });
 });

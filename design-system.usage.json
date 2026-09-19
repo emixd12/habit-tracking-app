@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-17T01:26:51.892092+00:00",
+  "generatedAt": "2026-09-18T21:45:03.748155+00:00",
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
@@ -14,7 +14,7 @@
     {
       "componentId": "composite.behavior-form",
       "file": "components/behaviors/BehaviorList.tsx",
-      "line": 535,
+      "line": 542,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -22,7 +22,7 @@
     {
       "componentId": "composite.behavior-form",
       "file": "components/behaviors/BehaviorList.tsx",
-      "line": 561,
+      "line": 568,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -69,6 +69,14 @@
     },
     {
       "componentId": "composite.behavior-form",
+      "file": "tests/behavior-review-ui.test.tsx",
+      "line": 669,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "composite.behavior-form",
       "file": "tests/desktop-controls.dom.test.tsx",
       "line": 173,
       "route": null,
@@ -78,7 +86,7 @@
     {
       "componentId": "composite.external-event-details",
       "file": "components/timeline/DayProgressTimeline.tsx",
-      "line": 224,
+      "line": 235,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -86,7 +94,7 @@
     {
       "componentId": "composite.external-event-preview",
       "file": "components/timeline/DayProgressTimeline.tsx",
-      "line": 217,
+      "line": 228,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -94,7 +102,7 @@
     {
       "componentId": "composite.occurrence-note-form",
       "file": "components/behaviors/BehaviorList.tsx",
-      "line": 801,
+      "line": 808,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -142,7 +150,7 @@
     {
       "componentId": "composite.occurrence-row",
       "file": "apps/desktop/src/timeline-screen.tsx",
-      "line": 98,
+      "line": 150,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -150,7 +158,7 @@
     {
       "componentId": "composite.occurrence-row",
       "file": "components/timeline/DayProgressTimeline.tsx",
-      "line": 374,
+      "line": 391,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -518,7 +526,7 @@
     {
       "componentId": "module.category-panel",
       "file": "apps/desktop/src/product.tsx",
-      "line": 418,
+      "line": 472,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -534,7 +542,7 @@
     {
       "componentId": "module.day-progress-timeline",
       "file": "apps/desktop/src/timeline-screen.tsx",
-      "line": 127,
+      "line": 179,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -542,7 +550,7 @@
     {
       "componentId": "module.day-progress-timeline",
       "file": "components/timeline/Timeline.tsx",
-      "line": 74,
+      "line": 82,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -583,6 +591,22 @@
       "componentId": "module.day-progress-timeline",
       "file": "tests/day-progress-timeline.dom.test.tsx",
       "line": 106,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.day-progress-timeline",
+      "file": "tests/day-progress-timeline.dom.test.tsx",
+      "line": 140,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.day-progress-timeline",
+      "file": "tests/day-progress-timeline.dom.test.tsx",
+      "line": 159,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -694,7 +718,7 @@
     {
       "componentId": "module.google-calendar-panel",
       "file": "apps/desktop/src/product.tsx",
-      "line": 421,
+      "line": 475,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -718,7 +742,7 @@
     {
       "componentId": "module.google-calendar-panel",
       "file": "tests/google-calendar-panel.dom.test.tsx",
-      "line": 99,
+      "line": 97,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -726,7 +750,7 @@
     {
       "componentId": "module.google-calendar-panel",
       "file": "tests/google-calendar-panel.dom.test.tsx",
-      "line": 100,
+      "line": 106,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -734,7 +758,7 @@
     {
       "componentId": "module.google-calendar-panel",
       "file": "tests/google-calendar-panel.dom.test.tsx",
-      "line": 104,
+      "line": 116,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -742,7 +766,47 @@
     {
       "componentId": "module.google-calendar-panel",
       "file": "tests/google-calendar-panel.dom.test.tsx",
-      "line": 146,
+      "line": 117,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.google-calendar-panel",
+      "file": "tests/google-calendar-panel.dom.test.tsx",
+      "line": 121,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.google-calendar-panel",
+      "file": "tests/google-calendar-panel.dom.test.tsx",
+      "line": 130,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.google-calendar-panel",
+      "file": "tests/google-calendar-panel.dom.test.tsx",
+      "line": 136,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.google-calendar-panel",
+      "file": "tests/google-calendar-panel.dom.test.tsx",
+      "line": 142,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.google-calendar-panel",
+      "file": "tests/google-calendar-panel.dom.test.tsx",
+      "line": 185,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -764,9 +828,41 @@
       "confidence": "exact"
     },
     {
+      "componentId": "module.mobile-timeline-pull-to-refresh",
+      "file": "tests/timeline-reload.dom.test.tsx",
+      "line": 38,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.mobile-timeline-pull-to-refresh",
+      "file": "tests/timeline-reload.dom.test.tsx",
+      "line": 56,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.mobile-timeline-pull-to-refresh",
+      "file": "tests/timeline-reload.dom.test.tsx",
+      "line": 68,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.mobile-timeline-pull-to-refresh",
+      "file": "tests/timeline-reload.dom.test.tsx",
+      "line": 82,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
       "componentId": "module.needs-decision-dialog",
       "file": "apps/desktop/src/timeline-screen.tsx",
-      "line": 101,
+      "line": 153,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -774,7 +870,7 @@
     {
       "componentId": "module.needs-decision-dialog",
       "file": "components/timeline/Timeline.tsx",
-      "line": 43,
+      "line": 51,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -798,7 +894,7 @@
     {
       "componentId": "module.note-shortcut-controls",
       "file": "apps/desktop/src/product.tsx",
-      "line": 417,
+      "line": 471,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -806,7 +902,7 @@
     {
       "componentId": "module.note-shortcut-controls",
       "file": "components/behaviors/BehaviorList.tsx",
-      "line": 544,
+      "line": 551,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -814,7 +910,7 @@
     {
       "componentId": "module.note-shortcut-controls",
       "file": "components/behaviors/BehaviorList.tsx",
-      "line": 570,
+      "line": 577,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -886,7 +982,7 @@
     {
       "componentId": "module.reminder-editor",
       "file": "components/behaviors/BehaviorForm.tsx",
-      "line": 342,
+      "line": 372,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -918,7 +1014,7 @@
     {
       "componentId": "module.status-buttons",
       "file": "components/behaviors/BehaviorList.tsx",
-      "line": 791,
+      "line": 798,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -1005,6 +1101,14 @@
     },
     {
       "componentId": "module.timeline",
+      "file": "tests/timeline-interactions-ui.test.tsx",
+      "line": 218,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.timeline",
       "file": "tests/ui-runtime.test.tsx",
       "line": 33,
       "route": null,
@@ -1022,7 +1126,7 @@
     {
       "componentId": "module.timeline-group",
       "file": "apps/desktop/src/timeline-screen.tsx",
-      "line": 116,
+      "line": 168,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -1030,7 +1134,7 @@
     {
       "componentId": "module.timeline-group",
       "file": "components/timeline/Timeline.tsx",
-      "line": 58,
+      "line": 66,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -1094,7 +1198,7 @@
     {
       "componentId": "module.trust-and-legal-panel",
       "file": "tests/legal-content.test.tsx",
-      "line": 83,
+      "line": 91,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -1133,7 +1237,7 @@
     }
   ],
   "summary": {
-    "productUsages": 141,
+    "productUsages": 154,
     "benchPreviews": 0
   }
 }

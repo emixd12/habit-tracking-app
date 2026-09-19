@@ -20,9 +20,15 @@ import {
   PULL_TO_REFRESH_THRESHOLD,
   type PullToRefreshState,
 } from "@/components/timeline/mobile-pull-to-refresh";
+import { reloadWebTimelineConnectors } from "@/lib/ui/google-calendar";
+import {
+  hasTimelineScrollableAncestor,
+  isTimelineInteractiveTarget,
+  isTimelineModalOpen,
+  useTimelineWheelReload,
+} from "@/lib/ui/timeline-wheel-reload";
 
-const INTERACTIVE_TARGET_SELECTOR =
-  'a, button, input, select, summary, textarea, [role="button"], [contenteditable="true"]';
+const RESULT_DURATION_MS = 2_400;
 
 type MobileTimelinePullToRefreshProps = Readonly<{
   children: ReactNode;
@@ -35,23 +41,41 @@ export function MobileTimelinePullToRefresh({
   const [pullState, setPullState] =
     useState<PullToRefreshState>(IDLE_PULL_TO_REFRESH_STATE);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [resultMessage, setResultMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const pullStateRef = useRef<PullToRefreshState>(IDLE_PULL_TO_REFRESH_STATE);
   const refreshInFlightRef = useRef(false);
+  const connectorSuccessRef = useRef<boolean | null>(null);
+  const sawPendingRef = useRef(false);
+  const resultTimerRef = useRef<number | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isRefreshing || isPending) {
+    if (!isRefreshing) {
       return;
     }
 
-    const frame = window.requestAnimationFrame(() => {
-      refreshInFlightRef.current = false;
-      setIsRefreshing(false);
-    });
+    if (isPending) {
+      sawPendingRef.current = true;
+      return;
+    }
 
-    return () => window.cancelAnimationFrame(frame);
+    if (!sawPendingRef.current || connectorSuccessRef.current === null) return;
+
+    refreshInFlightRef.current = false;
+    setIsRefreshing(false);
+    setResultMessage(connectorSuccessRef.current
+      ? "Cadence and connectors reloaded."
+      : "Reload incomplete. Cadence or connector data may be stale.");
+    connectorSuccessRef.current = null;
+    sawPendingRef.current = false;
+    if (resultTimerRef.current !== null) window.clearTimeout(resultTimerRef.current);
+    resultTimerRef.current = window.setTimeout(() => setResultMessage(""), RESULT_DURATION_MS);
   }, [isPending, isRefreshing]);
+
+  useEffect(() => () => {
+    if (resultTimerRef.current !== null) window.clearTimeout(resultTimerRef.current);
+  }, []);
 
   const updatePullState = useCallback((nextState: PullToRefreshState) => {
     pullStateRef.current = nextState;
@@ -67,12 +91,33 @@ export function MobileTimelinePullToRefresh({
       return;
     }
 
+    if (!navigator.onLine) {
+      setResultMessage("Reload failed while offline. Displayed data may be stale.");
+      if (resultTimerRef.current !== null) window.clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = window.setTimeout(() => setResultMessage(""), RESULT_DURATION_MS);
+      return;
+    }
+
     refreshInFlightRef.current = true;
+    connectorSuccessRef.current = null;
+    sawPendingRef.current = false;
+    setResultMessage("");
     setIsRefreshing(true);
-    startTransition(() => {
-      router.refresh();
+    startTransition(async () => {
+      try {
+        router.refresh();
+        connectorSuccessRef.current = await reloadWebTimelineConnectors();
+      } catch {
+        connectorSuccessRef.current = false;
+      }
     });
   }, [router, startTransition]);
+
+  useTimelineWheelReload({
+    rootRef: wrapperRef,
+    reloadInFlightRef: refreshInFlightRef,
+    onReload: requestRefresh,
+  });
 
   const handleTouchMove = useCallback(
     (event: TouchEvent) => {
@@ -121,15 +166,13 @@ export function MobileTimelinePullToRefresh({
 
     const touch = event.touches[0];
     const target = event.target instanceof Element ? event.target : null;
-    const startedOnInteractiveElement = Boolean(
-      target?.closest(INTERACTIVE_TARGET_SELECTOR),
-    );
+    const startedOnInteractiveElement = isTimelineInteractiveTarget(target);
 
     updatePullState(
       beginPullToRefresh({
         isMobile: window.innerWidth <= MOBILE_TIMELINE_MAX_WIDTH,
-        isAtScrollTop: getNearestScrollTop(target) <= 0,
-        isModalOpen: document.querySelector('[role="dialog"][aria-modal="true"]') !== null,
+        isAtScrollTop: !hasTimelineScrollableAncestor(target, wrapperRef.current!) && getNearestScrollTop(target) <= 0,
+        isModalOpen: isTimelineModalOpen(),
         startedOnInteractiveElement,
         x: touch.clientX,
         y: touch.clientY,
@@ -153,7 +196,7 @@ export function MobileTimelinePullToRefresh({
   const isReadyToRefresh =
     isPulling && pullState.distance >= PULL_TO_REFRESH_THRESHOLD;
   const feedback = isRefreshing
-    ? "Refreshing timeline"
+    ? "Reloading Cadence and connectors"
     : isReadyToRefresh
       ? "Release to refresh"
       : "Pull to refresh";
@@ -168,13 +211,13 @@ export function MobileTimelinePullToRefresh({
       onTouchEnd={handleTouchEnd}
       onTouchCancel={resetPull}
     >
-      {isPulling || isRefreshing ? (
+      {isPulling || isRefreshing || resultMessage ? (
         <p
           aria-live="polite"
           className="pointer-events-none fixed left-1/2 top-[calc(4rem+max(0.5rem,env(safe-area-inset-top)))] z-30 -translate-x-1/2 border border-line bg-background px-3 py-1.5 text-xs text-muted-readable motion-safe:transition-opacity motion-reduce:transition-none"
           role="status"
         >
-          {feedback}
+          {resultMessage || feedback}
         </p>
       ) : null}
       {children}

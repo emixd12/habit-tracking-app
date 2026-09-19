@@ -43,6 +43,17 @@ When updating a ticket row:
 
 ## Current repository state
 
+Ticket 149 is `complete` in source: Calendar inspection polish and shared Timeline reload.
+The owner selected overlap color `#DA3278`, thin borders, a title-aligned preview
+close control, centered details, Google Calendar provider icons, and desktop
+overscroll refresh with completion feedback. Required automated checks and
+responsive synthetic browser QA pass. Fresh independent review returned `ship`
+with no findings. Installed-native gestures and live connector reads remain
+separate acceptance evidence; this task makes no deployment claim.
+The duration-line follow-up also passes browser inspection and all required checks;
+event duration recolors the axis with a solid 1px stroke.
+Evidence: `docs/qa/calendar-inspection-refresh.md`.
+
 Branch reconciliation on September 18, 2026 combines the outstanding product work,
 18 dependency-update branches, and older legal/desktop release histories. Existing
 newer implementations resolve historical conflicts; recovered desktop QA records

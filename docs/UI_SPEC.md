@@ -163,8 +163,8 @@ All-day controls are absent when the day has no all-day events. Otherwise they
 show “All day: {first event title}”, with “+N more” for additional visible events.
 Dismissed events retain a Restore control. Hover, focus, click, and tap open the
 same persistent preview. The preview has no repeated heading or divider. Each
-event owns a View details button that opens only that event in the modal details
-drawer. Closing details returns focus to the original timeline control.
+event owns a View details button that opens only that event in the centered details
+modal. Closing details returns focus to the original timeline control.
 Keep timed Calendar context left of the axis and the ledger exclusively right.
 Use 12px restore-action padding on narrow layouts and 16px on desktop. Align day
 headers with the ledger while the axis continues through every header and day.
@@ -174,7 +174,7 @@ column. The control can wrap on a narrow screen.
 The layout uses piecewise interpolation between measured item anchors and
 local day boundaries. Readable spacing takes precedence over proportional
 scale; the presentation must disclose compressed spacing. A timed-event hover/
-focus preview shows duration as a temporary thickened axis segment and can
+focus preview shows duration as a temporary solid 1px magenta axis segment and can
 highlight overlapping Behavior rows. An overnight continuation starts at the
 next day section and ends at the event's mapped end. It adds no second marker or
 stem. No permanent duration bar appears. All-day events retain date-only meaning.
@@ -190,8 +190,14 @@ Hover, focus, click, and tap open the same fixed bottom non-modal preview. The
 preview persists until dismissal or replacement. It reserves only its rendered
 height, has 16px inner padding, and caps at `min(18rem, 40dvh)`. It scrolls
 internally when needed. Hover does not move focus. **View details** opens one
-event in a bottom modal drawer. Close or Escape returns focus without reopening
+event in a centered details modal. Close or Escape returns focus without reopening
 the preview. A validated source link can open the event in its source app.
+
+The preview close icon aligns with the first event title and keeps a 44px target.
+Expanded details use a centered native dialog, at most 40rem wide with 16px
+viewport clearance and internal scrolling. Only the preview reserves bottom space.
+Google Calendar markers show the bundled provider icon. The healthy Calendar
+current label is hidden; stale, incomplete, and failure information stays visible.
 
 All-day controls appear only when the day has visible all-day events. They show
 **All day: {first event title}** and **+N more** when needed. Dismissed items
@@ -201,8 +207,8 @@ selection, no events, not loaded, incomplete, stale, and refresh failure.
 
 The current-time dot updates once per visible minute without SVG interpolation.
 It stops recurring work on blur/hide and refreshes on return.
-The current-time dot uses brand blue and does not tint a row. No persistent teal
-overlap fill or edge appears. Hover/focus outlines only overlapping Behaviors. Point
+The current-time dot uses brand blue and does not tint a row. No persistent overlap fill or edge appears. Hover/focus changes only overlapping
+Behavior borders to the owner-selected Poline facet `#DA3278`. Point
 Behaviors overlap only when `start <= activation < end`; estimated-duration
 Behaviors use half-open interval overlap. Completed and Not Completed fills stay
 unchanged. Preserve all other layout, colors, and typography.
@@ -235,7 +241,10 @@ top should refresh the current Timeline data after the user crosses and
 releases a clear pull threshold. One completed pull should cause one refresh.
 Short, horizontal, or below-the-top drags should preserve normal scrolling and
 must not refresh or mutate an occurrence. This is an online refresh interaction,
-not offline/PWA caching or an offline mutation queue.
+not offline/PWA caching or an offline mutation queue. Desktop upward overscroll
+at the top follows the same deliberate threshold and one-request guard. Both
+clients reload Cadence and connected Calendar data. Show temporary completion
+feedback only after successful reads; report partial failure and preserve data.
 
 ### First-run setup
 

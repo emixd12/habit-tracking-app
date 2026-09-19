@@ -286,3 +286,9 @@ jq -r '.interactions[] | .id as $id | .user_guidance.references[] | $id + "\t" +
 drafts in the shared web/desktop form. Existing create/edit intents persist them.
 Restore clears an expired date and the current automatic-archive notification.
 Automatic background archival itself is a system action, outside this registry.
+
+
+Ticket 149 extends `INT-TIMELINE-010` to desktop upward overscroll and awaits
+Cadence plus connector reloads before completion feedback. `INT-CALENDAR-005`
+keeps bottom previews and opens explicit details in a centered native modal.
+The shared Timeline catalog records provider icons and thin facet overlap borders.

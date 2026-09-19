@@ -10769,3 +10769,30 @@ Run `npm run agents:check`, `npm run interactions:check`,
 Use the existing interaction registry and design-system catalog as evidence;
 do not register proposed interactions as implemented. Record why runtime tests
 and builds were not rerun when no runtime files changed.
+
+## Ticket 149: Calendar inspection polish and Timeline reload
+
+Status: complete in source (September 18, 2026). Required checks, responsive
+synthetic browser QA, and fresh independent review (`ship`) pass.
+Evidence and live/native limits: `docs/qa/calendar-inspection-refresh.md`.
+
+### Scope and acceptance
+
+- Use owner-selected Poline facet `#DA3278` for a thin overlap border and solid 1px event-duration axis segment, with no glow.
+- Align the bottom preview close icon with the event title while preserving its 44px target.
+- Open explicit View details in a centered, bounded native modal. Keep quick previews in reserved bottom space.
+- Identify Google Calendar event markers with its provider icon.
+- Remove the healthy Calendar current label; retain actionable freshness/failure states.
+- Reload Cadence and connected Calendar data with a deliberate desktop upward overscroll at the top, or mobile pull.
+- Confirm successful completion with temporary feedback. Retain data and report failed or partial refresh honestly.
+- Preserve manual statuses, focus restoration, offline local tracking, and normal scrolling.
+
+### Platform impact
+
+- Web: shared Timeline/details/CSS and refresh wrapper; INT-TIMELINE-010 and INT-CALENDAR-005/006/007.
+- Desktop: shared presentation, bundled provider asset, and native product refresh callback.
+- Marketing: not applicable; this changes authenticated/local tracking controls only.
+- Future mobile: native implementation remains deferred; responsive web shares the presentation and touch refresh contract.
+
+Use the existing interaction registry and design-system Timeline family for evidence.
+No schema, new connector, or provider permission change.

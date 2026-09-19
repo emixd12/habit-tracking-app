@@ -4,31 +4,20 @@ Timeline begins with the current local day and is the primary daily screen. It
 shows the next seven days by default. Prior-day Unresolved Occurrences are kept
 out of the forward feed and appear in **Needs decision**.
 
-## Refresh Timeline on mobile
+## Refresh Timeline
 
-**Prerequisites:** Open Timeline on a mobile-width browser and scroll to the
-top of the page.
+At the top of Timeline, pull downward on mobile and release after **Release to
+refresh** appears. On desktop, scroll upward past the top with a trackpad or mouse
+wheel. Start outside buttons, fields, and open dialogs.
 
-1. Drag downward on the Timeline. Start outside a status, Note, timing,
-   navigation, or Needs decision control.
-2. Continue until the feedback changes from **Pull to refresh** to
-   **Release to refresh**.
-3. Release the gesture.
+Cadence reloads the Timeline and connected Calendar data. Successful reloads
+show a brief confirmation. Failed or partial reloads show an error and preserve
+existing data. Linked desktop accounts also synchronize through the existing
+account connection. Local desktop tracking remains usable without a connection.
 
-**Result and persistence:** Cadence requests current Timeline data once and
-briefly shows **Refreshing timeline**. The refresh does not mark, unmark, edit,
-start, stop, reset, create, or reschedule an Occurrence.
-
-**Recovery or undo:** No undo is required because the gesture changes no
-product data. A short, horizontal, cancelled, below-the-top, or control-started
-drag continues normal interaction without refreshing.
-
-**Privacy and safety:** Refresh reads the signed-in account's current Timeline
-through the existing protected route and RLS boundaries. It adds no offline
-cache or pending mutation queue.
-
-**Keyboard and desktop:** The custom gesture is mobile-only. Desktop and
-keyboard users can use the browser's ordinary reload command.
+Normal scrolling, short or horizontal gestures, and repeated input during a
+reload do not start another reload. This action never changes an Occurrence
+status, Note, timer, or schedule. Browser keyboard reload remains available.
 
 ## Reveal more future days
 
@@ -262,7 +251,7 @@ Calendar.
 4. Choose **Save Calendar settings**. Choose **Refresh Calendar** to request the
    displayed date range immediately.
 5. On Timeline, preview an event by hovering, focusing, clicking, or tapping its
-   marker. Choose **View details** for that event's drawer. Close or Escape
+   marker. Choose **View details** for that event's centered modal. Close or Escape
    returns focus to the marker.
 6. Choose a validated source link to open that event outside Cadence.
 7. For an all-day item, choose **Dismiss** to hide it from this presentation.

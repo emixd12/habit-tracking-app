@@ -328,6 +328,26 @@ describe("desktop preference and dialog side effects", () => {
     expect(document.activeElement).toBe(launcher);
   });
 
+  it("reloads once for a top-edge upward wheel gesture and reports only completed success", async () => {
+    const unchanged = async <T,>(state: T) => state;
+    let finish!: (success: boolean) => void;
+    const reload = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve; }));
+    await render(<TimelineScreen timeline={resolveTimeline({ now, timezone, occurrences: [] })}
+      statusAction={unchanged} noteAction={unchanged} startTimeTrackingAction={unchanged}
+      stopTimeTrackingAction={unchanged} resetTimeTrackingAction={unchanged} onRefresh={vi.fn()}
+      onReload={reload} onShowMore={vi.fn()} />);
+    const timeline = container.querySelector<HTMLElement>("h1")!.parentElement!;
+    await act(() => {
+      timeline.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -60 }));
+      timeline.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -60 }));
+    });
+    expect(reload).toHaveBeenCalledOnce();
+    expect(container.textContent).toContain("Reloading Cadence and connectors");
+    expect(container.textContent).not.toContain("Cadence and connectors reloaded.");
+    await act(async () => { finish(true); await Promise.resolve(); });
+    expect(container.textContent).toContain("Cadence and connectors reloaded.");
+  });
+
   it("persists guide dismissal after forced review and a navigation remount", async () => {
     const dismissed = vi.fn();
     const props = { hasAnyBehavior: false, hasImportRuns: false, currentTimezone: timezone, permission: "denied" as const,

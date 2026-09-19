@@ -298,7 +298,8 @@
         "INT-CALENDAR-005",
         "INT-CALENDAR-006",
         "INT-CALENDAR-007",
-        "INT-SHELL-001"
+        "INT-SHELL-001",
+        "INT-TIMELINE-010"
       ],
       "reason": "Product Timeline uses a local show-more callback. Full native workflow verification remains pending."
     },
@@ -4310,11 +4311,11 @@
     },
     {
       "id": "INT-TIMELINE-010",
-      "name": "Refresh Timeline on mobile",
+      "name": "Refresh Timeline and connectors",
       "user_guidance": {
         "audience": "user",
         "references": [
-          "docs/user-guide/timeline.md#refresh-timeline-on-mobile"
+          "docs/user-guide/timeline.md#refresh-timeline"
         ]
       },
       "status": "implemented",
@@ -4327,34 +4328,42 @@
       "journeys": [
         "J07"
       ],
-      "intent": "Request current Timeline data with one deliberate mobile pull gesture.",
+      "intent": "Reload current Cadence and connected Calendar data with one deliberate gesture.",
       "triggers": [
         {
           "kind": "gesture",
-          "control": "Downward pull from the top of Timeline followed by release"
+          "control": "Mobile downward pull and release, or desktop upward overscroll at the top of Timeline"
         }
       ],
-      "availability": "Available at mobile widths while the nearest scrollable ancestor is at its top, no modal is open, the gesture starts outside a disclosure, status, Note, timing, navigation, or Needs decision control, and no refresh is already in flight.",
-      "success_result": "Shows bounded pull feedback and requests current Timeline data exactly once without mutating an occurrence.",
-      "failure_result": "Short, horizontal, cancelled, below-the-top, desktop, control-started, or duplicate in-flight gestures preserve the current view without refreshing.",
+      "availability": "At the Timeline scroll top, outside controls and dialogs, with no reload in flight.",
+      "success_result": "Awaits Cadence and connected Calendar reads, then shows temporary completion feedback without mutating an occurrence.",
+      "failure_result": "Failed or partial reads preserve data and show failure feedback. Short, horizontal, cancelled, below-top, nested, modal, or in-flight gestures do not reload.",
       "effects": [
         "navigation",
-        "ui_state"
+        "ui_state",
+        "network_request",
+        "database_read"
       ],
       "risk": "low",
       "confirmation": "none",
       "implementation": [
         "components/timeline/MobileTimelinePullToRefresh.tsx",
         "components/timeline/mobile-pull-to-refresh.ts",
-        "components/timeline/Timeline.tsx"
+        "components/timeline/Timeline.tsx",
+        "lib/ui/timeline-wheel-reload.ts",
+        "lib/ui/google-calendar.ts"
       ],
       "test_coverage": {
         "level": "indirect",
         "references": [
           "tests/mobile-pull-to-refresh.test.ts",
-          "tests/timeline-interactions-ui.test.tsx"
+          "tests/timeline-interactions-ui.test.tsx",
+          "tests/timeline-reload.dom.test.tsx",
+          "tests/google-calendar-client.test.tsx",
+          "tests/desktop-controls.dom.test.tsx",
+          "tests/desktop-retry.dom.test.tsx"
         ],
-        "notes": "Automated coverage proves threshold, direction lock, disclosure and modal exclusion, nearest-scroll-container inspection, cancellation, one in-flight refresh claim, native-refresh suppression, and wrapper rendering. Physical touch dispatch and router completion remain browser QA."
+        "notes": "Automated gesture, DOM, and connector checks cover threshold, exclusions, one in-flight reload, cache bypass, delayed completion, and failure feedback. Physical touch/trackpad and real provider acceptance remain separate."
       },
       "platforms": {
         "web": {
@@ -4363,17 +4372,32 @@
           "implementation": [
             "components/timeline/MobileTimelinePullToRefresh.tsx",
             "components/timeline/mobile-pull-to-refresh.ts",
-            "components/timeline/Timeline.tsx"
+            "components/timeline/Timeline.tsx",
+            "lib/ui/timeline-wheel-reload.ts",
+            "lib/ui/google-calendar.ts"
           ],
           "evidence": [
             "tests/mobile-pull-to-refresh.test.ts",
-            "tests/timeline-interactions-ui.test.tsx"
+            "tests/timeline-interactions-ui.test.tsx",
+            "tests/timeline-reload.dom.test.tsx",
+            "tests/google-calendar-client.test.tsx"
           ]
         },
         "desktop": {
-          "applicability": "not_applicable",
-          "status": "not_applicable",
-          "reason": "This intent requires mobile browser touch refresh; desktop uses native lifecycle reconciliation."
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/timeline-screen.tsx",
+            "apps/desktop/src/product.tsx",
+            "lib/ui/timeline-wheel-reload.ts",
+            "apps/desktop/src/calendar/use-google-calendar.ts"
+          ],
+          "evidence": [
+            "tests/mobile-pull-to-refresh.test.ts",
+            "tests/desktop-controls.dom.test.tsx",
+            "tests/desktop-retry.dom.test.tsx"
+          ],
+          "reason": "Shared wheel gesture awaits existing linked-account synchronization, local data refresh, and Calendar refresh. Installed native gesture acceptance remains separate."
         },
         "marketing": {
           "applicability": "not_applicable",
@@ -11629,7 +11653,7 @@
         }
       ],
       "availability": "Available when validated visible events intersect the displayed dates.",
-      "success_result": "Hover/focus/click/tap opens a persistent preview; View details opens one modal and closing returns focus.",
+      "success_result": "Google Calendar markers open persistent bottom previews; View details opens one centered native modal. Close or Escape restores focus without reopening the preview.",
       "failure_result": "Unavailable details display their field-specific missing-data state.",
       "effects": [
         "ui_state",

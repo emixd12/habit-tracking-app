@@ -137,8 +137,8 @@ All-day controls are absent when the day has no all-day events. Otherwise they
 show “All day: {first event title}”, with “+N more” for additional visible events.
 Dismissed events retain a Restore control. Hover, focus, click, and tap open the
 same persistent preview. The preview has no repeated heading or divider. Each
-event owns a View details button that opens only that event in the modal details
-drawer. Closing details returns focus to the original timeline control.
+event owns a View details button that opens only that event in the centered details
+modal. Closing details returns focus to the original timeline control.
 
 
 `app/design-system/DayProgressBench.tsx` compares current grouped rows with
@@ -156,14 +156,14 @@ column. All Day Events sits beside the ledger-header day title and wraps on narr
 layouts. It uses
 the same fixed bottom non-modal hover/focus preview drawer as timed Calendar events. The drawer reserves
 matching viewport space, is at most `min(18rem, 40dvh)` (a maximum, never a fixed height), and scrolls internally. It persists until explicit
-dismissal or replacement so a pointer can reach it. Each event’s View details action opens its own bottom native modal details drawer.
+dismissal or replacement so a pointer can reach it. Each event’s View details action opens its own centered native details modal.
 Close or Escape returns focus without reopening the preview. Dismiss and restore change local presentation
 only. Use centered perpendicular stems without axis nodes for Calendar events;
 group only identical original start instants in one event lane. Nearby starts remain separate. Timed-event hover/focus previews show actual
-duration as a thickened axis segment from the displayed original-day perpendicular-stem contact. It preserves mapped
+duration as a solid 1px magenta axis segment from the displayed original-day perpendicular-stem contact. It preserves mapped
 length to the day body bottom. An overnight continuation starts at the next section top above its heading, continues to the event end without another marker or stem; details retain actual times. No
 permanent duration bars appear. The current-time dot uses brand blue without a
-row tint. No persistent teal overlap fill or edge appears. Hover/focus outlines only overlapping Behaviors. Point
+row tint. No persistent overlap fill or edge appears. Hover/focus changes only overlapping Behavior borders to the owner-selected Poline facet `#DA3278`. Point
 overlap uses `start <= activation < end`; estimated-duration overlap is half-open.
 Completed and Not Completed fills remain unchanged. Preserve all other layout, colors, and
 typography. `docs/qa/day-progress-layout.md` records
@@ -569,3 +569,16 @@ SVG position transition. This avoids an animation continuing after minimization.
 ## Behavior planning fields
 
 The shared Behavior form now uses native optional number/date inputs for default duration and scheduled archive. Existing tokens and field styling remain. Timeline and Behaviors reuse divider-led status text for automatic archive notifications. No new visual primitive or token was introduced.
+
+
+## Calendar inspection and reload (Ticket 149)
+
+The shared Timeline uses `--calendar-overlap: #DA3278`, the owner-selected Poline
+facet. A transparent 1px row border changes color during Calendar preview without
+a glow or layout shift. Manual status fills and keyboard focus remain distinct.
+Google Calendar markers use the bundled official provider asset.
+The non-modal preview keeps bottom placement and 16px padding. Its 44px close
+control centers its icon on the first title line. Explicit View details opens a
+centered native dialog, capped at 40rem with 16px viewport clearance and scrolling.
+Healthy freshness has no permanent label. Timeline refresh gives temporary
+completion or failure feedback after Cadence and connector reads.
