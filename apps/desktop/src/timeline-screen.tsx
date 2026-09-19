@@ -1,5 +1,5 @@
 import { RuntimeLink, RefreshProvider } from "@cadence/ui/runtime";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import type { NoteShortcut } from "@cadence/core/types/note-shortcut";
 
@@ -8,6 +8,7 @@ import { openCalendarSourceUrl } from "./calendar/google-calendar";
 import { DayProgressTimeline, type DayProgressContext } from "@/components/timeline/DayProgressTimeline";
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
 import { OccurrenceRow } from "@/components/timeline/OccurrenceRow";
+import { useTimelineWheelReload } from "@/lib/ui/timeline-wheel-reload";
 import type { NotificationTarget } from "./notification-activation";
 import type {
   OccurrenceFormAction,
@@ -24,6 +25,7 @@ export type TimelineScreenProps = Readonly<{
   stopTimeTrackingAction: TimeTrackingFormAction;
   resetTimeTrackingAction: TimeTrackingFormAction;
   onRefresh: () => void;
+  onReload?: () => Promise<boolean>;
   onShowMore: (days: number) => void;
   notificationTarget?: NotificationTarget | null;
   shortcutsByBehavior?: Record<string, NoteShortcut[]>;
@@ -33,6 +35,7 @@ export function TimelineScreen({
   timeline,
   dayProgress,
   onRefresh,
+  onReload,
   onShowMore,
   notificationTarget,
   shortcutsByBehavior = {},
@@ -40,6 +43,9 @@ export function TimelineScreen({
 }: TimelineScreenProps) {
   const nextFutureDays = timeline.nextFutureDays;
   const rootRef = useRef<HTMLDivElement>(null);
+  const reloadInFlightRef = useRef(false);
+  const resultTimerRef = useRef<number | null>(null);
+  const [reloadMessage, setReloadMessage] = useState("");
   const targetOccurrence = notificationTarget?.status === "available" ? notificationTarget.occurrence : null;
   const targetInFeed = !!targetOccurrence && timeline.daySections.some((section) =>
     section.occurrences.some((occurrence) => occurrence.id === targetOccurrence.id));
@@ -60,10 +66,48 @@ export function TimelineScreen({
     (row ?? focusTarget)?.scrollIntoView({ block: "center" });
   }, [targetId, targetRequest, targetStatus, targetInFeed]);
 
+  const reload = useCallback(() => {
+    if (!onReload || reloadInFlightRef.current) return;
+    reloadInFlightRef.current = true;
+    if (resultTimerRef.current !== null) {
+      window.clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = null;
+    }
+    setReloadMessage("Reloading Cadence and connectors");
+    void onReload().then((success) => {
+      setReloadMessage(success
+        ? "Cadence and connectors reloaded."
+        : "Reload incomplete. Cadence or connector data may be stale.");
+    }).catch(() => {
+      setReloadMessage("Reload incomplete. Cadence or connector data may be stale.");
+    }).finally(() => {
+      reloadInFlightRef.current = false;
+      if (resultTimerRef.current !== null) window.clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = window.setTimeout(() => setReloadMessage(""), 2_400);
+    });
+  }, [onReload]);
+
+  useTimelineWheelReload({
+    rootRef,
+    reloadInFlightRef,
+    onReload: reload,
+    enabled: Boolean(onReload),
+  });
+
+  useEffect(() => () => {
+    if (resultTimerRef.current !== null) window.clearTimeout(resultTimerRef.current);
+  }, []);
+
   return (
     <RefreshProvider onRefresh={onRefresh}>
       <div ref={rootRef} className="flex w-full flex-col">
         <h1 className="sr-only">Timeline</h1>
+        {reloadMessage ? (
+          <p role="status" aria-live="polite"
+            className="pointer-events-none fixed left-1/2 top-[calc(4rem+max(0.5rem,env(safe-area-inset-top)))] z-30 -translate-x-1/2 border border-line bg-background px-3 py-1.5 text-xs text-muted-readable">
+            {reloadMessage}
+          </p>
+        ) : null}
         <div className="w-full overflow-hidden bg-background">
           <div className="relative aspect-[1423/367] w-full sm:aspect-[2041/239]">
             <picture className="block h-full w-full">

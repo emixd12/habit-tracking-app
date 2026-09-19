@@ -281,7 +281,7 @@
       "benchAnchor": "design-system#ds-module-mobile-timeline-pull-to-refresh",
       "trackUsages": "required",
       "status": "active",
-      "notes": "Mobile Timeline gesture wrapper with threshold feedback, native-refresh suppression, control exclusion, and one in-flight route refresh."
+      "notes": "Shared touch and desktop overscroll gestures, one in-flight reload, and truthful completion feedback."
     },
     {
       "id": "module.note-shortcut-controls",
@@ -422,7 +422,7 @@
       "benchAnchor": "design-system#ds-module-timeline",
       "trackUsages": "required",
       "status": "active",
-      "notes": "Includes the mobile pull-to-refresh wrapper around the current-day and future Timeline feed."
+      "notes": "Timeline includes Cadence and connector reload gestures."
     },
     {
       "id": "module.timeline-group",
@@ -464,7 +464,7 @@
       "benchAnchor": "design-system#ds-module-day-progress-timeline",
       "trackUsages": "required",
       "status": "active",
-      "notes": "Tickets 133\u2013137; synthetic bench never contacts a provider."
+      "notes": "Shared web/desktop Timeline with Google Calendar markers, thin facet overlap borders and duration lines, and synthetic provider-free preview."
     },
     {
       "id": "module.google-calendar-panel",
@@ -492,7 +492,7 @@
       "benchAnchor": "design-system#ds-composite-external-event-details",
       "trackUsages": "optional",
       "status": "active",
-      "notes": "Tickets 133\u2013137; synthetic bench never contacts a provider."
+      "notes": "Explicit focused inspection in a centered native modal; bounded viewport fit and focus restoration."
     },
     {
       "id": "composite.external-event-preview",
@@ -506,7 +506,7 @@
       "benchAnchor": "design-system#ds-composite-external-event-preview",
       "trackUsages": "optional",
       "status": "active",
-      "notes": "Tickets 133\u2013137; synthetic bench never contacts a provider."
+      "notes": "Persistent bottom preview with title-aligned close control and reserved rendered height."
     }
   ]
 }

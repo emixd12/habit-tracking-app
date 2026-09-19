@@ -8,8 +8,8 @@ All-day controls are absent when the day has no all-day events. Otherwise they
 show “All day: {first event title}”, with “+N more” for additional visible events.
 Dismissed events retain a Restore control. Hover, focus, click, and tap open the
 same persistent preview. The preview has no repeated heading or divider. Each
-event owns a View details button that opens only that event in the modal details
-drawer. Closing details returns focus to the original timeline control.
+event owns a View details button that opens only that event in the centered details
+modal. Closing details returns focus to the original timeline control.
 
 
 Tickets 132–137: shared layout/context contracts and a synthetic web review bench
@@ -28,14 +28,14 @@ stays unchanged. There is no right-side All day column. All Day Events sits
 beside the ledger-header day title and wraps on narrow layouts. Its hover/focus
 preview is a fixed bottom drawer that matches timed Calendar previews and stays non-modal. It reserves
 matching viewport space, is at most `min(18rem, 40dvh)` (a maximum, never a fixed height), and scrolls internally. It persists until explicit dismissal
-or replacement so a pointer can reach it. Each event’s View details action opens its own bottom native modal details drawer;
+or replacement so a pointer can reach it. Each event’s View details action opens its own centered native details modal;
 Close or Escape returns focus without reopening the preview. All-day dismissal
 is restorable local presentation state, never a provider deletion or Cadence
-status. Timed-event hover/focus previews show duration on a thickened axis segment from
+status. Timed-event hover/focus previews show duration on a solid 1px magenta axis segment from
 the displayed original-day perpendicular-stem contact and highlight matching Behavior rows. Preserve mapped length
 to the day body bottom. An overnight continuation starts at the next section top above its heading, continues to the event end without another marker or stem; details retain actual times. No permanent duration bars
 appear. Calendar icons use centered perpendicular stems without axis nodes.
-No persistent teal overlap fill or edge appears. Hover/focus outlines only overlapping Behaviors. Point overlap uses
+No persistent overlap fill or edge appears. Hover/focus changes only overlapping Behavior borders to the owner-selected Poline facet `#DA3278`. Point overlap uses
 `start <= activation < end`; estimated-duration overlap is half-open. Completed
 and Not Completed fills remain unchanged. The current-time dot uses brand blue and
 does not tint a row. All other layout, colors, and typography remain

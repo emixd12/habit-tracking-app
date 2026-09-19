@@ -39,8 +39,14 @@ type PendingEvents = Readonly<{ accountId: string; epoch: number; promise: Promi
 
 const PENDING_EVENTS = new Map<string, PendingEvents>();
 const ACCOUNT_EPOCHS = new Map<string, number>();
+const TIMELINE_RELOADS = new Set<() => Promise<boolean>>();
 const EVENT_REFRESH_MS = 15 * 60_000;
 let activeAccountId: string | null = null;
+
+export async function reloadWebTimelineConnectors(): Promise<boolean> {
+  const results = await Promise.all([...TIMELINE_RELOADS].map((reload) => reload()));
+  return results.every(Boolean);
+}
 
 export const webGoogleCalendarCoordinator: GoogleCalendarCoordinator = {
   async getConnection() {
@@ -113,13 +119,13 @@ export function useWebGoogleCalendarTimeline(input: Readonly<{
   const accountId = useRef<string | null>(null);
   const display = useRef<Pick<WebCalendarTimelineState, "hiddenCalendarIds" | "showAllDay">>({ hiddenCalendarIds: [], showAllDay: false });
   const requestSequence = useRef(0);
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force = false): Promise<boolean> => {
     const request = ++requestSequence.current;
     const isCurrent = () => request === requestSequence.current && !document.hidden;
-    if (!input.enabled || !range || document.hidden) return;
+    if (!input.enabled || !range || document.hidden) return false;
     try {
       const connection = await webGoogleCalendarCoordinator.getConnection();
-      if (!isCurrent()) return;
+      if (!isCurrent()) return false;
       if (accountId.current && accountId.current !== connection.accountId) lastSnapshot.current = null;
       accountId.current = connection.accountId;
       if (lastSnapshot.current && !matchesRequest(lastSnapshot.current, connection, range)) lastSnapshot.current = null;
@@ -129,18 +135,21 @@ export function useWebGoogleCalendarTimeline(input: Readonly<{
       };
       if (connection.status === "not_configured") {
         clearAccount(connection.accountId);
-        return setState({ state: "not_configured", snapshot: null, error: null, hiddenCalendarIds: [], showAllDay: false });
+        setState({ state: "not_configured", snapshot: null, error: null, hiddenCalendarIds: [], showAllDay: false });
+        return true;
       }
       if (connection.status !== "connected") {
         clearAccount(connection.accountId);
         lastSnapshot.current = null;
-        return setState({ state: "disconnected", snapshot: null, error: null, hiddenCalendarIds: [], showAllDay: false });
+        setState({ state: "disconnected", snapshot: null, error: null, hiddenCalendarIds: [], showAllDay: false });
+        return connection.status === "disconnected";
       }
       if (!connection.preferences.visible || connection.preferences.selectedCalendarIds.length === 0) {
-        return setState({ state: "no_selected_calendars", snapshot: null, error: null, hiddenCalendarIds: connection.preferences.hiddenCalendarIds, showAllDay: connection.preferences.showAllDay });
+        setState({ state: "no_selected_calendars", snapshot: null, error: null, hiddenCalendarIds: connection.preferences.hiddenCalendarIds, showAllDay: connection.preferences.showAllDay });
+        return true;
       }
-      const snapshot = await webGoogleCalendarCoordinator.refreshEvents(range);
-      if (!isCurrent()) return;
+      const snapshot = await webGoogleCalendarCoordinator.refreshEvents(range, { force });
+      if (!isCurrent()) return false;
       const retained = snapshot.freshness.state === "stale" || snapshot.freshness.state === "incomplete"
         ? staleSnapshot(snapshot)
         : snapshot;
@@ -152,8 +161,9 @@ export function useWebGoogleCalendarTimeline(input: Readonly<{
         hiddenCalendarIds: connection.preferences.hiddenCalendarIds,
         showAllDay: connection.preferences.showAllDay,
       });
+      return snapshot.completeness === "complete" && snapshot.freshness.state === "current";
     } catch (error) {
-      if (!isCurrent()) return;
+      if (!isCurrent()) return false;
       const code = calendarError(error);
       if (code === "unauthenticated" || code === "wrong_account" || code === "not_connected" || code === "reconnect_required" || code === "same_account_required" || code === "connection_changed") {
         if (accountId.current) clearAccount(accountId.current);
@@ -163,8 +173,16 @@ export function useWebGoogleCalendarTimeline(input: Readonly<{
       const retained = lastSnapshot.current ? staleSnapshot(lastSnapshot.current) : null;
       lastSnapshot.current = retained;
       setState({ state: "error", snapshot: retained, error: code, ...display.current });
+      return false;
     }
   }, [input.enabled, range]);
+
+  useEffect(() => {
+    if (!input.enabled || !range) return;
+    const reload = () => refresh(true);
+    TIMELINE_RELOADS.add(reload);
+    return () => { TIMELINE_RELOADS.delete(reload); };
+  }, [input.enabled, range, refresh]);
 
   useEffect(() => {
     if (!input.enabled || !range) return;

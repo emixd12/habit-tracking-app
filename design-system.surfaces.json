@@ -506,9 +506,11 @@
         "Rows remain compact and unboxed",
         "Completed, Not Completed, and Unresolved language stays exact",
         "Occurrence notes attach to the occurrence, not the behavior",
-        "Mobile pull-to-refresh reads current Timeline data once without mutating an occurrence",
+        "Mobile pull and desktop upward overscroll reload Cadence and connected Calendar data once, with truthful completion feedback",
         "Accepted Behavior Note shortcuts fill or append only to the draft; global and Behavior off hide them; Save note remains explicit.",
-        "A shared continuous day-progress axis shows read-only Calendar context, explicit stale coverage, and advisory duration estimates without changing manual occurrence statuses."
+        "A shared continuous day-progress axis shows read-only Calendar context, explicit stale coverage, and advisory duration estimates without changing manual occurrence statuses.",
+        "Google Calendar provider icons identify the source; thin #DA3278 overlap borders preserve status fills; event durations recolor the 1px axis without thickening it.",
+        "Quick previews reserve bottom space; explicit event details use a centered, bounded native modal."
       ],
       "surfaceImplementations": [
         {
@@ -525,7 +527,9 @@
             "tests/occurrence-note-shortcuts-ui.test.tsx",
             "components/timeline/DayProgressTimeline.tsx",
             "components/timeline/ExternalEventDetails.tsx",
-            "docs/qa/day-progress-release.md"
+            "docs/qa/day-progress-release.md",
+            "components/timeline/day-progress-timeline.module.css",
+            "public/brand/google-calendar.svg"
           ],
           "implementationIds": [
             "module.timeline",
@@ -538,7 +542,7 @@
             "composite.external-event-details",
             "composite.external-event-preview"
           ],
-          "notes": "Tickets 133\u2013137 wire the accepted Ticket 132 day-progress layout into both production clients. Synthetic DOM and resolver checks cover the shared implementation. Live Calendar, installed desktop, idle/minimized, and release acceptance remain pending in docs/qa/day-progress-release.md."
+          "notes": "Tickets 133\u2013137 wire the accepted Ticket 132 day-progress layout into both production clients. Synthetic DOM and resolver checks cover the shared implementation. Live Calendar, installed desktop, idle/minimized, and release acceptance remain pending in docs/qa/day-progress-release.md. Ticket 149 updates Calendar inspection and Timeline reload. See docs/qa/calendar-inspection-refresh.md."
         },
         {
           "surfaceId": "marketing",
@@ -564,7 +568,9 @@
             "tests/occurrence-note-shortcuts-ui.test.tsx",
             "components/timeline/DayProgressTimeline.tsx",
             "components/timeline/ExternalEventDetails.tsx",
-            "docs/qa/day-progress-release.md"
+            "docs/qa/day-progress-release.md",
+            "components/timeline/day-progress-timeline.module.css",
+            "public/brand/google-calendar.svg"
           ],
           "implementationIds": [
             "composite.occurrence-note-form",
@@ -572,7 +578,7 @@
             "composite.external-event-details",
             "composite.external-event-preview"
           ],
-          "notes": "Tickets 133\u2013137 wire the accepted Ticket 132 day-progress layout into both production clients. Synthetic DOM and resolver checks cover the shared implementation. Live Calendar, installed desktop, idle/minimized, and release acceptance remain pending in docs/qa/day-progress-release.md."
+          "notes": "Tickets 133\u2013137 wire the accepted Ticket 132 day-progress layout into both production clients. Synthetic DOM and resolver checks cover the shared implementation. Live Calendar, installed desktop, idle/minimized, and release acceptance remain pending in docs/qa/day-progress-release.md. Ticket 149 updates Calendar inspection and Timeline reload. See docs/qa/calendar-inspection-refresh.md."
         },
         {
           "surfaceId": "mobile",

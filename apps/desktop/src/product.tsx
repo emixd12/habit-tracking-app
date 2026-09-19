@@ -45,6 +45,7 @@ import { completedFirstLinkState, finishFirstAccountLink, finishReviewedFirstAcc
 type Bundle = { timeline: Awaited<ReturnType<typeof loadLocalTimeline>>;
   behaviors: Awaited<ReturnType<typeof getLocalBehaviorsPageData>>; hasImportRuns: boolean;
   shortcuts: { global: NoteShortcutView; accepted: Record<string, import("@cadence/core/types/note-shortcut").NoteShortcut[]>; views: Record<string, NoteShortcutView> } };
+type SyncCompletion = Readonly<{ status: SyncStatus; localCurrent: boolean }>;
 const AVAILABLE_SCREENS: DesktopScreen[] = ["timeline", "behaviors", "export", "settings"];
 
 export function Product() {
@@ -74,6 +75,7 @@ export function Product() {
   const [syncRequest, setSyncRequest] = useState(0);
   const syncRunning = useRef(false);
   const syncPending = useRef(false);
+  const syncWaiters = useRef<Array<(completion: SyncCompletion) => void>>([]);
   const syncRetry = useRef(0);
   const syncRetryTimer = useRef<number | null>(null);
   const auth = useRef<DesktopAuth | null>(null);
@@ -87,6 +89,7 @@ export function Product() {
   const parameters = useRef<{ days: number; analytics: AnalyticsSelection }>({ days: 7, analytics: {} });
   const revision = useRef(0);
   const refreshRunning = useRef(false);
+  const refreshWaiters = useRef<Array<(success: boolean) => void>>([]);
   const syncAfterRefresh = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -106,19 +109,25 @@ export function Product() {
       if (mounted.current && current === reminderRevision.current) setReminderBusy(false);
     });
   }, []);
-  const refreshScreen = useCallback(() => {
+  const refreshScreen = useCallback((): Promise<boolean> => {
+    const completion = new Promise<boolean>((resolve) => refreshWaiters.current.push(resolve));
     revision.current += 1;
-    if (!isTauri()) { setLoading(false); return; }
+    if (!isTauri()) {
+      setLoading(false);
+      refreshWaiters.current.splice(0).forEach((resolve) => resolve(true));
+      return completion;
+    }
     archiveLifecycle.current = reconcileLocalBehaviorEndDates(Temporal.Now.instant())
       .then(() => refreshReminders())
       .catch((failure) => {
         if (mounted.current) setReminderError(localErrorMessage(failure));
       });
-    if (refreshRunning.current) return;
+    if (refreshRunning.current) return completion;
     refreshRunning.current = true;
     void (async () => {
       // Keep one running read and one latest request, including edits arriving during a read.
       let current: number;
+      let successful = false;
       do {
         current = revision.current;
         const requestedActivation = activation.current;
@@ -149,6 +158,7 @@ export function Product() {
           if (mounted.current && current === revision.current) {
             setBundle({ timeline, behaviors, hasImportRuns: imports.length > 0, shortcuts: { global, accepted, views: Object.fromEntries(behaviorViews) } });
             setError("");
+            successful = true;
             if (syncAfterRefresh.current) {
               syncAfterRefresh.current = false;
               setSyncRequest((value) => value + 1);
@@ -157,6 +167,7 @@ export function Product() {
         } catch (failure) {
           if (mounted.current && current === revision.current) {
             setError(localErrorMessage(failure));
+            successful = false;
             if (requestedActivation && activation.current?.requestKey === requestedActivation.requestKey) setNotificationTarget({ requestKey: requestedActivation.requestKey,
               status: "error", message: localErrorMessage(failure) });
           }
@@ -165,11 +176,13 @@ export function Product() {
         }
       } while (mounted.current && current !== revision.current);
       refreshRunning.current = false;
+      refreshWaiters.current.splice(0).forEach((resolve) => resolve(successful));
     })();
+    return completion;
   }, [refreshReminders]);
   const refresh = useCallback(() => {
     syncAfterRefresh.current = true;
-    refreshScreen();
+    void refreshScreen();
   }, [refreshScreen]);
   useEffect(() => {
     mounted.current = true;
@@ -290,17 +303,30 @@ export function Product() {
       ...(calendar.stale ? { state: "stale" as const, canAssertNoOverlap: false } : {}) }
       : { state: "unavailable" as const, refreshedAt: null, label: calendar.label, canAssertNoOverlap: false },
   };
-  const syncAccount = useCallback(() => {
-    if (!syncReady || !accountUserId || !profileId || !auth.current) return;
-    if (syncRunning.current) { syncPending.current = true; return; }
+  const syncAccount = useCallback((): Promise<SyncCompletion> => {
+    if (!syncReady || !accountUserId || !profileId || !auth.current) {
+      return Promise.resolve({ status: { state: "offline" }, localCurrent: false });
+    }
+    if (conflictReview) {
+      return Promise.resolve({ status: { state: "conflict", count: conflictReview.conflicts.length }, localCurrent: false });
+    }
+    const completion = new Promise<SyncCompletion>((resolve) => syncWaiters.current.push(resolve));
+    if (syncRunning.current) { syncPending.current = true; return completion; }
     syncRunning.current = true;
     syncPending.current = false;
     if (syncRetryTimer.current !== null) { window.clearTimeout(syncRetryTimer.current); syncRetryTimer.current = null; }
     setSyncStatus({ state: "syncing" });
-    void synchronizeAccount(profileId, auth.current.accountClient()).then((status) => {
+    let completedStatus: SyncStatus = { state: "failed", message: "Synchronization did not complete." };
+    let localCurrent = false;
+    void synchronizeAccount(profileId, auth.current.accountClient()).then(async (status) => {
+      completedStatus = status;
       if (!mounted.current) return;
       setSyncStatus(status);
-      if (status.state === "current") { syncRetry.current = 0; setConflictReview(null); refreshScreen(); }
+      if (status.state === "current") {
+        syncRetry.current = 0;
+        setConflictReview(null);
+        localCurrent = await refreshScreen();
+      }
       else if (status.state === "conflict") {
         syncRetry.current = 0;
         void planAccountSync(profileId, auth.current!.accountClient()).then(({ inputs, plan }) => {
@@ -312,11 +338,31 @@ export function Product() {
         const delay = Math.min(30_000, 1_000 * 2 ** attempt) * (0.75 + Math.random() * 0.5);
         syncRetryTimer.current = window.setTimeout(() => { syncRetryTimer.current = null; setSyncRequest((value) => value + 1); }, delay);
       }
+    }).catch((failure) => {
+      completedStatus = { state: "failed", message: localErrorMessage(failure) };
+      if (mounted.current) setSyncStatus(completedStatus);
     }).finally(() => {
       syncRunning.current = false;
-      if (syncPending.current && mounted.current) setSyncRequest((value) => value + 1);
+      if (completedStatus.state === "current" && syncPending.current && mounted.current) {
+        syncPending.current = false;
+        setSyncRequest((value) => value + 1);
+        return;
+      }
+      syncPending.current = false;
+      const completed = { status: completedStatus, localCurrent };
+      syncWaiters.current.splice(0).forEach((resolve) => resolve(completed));
     });
-  }, [accountUserId, profileId, refreshScreen, syncReady]);
+    return completion;
+  }, [accountUserId, conflictReview, profileId, refreshScreen, syncReady]);
+  const refreshCalendar = calendar.refresh;
+  const reloadTimeline = useCallback(async () => {
+    const online = navigator.onLine;
+    const synced = accountUserId ? await syncAccount() : null;
+    const accountCurrent = synced ? synced.status.state === "current" : true;
+    const cadenceCurrent = synced?.localCurrent || await refreshScreen();
+    const calendarCurrent = await refreshCalendar("manual");
+    return online && accountCurrent && cadenceCurrent && calendarCurrent;
+  }, [accountUserId, refreshCalendar, refreshScreen, syncAccount]);
   useEffect(() => {
     if (!syncReady) return;
     const trigger = () => syncAccount();
@@ -416,7 +462,7 @@ export function Product() {
       {activeScreen === "timeline" ? <TimelineScreen timeline={bundle.timeline.timeline} {...occurrenceActions}
         shortcutsByBehavior={bundle.shortcuts.accepted} dayProgress={calendarContext}
         notificationTarget={notificationTarget}
-        onRefresh={refresh} onShowMore={(days) => { parameters.current.days = days; refreshScreen(); }} /> : null}
+        onRefresh={refresh} onReload={reloadTimeline} onShowMore={(days) => { parameters.current.days = days; void refreshScreen(); }} /> : null}
       {activeScreen === "behaviors" ? <BehaviorsScreen {...bundle.behaviors.behaviors} analytics={bundle.behaviors.analytics}
         {...occurrenceActions} {...behaviorActions} onRefresh={refresh}
         noteShortcutViews={bundle.shortcuts.views} noteShortcutAction={noteShortcutAction}

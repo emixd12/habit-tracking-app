@@ -223,6 +223,45 @@ describe("desktop lifecycle refresh", () => {
     expect(mocks.sync).toHaveBeenCalledTimes(1);
   });
 
+  it("awaits connected account sync before the wheel reload reads the local copy", async () => {
+    mocks.linked = true;
+    let finish!: (status: { state: "current"; completedAt: string }) => void;
+    mocks.sync.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    await act(() => root.render(<Product />));
+    await settle();
+    await vi.waitFor(() => expect(mocks.sync).toHaveBeenCalledTimes(1));
+    mocks.timeline.mockClear();
+    const timeline = container.querySelector<HTMLElement>("h1")!.parentElement!;
+    await act(() => timeline.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -60 })));
+    expect(mocks.sync).toHaveBeenCalledOnce();
+    expect(mocks.timeline).not.toHaveBeenCalled();
+
+    await act(async () => { finish({ state: "current", completedAt: "2026-08-30T12:01:00Z" }); await Promise.resolve(); });
+    await settle();
+    await vi.waitFor(() => expect(mocks.sync).toHaveBeenCalledTimes(2));
+    expect(mocks.timeline).toHaveBeenCalledTimes(2);
+    expect(mocks.sync.mock.invocationCallOrder[1]).toBeLessThan(mocks.timeline.mock.invocationCallOrder[1]);
+    expect(container.textContent).toContain("Cadence and connectors reloaded.");
+  });
+
+  it("reloads the local copy but withholds success after a revoked connected sync", async () => {
+    mocks.linked = true;
+    await act(() => root.render(<Product />));
+    await settle();
+    await vi.waitFor(() => expect(mocks.sync).toHaveBeenCalledTimes(1));
+    await settle();
+    mocks.sync.mockClear();
+    mocks.timeline.mockClear();
+    mocks.sync.mockResolvedValueOnce({ state: "revoked" });
+    const timeline = container.querySelector<HTMLElement>("h1")!.parentElement!;
+    await act(() => timeline.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -60 })));
+    await settle();
+    expect(mocks.sync).toHaveBeenCalledOnce();
+    expect(mocks.timeline).toHaveBeenCalledOnce();
+    expect(container.textContent).toContain("Reload incomplete. Cadence or connector data may be stale.");
+    expect(container.textContent).not.toContain("Cadence and connectors reloaded.");
+  });
+
   it("retries a failed synchronization without another bundle or duplicate immediate attempt", async () => {
     mocks.linked = true;
     mocks.sync.mockResolvedValueOnce({ state: "failed", message: "Synthetic failure" });

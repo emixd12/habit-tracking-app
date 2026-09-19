@@ -11,6 +11,10 @@ import {
   PULL_TO_REFRESH_THRESHOLD,
   releasePullToRefresh,
 } from "@/components/timeline/mobile-pull-to-refresh";
+import {
+  continueDesktopWheelReload,
+  IDLE_DESKTOP_WHEEL_RELOAD_STATE,
+} from "@/lib/ui/timeline-wheel-reload";
 
 const topMobilePull = () =>
   beginPullToRefresh({
@@ -136,6 +140,10 @@ describe("mobile Timeline pull-to-refresh", () => {
       ),
       "utf8",
     );
+    const wheelReload = fs.readFileSync(
+      path.join(process.cwd(), "lib/ui/timeline-wheel-reload.ts"),
+      "utf8",
+    );
 
     expect(styles).toContain("@media (width <= 39.9375rem)");
     expect(styles).toContain("html:has([data-timeline-pull-to-refresh])");
@@ -144,8 +152,55 @@ describe("mobile Timeline pull-to-refresh", () => {
       'addEventListener("touchmove", handleTouchMove, { passive: false })',
     );
     expect(component).not.toContain("onTouchMove={handleTouchMove}");
-    expect(component).toContain("summary");
+    expect(component).toContain("isTimelineInteractiveTarget(target)");
     expect(component).toContain("getNearestScrollTop(target)");
-    expect(component).toContain("[aria-modal=\"true\"]");
+    expect(component).toContain("hasTimelineScrollableAncestor");
+    expect(wheelReload).toContain('addEventListener("wheel", handleWheel, { passive: false })');
+    expect(wheelReload).toContain("button, input, select, summary, textarea");
+    expect(wheelReload).toContain("[aria-modal=\"true\"]");
+  });
+});
+
+describe("desktop Timeline wheel reload", () => {
+  const input = {
+    deltaX: 0,
+    deltaY: -24,
+    deltaMode: 0,
+    now: 100,
+    isAtScrollTop: true,
+    isModalOpen: false,
+    isNestedScroll: false,
+    isInteractive: false,
+    isLocked: false,
+  };
+
+  it("accumulates a top-edge upward trackpad gesture and accepts a mouse-wheel step", () => {
+    const first = continueDesktopWheelReload(IDLE_DESKTOP_WHEEL_RELOAD_STATE, input);
+    expect(first.shouldReload).toBe(false);
+    expect(continueDesktopWheelReload(first.state, { ...input, now: 180 })).toEqual(expect.objectContaining({ shouldReload: true }));
+    expect(continueDesktopWheelReload(IDLE_DESKTOP_WHEEL_RELOAD_STATE, {
+      ...input,
+      deltaY: -3,
+      deltaMode: 1,
+    }).shouldReload).toBe(true);
+  });
+
+  it.each([
+    ["normal page scrolling", { isAtScrollTop: false }],
+    ["an open dialog", { isModalOpen: true }],
+    ["a nested scroller", { isNestedScroll: true }],
+    ["an interactive control", { isInteractive: true }],
+    ["an in-flight reload", { isLocked: true }],
+    ["a downward wheel", { deltaY: 24 }],
+    ["a horizontal gesture", { deltaX: 24, deltaY: -20 }],
+  ])("ignores %s", (_label, override) => {
+    expect(continueDesktopWheelReload(IDLE_DESKTOP_WHEEL_RELOAD_STATE, { ...input, ...override }).shouldReload).toBe(false);
+  });
+
+  it("does not combine separate wheel gestures", () => {
+    const first = continueDesktopWheelReload(IDLE_DESKTOP_WHEEL_RELOAD_STATE, input);
+    const later = continueDesktopWheelReload(first.state, { ...input, now: 500 });
+    expect(later.shouldReload).toBe(false);
+    expect(later.state.distance).toBe(24);
   });
 });

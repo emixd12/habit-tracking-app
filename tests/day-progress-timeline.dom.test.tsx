@@ -94,7 +94,7 @@ describe("DayProgressTimeline", () => {
 
   it("keeps existing status and Note controls in chronological rows", () => {
     expect(container.querySelector('[data-day-progress-date="2026-09-16"]')).not.toBeNull();
-    expect(container.textContent).toContain("Calendar current");
+    expect(container.textContent).not.toContain("Calendar current");
     expect(button("Completed")).toBeDefined();
     expect(button("Not Completed")).toBeDefined();
     expect(container.querySelector('textarea[name="note"]')).not.toBeNull();
@@ -121,7 +121,10 @@ describe("DayProgressTimeline", () => {
     await act(() => launcher.click());
     await act(() => button("View details: Design offsite").click());
     expect(container.querySelector("dialog")?.open).toBe(true);
+    expect(container.querySelector("[data-drawer-open]" )).toBeNull();
+    await act(() => button("Dismiss all-day event: Design offsite").focus());
     await act(() => button("Dismiss all-day event: Design offsite").click());
+    expect(container.querySelector('[data-calendar-drawer="preview"]')).toBeNull();
     expect(document.activeElement).toBe(launcher);
     expect(launcher.textContent).toBe("Restore All Day Events");
     expect(container.querySelector("dialog")?.open).toBe(false);
@@ -137,6 +140,28 @@ describe("DayProgressTimeline", () => {
     await act(() => root.render(<RefreshProvider onRefresh={() => {}}><DayProgressTimeline {...input} /></RefreshProvider>));
     await act(() => { observers.forEach((callback) => callback()); });
     expect(marker()).not.toBe(before);
+  });
+
+  it("remeasures later days when only the first day's height changes", async () => {
+    const input = props();
+    const first = input.timeline.daySections[0]!;
+    input.timeline.daySections.push({ ...first, key: "tomorrow", localDate: "2026-09-17", label: "Thursday, September 17", occurrences: [] });
+    let firstHeight = 260;
+    vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(function (this: HTMLElement) {
+      const section = this.closest("section");
+      const top = section?.getAttribute("aria-labelledby") === "tomorrow-title" ? firstHeight : 0;
+      const isSection = this === section;
+      const height = isSection ? (top === 0 ? firstHeight : 260) : 20;
+      const y = top + (isSection ? 0 : 60);
+      return { top: y, bottom: y + height + 0.001, left: 160, right: 760, width: 600, height, x: 160, y, toJSON() {} };
+    });
+    observers = [];
+    await act(() => root.render(<RefreshProvider onRefresh={() => {}}><DayProgressTimeline {...input} /></RefreshProvider>));
+    firstHeight = 320;
+    // A single observer callback must refresh the entire range, including moved siblings.
+    await act(() => observers[0]!());
+    expect(container.querySelectorAll("section[aria-labelledby$='-title']")).toHaveLength(2);
+    expect(container.querySelector("[data-current-time-marker]")).not.toBeNull();
   });
 
   it("stops the current-time work while hidden and restarts it on visibility", async () => {

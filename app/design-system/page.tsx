@@ -559,6 +559,7 @@ function Foundations() {
                   className="bg-primary text-primary-foreground"
                 />
                 <Swatch name="Accent" className="bg-accent text-background" />
+                <Swatch name="Calendar overlap border" className="border border-[var(--calendar-overlap)] text-foreground" />
                 <Swatch
                   name="Readable muted"
                   className="bg-background text-muted-readable"

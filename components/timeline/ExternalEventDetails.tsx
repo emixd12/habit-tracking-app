@@ -65,7 +65,7 @@ export function ExternalEventPreview({
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss Calendar preview"
-          className="grid h-11 w-11 shrink-0 place-items-center"
+          className={`${styles.previewClose} grid h-11 w-11 shrink-0 place-items-center`}
         >
           <X size={16} aria-hidden="true" />
         </button>
@@ -110,23 +110,23 @@ export const ExternalEventDetails = forwardRef<HTMLDialogElement, ExternalEventD
         ref={setRef}
         onClose={onClose}
         aria-labelledby="calendar-details-title"
-        className={styles.drawer}
+        className={styles.details}
         data-calendar-drawer="details"
       >
         <div className="flex items-start justify-between border-b border-line p-4">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-bold text-muted-readable">Calendar details</p>
             <h2 id="calendar-details-title" className="mt-1 text-xl font-bold">
               {event?.title || "Untitled event"}
             </h2>
           </div>
-          <button type="button" onClick={close} className="grid h-11 w-11 place-items-center" aria-label="Close Calendar details">
+          <button type="button" onClick={close} className="grid h-11 w-11 shrink-0 place-items-center" aria-label="Close Calendar details">
             <X aria-hidden="true" />
           </button>
         </div>
         {event ? <div className="grid gap-4 p-4">
           {linkError ? <p role="alert">The link could not open. Try again.</p> : null}
-          <article className="grid min-w-0 gap-2 border border-line p-3 text-sm leading-6">
+          <article className="grid min-w-0 gap-2 text-sm leading-6">
             <p className="break-words">{event.description || unavailable(event, "description")}</p>
             <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3">
               <dt className="font-bold">Calendar</dt><dd>{event.calendarName}</dd>

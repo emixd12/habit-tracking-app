@@ -7,6 +7,7 @@ import { defineConfig, type Plugin } from "vite";
 // Redistribution rights remain a public-release gate in docs/DESKTOP_BUILD.md.
 const productAssets = [
   "brand/cadence-logo.png",
+  "brand/google-calendar.svg",
   "brand/cadence-page-banner-lines-dots.png",
   "brand/cadence-timeline-horse-lines-dots-clear-background.png",
   "brand/cadence-timeline-horse-lines-dots-mobile-right-18.png",
@@ -25,7 +26,7 @@ function localProductAssets(): Plugin {
           const bytes = await readFile(new URL(path, publicRoot));
           response.setHeader(
             "Content-Type",
-            path.endsWith(".mp3") ? "audio/mpeg" : "image/png",
+            path.endsWith(".mp3") ? "audio/mpeg" : path.endsWith(".svg") ? "image/svg+xml" : "image/png",
           );
           response.end(bytes);
         } catch (error) {
