@@ -356,12 +356,11 @@ export function Product() {
   }, [accountUserId, conflictReview, profileId, refreshScreen, syncReady]);
   const refreshCalendar = calendar.refresh;
   const reloadTimeline = useCallback(async () => {
-    const online = navigator.onLine;
     const synced = accountUserId ? await syncAccount() : null;
     const accountCurrent = synced ? synced.status.state === "current" : true;
     const cadenceCurrent = synced?.localCurrent || await refreshScreen();
     const calendarCurrent = await refreshCalendar("manual");
-    return online && accountCurrent && cadenceCurrent && calendarCurrent;
+    return accountCurrent && cadenceCurrent && calendarCurrent;
   }, [accountUserId, refreshCalendar, refreshScreen, syncAccount]);
   useEffect(() => {
     if (!syncReady) return;

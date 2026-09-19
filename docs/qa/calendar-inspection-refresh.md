@@ -86,3 +86,12 @@ segment without a glow. Follow-up checks passed: agents, interactions, resolvers
 design-system, lint, web/desktop type checks and builds, and the full four-worker
 test suite (1,811 passed, 29 skipped). Existing lint/bundler warnings remain.
 This visual-only follow-up changes no interaction or usage location.
+
+## Release review correction
+
+PR review found that an unconditional browser connectivity check incorrectly
+reported failure after a successful offline local-mode reload. Completion now
+uses the actual account, local-data, and Calendar read results. The regression
+failed before the fix and passes afterward. All 24 desktop retry tests pass,
+including linked-account offline failure; resolver checks, desktop type checking,
+and the desktop build also pass.

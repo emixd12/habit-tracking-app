@@ -223,6 +223,24 @@ describe("desktop lifecycle refresh", () => {
     expect(mocks.sync).toHaveBeenCalledTimes(1);
   });
 
+  it.each([false, true])("reports offline reload success only in local mode (linked=%s)", async (linked) => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    mocks.linked = linked;
+    mocks.sync.mockResolvedValue({ state: "offline" });
+    await act(() => root.render(<Product />));
+    await settle();
+    mocks.timeline.mockClear();
+    mocks.sync.mockClear();
+    const timeline = container.querySelector<HTMLElement>("h1")!.parentElement!;
+    await act(() => timeline.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -60 })));
+    await settle();
+    expect(mocks.timeline).toHaveBeenCalledOnce();
+    expect(mocks.sync).toHaveBeenCalledTimes(linked ? 1 : 0);
+    expect(container.textContent).toContain(linked
+      ? "Reload incomplete. Cadence or connector data may be stale."
+      : "Cadence and connectors reloaded.");
+  });
+
   it("awaits connected account sync before the wheel reload reads the local copy", async () => {
     mocks.linked = true;
     let finish!: (status: { state: "current"; completedAt: string }) => void;
