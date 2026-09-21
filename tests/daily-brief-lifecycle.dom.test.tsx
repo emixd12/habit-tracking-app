@@ -8,8 +8,8 @@ import type { DailyBriefResponse } from "@cadence/core/types/daily-brief";
 let container: HTMLDivElement;
 let root: Root;
 const instant = Date.parse("2026-09-20T12:00:00Z");
-const ready = (text: string): DailyBriefResponse => ({ state: "ready", briefing: {
-  text, generatedAt: new Date(instant).toISOString(), expiresAt: new Date(instant + 1000).toISOString(),
+const ready = (text: string, lifetime = 1000): DailyBriefResponse => ({ state: "ready", briefing: {
+  text, generatedAt: new Date(instant).toISOString(), expiresAt: new Date(instant + lifetime).toISOString(),
   timezone: "America/New_York", localDate: "2026-09-20", coverage: "complete", warnings: [],
 } });
 function client(accountRef: string, requestBrief: DailyBriefClient["requestBrief"] = async () => ready(accountRef)): DailyBriefClient {
@@ -52,4 +52,38 @@ it("discards late model output after a cross-tab disclosure change", async () =>
   await act(() => window.dispatchEvent(new StorageEvent("storage", { key: "cadence.daily-brief.settings-revision.v1", newValue: "2" })));
   await act(() => complete(ready("Withdrawn advice")));
   expect(container.textContent).toBe("");
+});
+it("preserves pending and ready briefings when focus returns to an unchanged account", async () => {
+  let complete!: (value: DailyBriefResponse) => void;
+  const request = vi.fn(() => new Promise<DailyBriefResponse>((resolve) => { complete = resolve; }));
+  await act(() => root.render(<DailyBriefLauncher client={client("owner", request)} />));
+  await act(() => window.dispatchEvent(new Event("focus")));
+  expect(container.textContent).toContain("Preparing today’s");
+  await act(() => complete(ready("Keep this briefing")));
+  await act(() => window.dispatchEvent(new Event("focus")));
+  expect(container.textContent).toContain("Keep this briefing");
+  expect(request).toHaveBeenCalledTimes(1);
+});
+it.each(["accountRef", "localDate", "timezone", "revision", "enabled", "unavailable"])("withdraws the briefing when focus detects a changed %s", async (field) => {
+  const adapter = client("owner");
+  const initial = await adapter.preferences();
+  const preferences = vi.fn().mockResolvedValue(initial);
+  await act(() => root.render(<DailyBriefLauncher client={{ ...adapter, preferences }} />));
+  if (field === "unavailable") preferences.mockRejectedValue(new Error("revoked"));
+  else preferences.mockResolvedValue({ ...initial, [field]: field === "enabled" ? false : field === "revision" ? 2 : "changed" });
+  await act(() => window.dispatchEvent(new Event("focus")));
+  expect(container.textContent).toBe("");
+});
+it("keeps explicit retry available after a pending lease without automatic polling", async () => {
+  const request = vi.fn().mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValueOnce({ state: "pending" }).mockResolvedValueOnce(ready("Recovered briefing", 120_000));
+  await act(() => root.render(<DailyBriefLauncher client={client("owner", request)} />));
+  const retry = () => [...container.querySelectorAll("button")].find((button) => button.textContent === "Try again")!;
+  await act(() => retry().click());
+  expect(container.textContent).toContain("Try again shortly");
+  await act(() => vi.advanceTimersByTime(80_000));
+  expect(request).toHaveBeenCalledTimes(2);
+  await act(() => retry().click());
+  expect(request).toHaveBeenCalledTimes(3);
+  expect(container.textContent).toContain("Recovered briefing");
 });

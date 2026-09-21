@@ -77,11 +77,12 @@ describe("Daily Brief UI", () => {
     expect(adapter.requestBrief).toHaveBeenLastCalledWith(expect.objectContaining({ retry: true }), expect.any(AbortSignal));
   });
 
-  it("withdraws pending responses and wraps unbroken model text", async () => {
+  it("keeps pending responses retryable and wraps unbroken model text", async () => {
     const pending = client({ requestBrief: vi.fn(async (): Promise<DailyBriefResponse> => ({ state: "pending" })) });
     await act(() => root.render(<DailyBriefLauncher client={pending} />));
     await vi.waitFor(() => expect(pending.requestBrief).toHaveBeenCalledOnce());
-    await vi.waitFor(() => expect(container.querySelector("[data-daily-brief-state]")).toBeNull());
+    await vi.waitFor(() => expect(container.textContent).toContain("Try again shortly"));
+    expect([...container.querySelectorAll("button")].some((button) => button.textContent === "Try again")).toBe(true);
     const ready = client({ preferences: vi.fn(async () => ({ ...settings, accountRef: "account-b" })), requestBrief: vi.fn(async (): Promise<DailyBriefResponse> => ({ state: "ready", briefing: {
       text: "x".repeat(2_000), localDate: settings.localDate, timezone: settings.timezone,
       generatedAt: "2026-09-20T12:00:00Z", expiresAt: "2999-09-20T16:00:00Z", coverage: "complete", warnings: [],

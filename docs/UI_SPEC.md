@@ -248,6 +248,9 @@ nonblocking loading/error states and reduced motion.
 `docs/plans/first-external-consumer.md` owns daily invocation and freshness rules.
 `docs/qa/in-app-daily-brief.md` separates source/browser checks from live release gates.
 The image remains decorative; the briefing text and dismiss control are semantic.
+Returning focus revalidates the account, local date, timezone, and disclosure settings.
+An unchanged context preserves loading and ready text. Pending generation keeps
+Try again available without polling.
 
 Optional first-run setup appears as a dismissible pop-up so it does not push the
 feed down while required launch setup items remain incomplete.

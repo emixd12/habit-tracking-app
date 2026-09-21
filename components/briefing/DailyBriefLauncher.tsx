@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DailyBriefing } from "@cadence/core/types/daily-brief";
+import type { DailyBriefing, DailyBriefSettings } from "@cadence/core/types/daily-brief";
 
 import {
   DailyBriefRequestError,
@@ -29,10 +29,12 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
     current.current = null;
     if (!resolvedClient || (desktop && !navigator.onLine)) return;
     const controller = new AbortController();
+    let initialSettings: DailyBriefSettings | undefined;
     const requestEpoch = ++epoch.current;
     const active = () => requestEpoch === epoch.current && !controller.signal.aborted && !current.current?.dismissed;
     void resolvedClient.preferences(controller.signal).then(async (settings) => {
       if (!active() || !settings.available || !settings.enabled) return;
+      initialSettings = settings;
       const presentation = readDailyBriefPresentation(settings.accountRef, settings.localDate);
       current.current = { accountRef: settings.accountRef, localDate: settings.localDate, dismissed: presentation.dismissed };
       if (presentation.dismissed || presentation.attempted) return;
@@ -40,6 +42,7 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
       setState("loading");
       const response = await resolvedClient.requestBrief({ installationId: await dailyBriefInstallationId(), retry: false }, controller.signal);
       if (!active()) return;
+      if (response.state === "pending") throw new DailyBriefRequestError("pending");
       if (response.state !== "ready") { setStateSession(sessionKey); setState("hidden"); return; }
       setBriefing(response.briefing);
       setStateSession(sessionKey);
@@ -47,7 +50,9 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
     }).catch((error: unknown) => {
       if (!active()) return;
       if (!current.current) { setState("hidden"); return; }
-      setMessage(error instanceof DailyBriefRequestError && error.code === "brief_unavailable"
+      setMessage(error instanceof DailyBriefRequestError && error.code === "pending"
+        ? "Daily Brief is still being prepared. Try again shortly."
+        : error instanceof DailyBriefRequestError && error.code === "brief_unavailable"
         ? "Today’s Daily Brief is unavailable."
         : "Cadence could not prepare today’s Daily Brief.");
       setStateSession(sessionKey);
@@ -63,22 +68,29 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
       }
     };
     window.addEventListener("cadence:daily-brief-settings", hideForSettingsChange);
-    const hideForFocusOrStorage = (event: Event) => {
-      if (event.type === "storage") {
-        const key = (event as StorageEvent).key;
-        if (key !== "cadence.daily-brief.settings-revision.v1" && !key?.startsWith("cadence.daily-brief.presentation.v1:")) return;
-      }
-      controller.abort();
-      retryController.current?.abort();
-      epoch.current += 1;
-      setState("hidden");
+    const revalidateOnFocus = () => {
+      const previous = initialSettings;
+      if (!previous || controller.signal.aborted || current.current?.dismissed) return;
+      const focusEpoch = epoch.current;
+      void resolvedClient.preferences(controller.signal).then((settings) => {
+        if (focusEpoch !== epoch.current || controller.signal.aborted) return;
+        if (!settings.available || !settings.enabled || settings.accountRef !== previous.accountRef ||
+            settings.localDate !== previous.localDate || settings.timezone !== previous.timezone ||
+            settings.revision !== previous.revision) hideForSettingsChange(new Event("focus"));
+      }).catch(() => {
+        if (focusEpoch === epoch.current) hideForSettingsChange(new Event("focus"));
+      });
     };
-    window.addEventListener("focus", hideForFocusOrStorage);
-    window.addEventListener("storage", hideForFocusOrStorage);
+    const hideForStorage = (event: StorageEvent) => {
+      if (event.key !== "cadence.daily-brief.settings-revision.v1" && !event.key?.startsWith("cadence.daily-brief.presentation.v1:")) return;
+      hideForSettingsChange(event);
+    };
+    window.addEventListener("focus", revalidateOnFocus);
+    window.addEventListener("storage", hideForStorage);
     return () => {
       window.removeEventListener("cadence:daily-brief-settings", hideForSettingsChange);
-      window.removeEventListener("focus", hideForFocusOrStorage);
-      window.removeEventListener("storage", hideForFocusOrStorage);
+      window.removeEventListener("focus", revalidateOnFocus);
+      window.removeEventListener("storage", hideForStorage);
       controller.abort(); retryController.current?.abort(); epoch.current += 1;
     };
   }, [resolvedClient, desktop, sessionKey]);
@@ -114,13 +126,16 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
     setState("loading");
     void dailyBriefInstallationId().then((installationId) => resolvedClient.requestBrief({ installationId, retry: true }, controller.signal)).then((response) => {
       if (requestEpoch !== epoch.current || presentation.dismissed) return;
+      if (response.state === "pending") throw new DailyBriefRequestError("pending");
       if (response.state !== "ready") { setStateSession(sessionKey); setState("hidden"); return; }
       setBriefing(response.briefing);
       setStateSession(sessionKey);
       setState("ready");
-    }).catch(() => {
+    }).catch((error: unknown) => {
       if (requestEpoch === epoch.current && !presentation.dismissed) {
-        setMessage("Cadence could not prepare today’s Daily Brief.");
+        setMessage(error instanceof DailyBriefRequestError && error.code === "pending"
+          ? "Daily Brief is still being prepared. Try again shortly."
+          : "Cadence could not prepare today’s Daily Brief.");
         setStateSession(sessionKey);
         setState("error");
       }
