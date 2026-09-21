@@ -38,7 +38,8 @@ No named visual anti-references are documented. The locked product anti-referenc
 - Calendar-sync or task-manager complexity
 - Offline or PWA mutation flows in v1
 - Public-product admin dashboards
-- AI coaching or speech features in the launch web app
+- General AI coaching/chat or audio speech features; Tickets 146–148 separately
+  implement the in-app read-only daily briefing in the existing horse's text bubble
 
 ## Design Principles
 

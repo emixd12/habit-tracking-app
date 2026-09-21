@@ -1,4 +1,5 @@
 import { CalendarSettingsBench, CalendarDetailsBench, CalendarTimelineBench } from "./CalendarBench";
+import { DailyBriefBubbleBench, DailyBriefSettingsBench } from "./DailyBriefBench";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -1609,6 +1610,8 @@ const previewFactories: Record<
       </ProductPreview>
     ),
   "module.google-calendar-panel": () => <ProductPreview><CalendarSettingsBench /></ProductPreview>,
+  "module.daily-brief-bubble": () => <ProductPreview><DailyBriefBubbleBench /></ProductPreview>,
+  "module.daily-brief-settings-panel": () => <ProductPreview><DailyBriefSettingsBench /></ProductPreview>,
   "composite.external-event-details": () => <ProductPreview><CalendarDetailsBench /></ProductPreview>,
   "composite.external-event-preview": () => <ProductPreview><CalendarDetailsBench preview /></ProductPreview>,
   "module.day-progress-timeline": () => <ProductPreview maxHeight="48rem"><CalendarTimelineBench /></ProductPreview>,

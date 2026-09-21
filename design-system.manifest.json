@@ -467,6 +467,34 @@
       "notes": "Shared web/desktop Timeline with Google Calendar markers, thin facet overlap borders and duration lines, and synthetic provider-free preview."
     },
     {
+      "id": "module.daily-brief-bubble",
+      "name": "DailyBriefBubble",
+      "kind": "module",
+      "source": "components/briefing/DailyBriefBubble.tsx",
+      "exportName": "DailyBriefBubble",
+      "usageNames": [
+        "DailyBriefBubble"
+      ],
+      "benchAnchor": "design-system#ds-module-daily-brief-bubble",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Read-only Timeline horse bubble with a 44px dismiss control, polite ready-text announcement, and bounded long-text scrolling."
+    },
+    {
+      "id": "module.daily-brief-settings-panel",
+      "name": "DailyBriefSettingsPanel",
+      "kind": "module",
+      "source": "components/briefing/DailyBriefSettingsPanel.tsx",
+      "exportName": "DailyBriefSettingsPanel",
+      "usageNames": [
+        "DailyBriefSettingsPanel"
+      ],
+      "benchAnchor": "design-system#ds-module-daily-brief-settings-panel",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Settings enablement and optional Calendar-context disclosure; the bench uses a fixture client only."
+    },
+    {
       "id": "module.google-calendar-panel",
       "name": "GoogleCalendarPanel",
       "kind": "module",

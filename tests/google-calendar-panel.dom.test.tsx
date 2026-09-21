@@ -177,6 +177,54 @@ describe("GoogleCalendarPanel", () => {
     expect(container.textContent).toContain("Other devices stop refreshing after they receive this account change.");
   });
 
+  it("keeps selection compact and drafts intact across searching, hiding, and Escape", async () => {
+    const adapter = coordinator();
+    await render(adapter);
+    const details = container.querySelector("details")!;
+    const summary = container.querySelector("summary")!;
+    expect(details.open).toBe(false);
+    expect(summary.textContent).toContain("Work");
+    await act(() => summary.click());
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(search, "PERSONAL");
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(container.querySelector('input[aria-label="Visible on Timeline: Work"]')).toBeNull();
+    await act(() => checkbox("Personal").click());
+    expect(summary.textContent).toContain("WorkPersonal");
+    expect(adapter.savePreferences).not.toHaveBeenCalled();
+    await act(() => search.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(details.open).toBe(false);
+    expect(document.activeElement).toBe(summary);
+    await act(() => button("Save Calendar settings").click());
+    expect(adapter.savePreferences).toHaveBeenCalledWith({ ...defaults(), selectedCalendarIds: ["work", "personal"] });
+  });
+
+  it("reloads discovery without saved calendars and preserves unsaved selections", async () => {
+    const adapter = coordinator({ getConnection: vi.fn(async () => connection({ ...defaults(), selectedCalendarIds: [] })) });
+    await render(adapter);
+    await act(() => checkbox("Personal").click());
+    await act(() => button("Refresh Calendar").click());
+    expect(adapter.listCalendars).toHaveBeenCalledTimes(2);
+    expect(adapter.refreshEvents).not.toHaveBeenCalled();
+    expect(checkbox("Personal").checked).toBe(true);
+    expect(container.textContent).toContain("Calendar list refreshed.");
+  });
+
+  it("retains selections and reports discovery failures, including after a successful save", async () => {
+    const adapter = coordinator();
+    await render(adapter);
+    vi.mocked(adapter.listCalendars).mockRejectedValue(new Error("private provider detail"));
+    await act(() => button("Refresh Calendar").click());
+    expect(checkbox("Work").checked).toBe(true);
+    expect(adapter.refreshEvents).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Calendar refresh did not finish.");
+    await act(() => button("Save Calendar settings").click());
+    expect(container.textContent).toContain("Calendar preferences saved. Calendar list could not reload");
+    expect(container.textContent).not.toContain("private provider detail");
+  });
+
   it("keeps provider errors private and offers reconnect when required", async () => {
     const adapter = coordinator({
       getConnection: vi.fn(async () => reconnectConnection()),

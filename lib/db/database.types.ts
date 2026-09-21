@@ -1234,6 +1234,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_advisor_day_context_read: {
+        Args: { p_client_id: string }
+        Returns: {
+          lease_token: string
+          retry_after_seconds: number
+        }[]
+      }
       apply_account_sync_plan: { Args: { sync_payload: Json }; Returns: Json }
       apply_behaviorlog_import: {
         Args: { import_payload: Json }
@@ -1293,6 +1300,14 @@ export type Database = {
           behavior_id: string
           user_id: string
         }[]
+      }
+      begin_daily_brief: {
+        Args: {
+          p_expected_revision: number
+          p_installation_id: string
+          p_retry: boolean
+        }
+        Returns: Json
       }
       bind_behaviorlog_restore_apply_payload: {
         Args: { restore_payload: Json }
@@ -1372,6 +1387,15 @@ export type Database = {
         }
         Returns: Json
       }
+      finish_daily_brief: {
+        Args: {
+          p_expected_revision: number
+          p_installation_id: string
+          p_lease_token: string
+          p_success: boolean
+        }
+        Returns: boolean
+      }
       get_export_page_read_bundle: {
         Args: { range_end_local_date: string; range_start_local_date: string }
         Returns: Json
@@ -1442,8 +1466,41 @@ export type Database = {
         Returns: Json
       }
       read_account_sync_snapshot: { Args: never; Returns: Json }
+      read_advisor_cadence_revision: {
+        Args: {
+          history_occurrence_limit: number
+          history_session_limit: number
+          history_start_local_date: string
+          selected_behavior_ids: string[]
+          target_local_date: string
+        }
+        Returns: string
+      }
+      read_advisor_cadence_snapshot: {
+        Args: {
+          history_occurrence_limit: number
+          history_session_limit: number
+          history_start_local_date: string
+          selected_behavior_ids: string[]
+          target_local_date: string
+        }
+        Returns: Json
+      }
+      read_daily_brief_preferences: { Args: never; Returns: Json }
       read_note_shortcut_context: {
         Args: { target_behavior_id: string }
+        Returns: Json
+      }
+      release_advisor_day_context_read: {
+        Args: { p_client_id: string; p_lease_token: string }
+        Returns: boolean
+      }
+      save_daily_brief_preferences: {
+        Args: {
+          p_enabled: boolean
+          p_expected_revision: number
+          p_include_calendar: boolean
+        }
         Returns: Json
       }
       update_behavior_with_definition_event: {

@@ -15,7 +15,10 @@ const connection: CalendarConnectionView = { accountId: snapshot.accountId, stat
 const coordinator: GoogleCalendarCoordinator = {
   getConnection: async () => connection,
   beginConnect: async () => undefined,
-  listCalendars: async () => snapshot.requestedRange.selectedCalendarIds.map((id) => ({ id, name: "Synthetic calendar", timezone: snapshot.requestedRange.timezone, accessRole: "reader", primary: true, selected: true })),
+  listCalendars: async () => [
+    ...snapshot.requestedRange.selectedCalendarIds.map((id) => ({ id, name: "Personal calendar", timezone: snapshot.requestedRange.timezone, accessRole: "reader" as const, primary: true, selected: true })),
+    ...["Work meetings", "Community events", "A subscribed calendar with a very long name that wraps on narrow screens", ...Array.from({ length: 12 }, (_, i) => `Shared calendar ${i + 1}`)].map((name, i) => ({ id: `choice-${i}`, name, timezone: "UTC", accessRole: "reader" as const, primary: false, selected: false })),
+  ],
   savePreferences: async (preferences) => ({ ...connection, preferences }),
   refreshEvents: async () => snapshot,
   disconnect: async () => ({ view: { ...connection, status: "disconnected" }, revocationFailed: false }),

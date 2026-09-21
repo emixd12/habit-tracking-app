@@ -10,7 +10,7 @@ import type {
   OccurrenceRecord, OccurrenceStatusEventRecord, StatusTransitionResult,
   StatusTransitionCommit,
 } from "@cadence/core/data-store";
-import type { AccountSyncWrite } from "@cadence/core/resolvers/account-sync.resolver";
+import type { AccountSyncEntity, AccountSyncWrite } from "@cadence/core/resolvers/account-sync.resolver";
 import type { NoteShortcutContext, NoteShortcutState } from "@cadence/core/types/note-shortcut";
 
 export type LocalBehaviorGraph = {
@@ -33,6 +33,7 @@ export type NativeCoverageRow = {
 };
 export type NativeReminderState = { revision: number; reminders: NativeReminderRow[]; coverage: NativeCoverageRow | null };
 export type LocalCommandMap = {
+  validateAccountSyncSnapshot: { input: { entities: AccountSyncEntity[] }; result: null };
   manageCategories: { input: Mutation & {
     expectedCategories: import("@cadence/core/services/category.service").ManagedCategory[];
     nextCategories: import("@cadence/core/services/category.service").ManagedCategory[];

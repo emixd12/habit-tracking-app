@@ -540,6 +540,30 @@
       "confidence": "exact"
     },
     {
+      "componentId": "module.daily-brief-bubble",
+      "file": "components/briefing/DailyBriefLauncher.tsx",
+      "line": 14,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "manual"
+    },
+    {
+      "componentId": "module.daily-brief-settings-panel",
+      "file": "app/(app)/settings/page.tsx",
+      "line": 53,
+      "route": "(app)/settings/page",
+      "usageKind": "render",
+      "confidence": "manual"
+    },
+    {
+      "componentId": "module.daily-brief-settings-panel",
+      "file": "apps/desktop/src/product.tsx",
+      "line": 477,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "manual"
+    },
+    {
       "componentId": "module.day-progress-timeline",
       "file": "apps/desktop/src/timeline-screen.tsx",
       "line": 179,

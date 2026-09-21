@@ -5,7 +5,9 @@ import { listen } from "@tauri-apps/api/event";
 import { DesktopApp, type DesktopScreen } from "./desktop-app";
 import { openCalendarSourceUrl } from "./calendar/google-calendar";
 import { GoogleCalendarPanel } from "@/components/settings/GoogleCalendarPanel";
+import { DailyBriefSettingsPanel } from "@/components/briefing/DailyBriefSettingsPanel";
 import { useDesktopGoogleCalendar } from "./calendar/use-google-calendar";
+import { createDesktopDailyBriefClient } from "./daily-brief";
 import { TimelineScreen } from "./timeline-screen";
 import { BehaviorsScreen } from "./behaviors-screen";
 import { CategoryPanel } from "@/components/settings/CategoryPanel";
@@ -285,6 +287,7 @@ export function Product() {
   }, [account.status === "linked" ? account.userId : null, profile?.id]);
   const profileId = profile?.id;
   const accountUserId = account.status === "linked" ? account.userId : null;
+  const dailyBriefClient = useMemo(() => calendarClient && accountUserId ? createDesktopDailyBriefClient(calendarClient) : null, [calendarClient, accountUserId]);
   const calendarRange = {
     startLocalDate: bundle?.timeline.timeline.todayLocalDate ?? "1970-01-01",
     endLocalDate: bundle?.timeline.timeline.daySections.at(-1)?.localDate ?? "1970-01-01",
@@ -461,6 +464,8 @@ export function Product() {
       {activeScreen === "timeline" ? <TimelineScreen timeline={bundle.timeline.timeline} {...occurrenceActions}
         shortcutsByBehavior={bundle.shortcuts.accepted} dayProgress={calendarContext}
         notificationTarget={notificationTarget}
+        dailyBriefClient={dailyBriefClient}
+        dailyBriefSessionKey={accountUserId ?? "local"}
         onRefresh={refresh} onReload={reloadTimeline} onShowMore={(days) => { parameters.current.days = days; void refreshScreen(); }} /> : null}
       {activeScreen === "behaviors" ? <BehaviorsScreen {...bundle.behaviors.behaviors} analytics={bundle.behaviors.analytics}
         {...occurrenceActions} {...behaviorActions} onRefresh={refresh}
@@ -473,6 +478,7 @@ export function Product() {
         accountControls={completeAccountControls}
         calendarControls={calendar.coordinator ? <GoogleCalendarPanel key={accountUserId ?? "local"} coordinator={calendar.coordinator} refreshRange={calendarRange} refreshVersion={calendar.panelVersion} wrongAccount={calendar.wrongAccount} openExternalUrl={openCalendarSourceUrl} />
           : <section className="py-4"><h2 className="text-xl">Google Calendar</h2><p className="mt-3 text-sm text-muted-readable">{calendar.label}</p></section>}
+        dailyBriefControls={<DailyBriefSettingsPanel key={accountUserId ?? "local"} client={dailyBriefClient} desktop />}
         updates={<div id="app-updates" tabIndex={-1} className="scroll-mt-20"><DesktopUpdatePanel {...restartActions} /></div>}
         databaseControls={<LocalDatabaseControls onRestored={refresh} />}
         updateTimezoneAction={timezoneAction} permission={permission} coverage={coverage}

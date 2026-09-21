@@ -33,6 +33,58 @@ pub enum AccountSyncOperation {
     Delete,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AccountSyncEntity {
+    kind: AccountSyncEntityKind,
+    id: String,
+    value: Value,
+}
+
+// Use the same native row types as apply, before any hosted or local commit.
+pub fn validate_snapshot(profile: &str, entities: &[AccountSyncEntity]) -> db::Result<()> {
+    validate_entity_counts(entities.iter().map(|entity| entity.kind))?;
+    for entity in entities {
+        let value = owned_value(profile, &entity.value)?;
+        match entity.kind {
+            AccountSyncEntityKind::Profile => {
+                if entity.value.as_object().is_some_and(|row| row.keys().any(|key| key != "timezone")) {
+                    return Err("Update Cadence before synchronizing account data.".into());
+                }
+                if !entity.value["timezone"].is_string() {
+                    return Err("The synced profile timezone is invalid.".into());
+                }
+            }
+            AccountSyncEntityKind::Category => { decode_row::<Category>(value)?; }
+            AccountSyncEntityKind::Behavior => { decode_row::<Behavior>(value)?; }
+            AccountSyncEntityKind::Schedule => { decode_row::<BehaviorSchedule>(value)?; }
+            AccountSyncEntityKind::ScheduleSlot => { decode_row::<BehaviorScheduleSlot>(value)?; }
+            AccountSyncEntityKind::DefinitionEvent => { decode_row::<BehaviorDefinitionEvent>(value)?; }
+            AccountSyncEntityKind::ConfigurationEvent => { decode_row::<BehaviorConfigurationEvent>(value)?; }
+            AccountSyncEntityKind::Occurrence => { decode_row::<Occurrence>(value)?; }
+            AccountSyncEntityKind::StatusEvent => { decode_row::<OccurrenceStatusEvent>(value)?; }
+            AccountSyncEntityKind::TimeSession => { decode_row::<OccurrenceTimeSession>(value)?; }
+            AccountSyncEntityKind::ImportRun => { decode_row::<BehaviorLogImportRun>(value)?; }
+            AccountSyncEntityKind::Mapping => { decode_row::<BehaviorLogImportRecordMapping>(value)?; }
+            AccountSyncEntityKind::ImportedNote => { decode_row::<ImportedNote>(value)?; }
+            AccountSyncEntityKind::ImportedIntervention => { decode_row::<ImportedIntervention>(value)?; }
+            AccountSyncEntityKind::ReminderDelivery => { decode_row::<ReminderDelivery>(value)?; }
+            AccountSyncEntityKind::NoteShortcutState => { decode_row::<NoteShortcutState>(value)?; }
+        }
+    }
+    Ok(())
+}
+
+fn decode_row<T: DeserializeOwned>(value: Value) -> db::Result<T> {
+    serde_json::from_value(value).map_err(|error| {
+        if error.to_string().starts_with("unknown field `") {
+            "Update Cadence before synchronizing account data."
+        } else {
+            "A synced row does not match the local model."
+        }.to_string()
+    })
+}
+
 pub fn apply(db: &Connection, profile: &str, writes: &[AccountSyncWrite]) -> db::Result<()> {
     apply_mode(db, profile, writes, false)
 }
@@ -524,8 +576,7 @@ where
                 .as_ref()
                 .ok_or("An account sync upsert requires a value.")?,
         )?;
-        let row: T = serde_json::from_value(next)
-            .map_err(|_| "A synced row does not match the local model.".to_string())?;
+        let row: T = decode_row(next)?;
         if normalized(&row)?["id"] != write.id {
             return Err("Account sync cannot change a record ID.".into());
         }
@@ -623,8 +674,7 @@ where
                     .as_ref()
                     .ok_or("An account sync upsert requires a value.")?,
             )?;
-            let row: T = serde_json::from_value(next)
-                .map_err(|_| "A synced row does not match the local model.".to_string())?;
+            let row: T = decode_row(next)?;
             if normalized(&row)?["id"] != write.id {
                 return Err("Account sync cannot change a record ID.".into());
             }
@@ -716,6 +766,32 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static DATABASE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn snapshot_compatibility_uses_native_rows_without_writing() {
+        let (directory, mut connection, profile, category) = database();
+        let graph = complete_graph(&profile, category, '8');
+        let mut value = normalized(&graph.behavior).unwrap();
+        value["default_duration_minutes"] = json!(45);
+        value["end_date"] = json!("2026-10-01");
+        let check = |db: &mut Connection, value: Value| {
+            let request = serde_json::from_value::<Request>(json!({
+                "operation": "validateAccountSyncSnapshot",
+                "entities": [{"kind": "behavior", "id": graph.behavior.id, "value": value}]
+            })).unwrap();
+            execute(db, request)
+        };
+        let changes = connection.total_changes();
+        assert_eq!(check(&mut connection, value.clone()).unwrap(), Value::Null);
+        value["future_behavior_field"] = Value::Null;
+        assert_eq!(check(&mut connection, value.clone()).unwrap_err(), "Update Cadence before synchronizing account data.");
+        value.as_object_mut().unwrap().remove("future_behavior_field");
+        value["default_duration_minutes"] = json!("invalid");
+        assert_eq!(check(&mut connection, value).unwrap_err(), "A synced row does not match the local model.");
+        assert_eq!(changes, connection.total_changes());
+        drop(connection);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
 
     #[test]
     fn utc_instant_normalization_uses_half_even_microseconds() {

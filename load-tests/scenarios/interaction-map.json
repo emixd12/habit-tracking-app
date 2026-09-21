@@ -1024,6 +1024,10 @@
     {"id": "INT-CALENDAR-006", "classification": "browser_only", "reason": "Presentation-only event preview/dismissal or external source navigation has no Cadence mutation."},
     {"id": "INT-CALENDAR-007", "classification": "external_provider", "reason": "Presentation-only event preview/dismissal or external source navigation has no Cadence mutation."},
     {"id": "INT-BEHAVIOR-030", "classification": "not_load_bearing", "reason": "Optional Behavior planning inputs change the local form draft; existing save interactions own HTTP writes."},
-    {"id": "INT-BEHAVIOR-031", "classification": "not_load_bearing", "reason": "Optional Behavior planning inputs change the local form draft; existing save interactions own HTTP writes."}
+    {"id": "INT-BEHAVIOR-031", "classification": "not_load_bearing", "reason": "Optional Behavior planning inputs change the local form draft; existing save interactions own HTTP writes."},
+    {"id": "INT-BRIEF-001", "classification": "external_provider", "reason": "Automatic briefing generation sends authorized facts to the model provider and needs separate synthetic provider testing."},
+    {"id": "INT-BRIEF-002", "classification": "browser_only", "reason": "Dismissal changes installation presentation metadata without a server mutation."},
+    {"id": "INT-BRIEF-003", "classification": "external_provider", "reason": "Explicit retry invokes the model provider and needs separate synthetic provider testing."},
+    {"id": "INT-BRIEF-004", "classification": "destructive_serial_only", "reason": "Disclosure preference mutations require isolated account, session and revision verification."}
   ]
 }

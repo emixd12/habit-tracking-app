@@ -1,9 +1,14 @@
 # External event interface contract
 
-Status: Ticket 134 local implementation verified 2026-09-16: versioned contract,
-provider adapter, OAuth broker, credential persistence, desktop cache, and Settings.
-The connector remains disabled until provider configuration and live acceptance.
-Ticket 132's UI baseline is owner-accepted. Minor visual polish is deferred.
+Status: the versioned contract, provider adapter, OAuth broker, credential
+persistence, desktop cache, Settings, deployed web flow, and installed desktop
+flow have source and acceptance evidence. Google verified Cadence branding and
+accepted the Calendar data-access submission on September 18, 2026. Scope
+approval and post-approval smoke checks remain open under Ticket 141. Ticket 137
+also retains controlled provider-failure and Workspace-restriction coverage plus
+dense/overnight installed fixtures and multi-day resume evidence. Apple-trusted
+desktop distribution remains separate under Ticket 115. See `STATUS.md` and
+`docs/qa/day-progress-release.md` for current state and dated evidence.
 
 ## Purpose and boundary
 
@@ -229,14 +234,14 @@ change, even when the wire schema remains compatible. Desktop validates every
 snapshot before atomic replacement and retains the last complete snapshot after
 any validation or refresh failure.
 
-## Future consumer readiness, without a planner
+## Consumer readiness and the planned read-only advisor
 
 Define and fixture-test a minimal scheduling projection from the same event model:
 identity, scheduled interval or date span, duration/unknown reason, timezone,
 event state, availability, recurrence identity, revision, and snapshot coverage.
 Rich descriptions, attendees, conference links, and attachments are not required
 to calculate interval overlap and should not enter that projection by default.
-Projection tests establish reusable data, not an AI feature or transmission grant.
+Projection tests establish reusable data. They do not grant transmission.
 
 A later scheduling feature must separately decide how to treat all-day, tentative,
 declined, transparent, stale, or unknown-end events. For this release, preserve
@@ -244,8 +249,35 @@ these facts, retain conservative advisory overlap semantics, and exclude all-day
 events from timed warnings. No current calculation declares a day safe to rearrange.
 
 External text and URLs remain untrusted data, never model instructions or authority.
-Any future model integration needs its own consent, data-minimization, read/write
-permissions, and stale-snapshot review. No external event enters BehaviorLog,
+Tickets 146–148 plan Cadence Daily Brief inside the existing horse bubble. Its
+day-context service reuses this model for the existing Google Calendar connection.
+Future connectors require their own capability/field review; reuse this model only
+when its meanings match.
+The consumer projection is narrower than the internal snapshot. It returns only
+opaque event/calendar/recurrence-instance references, timed interval or all-day
+date span, duration/unknown-end reason, source timezone/fallback, event state,
+availability, current-user response, connector kind, schema/adapter versions,
+coverage, fetched time, revisions/generations, freshness, completeness, and failures.
+It excludes title, description, location, attendees,
+organizer, conference data, attachments, source URLs, raw recurrence/provider
+identifiers, and credentials by default.
+
+Calendar display consent does not authorize model transmission. The in-app
+briefing uses existing sign-in and first-party disclosure/enablement bound to the
+account, data classes, selected connectors and disclosure revision. It requires
+no external consumer login or approval of prewritten briefing text.
+Account, disclosure, connector selection, coverage, and revision changes fence pending
+delivery. Missing, stale, partial, or failed coverage never proves free time.
+
+The advisor may suggest priorities, timing, sequence, and schedule changes. It
+cannot apply them. Reading normalized context and executing Cadence or provider
+operations are separate powers. A later write phase is intended, but it needs a
+distinct execution grant and separately scoped operations, permissions, preview,
+explicit human approval, stale-context checks, conflict handling, idempotency,
+audit history, revocation, and atomic apply behavior.
+
+The September 20 correction aligns planning only. No live model transmission, provider action,
+or write follows from this contract. No external event enters BehaviorLog,
 ordinary account sync, backups, telemetry payloads, or prompt history by default.
 
 ## Acceptance examples and required evidence
@@ -263,11 +295,14 @@ This Ticket 134 slice adds provider-adapter, schema, duration, and snapshot fixt
 - The same normalized fixture produces equal scheduling facts on web and desktop,
   independent of drawer state, dismissed markers, or timeline compression.
 
-Ticket 137 closes only with an indexed schema, examples, field/capability matrix,
-error catalog, code ownership, operational lifecycle/cleanup guidance, compatibility
-policy, and links to passing contract tests. `docs/qa/day-progress-release.md`
-tracks this evidence alongside live connector and native acceptance.
+Ticket 137 evidence requires an indexed schema, examples, field/capability matrix,
+error catalog, code ownership, operational lifecycle/cleanup guidance,
+compatibility policy, and links to passing contract tests.
+`docs/qa/day-progress-release.md` tracks that evidence alongside live connector,
+installed native, deployment, and remaining public-release gates.
 
-Platform impact: web and desktop share the contract under 134–136. Marketing
-documents only verified user-visible capabilities under 137. Future native mobile
-and dynamic rearrangement remain deferred consumers, with no implementation here.
+Platform impact: web and desktop share the internal contract under 134–136.
+Tickets 146–148 plan the hosted read-only consumer service; account-free desktop
+stays unchanged and receives no native helper. Marketing documents only verified
+user-visible capabilities. Future native mobile and write execution remain deferred,
+with no implementation here.

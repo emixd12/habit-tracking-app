@@ -1710,3 +1710,70 @@ attempt hash where applicable. A key ID selects the decryption keyring. Credenti
 never enter exports, sync snapshots, or desktop backups. Hosting infrastructure
 backups may retain sealed ciphertext under the existing provider retention policy.
 Local ownership/race verification: `tests/sql/google-calendar-contract.sql`.
+
+## Advisor day-context reads (Ticket 146)
+
+Migration `20260919010100_add_advisor_cadence_snapshot.sql` adds owner-scoped
+`read_advisor_cadence_snapshot` and `read_advisor_cadence_revision` RPCs. The
+private payload helper assembles profile timezone, selected active Behaviors,
+today's persisted Occurrences, duration-estimate samples, and sync coverage in
+one database snapshot. The companion revision detects changed source data.
+These reads use the authenticated owner's RLS context. They do not use a
+service-role fallback or perform tracking maintenance.
+
+The snapshot's internal duration history never leaves the web service. The
+consumer projection contains opaque references and aggregate duration estimates.
+The 10,000-Occurrence and 20,000-session history ceilings include an overflow
+sentinel. Overflow produces unknown measured duration rather than an estimate
+from truncated samples. Explicit Behavior default durations remain available.
+
+The RPCs are internal first-party read boundaries, not advisor credentials or
+grants. The disabled advisor endpoint cannot invoke them. The September 20
+in-app plan reuses first-party ownership; it requires no delegated consumer token.
+Migration `20260921003928_revise_advisor_completion_history.sql` extends the
+shared payload/revision with all-status history. `cadence.history` contains
+Completed, Not Completed and Unresolved counts per selected active Behavior for
+90 complete local days. The 10,001st row makes every count null and completeness
+unknown. Session overflow affects duration only; raw history never reaches the model.
+
+Migration `20260921003952_add_daily_brief_controls.sql` adds three private,
+owner-keyed RLS tables. Direct clients have no table privileges:
+
+- `daily_brief_preferences`: enabled, optional Calendar disclosure, revision,
+  captured Calendar connection generation/selection revision and update time.
+- `daily_brief_runs`: latest local day/timezone, disclosure revision, status,
+  attempt token and timestamps per installation. At most eight installations
+  remain; new installations evict the oldest inactive attempt.
+- `daily_brief_rate_limits`: at most six recent start timestamps per owner.
+
+Public invoker RPC wrappers call narrowly granted private definer functions.
+Every RPC derives `auth.uid()` and requires a matching current `auth.sessions`
+row, including `not_after`. No user metadata authorizes disclosure. Atomic
+owner locks enforce one account-wide active generation, six starts/minute and a
+75-second lease. Completed daily requests do not generate again; only explicit
+retry restarts a failed/expired attempt. A retry without a saved attempt follows
+normal initial admission. Completion tokens prevent late requests from finishing
+replacement leases; a delivery-fence failure can downgrade its own completion.
+
+Preferences start disabled. Saving controls increments their revision and clears
+attempts. Calendar disclosure records the current selected-calendar revisions;
+a changed connection/selection requires renewed disclosure. Disabling clears
+attempt rows. All three tables cascade on account deletion. Latest attempt/rate
+metadata otherwise persists until replacement; this is not a timed deletion SLA.
+No prompts, model output, raw facts or credentials are persisted in these tables.
+Rollback disables the feature or removes the server key; keep additive migrations
+until a separately reviewed removal migration is needed.
+
+Migration `20260919010200_add_advisor_read_admission.sql` adds private operational
+read-admission state. Each row binds its lease to `user_id` and `client_id`; it
+contains no titles, context, provider payloads, or credentials. Account deletion
+cascades to these rows. The acquire/release RPCs derive ownership from `auth.uid()`.
+An account-wide transaction lock serializes admission. At most six reads start
+per minute across the account, with one active lease per account/client.
+Lease-specific release cannot release a replacement request.
+
+The table enables RLS and denies direct client table privileges. Exact function
+grants exclude anon and service-role callers. Cleanup removes old owner metadata
+on later calls; inactivity can retain rows until the next call or account deletion.
+This is not a guaranteed one-day deletion schedule. The first-party generation
+metadata policy is documented above and in `docs/OPERATIONS.md`.

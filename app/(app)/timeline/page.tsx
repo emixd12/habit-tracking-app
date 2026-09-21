@@ -3,6 +3,8 @@ import { getImageProps } from "next/image";
 import { Suspense } from "react";
 
 import { ScreenContentLoading } from "@/components/layout/ScreenFrame";
+import { DailyBriefLauncher } from "@/components/briefing/DailyBriefLauncher";
+import { timelineBriefKey } from "@/lib/ui/daily-brief";
 import { FirstRunOnboardingPanel } from "@/components/onboarding/FirstRunOnboardingPanel";
 import { Timeline } from "@/components/timeline/Timeline";
 import { withPerformanceRoute } from "@/lib/services/performance-timing";
@@ -86,6 +88,7 @@ async function TimelineContent({
 
   return (
     <>
+      <DailyBriefLauncher key={timelineBriefKey(timeline)} />
       <FirstRunOnboardingPanel onboarding={onboarding} />
       <Timeline
         timeline={timeline}
@@ -127,7 +130,7 @@ function TimelineBanner() {
 
   return (
     <div className="w-full overflow-hidden bg-background">
-      <div className="relative aspect-[1423/367] w-full sm:aspect-[2041/239]">
+      <div className="aspect-[1423/367] w-full sm:aspect-[2041/239]">
         <picture className="block h-full w-full">
           <source
             media="(max-width: 639px)"

@@ -9,6 +9,8 @@ import { DayProgressTimeline, type DayProgressContext } from "@/components/timel
 import { TimelineGroup } from "@/components/timeline/TimelineGroup";
 import { OccurrenceRow } from "@/components/timeline/OccurrenceRow";
 import { useTimelineWheelReload } from "@/lib/ui/timeline-wheel-reload";
+import { timelineBriefKey, type DailyBriefClient } from "@/lib/ui/daily-brief";
+import { DailyBriefLauncher } from "@/components/briefing/DailyBriefLauncher";
 import type { NotificationTarget } from "./notification-activation";
 import type {
   OccurrenceFormAction,
@@ -29,6 +31,8 @@ export type TimelineScreenProps = Readonly<{
   onShowMore: (days: number) => void;
   notificationTarget?: NotificationTarget | null;
   shortcutsByBehavior?: Record<string, NoteShortcut[]>;
+  dailyBriefClient?: DailyBriefClient | null;
+  dailyBriefSessionKey?: string;
 }>;
 
 export function TimelineScreen({
@@ -39,6 +43,8 @@ export function TimelineScreen({
   onShowMore,
   notificationTarget,
   shortcutsByBehavior = {},
+  dailyBriefClient,
+  dailyBriefSessionKey,
   ...actions
 }: TimelineScreenProps) {
   const nextFutureDays = timeline.nextFutureDays;
@@ -109,7 +115,7 @@ export function TimelineScreen({
           </p>
         ) : null}
         <div className="w-full overflow-hidden bg-background">
-          <div className="relative aspect-[1423/367] w-full sm:aspect-[2041/239]">
+          <div className="aspect-[1423/367] w-full sm:aspect-[2041/239]">
             <picture className="block h-full w-full">
               <source
                 media="(max-width: 639px)"
@@ -126,6 +132,9 @@ export function TimelineScreen({
                 className="block h-full w-full object-fill lg:mt-1"
               />
             </picture>
+          </div>
+          <div className="relative mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-10">
+            <DailyBriefLauncher key={timelineBriefKey(timeline)} client={dailyBriefClient} desktop sessionKey={dailyBriefSessionKey} />
           </div>
         </div>
         <div className="mx-auto flex w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-10">

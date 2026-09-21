@@ -24,8 +24,9 @@ The web app supports independent users with Google auth. Tickets 107–114
 implement local-first macOS tracking with one local profile and no login.
 Ticket 115 defers Apple-trusted desktop distribution acceptance.
 Tickets 116–122 plan optional use of the same Google account with offline-
-capable desktop synchronization. Billing, mobile, and AI speech features remain
-future scope.
+capable desktop synchronization. Tickets 146–148 implement an in-app read-only daily
+briefing in the Timeline horse's text bubble. Billing, native mobile, general AI
+chat/coaching, and audio speech remain future scope.
 
 ## Product surfaces
 
@@ -512,27 +513,101 @@ after live deletion. The current Supabase daily-backup window is seven days.
 
 Disconnect deletes the live credential before Cadence attempts Google grant
 revocation. If Google revocation is unavailable, Settings tells the user to
-remove Cadence from Google Account permissions. Account deletion attempts the
-same revocation, then deletes the Auth user and owner-scoped Calendar records.
+remove Cadence from Google Account permissions. Account deletion captures the
+revocation work, deletes the Auth user and cascading owner-scoped Calendar
+records, then attempts external revocation. Failed Auth deletion preserves the
+Calendar connection. A provider outage after deletion does not restore the account.
 Other devices stop refreshing and clear their local content when they next
 observe the changed connection. Ordinary web sign-out keeps the account-level
 Calendar connection. Desktop account disconnect clears that Mac's Calendar cache.
 
-Duration estimates use positive stopped-session totals from at least three
-Completed Occurrences in the previous 90 complete local days. A running session
-is not a finished sample. Missing history remains unknown. Possible-overlap
-cues are advisory. They use half-open timed intervals and exclude all-day events.
-They never prove availability or change a schedule or status.
+Timeline planning uses a Behavior's optional positive default duration first.
+Without a default, duration estimates use positive stopped-session totals from at
+least three Completed Occurrences in the previous 90 complete local days. A
+running session is not a finished sample. Missing history remains unknown.
+Tracked-time records and measured averages stay independent from the default.
+Possible-overlap cues are advisory. They use half-open timed intervals and exclude
+all-day events. They never prove availability or change a schedule or status.
 
-The implementation remains inactive for real provider use until deployment and
-live acceptance complete. The server reports `not_configured` unless all
-required Calendar OAuth and encryption settings are valid. Desktop additionally
-requires a valid HTTPS `VITE_CALENDAR_BROKER_ORIGIN`. The repository does not
-contain live credentials. Hosted migration, provider verification, real-account
-OAuth, native cache/source-link tests, performance evidence, deployment, and
-distribution remain Ticket 137 gates. Local and synthetic checks do not complete
-Tickets 133–137. Native mobile remains deferred. Dynamic rearrangement and
-non-Google connectors remain deferred in `docs/FUTURE_UPDATES.md`.
+The deployed connector and installed preview have live acceptance evidence. The
+server still reports `not_configured` unless all required Calendar OAuth and
+encryption settings are valid. Desktop additionally requires a valid HTTPS
+`VITE_CALENDAR_BROKER_ORIGIN`. The repository contains no live credentials.
+Google verified Cadence branding and accepted the Calendar data-access submission
+on September 18, 2026, but scope approval and post-approval smoke checks remain
+open under Ticket 141. Ticket 137 retains controlled provider-failure and
+Workspace-restriction coverage plus dense/overnight installed fixtures and
+multi-day resume evidence. Apple-trusted desktop distribution remains separate
+under Ticket 115. Native mobile, dynamic rearrangement, and non-Google connectors
+remain deferred.
+
+## In-app daily briefing (Tickets 145–148)
+
+The owner's September 20 correction supersedes the external-consumer assumption.
+Cadence Daily Brief appears in a text bubble emerging from the existing Timeline
+horse on the first app opening of the local day. The user can dismiss or ignore it.
+Cadence gathers relevant Behaviors, completion history and connected Calendar facts;
+the model writes the briefing; Cadence displays it. No prewritten summary or
+individual briefing requires approval. Generation does not block ordinary tracking.
+
+The briefing may recommend priorities, timing and schedule changes. It cannot mark
+Occurrences, edit Behaviors, write Notes, send reminders, import records, or edit
+Calendar events. Future execution remains separately scoped work. This is a text
+bubble, not audio speech, a general chatbot, or a separate advisor application.
+
+Existing sign-in identifies the owner. First-party briefing enablement and disclosed
+model-data use replace external-client grants. Keep Calendar connection permission
+separate from model disclosure, but require no second login or approval of each
+briefing. Account, disclosure, connection, selection and source changes fence pending
+results. The model receives no account credential, provider credential or write tool.
+
+Initial generation uses OpenAI `gpt-5.6-luna`. One server adapter maps provider
+requests/responses behind a provider-neutral facts/result contract. Shared core and
+UI must not depend on provider SDK types. No generic agent framework is required.
+
+Minimum model facts include today's Behavior titles, opaque references, manual
+statuses, schedule bounds, duration/unknown with provenance, bounded per-Behavior
+completion counts and their lookback/completeness, and Calendar scheduling facts.
+Keep Completed, Not Completed and Unresolved separate; unresolved history does not
+enter final adherence. Raw history, exact sessions, Notes, account identifiers,
+Calendar rich text, provider IDs and credentials remain excluded. Partial or stale
+Calendar context never proves free time. Source times and limits remain explicit.
+
+`docs/plans/first-external-consumer.md` retains its filename but now defines this
+in-app contract, daily presentation default, first-party route, limits and data use.
+Ticket 146 is reopened for completion-history projection and first-party fences.
+Ticket 147 owns first-party generation, disclosure controls and the OpenAI adapter.
+Ticket 148 owns the automatic horse bubble and acceptance on web and linked desktop.
+The previously tested read service remains reusable. The old endpoint still denies
+all credentials. The consumer module now implements internal generation, and the
+horse bubble is wired on both clients. See `docs/qa/in-app-daily-brief.md` for
+source verification and the remaining hosted/native/live-data release gates.
+
+Web owns hosted generation. Linked online desktop reuses it and explicitly lacks
+unsynced/local-only context. Account-free/offline desktop tracking remains available;
+local-only AI is deferred. Marketing gains no new claim. Native mobile remains
+deferred. Synthetic access to the selected model passed with the approved existing
+key. Hosted deployment, real-data acceptance and installed desktop checks remain
+open. Provider retention is disclosed separately from Cadence's no-content-storage policy.
+
+### Planned internal briefing workbench (Tickets 151–155)
+
+The owner requested tickets for an internal control surface to tune tone, scope,
+reference materials, suggestion options and planning logic. Extend the existing
+local design bench with saved provider-neutral configurations and comparisons
+against identical synthetic facts. This is planned work, not an implemented control.
+
+Start with curated research/guidance records and validated source references.
+A pure planner checks fixed commitments, explicitly movable activities, timing
+windows, durations and buffers. The model explains valid options; voice controls
+cannot override scheduling constraints, data disclosure or read-only boundaries.
+No automatic schedule or Calendar change belongs to these tickets.
+
+The internal workbench edits drafts and runs explicit comparisons. A reviewed
+repository configuration change activates a preset through the existing hosted
+service. Ordinary user Settings remains small. Web and linked desktop share
+results; no native workbench, marketing claim or native mobile implementation is
+added. Existing live-data and release gates remain separate.
 
 ## Out of scope
 
@@ -542,7 +617,8 @@ non-Google connectors remain deferred in `docs/FUTURE_UPDATES.md`.
 - Multi-user collaboration
 - Social features
 - Gamification
-- AI coaching
+- General AI coaching/chat and autonomous execution beyond the in-app read-only
+  daily briefing planned under Tickets 146–148
 - Two-way Calendar sync and source-event editing; Tickets 132–137 cover only
   gated read-only Google Calendar context
 - PWA offline cache
@@ -551,7 +627,7 @@ non-Google connectors remain deferred in `docs/FUTURE_UPDATES.md`.
 - Admin dashboard
 - Automatic missed status
 - Any third manual completion status beyond Completed and Not Completed
-- AI coaching or speech features in the launch web app
+- AI speech features in the launch web app
 - Marketing/product emails at launch
 - Intel desktop releases, desktop email delivery, and closed-app background synchronization
 

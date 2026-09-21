@@ -37,7 +37,8 @@ shared-package work is implemented under Tickets 107–114. Ticket 115 defers
 Apple-trusted distribution acceptance. Tickets 116–122 plan optional Google
 account linking and offline-capable desktop synchronization. The desktop track
 uses Tauri v2, Vite, React, and local SQLite. Next.js stays at the repository
-root. Mobile and broader workspace restructuring remain deferred.
+root. Tickets 146–148 implement the authenticated, read-only Cadence Daily Brief
+in-app horse briefing. Mobile and broader workspace restructuring remain deferred.
 
 ## Agent operating model
 
@@ -94,6 +95,7 @@ Product and implementation docs:
 21. `/docs/DESKTOP_BUILD.md`
 22. `/docs/DESKTOP_DATA_MODEL.md`
 23. `/docs/DESKTOP_PARITY.md`
+24. `/docs/INTEGRATION_PLAYBOOK.md`
 
 ## Product constraints
 
@@ -116,6 +118,7 @@ In scope:
 - Public Astro marketing site
 - Local-first macOS desktop tracking parity under Tickets 107–114
 - Optional desktop Google account linking and synchronization under Tickets 116–122
+- In-app read-only Cadence Daily Brief in the horse bubble under Tickets 146–148
 - Workspace split only when explicitly ticketed
 
 Out of scope for v1:
@@ -127,7 +130,8 @@ Out of scope for v1:
 - Structured measurement templates
 - Medication dose tracking
 - Supply/refill inventory
-- AI coaching inside the app
+- General AI coaching/chat and autonomous execution; Tickets 146–148 implement only
+  the in-app read-only daily briefing in the horse bubble
 - Calendar sync and event editing, except the planned read-only Google Calendar
   context in Tickets 132–137
 - Payment/subscription infrastructure
@@ -135,7 +139,7 @@ Out of scope for v1:
 - PWA offline cache
 - Web offline writes or PWA conflict handling
 - Automatic missed status
-- AI coaching or speech features
+- Speech features
 - Mobile implementation
 
 ## Domain language

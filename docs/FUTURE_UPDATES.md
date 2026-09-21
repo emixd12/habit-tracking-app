@@ -18,20 +18,41 @@ The owner accepted Ticket 132's UI baseline on 2026-09-16 and prioritized
 Ticket 134 infrastructure. Its `docs/EXTERNAL_EVENT_CONTRACT.md` preserves
 scheduling facts for future consumers without implementing those consumers.
 
-Tickets 144–145 cover documentation and consumer planning only: a reusable
-integration playbook, followed by a concrete Cadence access proposal. They do not
-activate the deferred capabilities below. Planner/coach scope and any API or MCP
-implementation require explicit product decisions and follow-up tickets.
+Tickets 144–145 cover the reusable integration playbook and original consumer
+planning. The September 20 correction replaces the external advisor with an
+in-app horse briefing. `plans/first-external-consumer.md` retains its path and
+now defines the corrected flow. Tickets 146–148 own bounded facts/history,
+first-party generation with OpenAI Luna 5.6, and the automatic dismissible bubble.
+Existing sign-in replaces delegated consumer authentication. The implementation
+and synthetic verification are recorded in `qa/in-app-daily-brief.md`; hosted,
+installed-desktop and real-data release evidence remain separate.
+
+Tickets 142–143 implement optional default Behavior duration and scheduled archive.
+Those planning fields are no longer deferred; source and release evidence remain
+in `STATUS.md` and `docs/qa/behavior-planning-fields.md`.
+
+Tickets 151–155 now plan an internal briefing workbench: versioned configuration,
+curated references, deterministic read-only scheduling options, comparison previews
+and reviewed preset rollout. These controls are not implemented. Open-ended research,
+a public tuning dashboard and execution of suggested moves remain outside this slice.
 
 Still deferred:
 
 - Minor Timeline visual polish after connector infrastructure.
-- Intelligent rearranging, including user-reviewed Occurrence moves, model
-  invocation, and an MCP server. Future scheduling must consume the documented
-  normalized contract and separately define uncertainty/availability policy.
-- User-set expected Behavior durations beyond tracked-average estimates.
+- Applying advisor suggestions or rearranging a schedule. Cadence Daily Brief
+  may suggest priorities, timing, sequence, and schedule changes under Tickets
+  146–148, but it cannot execute them.
+- A write/execution phase for Cadence Daily Brief. This is intended future work,
+  not a permanent exclusion. It needs separately scoped operations, permissions,
+  preview, explicit human approval, stale-context checks, conflict handling,
+  idempotency, audit history, revocation, and atomic apply behavior. Read and
+  execution grants remain separate.
+- An external advisor/MCP transport. The in-app briefing needs no delegated
+  consumer, MCP server or generic connector framework.
 - Two-way Calendar sync and source-event editing.
-- Other connectors, including Focus Keeper, whose capabilities remain unverified.
+- Other connectors for Cadence Daily Brief. The day-context contract may support
+  relevant authorized connectors, but only existing Google Calendar context is
+  in the initial plan. Focus Keeper capabilities remain unverified.
 - Different or multiple Google accounts for one Cadence account, and Calendar
   connections in account-free desktop mode.
 - New timezone controls and daylight-saving presentation refinements. Existing
@@ -95,9 +116,9 @@ Future commercial work may add:
 - optional cloud sync for a future mobile client,
 - future speech-to-speech AI behavior-review features.
 
-Billing and AI features are not launch scope. Do not add payment
-infrastructure, subscription gates, AI coaching, or speech features until
-product docs and tickets explicitly move them into scope.
+Billing, general AI chat/coaching and audio speech remain deferred. The in-app
+read-only horse briefing is the narrow implemented AI feature under Tickets 146–148.
+It adds no payment infrastructure, subscription gate, general chatbot or voice.
 
 ## Web PWA and offline support
 

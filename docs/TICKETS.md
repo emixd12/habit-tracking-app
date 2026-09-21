@@ -9951,7 +9951,7 @@ code also requires the standard coding checks. Provider access is unnecessary.
 
 ## Ticket 133: Continuous day-progress timeline on web and desktop
 
-Status: in_progress (local implementation; native acceptance pending). Dependency: Ticket 132.
+Status: in_progress (deployed web and installed evidence recorded; remaining combined native acceptance is open). Dependency: Ticket 132.
 
 Goal: ship the time line and moving current-time dot using Cadence data alone.
 
@@ -10249,7 +10249,7 @@ schedule, reminder, or provider writes occur. Run applicable shared checks.
 
 ## Ticket 137: Combined timeline acceptance and release documentation
 
-Status: in_progress (local checks; live/native release gates pending). Dependencies: Tickets 133–136.
+Status: in_progress (source, deployed web, live, and installed evidence recorded; remaining native/provider cases and public approval are open). Dependencies: Tickets 133–136.
 
 Goal: verify the complete experience on both platforms before publishing claims
 or distributing the feature.
@@ -10397,13 +10397,12 @@ and canonical legal pages. No site redesign or duplicate legal pages.
 
 Scope and acceptance:
 
-- Add one homepage paragraph covering selected-calendar context, optional
-  read-only consent, no source-event editing, and Settings disconnect. Starting
-  draft, subject to implementation checks and copy review:
-  "Optionally connect Google Calendar to see events alongside your behaviors.
-  Choose which calendars appear in your Timeline. Cadence requests read-only
-  access and cannot create, change, or delete your Google Calendar events.
-  Disconnect Calendar in Settings at any time."
+- Homepage placement revised by the owner on September 19: remove the standalone
+  hero disclosure and add a fifth “How Cadence works” module. Explain optional
+  connectors through their Timeline benefit, using provider-neutral main copy
+  and a sanitized static overlap preview. Identify Google Calendar as the first
+  read-only connector and retain its pending-public-review status. Keep access,
+  selection, editing, and disconnect details in the existing FAQ and Privacy page.
 - Add FAQ answers: Is Calendar required? What can Cadence read? Can it change
   Google events? How do I disconnect? Explain same-account consent, global
   disconnect versus sign-out, and offline cache cleanup where relevant.
@@ -10501,6 +10500,13 @@ video requirements before recording. Filing this ticket uploads nothing.
 Status: in_progress. Dependencies: Tickets 138–140 and relevant technical evidence
 from 134/137. Full Ticket 137 closure is not a prerequisite; this ticket supplies
 its public-verification evidence.
+
+September 20 follow-up: Google Verification Center reports data access verified.
+Data Access marks `calendar.events.readonly` verified. The unchanged production
+broker client and all three declared scopes match the submitted configuration.
+Branding remains verified. Ticket 141 remains in progress until post-approval
+web/native consent smoke checks pass. Public rollout gates remain unchanged.
+See `docs/qa/google-calendar-capabilities.md` for sanitized evidence.
 
 September 18 submission checkpoint: Google accepted the final data-access
 submission at 10:52 EDT for `cadence-calendar-498717`. Verification Center reports
@@ -10635,7 +10641,10 @@ review. Release evidence must distinguish source verification from deployed beha
 
 ## Ticket 144: Service integration playbook and reusable integration brief
 
-Status: not_started. Filed September 18, 2026. Documentation only.
+Status: complete (September 18, 2026). Documentation only.
+Deliverable: `docs/INTEGRATION_PLAYBOOK.md`. Required documentation checks pass;
+fresh independent review returned `ship`. Current summaries are reconciled;
+historical checkpoints and remaining Calendar release gates are preserved.
 
 Goal: turn the Google Calendar integration lessons into instructions future agents
 can use when integrating another service with Cadence.
@@ -10699,7 +10708,18 @@ brief, not another integration or a new product capability.
 
 ## Ticket 145: First external consumer and Cadence access contract planning
 
-Status: not_started. Filed September 18, 2026. Planning only.
+Historical planning scope: the September 20 owner correction supersedes the
+external-consumer assumption below. The plan at the same path and Tickets 146–148
+now define the in-app horse briefing. This ticket preserves its dated completion.
+
+Status: complete (September 18, 2026). Planning only.
+The revised documentation checks pass; fresh independent review returned `ship`
+with no findings.
+The owner selected Cadence Daily Brief and approved connected, authenticated,
+read-only advice using Cadence and authorized connector context, including Calendar.
+The revised proposal is `docs/plans/first-external-consumer.md`; accepted scope is
+recorded in `docs/DECISIONS.md`. Tickets 146–148 cover bounded implementation.
+Future writes are intended but separately scoped. No live transmission is authorized.
 
 Goal: define one concrete consumer of Cadence data and the smallest interface
 needed to support it, informed by the owner's future daily planner/coach direction.
@@ -10770,6 +10790,184 @@ Use the existing interaction registry and design-system catalog as evidence;
 do not register proposed interactions as implemented. Record why runtime tests
 and builds were not rerun when no runtime files changed.
 
+## Ticket 146: Minimal advisor day-context contract and read service
+
+Status: complete in source (September 20, 2026). Revised history, fences, clean
+SQL replay and all required checks passed; fresh independent review returned `ship`.
+Evidence: `docs/qa/in-app-daily-brief.md`.
+Filed September 18, 2026. Dependency: Ticket 145, corrected by the September 20 decision.
+
+The September 19 contract, snapshot/revision RPCs, Calendar subsets and admission
+limits passed source/SQL checks and independent review. Preserve that dated evidence
+in `docs/qa/advisor-read-only.md`. It does not complete the revised acceptance below.
+
+Goal: supply validated current-day facts and bounded completion history to Cadence's
+in-app briefing. `docs/plans/first-external-consumer.md` now holds the corrected plan.
+No model call, UI implementation, delegated credential or public read API belongs here.
+
+Scope and acceptance:
+
+- Reuse existing core projection/validation, repository snapshot/revision reads,
+  duration rules and Calendar subset service. Keep consistent owner-scoped reads.
+- Add bounded per-Behavior Completed, Not Completed and Unresolved aggregates with
+  explicit lookback dates and completeness. Reuse analytics/status rules; exclude
+  Unresolved from final adherence. Completed-only duration samples are not adequate
+  completion history. Preserve raw history and sessions inside the service.
+- Use the existing 90-complete-local-day maximum lookback and history ceilings.
+  Capped samples produce unknown/incomplete facts, never biased totals or estimates.
+- Keep opaque references, source observation/revision, current-day bounds, duration
+  provenance and Calendar completeness. Exclude Notes, rich Calendar fields,
+  credentials and raw account/provider identifiers. Treat text as untrusted data.
+- Replace external-client grant assumptions with server-owned first-party account
+  and briefing-disclosure fences. Keep owner isolation and before-delivery checks
+  for account, timezone, source, connector selection/connection and disclosure changes.
+- Retain bounded reads, record/byte limits, shared admission and the 30-second read
+  deadline. Reject overflow. Reuse existing conservative Calendar interval rules.
+- Read persisted records without Timeline/export generation or archive side effects.
+  Return incomplete/recovery states when normal app maintenance has not caught up.
+  Prove zero tracking, reminder and provider-event writes; document operational writes.
+- Add migrations/types/data-model changes only if required by the revised snapshot.
+  Validate every new field and synthetic fixture; preserve existing callers.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Extend `packages/core/src/services/advisor-day-context.ts`, `lib/db/advisor-context.repo.ts` and `lib/services/advisor-day-context.service.ts`; Ticket 147 connects generation. |
+| Desktop | Reuse shared contracts and preserve Calendar callers; Ticket 148 consumes hosted context in the linked-account horse bubble. Local-only AI remains deferred. |
+| Marketing | Not applicable: internal data work provides no public capability claim. |
+| Future mobile | Shared validation only; no native client implementation. |
+
+Verification: all required repository checks, all-status history and cap fixtures,
+owner isolation, revision races, Calendar semantics, zero-source-write assertions,
+and clean SQL replay where changed. Update resolver ownership for actual changes.
+
+## Ticket 147: First-party briefing generation and model-data controls
+
+Status: in_progress for release acceptance. Source implementation, required
+checks and fresh independent review (`ship`) completed September 20, 2026.
+Hosted/live-data/installed-desktop gates remain in `docs/qa/in-app-daily-brief.md`.
+Filed September 18, 2026. Dependencies: revised Ticket 146 and September 20 decision.
+
+The old disabled endpoint is implemented, but it is not the target interface.
+External-token isolation is no longer a prerequisite. Preserve its historical
+finding in `docs/qa/advisor-auth-isolation.md`; do not enable delegated OAuth.
+
+Goal: generate a briefing inside Cadence using existing sign-in and a server-side
+OpenAI `gpt-5.6-luna` adapter, behind provider-neutral facts/result contracts.
+
+Scope and acceptance:
+
+- Implement `POST /api/advisor/brief` as one first-party operation. Derive owner and
+  local day from verified sign-in. Reuse web session checks and the linked-desktop
+  authenticated broker path; preserve RLS and existing Keychain handling.
+- Apply web origin/CSRF checks, exact desktop broker origins, safe errors,
+  `no-store`, item/output limits, account-wide rate limits and one in-flight
+  generation. Reject owner overrides, arbitrary prompts/URLs and unknown fields.
+- Reuse Ticket 146 directly. Replace or retire the old GET adapter and external
+  consumer path; do not make the server call its own HTTP API. No external OAuth
+  client, new advisor login, delegated token or public MCP endpoint is required.
+- Implement first-party enablement and revocable model-data disclosure for the
+  briefing purpose, minimum fields and optional selected Calendar facts. Use
+  existing Settings/account patterns. Do not ask for approval of prewritten or
+  generated briefing text. Calendar display permission remains distinct from
+  disclosure to the model. Revised destination/fields cannot silently inherit consent.
+- Use one small generation adapter: validated facts in, validated briefing out.
+  OpenAI Luna 5.6 is selected; do not substitute a model. Provider SDK types stay
+  out of core/UI. No multi-agent framework, provider registry or tool runtime.
+- Keep API keys server-only. The model receives no user session, Google credential,
+  database client or mutation tool. Model text cannot fetch extra data or execute
+  source changes. Validate output, source references, length and zero applied changes.
+- Bound the complete read-plus-generation attempt to 60 seconds, each phase at
+  most 30 seconds. Deduplicate automatic daily requests across remounts/tabs and
+  prevent retry loops. Define operational cache/admission/disclosure retention
+  before activation. Do not store prompt history or log content by default.
+- Revalidate session, disclosure, account and source state before model submission
+  and before delivery. Disablement, account switch/deletion and Calendar changes
+  invalidate pending results. External retention cannot be retroactively recalled.
+- Verify actual OpenAI model/account access and applicable retention/deletion terms,
+  Google onward-use requirements, secrets and exact live-test authority. These are
+  deployment/live-test gates, not reasons to rebuild an external identity system.
+- Any persistence change needs migrations/types/data-model updates, owner tests,
+  clean local replay and rollback. Register controls only when implemented.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | `lib/services/daily-brief.service.ts`, briefing routes and `DailyBriefSettingsPanel` implement authenticated generation and disclosure controls. |
+| Desktop | Existing linked-account authentication calls the hosted service; no embedded OpenAI key or new advisor credential. Ticket 148 verifies presentation and offline limits. |
+| Marketing | No runtime claim; record provider/retention disclosure requirements before separately authorized publication. |
+| Future mobile | Neutral contracts only; native authentication/UI are not applicable to this ticket. |
+
+Verification: all required checks, two-account session isolation, unauthorized
+zero-read tests, request forgery/replay/duplicate tests, prompt injection, output
+validation, timeouts, disclosure/source races, and zero-source-write checks.
+Live provider access and deployment require their own recorded evidence.
+
+## Ticket 148: In-app horse briefing and read-only acceptance
+
+Status: in_progress for release acceptance. Source implementation, required
+checks and fresh independent review (`ship`) completed September 20, 2026.
+Hosted/live-data/installed-desktop gates remain in `docs/qa/in-app-daily-brief.md`.
+Filed September 18, 2026. Dependencies: revised Tickets 146–147.
+
+The earlier synthetic external consumer is not acceptance of this flow. The owner
+explicitly corrected the destination, automatic invocation and meaning of inputs.
+OpenAI Luna 5.6 and Cadence-hosted generation replace the open host/model choice.
+
+Goal: show an AI-written daily briefing in a text bubble emerging from the existing
+horse when the user first opens Cadence. The user can dismiss or ignore the bubble.
+
+Scope and acceptance:
+
+- Connect app opening → bounded facts/history/Calendar read → model generation →
+  horse-bubble display. No separate advisor app, manual Generate prerequisite,
+  prewritten-summary approval or per-briefing acceptance step.
+- Use the existing Timeline horse on web and desktop. Preserve current spacing,
+  type, square corners, colors and navigation. No general chat screen, audio speech,
+  modal interruption or new model-controlled actions.
+- Planning default: once per account/local day per app installation, with same-day
+  dismissal across navigation/reopening. Test account/date changes and server
+  deduplication. No cross-device dismissal sync is implied. Failed attempts allow
+  deliberate retry; no polling or background helper.
+- Keep loading, empty, error, unavailable and partial states nonblocking. A dismissed
+  in-flight result cannot reopen the bubble. The user can ignore the bubble and
+  operate Timeline controls normally. Dismissal changes presentation only.
+- Show model-written text, including priorities, timing or suggested changes when
+  facts support them. Include source time and uncertainty. Expired or incomplete
+  context cannot imply current free time. Never apply a suggestion or mark a status.
+- Provide keyboard dismissal, accessible naming, visible focus, polite announcement,
+  readable wrapping/contrast and reduced motion. Test desktop and narrow mobile web,
+  long text and content growth without obscuring tracking controls.
+- Linked online desktop uses the same hosted model boundary. Disclose absent
+  unsynced/local-only data; unavailable AI never disables account-free/offline
+  tracking. Local-only AI and a new synchronization mechanism remain deferred.
+- Adapt or retire synthetic consumer tests as needed. Test completion-history
+  interpretation, unknown/capped history, all Calendar states, prompt injection,
+  invalid/long model output, freshness/disclosure races and duplicate opening.
+- Use existing interaction/design catalogs. Add implemented enablement, automatic
+  invocation, dismissal and retry intents in the same runtime change. Invoke
+  Impeccable and design-system-bench before reusable UI work; do not invent a second
+  decision inventory. Update DESIGN.md from actual code after implementation.
+- Record source, synthetic, deployed, live model/provider, installed desktop and
+  public evidence separately. Define disablement, operational cleanup and rollback;
+  verify zero tracking/provider-event changes. Preserve separate release gates.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Add bubble/invocation to `app/(app)/timeline/page.tsx` through shared UI and Ticket 147; verify responsive web and existing Timeline actions. |
+| Desktop | Add equivalent bubble/invocation to `apps/desktop/src/timeline-screen.tsx`; verify linked current/unsynced/offline states and native lifecycle. |
+| Marketing | No public AI claim from this implementation. Publication follows live release acceptance. |
+| Future mobile | Native implementation is not applicable; shared contracts and mobile web remain in scope. |
+
+Verification: all required repository checks, synthetic end-to-end and responsive
+browser/accessibility QA, installed-desktop evidence, and separately authorized
+live-model acceptance. Synthetic success does not establish deployed/live status.
+
+
 ## Ticket 149: Calendar inspection polish and Timeline reload
 
 Status: complete in source (September 18, 2026). Required checks, responsive
@@ -10796,3 +10994,275 @@ Evidence and live/native limits: `docs/qa/calendar-inspection-refresh.md`.
 
 Use the existing interaction registry and design-system Timeline family for evidence.
 No schema, new connector, or provider permission change.
+
+
+## Ticket 150: Calendar display names and compact selection
+
+Status: in_progress (September 20, 2026). Implementation and focused/browser QA
+passed; repository acceptance awaits concurrent Daily Brief test/build repairs.
+Evidence: `docs/qa/calendar-selection.md`.
+
+- Request and prefer Google's per-user `summaryOverride`, falling back to `summary`.
+  Preserve calendar IDs, readable-role filtering, pagination, and account scope.
+- Replace the tall calendar cards with one multi-select field. Show selected
+  calendars as wrapping tags; expand a searchable, bounded checkbox list.
+  Preserve per-calendar Timeline visibility and explicit Save semantics.
+- Refresh Calendar reloads available calendars even with no saved selections.
+  Preserve drafts and distinguish list failures from successful refreshes.
+- Verify provider mapping, selection/visibility/save behavior, empty/error states,
+  keyboard access, long names, and narrow responsive layouts.
+
+Platform impact: web and desktop share `GoogleCalendarPanel.tsx` and the hosted
+provider adapter. Marketing is not applicable because this is authenticated
+Settings. Future native mobile stays deferred; mobile web is responsive.
+Use INT-CALENDAR-002/003 and the existing Settings design-system family.
+No schema, OAuth scope, provider event mutation, or deployment is required.
+
+## Ticket 151: Briefing configuration contract and saved presets
+
+Status: not_started.
+Filed September 20, 2026. Dependencies: source contracts from Tickets 146–148.
+
+Goal: replace fixed briefing choices with a small, provider-neutral configuration
+that the internal workbench can edit and compare.
+
+Scope and acceptance:
+
+- Define a versioned, validated configuration for tone, directness, encouragement,
+  length, briefing priorities, allowed suggestion types and number of alternatives.
+  Include bounded scope controls for Behavior selection, history window and optional
+  Calendar context. Preserve the current briefing as the default preset.
+- Keep policy separate from presentation. Tone or free-text guidance cannot relax
+  authentication, disclosure, freshness, output limits or read-only rules.
+- Scope only narrows server-authorized data. Calendar inclusion still requires
+  separate disclosure. Behavior selection must resolve within the signed-in owner;
+  repository presets must contain no real account IDs or private Behavior content.
+- Support shorter history windows within the existing 90-complete-local-day ceiling.
+  Apply the selected window before aggregation; never relabel a 90-day total as
+  shorter history. Preserve completeness and separate manual statuses.
+- Store canonical presets as versioned repository data. Workbench drafts contain
+  configuration only. Do not introduce a settings database, provider registry,
+  per-user admin roles or a generic agent framework for this internal tool.
+- Reject unknown fields, unsupported versions and out-of-range values. Keep the
+  selected model behind the existing adapter; the configuration contains no SDK
+  types, credentials, provider URL or caller-supplied system prompt.
+- Integrate prompt construction through `lib/services/daily-brief-consumer.ts` and
+  the shared facts contract. Preserve source fences and existing bounded generation.
+  Production activation belongs to Ticket 155.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Extend shared daily-brief types/context assembly and `daily-brief-consumer.ts`; Ticket 154 exposes workbench controls. |
+| Desktop | Reuses neutral types and hosted generation after Ticket 155; no separate native configuration editor. |
+| Marketing | Not applicable: internal configuration provides no new public claim. |
+| Future mobile | Neutral contracts remain reusable; native UI remains deferred. |
+
+Verification: default-preset compatibility, exact validation, scope intersection,
+history-window/cap fixtures, prompt injection and zero-source-write tests. Run all
+required repository checks. Update resolver ownership for any new pure owner.
+
+## Ticket 152: Curated briefing references and verifiable citations
+
+Status: not_started.
+Filed September 20, 2026. Dependency: Ticket 151.
+
+Goal: let the workbench select research and guidance that can support briefing
+suggestions, with inspectable provenance and bounded model input.
+
+Scope and acceptance:
+
+- Begin with an explicit curated catalog of research/guidance records. Each record
+  has a stable ID, title, source URL, publication date when known, review date,
+  bounded excerpt or summary, applicability and limitations. Distinguish research
+  evidence, interpretation and editorial suggestion guidance.
+- Store only material permitted for repository distribution. Keep private documents
+  and account facts out of the catalog. No live web search, arbitrary URL fetching,
+  uploads, vector database or autonomous research is required for this slice.
+- Select references explicitly by catalog ID through Ticket 151 configuration.
+  Bound reference count and total bytes within the generation budget. Missing,
+  withdrawn or unsuitable references produce explicit omission/rejection reasons.
+- Treat reference text as untrusted data. It grants no tools, instructions, new
+  account scope or authority over scheduling constraints. Source absence must not
+  turn unsupported advice into a research-backed claim.
+- Extend structured results with references to supplied catalog IDs. Validate IDs
+  and map them to trusted catalog metadata; never render a model-invented URL.
+  The workbench exposes which sources support each suggestion and the underlying
+  excerpts. Human review assesses support; ID validity alone does not prove it.
+- Define source-review/withdrawal behavior. Changing the selected reference set or
+  content revision invalidates pending comparisons. Record the version used in
+  each in-memory result. Production source presentation follows Ticket 155.
+- Reuse the existing provider-neutral generator and output validation. No new model
+  service or model-controlled retrieval path is needed.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Add bounded catalog selection beside `daily-brief-consumer.ts`; extend shared result types and Ticket 154 preview. |
+| Desktop | Ticket 155 carries validated source metadata through the existing hosted client and shared bubble. No native research service. |
+| Marketing | Not applicable: catalog entries are not publication of product efficacy claims. |
+| Future mobile | Shared reference/result contracts only; native retrieval and UI are deferred. |
+
+Verification: missing/withdrawn sources, byte/count bounds, unsupported citation
+IDs, hostile reference instructions and absent evidence. Review synthetic advice
+against its actual cited excerpts. Run required repository checks; update the
+existing interaction/design catalogs only when source controls are implemented.
+
+## Ticket 153: Deterministic briefing planner and suggestion routing
+
+Status: not_started.
+Filed September 20, 2026. Dependencies: Ticket 151 and Ticket 146 context contracts.
+Ticket 152 is required only for research-backed explanations.
+
+Goal: generate inspectable, read-only scheduling options under explicit constraints
+before the model writes the briefing.
+
+Scope and acceptance:
+
+- Add a pure planning resolver under `packages/core/src/resolvers`, with injected
+  time and typed facts/configuration. Reuse existing duration, Temporal day-boundary,
+  Calendar interval and status rules. Services own reads; UI owns no planning logic.
+- Support fixed commitments, explicitly movable Behavior occurrences, permitted
+  windows, duration assumptions, buffers and bounded scheduling preferences.
+  Treat Calendar events as fixed context. Exact Behavior schedules remain fixed
+  unless the planning input explicitly marks them movable for a hypothetical option.
+- Define bounded candidate generation and deterministic ranking/tie-breaking.
+  Configuration adjusts priorities and tradeoffs, not validity. No unbounded
+  optimizer, multi-agent router or separate planning service is required.
+- Route to one of: recap, priority suggestions, validated scheduling options, or
+  insufficient-context explanation. Route from evidence and policy, not tone.
+  Partial/stale Calendar coverage or unknown required duration cannot prove a free
+  slot. Preserve all-day, tentative, declined and transparent-event meanings.
+- Return structured proposals with source occurrence references, current/proposed
+  intervals, checked constraints, assumptions, reasons and rejection explanations.
+  Include explicit no-feasible-option and no-change results. Cap option counts.
+- The model may explain supplied options but cannot invent executable moves.
+  Validate that any structured scheduling recommendation refers to a valid supplied
+  option. Withhold invalid output rather than silently applying or repairing it.
+- Preserve source/configuration revisions and expiry. Never update a schedule,
+  status, Note, reminder, sync record or Calendar event. A future Apply action needs
+  separate operation, authorization, conflict and audit tickets.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Proposed `packages/core/src/resolvers/briefing-plan.resolver.ts`, service orchestration and Ticket 154 inspector; register ownership in `docs/AGENT_RESOLVERS.md` when implemented. |
+| Desktop | Shares neutral proposal contracts; Ticket 155 uses hosted planning and discloses absent unsynced/local-only facts. No local planner UI or write path. |
+| Marketing | Not applicable: hypothetical scheduling options do not establish automated rescheduling capability. |
+| Future mobile | Pure planning contracts may be reused later; native implementation is deferred. |
+
+Verification: deterministic ranking, immovable conflicts, buffers, unknown duration,
+partial/stale sources, no feasible slot, DST/overnight/day boundaries, status handling,
+revision invalidation and zero writes. Pair every resolver with tests and run all
+required repository checks.
+
+## Ticket 154: Internal briefing workbench and comparison previews
+
+Status: not_started.
+Filed September 20, 2026. Dependency: Ticket 151. Add reference and planning controls
+as Tickets 152–153 land; unavailable controls must not pretend to work.
+
+Goal: adjust briefing dimensions and compare real generated outputs against the
+same frozen synthetic facts inside the existing development design bench.
+
+Scope and acceptance:
+
+- Extend `app/design-system/DailyBriefBench.tsx` and the existing `/design-system`
+  preview mechanism. This is an internal development surface, not a new customer
+  dashboard, general chatbot or expansion of ordinary Settings.
+- Provide grouped controls for voice, scope, references, suggestion options and
+  planner policy. Load, duplicate, edit, compare and export validated configuration
+  presets. Saving a workbench draft never activates it for daily users.
+- Freeze one synthetic snapshot for a comparison. Hold its injected clock, facts
+  and fixture revision constant; show intentional scope differences separately.
+  Display configuration, reference, planner and model versions for each result.
+  The same inputs do not imply deterministic model wording.
+- Reuse the actual generator, validation, planner and `DailyBriefBubble`; do not
+  create a second prompt implementation. Clearly distinguish static fixtures from
+  model-generated previews and failed attempts from successful results.
+- Require an explicit Run comparison action. Bound concurrency, attempts, output,
+  duration and cost exposure; cancel/discard superseded results. Do not generate
+  while dragging controls, loading a preset or opening the bench.
+- Keep server credentials server-only. A development-only generation boundary must
+  reject production execution and untrusted origins. Accept known synthetic fixture
+  IDs and validated configuration, never arbitrary prompts, URLs or owner IDs.
+  It must not read account/provider data or consume production daily-attempt state.
+- Compare horse-bubble previews beside an inspector for effective facts, included
+  references, planner options/rejections and output-validation results. Permit
+  qualitative review notes without pretending to offer an objective quality score.
+- Keep outputs and facts in memory. Persist/export only configuration by default;
+  no prompt-history store or automatic telemetry. Use synthetic fixtures for normal
+  tests; live model runs retain explicit provider-test authority.
+- Use Impeccable and design-system-bench before UI edits. Preserve responsive
+  layout, keyboard operation, clear labels and current product styles. Update
+  `DESIGN.md`, the existing interaction registry and design-system catalogs when
+  controls exist; do not register these planned interactions as implemented now.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Extend existing development-only design-system route and `DailyBriefBench.tsx`; use shared horse-bubble components. |
+| Desktop | Inspect the shared bubble through desktop-sized fixtures; Ticket 155 verifies installed consumption. No separate native workbench. |
+| Marketing | Not applicable: the internal workbench is neither hosted marketing content nor a public demo. |
+| Future mobile | Verify narrow mobile web previews; native workbench implementation is not applicable. |
+
+Verification: configuration round-trip, comparison input identity, explicit-run
+behavior, stale result cancellation, production/origin rejection, zero account
+reads, no client secrets, keyboard/mobile/long-text states and required repository
+checks. Provider-free tests must not silently call OpenAI.
+
+## Ticket 155: Reviewed briefing configuration rollout and acceptance
+
+Status: not_started.
+Filed September 20, 2026. Dependencies: Tickets 151–154. Hosted/live-data/native
+activation also depends on remaining release acceptance for Tickets 147–148.
+
+Goal: make a reviewed preset drive the daily horse briefing on web and linked
+desktop, with evidence and a simple rollback.
+
+Scope and acceptance:
+
+- Select the active versioned repository preset through the existing server
+  generation service. An ordinary reviewed code/configuration change promotes a
+  preset; no new runtime admin console, user role or configuration database.
+- Apply the same validated preset, references and planning pipeline tested in the
+  workbench. Keep OpenAI `gpt-5.6-luna` initially and preserve the provider-neutral
+  boundary. Model/adapter changes must not require rewriting core policy or UI.
+- Fence pending output against effective configuration, reference and planner
+  versions as well as existing account, disclosure, source and time checks.
+  Preserve once-per-local-day admission and dismissal. A configuration rollout
+  must not silently regenerate an already completed daily briefing.
+- Configuration cannot grant data access. Scope expansion or changed model-data
+  disclosure must use the existing revocable control boundary. Keep the normal
+  Settings surface limited unless a later ticket explicitly adds user tuning.
+- Render validated suggestions and compact source provenance in the shared bubble
+  without implying that changes were applied. Verify text remains useful when
+  no references or valid scheduling options are available.
+- Review a bounded synthetic matrix covering sparse/dense days, incomplete history,
+  Calendar absence/partial coverage, hostile input, no feasible plan, contrasting
+  tones and narrow displays. Record observed quality, latency and usage when
+  available; do not invent scores, costs or guaranteed research efficacy.
+- Verify account/configuration changes, existing Timeline controls, linked desktop,
+  unsynced/offline limits and zero source/provider-event writes. Separate source,
+  synthetic provider, hosted real-data, installed native and public evidence.
+- Document the selected preset and rollback to the prior reviewed configuration.
+  Existing feature disablement remains available. Preserve Tickets 147–148 release
+  gates; this ticket does not authorize hosted deployment or real-data transmission.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | `lib/services/daily-brief.service.ts`, generation validation and shared briefing UI consume the reviewed configuration; record release QA. |
+| Desktop | `apps/desktop/src/daily-brief.ts` and shared horse bubble consume the same hosted result; installed linked/offline acceptance is required. |
+| Marketing | No new claim automatically follows. Public wording requires separately recorded capability and release evidence. |
+| Future mobile | Preserve reusable configuration/result types; native delivery remains deferred. |
+
+Verification: all required checks, shared-core portability, design/interaction
+checks, web/desktop builds, comparison regression fixtures and independent review.
+Record remaining live/native gates explicitly instead of treating bench success
+as production acceptance.

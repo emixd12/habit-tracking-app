@@ -224,6 +224,9 @@ pub struct NativeDeliveryProof {
     deny_unknown_fields
 )]
 pub enum Request {
+    ValidateAccountSyncSnapshot {
+        entities: Vec<sync_apply::AccountSyncEntity>,
+    },
     ReadProfile {},
     ReadCategories {
         profile_id: String,
@@ -597,6 +600,10 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
     // A coherent read transaction prevents histories or graphs from spanning different writes.
     let tx = db.transaction().map_err(error)?;
     let result = match &request {
+        Request::ValidateAccountSyncSnapshot { entities } => {
+            sync_apply::validate_snapshot(&db::profile(&tx)?.id, entities)?;
+            Value::Null
+        }
         Request::ReadProfile {} => json!(db::profile(&tx)?),
         Request::ReadCategories { profile_id } => {
             db::owner(&tx, profile_id)?;

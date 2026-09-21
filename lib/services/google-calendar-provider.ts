@@ -542,7 +542,7 @@ async function requestCalendarListPage(input: Readonly<{
   url.searchParams.set("maxResults", "250");
   url.searchParams.set("showHidden", "true");
   url.searchParams.set("minAccessRole", "reader");
-  url.searchParams.set("fields", "nextPageToken,items(id,summary,timeZone,primary,selected,accessRole)");
+  url.searchParams.set("fields", "nextPageToken,items(id,summary,summaryOverride,timeZone,primary,selected,accessRole)");
   if (input.pageToken) url.searchParams.set("pageToken", input.pageToken);
 
   for (let attempt = 0; attempt <= input.maxRetries; attempt += 1) {
@@ -609,7 +609,10 @@ function adaptGoogleCalendarListEntry(value: unknown, index: number): CalendarLi
   }
   const id = requiredString(item.id, `calendarList.items[${index}].id`);
   if (id.length > 1_024) throw new GoogleCalendarItemError(`calendarList.items[${index}].id is too long`);
-  const name = sanitizeGoogleCalendarText(
+  const override = item.summaryOverride === undefined ? "" : sanitizeGoogleCalendarText(
+    textString(item.summaryOverride, `calendarList.items[${index}].summaryOverride`), 1_024, false,
+  );
+  const name = override || sanitizeGoogleCalendarText(
     requiredString(item.summary, `calendarList.items[${index}].summary`),
     1_024,
     false,

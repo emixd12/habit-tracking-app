@@ -3,18 +3,19 @@
 Verified from official Google and Supabase documentation on 2026-09-16.
 The initial research changed no provider configuration. Authorized setup on
 2026-09-16 created Calendar-only project `cadence-calendar-498717` and enabled
-`calendar-json.googleapis.com`. OAuth client/consent setup remains pending; see
-`day-progress-release.md`.
+`calendar-json.googleapis.com`. Later dated checkpoints in this file record OAuth
+setup, deployed and installed acceptance, verified branding, and the September 18
+data-access submission. Google still reports that submission under review.
+`STATUS.md` is the current ledger.
 
 ## Result
 
-Ticket 134 is feasible with a server-owned Google OAuth connection shared by web and desktop.
-Cadence must request separate Calendar consent after Cadence sign-in.
-The existing Supabase session does not grant Calendar API access.
-This report recommends the credential architecture for Ticket 134. The owner
-accepted the UI baseline on 2026-09-16 and prioritized connector infrastructure.
-That request does not establish live credential/provider acceptance. Finalize
-the architecture and `docs/EXTERNAL_EVENT_CONTRACT.md` before provider setup.
+The September 16 research found Ticket 134 feasible with one server-owned Google
+OAuth connection shared by web and desktop. Cadence requires separate Calendar
+consent after Cadence sign-in because the Supabase session does not grant Calendar
+API access. The implementation later adopted this architecture. Dated sections
+below distinguish the original recommendation from source, live, installed,
+deployed, and provider-review evidence.
 
 Use these scopes:
 
@@ -237,7 +238,7 @@ Prefer primary calendar, then the user's self copy, then Settings selection orde
 Retain source aliases so a later refresh can reconcile every calendar copy.
 Do not collapse a row when `iCalUID` is absent.
 
-## Recommended minimal architecture, pending Ticket 134 finalization
+## Selected research architecture, 2026-09-16
 
 ### OAuth and server broker
 
@@ -289,7 +290,8 @@ See the [Supabase changelog](https://supabase.com/changelog?types=breaking-chang
 
 ### API and service ownership
 
-Ticket 132 is accepted. Finalize and implement these server-owned paths in Ticket 134:
+The research proposed these server-owned paths for Ticket 134. Later checkpoints
+record their implementation and acceptance:
 
 - A protected connection-start action for web.
 - `POST /api/google-calendar/connection` for a desktop authorization URL.
@@ -455,7 +457,7 @@ Testing status limits users and can limit refresh-token lifetime.
 Published public use needs Google verification.
 See [sensitive-scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification) and the [OAuth app state overview](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview).
 
-## Original pre-implementation acceptance gates
+## Original pre-implementation acceptance gates, 2026-09-16
 
 This section records the pre-implementation state. Current live evidence follows
 in the 2026-09-17 checkpoint below.
@@ -463,7 +465,7 @@ in the 2026-09-17 checkpoint below.
 Documentation verifies the protocol and API capabilities.
 It does not verify Cadence's real provider configuration or live acceptance.
 
-The following gates remain open:
+The following gates were open at this checkpoint:
 
 - The current Supabase Google identity's `provider_id` must match the Calendar grant's Google `sub` in a real test.
 - Google must return both selected read-only scopes and a durable refresh token for the configured Calendar project.
@@ -609,13 +611,13 @@ emails, or private message text in git.
 |---|---|
 | Google Cloud project ID and final Calendar OAuth client ID | `cadence-calendar-498717`; `567431620531-jilr3qg9oob1pbbvfhqkdnh797ep21uf.apps.googleusercontent.com`. Sign-in project remains separate. |
 | Final homepage, privacy policy, terms URL if configured, authorized domains, redirect URI, and JavaScript origins | Saved and read back: `https://cadence-me.com`, `https://app.cadence-me.com/privacy`, `https://app.cadence-me.com/terms`. Added authorized `cadence-me.com` and exact `https://app.cadence-me.com/auth/google-calendar/callback`; retained legacy domains/callback. JavaScript origins unchanged. |
-| Branding verification status, publish time, and Data Access request time | Search Console ownership verified September 17, 2026. Owner confirmed In production. Google verified and published Cadence branding. Calendar data-access submission accepted September 18, 2026 at 10:52 EDT; under review. |
-| Exact declared scopes | `openid`, `calendar.calendarlist.readonly`, and `calendar.events.readonly`; console readback confirmed all three September 17. Calendar-list/OpenID appear under non-sensitive; events-readonly appears under sensitive. No restricted scopes are listed. |
+| Branding verification status, publish time, and Data Access request time | Search Console ownership verified September 17, 2026. Owner confirmed In production. Google verified and published Cadence branding. Calendar data-access submission accepted September 18, 2026 at 10:52 EDT; verified status observed September 20. |
+| Exact declared scopes | `openid`, `calendar.calendarlist.readonly`, and `calendar.events.readonly`; console readback reconfirmed all three September 20. Calendar-list/OpenID appear under non-sensitive; events-readonly appears under sensitive and is verified. No restricted scopes are listed. |
 | Demonstration artifact path, SHA-256, duration, unlisted YouTube URL, and signed-out playback result | Final 214.833-second export and SHA-256 recorded below. Unlisted https://youtu.be/vUi5s2B51Uo; unauthenticated privacy-enhanced embed playback passes. Earlier FFlbGp-_6bE is superseded. |
 | Demonstrated web deployment and installed desktop build | Video: dpl_CHQVE4LWvUPG6LN4dpW3YwTTAgua. Separate installed QA: preview.40; no native footage in this export. |
 | Developer contact and support inbox monitor | Owner retained `info@identityscaffolding.com` and named Emiliano Bache Rodriguez as its human monitor on September 17, 2026. |
-| Reviewer request date, requested evidence, response date, and current Verification Center status | Submitted September 18, 2026, 10:52 EDT. Under review; Trust and Safety confirms receipt. No reviewer question or decision yet. |
-| Final decision, approved scopes, approved client, and post-decision web/native consent smoke result | Not recorded yet. |
+| Reviewer request date, requested evidence, response date, and current Verification Center status | Submitted September 18, 2026, 10:52 EDT. Verified status observed September 20. No reviewer correspondence was read. |
+| Final decision, approved scopes, approved client, and post-decision web/native consent smoke result | Data access verified, observed September 20. `calendar.events.readonly` explicitly verified; other declared scopes remain `openid` and `calendar.calendarlist.readonly`. Production broker client matches the ID above. Post-approval web/native smoke checks remain outstanding. |
 
 Before submission, identify any genuinely test-only clients, preview callbacks,
 and private-only redirects for removal through the provider workflow. The existing
@@ -1026,3 +1028,46 @@ defines it for conference copying/creation and explicitly refers to event
 modification requests. Keep the read-only list request's `conferenceData` fields
 projection. The review suggestion to add a write-only parameter to every list
 page does not apply. Existing adapter tests cover conference entry points.
+
+## Verification Center follow-up — September 19, 2026, 09:01 EDT
+
+Signed-in Computer Use checked `cadence-calendar-498717`. Data access remains
+under review; verified branding remains visible to users. The progress dialog
+now lists six steps. Google marks homepage requirements and branding guidelines
+complete, both last reviewed September 18. Privacy policy, app functionality,
+appropriate data access, and minimum scopes remain in progress.
+
+No actionable reviewer request or final decision appears in the console.
+The check did not read the inbox, send correspondence, or change configuration.
+Emiliano Bache Rodriguez remains the inbox monitor. Ticket 141 and public rollout
+gates remain open; partial review progress does not establish scope approval.
+Only this record and `STATUS.md` changed for the check. `git diff --check` passed;
+runtime tests were not rerun for this evidence-only update.
+
+
+## Google data-access approval observed — September 20, 2026
+
+The scheduled signed-in Computer Use check opened Verification Center for
+`cadence-calendar-498717`. Google now states: **Your app's data access has been
+verified.** Branding remains verified and shown to users. This is an observed
+provider decision; the exact approval timestamp was not exposed or inferred.
+
+Data Access lists `calendar.events.readonly` with **This scope is verified**.
+The unchanged non-sensitive declarations are `calendar.calendarlist.readonly`
+and `openid`. The restricted-scope list is empty. Clients lists one web client,
+Cadence Calendar broker, with the submitted production ID:
+`567431620531-jilr3qg9oob1pbbvfhqkdnh797ep21uf.apps.googleusercontent.com`.
+
+The check changed no project configuration, scopes, callbacks, or rollout gates.
+No inbox was read and no correspondence was sent. Emiliano Bache Rodriguez remains
+responsible for info@identityscaffolding.com. Owner Privacy approval, independent
+legal review, technical acceptance, and Google approval remain separate facts.
+
+Ticket 141 remains in progress. Post-approval web/native consent smoke checks
+have not run. Earlier pre-approval acceptance does not replace those checks.
+Ticket 137's remaining technical gates and Ticket 115's Apple trust gate remain.
+Public pending-review copy requires reconciliation with approval during the
+post-approval release work; this read-only provider check deploys nothing.
+
+Verification for this evidence-only update: `git diff --check` passed. Runtime
+code did not change, so runtime tests and builds were not rerun.

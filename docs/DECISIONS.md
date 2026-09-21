@@ -579,3 +579,110 @@ for future consumers. `docs/EXTERNAL_EVENT_CONTRACT.md` defines acceptance.
 Use MCP's schema/capability ideas without adding an MCP server or generic plugin
 framework. Dynamic rearranging, model invocation, and Calendar writes remain
 deferred. Ticket 137 verifies interface documentation alongside the combined release.
+
+## 2026-09-18: Cadence Daily Brief selected as the first external consumer
+
+Historical decision: the September 20 correction below supersedes the external
+consumer, invocation, delegated-auth and model-selection assumptions.
+
+Decision date: 2026-09-18. Tickets: 145–148.
+
+The owner selected **Cadence Daily Brief**, a private external daily-planning
+advisor, as Cadence's first external consumer. This decision accepts planning
+for the smallest authenticated read-only interface. It replaces the proposal's
+manual-copy recommendation. Historical launch exclusions remain unchanged
+except for this explicitly planned external read-only consumer.
+
+Cadence Daily Brief may read relevant Cadence context and separately authorized
+connector context. The initial connector is the existing read-only Google
+Calendar connection. The contract may support other relevant connectors later,
+but this decision adds no connector, generic framework, or MCP requirement.
+Connector consent for Cadence does not authorize onward disclosure. The consumer
+needs its own revocable, account-bound consent for each data class and connector.
+
+The advisor may suggest priorities, timing, sequence, and schedule changes. It
+cannot execute a suggestion. Read authority never grants write authority.
+Cadence and provider writes are an intended future phase, not a permanent
+exclusion. That phase must separately define named operations, permissions,
+preview, explicit human approval, stale-context checks, conflict handling,
+idempotency, audit history, revocation, and atomic apply behavior.
+
+The initial interface includes only the current local day's active Behavior and
+Occurrence facts needed for planning: opaque consumer-scoped references, title,
+local date, scheduled instant and exact/window bounds, status, duration seconds
+or unknown, source, sample count, and lookback days. Its envelope includes schema
+version, timezone, capture/expiry, Cadence revision, grant generation, and completeness. Initial connector context includes
+only opaque event/calendar/recurrence-instance references, timed interval or
+all-day date span, duration or unknown end, source timezone/fallback, event state,
+availability, current-user response, connector kind, schema/adapter versions,
+coverage, fetched time, revisions/generations, freshness, completeness, and failures.
+It excludes Calendar title, description, location,
+attendees, organizer, conference data, attachments, source URLs, and provider
+identifiers by default. Missing, stale, or partial connector data never means free
+time.
+
+Ticket 146 plans the minimal shared day-context service. Ticket 147 plans
+consumer-bound authentication, consent, and the bounded read API. Ticket 148
+plans the private advisor integration and acceptance. The hosted first consumer
+requires a linked Cadence account. Account-free desktop stays available and gains
+no native helper. Web owns the initial service and API. Marketing changes only
+after an implemented capability supports a public claim. Native mobile remains
+deferred.
+
+This is planning approval only. It authorizes no live data transmission, model
+call, provider action, or write. The consumer and read-only scope are settled;
+Tickets 146–148 do not require another consumer-selection confirmation.
+
+## 2026-09-20: Cadence Daily Brief belongs inside Cadence
+
+Decision date: 2026-09-20. Corrects the September 18 decision and Tickets 145–148.
+
+The owner clarified that Cadence itself displays the daily briefing. On first app
+opening, a text bubble emerges from the existing horse. The user can dismiss or
+ignore it. Cadence gathers Behaviors, completion history and connected Calendar
+facts; the AI writes the briefing; Cadence displays the result. “Approved daily
+summary” meant the model's input information, not a prewritten output or approval
+step. The product must not require approval of each briefing.
+
+Reuse existing sign-in. The model runs behind Cadence's server boundary with no
+account credentials or execution tools. Read-only allows recommending priorities,
+timing and schedule changes, but never marking behaviors complete or editing
+Calendar events. Future writes remain separate intended work.
+
+The owner selected OpenAI Luna 5.6 initially and requested an agent-agnostic
+architecture. Use `gpt-5.6-luna` through one replaceable server adapter over neutral
+facts/result contracts. A separate consumer host, delegated OAuth client, advisor
+login and general agent framework are no longer required.
+
+The former source acceptance remains dated evidence. Reopen Ticket 146 for bounded
+completion history and first-party fences. Re-scope Ticket 147 to authenticated
+server generation and model-data controls. Re-scope Ticket 148 to automatic
+horse-bubble presentation and web/linked-desktop acceptance. Align documentation
+before continuing runtime implementation. The stable plan path remains
+`docs/plans/first-external-consumer.md`.
+
+Web and linked online desktop receive the planned horse bubble; account-free and
+offline desktop tracking remain available. Hosted context excludes unsynced/local
+records. Marketing gains no claim until implementation and acceptance; native
+mobile stays deferred. Preserve existing style and Timeline controls. The plan's
+once-per-local-day/install dismissal policy is an implementation default, not an
+additional explicit owner decision. Model-data disclosure, actual access, retention,
+provider requirements and live testing still need concrete implementation evidence.
+
+
+## 2026-09-20: Ticket the internal briefing control surface
+
+The owner asked for tickets following the proposed workbench for tone, scope,
+reference materials, suggestion options and rescheduling/planner logic. Tickets
+151–155 capture that planning request. They extend the existing design bench,
+retain provider-neutral configuration, and compare outputs against fixed facts.
+
+The planned first slice uses curated references and deterministic constraint
+checks before model explanation. Planning produces recommendations only; applying
+moves remains separately scoped. The internal workbench does not replace the
+in-app horse bubble or add a customer admin dashboard. Configuration drafts do
+not change the active daily briefing until a reviewed configuration rollout.
+
+This records authorization to create the tickets. It does not mark implementation,
+UI acceptance, live-data transmission or deployment complete. Cross-platform impact
+and verification requirements are stated in each ticket.

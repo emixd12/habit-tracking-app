@@ -1,7 +1,8 @@
 ---
+import calendarIcon from "../../../../public/brand/google-calendar.svg?url";
 // "How Cadence works": guided walkthrough with real interface elements
 // (BehaviorForm fields, OccurrenceRow tones,
-// OverallAdherence + legend), per the approved landing design.
+// OverallAdherence + legend, and connector context), per the landing design.
 ---
 
 <section id="how-it-works" class="page-section" aria-labelledby="how-title">
@@ -129,6 +130,39 @@
             </ul>
           </div>
         </div>
+      </article>
+      <article class="hw-step">
+        <div class="hw-copy">
+          <span class="hw-num" aria-hidden="true">05</span>
+          <div>
+            <h3>See your behaviors in context</h3>
+            <p>Optional connectors bring context from other tools into your Timeline. See events alongside recurring behaviors to spot overlaps with the rest of your day.</p>
+            <p class="hw-connector-note">Google Calendar is the first connector, with read-only access. Public rollout is pending Google review.</p>
+          </div>
+        </div>
+        <figure class="hw-visual hw-context" aria-label="Illustrative Timeline: a Team catch-up from 9 to 9:30 AM overlaps with Morning walk at 9:15 AM. The event appears left of the timeline and the behavior on the right, with event details below.">
+          <div class="hw-context__day" aria-hidden="true">
+            <div class="hw-context__date">Tuesday, June 30</div>
+            <div class="hw-context__event">
+              <span>9:00 AM</span>
+              <img src={calendarIcon} width="16" height="16" alt="" loading="lazy" />
+            </div>
+            <div class="hw-context__row hw-context__row--overlap">
+              <span class="hw-context__time">9:15 AM</span>
+              <span>Morning walk</span>
+              <span class="hw-context__decisions">✓ &nbsp; ×</span>
+            </div>
+            <div class="hw-context__row hw-context__row--later">
+              <span class="hw-context__time">12:30 PM</span>
+              <span>Lunch notes</span>
+              <span class="hw-context__decisions">✓ &nbsp; ×</span>
+            </div>
+          </div>
+          <div class="hw-context__preview" aria-hidden="true">
+            <span>Team catch-up</span>
+            <span class="hw-quiet">9:00–9:30 AM · Work · Google Calendar</span>
+          </div>
+        </figure>
       </article>
     </div>
   </div>
@@ -309,6 +343,42 @@
   .hw-swatch--partial { background: #9ab8d9; }
   .hw-swatch--nc { background: var(--accent); }
   .hw-swatch--unresolved { background: var(--surface); }
+
+  /* step 05: static connector preview, using the product's axis and drawer layout */
+  .hw-copy .hw-connector-note { font-size: 0.75rem; }
+  .hw-context__day { position: relative; padding: 1.25rem 1rem 1.5rem 6rem; }
+  .hw-context__day::before {
+    content: ""; position: absolute; left: 5rem; top: 1.5rem; bottom: 1rem;
+    width: 1px; background: var(--muted-readable);
+  }
+  .hw-context__day::after {
+    content: ""; position: absolute; left: 5rem; top: 5rem; height: 4.75rem;
+    width: 1px; background: var(--calendar-overlap);
+  }
+  .hw-context__date { font-size: 1rem; margin-bottom: 4rem; }
+  .hw-context__event {
+    position: absolute; top: 4.2rem; left: 0.5rem; width: 4.5rem;
+    display: flex; align-items: center; gap: 0.375rem;
+    font-size: 0.625rem; color: var(--muted-readable);
+  }
+  .hw-context__event::after {
+    content: ""; position: absolute; left: 3.75rem; top: 50%; width: 0.75rem;
+    height: 1px; background: var(--muted-readable);
+  }
+  .hw-context__event img { flex-shrink: 0; }
+  .hw-context__row {
+    display: grid; grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    gap: 0.5rem; align-items: center; padding: 0.625rem 0.5rem;
+    font-size: 0.875rem; line-height: 1.35;
+  }
+  .hw-context__row--overlap { border: 1px solid var(--calendar-overlap); }
+  .hw-context__row--later { margin-top: 2rem; }
+  .hw-context__time { font-size: 0.625rem; color: var(--muted-readable); }
+  .hw-context__decisions { white-space: nowrap; }
+  .hw-context__preview {
+    display: grid; gap: 0.25rem; border-top: 1px solid var(--line);
+    padding: 1rem; font-size: 0.875rem;
+  }
 
   @media (width < 620px) {
     .hw-occ { grid-template-columns: auto minmax(0, 1fr); }

@@ -1,5 +1,26 @@
 # User Flows
 
+## Daily briefing in the horse bubble (Tickets 146–148)
+
+After any required one-time feature/data-use setup, the first app opening of the
+local day starts the briefing through existing sign-in. Cadence reads relevant
+Behaviors, bounded completion history and authorized connected Calendar facts.
+The server model writes the briefing; the existing Timeline horse presents it in
+a text bubble. No prewritten summary or generated output requires user approval.
+
+The user may ignore the bubble and keep tracking, or dismiss it. Neither action
+marks a status or edits a Calendar event. Recommendations can describe changes,
+but cannot execute them. Loading and failures do not interrupt the Timeline.
+A dismissed pending result cannot reopen the bubble. An explicit retry follows a
+failure without automatic retry loops. The once-per-local-day/install dismissal
+policy is defined in `plans/first-external-consumer.md`.
+
+Account, date, disclosure and source changes fence pending content. Stale/partial
+facts remain explicit. Linked desktop uses hosted account context and discloses
+absent unsynced/local-only records; offline/account-free tracking remains usable.
+The flow is implemented in source. `qa/in-app-daily-brief.md` records verification
+and the remaining hosted, real-data and installed-desktop release gates.
+
 ## Day progress and optional Google Calendar context (Tickets 132–137)
 
 The production Timeline places forward Occurrences beside a continuous local-day

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { User } from "@supabase/supabase-js";
-import { startCalendarConnection, finishCalendarConnection, listCalendarCalendars, getCalendarEvents, prepareCalendarRevocation } from "@/lib/services/google-calendar.service";
+import { startCalendarConnection, finishCalendarConnection, listCalendarCalendars, getCalendarEvents, getCalendarEventsForAdvisor, prepareCalendarRevocation } from "@/lib/services/google-calendar.service";
 import { GOOGLE_CALENDAR_SCOPES, hashCalendarState, readCalendarOAuthConfig, sealCalendarSecret } from "@/lib/services/google-calendar-oauth";
 const repo = vi.hoisted(() => ({ beginCalendarAttempt: vi.fn(), consumeCalendarAttempt: vi.fn(), readCalendarCallbackUser: vi.fn(), installCalendarCredential: vi.fn(), readCalendarConnection: vi.fn(), readCalendarCredential: vi.fn(), removeCalendarCredential: vi.fn() }));
 vi.mock("@/lib/db/google-calendar.repo", () => repo);
@@ -92,6 +92,36 @@ describe("Calendar broker typed failures", () => {
     const today = Temporal.Now.instant().toZonedDateTimeISO("UTC").toPlainDate().toString();
     await expect(getCalendarEvents(caller, today, today)).rejects.toMatchObject({ code, message: code });
   });
+});
+
+it("intersects advisor consent before the provider event read and fences connector revisions", async () => {
+  const connection = { userId: user.id, googleSubject: "subject", generation: 3, selectionRevision: 4, status: "connected",
+    preferences: { selectedCalendarIds: ["work", "private"], hiddenCalendarIds: [], visible: true, showAllDay: true } } as const;
+  repo.readCalendarConnection.mockResolvedValue(connection);
+  repo.readCalendarCredential.mockResolvedValue(sealCalendarSecret(readCalendarOAuthConfig()!, "refresh", { ...connection, purpose: "refresh" }));
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ access_token: "ephemeral", token_type: "Bearer" }));
+  provider.readGoogleCalendarCalendars.mockResolvedValue([
+    { id: "work", name: "Work", timezone: "UTC", primary: true, selected: true, accessRole: "owner" },
+    { id: "private", name: "Private", timezone: "UTC", primary: false, selected: true, accessRole: "owner" },
+  ]);
+  provider.readGoogleCalendarEvents.mockResolvedValue({ ok: true, snapshot: {} });
+  const client = { from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: { timezone: "UTC" }, error: null }) }) }) }) } as unknown as CalendarCaller["client"];
+  const now = Temporal.Instant.from("2026-09-19T12:00:00Z");
+
+  await getCalendarEventsForAdvisor({ client, user }, "2026-09-19", "2026-09-19", {
+    authorizedCalendarIds: ["work"], expectedConnectionGeneration: 3, expectedSelectionRevision: 4,
+    authorizationScope: "daily-brief:7", now,
+  });
+  expect(provider.readGoogleCalendarEvents).toHaveBeenCalledWith(expect.objectContaining({
+    calendars: [expect.objectContaining({ id: "work" })],
+    range: expect.objectContaining({ selectedCalendarIds: ["work"] }),
+  }));
+  expect(provider.readGoogleCalendarEvents.mock.calls[0]?.[0].calendars).not.toContainEqual(expect.objectContaining({ id: "private" }));
+
+  await expect(getCalendarEventsForAdvisor({ client, user }, "2026-09-19", "2026-09-19", {
+    authorizedCalendarIds: ["work"], expectedConnectionGeneration: 2, expectedSelectionRevision: 4,
+    authorizationScope: "daily-brief:7", now,
+  })).rejects.toMatchObject({ code: "connection_changed" });
 });
 
 it("prepares Calendar revocation without mutating the surviving account", async () => {

@@ -182,6 +182,12 @@ stem. No permanent duration bar appears. All-day events retain date-only meaning
 Optional Calendar context uses the same Google identity as the Cadence account.
 `components/settings/GoogleCalendarPanel.tsx` provides explicit connection,
 calendar selection, visibility, refresh, reconnect, and disconnect controls.
+Calendar selection uses one collapsed multi-select field with wrapping selected
+name tags. Expanding reveals a searchable, scroll-bounded native checkbox list;
+selected entries retain per-calendar Timeline visibility. Escape closes the list
+and returns focus to its summary. Changes remain drafts until Save Calendar
+settings. Refresh Calendar reloads discovery even without saved selections.
+Display names prefer Google's per-user override and retain stable calendar IDs.
 The panel shows a factual unavailable state when the deployment lacks Calendar
 OAuth configuration. Desktop shows an unavailable build state when it lacks a
 valid HTTPS broker origin. Account-free desktop mode has no Calendar controls.
@@ -233,6 +239,16 @@ feed. A decorative transparent Cadence horse-line-and-dot image may sit
 directly above the feed with no extra top or bottom margin and span the full app
 content width; the first Timeline day section should still be the current-day
 section.
+Implemented exception under revised Tickets 146–148: the horse also anchors a daily
+briefing text bubble when the app first opens. The user can dismiss or ignore it.
+The bubble must not block tracking, steal focus, or require acceptance of its text.
+Preserve IBM Plex Sans, square corners, current spacing and Timeline hierarchy.
+Use accessible dismissal, polite completion announcements, responsive wrapping,
+nonblocking loading/error states and reduced motion.
+`docs/plans/first-external-consumer.md` owns daily invocation and freshness rules.
+`docs/qa/in-app-daily-brief.md` separates source/browser checks from live release gates.
+The image remains decorative; the briefing text and dismiss control are semantic.
+
 Optional first-run setup appears as a dismissible pop-up so it does not push the
 feed down while required launch setup items remain incomplete.
 

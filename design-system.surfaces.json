@@ -550,10 +550,11 @@
           "parity": "adapted",
           "sources": [
             "apps/marketing/src/components/ProductCapture.astro",
-            "apps/marketing/src/components/HeroVisual.astro"
+            "apps/marketing/src/components/HeroVisual.astro",
+            "apps/marketing/src/components/HowItWorks.astro"
           ],
           "implementationIds": [],
-          "notes": "Marketing uses sanitized static captures to communicate the same row vocabulary; the homepage uses the supplied exported hero image with the Timeline capture in the MacBook visual."
+          "notes": "Marketing uses sanitized static captures to communicate the same row vocabulary; the homepage uses the supplied exported hero image with the Timeline capture in the MacBook visual. The fifth HowItWorks module illustrates optional connector context, a behavior overlap, and bottom event details."
         },
         {
           "surfaceId": "desktop",
@@ -727,6 +728,73 @@
       ]
     },
     {
+      "id": "module.daily-brief",
+      "name": "Daily Brief",
+      "tier": "module",
+      "definition": "Read-only daily briefing bubble attached to the Timeline horse and its Settings controls.",
+      "sharedContract": [
+        "The bubble uses the existing horse banner and opens in normal flow so long text cannot cover occurrence controls.",
+        "The bubble has square corners, a visible tail, a 44px dismiss action, polite ready-text announcement, and no focus transfer.",
+        "Daily Brief can only present read-only text. It exposes no tracking, Calendar, or apply action.",
+        "Settings explains OpenAI data use and offers explicit enablement plus optional selected Calendar timing."
+      ],
+      "surfaceImplementations": [
+        {
+          "surfaceId": "web-app",
+          "status": "implemented",
+          "parity": "canonical",
+          "sources": [
+            "app/(app)/timeline/page.tsx",
+            "app/(app)/settings/page.tsx",
+            "components/briefing/DailyBriefLauncher.tsx",
+            "components/briefing/DailyBriefBubble.tsx",
+            "components/briefing/DailyBriefSettingsPanel.tsx",
+            "tests/daily-brief-ui.dom.test.tsx"
+          ],
+          "implementationIds": [
+            "module.daily-brief-bubble",
+            "module.daily-brief-settings-panel"
+          ],
+          "notes": "Automatic daily invocation uses browser-only presentation metadata. The bubble does not persist briefing text. Browser visual acceptance remains separate."
+        },
+        {
+          "surfaceId": "marketing",
+          "status": "not-applicable",
+          "parity": "not-applicable",
+          "sources": [],
+          "implementationIds": [],
+          "notes": "Marketing does not present account-specific model output."
+        },
+        {
+          "surfaceId": "desktop",
+          "status": "implemented",
+          "parity": "adapted",
+          "sources": [
+            "apps/desktop/src/product.tsx",
+            "apps/desktop/src/timeline-screen.tsx",
+            "apps/desktop/src/daily-brief.ts",
+            "apps/desktop/src/settings-screen.tsx",
+            "components/briefing/DailyBriefBubble.tsx",
+            "components/briefing/DailyBriefSettingsPanel.tsx",
+            "tests/daily-brief-ui.dom.test.tsx"
+          ],
+          "implementationIds": [
+            "module.daily-brief-bubble",
+            "module.daily-brief-settings-panel"
+          ],
+          "notes": "Only linked, online desktop accounts call the hosted service. Local-only and unsynchronized data remains absent from hosted context. Installed native acceptance remains pending."
+        },
+        {
+          "surfaceId": "mobile",
+          "status": "not-applicable",
+          "parity": "not-applicable",
+          "sources": [],
+          "implementationIds": [],
+          "notes": "Native mobile implementation is deferred; responsive web covers this ticket."
+        }
+      ]
+    },
+    {
       "id": "module.settings-controls",
       "name": "Settings controls",
       "tier": "module",
@@ -739,7 +807,7 @@
         "Account deletion requires export acknowledgement and typed confirmation",
         "Category drafts retain errors; deletion confirms assignment counts and preserves Behavior history; reorder uses accessible buttons.",
         "Global Note shortcuts hides quick-fill and proposals without deleting accepted shortcuts or saved Notes.",
-        "Optional read-only Google Calendar requires separate consent for the signed-in Google account; connect, selection, refresh, and disconnect stay explicit."
+        "Optional read-only Google Calendar requires separate consent for the signed-in Google account; compact searchable selection shows selected-name tags and preserves per-calendar visibility plus explicit Save. Refresh also reloads discovery."
       ],
       "surfaceImplementations": [
         {

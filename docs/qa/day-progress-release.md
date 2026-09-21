@@ -1,8 +1,13 @@
 # Day-progress release acceptance
 
-Release status: not accepted. Tickets 133–137 have local implementation and
-regression coverage. Live Google and installed native acceptance remain open.
-Ticket 132's seventh-revision layout baseline was accepted on 2026-09-16.
+Release status: source, deployed web, live provider, and installed preview.40
+acceptance evidence exists. Google verified Cadence branding and accepted the
+Calendar data-access submission on September 18, 2026. Calendar scope approval
+and post-approval smoke checks remain open under Ticket 141. Ticket 137 also
+retains controlled provider-failure and Workspace-restriction coverage plus
+dense/overnight installed fixtures and multi-day resume evidence. Apple-trusted
+desktop distribution remains open under Ticket 115. `STATUS.md` is the current
+ledger; dated checkpoints below preserve the state when each check ran.
 
 ## Local implementation evidence, 2026-09-16
 
@@ -47,7 +52,10 @@ are recorded in the final verification checkpoint below. Lint retains seven
 pre-existing unused-variable warnings in the BehaviorLog reference fixture.
 Builds retain existing bundle-size warnings.
 
-| Acceptance gate | Local evidence | Remaining evidence |
+This matrix was the local checkpoint on September 16. Later sections record
+hosted, live, and installed results. Current open gates are summarized above.
+
+| Acceptance gate | September 16 evidence | Evidence open at that checkpoint |
 |---|---|---|
 | Timeline mapping, empty/same-time days, expanded rows | Pure/DOM regressions and narrow/wide shared-component browser checks | Installed WKWebView parity |
 | Dot, midnight, resume, range extension | Injected-clock and resolver/DOM regressions; hidden/blur timer cancellation | Native lifecycle and multi-day resume |

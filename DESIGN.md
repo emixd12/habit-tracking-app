@@ -399,6 +399,7 @@ Settings. Local mode keeps Local profile. Disconnect choices remain in Settings.
 ### Timeline Rows
 
 - **Timeline structure:** The current day is the first forward feed section and uses the strongest date treatment. Do not show a visible Timeline page title above the feed. The transparent Cadence horse-line-and-dot image may sit directly above the feed as a full app-content-width banner with no extra top or bottom margin; the first Timeline day section remains the current day. Day transitions use the date header plus a thin divider, not boxed day sections. Needs decision is reached from a fixed lower-right button on desktop and a full-width lower safe-area button on mobile; it opens a modal rather than appearing as an inline Timeline section.
+- **Daily Brief:** The existing Timeline horse may carry one read-only text bubble on first opening. The square bubble overlaps the horse tail in normal document flow, uses a small square pointer, wraps and scrolls long text, and never covers occurrence status controls. It has a 44px Close action and no suggested-action control, modal, focus transfer, or decorative motion.
 - **Mobile refresh:** At mobile widths, a downward pull from the top of Timeline uses a 72px threshold and the factual states Pull to refresh, Release to refresh, and Refreshing timeline. Render the temporary feedback as a small square, bordered surface below the sticky header with no shadow. Short, horizontal, cancelled, below-the-top, and control-started gestures retain their normal behavior. One qualifying release requests one route refresh and never mutates an Occurrence or adds offline behavior.
 - **Collapsed unresolved:** Scheduled time as plain text, behavior title, Completed text-link action, and Not Completed text-link action. Rows are compact and unboxed, with collapsed time, title, and action text vertically centered within the row; do not draw a perimeter border around each behavior row. Row content keeps a compact horizontal inset on both desktop and mobile, and time, title, Completed, and Not Completed share one horizontal row when unresolved status actions are visible. Completed and Not Completed keep their minimum tap target and same-line labels; the time and title may compact and truncate before the status targets shrink. Primary status actions are visible for Needs decision rows and current-day unresolved rows. Preset time ranges show only their short label, such as Morning or Evening, in collapsed rows.
 - **Timeline status actions:** Render Completed and Not Completed as inline underlined text-link controls with the check and x icons retained. Do not use boxed, filled, or outlined button chrome for these row-level status actions. Keep status action underlines consistently thin; do not use underline thickness to indicate that a row is already Not Completed. Mobile status and Save note actions should have at least a 44px tap target. Hover-capable devices and keyboard focus may add non-reflowing text emphasis as a targeted exception to the base no-bold type experiment, but should not change the action color or move adjacent actions.
@@ -432,6 +433,7 @@ Settings. Local mode keeps Local profile. Disconnect choices remain in Settings.
 ### Settings Panels
 
 - **Page structure:** Settings is a single-column stack of unboxed sections separated by one 1px Ash Line divider between neighbors, following the One-Line-Per-Boundary Rule. Sections draw no perimeter or `border-y` of their own, and no side-by-side section grid. Section content keeps a readable measure: prose within roughly 65ch and form controls at a compact single-column width instead of multi-column desktop sprawl.
+- **Daily Brief:** Settings uses two native checkboxes for explicit Daily Brief enablement and optional selected Calendar timing. The disclosure stays factual, links to provider retention terms, and states that the model cannot change Cadence or Calendar records.
 - **Profile:** Quiet label/value rows only.
 - **Timezone:** One native select of IANA timezones whose selected value is the saved timezone; the select is the single source for "current timezone", with no separate current or browser-detected value rows and no visible label repeating the section heading. When the browser-detected timezone differs from the saved one, show one quiet muted line, "Detected {timezone}", with an inline secondary Use detected timezone text action that updates the select; when they match or detection is unavailable, show nothing. Saving stays an explicit primary Save timezone action, with helper copy explaining the schedule impact. If the browser cannot enumerate timezones, fall back to a plain IANA text field.
 - **Notification permission:** One section with a Browser notifications status value plus a single primary text action. Permission prompts must be triggered by the user, not on page load.
@@ -582,3 +584,20 @@ control centers its icon on the first title line. Explicit View details opens a
 centered native dialog, capped at 40rem with 16px viewport clearance and scrolling.
 Healthy freshness has no permanent label. Timeline refresh gives temporary
 completion or failure feedback after Cadence and connector reads.
+
+## Marketing connector walkthrough
+
+`HowItWorks.astro` has five divider-separated modules. The connector module
+reuses the step typography, spacing, square frame, and mobile stack. Its static
+Timeline illustration shows an event left of the axis, a behavior overlap in
+`--calendar-overlap`, and event details beneath the ledger. The illustration uses
+synthetic content and the bundled Google Calendar icon; it has no live controls.
+
+
+## Calendar selection (Ticket 150)
+
+The shared GoogleCalendarPanel uses a square native details field with wrapping
+selected-name tags, a labeled search input, and a bounded checkbox list. Tags use
+Timeline Row Hover. Controls retain 44px targets, explicit Save, and per-calendar
+visibility. Escape restores summary focus. CalendarSettingsBench includes long
+names and enough synthetic choices to exercise scrolling.
