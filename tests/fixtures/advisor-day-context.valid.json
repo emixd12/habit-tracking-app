@@ -1,0 +1,77 @@
+{
+  "version": "1.0",
+  "snapshotId": "snapshot_fixture",
+  "accountRef": "account_fixture",
+  "localDate": "2026-11-01",
+  "timezone": "America/New_York",
+  "dayStartAt": "2026-11-01T04:00:00Z",
+  "dayEndAt": "2026-11-02T05:00:00Z",
+  "capturedAt": "2026-11-01T12:00:00Z",
+  "expiresAt": "2026-11-01T12:04:00Z",
+  "status": "complete",
+  "authority": "read_only",
+  "grantGeneration": 3,
+  "cadence": {
+    "observedAt": "2026-11-01T11:59:30Z",
+    "revision": "revision_cadence",
+    "coverage": "complete",
+    "occurrences": [
+      {
+        "ref": "occurrence_fixture",
+        "behaviorRef": "behavior_fixture",
+        "title": "Walk",
+        "status": "unresolved",
+        "localDate": "2026-11-01",
+        "scheduledFor": "2026-11-01T17:30:00Z",
+        "schedule": { "kind": "exact", "startTime": "12:30:00", "endTime": null },
+        "duration": { "kind": "known", "seconds": 1200, "source": "behavior_default", "sampleCount": 0, "lookbackDays": 90 }
+      }
+    ],
+    "history": {
+      "lookbackDays": 90,
+      "startLocalDate": "2026-08-03",
+      "endLocalDateExclusive": "2026-11-01",
+      "completeness": "complete",
+      "reason": null,
+      "behaviors": [
+        {
+          "behaviorRef": "behavior_fixture",
+          "completedCount": 31,
+          "notCompletedCount": 4,
+          "unresolvedCount": 2
+        }
+      ]
+    }
+  },
+  "connectors": [
+    {
+      "source": "google_calendar",
+      "state": "current",
+      "complete": true,
+      "fetchedAt": "2026-11-01T11:59:45Z",
+      "connectionGeneration": 4,
+      "selectionRevision": 2,
+      "schemaVersion": "1.0.0",
+      "adapterVersion": "google-calendar-v1",
+      "coverage": [
+        { "calendarRef": "calendar_fixture", "startLocalDate": "2026-11-01", "endLocalDate": "2026-11-01", "paginationComplete": true }
+      ],
+      "failure": null,
+      "events": [
+        {
+          "ref": "event_fixture",
+          "calendarRef": "calendar_fixture",
+          "logicalInstanceRef": "instance_fixture",
+          "revision": "revision_event",
+          "interval": { "kind": "timed", "startAt": "2026-11-01T17:00:00Z", "endAt": "2026-11-01T18:00:00Z", "duration": { "kind": "known", "seconds": 3600 } },
+          "sourceTimezone": "America/New_York",
+          "sourceTimezoneFallback": "none",
+          "state": "confirmed",
+          "availability": "busy",
+          "currentUserResponse": "accepted",
+          "recurrence": { "seriesRef": "series_fixture", "originalStart": { "kind": "timed", "startAt": "2026-11-01T17:00:00Z" } }
+        }
+      ]
+    }
+  ]
+}

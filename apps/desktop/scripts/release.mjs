@@ -115,6 +115,44 @@ function writeReport(report, directory) {
   process.stdout.write(`${preview ? "Unnotarized preview" : "Signed production"} artifacts passed local verification. Downloaded launch, live upgrade preservation, and publication remain separate gates.\n`);
 }
 
+function prunePreviewApps(keepVersion) {
+  const parts = (value) => /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-preview\.([1-9]\d*)$/.exec(value)?.slice(1).map(BigInt);
+  const keep = parts(keepVersion);
+  const previews = fs.realpathSync(path.join(releaseDirectory, "preview"));
+  if (!keep || !fs.existsSync(path.join(previews, keepVersion, "bundle", "macos", "Cadence.app"))) {
+    throw new Error("Keep an existing unpacked preview version before pruning.");
+  }
+  const removals = [];
+  for (const entry of fs.readdirSync(previews, { withFileTypes: true })) {
+    const candidate = parts(entry.name);
+    if (!entry.isDirectory() || !candidate) continue;
+    const differing = candidate.findIndex((part, index) => part !== keep[index]);
+    if (differing < 0 || candidate[differing] > keep[differing]) continue;
+    const directory = path.join(previews, entry.name);
+    const app = path.join(directory, "bundle", "macos", "Cadence.app");
+    if (!fs.existsSync(app)) continue;
+    const report = JSON.parse(fs.readFileSync(path.join(directory, "artifact-verification.json"), "utf8"));
+    if (report.identifier !== RELEASE_IDENTIFIER || report.version !== entry.name) throw new Error("Preview report identity mismatch.");
+    // Verify retained artifacts against the original report before removing any unpacked app.
+    const archive = `${app}.tar.gz`;
+    const signature = `${archive}.sig`;
+    const dmg = exactlyOne(path.join(directory, "bundle", "dmg"), ".dmg");
+    for (const file of [app, archive, signature, dmg]) {
+      if (fs.realpathSync(file) !== file) throw new Error("Preview cleanup refuses symlinked artifact paths.");
+    }
+    for (const file of [archive, signature, dmg]) {
+      const recorded = report.artifacts?.find((artifact) => fs.realpathSync(artifact.file) === file);
+      if (!recorded || createHash("sha256").update(fs.readFileSync(file)).digest("hex") !== recorded.sha256) {
+        throw new Error(`Retained artifact no longer matches its verification report: ${file}`);
+      }
+    }
+    run("python3", [path.join(desktop, "scripts", "verify-updater-archive.py"), archive, app]);
+    removals.push(app);
+  }
+  for (const app of removals) fs.rmSync(app, { recursive: true });
+  process.stdout.write(`Removed ${removals.length} verified redundant preview apps; retained archives and ${keepVersion}.\n`);
+}
+
 function stagePreview(bundleDirectory, directory) {
   const destination = path.join(directory, "bundle");
   if (fs.existsSync(destination)) throw new Error("This preview version already has staged artifacts. Use a new version; existing evidence was not replaced.");
@@ -134,6 +172,11 @@ function stagePreview(bundleDirectory, directory) {
     report.artifacts = report.artifacts.map((artifact) => ({ ...artifact, file: path.join(destination, path.relative(bundle, artifact.file)) }));
     writeReport(report, directory);
   } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
+  const builtApp = path.join(bundleDirectory, "macos", `${RELEASE_NAME}.app`);
+  run("python3", [path.join(desktop, "scripts", "verify-updater-archive.py"),
+    path.join(destination, "macos", `${RELEASE_NAME}.app.tar.gz`), builtApp]);
+  fs.rmSync(builtApp, { recursive: true });
+  prunePreviewApps(version);
 }
 
 function containsBytes(directory, value) {
@@ -184,10 +227,12 @@ try {
     process.stdout.write("Preview candidate prerequisites passed without Apple credentials. No artifacts were built; final release readiness is not established.\n");
   } else if (command === "preview-build" && process.argv.length === 4) {
     buildCandidate();
+  } else if (command === "preview-prune" && process.argv.length === 4) {
+    prunePreviewApps(version);
   } else if (command === "preview-verify" && process.argv.length === 5) {
     const report = verify(path.resolve(process.argv[4]));
     writeReport(report, path.join(releaseDirectory, "preview", version));
-  } else throw new Error("Usage: release.mjs check|build|verify <bundle-directory> | preview-check|preview-build <version> | preview-verify <version> <bundle-directory>");
+  } else throw new Error("Usage: release.mjs check|build|verify <bundle-directory> | preview-check|preview-build|preview-prune <version> | preview-verify <version> <bundle-directory>");
 } catch (error) {
   process.stderr.write(`Desktop release check failed:\n${error.message}\n`);
   process.exitCode = 1;

@@ -190,6 +190,13 @@ exports, or backups. Hosted apply uses ordinary-user, bounded,
 Local domain writes, tombstones, and outbox entries remain one SQLite
 transaction. A successful network write never weakens either boundary.
 
+The desktop validates each hosted snapshot against its native row models after
+fingerprint verification and before planning or writing either copy. This shared
+read path covers normal sync, reviewed sync, and first link. Unknown row fields
+show Update required to synchronize; malformed known fields remain validation
+failures. Native apply retains its own validation. A compatible schema change
+still requires installed-desktop acceptance alongside the hosted rollout.
+
 ### Synchronized and device-local data
 
 The synchronized account snapshot contains the current typed contracts for:

@@ -5,7 +5,7 @@ import { beginCalendarAttempt, consumeCalendarAttempt, installCalendarCredential
 import type { CalendarConnection, CalendarConnectionView, CalendarPreferences } from "@/lib/types/google-calendar";
 import { DEFAULT_CALENDAR_PREFERENCES } from "@/lib/types/google-calendar";
 import { CalendarConnectionError, calendarGoogleSubject, createCalendarAuthorization, exchangeCalendarCode, hashCalendarState, openCalendarSecret, readCalendarOAuthConfig, refreshCalendarToken, revokeCalendarToken, sealCalendarSecret } from "./google-calendar-oauth";
-import { readGoogleCalendarEvents, readGoogleCalendarCalendars, GoogleCalendarProviderError } from "./google-calendar-provider";
+import { readGoogleCalendarEvents, readGoogleCalendarCalendars, GoogleCalendarProviderError, type GoogleCalendarReadResult } from "./google-calendar-provider";
 
 export type CalendarCaller = { client: AppSupabaseClient; user: User };
 function config(requestOrigin?: string) { const value = readCalendarOAuthConfig(process.env, requestOrigin); if (!value) throw new CalendarConnectionError("not_configured"); return value; }
@@ -75,8 +75,8 @@ async function assertCurrent(caller: CalendarCaller, old: CalendarConnection) {
   const current = await connected(caller);
   if (current.generation !== old.generation || current.selectionRevision !== old.selectionRevision) throw new CalendarConnectionError("connection_changed");
 }
-async function listCalendarsWithToken(accessToken: string, connection: CalendarConnection) {
-  try { return await readGoogleCalendarCalendars({ accessToken }); }
+async function listCalendarsWithToken(accessToken: string, connection: CalendarConnection, signal?: AbortSignal) {
+  try { return await readGoogleCalendarCalendars({ accessToken, signal }); }
   catch (error) {
     if (error instanceof GoogleCalendarProviderError) {
       if (error.failure.code === "reconnect_required") await removeCalendarCredential(connection, "reconnect_required");
@@ -109,38 +109,78 @@ export async function updateCalendarPreferences(caller: CalendarCaller, raw: unk
 }
 const pendingReads = new Map<string, Promise<Awaited<ReturnType<typeof readGoogleCalendarEvents>>>>();
 export async function getCalendarEvents(caller: CalendarCaller, start: string, end: string) {
+  const read = await getCalendarEventsForAdvisor(caller, start, end);
+  if (!read.result.ok) {
+    if (read.result.error.code === "reconnect_required") await removeCalendarCredential(read.connection, "reconnect_required");
+    throw new CalendarConnectionError(read.result.error.code);
+  }
+  return read.result.snapshot;
+}
+
+export type AdvisorCalendarRead = Readonly<{
+  connection: CalendarConnection;
+  result: GoogleCalendarReadResult;
+}>;
+
+export async function getCalendarEventsForAdvisor(
+  caller: CalendarCaller,
+  start: string,
+  end: string,
+  options: Readonly<{
+    authorizedCalendarIds?: readonly string[];
+    expectedConnectionGeneration?: number;
+    expectedSelectionRevision?: number;
+    authorizationScope?: string;
+    now?: Temporal.Instant;
+    signal?: AbortSignal;
+  }> = {},
+): Promise<AdvisorCalendarRead> {
   const connection = await connected(caller);
+  if (
+    (options.expectedConnectionGeneration !== undefined && options.expectedConnectionGeneration !== connection.generation) ||
+    (options.expectedSelectionRevision !== undefined && options.expectedSelectionRevision !== connection.selectionRevision)
+  ) throw new CalendarConnectionError("connection_changed");
   const { data: profile, error } = await caller.client.from("profiles").select("timezone").eq("id", caller.user.id).single();
   if (error || !profile) throw new CalendarConnectionError("provider_unavailable");
   let first: Temporal.PlainDate; let last: Temporal.PlainDate;
   try { first = Temporal.PlainDate.from(start); last = Temporal.PlainDate.from(end); }
   catch { throw new CalendarConnectionError("invalid_request"); }
-  const today = Temporal.Now.instant().toZonedDateTimeISO(profile.timezone).toPlainDate();
+  const now = options.now ?? Temporal.Now.instant();
+  const today = now.toZonedDateTimeISO(profile.timezone).toPlainDate();
   if (first.toString() !== start || last.toString() !== end || Temporal.PlainDate.compare(first, today) !== 0 || first.until(last).days < 0 || first.until(last).days > 30) throw new CalendarConnectionError("invalid_request");
-  const key = JSON.stringify([caller.user.id, connection.generation, connection.selectionRevision, start, end, profile.timezone]);
+  const authorizedCalendarIds = options.authorizedCalendarIds === undefined
+    ? null
+    : [...new Set(options.authorizedCalendarIds)].sort();
+  if (authorizedCalendarIds && (authorizedCalendarIds.length > 32 || authorizedCalendarIds.some((id) => !id || id.length > 1024))) {
+    throw new CalendarConnectionError("invalid_request");
+  }
+  if (options.authorizationScope !== undefined && (!options.authorizationScope || options.authorizationScope.length > 512)) {
+    throw new CalendarConnectionError("invalid_request");
+  }
+  const key = JSON.stringify([caller.user.id, connection.generation, connection.selectionRevision, start, end, profile.timezone, authorizedCalendarIds, options.authorizationScope ?? "first_party"]);
   let pending = pendingReads.get(key);
   if (!pending) {
     pending = (async () => {
       const token = await accessToken(connection);
-      const calendars = await listCalendarsWithToken(token, connection);
-      const selected = connection.preferences.selectedCalendarIds.map((id) => {
+      if (options.signal?.aborted) throw new CalendarConnectionError("timeout");
+      const calendars = await listCalendarsWithToken(token, connection, options.signal);
+      if (options.signal?.aborted) throw new CalendarConnectionError("timeout");
+      const selectedIds = connection.preferences.selectedCalendarIds.filter((id) =>
+        authorizedCalendarIds === null || authorizedCalendarIds.includes(id));
+      const selected = selectedIds.map((id) => {
         const calendar = calendars.find((value) => value.id === id);
         if (!calendar) throw new CalendarConnectionError("provider_unavailable");
         return calendar;
       });
       return readGoogleCalendarEvents({ accessToken: token, accountId: caller.user.id, connectionGeneration: connection.generation,
-        calendars: selected, range: { startLocalDate: start, endLocalDate: end, timezone: profile.timezone, selectedCalendarIds: selected.map((calendar) => calendar.id) }, fetchedAt: Temporal.Now.instant().toString() });
+        calendars: selected, range: { startLocalDate: start, endLocalDate: end, timezone: profile.timezone, selectedCalendarIds: selected.map((calendar) => calendar.id) }, fetchedAt: now.toString(), signal: options.signal });
     })();
     pendingReads.set(key, pending);
     void pending.finally(() => pendingReads.delete(key)).catch(() => undefined);
   }
   const result = await pending;
   await assertCurrent(caller, connection);
-  if (!result.ok) {
-    if (result.error.code === "reconnect_required") await removeCalendarCredential(connection, "reconnect_required");
-    throw new CalendarConnectionError(result.error.code);
-  }
-  return result.snapshot;
+  return { connection, result };
 }
 export async function disconnectCalendar(caller: CalendarCaller) {
   const connection = await readCalendarConnection(caller.client, caller.user.id);

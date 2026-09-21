@@ -2,6 +2,10 @@
 
 Use this file after `AGENTS.md` and `STATUS.md` to run the repository consistently.
 
+For a new external service, complete the reusable brief in
+`docs/INTEGRATION_PLAYBOOK.md` before committing to scope. Keep runtime product
+connections separate from agent access to provider accounts.
+
 ## Current state
 
 The repository contains the complete numbered implementation sequence through
@@ -1477,7 +1481,6 @@ policy. Cadence exports, account synchronization, and user-created desktop backu
 exclude credentials and cached events. Test the local SQL contract before any hosted
 rollout. The combined release ledger remains `docs/qa/day-progress-release.md`.
 
-
 ## Public Calendar verification execution (Tickets 138–141)
 
 The 2026-09-17 continuation used the owner-selected Cloudflare dashboard.
@@ -1494,11 +1497,12 @@ retains the legacy callback and adds the exact new callback. Its authorized
 domains retain legacy entries and add verified `cadence-me.com`. The owner
 confirmed production-audience expansion on September 17; Google reports In
 production. Google verified and published the consent name `Cadence` after an
-app-name/homepage mismatch correction. Calendar data-access approval has not
-occurred. The owner retained `info@identityscaffolding.com` as support/developer
+app-name/homepage mismatch correction. The September 20 check confirms Calendar
+data access and the sensitive events-readonly scope are verified. Post-approval
+web/native consent smoke checks remain outstanding; rollout gates remain. The owner retained `info@identityscaffolding.com` as support/developer
 inbox and named Emiliano Bache Rodriguez as its human monitor. The replacement verified-brand video is Unlisted at
 https://youtu.be/vUi5s2B51Uo. Google accepted the data-access submission on
-September 18, 2026 at 10:52 EDT and reports under review. Daily 09:00 local
+September 18, 2026 at 10:52 EDT; approval was observed September 20. Daily 09:00 local
 Verification Center follow-up is active in the existing task; it reports meaningful
 changes only. Emiliano remains responsible for the inbox. The isolated releases are promoted; production IDs,
 post-promotion public checks, and rollback are recorded in release QA.
@@ -1538,3 +1542,60 @@ password, complete verification, and accept account terms. Identify the destinat
 YouTube channel before any unlisted upload. A script does not complete Ticket 140,
 and Testing or submission does not complete Ticket 141. Keep Google’s approval
 separate from Ticket 137 technical acceptance and Ticket 115 Apple trust.
+
+## In-app daily briefing planning (Tickets 145–148)
+
+The September 20 owner correction places Cadence Daily Brief in the existing
+Timeline horse's text bubble. Read `docs/plans/first-external-consumer.md` and
+`docs/DECISIONS.md` before continuing. The old filename is retained for links;
+the external consumer, delegated OAuth, second login and prewritten-summary
+approval assumptions are superseded.
+
+Ticket 146 reopens completion-history inputs and first-party fencing. Ticket 147
+uses existing sign-in for bounded server generation with OpenAI `gpt-5.6-luna`.
+Keep a small provider-neutral facts/result boundary and one server adapter.
+Ticket 148 implements automatic daily opening, dismiss/ignore/retry behavior and
+web/linked-desktop acceptance. Recommendations cannot execute changes.
+
+Model-data disclosure is separate from ordinary Calendar display permission.
+Verify actual model access, server secret custody, retention/deletion, Google
+onward-use requirements and exact live-test authority before real-data testing.
+Do not put keys or app sessions in prompts or client bundles. Do not ask users
+to approve a generated briefing as a prerequisite to reading it.
+
+### Existing September 19 implementation
+
+The old endpoint still denies every credential. Do not enable delegated access;
+Ticket 147 explicitly retires or repurposes that adapter. The read service,
+private admission metadata, SQL checks and synthetic consumer are dated evidence
+in `qa/advisor-read-only.md`. `qa/advisor-auth-isolation.md` documents a historical
+external-token risk, not a current first-party implementation blocker.
+### Implemented generation and operational lifecycle
+
+`POST /api/advisor/brief` uses existing web/desktop authentication and strict live
+session RPCs. `GET/PUT /api/advisor/preferences` manage explicit model-data controls.
+Enablement defaults off. The server reads `OPENAI_API_KEY`; clients receive no key.
+The old GET remains a permanently disabled compatibility boundary. The former
+external consumer module now implements provider-neutral internal generation.
+
+OpenAI `gpt-5.6-luna` uses Responses with `store:false`, no background execution,
+no tools, strict JSON output and a 2,000-token output budget. Response parsing caps
+bytes at 64 KiB and briefing text at 2,000 characters. Read/model phases each cap
+at 30 seconds; the entire generation attempt caps at 60 seconds. Source and
+session/disclosure fences run before submission and delivery. Context expires
+within five minutes or at local midnight; the UI removes expired text.
+
+Cadence retains no prompt or briefing history. Private operational rows retain
+current preferences, at most eight latest installation attempts and six start
+timestamps. Disablement clears attempts; account deletion cascades all metadata.
+Browser storage holds only an installation ID and presentation metadata. Memory
+may reuse a pending result, but never persist generated text. Provider retention
+still applies: `store:false` does not promise zero abuse-monitoring or prompt-cache
+retention. See [OpenAI data controls](https://developers.openai.com/api/docs/guides/your-data).
+
+The owner approved reuse of the existing key. A synthetic-only Luna request passed
+with the production adapter. No real account/Calendar data was sent. Hosted migration
+push, production key configuration, real-data acceptance and installed desktop
+acceptance remain separate recorded deployment checks. Do not publish an AI claim
+until those checks pass. Disable through Settings or remove the server key to roll
+back generation without affecting tracking or Calendar event records.

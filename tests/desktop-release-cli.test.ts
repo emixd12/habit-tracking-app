@@ -111,6 +111,7 @@ if(tool==='npm') {
       VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" };
     const first = run(["preview-build", "0.1.1-preview.1"], buildEnvironment);
     expect(first.status, first.stderr).toBe(0);
+    expect(existsSync(path.join(desktop, "src-tauri", "target", "aarch64-apple-darwin", "release", "bundle", "macos", "Cadence.app"))).toBe(false);
     const reportPath = path.join(previewPath(), "artifact-verification.json");
     const savedReport = readFileSync(reportPath, "utf8");
     const report = JSON.parse(savedReport);
@@ -120,6 +121,8 @@ if(tool==='npm') {
     const second = run(["preview-build", "0.1.1-preview.2"], buildEnvironment);
     expect(second.status, second.stderr).toBe(0);
     expect(readFileSync(reportPath, "utf8")).toBe(savedReport);
+    expect(existsSync(path.join(previewPath(), "bundle", "macos", "Cadence.app"))).toBe(false);
+    for (const artifact of report.artifacts) expect(existsSync(artifact.file)).toBe(true);
     expect(existsSync(path.join(previewPath("0.1.1-preview.2"), "bundle", "macos", "Cadence.app"))).toBe(true);
     const repeated = run(["preview-build", "0.1.1-preview.1"], buildEnvironment);
     expect(repeated.status).toBe(1);
@@ -136,9 +139,32 @@ if(tool==='npm') {
     expect(calls().some(({ tool }) => tool === "spctl")).toBe(false);
     expect(calls().some(({ tool, args }) => tool === "xcrun" && args.includes("stapler"))).toBe(false);
     expect(calls().filter(({ tool, args }) => tool === "python3" && args[0]?.endsWith("verify-dmg.py"))).toHaveLength(2);
-    expect(calls().filter(({ tool, args }) => tool === "python3" && args[0]?.endsWith("verify-updater-archive.py"))).toHaveLength(2);
-    const recheck = run(["preview-verify", "0.1.1-preview.1", path.join(previewPath(), "bundle")]);
+    expect(calls().filter(({ tool, args }) => tool === "python3" && args[0]?.endsWith("verify-updater-archive.py"))).toHaveLength(5);
+    const recheck = run(["preview-verify", "0.1.1-preview.2", path.join(previewPath("0.1.1-preview.2"), "bundle")]);
     expect(recheck.status, recheck.stderr).toBe(0);
+  });
+
+  it("preserves every unpacked app when a retained archive changes, and permits an idempotent retry", () => {
+    const env = { ...environment, TAURI_SIGNING_PRIVATE_KEY: "synthetic-key",
+      VITE_SUPABASE_URL: "https://project.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" };
+    expect(run(["preview-build", "0.1.1-preview.1"], env).status).toBe(0);
+    const oldApp = path.join(previewPath(), "bundle", "macos", "Cadence.app");
+    const archive = `${oldApp}.tar.gz`;
+    const original = readFileSync(archive);
+    writeFileSync(archive, "corrupt archive");
+    const failed = run(["preview-build", "0.1.1-preview.2"], env);
+    expect(failed.status).toBe(1);
+    expect(failed.stderr).toContain("no longer matches");
+    expect(existsSync(oldApp)).toBe(true);
+    const keptApp = path.join(previewPath("0.1.1-preview.2"), "bundle", "macos", "Cadence.app");
+    expect(existsSync(keptApp)).toBe(true);
+    writeFileSync(archive, original);
+    const pruned = run(["preview-prune", "0.1.1-preview.2"]);
+    expect(pruned.status, pruned.stderr).toBe(0);
+    expect(existsSync(oldApp)).toBe(false);
+    expect(existsSync(keptApp)).toBe(true);
+    expect(run(["preview-prune", "0.1.1-preview.2"]).status).toBe(0);
+    expect(run(["preview-prune", "../../outside"]).status).toBe(1);
   });
 
   it("never publishes staged evidence after updater signature verification fails", () => {

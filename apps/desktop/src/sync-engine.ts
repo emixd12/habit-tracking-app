@@ -38,7 +38,8 @@ export function syncFailureStatus(error: unknown): SyncStatus {
   if (error instanceof TypeError && /fetch|network|offline/i.test(error.message)) return { state: "offline" };
   const record = error && typeof error === "object" ? error as Record<string, unknown> : null;
   const status = record?.status, code = record?.code, message = error instanceof Error ? error.message : typeof record?.message === "string" ? record.message : "Synchronization failed.";
-  if (code === "22023" && ["Update Cadence before synchronizing category changes.", "Update Cadence before synchronizing Behavior changes."].includes(message)) {
+  if (message === "Update Cadence before synchronizing account data." ||
+    (code === "22023" && ["Update Cadence before synchronizing category changes.", "Update Cadence before synchronizing Behavior changes."].includes(message))) {
     return { state: "update_required", message: "Update required to synchronize" };
   }
   if (status === 401 || status === 403 || code === "401" || code === "403" || /jwt expired|invalid jwt|jwt cryptographic operation failed|refresh token|unauthorized|forbidden/i.test(message)) return { state: "revoked" };

@@ -120,7 +120,6 @@ Before adding a new app or API route:
 - Keep UI pages thin. Move calculations and state planning into resolvers/services.
 - Add tests for navigation or route behavior when practical.
 
-
 ## Category controls (Tickets 123–124)
 
 Settings owns category management. Behaviors owns category filtering and sorting.
@@ -137,7 +136,9 @@ never expose an arbitrary client-supplied Note corpus or owner ID to a provider.
 
 ## Read-only Google Calendar connector (Ticket 134)
 
-These routes remain unavailable until separate server provider configuration exists.
+These routes return `not_configured` when separate server provider configuration
+is absent. The deployed connector has live acceptance evidence; provider scope
+approval remains open under Ticket 141.
 All API responses are no-store. Cookie writes require same-origin requests; native
 clients use verified Supabase bearer sessions and the fixed Tauri origin allowlist.
 No route creates, changes, or deletes a provider event.
@@ -154,3 +155,31 @@ No route creates, changes, or deletes a provider event.
 `lib/db/google-calendar.repo.ts` owns exact database access. Web callbacks require
 the initiating cookie user. Desktop callbacks use a fixed result and opaque
 Keychain-correlated state, never credentials.
+
+## In-app briefing boundary (Tickets 145–148)
+
+Current code still has disabled `GET /api/advisor/day-context`: 401 without a
+credential, 403 for every Bearer credential, and 405 for other methods. It reads
+no source data. `docs/qa/advisor-auth-isolation.md` records the historical
+external-token finding; delegated authentication is no longer the target design.
+
+Ticket 147 implements first-party `POST /api/advisor/brief`. Reuse server-verified web
+sign-in and the existing linked-desktop authenticated request path. The server
+derives the owner, local day and allowed fields, calls the bounded internal read
+service, then the model adapter. Return validated briefing text and provenance,
+not credentials or a raw export. POST starts generation, never a source mutation.
+
+Require web origin/CSRF checks, exact desktop broker origins, RLS ownership,
+feature/disclosure checks, bounded attempts, output validation and `no-store`.
+No model prompt, owner override or arbitrary URL comes from the caller. Account,
+disclosure and source changes fence input and delivery. No external-client OAuth,
+public client registration or model write capability is part of the route.
+
+`GET /api/advisor/preferences` returns account-bound availability, enablement,
+Calendar disclosure, revision and local day. `PUT` accepts only enabled and
+includeCalendar booleans. POST accepts only installationId and retry. Each uses
+existing first-party request authentication and private current-session RPCs.
+The old GET is retained as an explicitly disabled compatibility boundary.
+Ticket 148 invokes generation at Timeline opening and displays the horse bubble.
+Enablement, invocation, dismissal and retry are registered in the interaction catalog. The complete
+contract remains `docs/plans/first-external-consumer.md`.

@@ -1,7 +1,9 @@
 # Behavior planning fields — Tickets 142–143
 
 Source verification: September 17, 2026. Hosted release: September 18, 2026.
-Installed desktop release remains pending.
+Preview.41 installed September 19 with schema-upgrade and synchronization acceptance.
+Feature-specific native UI acceptance remains pending. See
+`2026-09-19-desktop-sync-compatibility.md`.
 
 ## Implemented contract
 

@@ -273,16 +273,16 @@ No network, storage, environment, clock reads, or UI may enter this resolver.
 
 ## Day-progress contract ownership (Tickets 132–137)
 
-Ticket 132 implements pure contracts and a synthetic bench; the owner accepted
-the UI baseline on 2026-09-16. Production Timeline callers follow in 133–136.
-Ticket 134 extends the existing event types through the documented
-`docs/EXTERNAL_EVENT_CONTRACT.md` schema/validation boundary. Register new pure
-owners and paired tests when implemented; no new runtime owner is claimed here.
+Ticket 132 established the pure contracts and accepted synthetic baseline.
+Tickets 133–136 implemented the production Timeline callers. Ticket 134 extends
+the existing event types through the documented
+`docs/EXTERNAL_EVENT_CONTRACT.md` schema/validation boundary. Register any new
+pure owner with paired tests; current runtime owners are listed below.
 
 | Domain | Owner resolver | Allowed callers | Forbidden bypasses | Source of truth | Required test | Drift check |
 |---|---|---|---|---|---|---|
-| Day-progress layout | `packages/core/src/resolvers/day-progress.resolver.ts` | Synthetic design bench and resolver tests; production services after Ticket 132 review | UI calculating independent dot/span mappings, changing actual times for collision spacing, fixed 24-hour local days | `docs/UI_SPEC.md`, `docs/DATETIME_STRATEGY.md` | `tests/day-progress.resolver.test.ts` | Geometry and injected instants only; no DOM, clocks, providers, or writes |
-| Duration and external context | `packages/core/src/resolvers/timeline-context.resolver.ts` | Synthetic fixtures and resolver tests; owner-scoped services in Ticket 136 | Averaging sessions instead of Occurrences, treating unknown as zero, running samples, automatic decisions or schedule writes | `docs/PRODUCT_SPEC.md` | `tests/timeline-context.resolver.test.ts` | Positive stopped Completed totals, explicit unknown/freshness, half-open timed overlaps |
+| Day-progress layout | `packages/core/src/resolvers/day-progress.resolver.ts` | Synthetic design bench, shared Timeline UI, web/desktop services, and resolver tests | UI calculating independent dot/span mappings, changing actual times for collision spacing, fixed 24-hour local days | `docs/UI_SPEC.md`, `docs/DATETIME_STRATEGY.md` | `tests/day-progress.resolver.test.ts` | Geometry and injected instants only; no DOM, clocks, providers, or writes |
+| Duration and external context | `packages/core/src/resolvers/timeline-context.resolver.ts` | Shared Timeline assembly, owner-scoped web/desktop services, synthetic fixtures, and resolver tests | Averaging sessions instead of Occurrences, treating unknown as zero, running samples, automatic decisions or schedule writes | `docs/PRODUCT_SPEC.md` | `tests/timeline-context.resolver.test.ts` | Positive stopped Completed totals, optional default duration, explicit unknown/freshness, half-open timed overlaps |
 
 - `packages/core/src/resolvers/timeline.resolver.ts` retains day selection,
   Needs decision, Occurrence status projection, and future-range ownership.
@@ -316,3 +316,41 @@ timeline-context resolver. Web and local Timeline services supply bounded
 per-Behavior estimates; presentation does not calculate sample eligibility.
 Provider adaptation and validated scheduling projection live in the external-event
 contract modules. No Calendar text or geometry drives recurrence or status writes.
+
+## Advisor context ownership (Tickets 146–148)
+
+Ticket 146's day-context service reuses Timeline, duration, status, and
+external-event validation/projection owners. The API in Ticket 147 must call that
+service, never duplicate domain rules or query tables directly. Pure projection
+and validation receive typed input and injected time. Repositories own bounded,
+consistent owner-scoped reads; services own consent, source freshness, and errors.
+
+Existing Timeline/export page entry points perform archive/generation maintenance.
+The advisor service must not reuse those side effects under read permission.
+Incomplete coverage produces a typed result, not generation or status writes.
+Connector credential/health bookkeeping remains explicitly separate from tracking
+and provider-event mutation.
+
+`packages/core/src/services/advisor-day-context.ts` owns the minimized projection
+and exact runtime contract. `lib/db/advisor-context.repo.ts` owns the snapshot
+and revision RPC reads. `lib/services/advisor-day-context.service.ts` owns
+assembly, bounds, deadlines, and revalidation. The disabled route currently
+imports only `lib/services/advisor-auth.service.ts` and never reads context.
+`lib/services/daily-brief-consumer.ts` now owns internal provider-neutral
+generation and output validation; it performs no domain mutation.
+
+The September 20 in-app correction reopens Ticket 146 for bounded completion
+history, using existing analytics/status rules. Ticket 147 adds first-party
+generation and one server provider adapter over this internal service. The model
+receives validated facts and has no domain services or tools. Ticket 148 owns
+only automatic invocation and presentation in the horse bubble. Refactor or retire
+the external HTTP consumer instead of routing the server through its own HTTP API.
+These owners are implemented in source; live release evidence remains separate.
+
+The in-app implementation calls `daily-brief.service.ts` from thin briefing routes.
+`daily-brief.repo.ts` owns session-bound preferences/admission and active Behavior
+IDs. `daily-brief-consumer.ts` validates facts/output through a provider-neutral
+callback; `daily-brief-openai.ts` owns the only model HTTP call. These modules cannot
+call tracking mutations. Shared `types/daily-brief.ts` contains no provider SDK types.
+Completion counts belong to the existing core context projection, with contract,
+service, repository/migration and model-adapter tests. UI clients render text only.

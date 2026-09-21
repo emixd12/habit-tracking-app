@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
-import { applyHostedAccountSync, normalizeAccountSyncBaseline, planAccountSync, portabilityEntities, readAccountSyncInputs, readHostedAccountSyncEnvelope } from "../apps/desktop/src/account/account-sync";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { applyHostedAccountSync, normalizeAccountSyncBaseline, planAccountSync, portabilityEntities, readAccountSyncInputs, readHostedAccountSyncEnvelope, synchronizeAccount } from "../apps/desktop/src/account/account-sync";
 import { accountSyncFingerprint, resolveAccountSync } from "@cadence/core/resolvers/account-sync.resolver";
 import { emptyPortabilitySnapshot } from "./helpers/portability-fixture";
 import { canonicalJson } from "../apps/desktop/src/account/canonical-json";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+const native = vi.hoisted(() => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => native);
+beforeEach(() => { native.invoke.mockReset().mockResolvedValue(null); });
 
 const digest = accountSyncFingerprint({ entities: [{ kind: "profile", id: "profile", value: { timezone: "America/New_York" } }] });
 const context = { hostedUserId: "hosted", baselineFingerprint: digest, baselineJson: JSON.stringify({ entities: [{ kind: "profile", id: "profile", value: { timezone: "America/New_York" } }] }), outboxHighWater: 7, tombstones: [] };
@@ -50,10 +54,24 @@ describe("desktop account sync adapter", () => {
     await expect(readHostedAccountSyncEnvelope(client)).resolves.toEqual(hosted);
     expect(rpc).toHaveBeenCalledExactlyOnceWith("read_account_sync_snapshot");
     expect(abortSignal).toHaveBeenCalledOnce();
+    expect(native.invoke).toHaveBeenCalledWith("local_store", { request: { operation: "validateAccountSyncSnapshot", entities: hosted.entities } });
 
     const invalid = { ...hosted, fingerprint: "0".repeat(64) };
     const invalidClient = { rpc: vi.fn(() => ({ abortSignal: vi.fn(async () => ({ data: invalid, error: null })) })) } as unknown as SupabaseClient;
     await expect(readHostedAccountSyncEnvelope(invalidClient)).rejects.toThrow("fingerprint is invalid");
+  });
+
+  it("stops incompatible downloads before either sync commit or acknowledgement", async () => {
+    native.invoke.mockImplementation(async (command, args) => {
+      if (command === "auth_account_sync_context") return context;
+      if (args?.request.operation === "readImportSnapshot") return emptyPortabilitySnapshot();
+      if (args?.request.operation === "validateAccountSyncSnapshot") throw "Update Cadence before synchronizing account data.";
+      throw new Error("Unexpected native write");
+    });
+    const rpc = vi.fn(() => ({ abortSignal: vi.fn(async () => ({ data: hosted, error: null })) }));
+    await expect(synchronizeAccount("local", { rpc } as unknown as SupabaseClient)).resolves.toEqual({ state: "update_required", message: "Update required to synchronize" });
+    expect(rpc).toHaveBeenCalledExactlyOnceWith("read_account_sync_snapshot");
+    expect(native.invoke.mock.calls.some(([name, args]) => name === "auth_complete_account_sync" || args?.request.operation === "applyAccountSync")).toBe(false);
   });
 
   it("converts the legacy first-link portability baseline and produces a real planner result", async () => {

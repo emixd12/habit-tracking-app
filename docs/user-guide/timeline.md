@@ -4,6 +4,25 @@ Timeline begins with the current local day and is the primary daily screen. It
 shows the next seven days by default. Prior-day Unresolved Occurrences are kept
 out of the forward feed and appear in **Needs decision**.
 
+## Daily Brief
+
+When this Cadence server supports Daily Brief, enable it in **Settings**.
+Cadence sends today's Behavior schedule and bounded completion history to OpenAI.
+**Include selected Google Calendar timing** separately enables Calendar timing.
+Notes, Calendar descriptions and credentials are excluded. Provider retention may apply.
+
+On the first Timeline opening each day, the horse presents the generated briefing.
+Ignore it to keep tracking, or choose **Close** to dismiss it for this account,
+day and installation. Tab to **Close** and press Enter or Space. A failed request
+can show **Try again**; retries happen only when you choose that action.
+
+The briefing can recommend changes but cannot apply them. Cadence stores no
+briefing history. Timing text disappears when its context expires or observed
+facts change. Disable Daily Brief in Settings to stop generation.
+
+Linked, online desktop accounts use hosted information. Unsynchronized and
+local-only records are absent; offline tracking still works without Daily Brief.
+
 ## Refresh Timeline
 
 At the top of Timeline, pull downward on mobile and release after **Release to

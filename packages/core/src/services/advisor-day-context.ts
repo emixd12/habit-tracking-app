@@ -1,0 +1,559 @@
+import { Temporal } from "@js-temporal/polyfill";
+
+import type { BehaviorDurationEstimate } from "../types/day-progress";
+import {
+  ADVISOR_DAY_CONTEXT_LIMITS,
+  ADVISOR_DAY_CONTEXT_VERSION,
+  type AdvisorCalendarConnector,
+  type AdvisorCadenceSource,
+  type AdvisorDayContextV1,
+  type AdvisorDayContextRequestV1,
+  type AdvisorDuration,
+  type AdvisorOpaqueRef,
+  type AdvisorOccurrence,
+  type AdvisorSourceFailureCode,
+} from "../types/advisor-day-context";
+import type { OccurrenceStatus } from "../types/database";
+import type {
+  ExternalEventFailure,
+  ExternalEventSnapshotV1,
+} from "../types/external-event";
+import {
+  EXTERNAL_EVENT_ADAPTER_VERSION,
+  EXTERNAL_EVENT_SCHEMA_VERSION,
+} from "../types/external-event";
+import { validateExternalEventSnapshot } from "./external-event-validation";
+
+type AdvisorCadenceOccurrenceInput = Readonly<{
+  id: string;
+  behaviorId: string;
+  title: string;
+  status: OccurrenceStatus;
+  localDate: string;
+  scheduledFor: string;
+  scheduleKind: "exact" | "range";
+  scheduleStartTime: string;
+  scheduleEndTime: string | null;
+  duration: BehaviorDurationEstimate | Readonly<{
+    kind: "unknown";
+    reason: "history_limit_exceeded";
+    sampleCount: 0;
+    requiredSampleCount: 3;
+    lookbackDays: 90;
+  }>;
+}>;
+
+type AdvisorHistoryOccurrenceInput = Readonly<{
+  id: string;
+  behaviorId: string;
+  localDate: string;
+  status: OccurrenceStatus;
+}>;
+
+export class AdvisorDayContextValidationError extends Error {
+  constructor(message: string, public readonly code?: "context_limit_exceeded") {
+    super(message);
+    this.name = "AdvisorDayContextValidationError";
+  }
+}
+
+export function validateAdvisorDayContextRequest(value: unknown): AdvisorDayContextRequestV1 {
+  const request = record(value, "request");
+  exactKeys(request, ["version", "localDate", "connectors"], "request");
+  if (request.version !== ADVISOR_DAY_CONTEXT_VERSION) fail("request.version is unsupported.");
+  if (request.localDate !== null) plainDate(request.localDate, "request.localDate");
+  const connectors = array(request.connectors, "request.connectors", 1);
+  if (connectors.length === 1 && connectors[0] !== "google_calendar") fail("request.connectors is invalid.");
+  return value as AdvisorDayContextRequestV1;
+}
+
+export function projectAdvisorCadenceSource(input: Readonly<{
+  observedAt: string;
+  revision: string;
+  historyStartLocalDate: string;
+  historyEndLocalDateExclusive: string;
+  behaviors: readonly Readonly<{ id: string }>[];
+  historyOccurrences: readonly AdvisorHistoryOccurrenceInput[];
+  historyComplete: boolean;
+  occurrences: readonly AdvisorCadenceOccurrenceInput[];
+  makeOpaqueRef: AdvisorOpaqueRef;
+}>): AdvisorCadenceSource {
+  instant(input.observedAt, "cadence.observedAt");
+  nonempty(input.revision, "cadence.revision");
+  const historyStart = plainDate(input.historyStartLocalDate, "cadence.history.startLocalDate");
+  const historyEnd = plainDate(input.historyEndLocalDateExclusive, "cadence.history.endLocalDateExclusive");
+  if (!historyStart.add({ days: 90 }).equals(historyEnd)) {
+    throw new AdvisorDayContextValidationError("Cadence history must cover 90 complete local days.");
+  }
+  if (input.behaviors.length > ADVISOR_DAY_CONTEXT_LIMITS.behaviors) {
+    throw new AdvisorDayContextValidationError("Cadence Behavior limit exceeded.", "context_limit_exceeded");
+  }
+  if (input.occurrences.length > ADVISOR_DAY_CONTEXT_LIMITS.occurrences) {
+    throw new AdvisorDayContextValidationError("Cadence occurrence limit exceeded.", "context_limit_exceeded");
+  }
+
+  const behaviorIds = new Set<string>();
+  const historyCounts = new Map<string, { completedCount: number; notCompletedCount: number; unresolvedCount: number }>();
+  for (const behavior of input.behaviors) {
+    const behaviorId = nonempty(behavior.id, "behavior.id");
+    if (behaviorIds.has(behaviorId)) throw new AdvisorDayContextValidationError("Cadence Behavior ids must be unique.");
+    behaviorIds.add(behaviorId);
+    historyCounts.set(behaviorId, { completedCount: 0, notCompletedCount: 0, unresolvedCount: 0 });
+  }
+  if (input.historyComplete) {
+    const historyOccurrenceIds = new Set<string>();
+    for (const occurrence of input.historyOccurrences) {
+      const occurrenceId = nonempty(occurrence.id, "historyOccurrence.id");
+      if (historyOccurrenceIds.has(occurrenceId)) throw new AdvisorDayContextValidationError("History occurrence ids must be unique.");
+      historyOccurrenceIds.add(occurrenceId);
+      const counts = historyCounts.get(nonempty(occurrence.behaviorId, "historyOccurrence.behaviorId"));
+      if (!counts) throw new AdvisorDayContextValidationError("History occurrence has no selected Behavior.");
+      const localDate = plainDate(occurrence.localDate, "historyOccurrence.localDate");
+      if (Temporal.PlainDate.compare(localDate, historyStart) < 0 || Temporal.PlainDate.compare(localDate, historyEnd) >= 0) {
+        throw new AdvisorDayContextValidationError("History occurrence falls outside the declared lookback.");
+      }
+      if (occurrence.status === "completed") counts.completedCount += 1;
+      else if (occurrence.status === "not_completed") counts.notCompletedCount += 1;
+      else if (occurrence.status === "unresolved") counts.unresolvedCount += 1;
+      else fail("historyOccurrence.status is invalid.");
+    }
+  }
+
+  const occurrenceIds = new Set<string>();
+  const occurrences: AdvisorOccurrence[] = input.occurrences.map((occurrence) => {
+    if (occurrenceIds.has(occurrence.id)) {
+      throw new AdvisorDayContextValidationError("Cadence occurrence ids must be unique.");
+    }
+    occurrenceIds.add(nonempty(occurrence.id, "occurrence.id"));
+    if (!behaviorIds.has(occurrence.behaviorId)) {
+      throw new AdvisorDayContextValidationError("Cadence occurrence has no selected Behavior.");
+    }
+    plainDate(occurrence.localDate, "occurrence.localDate");
+    instant(occurrence.scheduledFor, "occurrence.scheduledFor");
+    time(occurrence.scheduleStartTime, "occurrence.schedule.startTime");
+    if (occurrence.scheduleKind === "exact" && occurrence.scheduleEndTime !== null) {
+      throw new AdvisorDayContextValidationError("Exact schedules cannot have an end time.");
+    }
+    if (occurrence.scheduleKind === "range") {
+      time(occurrence.scheduleEndTime, "occurrence.schedule.endTime");
+    }
+
+    return {
+      ref: input.makeOpaqueRef("occurrence", occurrence.id),
+      behaviorRef: input.makeOpaqueRef("behavior", occurrence.behaviorId),
+      title: occurrence.title,
+      status: occurrence.status,
+      localDate: occurrence.localDate,
+      scheduledFor: occurrence.scheduledFor,
+      schedule: {
+        kind: occurrence.scheduleKind,
+        startTime: occurrence.scheduleStartTime,
+        endTime: occurrence.scheduleEndTime,
+      },
+      duration: projectDuration(occurrence.duration),
+    };
+  });
+
+  return {
+    observedAt: input.observedAt,
+    revision: input.makeOpaqueRef("revision", input.revision),
+    coverage: "complete",
+    occurrences,
+    history: {
+      lookbackDays: 90,
+      startLocalDate: input.historyStartLocalDate,
+      endLocalDateExclusive: input.historyEndLocalDateExclusive,
+      completeness: input.historyComplete ? "complete" : "unknown",
+      reason: input.historyComplete ? null : "history_limit_exceeded",
+      behaviors: input.behaviors.map((behavior) => {
+        const counts = historyCounts.get(behavior.id);
+        if (!counts) throw new AdvisorDayContextValidationError("Cadence Behavior history is unavailable.");
+        return {
+          behaviorRef: input.makeOpaqueRef("behavior", behavior.id),
+          completedCount: input.historyComplete ? counts.completedCount : null,
+          notCompletedCount: input.historyComplete ? counts.notCompletedCount : null,
+          unresolvedCount: input.historyComplete ? counts.unresolvedCount : null,
+        };
+      }),
+    },
+  };
+}
+
+export function projectAdvisorCalendarConnector(input: Readonly<{
+  snapshot: ExternalEventSnapshotV1 | unknown;
+  selectionRevision: number;
+  now: Temporal.Instant;
+  makeOpaqueRef: AdvisorOpaqueRef;
+  failure?: ExternalEventFailure | null;
+}>): AdvisorCalendarConnector {
+  const snapshot = validateExternalEventSnapshot(input.snapshot);
+  if (snapshot.requestedRange.selectedCalendarIds.length > ADVISOR_DAY_CONTEXT_LIMITS.calendars) {
+    throw new AdvisorDayContextValidationError("Advisor Calendar limit exceeded.", "context_limit_exceeded");
+  }
+  if (snapshot.events.length > ADVISOR_DAY_CONTEXT_LIMITS.externalEvents) {
+    throw new AdvisorDayContextValidationError("Advisor event limit exceeded.", "context_limit_exceeded");
+  }
+
+  const complete = snapshot.completeness === "complete" && snapshot.freshness.state === "current";
+  const events = complete ? snapshot.events.map((event) => ({
+    ref: input.makeOpaqueRef("event", `${event.calendarId}\0${event.providerEventId}`),
+    calendarRef: input.makeOpaqueRef("calendar", event.calendarId),
+    logicalInstanceRef: input.makeOpaqueRef("instance", `${event.calendarId}\0${event.logicalInstanceId}`),
+    revision: input.makeOpaqueRef("revision", JSON.stringify(event.revision)),
+    interval: event.kind === "timed"
+      ? { kind: "timed" as const, startAt: event.startAt, endAt: event.endAt, duration: event.duration }
+      : { kind: "all_day" as const, startLocalDate: event.startLocalDate, endLocalDate: event.endLocalDate, duration: event.duration },
+    sourceTimezone: event.sourceTimezone,
+    sourceTimezoneFallback: event.sourceTimezoneFallback,
+    state: event.state,
+    availability: event.availability,
+    currentUserResponse: event.currentUserResponse,
+    recurrence: event.recurrence ? {
+      seriesRef: input.makeOpaqueRef("series", `${event.calendarId}\0${event.recurrence.seriesId}`),
+      originalStart: event.recurrence.originalStart,
+    } : null,
+  })) : [];
+
+  const failure = input.failure ?? snapshot.failures[0] ?? null;
+  const state = snapshot.freshness.state === "current" && !complete
+    ? "incomplete"
+    : snapshot.freshness.state;
+  const fetchedAt = snapshot.freshness.refreshedAt ?? snapshot.fetchedAt;
+  if (fetchedAt) instant(fetchedAt, "connector.fetchedAt");
+  if (complete && Temporal.Instant.compare(Temporal.Instant.from(fetchedAt), input.now) > 0) {
+    throw new AdvisorDayContextValidationError("Calendar fetchedAt cannot be in the future.");
+  }
+
+  return {
+    source: "google_calendar",
+    state,
+    complete,
+    fetchedAt,
+    connectionGeneration: snapshot.connectionGeneration,
+    selectionRevision: input.selectionRevision,
+    schemaVersion: snapshot.schemaVersion,
+    adapterVersion: snapshot.adapterVersion,
+    coverage: snapshot.coverage.map((coverage) => ({
+      calendarRef: input.makeOpaqueRef("calendar", coverage.calendarId),
+      startLocalDate: coverage.startLocalDate,
+      endLocalDate: coverage.endLocalDate,
+      paginationComplete: coverage.paginationComplete,
+    })),
+    failure: failure ? {
+      code: sourceFailureCode(failure.code),
+      retryable: failure.retryable,
+      retryAfterSeconds: failure.retryAfterSeconds,
+    } : null,
+    events,
+  };
+}
+
+export function projectUnavailableAdvisorCalendar(input: Readonly<{
+  connectionGeneration: number;
+  selectionRevision: number;
+  failure: Readonly<{
+    code: AdvisorSourceFailureCode;
+    retryable: boolean;
+    retryAfterSeconds: number | null;
+  }>;
+}>): AdvisorCalendarConnector {
+  return {
+    source: "google_calendar",
+    state: "unavailable",
+    complete: false,
+    fetchedAt: null,
+    connectionGeneration: input.connectionGeneration,
+    selectionRevision: input.selectionRevision,
+    schemaVersion: EXTERNAL_EVENT_SCHEMA_VERSION,
+    adapterVersion: EXTERNAL_EVENT_ADAPTER_VERSION,
+    coverage: [],
+    failure: input.failure,
+    events: [],
+  };
+}
+
+export function validateAdvisorDayContext(value: unknown): AdvisorDayContextV1 {
+  const root = record(value, "context");
+  exactKeys(root, ["version", "snapshotId", "accountRef", "localDate", "timezone", "dayStartAt", "dayEndAt", "capturedAt", "expiresAt", "status", "authority", "grantGeneration", "cadence", "connectors"], "context");
+  if (root.version !== ADVISOR_DAY_CONTEXT_VERSION) fail("context.version is unsupported.");
+  nonempty(root.snapshotId, "context.snapshotId");
+  nonempty(root.accountRef, "context.accountRef");
+  plainDate(root.localDate, "context.localDate");
+  timezone(root.timezone, "context.timezone");
+  const dayStartAt = instant(root.dayStartAt, "context.dayStartAt");
+  const dayEndAt = instant(root.dayEndAt, "context.dayEndAt");
+  if (Temporal.Instant.compare(dayEndAt, dayStartAt) <= 0) fail("context.dayEndAt must follow dayStartAt.");
+  const expectedDayStart = Temporal.PlainDate.from(root.localDate as string).toZonedDateTime({ timeZone: root.timezone as string, plainTime: "00:00" });
+  const expectedDayEnd = expectedDayStart.add({ days: 1 });
+  if (!dayStartAt.equals(expectedDayStart.toInstant()) || !dayEndAt.equals(expectedDayEnd.toInstant())) fail("context day bounds do not match localDate and timezone.");
+  const capturedAt = instant(root.capturedAt, "context.capturedAt");
+  const expiresAt = instant(root.expiresAt, "context.expiresAt");
+  if (Temporal.Instant.compare(expiresAt, capturedAt) <= 0) fail("context.expiresAt must follow capturedAt.");
+  if (Temporal.Instant.compare(expiresAt, capturedAt.add({ milliseconds: ADVISOR_DAY_CONTEXT_LIMITS.freshnessMs })) > 0 || Temporal.Instant.compare(expiresAt, dayEndAt) > 0) fail("context.expiresAt exceeds its freshness boundary.");
+  if (root.status !== "complete" && root.status !== "partial") fail("context.status is invalid.");
+  if (root.authority !== "read_only") fail("context.authority must be read_only.");
+  integer(root.grantGeneration, "context.grantGeneration", 0);
+
+  const cadence = record(root.cadence, "context.cadence");
+  exactKeys(cadence, ["observedAt", "revision", "coverage", "occurrences", "history"], "context.cadence");
+  const cadenceObservedAt = instant(cadence.observedAt, "context.cadence.observedAt");
+  if (Temporal.Instant.compare(cadenceObservedAt, capturedAt) > 0 || Temporal.Instant.compare(expiresAt, cadenceObservedAt.add({ milliseconds: ADVISOR_DAY_CONTEXT_LIMITS.freshnessMs })) > 0) fail("Cadence observation bounds are invalid.");
+  nonempty(cadence.revision, "context.cadence.revision");
+  if (cadence.coverage !== "complete") fail("context.cadence.coverage is invalid.");
+  const occurrences = array(cadence.occurrences, "context.cadence.occurrences", ADVISOR_DAY_CONTEXT_LIMITS.occurrences);
+  const occurrenceRefs = new Set<string>();
+  const behaviorRefs = new Set<string>();
+  occurrences.forEach((occurrence, index) => {
+    validateOccurrence(occurrence, index, root.localDate as string);
+    const ref = record(occurrence, "occurrence").ref as string;
+    if (occurrenceRefs.has(ref)) fail("Occurrence refs must be unique.");
+    occurrenceRefs.add(ref);
+    behaviorRefs.add(record(occurrence, "occurrence").behaviorRef as string);
+  });
+  if (behaviorRefs.size > ADVISOR_DAY_CONTEXT_LIMITS.behaviors) fail("Behavior ref limit exceeded.");
+  validateCompletionHistory(cadence.history, root.localDate as string, behaviorRefs);
+
+  const connectors = array(root.connectors, "context.connectors", 1);
+  if (connectors.length !== 1) fail("context.connectors must contain the Google Calendar source state.");
+  connectors.forEach((connector, index) => validateConnector(connector, index, root.localDate as string, capturedAt, expiresAt));
+  if (root.status === "complete" && connectors.some((connector) => {
+    const row = record(connector, "connector");
+    return row.state !== "not_requested" && row.complete !== true;
+  })) {
+    fail("Complete context cannot contain an incomplete connector.");
+  }
+  return value as AdvisorDayContextV1;
+}
+
+function validateCompletionHistory(value: unknown, localDate: string, occurrenceBehaviorRefs: Set<string>): void {
+  const history = record(value, "context.cadence.history");
+  exactKeys(history, ["lookbackDays", "startLocalDate", "endLocalDateExclusive", "completeness", "reason", "behaviors"], "context.cadence.history");
+  if (history.lookbackDays !== 90) fail("context.cadence.history.lookbackDays is invalid.");
+  const start = plainDate(history.startLocalDate, "context.cadence.history.startLocalDate");
+  const end = plainDate(history.endLocalDateExclusive, "context.cadence.history.endLocalDateExclusive");
+  if (end.toString() !== localDate || !start.add({ days: 90 }).equals(end)) fail("context.cadence.history bounds are invalid.");
+  if (history.completeness !== "complete" && history.completeness !== "unknown") fail("context.cadence.history.completeness is invalid.");
+  if ((history.completeness === "complete" && history.reason !== null) || (history.completeness === "unknown" && history.reason !== "history_limit_exceeded")) {
+    fail("context.cadence.history completeness fields disagree.");
+  }
+  const behaviors = array(history.behaviors, "context.cadence.history.behaviors", ADVISOR_DAY_CONTEXT_LIMITS.behaviors);
+  const behaviorRefs = new Set<string>();
+  behaviors.forEach((value, index) => {
+    const behavior = record(value, `history.behavior[${index}]`);
+    exactKeys(behavior, ["behaviorRef", "completedCount", "notCompletedCount", "unresolvedCount"], `history.behavior[${index}]`);
+    const behaviorRef = nonempty(behavior.behaviorRef, "history.behavior.behaviorRef");
+    if (behaviorRefs.has(behaviorRef)) fail("History Behavior refs must be unique.");
+    behaviorRefs.add(behaviorRef);
+    for (const key of ["completedCount", "notCompletedCount", "unresolvedCount"] as const) {
+      if (history.completeness === "complete") integer(behavior[key], `history.behavior.${key}`, 0);
+      else if (behavior[key] !== null) fail("Unknown history counts must be null.");
+    }
+  });
+  for (const behaviorRef of occurrenceBehaviorRefs) {
+    if (!behaviorRefs.has(behaviorRef)) fail("Occurrence behaviorRef has no history entry.");
+  }
+}
+
+function projectDuration(estimate: AdvisorCadenceOccurrenceInput["duration"]): AdvisorDuration {
+  if (estimate.kind === "known") {
+    if (!Number.isFinite(estimate.seconds) || estimate.seconds <= 0) fail("Known duration must be positive.");
+    return {
+      kind: "known",
+      seconds: estimate.seconds,
+      source: estimate.provenance,
+      sampleCount: estimate.sampleCount,
+      lookbackDays: 90,
+    };
+  }
+  return {
+    kind: "unknown",
+    reason: estimate.reason,
+    sampleCount: estimate.sampleCount,
+    lookbackDays: 90,
+  };
+}
+
+function validateOccurrence(value: unknown, index: number, localDate: string): void {
+  const occurrence = record(value, `occurrence[${index}]`);
+  exactKeys(occurrence, ["ref", "behaviorRef", "title", "status", "localDate", "scheduledFor", "schedule", "duration"], `occurrence[${index}]`);
+  nonempty(occurrence.ref, "occurrence.ref");
+  nonempty(occurrence.behaviorRef, "occurrence.behaviorRef");
+  if (typeof occurrence.title !== "string" || occurrence.title.length > 200) fail("occurrence.title is invalid.");
+  if (!(["unresolved", "completed", "not_completed"] as unknown[]).includes(occurrence.status)) fail("occurrence.status is invalid.");
+  plainDate(occurrence.localDate, "occurrence.localDate");
+  if (occurrence.localDate !== localDate) fail("occurrence.localDate must match context.localDate.");
+  instant(occurrence.scheduledFor, "occurrence.scheduledFor");
+  const schedule = record(occurrence.schedule, "occurrence.schedule");
+  exactKeys(schedule, ["kind", "startTime", "endTime"], "occurrence.schedule");
+  if (schedule.kind !== "exact" && schedule.kind !== "range") fail("occurrence.schedule.kind is invalid.");
+  time(schedule.startTime, "occurrence.schedule.startTime");
+  if (schedule.kind === "exact" && schedule.endTime !== null) fail("Exact schedule end must be null.");
+  if (schedule.kind === "range") time(schedule.endTime, "occurrence.schedule.endTime");
+  validateDuration(occurrence.duration);
+}
+
+function validateDuration(value: unknown): void {
+  const duration = record(value, "duration");
+  if (duration.kind === "known") {
+    exactKeys(duration, ["kind", "seconds", "source", "sampleCount", "lookbackDays"], "duration");
+    positive(duration.seconds, "duration.seconds");
+    if (duration.source !== "behavior_default" && duration.source !== "completed_stopped_occurrence_mean") fail("duration.source is invalid.");
+  } else if (duration.kind === "unknown") {
+    exactKeys(duration, ["kind", "reason", "sampleCount", "lookbackDays"], "duration");
+    if (duration.reason !== "insufficient_samples" && duration.reason !== "history_limit_exceeded") fail("duration.reason is invalid.");
+  } else fail("duration.kind is invalid.");
+  integer(duration.sampleCount, "duration.sampleCount", 0);
+  if (duration.lookbackDays !== 90) fail("duration.lookbackDays is invalid.");
+}
+
+function validateConnector(value: unknown, index: number, localDate: string, capturedAt: Temporal.Instant, expiresAt: Temporal.Instant): void {
+  const connector = record(value, `connector[${index}]`);
+  if (connector.state === "not_requested") {
+    exactKeys(connector, ["source", "state"], `connector[${index}]`);
+    if (connector.source !== "google_calendar") fail("connector.source is invalid.");
+    return;
+  }
+  exactKeys(connector, ["source", "state", "complete", "fetchedAt", "connectionGeneration", "selectionRevision", "schemaVersion", "adapterVersion", "coverage", "failure", "events"], `connector[${index}]`);
+  if (connector.source !== "google_calendar") fail("connector.source is invalid.");
+  if (!(["current", "unavailable", "incomplete", "stale"] as unknown[]).includes(connector.state)) fail("connector.state is invalid.");
+  if (typeof connector.complete !== "boolean") fail("connector.complete is invalid.");
+  const fetchedAt = connector.fetchedAt === null ? null : instant(connector.fetchedAt, "connector.fetchedAt");
+  if (fetchedAt && (Temporal.Instant.compare(fetchedAt, capturedAt) > 0 || Temporal.Instant.compare(expiresAt, fetchedAt.add({ milliseconds: ADVISOR_DAY_CONTEXT_LIMITS.freshnessMs })) > 0)) fail("connector.fetchedAt bounds are invalid.");
+  integer(connector.connectionGeneration, "connector.connectionGeneration", 0);
+  integer(connector.selectionRevision, "connector.selectionRevision", 0);
+  if (connector.schemaVersion !== EXTERNAL_EVENT_SCHEMA_VERSION) fail("connector.schemaVersion is unsupported.");
+  if (connector.adapterVersion !== EXTERNAL_EVENT_ADAPTER_VERSION) fail("connector.adapterVersion is unsupported.");
+  const coverage = array(connector.coverage, "connector.coverage", ADVISOR_DAY_CONTEXT_LIMITS.calendars);
+  const calendarRefs = new Set<string>();
+  coverage.forEach((item, itemIndex) => {
+    const row = record(item, `coverage[${itemIndex}]`);
+    exactKeys(row, ["calendarRef", "startLocalDate", "endLocalDate", "paginationComplete"], "coverage");
+    nonempty(row.calendarRef, "coverage.calendarRef");
+    if (calendarRefs.has(row.calendarRef as string)) fail("Calendar coverage refs must be unique.");
+    calendarRefs.add(row.calendarRef as string);
+    plainDate(row.startLocalDate, "coverage.startLocalDate");
+    plainDate(row.endLocalDate, "coverage.endLocalDate");
+    if (row.startLocalDate !== localDate || row.endLocalDate !== localDate) fail("Calendar coverage must match the context day.");
+    if (typeof row.paginationComplete !== "boolean") fail("coverage.paginationComplete is invalid.");
+  });
+  const events = array(connector.events, "connector.events", ADVISOR_DAY_CONTEXT_LIMITS.externalEvents);
+  if (!connector.complete && events.length > 0) fail("Incomplete connector cannot expose events.");
+  const eventRefs = new Set<string>();
+  events.forEach((event) => {
+    validateEvent(event, calendarRefs);
+    const ref = record(event, "event").ref as string;
+    if (eventRefs.has(ref)) fail("Event refs must be unique.");
+    eventRefs.add(ref);
+  });
+  if (connector.failure !== null) {
+    const failure = record(connector.failure, "connector.failure");
+    exactKeys(failure, ["code", "retryable", "retryAfterSeconds"], "connector.failure");
+    validateSourceFailureCode(failure.code);
+    if (typeof failure.retryable !== "boolean") fail("connector.failure.retryable is invalid.");
+    if (failure.retryAfterSeconds !== null) integer(failure.retryAfterSeconds, "connector.failure.retryAfterSeconds", 0);
+  }
+  if (connector.complete !== (connector.state === "current") || (connector.complete && (connector.failure !== null || fetchedAt === null || coverage.some((item) => record(item, "coverage").paginationComplete !== true)))) {
+    fail("Connector completeness fields disagree.");
+  }
+  if (!connector.complete && connector.failure === null && (connector.state === "unavailable" || connector.state === "incomplete")) fail("Unavailable or incomplete connector requires a failure.");
+}
+
+function validateEvent(value: unknown, calendarRefs: Set<string>): void {
+  const event = record(value, "event");
+  exactKeys(event, ["ref", "calendarRef", "logicalInstanceRef", "revision", "interval", "sourceTimezone", "sourceTimezoneFallback", "state", "availability", "currentUserResponse", "recurrence"], "event");
+  for (const key of ["ref", "calendarRef", "logicalInstanceRef", "revision"] as const) nonempty(event[key], `event.${key}`);
+  if (!calendarRefs.has(event.calendarRef as string)) fail("Event calendarRef has no coverage entry.");
+  timezone(event.sourceTimezone, "event.sourceTimezone");
+  if (!(["none", "calendar", "request"] as unknown[]).includes(event.sourceTimezoneFallback)) fail("event.sourceTimezoneFallback is invalid.");
+  if (!(["confirmed", "tentative", "cancelled", "unknown"] as unknown[]).includes(event.state)) fail("event.state is invalid.");
+  if (!(["busy", "free", "unknown"] as unknown[]).includes(event.availability)) fail("event.availability is invalid.");
+  if (event.currentUserResponse !== null && !(["needs_action", "declined", "tentative", "accepted", "unknown"] as unknown[]).includes(event.currentUserResponse)) fail("event.currentUserResponse is invalid.");
+  const interval = record(event.interval, "event.interval");
+  if (interval.kind === "timed") {
+    exactKeys(interval, ["kind", "startAt", "endAt", "duration"], "event.interval");
+    const start = instant(interval.startAt, "event.interval.startAt");
+    const end = instant(interval.endAt, "event.interval.endAt");
+    if (Temporal.Instant.compare(end, start) <= 0) fail("Timed event end must follow start.");
+    const duration = record(interval.duration, "event.interval.duration");
+    if (duration.kind === "known") {
+      exactKeys(duration, ["kind", "seconds"], "event.interval.duration");
+      const seconds = positive(duration.seconds, "event.interval.duration.seconds");
+      if (Math.abs(seconds - start.until(end).total({ unit: "seconds" })) > 0.001) fail("Timed event duration does not match its interval.");
+    } else if (duration.kind === "unknown") {
+      exactKeys(duration, ["kind", "reason"], "event.interval.duration");
+      if (duration.reason !== "end_unspecified") fail("Timed event unknown duration reason is invalid.");
+    } else fail("event.interval.duration.kind is invalid.");
+  } else if (interval.kind === "all_day") {
+    exactKeys(interval, ["kind", "startLocalDate", "endLocalDate", "duration"], "event.interval");
+    plainDate(interval.startLocalDate, "event.interval.startLocalDate");
+    plainDate(interval.endLocalDate, "event.interval.endLocalDate");
+    const duration = record(interval.duration, "event.interval.duration");
+    exactKeys(duration, ["kind", "days"], "event.interval.duration");
+    if (duration.kind !== "calendar_days") fail("All-day duration kind is invalid.");
+    const days = integer(duration.days, "event.interval.duration.days", 1);
+    if (days !== Temporal.PlainDate.from(interval.startLocalDate as string).until(Temporal.PlainDate.from(interval.endLocalDate as string)).days) fail("All-day duration does not match its span.");
+  } else fail("event.interval.kind is invalid.");
+  if (event.recurrence !== null) {
+    const recurrence = record(event.recurrence, "event.recurrence");
+    exactKeys(recurrence, ["seriesRef", "originalStart"], "event.recurrence");
+    nonempty(recurrence.seriesRef, "event.recurrence.seriesRef");
+    const original = record(recurrence.originalStart, "event.recurrence.originalStart");
+    if (original.kind === "timed") {
+      exactKeys(original, ["kind", "startAt"], "event.recurrence.originalStart");
+      instant(original.startAt, "event.recurrence.originalStart.startAt");
+    } else if (original.kind === "all_day") {
+      exactKeys(original, ["kind", "startLocalDate"], "event.recurrence.originalStart");
+      plainDate(original.startLocalDate, "event.recurrence.originalStart.startLocalDate");
+    } else fail("event.recurrence.originalStart.kind is invalid.");
+  }
+}
+
+function sourceFailureCode(value: unknown): AdvisorSourceFailureCode {
+  const allowed: AdvisorSourceFailureCode[] = ["not_connected", "permission_denied", "reconnect_required", "rate_limited", "provider_unavailable", "timeout", "malformed_provider_response", "incomplete_pagination"];
+  if (!allowed.includes(value as AdvisorSourceFailureCode)) return "provider_unavailable";
+  return value as AdvisorSourceFailureCode;
+}
+
+function validateSourceFailureCode(value: unknown): AdvisorSourceFailureCode {
+  const allowed: AdvisorSourceFailureCode[] = ["not_connected", "permission_denied", "reconnect_required", "rate_limited", "provider_unavailable", "timeout", "malformed_provider_response", "incomplete_pagination"];
+  if (!allowed.includes(value as AdvisorSourceFailureCode)) fail("connector.failure.code is invalid.");
+  return value as AdvisorSourceFailureCode;
+}
+
+function record(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) fail(`${label} must be an object.`);
+  return value as Record<string, unknown>;
+}
+function array(value: unknown, label: string, max: number): unknown[] {
+  if (!Array.isArray(value) || value.length > max) fail(`${label} is invalid.`);
+  return value;
+}
+function exactKeys(value: Record<string, unknown>, keys: string[], label: string): void {
+  if (Object.keys(value).length !== keys.length || keys.some((key) => !(key in value))) fail(`${label} must contain exactly the documented fields.`);
+}
+function nonempty(value: unknown, label: string): string {
+  if (typeof value !== "string" || !value || value.length > 512) fail(`${label} is invalid.`);
+  return value;
+}
+function instant(value: unknown, label: string): Temporal.Instant {
+  try { return Temporal.Instant.from(nonempty(value, label)); } catch { return fail(`${label} is invalid.`); }
+}
+function plainDate(value: unknown, label: string): Temporal.PlainDate {
+  try { const parsed = Temporal.PlainDate.from(nonempty(value, label)); if (parsed.toString() !== value) fail(`${label} is invalid.`); return parsed; }
+  catch { return fail(`${label} is invalid.`); }
+}
+function time(value: unknown, label: string): Temporal.PlainTime {
+  try { return Temporal.PlainTime.from(nonempty(value, label)); } catch { return fail(`${label} is invalid.`); }
+}
+function timezone(value: unknown, label: string): void {
+  try { Temporal.Instant.fromEpochMilliseconds(0).toZonedDateTimeISO(nonempty(value, label)); } catch { fail(`${label} is invalid.`); }
+}
+function integer(value: unknown, label: string, min: number): number {
+  if (!Number.isInteger(value) || (value as number) < min) fail(`${label} is invalid.`);
+  return value as number;
+}
+function positive(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) fail(`${label} is invalid.`);
+  return value;
+}
+function fail(message: string): never { throw new AdvisorDayContextValidationError(message); }

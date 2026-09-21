@@ -57,6 +57,30 @@ describe("Google Calendar provider adapter", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
+  it("prefers per-user calendar names while preserving IDs and falling back for blank overrides", async () => {
+    const calendars = await readGoogleCalendarCalendars({
+      accessToken: "calendar-token",
+      fetch: async (request) => {
+        expect(new URL(request.toString()).searchParams.get("fields")).toContain("summaryOverride");
+        return Response.json({ items: [
+          { id: "subscribed", summary: "Calendar", summaryOverride: " Northwestern Work ", timeZone: "UTC", accessRole: "reader" },
+          { id: "blank", summary: "Original name", summaryOverride: " ", timeZone: "UTC", accessRole: "reader" },
+          { id: "absent", summary: "Unchanged name", timeZone: "UTC", accessRole: "owner" },
+        ] });
+      },
+    });
+    expect(calendars.map(({ id, name }) => ({ id, name }))).toEqual([
+      { id: "subscribed", name: "Northwestern Work" },
+      { id: "blank", name: "Original name" },
+      { id: "absent", name: "Unchanged name" },
+    ]);
+    expect(adaptGoogleCalendarItem({ id: "meeting", summary: "Meeting",
+      start: { dateTime: "2026-09-21T10:00:00Z" }, end: { dateTime: "2026-09-21T11:00:00Z" } },
+      { calendar: calendars[0]!, requestTimezone: "UTC" })).toMatchObject({
+      kind: "event", event: { calendarId: "subscribed", calendarName: "Northwestern Work" },
+    });
+  });
+
   it("rejects malformed calendar metadata with a typed provider error", async () => {
     const promise = readGoogleCalendarCalendars({
       accessToken: "calendar-token",

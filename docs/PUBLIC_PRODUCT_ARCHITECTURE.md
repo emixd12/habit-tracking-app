@@ -31,7 +31,10 @@ authenticated web app has been hardened for many independent users, and the
 Astro marketing site exists as a sibling app. Tickets 107–114 implement the
 local-first macOS desktop track. Ticket 115 defers Apple-trusted distribution.
 Tickets 116–122 implement optional Google account linking and offline-capable
-desktop synchronization. Billing, AI, and mobile remain future scope.
+desktop synchronization. Tickets 146–148 implement the in-app read-only daily briefing
+in the existing horse bubble on web and linked desktop, using server-side model
+generation and existing sign-in. General AI chat/coaching, audio speech, billing,
+and native mobile remain future scope. Marketing claims require separate acceptance.
 
 ## Surface model
 
@@ -148,6 +151,10 @@ Marketing posture:
 
 - Cadence is the site brand, homepage lead, and consumer-facing product name.
 - The header uses the Cadence mark and name only.
+- The fifth homepage walkthrough module explains optional connectors through
+  Timeline context and a static overlap preview. Main copy is provider-neutral;
+  supporting copy identifies the current provider and its availability. Detailed
+  permissions and disconnect disclosures remain in FAQ and canonical Privacy.
 - BehaviorLog is the open bundle standard and portability layer Cadence writes
   and reads. It should be explained in the same manner as a technical base
   layer or open package, not as the primary site brand.
@@ -403,8 +410,9 @@ Do not gate current launch features behind pricing. Do not add payment
 infrastructure until a billing ticket updates product, route, data, legal, and
 operations docs.
 
-AI coaching or speech features are future scope only. Do not add AI features to
-the current app without an explicit product-direction update.
+General AI coaching/chat and audio speech remain future scope. The September 20
+product-direction update scopes the in-app read-only horse briefing under
+Tickets 146–148. It does not enable autonomous execution or broader AI features.
 
 ## Source documents affected
 

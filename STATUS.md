@@ -20,6 +20,16 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Briefing workbench planning — September 20, 2026
+
+Tickets 151–155 are `not_started`. The owner requested tickets for an internal
+control surface covering tone, scope, references, suggestions and planning policy.
+`docs/TICKETS.md` defines configuration, curated sources, deterministic read-only
+planning, comparison previews and reviewed configuration rollout in that order.
+Ticket 154 can start with configuration controls after 151; reference/planner
+controls follow 152–153. No runtime or schema work began in this planning task.
+Tickets 147–148 retain their separate hosted/live-data/installed-desktop gates.
+
 ## Update rules
 
 Update this file whenever a ticket starts, completes, becomes blocked, is reopened, or materially changes scope.
@@ -42,6 +52,116 @@ When updating a ticket row:
 6. Do not use this file to expand v1 scope. Put future ideas in `docs/FUTURE_UPDATES.md` unless a user explicitly moves them into scope.
 
 ## Current repository state
+
+### Consolidated release — September 20, 2026
+
+The owner authorized committing, merging, and deploying all outstanding changes.
+The combined source passes agents, interactions, resolvers, core portability,
+design-system, public-source, Trust fixtures, lint, web/desktop type checks,
+1,894 JavaScript tests (29 skipped), 107 native tests, all three builds, and
+marketing checks. Lint retains ten existing warnings. This supersedes the
+concurrent-test/build failures recorded below for Calendar selection, marketing,
+and desktop app-discovery maintenance; their separate live acceptance remains.
+
+Production migrations through `20260921003952` are applied, including the older
+pending import-memory migration `20260916195000`. Hosted readback verifies forced
+RLS and no direct client access on all four advisor-private tables. The existing
+approved OpenAI key is configured as a production server secret. Daily Brief
+still requires account opt-in; no real account or Calendar facts were sent to
+the model during this release. The unchanged migration chain retains its clean
+local replay and rollback smoke evidence in `docs/qa/in-app-daily-brief.md`.
+The installed Supabase CLI 2.109.1 performed deployment because the project-local
+binary failed macOS signature verification. Pull-request CI and production
+application/marketing deployment readback are pending at this checkpoint.
+PR CodeQL flagged API-key-derived reference hashing. Daily Brief now creates a
+random 32-byte reference key per generation, retaining it for freshness checks.
+The regression verifies fresh keys across generations and consistent in-attempt
+use. Real SQLite contracts also passed 20 tests with one skipped.
+PR lifecycle review found focus-return withdrawal and pending-retry loss. The
+shared launcher now revalidates account/day/settings on focus, preserves unchanged
+briefings, and retains explicit retry for pending leases. DOM regressions cover
+unchanged focus, changed disclosure/account/day, revoked sessions, and recovery.
+Web and desktop share the fix; marketing and deferred native mobile are unaffected.
+Desktop source is included; installed Daily Brief acceptance and Ticket 115
+Apple-trusted distribution remain separate. Future native mobile is deferred.
+
+Ticket 150 implementation and focused QA are finished (September 20, 2026);
+repository acceptance remains in_progress because concurrent Daily Brief tests
+and the web build fail. Live read-only diagnosis matched Northwestern Work's
+Google ID to Cadence's `Calendar` entry. The provider now prefers summaryOverride;
+the shared panel uses selected tags and an expandable searchable checkbox list.
+Refresh also reloads discovery without overwriting drafts. Provider/panel tests,
+governance checks, lint, initial typecheck, design-system check, desktop build,
+and 1280px/390px browser QA passed. Full-suite failures and the later web-build
+error belong to concurrent Daily Brief work and were not edited here.
+Web and desktop share the change; marketing and native mobile are unaffected.
+No deployment or live preference save occurred. Evidence: docs/qa/calendar-selection.md.
+
+Desktop sync compatibility repair (2026-09-19): complete and installed as
+preview.41. Native-model validation now rejects unknown downloaded fields before
+synchronization writes and reports Update required. The current native schema
+supports the hosted Behavior duration/end-date fields. Startup and manual sync
+both show Account data is current; the baseline advanced and the outbox is empty.
+All 1,236 prior status events remain unchanged; 22 hosted status events and one
+Note change downloaded normally. All 4,801 baseline entities match SQLite at the
+contract's microsecond precision. Integrity and foreign-key checks pass.
+Required checks, web/desktop builds, 1,850 tests (29 skipped), 107 native tests,
+20 real SQLite contracts (one skipped), copied-database migration, and all 11
+preview artifact checks passed. Database backup and verified preview.40 rollback
+ZIP remain in the private `Cadence Release/sync-compatibility-2026-09-19` folder.
+Web already hosts the fields; no deployment or hosted schema change occurred.
+Marketing has no runtime impact; future mobile remains deferred. Feature-specific
+native duration/end-date UI acceptance remains separate from sync acceptance.
+Evidence and changed files: `docs/qa/2026-09-19-desktop-sync-compatibility.md`.
+
+The September 19 desktop app-discovery maintenance follow-up is in progress.
+`apps/desktop/scripts/release.mjs` now prunes older unpacked preview apps after
+checking retained artifact hashes and full archive equivalence. The latest
+preview, compressed rollback artifacts, signatures, DMGs, and reports remain.
+`tests/desktop-release-cli.test.ts` covers retention, checksum failure, retries,
+and invalid keep versions; existing archive tests cover content integrity.
+The initial cleanup passed all seven required repository checks. Its full suite passed 1,848 tests
+with 29 skipped after rerunning outside the sandbox for loopback socket access.
+Local cleanup removed 15 redundant staged apps and archived 16 private rollback
+apps after restoring and comparing contents, modes, symlinks, and macOS metadata.
+Spotlight excludes `.release`, native `target`, and private `Cadence Release`
+storage. The installed app and tracking databases were not changed.
+Final Spotlight index readback returned only `/Applications/Cadence.app`.
+The owner then supplied a screenshot showing six icons. That index check did
+not verify the app picker; five development/QA apps remained registered.
+The follow-up archived all six generated native bundles with restoration and
+metadata checks, preserving the installed app byte-for-byte. Preview staging
+now removes its redundant native build copy after archive comparison. Two
+subsequent Launch Services readbacks contain only `/Applications/Cadence.app`.
+The actual picker could not be inspected through the computer-use bridge;
+visual confirmation remains unverified, not inferred from the registry.
+Follow-up agents/interactions/resolvers checks, lint, typecheck, and build pass.
+All release/archive tests pass. The full suite passed 1,848 tests with 29 skipped,
+but one concurrent advisor test fails: `tests/advisor-day-context.service.test.ts`
+expects a context-limit error and receives an undefined `generation` TypeError.
+That separate work was not edited. Repository acceptance remains in progress.
+`docs/DESKTOP_RELEASE.md` records retention and recovery. Web, marketing, and
+future mobile are unaffected; no product interaction changed.
+
+Ticket 139 marketing follow-up is `in_progress` (September 19, 2026).
+The owner replaced the hero Calendar disclosure with a fifth walkthrough module.
+`HowItWorks.astro` uses provider-neutral connector copy and a synthetic Timeline
+illustration; `index.astro` and `routes.ts` remove the old hero paragraph.
+FAQ and canonical Privacy retain detailed access and disconnect disclosures.
+Marketing owns this static presentation. Web and desktop behavior is unchanged;
+future mobile implementation is not applicable, with narrow public QA required.
+Design evidence uses `design-system.surfaces.json`; interaction intents are unchanged.
+Marketing implementation and responsive QA are complete. Repository acceptance
+remains `in_progress` because concurrent Daily Brief changes fail `agents:check`
+(core clock injection in `advisor-day-context.ts`) and `typecheck` (Calendar
+connection typing in `google-calendar.service.ts`). No unrelated code was edited.
+Passing checks: marketing build/check (zero Astro diagnostics), interactions,
+resolvers, design-system, lint (10 existing warnings), full tests (1,816 passed,
+29 skipped), web build, and `git diff --check`. Chrome preview at
+`http://127.0.0.1:4322` verifies five modules, one hero paragraph, the provider
+asset, static controls, and no console errors. The new module fits 1512px,
+390px, and 320px viewports. No interaction intent changed.
+This follow-up does not publish or alter provider review.
 
 Ticket 149 is `complete` in source: Calendar inspection polish and shared Timeline reload.
 The owner selected overlap color `#DA3278`, thin borders, a title-aligned preview
@@ -77,17 +197,67 @@ verified against Google’s read/write references in Calendar QA.
 GitHub requires passing PR validation before merging into protected `main`.
 Existing product-release gates and pending provider/native acceptance remain unchanged.
 
-Tickets 144–145 were filed on September 18, 2026. Both are `not_started`.
-Ticket 144 covers the integration playbook, reusable brief, and evidence-backed
-Calendar lessons. Ticket 145 defines the first external consumer and proposes
-its access contract after using that brief. Consumer discovery may begin earlier.
-These are documentation/planning tickets. No new connector, API/MCP server,
-coaching feature, provider action, or product-scope expansion is authorized.
-The filing changes `docs/TICKETS.md`, this ledger, and the planning pointer in
-`docs/FUTURE_UPDATES.md`. Existing ticket states and release gates remain unchanged.
-Filing verification passed: `agents:check`, `interactions:check`,
-`resolvers:check`, and `git diff --check`. Runtime tests and builds were not
-rerun because this filing changes documentation only.
+Tickets 144–145 are `complete` as of September 18, 2026. Both deliver
+planning/documentation only. Ticket 144 has `docs/INTEGRATION_PLAYBOOK.md`, a
+reusable brief, a Calendar worked example, and evidence-backed lessons.
+`AGENTS.md` and `docs/OPERATIONS.md` link the playbook. Current Calendar summaries
+distinguish deployed/installed proof from remaining technical and public-approval
+gates. Dated checkpoints remain intact.
+
+### In-app advisor correction — September 20, 2026
+
+The owner corrected the external-advisor assumption. Cadence Daily Brief belongs
+inside Cadence: automatic briefing text emerges from the existing horse when the
+app first opens. The user can dismiss or ignore it. Behaviors, completion history
+and connected Calendar facts are model inputs, not an output requiring approval.
+Recommendations remain read-only; they cannot edit tracking or Calendar records.
+
+Existing sign-in replaces external delegation. The product model is OpenAI
+`gpt-5.6-luna`, behind a provider-neutral server adapter. The owner approved reuse
+of the existing API key. A synthetic-only request passed using that adapter;
+no real Cadence or Calendar records were sent to OpenAI.
+
+Ticket 146 is `complete` in source. Tickets 147–148 have completed source
+implementation and independent review; they remain `in_progress` only for
+separate hosted/live-data/installed-desktop release acceptance. Source contains
+all-status 90-day completion aggregates, current-session/disclosure fences,
+bounded generation, private installation/day deduplication and web/desktop horse
+bubbles. Settings defaults off and separately discloses optional Calendar timing.
+The model can recommend changes but has no tracking or Calendar mutation tools.
+The old GET remains disabled; the external consumer module now serves internal
+generation. No prompt or briefing history is persisted.
+
+Clean local migration replay, three rollback SQL smokes, regenerated database
+types and the synthetic model call passed. SQL checks include two owners,
+revoked/expired sessions, Calendar revisions, retries, deduplication and leases.
+Web and desktop builds passed. Responsive fixture checks passed at 390 and 1280
+pixels, including long unbroken text, 44px dismissal and accessible tracking
+controls. All required repository checks passed, including 1,885 tests (29
+skipped), web/desktop type checks and production builds. Lint has zero errors and
+ten pre-existing warnings. Fresh independent read-only review returned `ship`
+with no findings. Core portability and design-system checks also passed.
+
+The revised plan remains `docs/plans/first-external-consumer.md`; its path is kept
+for links. Evidence is in `docs/qa/in-app-daily-brief.md`. Hosted deployment,
+authorized real-data/Google onward-use acceptance and installed desktop checks
+remain separate. Hosted context excludes unsynced/local-only records. Offline
+tracking remains available. Marketing has no new claim; native mobile is deferred.
+
+September 19 evidence in `docs/qa/advisor-read-only.md` and
+`docs/qa/advisor-auth-isolation.md` remains historical. The external-token finding
+is not a first-party blocker. The earlier documentation-only review returned
+`ship`; it is not acceptance of this runtime implementation.
+
+Earlier documentation-only checkpoint: `docs/FUTURE_UPDATES.md` links both artifacts and removes the stale default-duration
+deferral superseded by Tickets 142–143. No runtime, schema, provider configuration,
+interaction registry, or design-system catalog changed. Revised verification
+passed on Node 24: `npm run agents:check`, `npm run interactions:check`,
+`npm run resolvers:check`, and `git diff --check`. Local artifact links, anchors,
+code paths, and the illustrative JSON example pass validation. Fresh independent
+read-only review returned `ship` with no findings. Runtime lint, type checks,
+tests, and builds were not rerun because the ticket-specific verification applies
+to documentation only. Calendar technical, provider-approval, and Apple-distribution
+gates remain open; this work closes none of them.
 
 Tickets 142–143 are complete in source (2026-09-17): optional default duration
 and end-date automatic archive with durable in-app notifications. Web and desktop
@@ -111,9 +281,11 @@ working-tree changes and the older pending import migration were preserved.
 
 Tickets 138–140 are complete as of September 18, 2026. The replacement
 verified-brand demonstration is published as Unlisted and reviewer playback passes.
-Ticket 141 is in progress: Google accepted the Calendar data-access submission on
-September 18 at 10:52 EDT and reports under review. Branding is already verified;
-Calendar scope approval and post-approval smoke checks remain outstanding.
+Ticket 141 remains in progress. The September 20 check confirms Google verified
+Calendar data access and the sensitive `calendar.events.readonly` scope.
+The production broker client and the three declared scopes match the submission.
+Branding remains verified. Post-approval web/native consent smoke checks remain
+outstanding; public rollout gates remain unchanged.
 Unrelated working-tree changes were excluded from the isolated releases.
 
 Ticket 138: Cloudflare's initially empty `cadence-me.com` zone now has two
@@ -165,11 +337,11 @@ matches every row in all 15 tracking tables. The primary account reports current
 the dedicated Calendar grant is disconnected.
 
 Ticket 141: Google accepted the final questionnaire with the replacement video
-and accurate recording provenance. Verification Center reports data access under
-review; Trust and Safety confirms receipt. The three declared scopes remain
+and accurate recording provenance. Verification Center now reports data access
+verified, observed September 20. The three declared scopes remain
 OpenID, calendar-list read-only, and events read-only. No restricted/write scopes
 were requested. Brand verification, the owner's Privacy approval, and technical
-acceptance remain separate from Google's pending Calendar-access decision.
+acceptance remain separate from Google's Calendar-access approval.
 Emiliano Bache Rodriguez monitors info@identityscaffolding.com. Daily 09:00 local
 Verification Center follow-up is active in this task; it notifies only on meaningful
 changes or required action and does not monitor the inbox. No private correspondence
@@ -178,14 +350,14 @@ runtime checks remain valid because this final continuation changes media/record
 
 Current evidence and rollback are in `docs/VERCEL_WORKFLOW.md`,
 `docs/qa/day-progress-release.md`, and `docs/qa/google-calendar-capabilities.md`.
-Owner approval, technical verification, and Google's eventual decision remain
+Owner approval, technical verification, and Google's provider approval remain
 separate. No schema, native package, or private provider credential changed.
 
 Tickets 133–137 remain in progress (2026-09-17). Implementation and the reviewed
 hosted rollout pass required checks. The shared Timeline, normalized external-event
 contract, same-account Calendar broker, native disposable cache, and duration
 estimates are integrated. Production uses the separate Calendar Google project, now In production
-with Calendar data access under review. Google Cloud administration uses Identity Scaffolding Chrome;
+with Calendar data access verified; post-approval smoke checks remain. Google Cloud administration uses Identity Scaffolding Chrome;
 second-account acceptance uses the owner-approved Emi Chrome profile.
 
 Live web/native same-account connection, wrong-account rejection, selection,
@@ -218,7 +390,8 @@ This synthetic rendering evidence does not exercise the desktop service lifecycl
 
 Remaining combined acceptance includes native dense/overnight/multi-day cases, controlled
 provider-failure and Workspace field evidence, and Google sensitive-scope public
-verification. Public branding links are saved; publishing remains Testing. No combined
+verification. This September 17 checkpoint predates the production-audience
+change and September 18 submission recorded above; Testing is historical. No combined
 release ticket is complete. Existing unrelated working-tree changes are preserved.
 See `docs/qa/day-progress-release.md` for precise evidence and remaining gates.
 

@@ -6,6 +6,61 @@ and a persistent Tauri updater signing key. It does not claim Developer ID
 signing, notarization, or macOS 14 compatibility. Apple-trusted distribution
 requirements moved to deferred Ticket 115.
 
+## Local app discovery and archive retention
+
+Use `/Applications/Cadence.app` for everyday launches. On the development Mac,
+exclude these folders in System Settings → Spotlight → Search Privacy:
+
+- `apps/desktop/.release` in this repository.
+- `apps/desktop/src-tauri/target` in this repository.
+- `~/Library/Application Support/Cadence Release` for private rollback storage.
+
+These exclusions were applied on September 19, 2026. Build and rollback copies
+must not compete with the installed app in Spotlight. Keep the installed bundle
+identifier and database location unchanged. Web, marketing, and future mobile
+are not affected by this macOS release-tooling change.
+
+After staging a verified preview, `release.mjs` keeps that preview unpacked and
+prunes only older preview `.app` directories. Before any removal, it verifies
+all retained archive, signature, and DMG hashes against their saved reports and
+compares every archived file, permission, and symlink with the unpacked app.
+A failed check prevents the entire removal batch. Archives, signatures, DMGs,
+configuration, and reports remain. Existing version directories are never replaced.
+
+To retry cleanup without rebuilding or providing signing credentials:
+
+```bash
+node apps/desktop/scripts/release.mjs preview-prune 0.1.1-preview.40
+```
+
+The argument names an existing unpacked preview to retain; newer previews also
+remain. To reverify or launch an archived preview, first extract its existing
+`Cadence.app.tar.gz` in its `bundle/macos` directory, then use `preview-verify`
+with that version and bundle directory. For installation rollback copies, retain
+a ZIP created with macOS `ditto --keepParent --sequesterRsrc`; verify restored
+contents, permissions, symlinks, and extended attributes before removing the
+unpacked copy. Keep database backups separate and unchanged.
+
+The September 19 cleanup removed 15 older staged apps and archived 16 private
+rollback apps. Its initial `mdfind` readback returned only the installed app,
+but the owner's screenshot still showed six icons. Spotlight file-index
+exclusion does not prove absence from the app picker: Launch Services retained
+and rediscovered development/QA bundles.
+
+The follow-up archived all six native build/QA bundles after restoring and
+comparing their contents and macOS metadata, then unregistered their old paths.
+The installed app remains unchanged. After verified preview staging, the release
+script now also compares the staged archive with the native build copy and
+removes that redundant unpacked copy. The newest staged preview remains under
+the hidden `.release` folder for acceptance work.
+
+After native QA, archive and verify temporary `.app` bundles, remove the unpacked
+copies, and unregister those exact paths. Exclusions alone are insufficient.
+Check Launch Services and the actual app picker, not only `mdfind`, before
+claiming a single visible app. Do not reset the system-wide app registry or
+empty Trash. Private rollback and Trash registrations were removed without
+deleting Trash contents.
+
 ## Completed preview milestone
 
 Preserve Cadence, `app.cadence.desktop`, and the existing local profile/database.

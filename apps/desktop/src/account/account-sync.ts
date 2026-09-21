@@ -71,6 +71,7 @@ export async function readHostedAccountSyncEnvelope(client: SupabaseClient, sign
   if (error) throw error;
   const envelope = hostedEnvelope(data);
   if (accountSyncFingerprint(envelope) !== envelope.fingerprint) throw new Error("The hosted account snapshot fingerprint is invalid.");
+  await localCommand("validateAccountSyncSnapshot", { entities: envelope.entities });
   return envelope;
 }
 
