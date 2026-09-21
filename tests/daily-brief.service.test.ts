@@ -28,6 +28,14 @@ beforeEach(() => {
 });
 
 describe("first-party daily briefing service", () => {
+  it("uses a fresh reference key per generation and reuses it for freshness checks", async () => {
+    await requestInAppDailyBrief(caller, input, { generate, now });
+    const firstKey = mocks.context.mock.calls[0][0].opaqueRefKey;
+    expect(firstKey).toHaveLength(32);
+    expect(mocks.opaque.mock.calls.every(([key]) => key === firstKey)).toBe(true);
+    await requestInAppDailyBrief(caller, input, { generate, now });
+    expect(mocks.context.mock.calls[1][0].opaqueRefKey).not.toEqual(firstKey);
+  });
   it("uses authenticated repositories, rechecks fences and completes one lease", async () => {
     const result = await requestInAppDailyBrief(caller, input, { generate, now });
     expect(result.state).toBe("ready");

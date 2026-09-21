@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
 import type { DailyBriefResponse, DailyBriefSettings } from "@cadence/core/types/daily-brief";
 import { readAdvisorCadenceRevision, readAdvisorProfileTimezone } from "@/lib/db/advisor-context.repo";
@@ -42,7 +42,7 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
   }
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new DailyBriefError("not_configured");
-  const key = createHash("sha256").update(`cadence-daily-brief-refs\0${apiKey}`).digest();
+  const key = randomBytes(32);
   const clock = options.now ?? (() => Temporal.Now.instant());
   const signal = AbortSignal.timeout(options.deadlineMs ?? 60_000);
   const installationId = value.installationId;

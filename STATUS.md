@@ -58,7 +58,7 @@ When updating a ticket row:
 The owner authorized committing, merging, and deploying all outstanding changes.
 The combined source passes agents, interactions, resolvers, core portability,
 design-system, public-source, Trust fixtures, lint, web/desktop type checks,
-1,885 JavaScript tests (29 skipped), 107 native tests, all three builds, and
+1,886 JavaScript tests (29 skipped), 107 native tests, all three builds, and
 marketing checks. Lint retains ten existing warnings. This supersedes the
 concurrent-test/build failures recorded below for Calendar selection, marketing,
 and desktop app-discovery maintenance; their separate live acceptance remains.
@@ -73,6 +73,10 @@ local replay and rollback smoke evidence in `docs/qa/in-app-daily-brief.md`.
 The installed Supabase CLI 2.109.1 performed deployment because the project-local
 binary failed macOS signature verification. Pull-request CI and production
 application/marketing deployment readback are pending at this checkpoint.
+PR CodeQL flagged API-key-derived reference hashing. Daily Brief now creates a
+random 32-byte reference key per generation, retaining it for freshness checks.
+The regression verifies fresh keys across generations and consistent in-attempt
+use. Real SQLite contracts also passed 20 tests with one skipped.
 Desktop source is included; installed Daily Brief acceptance and Ticket 115
 Apple-trusted distribution remain separate. Future native mobile is deferred.
 
