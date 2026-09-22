@@ -11851,9 +11851,10 @@ preserved, and unchanged status/schedule/dismissal flows.
 
 ## Ticket 165: Travel provider and cross-platform release acceptance
 
-Status: in progress; repository, local database and public-landmark provider
-checks pass. Private-account, deployed-web and installed-desktop travel acceptance
-remain open. Billing and restricted local credentials are configured.
+Status: in progress; repository, local database, public-landmark, deployed-web
+and private-account acceptance pass (PR #58 merged, hosted routing enabled
+September 22). A geocode venue-type filter fix follows in a second PR.
+Installed-desktop travel acceptance remains open. Billing and restricted local credentials are configured.
 Filed September 21, 2026. Reviews begin alongside Tickets 162–164; release follows them.
 
 Goal: establish provider-use, disclosure and runtime evidence for the accepted travel feature.

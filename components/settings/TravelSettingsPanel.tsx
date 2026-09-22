@@ -55,7 +55,6 @@ export function TravelSettingsPanel({ client = webTravelSettingsClient, readLoca
   return <SettingsPanel title="Travel" description="Plan travel between located commitments without changing their schedules or statuses.">
     <div className="grid max-w-2xl gap-4 text-sm leading-6">
       <p>After setup, Cadence can send route endpoints, your chosen mode and travel times to Google Maps automatically while you use the app. Google processes requests under its own retention terms.</p>
-      <p>Route estimates are available only after this deployment completes provider review.</p>
       <p>Calendar permission stays separate. Device location needs a separate browser or macOS permission. Travel locations and route results are not sent to the Daily Brief model.</p>
       <p>Cadence saves only the locations you enter. Device positions and route results stay temporary and never enter tracking exports or synced backups. Turning travel off clears temporary results and preserves your saved locations.</p>
       {desktop ? <p>Saved locations work offline. Route estimates require a linked account, a synchronized working copy and an internet connection.</p> : null}

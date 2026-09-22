@@ -89,6 +89,17 @@ ran. Concurrent travel changes are preserved. Evidence and limits:
 
 ## Tickets 162–165 travel implementation — September 22, 2026
 
+PR #58 merged as `b48654d1` and is deployed. The owner enabled production routing
+clearance; redeploy `cadence-drxrpk40n` applied it. Hosted acceptance passed on the
+owner account: workload identity exchange, v4 geocoding and one transit `ComputeRoutes`
+call all returned 200 in Cloud Monitoring, and the Timeline received a return leg
+with Google Maps attribution. The unlocated preceding event correctly left the
+outbound leg unknown. The owner daily quota (6) is now exhausted for today, as
+designed. Acceptance exposed a geocode filter defect: precise rooftop venues typed
+`establishment`/`point_of_interest` were rejected as ambiguous. A coarse-type
+exclusion replaces the whitelist; the stale Settings sentence is removed. Installed
+macOS travel acceptance still awaits the owner's signed preview.43 build.
+
 Release candidate PR #58 (`codex/travel-release-2026-09-22`) now carries the full
 travel implementation, the preserved-lineage Daily Brief hotfix and the briefing
 workbench. On the branch: all seven required checks, 2,173 Vitest tests (29 existing

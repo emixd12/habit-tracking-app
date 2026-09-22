@@ -252,3 +252,56 @@ resolution to one precise result. v4 lacks v3's partial-match signal; the two
 parsers are not semantically identical. Multiple or coarse results remain
 ambiguous. No private location or hosted routing request has run in this phase.
 
+
+## Hosted runtime and private-account acceptance — September 22, 2026
+
+PR #58 merged as `b48654d1` and deployed to production with routing disabled.
+The owner then set `CADENCE_TRAVEL_PROVIDER_CLEARANCE=approved` in the
+production environment; redeploy `cadence-drxrpk40n` made it effective.
+Unauthenticated GET/POST to `/api/travel/routes` and GET `/api/travel/settings`
+still return 401. The signed-in owner account reports `configured: true`.
+
+Owner acceptance used the existing production web app in the desktop app's
+browser pane. Settings saved travel enabled, the separate routing consent,
+transit mode and a public saved base. The Timeline hook issued its own
+authenticated refreshes once the pane was visible and focused; a hidden pane
+correctly suppresses both Calendar loading and travel refresh. The browser's
+geolocation permission was `denied`, so every request carried `device: null`.
+
+Cloud Monitoring for project `habit-tracker-498717` (owner credentials, read-only)
+confirms the hosted identity path: 5 STS `ExchangeToken` and 5 IAM
+`GenerateAccessToken` responses returned 200, 10 v4 `GeocodeAddress` calls
+returned 200 and 1 `ComputeRoutes` call returned 200. No service-account key
+exists. Vercel runtime logs show only routine request lines and no errors.
+
+Private-account evidence: today's Calendar had an unlocated 3 PM event and a
+7–9 PM event whose Calendar location text (`NudiBranch`) is imprecise. The
+Calendar details correction (attendance in person, destination
+`220 E Chicago Ave, Chicago, IL 60611`) with saved base
+`1999 Campus Dr, Evanston, IL 60208` produced one transit return leg: ready
+01:00Z, depart 01:02:54Z, arrive 02:20:36Z, 4,662 s, `Google Maps` attribution,
+no fallback, no warnings, five-minute expiry. The outbound leg stayed unknown by
+design because the preceding 3 PM commitment has no location; no automatic base
+detour was inferred. Collisions were empty. The imprecise location produced no
+leg and no guessed endpoint. Route content and endpoints were transient; this
+record keeps timing only.
+
+Defect found: the geocode candidate filter accepted only `street_address`,
+`premise` and `subpremise` types. Precise `ROOFTOP` venues such as
+`Norris University Center, 1999 Campus Dr, Evanston, IL 60208` and
+`Museum of Contemporary Art Chicago, 220 E Chicago Ave, Chicago, IL 60611`
+(types `establishment`, `point_of_interest`) were treated as ambiguous, so
+named venues never became endpoints. The corrected filter rejects coarse types
+(localities, postal codes, routes, administrative areas) and keeps the
+granularity, single-result and overflow rules. The stale Settings sentence
+about pending provider review is removed. Fix status is recorded below.
+
+Ledger: the hosted global counter for 2026-09-22 reads 7 (1 carried
+public-landmark reservation plus 6 owner refreshes); the owner counter reads 6,
+which is the daily owner limit, so further owner refreshes today return
+`quota_exceeded` until the local day changes. That is expected enforcement.
+Conservative list-price spend for this phase is under US$0.15; billed cost is
+not yet verified.
+
+Installed-macOS travel acceptance remains open: the preview.43 build requires
+the owner's signing and updater environment in the shell.
