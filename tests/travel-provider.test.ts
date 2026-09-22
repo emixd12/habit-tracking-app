@@ -140,6 +140,40 @@ describe("travel provider", () => {
     await expect(geocodeGoogleAddress("New York", { config: hostedConfig(), fetch: coarse })).resolves.toEqual({ kind: "ambiguous" });
   });
 
+  it("resolves precise venue geocodes and keeps coarse ones ambiguous on the hosted path", async () => {
+    const [venueSts, venueIam] = authResponses();
+    const venue = vi.fn()
+      .mockResolvedValueOnce(venueSts)
+      .mockResolvedValueOnce(venueIam)
+      .mockResolvedValueOnce(Response.json({ results: [{ placeId: "venue", granularity: "ROOFTOP", types: ["establishment", "point_of_interest"] }] }));
+    await expect(geocodeGoogleAddress("Norris University Center, 1999 Campus Dr, Evanston, IL 60208", { config: hostedConfig(), fetch: venue }))
+      .resolves.toEqual({ kind: "resolved", point: { kind: "place_id", placeId: "venue" } });
+
+    const [citySts, cityIam] = authResponses();
+    const city = vi.fn()
+      .mockResolvedValueOnce(citySts)
+      .mockResolvedValueOnce(cityIam)
+      .mockResolvedValueOnce(Response.json({ results: [{ placeId: "city", granularity: "ROOFTOP", types: ["locality", "political"] }] }));
+    await expect(geocodeGoogleAddress("Evanston", { config: hostedConfig(), fetch: city })).resolves.toEqual({ kind: "ambiguous" });
+
+    const [centerSts, centerIam] = authResponses();
+    const center = vi.fn()
+      .mockResolvedValueOnce(centerSts)
+      .mockResolvedValueOnce(centerIam)
+      .mockResolvedValueOnce(Response.json({ results: [{ placeId: "center", granularity: "GEOMETRIC_CENTER", types: ["establishment"] }] }));
+    await expect(geocodeGoogleAddress("Somewhere", { config: hostedConfig(), fetch: center })).resolves.toEqual({ kind: "ambiguous" });
+  });
+
+  it("scans past the first eight types before accepting a hosted geocode", async () => {
+    const [sts, iam] = authResponses();
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(sts)
+      .mockResolvedValueOnce(iam)
+      .mockResolvedValueOnce(Response.json({ results: [{ placeId: "deep-coarse", granularity: "ROOFTOP",
+        types: ["establishment", "point_of_interest", "food", "restaurant", "store", "cafe", "bar", "lodging", "tourist_attraction", "locality"] }] }));
+    await expect(geocodeGoogleAddress("Deep Types", { config: hostedConfig(), fetch })).resolves.toEqual({ kind: "ambiguous" });
+  });
+
   it("reuses the short-lived OAuth token for route calls with the same request config", async () => {
     const config = hostedConfig();
     const [sts, iam] = authResponses();
@@ -197,6 +231,16 @@ describe("travel provider", () => {
     await expect(geocodeGoogleAddress("New York", { config: APPROVED, fetch: coarse })).resolves.toEqual({ kind: "ambiguous" });
     const many = vi.fn().mockResolvedValue(Response.json({ status: "OK", results: Array.from({ length: 6 }, (_, index) => ({ place_id: `p${index}`, types: ["street_address"], geometry: { location_type: "ROOFTOP" } })) }));
     await expect(geocodeGoogleAddress("Main", { config: APPROVED, fetch: many })).resolves.toEqual({ kind: "ambiguous" });
+  });
+
+  it("resolves precise venue geocodes and keeps coarse ones ambiguous on the api key path", async () => {
+    const venue = vi.fn().mockResolvedValue(Response.json({ status: "OK", results: [{ place_id: "venue", types: ["establishment", "point_of_interest"], geometry: { location_type: "ROOFTOP" } }] }));
+    await expect(geocodeGoogleAddress("Museum of Contemporary Art Chicago, 220 E Chicago Ave, Chicago, IL 60611", { config: APPROVED, fetch: venue }))
+      .resolves.toEqual({ kind: "resolved", point: { kind: "place_id", placeId: "venue" } });
+    const city = vi.fn().mockResolvedValue(Response.json({ status: "OK", results: [{ place_id: "city", types: ["locality", "political"], geometry: { location_type: "ROOFTOP" } }] }));
+    await expect(geocodeGoogleAddress("Chicago", { config: APPROVED, fetch: city })).resolves.toEqual({ kind: "ambiguous" });
+    const center = vi.fn().mockResolvedValue(Response.json({ status: "OK", results: [{ place_id: "center", types: ["establishment"], geometry: { location_type: "GEOMETRIC_CENTER" } }] }));
+    await expect(geocodeGoogleAddress("Somewhere", { config: APPROVED, fetch: center })).resolves.toEqual({ kind: "ambiguous" });
   });
 
   it("reports denied geocoding requests as provider failures", async () => {

@@ -57,3 +57,4 @@ pnpm-debug.log*
 .env.*
 !.env.example
 .agentic/runtime/
+.claude/fable-codex/

@@ -28,6 +28,14 @@ const ROUTES_FIELD_MASK = [
   "fallbackInfo",
 ].join(",");
 const MAX_GEOCODE_CANDIDATES = 5;
+const COARSE_GEOCODE_TYPES = new Set([
+  "locality", "postal_code", "postal_code_prefix", "postal_town", "neighborhood",
+  "route", "intersection", "country", "colloquial_area", "natural_feature", "plus_code",
+]);
+const COARSE_GEOCODE_TYPE_PREFIXES = ["sublocality", "administrative_area_level"];
+function coarseGeocodeType(type: string): boolean {
+  return COARSE_GEOCODE_TYPES.has(type) || COARSE_GEOCODE_TYPE_PREFIXES.some((prefix) => type.startsWith(prefix));
+}
 const MAX_RETRIES = 1;
 export const TRAVEL_PROVIDER_TIMEOUT_MS = 5_000;
 
@@ -120,16 +128,15 @@ export async function geocodeGoogleAddress(
   if (!hosted && body.status === "ZERO_RESULTS") return { kind: "unresolved" };
   if (!hosted && body.status !== "OK") throw new TravelProviderError("provider_unavailable", true);
   if (results.length === 0) return { kind: "unresolved" };
-  // A locality, postal code, or broad feature is not a safe travel endpoint.
+  // Coarse features (localities, postal codes, routes) are not safe endpoints;
+  // precise rooftop venues and addresses are.
   // Do not choose among multiple or provider-overflowed candidates.
   if (results.length > MAX_GEOCODE_CANDIDATES) return { kind: "ambiguous" };
   const candidates = results.flatMap((result) => {
     const geometry = record(result.geometry) ? result.geometry : null;
     const granularity = hosted ? result.granularity : geometry?.location_type;
     const preciseLocation = granularity === "ROOFTOP" || granularity === "RANGE_INTERPOLATED";
-    const preciseType = stringArray(result.types, 8, 80).some((type) =>
-      type === "street_address" || type === "premise" || type === "subpremise",
-    );
+    const preciseType = !stringArray(result.types, 32, 80).some(coarseGeocodeType);
     const placeId = hosted ? result.placeId : result.place_id;
     if ((!hosted && result.partial_match === true) || !preciseLocation || !preciseType || typeof placeId !== "string" || !placeId) return [];
     return [{ kind: "place_id" as const, placeId }];
