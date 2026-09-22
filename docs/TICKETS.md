@@ -11982,3 +11982,62 @@ zero-leg admission and the 24 limit; rollback-only SQL smoke against local Postg
 DOM test for the permission state line; required repository checks; hosted migration
 through the reviewed workflow; owner re-acceptance on web and installed desktop.
 Filing this ticket changes no runtime behavior.
+
+## Ticket 167: Travel refresh policy — first daily open, then manual, with base geocode reuse
+
+Status: planned. Filed September 22, 2026 from Ticket 165 owner acceptance.
+Dependencies: Ticket 166 (view reuse, per-code messages, admission change). Coordinate
+the two so the hook is changed once.
+
+Goal: cut provider calls and quota use to what the user actually needs by refreshing
+travel automatically only on the first Timeline open of the local day and on source
+changes, and reusing the saved base's geocode within provider policy.
+
+Scope and acceptance:
+
+- First open. The first Timeline open for an account on a local day refreshes travel
+  automatically, subject to the existing enabled, consent, mode and configured checks.
+  Record the local date of that automatic refresh per account and installation in the
+  existing local preference store; no server state.
+- Source-change refresh. After the first open, refresh automatically only when the
+  travel source key changes: event times, locations or revisions, corrections, located
+  Behavior occurrences, duration estimates or travel settings. Focus, visibility, online
+  and BroadcastChannel events reuse the current view and never send a request by themselves.
+- Manual refresh. The Timeline travel status line shows `Travel as of 2:52 PM` using the
+  view's `observedAt` in the account timezone, followed by a `Refresh travel` text link
+  (existing text-link style). Activating it invalidates the view and requests once. It
+  is disabled while a request is in flight and hidden when travel is off or unconfigured.
+- Expiry. When the view passes `expiresAt`, keep showing it with the status line
+  `Travel estimates from 2:52 PM may be stale.` plus the same `Refresh travel` link.
+  Do not auto-request on expiry. Spans and collisions remain visible until refreshed.
+- Device origin. The current position is read only during an automatic or manual
+  refresh. Document that the immediate-departure origin is as fresh as the last refresh.
+- Base geocode reuse. Server-side, reuse the saved base's resolved place ID for the
+  lifetime of the travel settings revision, held in memory per server instance with a
+  bound of 30 days, never persisted, never containing coordinates or route content.
+  Precondition: re-verify the Geocoding policy caching allowance and record the result
+  in `docs/qa/travel-release.md` before enabling. If the policy does not allow it, drop
+  this item and say so in the ticket.
+- Desktop parity. Same behavior through the shared hook; the manual link works offline
+  by showing the unavailable message without a request.
+- Disclosures and guide. Update `docs/user-guide/travel.md` and the Travel settings
+  panel copy to describe first-open plus manual refresh. No change to what is sent.
+
+References: `lib/ui/travel.ts`, `apps/desktop/src/travel.ts`,
+`components/timeline/DayProgressTimeline.tsx`, `lib/services/travel-route-refresh.service.ts`,
+`lib/services/travel-provider.ts`, `docs/qa/travel-release.md`, Ticket 166.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Hook refresh policy, status line and manual link; server base geocode reuse behind the policy check. |
+| Desktop | Shared hook and status line; offline manual behavior; installed re-acceptance on the next preview build. |
+| Marketing | Not applicable: no public claim changes; user guide wording only. |
+| Future mobile | Not applicable to native release; mobile web inherits the web behavior. |
+
+Verification: focused Vitest for first-open-per-day, source-change-only refresh, manual
+link states, stale display, and geocode reuse bounds; DOM test for the status line and
+link; required repository checks; owner re-acceptance on web and installed desktop with
+provider call counts read from Cloud Monitoring before and after.
+Filing this ticket changes no runtime behavior.
