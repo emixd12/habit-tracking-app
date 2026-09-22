@@ -305,3 +305,11 @@ not yet verified.
 
 Installed-macOS travel acceptance remains open: the preview.43 build requires
 the owner's signing and updater environment in the shell.
+
+PR #59 merged as `049cbf0f` with the geocode venue-type fix and the removed
+Settings sentence. Production deployment `cadence-m9a49eeqx` is Ready; the
+signed-in owner Settings page no longer shows the provider-review sentence and
+the routes endpoint still reports `configured: true`. A live venue-geocode
+re-check on production awaits the next owner local day because the owner
+counter is at its daily limit; unit tests and the local v3 probe confirm both
+venues resolve. Installed-macOS travel acceptance remains the only open gate.

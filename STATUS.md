@@ -99,6 +99,7 @@ designed. Acceptance exposed a geocode filter defect: precise rooftop venues typ
 `establishment`/`point_of_interest` were rejected as ambiguous. A coarse-type
 exclusion replaces the whitelist; the stale Settings sentence is removed. Installed
 macOS travel acceptance still awaits the owner's signed preview.43 build.
+PR #59 (`049cbf0f`) shipped the geocode fix; production `cadence-m9a49eeqx` is Ready.
 
 Release candidate PR #58 (`codex/travel-release-2026-09-22`) now carries the full
 travel implementation, the preserved-lineage Daily Brief hotfix and the briefing
