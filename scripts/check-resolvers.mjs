@@ -44,6 +44,8 @@ function walk(relativePath) {
 }
 
 const resolverRegistry = [
+  { domain: "historical completion timing", resolver: "packages/core/src/resolvers/completion-timing.resolver.ts", test: "tests/completion-timing.resolver.test.ts", source: "docs/DATETIME_STRATEGY.md" },
+  { domain: "briefing planner", resolver: "packages/core/src/resolvers/briefing-plan.resolver.ts", test: "tests/briefing-plan.resolver.test.ts", source: "docs/TICKETS.md" },
   {
     domain: "day-progress layout",
     resolver: "packages/core/src/resolvers/day-progress.resolver.ts",
@@ -55,6 +57,12 @@ const resolverRegistry = [
     resolver: "packages/core/src/resolvers/timeline-context.resolver.ts",
     test: "tests/timeline-context.resolver.test.ts",
     source: "docs/PRODUCT_SPEC.md",
+  },
+  {
+    domain: "travel itinerary and occupancy",
+    resolver: "packages/core/src/resolvers/travel.resolver.ts",
+    test: "tests/travel.resolver.test.ts",
+    source: "docs/TICKETS.md",
   },
   {
     domain: "Note shortcuts",

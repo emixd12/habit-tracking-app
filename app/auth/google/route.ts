@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import {
   AUTH_CALLBACK_ROUTE,
+  authRequestUrl,
   buildLoginPath,
   MISSING_CONFIG_ERROR,
   normalizeRedirectPath,
@@ -13,18 +14,19 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const requestUrl = authRequestUrl(request);
   const nextPath = normalizeRedirectPath(
-    request.nextUrl.searchParams.get("next"),
+    requestUrl.searchParams.get("next"),
     DEFAULT_APP_ROUTE,
   );
 
   if (!readSupabaseRuntimeConfig()) {
     return NextResponse.redirect(
-      new URL(buildLoginPath(nextPath, MISSING_CONFIG_ERROR), request.url),
+      new URL(buildLoginPath(nextPath, MISSING_CONFIG_ERROR), requestUrl),
     );
   }
 
-  const redirectTo = new URL(AUTH_CALLBACK_ROUTE, request.nextUrl.origin);
+  const redirectTo = new URL(AUTH_CALLBACK_ROUTE, requestUrl);
   redirectTo.searchParams.set("next", nextPath);
 
   const supabase = await createClient();
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
 
   if (error || !data.url) {
     return NextResponse.redirect(
-      new URL(buildLoginPath(nextPath, "oauth_start_failed"), request.url),
+      new URL(buildLoginPath(nextPath, "oauth_start_failed"), requestUrl),
     );
   }
 

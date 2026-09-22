@@ -237,6 +237,7 @@ export type DayProgressDayLayout = Readonly<{
   sameTimeBrackets: DayProgressSameTimeBracket[];
   movingDot: DayProgressMovingDot | null;
   timedEventSpans: DayProgressTimedEventSpan[];
+  travelSpans: ReadonlyArray<Readonly<{ segmentId: string; sourceRefs: string[]; startPosition: number; endPosition: number }>>;
   requiredIconHeight: number;
   iconLayoutOverflow: boolean;
   allDayEventIds: string[];

@@ -27,6 +27,7 @@ export function toBehaviorConfigurationSnapshotPayload(
 ): Json {
   return {
     category_id: snapshot.categoryId,
+    location_text: snapshot.locationText ?? null,
     schedule_graph: snapshot.scheduleGraph.map((schedule) => ({
       recurrence_rule: schedule.recurrenceRule,
       sort_order: schedule.sortOrder,

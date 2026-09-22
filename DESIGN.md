@@ -601,3 +601,54 @@ selected-name tags, a labeled search input, and a bounded checkbox list. Tags us
 Timeline Row Hover. Controls retain 44px targets, explicit Save, and per-calendar
 visibility. Escape restores summary focus. CalendarSettingsBench includes long
 names and enough synthetic choices to exercise scrolling.
+
+
+## Briefing workbench (Tickets 151–155)
+
+`/design-system?preview=briefing-workbench` uses neutral bench controls and the real
+horse bubble. Two columns stack on narrow screens. Voice, scope, reference, and
+planner fieldsets use labeled native controls. Runs require an explicit action;
+editing configuration cancels and discards results. Inspectors expose effective
+facts, omissions, planner constraints/rejections and versions. Draft storage and
+exports contain configuration only. Review notes and generated output stay in memory.
+The Context source selector defaults to Synthetic. My account shows current access,
+sign-in/Settings links, an access refresh action and authorized Behavior checkboxes.
+Run comparison requires enabled briefing access. Calendar controls reflect separate
+disclosure. Account mode disables save/export and clears private content and Behavior
+selections on leaving the tab. Delivered comparisons remain inspectable after the
+captured context's deadline, with an expired-snapshot notice. Window blur preserves
+results; focus rechecks access and preserves unchanged results. Mode, account and
+consent changes or failed access checks discard private output.
+The shared bubble renders suggestions and trusted source links within its existing
+scroll boundary. It exposes no Apply action or additional Settings controls.
+The workbench header now precedes two closed native details sections: a searchable
+contract glossary and preset/reference documents. Glossary entries expose stable
+IDs, owning symbols and related terms. Document previews wrap and scroll within
+the bench, with copyable file paths, VS Code links, downloads and original sources.
+These controls use the existing neutral bench styles and never generate a comparison.
+
+
+## Recipe-scoped briefing workbench
+
+Daily Brief is the only recipe. The development bench shows recipe/policy versions
+and native checkboxes/selects for completion inputs and duration preference/fallback.
+Finish timestamps remain disabled and visibly unavailable. Glossary links explain
+source semantics. Configuration panels stack on narrow screens. Existing neutral
+bench styles, product tokens and horse bubble geometry remain unchanged. The bubble
+omits the generic partial-context caption; diagnostics live in the private inspector.
+
+### Travel controls and occupancy (Tickets 162–165)
+
+BehaviorForm adds an optional line-led location field. Travel Settings reuses the
+divider-led SettingsPanel with native mode/navigation selects, optional base and
+separate routing disclosure and foreground location permission. Calendar details
+retain source location text and structured map links. Temporary travel spans use
+the existing 1px magenta Timeline axis and overlap borders; markers remain at
+scheduled starts. Known gaps remain unfilled. Unknown returns cannot claim full
+availability. Live provider and installed native acceptance remain separate.
+
+## Historical completion timing control
+
+The briefing workbench reuses its native checkbox/Definition-link row for
+Historical completion times. The control replaces the disabled timestamp row;
+geometry, spacing, typography, square borders and responsive columns are unchanged.

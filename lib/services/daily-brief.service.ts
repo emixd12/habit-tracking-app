@@ -1,21 +1,19 @@
-import { createHash, randomBytes } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
 import type { DailyBriefResponse, DailyBriefSettings } from "@cadence/core/types/daily-brief";
-import { readAdvisorCadenceRevision, readAdvisorProfileTimezone } from "@/lib/db/advisor-context.repo";
-import { beginDailyBrief, finishDailyBrief, listDailyBriefBehaviorIds, readDailyBriefPreferences, saveDailyBriefPreferences } from "@/lib/db/daily-brief.repo";
-import { createAdvisorOpaqueRef, readAdvisorDayContext, type AdvisorAuthorizationFence } from "./advisor-day-context.service";
-import { assertBriefContextFresh, DailyBriefError, generateDailyBrief, type DailyBriefGenerator } from "./daily-brief-consumer";
+import { readAdvisorProfileTimezone } from "@/lib/db/advisor-context.repo";
+import { beginDailyBrief, finishDailyBrief, readDailyBriefPreferences, saveDailyBriefPreferences } from "@/lib/db/daily-brief.repo";
+import { prepareAccountBriefingContexts, briefingAccountRef } from "./briefing-account-context.service";
+import { DailyBriefError, generateDailyBrief, raceBriefAbort as raceAbort, type DailyBriefGenerator } from "./daily-brief-consumer";
 import { generateOpenAIDailyBrief } from "./daily-brief-openai";
 import { getCalendarConnection, type CalendarCaller } from "./google-calendar.service";
 
-const CLIENT_ID = "cadence-daily-brief";
-const accountRef = (userId: string) => createHash("sha256").update(`cadence-daily-brief-account\0${userId}`).digest("base64url");
+import { activeBriefingConfig, briefingConfigurationRevision } from "./briefing-pipeline";
 
 export async function getDailyBriefSettings(caller: CalendarCaller): Promise<DailyBriefSettings> {
   const preferences = await readDailyBriefPreferences(caller.client);
   const timezone = await readAdvisorProfileTimezone(caller.client, caller.user.id);
-  return { accountRef: accountRef(caller.user.id), available: !!process.env.OPENAI_API_KEY,
-    enabled: preferences.enabled, includeCalendar: preferences.includeCalendar, revision: preferences.revision,
+  return { accountRef: briefingAccountRef(caller.user.id), available: !!process.env.OPENAI_API_KEY,
+    configurationRevision: briefingConfigurationRevision(), enabled: preferences.enabled, includeCalendar: preferences.includeCalendar, revision: preferences.revision,
     timezone, localDate: Temporal.Now.instant().toZonedDateTimeISO(timezone).toPlainDate().toString() };
 }
 
@@ -42,7 +40,8 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
   }
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new DailyBriefError("not_configured");
-  const key = randomBytes(32);
+  const configuration = activeBriefingConfig();
+  const configurationRevision = briefingConfigurationRevision(configuration);
   const clock = options.now ?? (() => Temporal.Now.instant());
   const signal = AbortSignal.timeout(options.deadlineMs ?? 60_000);
   const installationId = value.installationId;
@@ -57,40 +56,24 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
     let successful = false;
     try {
       signal.throwIfAborted();
-      const expiresAt = clock().add({ minutes: 5 }).toString();
-      const readAuthorization = async (): Promise<AdvisorAuthorizationFence> => {
-        signal.throwIfAborted();
-        const current = await readDailyBriefPreferences(caller.client, signal);
-        if (!current.enabled || current.revision !== preferences.revision) throw new DailyBriefError("context_changed");
-        const behaviorIds = await listDailyBriefBehaviorIds(caller.client, caller.user.id, signal);
-        let calendar: AdvisorAuthorizationFence["calendar"] = null;
-        if (preferences.includeCalendar) {
-          const connection = await getCalendarConnection(caller);
-          if (connection.status !== "connected" || connection.generation !== preferences.calendarConnectionGeneration || connection.selectionRevision !== preferences.calendarSelectionRevision) {
-            throw new DailyBriefError("context_changed");
-          }
-          calendar = { calendarIds: [...connection.preferences.selectedCalendarIds].sort(), connectionGeneration: connection.generation, selectionRevision: connection.selectionRevision };
-        }
-        signal.throwIfAborted();
-        return { userId: caller.user.id, clientId: CLIENT_ID, accountRef: accountRef(caller.user.id),
-          grantGeneration: preferences.revision, grantExpiresAt: expiresAt, behaviorIds, calendar };
-      };
-      const authorization = await readAuthorization();
-      const context = await readAdvisorDayContext({ caller, authorization, revalidateAuthorization: readAuthorization,
-        includeGoogleCalendar: preferences.includeCalendar, localDate: admission.localDate, opaqueRefKey: key, clock });
+      const prepared = await prepareAccountBriefingContexts(caller, {
+        historyDays: [configuration.scope.historyDays],
+        includeCalendar: configuration.scope.includeCalendar,
+        includeRecordedElapsedDurations: configuration.context.includeRecordedElapsedDurations,
+        includeHistoricalCompletionTimes: configuration.context.includeHistoricalCompletionTimes,
+        signal,
+        clock,
+        preferences,
+        localDate: admission.localDate,
+      });
+      const context = prepared.contexts[0]!;
       const assertCurrent = async () => {
-        signal.throwIfAborted();
-        const revision = await readAdvisorCadenceRevision(caller.client, { localDate: context.localDate,
-          historyStartLocalDate: Temporal.PlainDate.from(context.localDate).subtract({ days: 90 }).toString(), behaviorIds: authorization.behaviorIds, signal });
-        const timezone = await readAdvisorProfileTimezone(caller.client, caller.user.id);
-        if (timezone !== context.timezone || createAdvisorOpaqueRef(key, authorization)("revision", revision) !== context.cadence.revision ||
-            JSON.stringify(await readAuthorization()) !== JSON.stringify(authorization)) throw new DailyBriefError("context_changed");
-        assertBriefContextFresh(context, clock());
-        signal.throwIfAborted();
+        if (briefingConfigurationRevision() !== configurationRevision) throw new DailyBriefError("context_changed");
+        await prepared.assertCurrent();
       };
       await assertCurrent();
       const modelSignal = AbortSignal.any([signal, AbortSignal.timeout(30_000)]);
-      const briefing = await raceAbort(generateDailyBrief(context, { now: clock, signal: modelSignal,
+      const briefing = await raceAbort(generateDailyBrief(context, { config: configuration, now: clock, signal: modelSignal,
         generate: options.generate ?? ((input) => generateOpenAIDailyBrief(input, { apiKey })) }), modelSignal);
       // The lease must still belong to this attempt. A superseded attempt never returns text.
       const finished = await finishDailyBrief(caller.client, { installationId, leaseToken, success: true, expectedRevision: preferences.revision }, signal);
@@ -105,14 +88,6 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
   return raceAbort(work(), signal);
 }
 
-function raceAbort<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const abort = () => reject(new DailyBriefError("timeout"));
-    if (signal.aborted) { void work.catch(() => undefined); abort(); return; }
-    signal.addEventListener("abort", abort, { once: true });
-    work.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
-  });
-}
 function record(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }

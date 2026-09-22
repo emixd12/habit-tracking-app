@@ -341,7 +341,18 @@ function prepare(snapshot: AccountSyncSnapshot): Map<string, AccountSyncEntity> 
 function normalize(entity: AccountSyncEntity): AccountSyncEntity {
   if (entity.kind === "profile") {
     const value = entity.value && !Array.isArray(entity.value) && typeof entity.value === "object" ? entity.value : {};
-    return { kind: "profile", id: "profile", value: { timezone: typeof value.timezone === "string" ? value.timezone : null } };
+    const normalized = normalizeRow({
+      timezone: typeof value.timezone === "string" ? value.timezone : null,
+      travel_enabled: value.travel_enabled === true,
+      base_location_text: typeof value.base_location_text === "string" ? value.base_location_text : null,
+      travel_mode: typeof value.travel_mode === "string" ? value.travel_mode : null,
+      navigation_preference: typeof value.navigation_preference === "string" ? value.navigation_preference : null,
+      routing_consent_at: typeof value.routing_consent_at === "string" ? value.routing_consent_at : null,
+      onboarding_completed_at: typeof value.onboarding_completed_at === "string" ? value.onboarding_completed_at : null,
+      updated_at: typeof value.updated_at === "string" ? value.updated_at : null,
+    });
+    validateProfileSyncValue(normalized);
+    return { kind: "profile", id: "profile", value: normalized };
   }
   let value = stripOwnership(entity.value);
   if (entity.kind === "note_shortcut_state") noteShortcutState({ ...entity, value });
@@ -354,12 +365,28 @@ function normalize(entity: AccountSyncEntity): AccountSyncEntity {
       default_duration_minutes: null,
       end_date: null,
       auto_archived_at: null,
+      location_text: null,
       ...value,
     };
     parseArchiveNotes(value.archive_notes);
     validateBehaviorPersistenceFields(value);
   }
   return { kind: entity.kind, id: entity.id, value };
+}
+
+function validateProfileSyncValue(value: Json): void {
+  if (!value || Array.isArray(value) || typeof value !== "object"
+    || typeof value.timezone !== "string"
+    || typeof value.travel_enabled !== "boolean"
+    || !(value.base_location_text === null || typeof value.base_location_text === "string")
+    || !(value.travel_mode === null || ["walking", "cycling", "transit", "driving"].includes(String(value.travel_mode)))
+    || !(value.navigation_preference === null || ["google_maps", "apple_maps"].includes(String(value.navigation_preference)))
+    || !(value.routing_consent_at === null || typeof value.routing_consent_at === "string")
+    || !(value.onboarding_completed_at === null || typeof value.onboarding_completed_at === "string")
+    || !(value.updated_at === null || typeof value.updated_at === "string")
+    || (value.travel_enabled && (!value.travel_mode || !value.routing_consent_at))) {
+    throw new Error("The synced travel settings are invalid.");
+  }
 }
 
 function validateBehaviorPersistenceFields(value: Record<string, Json | undefined>): void {
@@ -384,6 +411,11 @@ function validateBehaviorPersistenceFields(value: Record<string, Json | undefine
     if (value.active !== false || typeof value.archived_at !== "string") {
       throw new Error("The account automatic archive marker requires an archived Behavior.");
     }
+  }
+  const locationText = value.location_text;
+  if (locationText !== null && (typeof locationText !== "string" || locationText.trim() !== locationText
+    || locationText.length < 1 || locationText.length > 500 || /[\u0000-\u001f\u007f]/u.test(locationText))) {
+    throw new Error("The account Behavior location is invalid.");
   }
 }
 function normalizeRow(value: Json): Json {

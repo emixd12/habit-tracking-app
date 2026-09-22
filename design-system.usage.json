@@ -4,6 +4,46 @@
   "root": "/Users/emi/Coding Projects/habit-tracking-app",
   "usages": [
     {
+      "componentId": "layout.cadence-page-banner",
+      "file": "components/layout/ScreenFrame.tsx",
+      "line": 37,
+      "route": "screen frame",
+      "usageKind": "render",
+      "confidence": "manual"
+    },
+    {
+      "componentId": "module.daily-brief-bubble",
+      "file": "components/briefing/DailyBriefLauncher.tsx",
+      "line": 14,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "manual"
+    },
+    {
+      "componentId": "module.daily-brief-settings-panel",
+      "file": "app/(app)/settings/page.tsx",
+      "line": 53,
+      "route": "(app)/settings/page",
+      "usageKind": "render",
+      "confidence": "manual"
+    },
+    {
+      "componentId": "module.daily-brief-settings-panel",
+      "file": "apps/desktop/src/product.tsx",
+      "line": 477,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "manual"
+    },
+    {
+      "componentId": "navigation.primary-app-nav",
+      "file": "components/layout/AppShell.tsx",
+      "line": 684,
+      "route": "app shell",
+      "usageKind": "render",
+      "confidence": "manual"
+    },
+    {
       "componentId": "composite.behavior-form",
       "file": "components/behaviors/BehaviorCreateSection.tsx",
       "line": 73,
@@ -86,7 +126,15 @@
     {
       "componentId": "composite.external-event-details",
       "file": "components/timeline/DayProgressTimeline.tsx",
-      "line": 235,
+      "line": 254,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "composite.external-event-details",
+      "file": "tests/travel-settings.dom.test.tsx",
+      "line": 44,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -94,7 +142,7 @@
     {
       "componentId": "composite.external-event-preview",
       "file": "components/timeline/DayProgressTimeline.tsx",
-      "line": 228,
+      "line": 246,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -150,7 +198,7 @@
     {
       "componentId": "composite.occurrence-row",
       "file": "apps/desktop/src/timeline-screen.tsx",
-      "line": 150,
+      "line": 159,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -158,7 +206,7 @@
     {
       "componentId": "composite.occurrence-row",
       "file": "components/timeline/DayProgressTimeline.tsx",
-      "line": 391,
+      "line": 416,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -206,7 +254,7 @@
     {
       "componentId": "flow.account-deletion-panel",
       "file": "app/(app)/settings/page.tsx",
-      "line": 74,
+      "line": 80,
       "route": "(app)/settings/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -238,7 +286,7 @@
     {
       "componentId": "flow.first-run-onboarding-panel",
       "file": "app/(app)/timeline/page.tsx",
-      "line": 89,
+      "line": 94,
       "route": "(app)/timeline/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -292,14 +340,6 @@
       "confidence": "exact"
     },
     {
-      "componentId": "layout.cadence-page-banner",
-      "file": "components/layout/ScreenFrame.tsx",
-      "line": 37,
-      "route": "screen frame",
-      "usageKind": "render",
-      "confidence": "manual"
-    },
-    {
       "componentId": "layout.screen-frame",
       "file": "app/(app)/behaviors/page.tsx",
       "line": 50,
@@ -318,7 +358,7 @@
     {
       "componentId": "layout.screen-frame",
       "file": "app/(app)/settings/page.tsx",
-      "line": 33,
+      "line": 35,
       "route": "(app)/settings/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -518,7 +558,7 @@
     {
       "componentId": "module.category-panel",
       "file": "app/(app)/settings/page.tsx",
-      "line": 68,
+      "line": 74,
       "route": "(app)/settings/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -526,7 +566,7 @@
     {
       "componentId": "module.category-panel",
       "file": "apps/desktop/src/product.tsx",
-      "line": 472,
+      "line": 498,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -541,32 +581,24 @@
     },
     {
       "componentId": "module.daily-brief-bubble",
-      "file": "components/briefing/DailyBriefLauncher.tsx",
-      "line": 14,
+      "file": "tests/daily-brief-ui.dom.test.tsx",
+      "line": 111,
       "route": null,
       "usageKind": "render",
-      "confidence": "manual"
+      "confidence": "heuristic"
     },
     {
       "componentId": "module.daily-brief-settings-panel",
-      "file": "app/(app)/settings/page.tsx",
-      "line": 53,
-      "route": "(app)/settings/page",
-      "usageKind": "render",
-      "confidence": "manual"
-    },
-    {
-      "componentId": "module.daily-brief-settings-panel",
-      "file": "apps/desktop/src/product.tsx",
-      "line": 477,
+      "file": "tests/daily-brief-ui.dom.test.tsx",
+      "line": 98,
       "route": null,
       "usageKind": "render",
-      "confidence": "manual"
+      "confidence": "exact"
     },
     {
       "componentId": "module.day-progress-timeline",
       "file": "apps/desktop/src/timeline-screen.tsx",
-      "line": 179,
+      "line": 188,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -574,7 +606,7 @@
     {
       "componentId": "module.day-progress-timeline",
       "file": "components/timeline/Timeline.tsx",
-      "line": 82,
+      "line": 84,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -742,7 +774,7 @@
     {
       "componentId": "module.google-calendar-panel",
       "file": "apps/desktop/src/product.tsx",
-      "line": 475,
+      "line": 501,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -830,7 +862,7 @@
     {
       "componentId": "module.google-calendar-panel",
       "file": "tests/google-calendar-panel.dom.test.tsx",
-      "line": 185,
+      "line": 233,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -846,7 +878,7 @@
     {
       "componentId": "module.mobile-timeline-pull-to-refresh",
       "file": "components/timeline/Timeline.tsx",
-      "line": 41,
+      "line": 43,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -886,7 +918,7 @@
     {
       "componentId": "module.needs-decision-dialog",
       "file": "apps/desktop/src/timeline-screen.tsx",
-      "line": 153,
+      "line": 162,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -894,7 +926,7 @@
     {
       "componentId": "module.needs-decision-dialog",
       "file": "components/timeline/Timeline.tsx",
-      "line": 51,
+      "line": 53,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -910,7 +942,7 @@
     {
       "componentId": "module.note-shortcut-controls",
       "file": "app/(app)/settings/page.tsx",
-      "line": 70,
+      "line": 76,
       "route": "(app)/settings/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -918,7 +950,7 @@
     {
       "componentId": "module.note-shortcut-controls",
       "file": "apps/desktop/src/product.tsx",
-      "line": 471,
+      "line": 497,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -974,7 +1006,7 @@
     {
       "componentId": "module.notification-permission-panel",
       "file": "app/(app)/settings/page.tsx",
-      "line": 62,
+      "line": 64,
       "route": "(app)/settings/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -1006,7 +1038,7 @@
     {
       "componentId": "module.reminder-editor",
       "file": "components/behaviors/BehaviorForm.tsx",
-      "line": 372,
+      "line": 375,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -1110,7 +1142,7 @@
     {
       "componentId": "module.timeline",
       "file": "app/(app)/timeline/page.tsx",
-      "line": 90,
+      "line": 95,
       "route": "(app)/timeline/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -1150,7 +1182,7 @@
     {
       "componentId": "module.timeline-group",
       "file": "apps/desktop/src/timeline-screen.tsx",
-      "line": 168,
+      "line": 177,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -1158,7 +1190,7 @@
     {
       "componentId": "module.timeline-group",
       "file": "components/timeline/Timeline.tsx",
-      "line": 66,
+      "line": 68,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -1182,7 +1214,7 @@
     {
       "componentId": "module.timezone-panel",
       "file": "app/(app)/settings/page.tsx",
-      "line": 57,
+      "line": 59,
       "route": "(app)/settings/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -1190,7 +1222,7 @@
     {
       "componentId": "module.timezone-panel",
       "file": "apps/desktop/src/settings-screen.tsx",
-      "line": 90,
+      "line": 96,
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
@@ -1212,9 +1244,33 @@
       "confidence": "exact"
     },
     {
+      "componentId": "module.travel-settings-panel",
+      "file": "app/(app)/settings/page.tsx",
+      "line": 70,
+      "route": "(app)/settings/page",
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.travel-settings-panel",
+      "file": "apps/desktop/src/product.tsx",
+      "line": 504,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
+      "componentId": "module.travel-settings-panel",
+      "file": "tests/travel-settings.dom.test.tsx",
+      "line": 19,
+      "route": null,
+      "usageKind": "render",
+      "confidence": "exact"
+    },
+    {
       "componentId": "module.trust-and-legal-panel",
       "file": "app/(app)/settings/page.tsx",
-      "line": 72,
+      "line": 78,
       "route": "(app)/settings/page",
       "usageKind": "render",
       "confidence": "exact"
@@ -1250,14 +1306,6 @@
       "route": null,
       "usageKind": "render",
       "confidence": "exact"
-    },
-    {
-      "componentId": "navigation.primary-app-nav",
-      "file": "components/layout/AppShell.tsx",
-      "line": 684,
-      "route": "app shell",
-      "usageKind": "render",
-      "confidence": "manual"
     }
   ],
   "summary": {

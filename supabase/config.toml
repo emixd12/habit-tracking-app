@@ -160,7 +160,51 @@ site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://localhost:3000/auth/callback", "http://127.0.0.1:3000/auth/callback"]
+# Local QA permits only the callback path on the designated loopback port pool.
+additional_redirect_urls = [
+  "http://localhost:3000/auth/callback",
+  "http://127.0.0.1:3000/auth/callback",
+  "http://localhost:4321/auth/callback",
+  "http://localhost:4321/auth/callback?next=**",
+  "http://localhost:4322/auth/callback",
+  "http://localhost:4322/auth/callback?next=**",
+  "http://localhost:4323/auth/callback",
+  "http://localhost:4323/auth/callback?next=**",
+  "http://localhost:4324/auth/callback",
+  "http://localhost:4324/auth/callback?next=**",
+  "http://localhost:4325/auth/callback",
+  "http://localhost:4325/auth/callback?next=**",
+  "http://localhost:4326/auth/callback",
+  "http://localhost:4326/auth/callback?next=**",
+  "http://localhost:4327/auth/callback",
+  "http://localhost:4327/auth/callback?next=**",
+  "http://localhost:4328/auth/callback",
+  "http://localhost:4328/auth/callback?next=**",
+  "http://localhost:4329/auth/callback",
+  "http://localhost:4329/auth/callback?next=**",
+  "http://localhost:4330/auth/callback",
+  "http://localhost:4330/auth/callback?next=**",
+  "http://127.0.0.1:4321/auth/callback",
+  "http://127.0.0.1:4321/auth/callback?next=**",
+  "http://127.0.0.1:4322/auth/callback",
+  "http://127.0.0.1:4322/auth/callback?next=**",
+  "http://127.0.0.1:4323/auth/callback",
+  "http://127.0.0.1:4323/auth/callback?next=**",
+  "http://127.0.0.1:4324/auth/callback",
+  "http://127.0.0.1:4324/auth/callback?next=**",
+  "http://127.0.0.1:4325/auth/callback",
+  "http://127.0.0.1:4325/auth/callback?next=**",
+  "http://127.0.0.1:4326/auth/callback",
+  "http://127.0.0.1:4326/auth/callback?next=**",
+  "http://127.0.0.1:4327/auth/callback",
+  "http://127.0.0.1:4327/auth/callback?next=**",
+  "http://127.0.0.1:4328/auth/callback",
+  "http://127.0.0.1:4328/auth/callback?next=**",
+  "http://127.0.0.1:4329/auth/callback",
+  "http://127.0.0.1:4329/auth/callback?next=**",
+  "http://127.0.0.1:4330/auth/callback",
+  "http://127.0.0.1:4330/auth/callback?next=**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

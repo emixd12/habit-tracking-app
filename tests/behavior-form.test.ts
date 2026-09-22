@@ -58,6 +58,7 @@ describe("parseBehaviorFormData", () => {
       endDate: null,
       title: "Brush teeth",
       description: "Evening routine",
+      locationText: null,
       categoryId: CATEGORY_ID,
       recurrenceRule: { frequency: "daily", interval: 1 },
       scheduledTime: "22:00",

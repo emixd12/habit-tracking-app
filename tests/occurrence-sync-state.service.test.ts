@@ -149,6 +149,17 @@ describe("occurrence sync freshness decisions", () => {
     }).timezone).toBe("America/New_York");
   });
 
+  it("uses active coverage windows while retaining archived plan counts", () => {
+    const activeWindow = { ...WINDOW, timezone: "America/Los_Angeles" };
+    const plans = [WINDOW, activeWindow].map(generationWindow => ({
+      generationWindow, create: [], updateUnresolved: [], deleteUnresolved: [],
+    }));
+    const summary = summarizeOccurrenceSyncPlans({ plans, coverageWindows: [activeWindow], fallbackWindow: activeWindow });
+    expect(summary).toMatchObject({ timezone: "America/Los_Angeles", behaviorCount: 2 });
+    expect(summarizeOccurrenceSyncPlans({ plans, coverageWindows: [], fallbackWindow: activeWindow }))
+      .toMatchObject({ timezone: "America/Los_Angeles", behaviorCount: 2 });
+  });
+
   it("uses the fallback window when a sync has no behaviors", () => {
     expect(
       summarizeOccurrenceSyncPlans({

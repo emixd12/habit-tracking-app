@@ -214,6 +214,10 @@ function parseConfigurationSnapshot(
       snapshot.category_id,
       "configuration category_id",
     ),
+    locationText: requireNullableString(
+      snapshot.location_text ?? null,
+      "configuration location_text",
+    ),
     scheduleGraph,
     browserReminderEnabled: requireBoolean(
       snapshot.browser_reminder_enabled,
@@ -404,6 +408,7 @@ function toExportBehaviorInput(
     categoryName: behavior.category?.name ?? null,
     title: behavior.title,
     description: behavior.description,
+    locationText: behavior.location_text ?? null,
     recurrenceRule,
     scheduledTime,
     schedules,

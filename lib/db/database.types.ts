@@ -431,6 +431,7 @@ export type Database = {
           email_reminder_enabled: boolean
           end_date: string | null
           id: string
+          location_text: string | null
           recurrence_rule: Json
           reminder_offset_minutes: number
           scheduled_time: string
@@ -453,6 +454,7 @@ export type Database = {
           email_reminder_enabled?: boolean
           end_date?: string | null
           id?: string
+          location_text?: string | null
           recurrence_rule: Json
           reminder_offset_minutes?: number
           scheduled_time: string
@@ -475,6 +477,7 @@ export type Database = {
           email_reminder_enabled?: boolean
           end_date?: string | null
           id?: string
+          location_text?: string | null
           recurrence_rule?: Json
           reminder_offset_minutes?: number
           scheduled_time?: string
@@ -1229,6 +1232,89 @@ export type Database = {
           },
         ]
       }
+      travel_route_global_quota: {
+        Row: {
+          attempt_count: number
+          updated_at: string
+          utc_date: string
+        }
+        Insert: {
+          attempt_count: number
+          updated_at?: string
+          utc_date: string
+        }
+        Update: {
+          attempt_count?: number
+          updated_at?: string
+          utc_date?: string
+        }
+        Relationships: []
+      }
+      travel_route_owner_quota: {
+        Row: {
+          attempt_count: number
+          local_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt_count: number
+          local_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt_count?: number
+          local_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      travel_settings: {
+        Row: {
+          base_location_text: string | null
+          created_at: string
+          enabled: boolean
+          mode: string | null
+          navigation_preference: string | null
+          onboarding_completed_at: string | null
+          routing_consent_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_location_text?: string | null
+          created_at?: string
+          enabled?: boolean
+          mode?: string | null
+          navigation_preference?: string | null
+          onboarding_completed_at?: string | null
+          routing_consent_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_location_text?: string | null
+          created_at?: string
+          enabled?: boolean
+          mode?: string | null
+          navigation_preference?: string | null
+          onboarding_completed_at?: string | null
+          routing_consent_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "travel_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1371,6 +1457,13 @@ export type Database = {
           limit_count: number
           remaining: number
           reset_at: string
+          retry_after_seconds: number
+        }[]
+      }
+      consume_travel_route_quota: {
+        Args: never
+        Returns: {
+          allowed: boolean
           retry_after_seconds: number
         }[]
       }

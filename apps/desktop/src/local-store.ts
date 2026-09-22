@@ -12,6 +12,7 @@ import type {
 } from "@cadence/core/data-store";
 import type { AccountSyncEntity, AccountSyncWrite } from "@cadence/core/resolvers/account-sync.resolver";
 import type { NoteShortcutContext, NoteShortcutState } from "@cadence/core/types/note-shortcut";
+import type { TravelSettings } from "@cadence/core/types/travel";
 
 export type LocalBehaviorGraph = {
   behavior: Behavior;
@@ -45,6 +46,11 @@ export type LocalCommandMap = {
     expectedRevision: number; idempotencyKey: string; baselineFingerprint: string; baselineJson: string; backupPath: string | null; completedAt: string; writes: AccountSyncWrite[] }; result: { appliedCount: number } };
   readImportRuns: { input: Owned & { limit: number; kind?: "import" | "restore" }; result: PortabilityImportRunRow[] };
   readImportSnapshot: { input: Owned; result: PortabilitySnapshot & { noteShortcutStates: NoteShortcutState[] } };
+  readTravelSettings: { input: Owned; result: TravelSettings };
+  commitTravelSettings: {
+    input: Mutation & { expectedUpdatedAt: string; next: TravelSettings };
+    result: TravelSettings;
+  };
   readNoteShortcutStates: { input: Owned; result: NoteShortcutState[] };
   readNoteShortcutContext: { input: Owned & { behaviorId: string | null }; result: NoteShortcutContext };
   commitNoteShortcutState: {

@@ -150,3 +150,26 @@ no hidden timezone. Existing state-version and configuration-event comparisons
 guard sync completion; a concurrent edit leaves the account stale for retry.
 Freshness summaries derive timezone from the actual generation windows. Mixed
 windows retain the existing `multiple` marker and cannot claim one profile zone.
+
+## Historical completion marking times
+
+`completion-timing.resolver.ts` summarizes existing `status_marked_at` values for
+currently Completed Occurrences. It never substitutes `updated_at`, scheduled time,
+status-event backfill time, or an actual-finish estimate. The current-status snapshot
+already represents corrections: Unresolved/Not Completed removes a sample;
+re-completion supplies the new mark; repeated Completed taps retain the original.
+Deduplicate by Occurrence ID, never count each status-history event as a sample.
+
+Use the current account timezone for every instant, including DST conversion.
+Both the historical Occurrence date and the mark's local date must lie in
+`[today - historyDays, today)`. Delayed marks within that window remain eligible;
+count marks recorded on later local dates separately. Today is excluded and today's
+Occurrence need not be completed. Existing duration rules remain independent.
+
+Require three distinct Occurrences across three marking dates. Sort local clock
+minutes, cut at the largest circular gap, and calculate the median on that
+unwrapped arc. A span above 180 minutes does not support a single typical time.
+Thus 23:50, 00:05 and 00:10 cluster around midnight rather than noon. Quantize to
+minutes. Report counts, delayed-mark count, range, and exclusions. Insufficient,
+dispersed, capped or unavailable evidence has no typical time. Missing, invalid,
+future, out-of-window, non-Completed and duplicate records never become samples.

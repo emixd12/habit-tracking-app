@@ -1,4 +1,5 @@
 "use client";
+import { travelBenchEvidence } from "./TravelBench";
 import { Temporal } from "@js-temporal/polyfill";
 import { DayProgressTimeline } from "@/components/timeline/DayProgressTimeline";
 import { resolveTimeline } from "@cadence/core/resolvers/timeline.resolver";
@@ -46,6 +47,12 @@ const timeline = resolveTimeline({ timezone: snapshot.requestedRange.timezone, n
 });
 const idleAction = async () => ({ status: "idle" as const, message: "Synthetic preview only." });
 export function CalendarTimelineBench() {
-  return <DayProgressTimeline timeline={timeline} context={{ events: snapshot.events, freshness: snapshot.freshness, now: snapshot.fetchedAt }}
-    statusAction={idleAction} noteAction={idleAction} startTimeTrackingAction={idleAction} stopTimeTrackingAction={idleAction} resetTimeTrackingAction={idleAction} />;
+  const [scenario, setScenario] = useState("calendar");
+  const first = snapshot.events[0]!;
+  const events = scenario === "calendar" ? snapshot.events : [{ ...first, kind: "timed" as const, title: "Afternoon appointment", location: "Synthetic destination", startAt: "2026-11-01T19:30:00Z", endAt: "2026-11-01T21:30:00Z", endUnspecified: false, duration: { kind: "known" as const, seconds: 7200 } }];
+  return <><label className="mb-4 grid gap-2 text-sm">Fixture<select className="min-h-11 border border-line bg-background" value={scenario} onChange={(event) => setScenario(event.target.value)}><option value="calendar">Calendar</option><option value="travel">Complete trip: 1:30–6:30 PM</option><option value="no-base">No base: keep outbound</option></select></label>
+    <DayProgressTimeline timeline={timeline} context={{ events, freshness: snapshot.freshness, now: snapshot.fetchedAt,
+      durationEstimates: { "calendar-bench-behavior": { kind: "known", seconds: 1800, durationLabel: "30 minutes", sampleCount: 0, lookbackDays: 30, provenance: "behavior_default" } },
+      travel: scenario === "calendar" ? null : travelBenchEvidence(first.id, scenario === "travel"), travelMode: "walking" }}
+    statusAction={idleAction} noteAction={idleAction} startTimeTrackingAction={idleAction} stopTimeTrackingAction={idleAction} resetTimeTrackingAction={idleAction} /></>;
 }

@@ -313,6 +313,7 @@ describe("BehaviorLog import write service", () => {
         previous_configuration: null,
         changed_fields: [
           "category_id",
+          "location_text",
           "schedule_graph",
           "browser_reminder_enabled",
           "email_reminder_enabled",

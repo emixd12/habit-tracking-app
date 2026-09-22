@@ -11020,7 +11020,7 @@ No schema, OAuth scope, provider event mutation, or deployment is required.
 
 ## Ticket 151: Briefing configuration contract and saved presets
 
-Status: not_started.
+Status: complete.
 Filed September 20, 2026. Dependencies: source contracts from Tickets 146–148.
 
 Goal: replace fixed briefing choices with a small, provider-neutral configuration
@@ -11063,9 +11063,13 @@ Verification: default-preset compatibility, exact validation, scope intersection
 history-window/cap fixtures, prompt injection and zero-source-write tests. Run all
 required repository checks. Update resolver ownership for any new pure owner.
 
+Implementation and provider-free verification: `docs/qa/briefing-workbench.md`.
+Independent source review accepted this implementation. Ticket 155 retains live
+quality, hosted and installed desktop acceptance gates.
+
 ## Ticket 152: Curated briefing references and verifiable citations
 
-Status: not_started.
+Status: complete.
 Filed September 20, 2026. Dependency: Ticket 151.
 
 Goal: let the workbench select research and guidance that can support briefing
@@ -11110,9 +11114,13 @@ IDs, hostile reference instructions and absent evidence. Review synthetic advice
 against its actual cited excerpts. Run required repository checks; update the
 existing interaction/design catalogs only when source controls are implemented.
 
+Implementation and provider-free verification: `docs/qa/briefing-workbench.md`.
+Independent source review accepted this implementation. Ticket 155 retains live
+quality, hosted and installed desktop acceptance gates.
+
 ## Ticket 153: Deterministic briefing planner and suggestion routing
 
-Status: not_started.
+Status: complete.
 Filed September 20, 2026. Dependencies: Ticket 151 and Ticket 146 context contracts.
 Ticket 152 is required only for research-backed explanations.
 
@@ -11159,14 +11167,24 @@ partial/stale sources, no feasible slot, DST/overnight/day boundaries, status ha
 revision invalidation and zero writes. Pair every resolver with tests and run all
 required repository checks.
 
+Implementation and provider-free verification: `docs/qa/briefing-workbench.md`.
+Independent source review accepted this implementation. Ticket 155 retains live
+quality, hosted and installed desktop acceptance gates.
+
 ## Ticket 154: Internal briefing workbench and comparison previews
 
-Status: not_started.
+Status: complete. My account comparisons, the contract glossary and repository document access passed required checks and independent review.
+September 21 output follow-up: an owner-clicked local comparison rendered two
+validated account briefings side by side. A previous attempt withheld one output;
+its exact rejection remains unverified. Pipeline 1.1 removes the hard-coded
+120-word prompt limit in favor of each configuration's combined word budget.
+All required checks pass; independent review of this correction returned `ship`. See
+`docs/qa/briefing-workbench.md`; hosted and installed release gates remain open.
 Filed September 20, 2026. Dependency: Ticket 151. Add reference and planning controls
 as Tickets 152–153 land; unavailable controls must not pretend to work.
 
 Goal: adjust briefing dimensions and compare real generated outputs against the
-same frozen synthetic facts inside the existing development design bench.
+same frozen synthetic or signed-in account facts inside the existing development design bench.
 
 Scope and acceptance:
 
@@ -11176,8 +11194,12 @@ Scope and acceptance:
 - Provide grouped controls for voice, scope, references, suggestion options and
   planner policy. Load, duplicate, edit, compare and export validated configuration
   presets. Saving a workbench draft never activates it for daily users.
-- Freeze one synthetic snapshot for a comparison. Hold its injected clock, facts
-  and fixture revision constant; show intentional scope differences separately.
+- Freeze one authorized snapshot for a comparison. Synthetic mode uses fixed fixtures;
+  My account mode uses the signed-in owner and existing revocable model-data consent.
+  Read Cadence and optional disclosed Calendar once per comparison. Apply history
+  windows before aggregation and intersect Behavior scope with that snapshot.
+  Hold its injected planning clock, facts
+  and source revision constant; show intentional scope differences separately.
   Display configuration, reference, planner and model versions for each result.
   The same inputs do not imply deterministic model wording.
 - Reuse the actual generator, validation, planner and `DailyBriefBubble`; do not
@@ -11188,14 +11210,28 @@ Scope and acceptance:
   while dragging controls, loading a preset or opening the bench.
 - Keep server credentials server-only. A development-only generation boundary must
   reject production execution and untrusted origins. Accept known synthetic fixture
-  IDs and validated configuration, never arbitrary prompts, URLs or owner IDs.
-  It must not read account/provider data or consume production daily-attempt state.
+  IDs or an explicit My account mode with validated configuration, never arbitrary
+  prompts, URLs or caller-selected owners. Account mode requires current sign-in,
+  briefing enablement and separate Calendar disclosure. It must never consume
+  production daily-attempt state. Synthetic mode must never read account/provider data.
 - Compare horse-bubble previews beside an inspector for effective facts, included
   references, planner options/rejections and output-validation results. Permit
   qualitative review notes without pretending to offer an objective quality score.
+- Provide a searchable glossary for workbench settings and statuses. Give each term
+  a stable ontology ID, related terms and traceable contract symbols. Keep distinct
+  meanings separate even when their displayed values match. Check contract coverage.
+- Expose canonical preset and reference JSON documents for inspection and repository
+  editing, alongside links to original reference sources. Explain version updates
+  and the difference between repository changes, comparison drafts and hosted rollout.
 - Keep outputs and facts in memory. Persist/export only configuration by default;
-  no prompt-history store or automatic telemetry. Use synthetic fixtures for normal
-  tests; live model runs retain explicit provider-test authority.
+  no prompt-history store or automatic telemetry. Account-specific scope selections
+  also stay in memory. Keep delivered comparisons inspectable after snapshot expiry
+  with an expired notice. Window focus changes recheck access without discarding
+  unchanged results. Clear private results on account/consent changes, access-check
+  failures, mode changes and leaving the visible workbench. Use synthetic fixtures for normal
+  tests; live model runs retain explicit provider-test authority. The owner authorized
+  implementing account mode, but will sign in and run private comparisons personally.
+  Agents must not run live comparisons with private account data.
 - Use Impeccable and design-system-bench before UI edits. Preserve responsive
   layout, keyboard operation, clear labels and current product styles. Update
   `DESIGN.md`, the existing interaction registry and design-system catalogs when
@@ -11205,19 +11241,30 @@ Platform impact:
 
 | Platform | Implementation, follow-up, or not-applicable reason |
 |---|---|
-| Web | Extend existing development-only design-system route and `DailyBriefBench.tsx`; use shared horse-bubble components. |
-| Desktop | Inspect the shared bubble through desktop-sized fixtures; Ticket 155 verifies installed consumption. No separate native workbench. |
+| Web | `DailyBriefBench.tsx`, the development-only comparison route and shared account-context service implement My account mode alongside synthetic fixtures. `BriefingWorkbenchGuide.tsx` adds the glossary and repository document access. |
+| Desktop | No native account workbench: browser mode reads hosted synchronized data only; local-only and unsynced records remain excluded. Ticket 155 retains installed consumption acceptance. |
 | Marketing | Not applicable: the internal workbench is neither hosted marketing content nor a public demo. |
 | Future mobile | Verify narrow mobile web previews; native workbench implementation is not applicable. |
 
 Verification: configuration round-trip, comparison input identity, explicit-run
 behavior, stale result cancellation, production/origin rejection, zero account
-reads, no client secrets, keyboard/mobile/long-text states and required repository
+reads in synthetic mode, owner/consent/source fencing in account mode, no daily
+admission writes, no client secrets, keyboard/mobile/long-text states and required repository
 checks. Provider-free tests must not silently call OpenAI.
+
+Implementation and provider-free verification: `docs/qa/briefing-workbench.md`.
+September 21 account troubleshooting corrects reminder-query batching, preserves
+historical occurrence lineage after a fenced sync, and exposes synchronization
+recovery instructions. Recovery uses the existing Settings timezone save;
+the comparison remains read-only and requires an explicit Run comparison click.
+Synthetic, account and glossary/document implementations passed independent review. Ticket 155 retains live
+quality, hosted and installed desktop acceptance gates.
 
 ## Ticket 155: Reviewed briefing configuration rollout and acceptance
 
-Status: not_started.
+Status: in_progress. Source implementation and independent review are complete;
+live synthetic, hosted and installed desktop acceptance remain open. See
+`docs/qa/briefing-workbench.md`.
 Filed September 20, 2026. Dependencies: Tickets 151–154. Hosted/live-data/native
 activation also depends on remaining release acceptance for Tickets 147–148.
 
@@ -11266,3 +11313,601 @@ Verification: all required checks, shared-core portability, design/interaction
 checks, web/desktop builds, comparison regression fixtures and independent review.
 Record remaining live/native gates explicitly instead of treating bench success
 as production acceptance.
+
+---
+
+## Ticket 156: Recipe-scoped workbench and configuration
+
+Status: complete; implemented September 21, 2026.
+Parent checks and independent read-only review pass. Live quality and rollout
+acceptance remain under Ticket 161; see `docs/qa/briefing-workbench.md`.
+Filed September 21, 2026. Dependencies: Tickets 151 and 154.
+
+Goal: scope workbench controls and output policy to a named recipe, with Daily
+Brief as the first recipe. Later recipes may use completion information differently.
+
+Scope and acceptance:
+
+- Extend the existing configuration contract and workbench with a stable recipe
+  identity and version. Bind presets, context selection, output policy, references
+  and comparison results to that recipe. Do not build a general workflow engine.
+- Introduce only Daily Brief now. Future recipe implementations require their own
+  tickets; do not add placeholder recipes or an arbitrary prompt editor.
+- Define validation and compatibility for existing presets, saved drafts and
+  imports. Reject incompatible recipe/configuration combinations clearly.
+- Preserve one frozen authorized snapshot per comparison. Recipe/configuration
+  changes invalidate pending output and contribute to the effective revision.
+- Keep context access separate from recipe selection. A recipe cannot grant
+  connector or model-data permissions. Preserve explicit Run comparison, private
+  memory-only results, read-only behavior and daily allowance separation.
+- Keep preset/reference documents accessible. Extend the existing glossary with
+  recipe terms and traceable contract owners. Use Impeccable and design-system-bench
+  before UI edits; update the existing interaction registry/catalog at implementation.
+- Document the boundary between existing behavior and the planned Daily Brief
+  policy in Ticket 158. Filing this ticket does not change the active recipe.
+
+Implementation references: `packages/core/src/types/briefing-config.ts`,
+`packages/core/src/services/briefing-config.ts`, `packages/core/src/data/briefing-presets.json`,
+`lib/services/briefing-pipeline.ts`, `lib/services/briefing-workbench.service.ts`,
+`app/design-system/DailyBriefBench.tsx`, `docs/ontology/briefing-workbench.json`.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Extend the existing configuration, pipeline and workbench references above; verify through Ticket 161. |
+| Desktop | Shared server recipe feeds the existing linked desktop briefing; no native workbench. Ticket 161 verifies consumption. |
+| Marketing | Not applicable: internal recipe controls do not create a public capability claim. |
+| Future mobile | Reuse recipe contracts; test narrow web controls in Ticket 161. Native implementation remains deferred. |
+
+Verification: recipe identity/version validation, old-preset compatibility, cross-recipe
+rejection, effective revision withdrawal, same-snapshot comparisons, glossary coverage,
+explicit-run and privacy regressions, plus required repository checks.
+
+---
+
+## Ticket 157: Explicit recipe context controls and duration sources
+
+Status: complete; implemented September 21, 2026.
+Parent checks and independent read-only review pass. Live quality and rollout
+acceptance remain under Ticket 161; see `docs/qa/briefing-workbench.md`.
+Filed September 21, 2026. Dependencies: Tickets 146, 151 and 156.
+
+Goal: expose which facts a recipe receives, including distinct duration sources,
+without confusing input selection with permission to mention those facts in prose.
+
+Scope and acceptance:
+
+- Audit the existing source-to-model projection before adding fields. It currently
+  provides one effective duration: a configured Behavior default, otherwise an
+  eligible historical mean. Raw completion timestamps are not in the briefing contract.
+- Define independent controls for authorized Calendar context, completion history,
+  completion timestamps, recorded elapsed durations, historical average duration
+  and configured default duration. Clearly distinguish finished-at time from elapsed
+  time. Verify source semantics; a manual status-update timestamp is not automatically
+  the actual finish time. Unsupported inputs must be marked unavailable.
+- Make default-versus-observed duration selection and fallback explicit. Preserve
+  sample eligibility, provenance and bounded history rules unless a reviewed contract
+  change explicitly replaces them. Never manufacture a duration when a source is absent.
+- Honor field exclusions before model serialization. Document which selected
+  aggregates may derive from server-side history; do not leak excluded raw fields
+  through another payload field or inspector export.
+- Retain minimal internal completion state when needed to exclude finished work.
+  Its internal use does not require completion narration in the Daily Brief.
+- Capture one authorized source snapshot, then apply each configuration's scope
+  and history projection correctly. Controls cannot bypass existing consent.
+- Show included/excluded inputs, selected duration source, sample coverage and
+  reasons in the private inspector. Link controls to stable glossary contract terms.
+  Use existing workbench styles and document access; no new customer Settings page.
+
+Implementation references: `packages/core/src/types/advisor-day-context.ts`,
+`packages/core/src/resolvers/timeline-context.resolver.ts`,
+`packages/core/src/services/briefing-config.ts`, `lib/services/advisor-day-context.service.ts`,
+`lib/services/briefing-account-context.service.ts`, `app/design-system/DailyBriefBench.tsx`.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Extend the context projection and workbench references above; Ticket 161 verifies controls and payloads. |
+| Desktop | Hosted projections remain limited to synchronized account data. No local data transmission or native controls; Ticket 161 verifies this boundary. |
+| Marketing | Not applicable: internal input controls do not authorize new public wording. |
+| Future mobile | Preserve shared context contracts and narrow web controls; native controls remain deferred. |
+
+Verification: disabled-field absence, aggregate/raw-field independence, duration
+source precedence, insufficient samples, timestamp semantics, completed-work filtering,
+different history windows over one snapshot, consent revocation and required checks.
+Any schema change discovered during implementation requires normal migrations and types.
+
+---
+
+### Ticket 157 follow-up: historical completion marking context
+
+Owner-authorized September 22, 2026; source implementation and local QA complete.
+Database verification is blocked by the Supabase CLI launch failure; hosted migration
+and owner-run private comparison remain pending. See `docs/qa/briefing-workbench.md`.
+Replace the
+unsupported finish-time placeholder with Historical completion times. Reuse
+existing current mark snapshots, a 1–90-day window and shared circular summaries.
+No actual-finish capture, automatic model run or write authority is added.
+See `docs/DATETIME_STRATEGY.md` for eligibility and sufficiency.
+
+Platform impact: web uses `DailyBriefBench.tsx` and the shared server projection;
+linked desktop consumes the same reviewed Daily Brief pipeline after deployment,
+with local-only/offline model generation unchanged. Marketing is not applicable
+because this is an internal authenticated-context control. Future mobile has no
+implementation; it must reuse the shared contract when separately ticketed.
+Existing interaction-registry exclusion and design-system bench remain the UI evidence.
+
+## Ticket 158: Daily Brief purpose and prose contract
+
+Status: complete; implemented September 21, 2026.
+Parent checks and independent read-only review pass. Live quality and rollout
+acceptance remain under Ticket 161; see `docs/qa/briefing-workbench.md`.
+Filed September 21, 2026. Dependencies: Tickets 156–157.
+
+Goal: make Daily Brief a morning overview of practical day constraints and
+opportunities, adding interpretation beyond facts already visible in the ledger.
+
+Scope and acceptance:
+
+- Define a Daily Brief output policy that prioritizes meaningful conflicts, tight
+  transitions and supported opportunities. Departures remain future capability
+  until Tickets 162–165 implement and verify the travel contract from Ticket 160.
+- Remove routine completion recaps and adherence summaries from this recipe's
+  prose. Keep shared completion data available for internal filtering and future
+  recipes. Do not remove or reinterpret manual ledger statuses.
+- Keep diagnostics such as missing duration samples and raw connector states in
+  the inspector. Mention uncertainty in prose only when it materially affects a
+  specific recommendation; explain the practical consequence in plain language.
+- Do not substitute unsupported certainty for suppressed diagnostics. Partial
+  Calendar coverage cannot establish free time; missing duration cannot prove a fit.
+- Keep output concise when no meaningful issue exists. Do not fill the word budget
+  with ledger repetition, generic coaching or technical explanations.
+- Update the shared recipe instructions and output contract. The current global
+  factual-recap instruction conflicts with this intended recipe policy; replace it
+  within Daily Brief during implementation, rather than treating it as immutable.
+- Keep the existing horse bubble and read-only semantics. Version the policy and
+  add positive/negative synthetic examples for review under Ticket 161.
+
+Implementation references: `lib/services/daily-brief-consumer.ts`,
+`lib/services/briefing-pipeline.ts`, `packages/core/src/types/daily-brief.ts`,
+`packages/core/src/data/briefing-presets.json`, `components/briefing/DailyBriefBubble.tsx`.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Update the shared recipe policy and existing bubble output contract; Ticket 161 verifies the result. |
+| Desktop | Existing linked desktop consumes the same hosted policy and shared bubble; Ticket 161 verifies installed behavior. |
+| Marketing | Not applicable: no copy changes or new AI claims follow from this internal policy work. |
+| Future mobile | Shared output policy remains reusable; narrow web rendering is verified in Ticket 161. Native delivery is deferred. |
+
+Verification: recipe-specific completion suppression, completed-work exclusion,
+diagnostics kept out of prose, material uncertainty expressed accurately, concise
+uneventful-day output, hostile-input handling and required repository checks.
+Model quality requires reviewed outputs, not only string-matching unit tests.
+
+---
+
+## Ticket 159: Day conflicts and feasible opportunities
+
+Status: implementation complete, September 22, 2026.
+Required checks and web/desktop builds pass. Fresh independent review returned ship.
+Evidence: `docs/qa/briefing-workbench.md`. Model-quality and rollout acceptance
+remain under Ticket 161.
+Filed September 21, 2026. Dependencies: Tickets 153 and 156–158.
+
+Goal: supply deterministic evidence for day conflicts and useful windows,
+independently of whether the user permits hypothetical schedule moves.
+
+Scope and acceptance:
+
+- Separate conflict detection from move-option generation in the shared planning
+  boundary. Detect supported conflicts even with no movable Behaviors selected.
+- Combine authorized Calendar commitments, relevant remaining Behaviors,
+  duration estimates, configured windows and buffers. Exclude finished work from
+  remaining-work recommendations without changing its stored status or history.
+- Distinguish known overlaps, tight transitions, feasible opportunities and unknown
+  feasibility. Keep source references, assumptions and freshness in typed evidence.
+- Reuse existing resolver logic for interval/timezone handling and scheduling
+  constraints. Do not delegate conflict or free-window arithmetic to the model.
+- Require a supported duration and complete relevant coverage before claiming that
+  an activity fits a gap. A 35-minute shower example is valid only when both the
+  estimate and available window support it; it is not a hard-coded recommendation.
+- Keep hypothetical moves separately gated. Reporting a conflict never authorizes
+  rescheduling, marking completion, writing Calendar events or creating Timeline blocks.
+- Rank material findings for the Daily Brief recipe under Ticket 158. Keep detailed
+  rejection reasons and evidence in the inspector. No travel-time inference until
+  Tickets 162–165 implement and verify the accepted Ticket 160 travel contract.
+
+Implementation references: `packages/core/src/resolvers/briefing-plan.resolver.ts`,
+`packages/core/src/types/briefing-plan.ts`, `lib/services/briefing-pipeline.ts`,
+`packages/core/src/resolvers/timeline-context.resolver.ts`.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Shared resolver and pipeline supply evidence to the existing briefing; Ticket 161 verifies comparisons. |
+| Desktop | Consume the same hosted evidence through the existing briefing. No local scheduling fork; Ticket 161 verifies parity. |
+| Marketing | Not applicable: resolver work does not establish public efficacy claims. |
+| Future mobile | Pure resolver/types remain reusable; native planning UI is not in scope. |
+
+Verification: overlaps with no movable selections, buffers, completed-work exclusion,
+unknown durations, partial/stale Calendar data, all-day and timed events, DST/day
+boundaries, no feasible window, provenance and zero mutation calls; required checks.
+
+---
+
+## Ticket 160: Travel context and departure advice discovery
+
+Status: discovery complete, revised September 21, 2026. Runtime implementation not started.
+Filed September 21, 2026. References: Tickets 132–137, 144 and 156–159.
+Independent of the initial Daily Brief rollout.
+
+Goal: define proactive multimode travel, complete-trip occupancy and the provider,
+permission and presentation contracts needed to implement them.
+
+Accepted scope and discovery result:
+
+- Use permitted fresh device position as the default immediate origin. Add optional
+  Behavior locations. Define role-specific precedence for corrections, device,
+  Behavior, Calendar and base locations; future legs use planned stop provenance.
+- A missing base suppresses only final-return advice and leaves return time unknown.
+  Recommend current location → first event and A → B → C when each leg's endpoints,
+  timing and mode are usable. Never insert a base detour automatically. Current
+  device position overrides a predicted origin for the next immediate departure.
+  Recalculate affected legs when location, timing or mode changes. Onboarding
+  requests a base when needed for an otherwise unknown immediate origin.
+- Route proactively whenever two usable points exist after setup. Support walking,
+  cycling, transit and driving. No per-trip origin confirmation or driving fallback.
+- Include departure, event attendance, onward travel and return in derived occupied
+  intervals. A 2:30–4:30 event can occupy 1:30–6:30. Detect collisions against that
+  expanded span without changing scheduled times, statuses or Calendar events.
+  Preserve all known outbound/event-to-event occupancy and collisions without a base.
+- Reuse the existing magenta Timeline span, overlap borders and event inspection.
+  Show Calendar locations with Google Maps or supported preferred-navigation links.
+- Distinguish saved configuration, temporary device observations and expiring route
+  estimates. Expiry does not erase locations or require explicit origin entry again.
+- Audit destination ambiguity and provider capabilities, terms, pricing, quotas,
+  credentials, disclosure, retention and revocation through dated primary sources.
+  Keep raw locations out of model inputs; derived timing still needs provider-use
+  clearance and the revised model disclosure before transmission.
+- Document bounded contracts, synthetic examples, failures, cost assumptions and
+  all platform impacts. No background tracking, autonomous navigation or scheduling.
+
+Deliverable: [travel/departure integration brief](plans/travel-departure-discovery.md).
+The owner corrections supersede the initial manual-only, driving-only,
+advisor-only recommendation and the later global saved-base requirement.
+Product direction is accepted. Tickets 162–165 now separate implementation and
+release evidence; provider-use review precedes live
+calls. Discovery performs no provider setup, credential creation, device reads,
+private route queries or deployment. Verification results live in `STATUS.md`.
+
+Planning references: `docs/INTEGRATION_PLAYBOOK.md`, `docs/PRODUCT_SPEC.md`,
+`docs/DATA_MODEL.md`, `docs/UI_SPEC.md`, `docs/USER_FLOWS.md`, `docs/DECISIONS.md`,
+`packages/core/src/types/advisor-day-context.ts`, `packages/core/src/types/briefing-plan.ts`.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Tickets 162–164 implement locations, permissions, routing, expanded occupancy and existing UI. Ticket 165 verifies release. |
+| Desktop | Same follow-ups cover local saved locations, linked sync, native foreground permission and shared routing/UI; Ticket 165 verifies installed behavior. |
+| Marketing | Ticket 165 owns required disclosures; no capability claim from discovery alone. |
+| Future mobile | Shared contracts remain portable; native delivery is deferred. Tickets 162/164 verify narrow mobile web. |
+
+Verification: dated primary-source provider/terms/cost review, synthetic full-trip
+and collision examples, permission/retention review, cross-platform inventory,
+consistent product docs and required repository checks. No live private route test.
+
+---
+
+## Ticket 161: Daily Brief recipe evaluation and reviewed rollout
+
+Status: in_progress. Provider-free evaluation implementation and required checks
+pass; fresh independent review returned ship with no findings. Model wording review,
+owner-run comparisons, promotion, hosted and installed desktop acceptance remain
+open. Evidence and rollback: `docs/qa/briefing-workbench.md#ticket-161-evaluation-and-rollout`.
+Filed September 21, 2026. Dependencies: Tickets 156–159; coordinate with Ticket 155
+and remaining Tickets 147–148 release gates. Ticket 160 is not a rollout dependency.
+
+Goal: verify that the Daily Brief recipe adds useful day orientation and promote
+only a reviewed configuration through the existing rollout path.
+
+Scope and acceptance:
+
+- Build a bounded synthetic matrix for overlaps, tight transitions, supported gaps,
+  missing durations, partial Calendar coverage, completed Behaviors, sparse and dense
+  days, and uneventful days. Add hostile text and expired/changed context cases.
+- Compare configurations against the same frozen facts. Verify context toggles
+  alter payload projection, not merely instructions, and that recipe identity and
+  versions appear in the existing inspector and comparison evidence.
+- Review whether prose identifies material constraints and useful opportunities,
+  avoids completion-ledger repetition and diagnostics, and supports every timing
+  claim. Distinguish contract tests from human judgment of model wording.
+- Preserve explicit Run comparison, no automatic reruns, read-only results, private
+  memory-only state and separation from the production daily briefing allowance.
+  Model/provider validation failures must remain visible and must not masquerade
+  as successful comparisons or fabricate fallback advice.
+- Run required checks and obtain independent review. Verify responsive controls,
+  glossary/document access, shared bubble rendering and existing Timeline interactions
+  through the existing interaction registry and design-system catalog.
+- Promote through Ticket 155's reviewed repository configuration mechanism. Record
+  policy/configuration versions and rollback. A rollout must not silently regenerate
+  an already attempted daily briefing or reset dismissal/admission state.
+- Separate provider-free, authorized synthetic-provider, owner-run account, hosted
+  and installed desktop evidence. Private comparisons remain owner-clicked under
+  the existing instruction; filing this ticket authorizes no live generation or
+  deployment. Record incomplete gates rather than claiming production acceptance.
+- Evaluate departures only after Tickets 162–165 implement and verify travel.
+  Initial acceptance must not imply travel context is available.
+
+Implementation/evidence references: `docs/qa/briefing-workbench.md`,
+`lib/services/briefing-fixtures.ts`, `tests/briefing-workbench-account.test.ts`,
+`tests/briefing-workbench.dom.test.tsx`, `tests/briefing-plan.resolver.test.ts`,
+`tests/daily-brief-consumer.test.ts`, `interaction-registry.json`,
+`design-system.manifest.json`, `design-system.surfaces.json`.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Verify existing workbench and daily briefing paths, then record separately authorized hosted acceptance. |
+| Desktop | Verify `apps/desktop/src/daily-brief.ts` and shared bubble with linked, offline and unsynced limits; preserve existing native release gates. |
+| Marketing | No automatic changes. Any future public claim requires separate release evidence and copy work. |
+| Future mobile | Verify narrow mobile-web rendering and controls; native delivery remains deferred. |
+
+Verification: required repository commands, shared-core portability, design/interaction
+checks, applicable web/desktop builds, independent review, reviewed output evidence and
+rollback. Keep any unexecuted live or installed checks explicitly open.
+
+---
+
+## Ticket 162: Travel locations, permission and onboarding
+
+Status: implemented behind the provider gate; repository checks and independent
+code review passed. Database and live release gates remain in Ticket 165.
+Filed September 21, 2026. Dependency: Ticket 160 accepted direction.
+
+Goal: establish usable owned locations and explicit travel setup for proactive routing.
+
+Scope and acceptance:
+
+- Add optional Behavior locations and an optional saved base, mode and supported
+  navigation preferences. Reuse the existing Behavior form and Calendar/briefing settings.
+- Allow current-location-to-event and event-to-event recommendations without a base.
+  Missing base suppresses only final-return advice and leaves return time unknown.
+  Declining location prompts for a base to establish the immediate origin; known
+  event-to-event legs remain available when that origin is unknown.
+- Explain proactive routing, recipients, permissions and retention before enabling
+  travel. Keep routing, Calendar, device and model disclosures separate.
+- Implement foreground browser and macOS location adapters. Current permitted
+  position supplies the immediate origin ahead of a predicted scheduled position;
+  no continuous/background position history.
+  Handle denied, revoked, stale, inaccurate and unavailable samples explicitly.
+- Preserve role-specific endpoint precedence and source revision. Corrections apply
+  to a journey; ambiguous/hybrid destinations need the missing fact. Do not infer
+  home, attendance or future physical presence from schedules.
+- Define saved-location web/SQLite contracts, migrations, RLS, types, sync, removal,
+  deletion and compatible Cadence backup/restore. Preserve older imports and existing
+  BehaviorLog formats. Keep provider results/device samples out of persistent sync,
+  exports, backups and telemetry. Document provider-derived storage restrictions.
+- Update existing interaction/design catalogs and platform parity evidence with the
+  implemented controls. Scope discovery adds no registry entries by itself.
+
+References: `docs/plans/travel-departure-discovery.md`, `docs/DATA_MODEL.md`,
+`components/behaviors/BehaviorForm.tsx`, `components/settings/GoogleCalendarPanel.tsx`,
+`apps/desktop/src`, `apps/desktop/src-tauri`, `interaction-registry.json`,
+`design-system.manifest.json`.
+
+Implementation: `TravelSettingsPanel`, the shared travel-settings planner,
+`/api/travel/settings`, Behavior form `location_text`, hosted travel migration,
+SQLite migration 0016, existing profile sync and foreground browser/macOS adapters.
+The interaction registry owns `INT-TRAVEL-001/002`; the design catalog owns
+`module.travel-settings-panel`. Clean local migration replay and generated-type confirmation now pass using
+the working official CLI override. Hosted deployment remains in Ticket 165.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | `TravelSettingsPanel`, `BehaviorForm`, `/api/travel/settings` and `lib/ui/foreground-location.ts`; 390px QA in `docs/qa/travel-release.md`. |
+| Desktop | SQLite migration 0016, `apps/desktop/src/local-travel-settings.service.ts`, `foreground-location.ts` and private first-link import in `account/first-link.ts`; installed acceptance remains in Ticket 165. |
+| Marketing | `components/settings/LegalContent.tsx` and `docs/user-guide/travel.md`; release claims remain gated by Ticket 165. |
+| Future mobile | `packages/core/src/types/travel.ts` provides portable contracts; native mobile permissions/navigation remain out of scope. |
+
+Verification: required checks; clean migrations/types; ownership/RLS; legacy import,
+sync and deletion tests; denial/revocation/account-switch races; no-base suppression
+limited to final return while other usable legs remain; responsive form/settings
+and synthetic native boundary checks. No live private location read is implied
+by this planned ticket.
+
+---
+
+## Ticket 163: Proactive routes and complete-trip collision evidence
+
+Status: implemented behind the provider gate; repository checks and independent
+code review passed. Database and live release gates remain in Ticket 165.
+Filed September 21, 2026. Dependencies: Ticket 162 contracts; coordinate with Ticket 159.
+Provider-use clearance from Ticket 165 is required before live provider calls.
+
+Goal: derive one shared travel-occupancy contract for Timeline and advisor findings.
+
+Scope and acceptance:
+
+- Add one bounded server routing adapter for walking, cycling, transit and driving.
+  Use the chosen mode; never silently switch modes. Resolve unambiguous points and
+  compute usable pairs proactively after setup, with source/grant validation.
+- Apply current-origin precedence and future-stop provenance. Plan A → B → C from
+  event locations, times and mode; recalculate affected legs when inputs change.
+  Never insert a base detour automatically. Fresh device position overrides the
+  predicted origin for the next immediate departure. Compute last event → base
+  only when a usable base exists; otherwise suppress only final-return advice.
+- Evaluate outward, onward and return legs at their relevant times. Handle transit
+  schedules/connections, asymmetric durations, unavailable returns and arrival/exit/
+  settling buffers. Unknown results cannot mean zero travel or complete availability.
+- Derive occupied segments without moving source schedules. Deduplicate shared legs,
+  preserve known free gaps and compare expanded spans against eligible Behaviors and
+  commitments. Retain known outbound and event-to-event occupancy/collisions when
+  return timing is unknown. Preserve existing duration, completion and uncertainty
+  rules.
+- Put pure rules in shared core; services own provider/location I/O. Keep raw locations
+  out of advisor facts. Validate a versioned timing/provenance/freshness projection.
+- Coalesce meaningful foreground changes. Bound legs, concurrency, retries, deadlines
+  and persistent owner/global quota debits. Clear or refresh stale evidence without
+  per-trip approval, continuous polling or resetting Daily Brief admission.
+- Respect provider field masks, warnings, attribution, credentials and permitted
+  retention. Prove exact outbound data projection and late-response rejection.
+
+References: `docs/plans/travel-departure-discovery.md`,
+`packages/core/src/resolvers/timeline-context.resolver.ts`,
+`packages/core/src/resolvers/day-progress.resolver.ts`,
+`packages/core/src/resolvers/briefing-plan.resolver.ts`, `lib/services`.
+
+Implementation: `packages/core/src/resolvers/travel.resolver.ts`,
+`lib/services/travel-provider.ts`, `travel-route-refresh.service.ts`,
+`travel-routing.service.ts`, `/api/travel/routes` and persistent quota admission.
+Provider-free fixtures cover planning, timing, transit, late-response rejection
+and selected-mode projection. Authorized public-landmark live tests now pass in
+all four modes. Hosted routing and model projection remain disabled.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | `lib/services/travel-route-refresh.service.ts`, `/api/travel/routes` and the shared travel resolver supply Ticket 164. |
+| Desktop | `apps/desktop/src/travel.ts` uses the same hosted adapter and core for synchronized online accounts; offline tracking continues. |
+| Marketing | Not applicable: core/provider implementation alone establishes no public release claim; Ticket 165 handles disclosure. |
+| Future mobile | `packages/core/src/resolvers/travel.resolver.ts` is portable; native integration remains out of scope. |
+
+Verification: required checks and resolver fixtures for the 2:30–4:30 event occupying
+1:30–6:30, travel-created collisions, half-open boundaries, no-base outbound/A→B→C,
+unknown final return with retained known spans, no automatic base detours, current
+device precedence, affected-leg recalculation, transit, midnight/DST, partial
+coverage, quota/grant races and zero automatic tracking/Calendar mutations.
+Provider-free fixtures precede authorized tests.
+
+---
+
+## Ticket 164: Travel in the existing Timeline and Daily Brief
+
+Status: implemented behind the provider gate; repository checks and independent
+code review passed. Database and live release gates remain in Ticket 165.
+Filed September 21, 2026. Dependencies: Tickets 162–163; coordinate with Tickets 159/161.
+
+Goal: display complete-trip effects through existing Timeline and briefing patterns.
+
+Scope and acceptance:
+
+- Extend the existing temporary magenta span and Behavior overlap borders using
+  shared expanded occupancy. Keep event markers at scheduled starts and distinguish
+  departure, attendance, onward/return and available-again times in inspection.
+- Preserve the left Timeline/right ledger, reserved bottom preview and details dialog.
+  No extra lane, permanent travel fill or separate collision panel. Label travel
+  conflicts in text and preserve keyboard, focus, touch and narrow-screen behavior.
+- Show available Calendar location text with Google Maps or supported preferred
+  navigation links. Use validated structured builders and supported transport modes;
+  unresolved text offers search without claiming verified route timing.
+- Show mode, endpoint provenance, return-to-base assumption and freshness when material.
+  Missing base withholds only final-return advice. Keep known outbound/onward advice,
+  magenta spans and collisions; unknown legs prevent complete-trip availability claims.
+- Integrate derived evidence into advisor guidance only after provider-use clearance
+  and model-disclosure update. Until then, show deterministic travel facts separately.
+  Never send raw locations to the model or fabricate a model/provider fallback.
+- Changes may update deterministic Timeline evidence but cannot silently regenerate
+  an attempted Daily Brief or reset dismissal. Define stale-brief handling explicitly.
+- Update existing interaction registry, design catalog/bench and shared desktop parity
+  evidence. Use impeccable and design-system-bench before editing UI.
+
+References: `components/timeline/DayProgressTimeline.tsx`,
+`components/timeline/ExternalEventDetails.tsx`, `components/briefing/DailyBriefBubble.tsx`,
+`lib/services/briefing-pipeline.ts`, `apps/desktop/src/daily-brief.ts`,
+`interaction-registry.json`, `design-system.manifest.json`.
+
+Implementation: shared `DayProgressTimeline`, `ExternalEventDetails`,
+`OccurrenceRow` travel inspection, native navigation builders and foreground
+`useTravelContext`; desktop uses the same presentation. The Calendar bench covers
+complete-trip and no-base fixtures. The interaction registry owns
+`INT-TRAVEL-003`; existing Calendar inspection/navigation intents remain canonical.
+Daily Brief receives no route projection and retains its admission/dismissal state.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | `DayProgressTimeline`, `ExternalEventDetails`, `OccurrenceRow` and `TravelSettingsPanel`; Daily Brief projection stays disabled. |
+| Desktop | `apps/desktop/src/product.tsx` uses shared travel presentation and navigation; installed acceptance remains in Ticket 165. |
+| Marketing | `docs/user-guide/travel.md` records gated behavior; Ticket 165 controls release claims. |
+| Future mobile | 390px web evidence in `docs/qa/travel-release.md`; native mobile navigation/permission UI remains out of scope. |
+
+Verification: required checks, design/interaction checks, web/desktop builds,
+responsive browser QA, exact expanded-span/collision parity, navigation URL safety,
+missing/stale facts, no-base final-return suppression with other known advice/spans
+preserved, and unchanged status/schedule/dismissal flows.
+
+---
+
+## Ticket 165: Travel provider and cross-platform release acceptance
+
+Status: in progress; repository, local database and public-landmark provider
+checks pass. Private-account, deployed-web and installed-desktop travel acceptance
+remain open. Billing and restricted local credentials are configured.
+Filed September 21, 2026. Reviews begin alongside Tickets 162–164; release follows them.
+
+Goal: establish provider-use, disclosure and runtime evidence for the accepted travel feature.
+
+Scope and acceptance:
+
+- Resolve applicable Google Maps/Calendar terms, billing region, permitted derived
+  display/model projection, provider retention, attribution and credential restrictions
+  before live routing. Deterministic presentation does not waive provider-use review.
+- Configure approved credentials/quotas only within the user's authorized rollout.
+  Validate full-trip/proactive cost assumptions and hard spending caps. No unrestricted
+  key or inferred access to a provider account/connector.
+- Update canonical Privacy/Terms, data-use controls and factual user guidance. Explain
+  foreground current origin, optional saved base, unknown final return without one,
+  proactive event-to-event routing, transport modes, provider recipients, model
+  projection and limits on provider erasure.
+- Separate synthetic, authorized public-landmark, private-account, deployed-web and
+  installed-desktop evidence. Verify denial/revocation, cold start, restart, offline,
+  account switch, changed event locations/times/mode, current-device precedence,
+  no-base outbound/event-to-event advice and occupancy, no automatic base detours,
+  and full outbound/return occupancy when all legs are known.
+- Verify Google Maps attribution and supported navigation handoff. Record incomplete
+  native/provider gates explicitly. Initial Daily Brief rollout remains independent.
+- Record rollout versions and rollback. Disable routing and clear transient data first;
+  preserve user-authored locations and independent tracking/Calendar/sign-in behavior.
+
+References: `docs/plans/travel-departure-discovery.md`, `docs/INTEGRATION_PLAYBOOK.md`,
+`docs/OPERATIONS.md`, `docs/qa/day-progress-release.md`, `docs/qa/in-app-daily-brief.md`.
+
+Release candidate: PR #58 on `codex/travel-release-2026-09-22` (September 22, 2026),
+unmerged; branch checks, builds and native tests pass.
+
+Implementation evidence and remaining gates: `docs/qa/travel-release.md`,
+`components/settings/LegalContent.tsx`, `docs/user-guide/travel.md` and the
+travel rollback section in `docs/OPERATIONS.md`. The owner authorized USA billing,
+a nonrenewing initial US$20 allowance, restricted credentials and live testing.
+The local key and quotas are verified; 40 atomic US$0.50 reservations bound calls.
+One reservation covers public-landmark tests. The hosted travel migrations now
+preserve that reservation. Production-only workload identity replaces the hosted
+egress requirement; runtime and installed-macOS travel acceptance remain open. The separate advisor update installed
+released preview.42. Its missing build-time broker address is corrected. Installed
+Settings confirms advisor enablement and Calendar access. The first automatic
+briefing returned HTTP 409. The isolated preserved-lineage hotfix is now deployed;
+a normal browser retry returned `ready` and displayed the briefing.
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | `docs/qa/travel-release.md` records synthetic checks and open deployed-web/provider gates; Daily Brief stays independent. |
+| Desktop | `docs/qa/travel-release.md` records native compilation/storage checks; installed permission/restart/navigation gates remain open. |
+| Marketing | `components/settings/LegalContent.tsx` and `docs/user-guide/travel.md` disclose the disabled rollout; public claims need deployed evidence. |
+| Future mobile | Not applicable to native release: native app remains deferred. Mobile-web evidence belongs to web acceptance. |
+
+Verification: required repository checks and applicable platform builds; reviewed
+provider/disclosure evidence; separately authorized live tests; spend/rollback checks.
+Filing this ticket does not create credentials, deploy, read location or transmit private data.

@@ -290,3 +290,17 @@ return. This bench does not exercise the desktop service lifecycle. Dense/overni
 native fixtures and multi-day resume remain open.
 The interaction registry records implemented controls separately from Ticket 137
 release acceptance. Marketing has no runtime change; native mobile remains deferred.
+
+## Travel implementation — Tickets 162–165
+
+`apps/desktop/src/product.tsx` uses the shared Settings and Timeline travel
+presentation. `INT-TRAVEL-001/002/003` in `interaction-registry.json` owns the
+implemented intents; the existing design catalog owns the Settings and Calendar
+bench evidence. `apps/desktop/src/travel.ts` permits hosted estimates only for a
+linked, synchronized online account. Local location preferences and tracking work
+offline. Foreground Core Location is implemented in `native/location.m`.
+
+Native storage tests pass 108/108. Web/desktop builds and synthetic desktop/390px
+UI checks pass. Those checks do not establish installed permission, restart,
+account-switch or navigation acceptance. Ticket 165 keeps those gates open in
+`docs/qa/travel-release.md`; existing distribution gates remain unchanged.

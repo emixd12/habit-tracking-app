@@ -61,6 +61,46 @@ fn local_request_rejects_unknown_operations_and_fields() {
 }
 
 #[test]
+fn travel_settings_commit_reopens_with_consent_and_outbox() {
+    let mut fixture = Fixture::new();
+    let current = execute(
+        &mut fixture.db,
+        Request::ReadTravelSettings {
+            profile_id: fixture.profile.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(current["enabled"], false);
+    assert_eq!(current["routingConsentAt"], Value::Null);
+    let outbox_before = fixture.count("mutation_outbox");
+    let expected = current["updatedAt"].as_str().unwrap().to_string();
+    let result = fixture
+        .run(
+            json!({
+                "operation":"commitTravelSettings",
+                "expectedUpdatedAt":expected,
+                "next":{
+                    "enabled":true,
+                    "baseLocationText":"Home",
+                    "mode":"walking",
+                    "navigationPreference":"apple_maps",
+                    "routingConsentAt":NOW,
+                    "onboardingCompletedAt":NOW,
+                    "updatedAt":NOW
+                }
+            }),
+            90,
+        )
+        .unwrap();
+    assert_eq!(result["enabled"], true);
+    assert_eq!(fixture.count("mutation_outbox"), outbox_before + 1);
+    let reopened = Connection::open(fixture.directory.join("data.sqlite3")).unwrap();
+    let saved = travel::read_value(&reopened, &fixture.profile).unwrap();
+    assert_eq!(saved["baseLocationText"], "Home");
+    assert_eq!(saved["routingConsentAt"], NOW);
+}
+
+#[test]
 fn utc_comparison_preserves_nanoseconds() {
     assert!(
         db::instant_key("2026-08-30T00:00:00Z").unwrap()
@@ -1441,6 +1481,7 @@ fn passive_intervention_migration_preserves_history_provenance_and_revision_afte
     // Let the current Row type seed the older migration fixture without advancing its ledger.
     fixture.db.execute_batch(db::MIGRATIONS[11].2).unwrap();
     fixture.db.execute_batch(db::MIGRATIONS[14].2).unwrap();
+    fixture.db.execute_batch(db::MIGRATIONS[15].2).unwrap();
     let mut plan = import_plan(&fixture.profile);
     let intervention = imported_intervention(&fixture.profile, 200, "browser_push", "sent");
     plan["importedInterventionWrites"] = json!([{"expected":null,"next":intervention}]);
@@ -1493,7 +1534,10 @@ fn passive_intervention_migration_preserves_history_provenance_and_revision_afte
             "ALTER TABLE behaviors DROP COLUMN auto_archived_at;
              ALTER TABLE behaviors DROP COLUMN end_date;
              ALTER TABLE behaviors DROP COLUMN default_duration_minutes;
-             ALTER TABLE behaviors DROP COLUMN archive_notes;",
+             ALTER TABLE behaviors DROP COLUMN archive_notes;
+             DROP TRIGGER profiles_create_default_travel_settings;
+             DROP TABLE travel_settings;
+             ALTER TABLE behaviors DROP COLUMN location_text;",
         )
         .unwrap();
     db::migrate(&mut fixture.db, db::MIGRATIONS).unwrap();

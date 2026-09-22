@@ -49,6 +49,7 @@ describe("Daily Brief UI", () => {
     const adapter = client();
     await act(() => root.render(<DailyBriefLauncher client={adapter} />));
     await vi.waitFor(() => expect(container.textContent).toContain("Start with water"));
+    expect(container.textContent).not.toContain("Some context was unavailable.");
     expect(adapter.requestBrief).toHaveBeenCalledWith(expect.objectContaining({ retry: false }), expect.any(AbortSignal));
     const dismiss = container.querySelector<HTMLButtonElement>('button[aria-label="Dismiss Daily Brief"]');
     expect(dismiss?.className).toContain("min-h-11");
@@ -102,4 +103,20 @@ describe("Daily Brief UI", () => {
     expect(container.querySelector('a[href="https://developers.openai.com/api/docs/guides/your-data"]')).not.toBeNull();
     expect(container.textContent).toContain("cannot change tracking or Calendar records");
   });
+});
+
+it("renders suggestion provenance from trusted metadata without an apply action", async () => {
+  const { DailyBriefBubble } = await import("@/components/briefing/DailyBriefBubble");
+  const { BRIEFING_REFERENCES } = await import("@cadence/core/services/briefing-references");
+  await act(() => root.render(<DailyBriefBubble state="ready" onDismiss={() => undefined} briefing={{
+    text: "One planned Behavior remains unresolved.", localDate: settings.localDate, timezone: settings.timezone,
+    generatedAt: "2026-09-20T12:00:00Z", expiresAt: "2999-09-20T16:00:00Z", coverage: "complete", warnings: [],
+    references: [BRIEFING_REFERENCES[0]], suggestions: [{ text: "Review your priority.", occurrenceRefs: [], referenceIds: [BRIEFING_REFERENCES[0].id], optionId: null }],
+  }} />));
+  const link = container.querySelector("a");
+  expect(link?.href).toBe(BRIEFING_REFERENCES[0].url);
+  expect(link?.rel).toBe("noreferrer");
+  expect(link?.textContent).toContain("interpretation");
+  expect(container.textContent).toContain("Review your priority.");
+  expect([...container.querySelectorAll("button")].map((button) => button.textContent)).toEqual(["Close"]);
 });

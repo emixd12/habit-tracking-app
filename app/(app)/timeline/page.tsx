@@ -7,6 +7,7 @@ import { DailyBriefLauncher } from "@/components/briefing/DailyBriefLauncher";
 import { timelineBriefKey } from "@/lib/ui/daily-brief";
 import { FirstRunOnboardingPanel } from "@/components/onboarding/FirstRunOnboardingPanel";
 import { Timeline } from "@/components/timeline/Timeline";
+import { getCurrentUserClaims } from "@/lib/auth/current-user";
 import { withPerformanceRoute } from "@/lib/services/performance-timing";
 import { getTimelinePageBundle } from "@/lib/services/timeline.service";
 import { listAcceptedNoteShortcutsForCurrentUser } from "@/lib/services/note-shortcut.service";
@@ -85,12 +86,15 @@ async function TimelineContent({
     },
   );
   const shortcutsByBehavior = await listAcceptedNoteShortcutsForCurrentUser();
+  const { userId } = await getCurrentUserClaims();
 
   return (
     <>
       <DailyBriefLauncher key={timelineBriefKey(timeline)} />
       <FirstRunOnboardingPanel onboarding={onboarding} />
       <Timeline
+        key={userId}
+        travelAccountId={userId}
         timeline={timeline}
         statusAction={markOccurrenceStatusAction}
         noteAction={updateOccurrenceNoteAction}

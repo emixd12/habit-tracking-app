@@ -20,15 +20,443 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
-## Briefing workbench planning — September 20, 2026
+## Ticket 161 — September 22, 2026
 
-Tickets 151–155 are `not_started`. The owner requested tickets for an internal
-control surface covering tone, scope, references, suggestions and planning policy.
-`docs/TICKETS.md` defines configuration, curated sources, deterministic read-only
-planning, comparison previews and reviewed configuration rollout in that order.
-Ticket 154 can start with configuration controls after 151; reference/planner
-controls follow 152–153. No runtime or schema work began in this planning task.
-Tickets 147–148 retain their separate hosted/live-data/installed-desktop gates.
+Provider-free evaluation is implemented and verified. Thirteen synthetic scenarios
+cover conflicts, transitions, supported gaps, unknown inputs and completed/empty
+days. Comparison tests verify frozen facts, payload exclusions, visible failures
+and recipe versions. Rollout/rollback tests preserve admission and dismissal;
+desktop adapter tests retain linked-session and offline boundaries.
+
+All required checks, core/design checks, desktop typecheck and web/desktop builds
+pass. Vitest passes 2,173 tests with 29 existing skips. Lint retains ten existing
+warnings. Browser checks pass at 1440px and 390px, including glossary/documents,
+shared bubble and synthetic Timeline status controls. Fresh independent review
+returned ship with no findings. Evidence: `docs/qa/briefing-workbench.md`.
+
+Ticket 161 remains in progress for live model wording, owner-clicked private
+comparisons, reviewed promotion, hosted and installed desktop acceptance. The
+active preset is unchanged. This task ran no live generation or deployment.
+Travel stays excluded from this evaluation.
+
+## Ticket 159 — September 22, 2026
+
+Implementation complete. The shared planner now reports deterministic conflicts,
+tight transitions and individual feasible opportunities without movable selections.
+Coverage, duration, freshness and move-permission controls remain enforced.
+Required checks and web/desktop builds pass; 2,132 tests pass with 29 existing
+skips. Lint retains ten existing warnings. Fresh independent review returned ship.
+Evidence: `docs/qa/briefing-workbench.md`. Ticket 161 retains live model wording,
+private comparisons and rollout acceptance. No provider generation or deployment
+ran for this ticket.
+
+## Workbench comparison inspection correction — September 22, 2026
+
+Implementation and required checks pass. Window blur and snapshot
+expiry no longer erase delivered comparisons. Focus rechecks account access and
+preserves results when access is unchanged. Expired snapshots remain labeled for
+inspection. Hidden-tab, navigation, configuration, mode and access invalidation
+remain in place. No provider generation or private comparison was run.
+All 2,105 tests pass (29 skipped), along with agents, interactions, resolvers,
+design-system, lint, TypeScript and production build. Lint retains ten existing
+warnings. Local workbench/static preview smoke verification passed.
+Platform scope and verification evidence: `docs/qa/briefing-workbench.md`.
+
+## Historical completion-time context — September 22, 2026
+
+Source implementation and local workbench verification are complete. Database
+verification is blocked by the installed Supabase CLI exiting with SIGKILL.
+Configuration 1.2 adds independent historical completion-mark timing; existing
+1.0/1.1 drafts default it off. Shared circular summaries use the history window,
+current timezone and one current Completed mark per Occurrence. Unmarking removes
+a sample; corrections replace it; repeated taps preserve it. Three samples across
+three marking days within a three-hour circular span support a typical mark time.
+Actual-finish capture and duration behavior remain unchanged.
+
+Updated the shared types/resolver/projections, account capture, workbench,
+synthetic fixtures, recipe instructions, glossary, interaction exclusion,
+contracts and tests. The private snapshot migration projects existing
+status_marked_at into its revision-fenced payload. Old snapshots report
+source_unavailable; real-account timing needs the migration deployed.
+
+Required checks pass: agents, interactions, resolvers, lint, TypeScript, 2,099 tests
+with 29 skips, and web build. Core, design-system and desktop build pass. Lint
+retains ten existing warnings. Local desktop/390px control checks pass without
+overflow or a model request. Supabase db reset and type generation were attempted
+but could not start. No hosted migration, private comparison or native install
+ran. Concurrent travel changes are preserved. Evidence and limits:
+`docs/qa/briefing-workbench.md`. Ticket 157's follow-up awaits database verification.
+
+## Tickets 162–165 travel implementation — September 22, 2026
+
+Release candidate PR #58 (`codex/travel-release-2026-09-22`) now carries the full
+travel implementation, the preserved-lineage Daily Brief hotfix and the briefing
+workbench. On the branch: all seven required checks, 2,173 Vitest tests (29 existing
+skips), web production build, desktop typecheck/build and 108 native tests pass.
+Production travel environment is configured with routing clearance disabled. The PR
+is not merged; merge, hosted runtime, private-account and installed-macOS acceptance
+remain open.
+
+The normal Daily Brief retry now succeeds. Isolated deployment
+`dpl_6JTeeGQ7kZFdZ252AfoGMnHydu9L` contains released `362eb97e` plus the
+preserved-lineage context fix and regression only. Promotion completed September
+22; the existing authenticated browser retry returned HTTP 200, `state: ready`,
+and displayed the briefing. No presentation/consent state was reset. The installed
+preview.42 remains enabled with its default setup. The hotfix passed all required
+checks (1,896 tests; 29 existing skips), production build and independent review.
+
+Google workload identity now binds only Cadence’s exact Vercel team/project and
+production subject. Its dedicated service account has Service Usage Consumer;
+no key was created. Production identity configuration is saved with routing
+disabled. The three travel migrations are deployed; hosted readback preserves one
+reservation, leaving 39 slots. Local rollback-only SQL verifies that remaining
+allowance and no day-boundary renewal. Separate v4 GeocodeAddress quotas now read
+120/day and 30/minute. Hosted runtime and installed travel acceptance remain open.
+
+The owner authorized all remaining counts and continuation after the installed
+briefing failure. Hosted deployment, credential configuration and live acceptance
+are now authorized within the existing US$20 routing allowance. Work resumed with
+briefing diagnostics and hosted credential planning; acceptance is not yet complete.
+
+Live setup resumed with owner authorization: existing Cadence Google Cloud
+project, USA billing, a nonrenewing initial US$20 routing allowance, restricted
+credentials and live testing. The existing billing account is now active;
+Cadence project `habit-tracker-498717` has a US$20 custom-period budget alert.
+The alert is not a spending cap; routing remains disabled until application
+enforcement and release verification pass. Local advisor activation uses the
+latest released source and its default configuration independently of travel.
+The project Supabase binary has an invalid code signature; the installed official
+2.109.1 CLI works through `SUPABASE_CLI_BINARY_OVERRIDE`. Clean local migration
+replay, generated types and the SQL budget smoke now pass. Reset briefly recreated
+a broad database port binding; the operator stopped it immediately and restored
+loopback. No hosted migration ran.
+
+Live public-landmark outbound/return tests now pass for all four modes. They
+exposed and corrected the driving traffic timestamp. One US$0.50 reservation
+covers eight geocodes and 18 route calls; the local ledger retains that slot.
+The dedicated local key has API and IPv4/IPv6 restrictions; provider quotas are
+120/day and 30/minute. Hosted egress, private-account and installed travel
+acceptance remain open. Provider results still do not enter Daily Brief.
+
+Cadence preview.42 from released main `362eb97e` is installed with its default
+advisor. Daily Brief and Calendar timing were already enabled at account level.
+The native build passed 107 tests and 11 release checks; the data backup passed
+integrity checks. After Mac unlock and Keychain approval, installed verification
+found the build omitted the broker address required by Calendar and Daily Brief.
+The corrected preview.42 is installed and passed all 11 release checks. Installed
+Settings confirms Daily Brief and selected Calendar timing enabled; Calendar
+events load and account synchronization reports current data. The first automatic
+briefing returned HTTP 409; successful generation remains unverified. No attempt
+or dismissal state was reset. Preview.41 remains available for rollback.
+
+Repository implementation and independent code review passed. Release acceptance
+remains open. Travel stays disabled pending Ticket 165's hosted egress,
+private-account and rollout gates. Initial repository acceptance used no private
+location or provider requests.
+The later public-landmark evidence is recorded above; hosted deployment and
+installed macOS travel acceptance remain open.
+
+Added owned Behavior locations, optional base/mode/navigation preferences, separate
+routing consent, foreground browser/macOS adapters, hosted/SQLite contracts,
+configuration history and profile sync. Shared travel planning handles direct
+onward legs, no-base partial evidence, unknown legs, occupancy and collisions.
+The server adapter bounds calls and uses persistent owner/global quotas.
+First account link recognizes travel-only data and preserves private locations
+through atomic account synchronization, including retries and conflict review.
+
+The existing Timeline shows temporary travel spans, collision text, Calendar
+navigation/corrections and travel inspection in located Behavior rows. Raw locations
+and route evidence stay out of Daily Brief. Travel refresh preserves briefing
+admission and dismissal. Updated the existing interaction registry, design catalog,
+canonical disclosures, user guidance and rollback instructions.
+
+Initial implementation verification passed 108 native tests and web/desktop
+builds. After live corrections, all required repository checks and the web build
+pass. Vitest passed 2,135 tests across 262 files, with 29 existing skips across
+five integration files. ESLint reports ten existing warnings and no errors.
+Independent review returned `ship` with no findings. The initial Supabase binary
+failure blocked reset/types at that point. The authorized setup above subsequently
+completed local reset and type generation. Evidence and open gates:
+`docs/qa/travel-release.md`.
+
+## Ticket 160 owner correction — September 21, 2026
+
+Ticket 160's return-rule correction is complete. The owner withdrew the global
+saved-base requirement. Missing base suppresses only the final return recommendation;
+known outbound and event-to-event travel still informs advice, occupancy and
+collisions. Current device position takes precedence over a predicted scheduled
+origin for the next immediate departure. Tickets 162–165 remain planned and unstarted.
+
+The nine documentation files listed below, including this ledger, now reflect the
+correction. Ticket acceptance covers no-base outbound and A → B → C routing,
+affected-leg recalculation, no automatic base detours, device-origin precedence
+and retained known occupancy/collisions when return time is unknown.
+
+Correction verification passes on Node 24: `agents:check`, `interactions:check`,
+`resolvers:check`, lint, TypeScript, full tests and web build. The suite passes
+2,037 tests with 29 existing skips; lint retains ten existing warnings. Ticket-ID
+uniqueness, four-platform coverage, scoped whitespace and obsolete-rule searches
+pass. This correction changes documentation only; runtime travel remains unimplemented.
+
+The preceding discovery revision completed before this correction. The owner
+replaced manual-only,
+driving-only, advisor-only travel with proactive multimode routing, device-origin
+precedence, optional Behavior locations, return travel and expanded Timeline
+collision spans. Its global saved-base requirement is superseded by the correction
+above. There is still no return-to-outbound-origin fallback.
+
+Updated `docs/plans/travel-departure-discovery.md`, `docs/TICKETS.md`,
+`docs/PRODUCT_SPEC.md`, `docs/UI_SPEC.md`, `docs/DATA_MODEL.md`,
+`docs/USER_FLOWS.md`, `docs/DECISIONS.md` and
+`docs/plans/first-external-consumer.md`. Tickets 162–165 are planned and unstarted:
+locations/onboarding, routes/occupancy, existing UI integration, and release
+acceptance. All four platform impacts are recorded. Existing interaction/design
+catalogs supply implementation references; no proposed control was registered as
+implemented. Provider setup, location reads, private queries and deployment did
+not occur. Provider-use clearance remains required before live integration.
+
+Verification passes on Node 24: `agents:check`, `interactions:check`,
+`resolvers:check`, `design-system:check`, lint, TypeScript, full tests and web build.
+The full suite passes 2,037 tests with 29 existing skips. Lint retains ten existing
+warnings. The sandboxed test attempt hit a loopback fixture-server `EPERM`; the
+authorized rerun passed. Synthetic complete-trip/collision boundaries, DST/midnight
+and cost arithmetic pass, as do ticket-ID uniqueness, platform coverage, source
+paths and scoped whitespace checks. This revises documentation only; no runtime
+travel or native acceptance is claimed. Concurrent implementation changes remain
+untouched by this ticket.
+
+## Ticket 160 initial discovery checkpoint — September 21, 2026
+
+The initial discovery completed before the owner correction above. Its deliverable is
+`docs/plans/travel-departure-discovery.md`; `docs/TICKETS.md` records completion.
+The brief covers origin choices, Calendar destination ambiguity, dated Google
+Routes/Geocoding/Grounding Lite research, permissions, retention, costs, a contract
+proposal, synthetic timing, fallbacks and all four platform impacts.
+
+Superseded recommendation: defer implementation pending owner scope approval and provider-use
+review. The proposed first slice uses explicit origins, traffic-aware driving and
+deterministic advisor display. No acceptance is inferred. Implementation tickets,
+saved bases, device location and model grounding remain unapproved. No provider
+setup, credentials, location reads, private routing, deployment or runtime changes
+occurred in this ticket.
+
+Verification used Node 24.19.0. Synthetic timing, DST, midnight and cost arithmetic,
+literal source paths, unique ticket IDs and scoped whitespace checks pass.
+`resolvers:check` and lint pass; lint reports ten existing warnings. Required
+checks ran against concurrent Tickets 156–158 changes: `agents:check` and
+`interactions:check` report a workbench marker mismatch (65 registered, 79 in source).
+Core/type checks report missing recipe/context fields and `projectBriefingContext`;
+the production build fails at that missing export. The unrestricted full test run
+reports 234 passing files, 11 failing files, five skipped; 1,932 tests pass,
+three fail and 29 skip. Failures include briefing imports, ontology and parity.
+The initial sandboxed test run also hit local fixture-server `EPERM`; the rerun
+removed that environment failure. These are a dated working-tree observation,
+not a clean runtime acceptance or changes owned by Ticket 160. No unrelated code
+was repaired. The discovery changed only its brief, ticket entry and this ledger.
+
+## Daily Brief recipe implementation — September 21, 2026
+
+Tickets 156–158 are complete. Independent read-only review returned ship with no
+findings and passed 115 focused tests. Configuration
+1.1 binds Daily Brief recipe 1.0 and prose policy 2.0. Independent context controls
+omit excluded model inputs and select duration sources explicitly. Existing 1.0 drafts
+normalize safely. Finish timestamps remain unsupported. The existing workbench,
+glossary and horse bubble reflect the new contract.
+
+Parent checks pass on Node 24: agents, interactions, resolvers, core portability,
+design-system catalog, lint, TypeScript, full tests and web/desktop builds. The suite
+passes 2,037 tests with 29 existing skips. Lint retains ten existing warnings.
+Synthetic browser controls work at 1440px and 390px without horizontal overflow.
+See `docs/qa/briefing-workbench.md` for evidence and authored policy examples.
+
+Existing worktree changes remain preserved. Ticket 159, Ticket 161 and existing
+hosted/native release gates remain separate. No live model generation, private
+comparison, hosted deployment or installed-desktop acceptance ran in this task.
+
+## Daily Brief recipe tickets filed — September 21, 2026
+
+The owner approved filing Tickets 156–161. At filing, all six were planned and unstarted:
+recipe-scoped workbench/configuration, explicit context and duration controls,
+Daily Brief purpose/prose, conflicts and feasible opportunities, travel/departure
+discovery, and recipe evaluation/rollout. The scopes live in `docs/TICKETS.md`.
+
+Implement 156–158 before 159, then evaluate and roll out through 161 and the
+existing Ticket 155 gates. Ticket 160 is independent discovery; it authorizes
+no location access, provider setup or travel implementation. Filing changes no
+runtime behavior, active preset, private-comparison authority or release state.
+Documentation checks pass: `npm run agents:check`, unique ticket IDs, four-platform
+coverage, preservation of prior ticket content and `git diff --check`.
+
+## Account comparison output verification — September 21, 2026
+
+The owner clicked Run comparison with My account and Calendar context enabled.
+The first observed run returned HTTP 200 with one ready briefing and one withheld
+`advisor_unavailable` result. A second owner-clicked run returned two ready,
+validated briefings, rendered side by side from one account snapshot.
+No agent initiated either private model comparison or recorded its private text.
+
+The exact first rejection remains unverified. Diagnosis found conflicting prompt
+limits: the shared instruction hard-coded 120 words while Warm priorities permits
+80 combined words. The prompt now uses the selected configuration's combined limit
+exclusively. Pipeline version 1.1 identifies that prompt change. Validation,
+privacy clearing, explicit-run admission and daily allowance separation remain.
+All required checks and the production build pass; 2,022 tests pass and 29 skip.
+Lint retains ten existing warnings. Fresh independent review returned `ship`
+with no findings. Live output was verified before the prompt correction; the
+corrected prompt has provider-free regression coverage. A further owner-run
+comparison has not been observed. The earlier results expired normally.
+
+## Account comparison context recovery — September 21, 2026
+
+Owner-reported `context_incomplete` persisted after Timeline refresh. Signed-in,
+owner-scoped diagnostics found stale `sync_failed` coverage. The 479-ID reminder
+read now batches at 100 IDs with pagination. Settings includes archived Behaviors
+in the complete configuration fence. Advisor completeness accepts preserved
+occurrence lineage only after fresh synchronization. The workbench surfaces
+recovery guidance; its glossary explains why Timeline refresh alone is insufficient.
+
+The unchanged-timezone Settings action now succeeds. Readback confirms fresh
+coverage. Both account context projections passed source revalidation using
+one snapshot, without a model request. Temporary diagnostics were removed.
+TypeScript, agents, interactions, resolvers, shared-core, design-system checks,
+lint and the final production build pass. After review corrections, the full suite passes
+2,021 tests, with 29 skipped. Coverage now ignores archived historical timezones
+while retaining their configuration fence and counts. Due-archive recovery
+directs Timeline reconciliation first. Lint retains ten existing warnings.
+A fresh independent review returned `ship` with no findings and passed 93 focused tests.
+The browser confirms Run comparison is enabled; generation awaits the owner's click.
+See `docs/qa/briefing-workbench.md` for evidence and platform boundaries.
+
+## Local workbench comparison origin — September 21, 2026
+
+The owner's `access_denied` report exposed the remaining workbench origin check.
+`NextRequest` normalizes `127.0.0.1` to `localhost`, so a valid browser Origin
+failed before comparison input validation. The shared GET/POST guard in
+`lib/services/briefing-workbench.service.ts` now reuses `authRequestUrl()`.
+Same-port development loopback restrictions and production rejection remain intact.
+
+`tests/briefing-workbench.test.ts` reproduces the failure with `NextRequest` and
+checks both local hosts plus cross-host, cross-port and untrusted-origin rejection.
+All 29 focused tests pass. The full suite passes 2,009 tests, with 29 skipped.
+Agents, interactions, resolvers, lint and TypeScript pass; lint retains ten existing
+warnings. Production build passes. Independent read-only review returned `ship`
+with no findings. Live browser comparison remains owner-run and unverified.
+No account data was read and no live comparison ran. Web development is affected;
+desktop, marketing and future mobile are not applicable to this local guard fix.
+
+## Local Daily Brief settings save — September 21, 2026
+
+The owner's Settings report exposed another loopback-normalization boundary.
+Daily Brief preference reads succeeded, but saves returned HTTP 401 before
+storage access. `lib/services/google-calendar-request.ts` now reuses
+`authRequestUrl()` for the shared Calendar/Daily Brief same-origin check.
+The existing development-only, same-port loopback validation stays intact.
+Production and native bearer authentication retain their existing boundaries.
+
+`tests/google-calendar-request.test.ts` reproduces the failed local write and
+checks both local hosts, cross-host/port requests, missing origins, untrusted
+hosts and production rejection. All required checks pass: agents, interactions,
+resolvers, lint, TypeScript, 2,004 tests (29 skipped), and the production build.
+Lint retains ten existing warnings. No consent setting changed and no briefing
+generation ran. Automatic approval review blocked the proposed invalid-body
+browser PUT because it targets preferences; owner approval for that optional
+live check remains pending. The fix is verified by regression tests.
+Web local requests are affected; desktop authentication remains unchanged;
+marketing has no such settings; future mobile remains deferred.
+
+## Local sign-in and Timeline recovery — September 21, 2026
+
+The owner authorized the diagnosed local Google sign-in fix. Supabase now
+allows exact callbacks and `?next=**` variants for both loopback hostnames on
+ports 4321–4330. Readback confirmed all 40 additions and preserved existing
+redirects and the production Site URL. `supabase/config.toml` mirrors the local
+entries; `docs/SUPABASE_WORKFLOW.md` records scope and rollback.
+
+`authRequestUrl()` in `lib/auth/redirects.ts` restores only validated same-port
+development loopback hosts. OAuth start/callback, sign-out, test-login and the
+session proxy share it. Production URL handling remains unchanged.
+Regression tests cover both hosts and rejection of untrusted host overrides.
+
+The owner's retry completed sign-in but exposed a Timeline header-overflow
+error. `lib/db/timeSessions.repo.ts` now batches GET presence filters at 100
+IDs, retaining existing pagination, ownership filters and 2,000-ID POST RPC
+batches. A 501-UUID regression failed before the fix and passes afterward.
+The signed-in browser now displays Timeline without the server error.
+
+Web local auth and hosted time-session reads are affected. Desktop's native
+callback and local data store are unchanged; marketing has no sign-in; native
+mobile remains deferred. No schema or interaction contract changed.
+All required checks pass: agents, interactions, resolvers, lint, TypeScript,
+1,996 tests (29 skipped), and the production build. Lint retains ten existing
+warnings. Live redirect checks pass for both local hosts. A cancelled diagnostic
+OAuth attempt verified Supabase returns to the approved local callback.
+The owner completed Google sign-in; browser readback verified the signed-in
+Timeline after the query fix. Application code has not been deployed.
+
+## Workbench glossary and document access — September 21, 2026
+
+Ticket 154 is `complete`, including the owner-requested glossary and document access.
+`BriefingWorkbenchGuide.tsx` exposes 207 terms from `docs/ontology/briefing-workbench.json`,
+with source symbols, related IDs, search and category filters. Preset and reference
+JSON documents have previews, downloads, original source links and repository editor
+access. `briefing-references.json` now holds the unchanged canonical catalog.
+Contract coverage tests detect configuration, enum, error and relationship drift.
+
+All required checks pass, including 1,983 tests (29 skipped), web and desktop builds,
+shared-core and design-system checks. Lint retains ten existing warnings.
+Desktop and narrow browser checks pass, including full paths at 390px.
+Independent reviews found coverage and clipboard fallback defects; corrections and
+regressions pass. A fresh read-only review returned `ship` with no findings.
+No private account facts or live comparisons were accessed. VS Code protocol launch
+remains unverified; repository file paths and downloads provide alternative access.
+Ticket 155's existing release gates remain open. Evidence: `docs/qa/briefing-workbench.md`.
+
+## My account workbench extension — September 20, 2026
+
+Ticket 154 is `complete`, including the owner-authorized My account extension.
+Both configurations share one authorized raw snapshot, with history filtering
+before aggregation. `briefing-account-context.service.ts` shares briefing consent,
+optional Calendar disclosure and source/session fencing with daily generation.
+`briefing-workbench.service.ts` and `DailyBriefBench.tsx` keep explicit comparisons
+separate from daily admission. Private results and account selections stay in memory.
+
+All required checks pass, including 1,971 tests (29 skipped), web and desktop
+builds, shared-core and design-system checks. Lint retains ten existing warnings.
+Signed-out desktop and 390px browser QA passed. A fresh independent read-only review
+returned `ship` with no findings. No private facts or live comparisons were accessed.
+The local provider key is configured; the owner can sign in and test personally.
+Ticket 155's live quality, hosted and installed-desktop gates remain open.
+Evidence and changed-file ownership: `docs/qa/briefing-workbench.md`.
+
+## Briefing workbench implementation — September 20, 2026
+
+Tickets 151–154 are `complete`; Ticket 154's account extension is recorded above. Ticket 155 remains `in_progress` for release
+acceptance; its source implementation passed independent review. Configuration,
+saved presets, curated references, deterministic read-only planning and comparison
+controls now share the existing daily-brief generation pipeline. The server selects
+`cadence-default`: calm, 120 words, 90-day history, no references or movable Behaviors.
+There are no schema changes or new dependencies.
+
+Core ownership lives in `packages/core/src/services/briefing-config.ts`,
+`briefing-references.ts` and `packages/core/src/resolvers/briefing-plan.resolver.ts`.
+`lib/services/briefing-pipeline.ts` connects these contracts to the consumer,
+production service and development-only comparison service. The existing
+`DailyBriefBench` and shared bubble expose controls, inspectors and trusted sources.
+Existing interaction/design catalogs and resolver ownership record those changes.
+
+All required checks pass: agents, interactions, resolvers, lint, TypeScript, tests
+and web build. Shared-core, design-system, desktop TypeScript and desktop build also
+pass. The suite has 1,951 passing tests and 29 skipped tests; lint has ten existing
+warnings. Desktop and 390px browser checks found no workbench overflow. The first
+independent review found a spring-forward window bug; the second found a disabled
+recap policy bypass. Both corrections and regression tests pass. A fresh read-only review returned
+`ship` with no remaining source findings.
+
+Ticket 155 source integration preserves daily admission and withdraws obsolete
+configuration output. Live synthetic quality/citation review, hosted real-data and
+installed linked/offline desktop acceptance remain open. No provider test or
+deployment ran. Tickets 147–148 retain their release gates. See
+`docs/qa/briefing-workbench.md` for evidence, platform limits and rollback.
 
 ## Update rules
 
@@ -286,6 +714,8 @@ Calendar data access and the sensitive `calendar.events.readonly` scope.
 The production broker client and the three declared scopes match the submission.
 Branding remains verified. Post-approval web/native consent smoke checks remain
 outstanding; public rollout gates remain unchanged.
+September 22 signed-in console check: branding and data access remain verified;
+no new actionable request appears. Post-approval smoke checks remain outstanding.
 Unrelated working-tree changes were excluded from the isolated releases.
 
 Ticket 138: Cloudflare's initially empty `cadence-me.com` zone now has two

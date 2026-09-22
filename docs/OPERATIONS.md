@@ -1599,3 +1599,147 @@ push, production key configuration, real-data acceptance and installed desktop
 acceptance remain separate recorded deployment checks. Do not publish an AI claim
 until those checks pass. Disable through Settings or remove the server key to roll
 back generation without affecting tracking or Calendar event records.
+
+## Internal briefing workbench (Tickets 151–155)
+
+Open `/design-system?preview=briefing-workbench` on the selected loopback development
+port. Load or duplicate a repository preset, edit bounded controls, then explicitly
+run a synthetic comparison only under authorized provider testing. Opening the bench,
+loading a preset, and editing controls never invoke the model. A run makes at most two
+sequential calls, bounded to 25 seconds each and 60 seconds overall. The server admits
+one comparison at a time and six per process hour; restarting development resets that
+process-local budget. Synthetic mode never reads real account or Calendar data.
+
+The owner extended Ticket 154 to My account mode. Select it, sign in through the
+existing web flow, and enable Daily Brief model-data access in Settings. Optional
+Calendar data additionally requires its separate model-data permission and the
+configuration checkbox. Mode selection and access refresh read only access metadata
+and authorized Behavior labels. Only Run comparison captures facts and invokes the
+model. One raw snapshot supplies both configurations; history windows filter records
+before aggregation. Account/source/disclosure checks run before each submission and
+before delivery. Comparison attempts never consume the daily briefing allowance.
+
+Account-specific selections, facts, generated text and review notes stay in memory.
+Delivered results survive window blur/focus and remain inspectable after snapshot
+expiry, with an expired-snapshot notice. Freshness still gates submission and delivery;
+the production Daily Brief still expires. Focus rechecks account access without
+clearing an unchanged account. Private results clear when the tab becomes hidden,
+on page navigation, mode/configuration changes, or account/consent changes and access
+check failures. Saving/exporting presets remains available only
+in Synthetic mode. The owner will sign in and test private comparisons personally;
+agents must not run those comparisons. No new provider, deployment or native release
+authority follows from this development-only extension.
+
+The preset data lives in `packages/core/src/data/briefing-presets.json`.
+`activeBriefingConfig()` in `lib/services/briefing-pipeline.ts` selects the default
+configuration. Only an ordinary reviewed repository change promotes a preset.
+The workbench stores one validated configuration draft in browser storage and can
+export/import configuration JSON. Generated output, facts and review notes remain in
+memory. Version or control changes discard pending comparisons.
+
+Catalog summaries are original paraphrases with source dates and limitations in
+`packages/core/src/data/briefing-references.json`. Review the original source before
+changing a summary; bump its revision and catalog version. Mark a withdrawn source
+`withdrawn`; selection reports an omission and cannot validate a citation to it.
+Reference text is untrusted. A valid ID proves provenance, not evidential support.
+
+Open **Glossary: statuses and settings** for searchable contract definitions.
+`docs/ontology/briefing-workbench.json` gives each term a stable ID, its owning code
+symbols and related terms. Definitions explain runtime contracts; they do not replace
+the types, validators or resolvers. Preserve term IDs when wording changes. Update
+the ontology with contract changes; `tests/briefing-ontology.test.ts` checks coverage
+and trace targets. A glossary fragment such as `#briefing-term-config.tone` opens
+the definition directly.
+
+Open **Preset and reference documents** to inspect and download the exact JSON used
+by the pipeline. Copy a file path into any editor, or use the VS Code link when
+installed. These are repository documents, separate from browser drafts. Editing
+`cadence-default` changes the local daily configuration after reload; it still needs
+ordinary review and deployment for hosted promotion. Reference edits must retain
+unique IDs, valid dates, HTTPS sources, provenance and limitations. Bump the entry
+revision and catalog version. Reference kinds and statuses are validated on import.
+After editing, run `npm run test -- tests/briefing-config.test.ts tests/briefing-references.test.ts tests/briefing-ontology.test.ts`,
+then reload the workbench. Viewing documents never captures account context or
+generates a comparison. Original-source links open only when explicitly clicked.
+
+Rollback: restore the reviewed `cadence-default` entry from this change, including
+empty referenceIds and movableBehaviorRefs. For full feature rollback, use the
+existing Daily Brief disablement. Never reset admission/dismissal metadata to force
+regeneration. Hosted deployment, real-data and installed linked/offline desktop
+acceptance remain separate under Tickets 147–148 and 155. See
+`docs/qa/briefing-workbench.md` for source and synthetic evidence.
+
+
+## Daily Brief recipe configuration (Tickets 156–158)
+
+Daily Brief (`daily_brief`, recipe 1.0) is the only supported recipe. Configuration
+1.2 binds context choices, presentation, references and planning to that recipe.
+The exact legacy 1.0 shape migrates to Daily Brief with its existing history and
+Calendar choices. Saved drafts retain their storage key and normalize on load.
+Unknown recipes, recipe versions, configuration versions and extra fields fail
+validation. Exported configurations use 1.2. Selecting a recipe grants no access.
+
+The repository default excludes completion-history counts from the model. Explicit
+controls independently select completion history, recorded elapsed totals, historical
+average duration and configured default duration. Actual finish timestamps remain unavailable; historical marking times are independently selectable under configuration 1.2.
+manual status-update timestamps are not actual finish times. Duration preference and
+fallback are explicit. A selected average can use eligible server-side history even
+when raw totals/counts are excluded. The 90-complete-day estimate window and three
+positive, stopped Completed Occurrence minimum remain. Shorter history scope filters
+selected raw elapsed totals and completion counts before serialization.
+
+The private inspector returns only selected model facts, input decisions and planner
+evidence. It never returns the internal planner context or excluded raw duration
+candidates. Recipe, configuration, source and policy revisions fence pending results.
+Policy 2.1 suppresses completion/adherence recaps and raw diagnostics in prose. It
+permits practical uncertainty only for a specific recommendation and cannot infer
+availability or a fit from absent sources. Existing access and explicit-run rules
+remain; agents do not run My account comparisons. Ticket 161 owns model-quality and
+rollout review. Authored synthetic examples live in `docs/qa/briefing-workbench.md`.
+
+
+## Travel rollout and rollback (Tickets 162–165)
+
+Travel remains unavailable unless `CADENCE_TRAVEL_PROVIDER_CLEARANCE=approved`
+and a restricted `GOOGLE_MAPS_SERVER_API_KEY` are configured on the server.
+Do not set these until the operator gates in `qa/travel-release.md` pass.
+Apply both tracked travel migrations and deploy matching web/desktop sync contracts
+as one reviewed rollout. Older desktop clients must update before account sync.
+No release version or hosted rollout has been verified for this work.
+
+The repository bounds admission to six owner-local-day and 100 UTC-day recomputations.
+Each request covers at most eight route legs, two concurrent route calls, one transient
+retry and 45 seconds of provider work. Geocoding and driving refinement also consume
+provider billable calls; the request counter is not a monetary spending cap.
+Configure provider quotas and a reviewed budget before enabling the gate.
+
+Rollback first removes the clearance flag. Foreground clients clear transient evidence
+when they refresh, lose focus, go offline or reach their five-minute expiry.
+User-authored locations and tracking remain intact. Do not roll back the additive
+schema while newer desktop clients can synchronize. Travel never resets Daily Brief
+admission or dismissal; no travel facts enter the model in this release.
+
+## Historical completion-time context
+
+Configuration 1.2 replaces the unsupported timestamp placeholder with opt-in
+`includeHistoricalCompletionTimes`. Exact 1.0/1.1 drafts normalize with this input
+disabled. Presets also default to disabled. Pipeline 2.1 and prose policy 2.1 fence the new contract.
+Apply the historical completion-time snapshot migration through the usual reviewed
+local/hosted workflow before expecting real-account evidence. An older snapshot
+reports source unavailable without blocking unrelated briefing inputs. No new
+actual-finish capture exists. Private comparisons remain owner-run only.
+
+## Deterministic day evidence (Ticket 159)
+
+Planner 1.1, pipeline 2.2 and prose policy 2.2 separate observations from move
+permission. Existing configured windows apply to day evidence even with no movable
+Behaviors. The private comparison inspector retains full evidence and rejection
+details. The model receives ranked supported findings and no rejection diagnostics.
+An individual feasible opportunity is not a combined schedule or move permission.
+Incomplete coverage, stale sources and unsupported durations never prove a fit.
+All-day reservations block availability without inventing timed-overlap warnings.
+Travel remains excluded pending its existing release gates.
+
+No new control, database migration, provider authority or automatic rerun is added.
+Existing configuration revision fencing covers the new planner and policy versions.
+Ticket 161 still owns model-quality review, owner-run private comparisons and rollout.

@@ -32,9 +32,18 @@ export function DailyBriefBubble({
           {state === "loading" ? <p className="mt-1 text-sm leading-6 text-muted-readable">Preparing today’s read-only briefing…</p> : null}
           {ready ? <>
             <p role="status" aria-live="polite" className="mt-1 break-words whitespace-pre-wrap text-sm leading-6 text-foreground [overflow-wrap:anywhere]">{briefing.text}</p>
+            {briefing.suggestions?.length ? <ul aria-label="Suggestions only" className="mt-2 space-y-2 text-sm leading-6">
+              {briefing.suggestions.map((suggestion, index) => <li key={index} className="break-words [overflow-wrap:anywhere]">
+                <p>{suggestion.text}</p>
+                {suggestion.option ? <p className="text-xs text-muted-readable">Hypothetical option: {formatBriefTime(suggestion.option.intervals.proposed.startAt, briefing.timezone)}–{formatBriefTime(suggestion.option.intervals.proposed.endAt, briefing.timezone)} ({briefing.timezone}). No change applied.</p> : null}
+                {suggestion.referenceIds.length ? <p className="text-xs">Sources: {suggestion.referenceIds.map((id) => {
+                  const source = briefing.references?.find((source) => source.id === id);
+                  return source ? <a key={id} href={source.url} target="_blank" rel="noreferrer" className="mr-2 underline">{source.title} ({source.kind.replaceAll("_", " ")})</a> : null;
+                })}</p> : null}
+              </li>)}
+            </ul> : null}
             <p className="mt-2 text-xs leading-5 text-muted-readable">
               Generated <time dateTime={briefing.generatedAt}>{formatBriefTime(briefing.generatedAt)}</time>.
-              {briefing.coverage === "partial" ? " Some context was unavailable." : ""}
             </p>
             {briefing.warnings.length ? <p className="mt-1 text-xs leading-5 text-muted-readable">{briefing.warnings.join(" ")}</p> : null}
           </> : null}
@@ -49,7 +58,7 @@ export function DailyBriefBubble({
   );
 }
 
-function formatBriefTime(value: string) {
+function formatBriefTime(value: string, timezone?: string) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "recently" : date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return Number.isNaN(date.getTime()) ? "recently" : date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...(timezone ? { timeZone: timezone } : {}) });
 }

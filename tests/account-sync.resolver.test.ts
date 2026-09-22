@@ -227,7 +227,7 @@ describe("resolveAccountSync", () => {
     expect(result.idempotencyKey!).toHaveLength(64);
   });
 
-  it("synchronizes only profile timezone and includes reminder delivery rows", () => {
+  it("synchronizes profile settings and includes reminder delivery rows", () => {
     const profile = (id: string, timezone: string, email: string): AccountSyncEntity => ({ kind: "profile", id, value: { id, timezone, email } });
     const behavior = row("b", "Behavior");
     const occurrence: AccountSyncEntity = { kind: "occurrence", id: "o", value: { id: "o", behavior_id: "b", status: "unresolved" } };
@@ -236,7 +236,11 @@ describe("resolveAccountSync", () => {
     const result = plan(base, snapshot([profile("local", "UTC", "local@example.test"), behavior, occurrence]), snapshot([profile("hosted", "America/New_York", "hosted@example.test"), behavior, occurrence, delivery]));
     expect(result.conflicts).toEqual([]);
     expect(result.localWrites.map(({ kind }) => kind)).toEqual(["profile", "reminder_delivery"]);
-    expect(result.mergedEntities.find(({ kind }) => kind === "profile")?.value).toEqual({ timezone: "America/New_York" });
+    expect(result.mergedEntities.find(({ kind }) => kind === "profile")?.value).toEqual({
+      timezone: "America/New_York", travel_enabled: false, base_location_text: null,
+      travel_mode: null, navigation_preference: null, routing_consent_at: null,
+      onboarding_completed_at: null, updated_at: null,
+    });
   });
 
   it("propagates one-sided deletes and makes repeated snapshots no-ops", () => {
@@ -557,7 +561,7 @@ describe("resolveAccountSync", () => {
   it("preserves domain revision fields while removing ownership", () => {
     const revised: AccountSyncEntity = { kind: "behavior", id: "a", value: { id: "a", revision: 3, user_id: "local", metadata: { user_id: "provenance-owner" } } };
     expect(plan(empty, snapshot([revised]), empty).hostedWrites[0].value).toEqual({
-      archive_notes: [], default_duration_minutes: null, end_date: null, auto_archived_at: null,
+      archive_notes: [], default_duration_minutes: null, end_date: null, auto_archived_at: null, location_text: null,
       id: "a", revision: 3, metadata: { user_id: "provenance-owner" },
     });
   });

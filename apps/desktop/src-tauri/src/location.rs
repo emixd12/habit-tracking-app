@@ -1,0 +1,29 @@
+#[tauri::command]
+pub async fn foreground_location(request_permission: bool) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        static ACTIVE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _guard = ACTIVE.try_lock().map_err(|_| "A location request is already active.".to_string())?;
+        request(request_permission)
+    })
+        .await
+        .map_err(|_| "Location is unavailable.".to_string())?
+}
+
+#[cfg(target_os = "macos")]
+fn request(request_permission: bool) -> Result<serde_json::Value, String> {
+    use std::ffi::{c_char, c_void, CStr};
+    extern "C" {
+        fn cadence_location_request(request_permission: bool) -> *mut c_char;
+        fn free(value: *mut c_void);
+    }
+    let pointer = unsafe { cadence_location_request(request_permission) };
+    if pointer.is_null() { return Err("Location is unavailable.".into()); }
+    let result = unsafe { serde_json::from_slice(CStr::from_ptr(pointer).to_bytes()) };
+    unsafe { free(pointer.cast()) };
+    result.map_err(|_| "Location is unavailable.".into())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn request(_: bool) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({ "state": "unavailable" }))
+}

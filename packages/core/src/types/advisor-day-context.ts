@@ -1,3 +1,5 @@
+import type { CompletionTimingSummary } from "../resolvers/completion-timing.resolver";
+
 import type {
   ExternalEventAvailability,
   ExternalEventResponseStatus,
@@ -73,6 +75,17 @@ export type AdvisorDuration =
       lookbackDays: 90;
     }>;
 
+export type AdvisorDurationCandidates = Readonly<{
+  configuredDefault: Extract<AdvisorDuration, { kind: "known" }> | null;
+  historicalAverage: AdvisorDuration;
+}>;
+
+export type AdvisorRecordedElapsedDuration = Readonly<{
+  behaviorRef: string;
+  localDate: string;
+  seconds: number;
+}>;
+
 export type AdvisorOccurrence = Readonly<{
   ref: string;
   behaviorRef: string;
@@ -86,6 +99,8 @@ export type AdvisorOccurrence = Readonly<{
     endTime: string | null;
   }>;
   duration: AdvisorDuration;
+  /** Internal source candidates. Model projections must apply recipe controls first. */
+  durationCandidates?: AdvisorDurationCandidates;
 }>;
 
 export type AdvisorCompletionHistoryBehavior = Readonly<{
@@ -96,12 +111,21 @@ export type AdvisorCompletionHistoryBehavior = Readonly<{
 }>;
 
 export type AdvisorCompletionHistory = Readonly<{
-  lookbackDays: 90;
+  lookbackDays: number;
   startLocalDate: string;
   endLocalDateExclusive: string;
   completeness: "complete" | "unknown";
   reason: "history_limit_exceeded" | null;
   behaviors: AdvisorCompletionHistoryBehavior[];
+}>;
+
+export type AdvisorHistoricalCompletionTimes = Readonly<{
+  semantics: "completion_mark";
+  timezone: string;
+  lookbackDays: number;
+  startLocalDate: string;
+  endLocalDateExclusive: string;
+  behaviors: readonly (CompletionTimingSummary & Readonly<{ behaviorRef: string }>)[];
 }>;
 
 export type AdvisorCadenceSource = Readonly<{
@@ -110,6 +134,9 @@ export type AdvisorCadenceSource = Readonly<{
   coverage: "complete";
   occurrences: AdvisorOccurrence[];
   history: AdvisorCompletionHistory;
+  /** Eligible completed, stopped samples. Omitted by legacy/synthetic contexts. */
+  recordedElapsedDurations?: AdvisorRecordedElapsedDuration[];
+  historicalCompletionTimes?: AdvisorHistoricalCompletionTimes;
 }>;
 
 export type AdvisorCalendarInterval =

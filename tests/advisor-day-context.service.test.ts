@@ -23,6 +23,7 @@ vi.mock("../lib/services/google-calendar.service", () => calendar);
 import {
   AdvisorDayContextServiceError,
   readAdvisorDayContext,
+  readAdvisorDayContexts,
   type AdvisorAuthorizationFence,
 } from "../lib/services/advisor-day-context.service";
 
@@ -113,9 +114,34 @@ describe("advisor day-context service", () => {
       includeGoogleCalendar: false,
       opaqueRefKey: "k".repeat(32),
       now: Temporal.Instant.from("2026-09-19T12:00:00Z"),
-    })).rejects.toMatchObject({ code: "context_incomplete", recovery: expect.stringContaining("refresh the Timeline") });
+    })).rejects.toMatchObject({ code: "context_incomplete", recovery: expect.stringContaining("Save timezone") });
     expect(repo.readAdvisorCadenceRevision).not.toHaveBeenCalled();
     expect(admission.releaseAdvisorDayContextRead).toHaveBeenCalledOnce();
+  });
+
+  it.each([null, "previous-configuration"])("accepts preserved occurrence lineage %s after a fully fenced sync", async (lineage) => {
+    repo.readAdvisorCadenceSnapshot.mockResolvedValue({ ...snapshot,
+      behaviors: [{ ...snapshot.behaviors[0], currentConfigurationEventId: "current-configuration" }],
+      occurrences: [{ ...snapshot.occurrences[0], behaviorConfigurationEventId: lineage,
+        scheduledFor: "2026-09-19T11:00:00Z", scheduleStartTime: "07:00:00" }],
+      staleConfigurationCount: 1,
+    });
+    const result = await readAdvisorDayContext({
+      caller: { client, user }, authorization, revalidateAuthorization: async () => authorization,
+      includeGoogleCalendar: false, opaqueRefKey: "k".repeat(32), now: Temporal.Instant.from("2026-09-19T12:00:02Z"),
+    });
+    expect(result.cadence.occurrences).toHaveLength(1);
+    expect(result.cadence.occurrences[0]).toMatchObject({ status: "unresolved" });
+    expect(repo.readAdvisorCadenceRevision).toHaveBeenCalledOnce();
+  });
+
+  it("directs due archives to Timeline reconciliation before full synchronization", async () => {
+    repo.readAdvisorCadenceSnapshot.mockResolvedValue({ ...snapshot, dueArchiveCount: 1 });
+    await expect(readAdvisorDayContext({
+      caller: { client, user }, authorization, revalidateAuthorization: async () => authorization,
+      includeGoogleCalendar: false, opaqueRefKey: "k".repeat(32), now: Temporal.Instant.from("2026-09-19T12:00:02Z"),
+    })).rejects.toMatchObject({ code: "context_incomplete", recovery: expect.stringMatching(/Open Timeline.*Save timezone/) });
+    expect(repo.readAdvisorCadenceRevision).not.toHaveBeenCalled();
   });
 
   it("times out a hung final authorization check and releases only after the work settles", async () => {
@@ -174,10 +200,11 @@ describe("advisor day-context service", () => {
       historyOccurrences: Array.from({ length: 10_001 }, (_, index) => ({ id: `history-${index}`, behaviorId: "behavior-2", localDate: "2026-09-18", status: "completed" })),
     });
     const expandedAuthorization = { ...authorization, behaviorIds: ["behavior-1", "behavior-2"] };
-    const result = await readAdvisorDayContext({
+    const [result, short] = await readAdvisorDayContexts({
       caller: { client, user }, authorization: expandedAuthorization,
       revalidateAuthorization: async () => expandedAuthorization,
       includeGoogleCalendar: false,
+      historyDays: [90, 30],
       opaqueRefKey: "k".repeat(32),
       now: Temporal.Instant.from("2026-09-19T12:00:02Z"),
     });
@@ -193,6 +220,9 @@ describe("advisor day-context service", () => {
         { completedCount: null, notCompletedCount: null, unresolvedCount: null },
       ],
     });
+    expect(short.cadence.history).toMatchObject({ completeness: "unknown", reason: "history_limit_exceeded" });
+    expect(short.cadence.occurrences.map(({ duration }) => duration)).toEqual(result.cadence.occurrences.map(({ duration }) => duration));
+    expect(repo.readAdvisorCadenceSnapshot).toHaveBeenCalledOnce();
   });
 
   it("counts every manual status per Behavior and includes zero histories", async () => {
@@ -222,6 +252,123 @@ describe("advisor day-context service", () => {
       expect.objectContaining({ completedCount: 1, notCompletedCount: 1, unresolvedCount: 1 }),
       expect.objectContaining({ completedCount: 0, notCompletedCount: 0, unresolvedCount: 0 }),
     ]);
+  });
+
+  it("filters a shorter history before aggregation while retaining 90 days for duration estimates", async () => {
+    repo.readAdvisorCadenceSnapshot.mockResolvedValue({
+      ...snapshot,
+      behaviors: [{ ...snapshot.behaviors[0], defaultDurationMinutes: null }],
+      historyOccurrences: [
+        { id: "recent", behaviorId: "behavior-1", localDate: "2026-09-18", status: "not_completed" },
+        ...["2026-08-20", "2026-08-21", "2026-08-22"].map((localDate, index) => ({
+          id: `old-${index}`,
+          behaviorId: "behavior-1",
+          localDate,
+          status: "completed",
+        })),
+      ],
+      historySessions: ["2026-08-20", "2026-08-21", "2026-08-22"].map((_localDate, index) => ({
+        id: `session-${index}`,
+        occurrenceId: `old-${index}`,
+        behaviorId: "behavior-1",
+        startedAt: `2026-08-${20 + index}T12:00:00Z`,
+        stoppedAt: `2026-08-${20 + index}T12:20:00Z`,
+      })),
+    });
+
+    const result = await readAdvisorDayContext({
+      caller: { client, user }, authorization,
+      revalidateAuthorization: async () => authorization,
+      includeGoogleCalendar: false,
+      includeRecordedElapsedDurations: true,
+      historyDays: 7,
+      opaqueRefKey: "k".repeat(32),
+      now: Temporal.Instant.from("2026-09-19T12:00:02Z"),
+    });
+
+    expect(repo.readAdvisorCadenceSnapshot).toHaveBeenCalledWith(client, expect.objectContaining({ historyStartLocalDate: "2026-06-21" }));
+    expect(repo.readAdvisorCadenceRevision).toHaveBeenCalledWith(client, expect.objectContaining({ historyStartLocalDate: "2026-06-21" }));
+    expect(result.cadence.history).toMatchObject({
+      lookbackDays: 7,
+      startLocalDate: "2026-09-12",
+      endLocalDateExclusive: "2026-09-19",
+      behaviors: [{ completedCount: 0, notCompletedCount: 1, unresolvedCount: 0 }],
+    });
+    expect(result.cadence.occurrences[0]?.duration).toMatchObject({ kind: "known", sampleCount: 3, lookbackDays: 90 });
+    expect(result.cadence.occurrences[0]?.durationCandidates).toMatchObject({
+      configuredDefault: null,
+      historicalAverage: { kind: "known", sampleCount: 3, lookbackDays: 90 },
+    });
+    expect(result.cadence.recordedElapsedDurations).toHaveLength(3);
+  });
+
+  it("projects 90-day and 30-day aggregation windows from one raw snapshot", async () => {
+    repo.readAdvisorCadenceSnapshot.mockResolvedValue({
+      ...snapshot,
+      historyOccurrences: [
+        { id: "old", behaviorId: "behavior-1", localDate: "2026-07-01", status: "completed" },
+        { id: "recent", behaviorId: "behavior-1", localDate: "2026-09-18", status: "not_completed" },
+      ],
+    });
+    const contexts = await readAdvisorDayContexts({
+      caller: { client, user }, authorization,
+      revalidateAuthorization: async () => authorization,
+      includeGoogleCalendar: false,
+      historyDays: [90, 30],
+      opaqueRefKey: "k".repeat(32),
+      now: Temporal.Instant.from("2026-09-19T12:00:02Z"),
+    });
+
+    expect(repo.readAdvisorCadenceSnapshot).toHaveBeenCalledOnce();
+    expect(repo.readAdvisorCadenceRevision).toHaveBeenCalledOnce();
+    expect(contexts.map((context) => context.cadence.history.behaviors[0])).toEqual([
+      expect.objectContaining({ completedCount: 1, notCompletedCount: 1 }),
+      expect.objectContaining({ completedCount: 0, notCompletedCount: 1 }),
+    ]);
+    expect(new Set(contexts.map((context) => context.snapshotId)).size).toBe(1);
+    expect(new Set(contexts.map((context) => context.cadence.revision)).size).toBe(1);
+    expect(contexts[0]?.cadence.occurrences[0]?.duration).toEqual(contexts[1]?.cadence.occurrences[0]?.duration);
+  });
+
+  it("honors caller cancellation before admission", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(readAdvisorDayContexts({
+      caller: { client, user }, authorization,
+      revalidateAuthorization: async () => authorization,
+      includeGoogleCalendar: false,
+      historyDays: [90, 30],
+      opaqueRefKey: "k".repeat(32),
+      now: Temporal.Instant.from("2026-09-19T12:00:02Z"),
+      signal: controller.signal,
+    })).rejects.toMatchObject({ code: "timeout" });
+    expect(admission.acquireAdvisorDayContextRead).not.toHaveBeenCalled();
+  });
+
+  it("allows two configurations to share the same bounded history window", async () => {
+    const contexts = await readAdvisorDayContexts({
+      caller: { client, user }, authorization,
+      revalidateAuthorization: async () => authorization,
+      includeGoogleCalendar: false,
+      historyDays: [30, 30],
+      opaqueRefKey: "k".repeat(32),
+      now: Temporal.Instant.from("2026-09-19T12:00:02Z"),
+    });
+    expect(contexts).toHaveLength(2);
+    expect(repo.readAdvisorCadenceSnapshot).toHaveBeenCalledOnce();
+  });
+
+  it.each([0, 91, 1.5])("rejects invalid historyDays %s before source reads", async (historyDays) => {
+    await expect(readAdvisorDayContext({
+      caller: { client, user }, authorization,
+      revalidateAuthorization: async () => authorization,
+      includeGoogleCalendar: false,
+      historyDays,
+      opaqueRefKey: "k".repeat(32),
+      now: Temporal.Instant.from("2026-09-19T12:00:02Z"),
+    })).rejects.toMatchObject({ code: "invalid_request" });
+    expect(admission.acquireAdvisorDayContextRead).not.toHaveBeenCalled();
+    expect(repo.readAdvisorProfileTimezone).not.toHaveBeenCalled();
   });
 
   it("keeps complete status counts when only duration sessions reach their cap", async () => {
@@ -290,6 +437,36 @@ describe("advisor day-context service", () => {
     expect(first.snapshotId).not.toBe(second.snapshotId);
   });
 
+  it("reuses one separately authorized Calendar snapshot across history windows", async () => {
+    const calendarSnapshot = JSON.parse(await readFile(new URL("./fixtures/external-event-snapshot.valid.json", import.meta.url), "utf8"));
+    calendarSnapshot.requestedRange.startLocalDate = "2026-09-19";
+    calendarSnapshot.requestedRange.endLocalDate = "2026-09-19";
+    calendarSnapshot.fetchedAt = "2026-09-19T12:00:01Z";
+    calendarSnapshot.freshness.refreshedAt = "2026-09-19T12:00:01Z";
+    calendarSnapshot.events = [];
+    calendarSnapshot.coverage = [{ calendarId: "calendar-1", startLocalDate: "2026-09-19", endLocalDate: "2026-09-19", paginationComplete: true, itemCount: 0 }];
+    const calendarAuthorization = {
+      ...authorization,
+      calendar: { calendarIds: ["calendar-1"], connectionGeneration: calendarSnapshot.connectionGeneration, selectionRevision: 2 },
+    };
+    calendar.getCalendarEventsForAdvisor.mockResolvedValue({
+      result: { ok: true, snapshot: calendarSnapshot }, connection: { selectionRevision: 2 },
+    });
+    calendar.getCalendarConnection.mockResolvedValue({ generation: calendarSnapshot.connectionGeneration, selectionRevision: 2 });
+
+    const contexts = await readAdvisorDayContexts({
+      caller: { client, user }, authorization: calendarAuthorization,
+      revalidateAuthorization: async () => calendarAuthorization,
+      includeGoogleCalendar: true,
+      historyDays: [90, 30],
+      opaqueRefKey: "k".repeat(32),
+      now: Temporal.Instant.from("2026-09-19T12:00:02Z"),
+    });
+
+    expect(calendar.getCalendarEventsForAdvisor).toHaveBeenCalledOnce();
+    expect(contexts[0]?.connectors).toEqual(contexts[1]?.connectors);
+  });
+
   it("rejects 501 Calendar events instead of disclosing partial context", async () => {
     const fixture = JSON.parse(await readFile(new URL("./fixtures/external-event-snapshot.valid.json", import.meta.url), "utf8"));
     fixture.events = Array.from({ length: 501 }, (_, index) => ({
@@ -312,4 +489,22 @@ describe("advisor day-context service", () => {
     })).rejects.toMatchObject({ code: "context_limit_exceeded", retryable: false });
     expect(admission.releaseAdvisorDayContextRead).toHaveBeenCalledOnce();
   });
+});
+
+it('summarizes completion marks from one snapshot for each selected window and gates acquisition', async () => {
+  const historyOccurrences = ['2026-09-18', '2026-09-17', '2026-09-16'].map((localDate, index) => ({
+    id: `history-${index}`, behaviorId: 'behavior-1', localDate, status: 'completed',
+    statusMarkedAt: `${localDate}T12:${['10', '25', '15'][index]}:00Z`,
+  }));
+  repo.readAdvisorCadenceSnapshot.mockResolvedValue({ ...snapshot, historyOccurrences });
+  const input = { caller: { client, user }, authorization, revalidateAuthorization: async () => authorization,
+    includeGoogleCalendar: false, opaqueRefKey: 'k'.repeat(32),
+    clock: () => Temporal.Instant.from('2026-09-19T12:00:02Z') };
+  const results = await readAdvisorDayContexts({ ...input, historyDays: [7, 2], includeHistoricalCompletionTimes: true });
+  expect(repo.readAdvisorCadenceSnapshot).toHaveBeenCalledTimes(1);
+  expect(results[0].cadence.historicalCompletionTimes?.behaviors[0]).toMatchObject({ sampleCount: 3, typicalMarkedTime: '08:15' });
+  expect(results[1].cadence.historicalCompletionTimes?.behaviors[0]).toMatchObject({ sampleCount: 2, typicalMarkedTime: null, exclusions: { outsideWindow: 1 } });
+  expect((await readAdvisorDayContext(input)).cadence).not.toHaveProperty('historicalCompletionTimes');
+  repo.readAdvisorCadenceSnapshot.mockResolvedValue({ ...snapshot, historyOccurrences: historyOccurrences.map(row => ({ id: row.id, behaviorId: row.behaviorId, localDate: row.localDate, status: row.status })) });
+  expect((await readAdvisorDayContext({ ...input, includeHistoricalCompletionTimes: true })).cadence.historicalCompletionTimes?.behaviors[0].reason).toBe('source_unavailable');
 });

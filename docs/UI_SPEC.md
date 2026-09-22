@@ -232,6 +232,37 @@ for real provider use until deployment configuration and live OAuth acceptance
 pass. Local component and fixture tests do not establish native or live release
 acceptance. See `docs/qa/day-progress-release.md` for the remaining gates.
 
+Travel extension (Tickets 162–165; deployment-gated): reuse the existing
+magenta span and overlap borders for derived outbound, event, onward and return
+occupancy. Keep the Calendar marker at its scheduled start. A 2:30–4:30 event may
+highlight 1:30–6:30 and identify travel-created Behavior conflicts. The shared
+occupancy evidence drives Timeline overlap. Advisor projection stays disabled pending
+provider-use and model-disclosure clearance.
+Retain all known outbound and event-to-event spans and collisions without a base;
+only the final return remains unknown. Do not show complete-trip availability from
+a partial itinerary.
+
+Use the existing bottom preview and details dialog for departure, mode, event time,
+return/availability, assumptions and freshness. Label travel-created conflicts in
+text. Preserve hover/focus/tap/click behavior, keyboard access, 44px targets,
+left-side Calendar context and the right-side ledger. Add no separate travel lane
+or permanent duration fill. Unknown timing never creates a precise occupied span.
+
+Show available Calendar location text with Google Maps or a supported preferred
+navigation link. Unresolved addresses can offer Search in maps without claiming a
+verified route. Put optional Behavior location in the existing Behavior form.
+Travel setup explains automatic routing and the optional base. Current position
+is the default immediate origin, ahead of a predicted scheduled position. When
+location is unavailable, request a base for that origin. Missing base withholds
+only final-return advice; current-location-to-event and event-to-event advice
+remain available for usable points. Never insert a base detour automatically.
+
+Implementation references: `components/timeline/DayProgressTimeline.tsx`,
+`components/timeline/ExternalEventDetails.tsx`, the existing Behavior form and
+`components/settings/TravelSettingsPanel.tsx`. The interaction registry contains
+`INT-TRAVEL-001` through `INT-TRAVEL-003`; the existing bench includes complete-trip
+and no-base fixtures. Installed acceptance remains in `qa/travel-release.md`.
+
 The current day should be prominent and should begin the forward timeline.
 
 Do not show a visible Timeline page title or explanatory helper text above the
@@ -994,3 +1025,23 @@ are not applicable; future mobile implementation remains deferred.
 ## Behavior planning inputs (Tickets 142–143)
 
 The shared create/edit form places optional Default duration (minutes) and End date inputs under Schedule. Use native number/date controls and the existing line-led styling. Explain that duration is separate from tracked averages and archiving starts at midnight on the chosen date. Timeline details label Default duration separately from measured Estimated duration. Timeline and Behaviors show an accessible persistent notification for automatically archived Behaviors, with history preserved. Restore clears an expired end date and the current notification.
+
+
+### Daily Brief recipe workbench (Tickets 156–158)
+
+The development workbench identifies Daily Brief and its recipe/policy versions.
+Separate native controls select context inputs and duration sources. Unsupported
+historical completion marking times are independently selectable; actual finish capture remains unsupported. Input selection never overrides
+model-data consent or recipe prose policy. Controls link to existing glossary terms.
+The inspector explains exclusions, duration selection and sample coverage; the
+horse bubble omits routine connector/history diagnostics. The shared bubble keeps
+read-only suggestions, source links, expiry, dismissal and accessible status text.
+
+## Historical completion times workbench control
+
+The Recipe inputs fieldset includes an independent native checkbox named
+Historical completion times. It replaces the disabled finish-time placeholder.
+History days scopes its samples. Existing spacing, typography, surfaces and
+responsive columns remain. The inspector shows selected summary counts, ranges,
+mark-time semantics and exclusions; deselection removes timing facts. Actual
+finish capture remains unsupported and no generation occurs when toggling.

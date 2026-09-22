@@ -1,0 +1,4058 @@
+{
+  "version": "1.4",
+  "scope": "Briefing workbench",
+  "terms": [
+    {
+      "id": "config.version",
+      "label": "Configuration version",
+      "category": "Configuration",
+      "definition": "Configuration 1.2 binds Daily Brief recipe 1.0 and independent context selection. Exact 1.0 and 1.1 drafts normalize without enabling historical completion-time disclosure. Unknown versions and extra fields are rejected.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BRIEFING_CONFIG_VERSION"
+        }
+      ],
+      "relatedIds": [
+        "account.configurationRevision",
+        "config.legacy-version"
+      ]
+    },
+    {
+      "id": "config.legacy-version",
+      "label": "Legacy configuration version 1.0",
+      "category": "Configuration",
+      "definition": "Identifies the exact pre-recipe configuration shape accepted for migration. Parsing adds Daily Brief recipe and context defaults before validation.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "LEGACY_BRIEFING_CONFIG_VERSION"
+        },
+        {
+          "path": "packages/core/src/services/briefing-config.ts",
+          "symbol": "parseBriefingConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.version",
+        "config.recipe",
+        "config.context"
+      ]
+    },
+    {
+      "id": "config.recipe",
+      "label": "Recipe identity",
+      "category": "Configuration",
+      "definition": "Binds configuration, context projection, output policy, references, and results to one named recipe without granting data access.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "DAILY_BRIEF_RECIPE"
+        }
+      ],
+      "relatedIds": [
+        "config.recipe.id.daily-brief",
+        "config.recipe.version",
+        "policy.daily-brief"
+      ]
+    },
+    {
+      "id": "config.recipe.id.daily-brief",
+      "label": "Daily Brief recipe",
+      "category": "Configuration",
+      "definition": "The first supported recipe provides a concise forward-looking overview of practical day constraints and supported opportunities.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "DAILY_BRIEF_RECIPE"
+        }
+      ],
+      "relatedIds": [
+        "config.recipe",
+        "policy.daily-brief"
+      ]
+    },
+    {
+      "id": "config.recipe.version",
+      "label": "Recipe version",
+      "category": "Configuration",
+      "definition": "Identifies the contract version for the selected recipe. Recipe versions remain separate from configuration and policy versions.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "DAILY_BRIEF_RECIPE"
+        }
+      ],
+      "relatedIds": [
+        "config.recipe",
+        "policy.version"
+      ]
+    },
+    {
+      "id": "config.context",
+      "label": "Recipe context controls",
+      "category": "Configuration",
+      "definition": "Selects independently which authorized context fields and duration sources the recipe may receive.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.scope.includeCalendar",
+        "config.context.includeCompletionHistory",
+        "config.context.duration"
+      ]
+    },
+    {
+      "id": "config.context.includeCompletionHistory",
+      "label": "Include completion history",
+      "category": "Configuration",
+      "definition": "Selects bounded completion-history aggregates for internal filtering and context projection; selection does not authorize completion recaps.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.context",
+        "history.completeness",
+        "policy.daily-brief"
+      ]
+    },
+    {
+      "id": "config.context.includeCompletionTimestamps",
+      "label": "Legacy completion timestamps control",
+      "category": "Configuration",
+      "definition": "Legacy configuration 1.1 placeholder for unsupported actual finish times. Import normalizes to 1.2 with Historical completion times disabled, so old drafts never silently enable this distinct input.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.context",
+        "config.context.finished-at",
+        "config.context.exclusion",
+        "config.context.includeHistoricalCompletionTimes"
+      ]
+    },
+    {
+      "id": "config.context.includeRecordedElapsedDurations",
+      "label": "Include recorded elapsed durations",
+      "category": "Configuration",
+      "definition": "Selects recorded elapsed-time samples when available. Elapsed seconds describe time spent and do not establish when work finished.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.context",
+        "config.context.elapsed-duration",
+        "duration.source.completed-mean"
+      ]
+    },
+    {
+      "id": "config.context.duration",
+      "label": "Duration source controls",
+      "category": "Configuration",
+      "definition": "Controls which configured or observed duration source may supply an estimate and what happens when the preferred source is unavailable.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.context.duration.includeHistoricalAverage",
+        "config.context.duration.includeConfiguredDefault",
+        "config.context.duration.preference",
+        "config.context.duration.fallback"
+      ]
+    },
+    {
+      "id": "config.context.duration.includeHistoricalAverage",
+      "label": "Include historical average duration",
+      "category": "Configuration",
+      "definition": "Allows an eligible historical average to supply duration when the source has enough bounded samples.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.context.duration",
+        "config.context.duration.preference.historical-average",
+        "duration.reason.insufficient-samples"
+      ]
+    },
+    {
+      "id": "config.context.duration.includeConfiguredDefault",
+      "label": "Include configured default duration",
+      "category": "Configuration",
+      "definition": "Allows a Behavior's configured default duration to supply an estimate when that source is present.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.context.duration",
+        "config.context.duration.preference.configured-default",
+        "duration.source.behavior-default"
+      ]
+    },
+    {
+      "id": "config.context.duration.preference",
+      "label": "Preferred duration source",
+      "category": "Configuration",
+      "definition": "Selects which enabled duration source takes precedence before the configured fallback is applied.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingDurationSource"
+        }
+      ],
+      "relatedIds": [
+        "config.context.duration.preference.configured-default",
+        "config.context.duration.preference.historical-average"
+      ]
+    },
+    {
+      "id": "config.context.duration.preference.configured-default",
+      "label": "Configured default preference",
+      "category": "Configuration",
+      "definition": "Prefers the configured Behavior default before considering an enabled historical average.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingDurationSource"
+        }
+      ],
+      "relatedIds": [
+        "config.context.duration.preference",
+        "duration.source.behavior-default"
+      ]
+    },
+    {
+      "id": "config.context.duration.preference.historical-average",
+      "label": "Historical average preference",
+      "category": "Configuration",
+      "definition": "Prefers the eligible historical average before considering an enabled configured default.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingDurationSource"
+        }
+      ],
+      "relatedIds": [
+        "config.context.duration.preference",
+        "duration.source.completed-mean"
+      ]
+    },
+    {
+      "id": "config.context.duration.fallback",
+      "label": "Duration fallback",
+      "category": "Configuration",
+      "definition": "Selects whether an unavailable preferred source may use the other enabled source or must remain unknown.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.context.duration.fallback.other-enabled-source",
+        "config.context.duration.fallback.none"
+      ]
+    },
+    {
+      "id": "config.context.duration.fallback.other-enabled-source",
+      "label": "Other enabled source fallback",
+      "category": "Configuration",
+      "definition": "Uses the other explicitly enabled duration source when the preferred source is unavailable.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.context.duration.fallback",
+        "duration.kind.unknown"
+      ]
+    },
+    {
+      "id": "config.context.duration.fallback.none",
+      "label": "No duration fallback",
+      "category": "Configuration",
+      "definition": "Keeps duration unknown when the preferred source is unavailable and never manufactures an estimate.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.context.duration.fallback",
+        "duration.kind.unknown"
+      ]
+    },
+    {
+      "id": "config.context.finished-at",
+      "label": "Actual finished-at time",
+      "category": "Context",
+      "definition": "The real instant a Behavior finished. Manual status-update time and updated_at do not establish this unsupported source.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextControlState"
+        }
+      ],
+      "relatedIds": [
+        "config.context.includeCompletionTimestamps",
+        "config.context.elapsed-duration"
+      ]
+    },
+    {
+      "id": "config.context.elapsed-duration",
+      "label": "Recorded elapsed duration",
+      "category": "Context",
+      "definition": "The recorded seconds spent on an activity. It is separate from an actual finished-at time and may support a duration estimate.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorRecordedElapsedDuration"
+        }
+      ],
+      "relatedIds": [
+        "config.context.includeRecordedElapsedDurations",
+        "config.context.finished-at"
+      ]
+    },
+    {
+      "id": "config.context.duration.sample-eligibility",
+      "label": "Duration sample eligibility",
+      "category": "Context",
+      "definition": "Historical duration uses at least three eligible completed, stopped samples from the preceding 90 complete local days.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/timeline-context.resolver.ts",
+          "symbol": "DURATION_ESTIMATE_MIN_SAMPLES"
+        },
+        {
+          "path": "packages/core/src/resolvers/timeline-context.resolver.ts",
+          "symbol": "DURATION_ESTIMATE_LOOKBACK_DAYS"
+        }
+      ],
+      "relatedIds": [
+        "config.context.duration.includeHistoricalAverage",
+        "duration.reason.insufficient-samples",
+        "duration.reason.history-limit-exceeded"
+      ]
+    },
+    {
+      "id": "config.context.exclusion",
+      "label": "Context field exclusion",
+      "category": "Context",
+      "definition": "Removes a disabled field before model serialization. Excluded raw values cannot reappear through another payload field or inspector export.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingModelFacts"
+        }
+      ],
+      "relatedIds": [
+        "config.context",
+        "config.context.finished-at",
+        "config.context.derived-independence"
+      ]
+    },
+    {
+      "id": "config.context.derived-independence",
+      "label": "Derived field independence",
+      "category": "Context",
+      "definition": "Keeps an allowed aggregate's server-side derivation independent from excluded raw completion or elapsed-duration fields.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-config.ts",
+          "symbol": "projectBriefingContext"
+        }
+      ],
+      "relatedIds": [
+        "config.context.exclusion",
+        "config.context.includeCompletionHistory",
+        "config.context.duration.sample-eligibility"
+      ]
+    },
+    {
+      "id": "policy.daily-brief",
+      "label": "Daily Brief policy",
+      "category": "Policy",
+      "definition": "Produces a concise forward-looking practical overview and supported opportunities, without routine completion or adherence recaps.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/daily-brief.ts",
+          "symbol": "DAILY_BRIEF_POLICY_VERSION"
+        }
+      ],
+      "relatedIds": [
+        "policy.version",
+        "config.recipe.id.daily-brief",
+        "result.warnings"
+      ]
+    },
+    {
+      "id": "policy.version",
+      "label": "Output policy version",
+      "category": "Policy",
+      "definition": "Versions the shared recipe prose and output contract independently from configuration, pipeline, and planner versions.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/daily-brief.ts",
+          "symbol": "DAILY_BRIEF_POLICY_VERSION"
+        }
+      ],
+      "relatedIds": [
+        "policy.daily-brief",
+        "result.versions"
+      ]
+    },
+    {
+      "id": "result.warnings",
+      "label": "Delivered warning boundary",
+      "category": "Result",
+      "definition": "Carries delivery-relevant warnings while routine source diagnostics remain in the private inspector and out of Daily Brief prose.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/daily-brief.ts",
+          "symbol": "DailyBriefing"
+        }
+      ],
+      "relatedIds": [
+        "policy.daily-brief",
+        "context.status.partial"
+      ]
+    },
+    {
+      "id": "config.tone",
+      "label": "Tone",
+      "category": "Configuration",
+      "definition": "Requests the presentation tone. It guides wording but does not change facts, planner rules, or validation.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingTone"
+        }
+      ],
+      "relatedIds": [
+        "config.tone.calm",
+        "config.tone.warm",
+        "config.tone.matter-of-fact"
+      ]
+    },
+    {
+      "id": "config.tone.calm",
+      "label": "Calm",
+      "category": "Configuration",
+      "definition": "Requests even, restrained wording without changing the briefing's factual meaning.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingTone"
+        }
+      ],
+      "relatedIds": [
+        "config.tone"
+      ]
+    },
+    {
+      "id": "config.tone.warm",
+      "label": "Warm",
+      "category": "Configuration",
+      "definition": "Requests warmer wording without adding encouragement, facts, or claims beyond the supplied context.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingTone"
+        }
+      ],
+      "relatedIds": [
+        "config.tone"
+      ]
+    },
+    {
+      "id": "config.tone.matter-of-fact",
+      "label": "Matter of fact",
+      "category": "Configuration",
+      "definition": "Requests plain factual wording without changing the briefing's evidence or recommendations.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingTone"
+        }
+      ],
+      "relatedIds": [
+        "config.tone"
+      ]
+    },
+    {
+      "id": "config.directness",
+      "label": "Directness",
+      "category": "Configuration",
+      "definition": "Requests how directly suggestions are phrased. It does not relax factual or planner constraints.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingDirectness"
+        }
+      ],
+      "relatedIds": [
+        "config.directness.gentle",
+        "config.directness.balanced",
+        "config.directness.direct"
+      ]
+    },
+    {
+      "id": "config.directness.gentle",
+      "label": "Gentle",
+      "category": "Configuration",
+      "definition": "Requests softer suggestion wording while preserving the same meaning.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingDirectness"
+        }
+      ],
+      "relatedIds": [
+        "config.directness"
+      ]
+    },
+    {
+      "id": "config.directness.balanced",
+      "label": "Balanced",
+      "category": "Configuration",
+      "definition": "Requests the default middle level of directness.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingDirectness"
+        }
+      ],
+      "relatedIds": [
+        "config.directness"
+      ]
+    },
+    {
+      "id": "config.directness.direct",
+      "label": "Direct",
+      "category": "Configuration",
+      "definition": "Requests concise, direct suggestions without adding urgency or authority.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingDirectness"
+        }
+      ],
+      "relatedIds": [
+        "config.directness"
+      ]
+    },
+    {
+      "id": "config.encouragement",
+      "label": "Encouragement",
+      "category": "Configuration",
+      "definition": "Requests the amount of supportive language. It never changes status interpretation or planner outcomes.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingEncouragement"
+        }
+      ],
+      "relatedIds": [
+        "config.encouragement.low",
+        "config.encouragement.moderate",
+        "config.encouragement.high"
+      ]
+    },
+    {
+      "id": "config.encouragement.low",
+      "label": "Low encouragement",
+      "category": "Configuration",
+      "definition": "Requests minimal supportive language.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingEncouragement"
+        }
+      ],
+      "relatedIds": [
+        "config.encouragement"
+      ]
+    },
+    {
+      "id": "config.encouragement.moderate",
+      "label": "Moderate encouragement",
+      "category": "Configuration",
+      "definition": "Requests a moderate amount of supportive language.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingEncouragement"
+        }
+      ],
+      "relatedIds": [
+        "config.encouragement"
+      ]
+    },
+    {
+      "id": "config.encouragement.high",
+      "label": "High encouragement",
+      "category": "Configuration",
+      "definition": "Requests more supportive language without guilt, gamification, or unsupported claims.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingEncouragement"
+        }
+      ],
+      "relatedIds": [
+        "config.encouragement"
+      ]
+    },
+    {
+      "id": "config.length.maxWords",
+      "label": "Maximum words",
+      "category": "Configuration",
+      "definition": "Sets the combined word cap for main text and suggestion text. The setting accepts 40 through 120; generated output may be shorter than 40 words.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-config.ts",
+          "symbol": "parseBriefingConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.alternatives"
+      ]
+    },
+    {
+      "id": "config.priorities",
+      "label": "Priority order",
+      "category": "Configuration",
+      "definition": "Orders the factual themes given to the model for presentation. It does not override planner routing.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingPriority"
+        }
+      ],
+      "relatedIds": [
+        "config.priorities.today-status",
+        "config.priorities.needs-decision",
+        "config.priorities.completion-history",
+        "config.priorities.schedule-fit"
+      ]
+    },
+    {
+      "id": "config.priorities.today-status",
+      "label": "Today's status",
+      "category": "Configuration",
+      "definition": "Prioritizes today's scheduled occurrences and their manual statuses.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingPriority"
+        }
+      ],
+      "relatedIds": [
+        "config.priorities",
+        "occurrence.status"
+      ]
+    },
+    {
+      "id": "config.priorities.needs-decision",
+      "label": "Needs decision",
+      "category": "Configuration",
+      "definition": "Prioritizes prior unresolved occurrences that need a manual decision. Needs decision is derived, not stored.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingPriority"
+        }
+      ],
+      "relatedIds": [
+        "config.priorities",
+        "occurrence.status.unresolved"
+      ]
+    },
+    {
+      "id": "config.priorities.completion-history",
+      "label": "Completion history",
+      "category": "Configuration",
+      "definition": "Selects completion-history context for internal filtering. Daily Brief policy does not turn this priority into a completion or adherence recap.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingPriority"
+        }
+      ],
+      "relatedIds": [
+        "config.priorities",
+        "history.completeness"
+      ]
+    },
+    {
+      "id": "config.priorities.schedule-fit",
+      "label": "Schedule fit",
+      "category": "Configuration",
+      "definition": "Prioritizes deterministic scheduling findings when the planner has sufficient current context.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingPriority"
+        }
+      ],
+      "relatedIds": [
+        "config.priorities",
+        "planner.route.scheduling-options"
+      ]
+    },
+    {
+      "id": "config.allowedSuggestionTypes",
+      "label": "Allowed suggestion types",
+      "category": "Configuration",
+      "definition": "Lists the suggestion routes the planner may use. At least one unique type is required.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingSuggestionType"
+        }
+      ],
+      "relatedIds": [
+        "config.allowedSuggestionTypes.recap",
+        "config.allowedSuggestionTypes.priority",
+        "config.allowedSuggestionTypes.schedule"
+      ]
+    },
+    {
+      "id": "config.allowedSuggestionTypes.recap",
+      "label": "Recap suggestion type",
+      "category": "Configuration",
+      "definition": "Keeps the legacy concise-overview route available for compatibility. Daily Brief interprets recap as an overview and never uses it to narrate completion or adherence history.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingSuggestionType"
+        }
+      ],
+      "relatedIds": [
+        "config.allowedSuggestionTypes",
+        "planner.route.recap"
+      ]
+    },
+    {
+      "id": "config.allowedSuggestionTypes.priority",
+      "label": "Priority suggestion type",
+      "category": "Configuration",
+      "definition": "Allows non-timing priority suggestions when unresolved occurrences exist.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingSuggestionType"
+        }
+      ],
+      "relatedIds": [
+        "config.allowedSuggestionTypes",
+        "planner.route.priority-suggestions"
+      ]
+    },
+    {
+      "id": "config.allowedSuggestionTypes.schedule",
+      "label": "Schedule suggestion type",
+      "category": "Configuration",
+      "definition": "Allows timing suggestions only from deterministic planner options.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingSuggestionType"
+        }
+      ],
+      "relatedIds": [
+        "config.allowedSuggestionTypes",
+        "planner.route.scheduling-options"
+      ]
+    },
+    {
+      "id": "config.alternatives",
+      "label": "Alternatives",
+      "category": "Configuration",
+      "definition": "Caps planner options and generated suggestions at one through three.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-config.ts",
+          "symbol": "parseBriefingConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.length.maxWords",
+        "planner.outcome.options"
+      ]
+    },
+    {
+      "id": "config.scope.behaviorRefs",
+      "label": "Behavior scope",
+      "category": "Configuration",
+      "definition": "Selects all authorized Behaviors or a unique subset. Scoping can remove facts but cannot add unauthorized facts.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-config.ts",
+          "symbol": "scopeBriefingContext"
+        }
+      ],
+      "relatedIds": [
+        "config.scope.behaviorRefs.all",
+        "config.planner.movableBehaviorRefs"
+      ]
+    },
+    {
+      "id": "config.scope.behaviorRefs.all",
+      "label": "All authorized Behaviors",
+      "category": "Configuration",
+      "definition": "Includes every Behavior already authorized in the captured context.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-config.ts",
+          "symbol": "scopeBriefingContext"
+        }
+      ],
+      "relatedIds": [
+        "config.scope.behaviorRefs"
+      ]
+    },
+    {
+      "id": "config.scope.historyDays",
+      "label": "History days",
+      "category": "Configuration",
+      "definition": "Selects one through 90 complete local days before the briefing day for completion-history aggregation.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-config.ts",
+          "symbol": "scopeBriefingContext"
+        }
+      ],
+      "relatedIds": [
+        "history.completeness",
+        "history.reason.history-limit-exceeded"
+      ]
+    },
+    {
+      "id": "config.scope.includeCalendar",
+      "label": "Include Calendar",
+      "category": "Configuration",
+      "definition": "Allows already authorized Calendar context into this configuration. It cannot grant Calendar consent by itself.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-config.ts",
+          "symbol": "scopeBriefingContext"
+        }
+      ],
+      "relatedIds": [
+        "account.includeCalendar",
+        "calendar.state.not-requested"
+      ]
+    },
+    {
+      "id": "config.referenceIds",
+      "label": "Reference selection",
+      "category": "Configuration",
+      "definition": "Selects up to four unique curated catalog IDs. Selection does not guarantee inclusion after catalog checks.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "selectBriefingReferences"
+        }
+      ],
+      "relatedIds": [
+        "reference.omission",
+        "reference.status"
+      ]
+    },
+    {
+      "id": "config.planner.bufferMinutes",
+      "label": "Planner buffer",
+      "category": "Configuration",
+      "definition": "Adds the same zero-to-60-minute separation before and after a proposed occurrence.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "config.planner.permittedWindows"
+      ]
+    },
+    {
+      "id": "config.planner.preference",
+      "label": "Planner preference",
+      "category": "Configuration",
+      "definition": "Chooses how feasible candidates are ranked after constraints are applied.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingConfigV1"
+        }
+      ],
+      "relatedIds": [
+        "config.planner.preference.earliest",
+        "config.planner.preference.least-change"
+      ]
+    },
+    {
+      "id": "config.planner.preference.earliest",
+      "label": "Earliest",
+      "category": "Configuration",
+      "definition": "Ranks the earliest feasible start first.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "compareCandidates"
+        }
+      ],
+      "relatedIds": [
+        "config.planner.preference",
+        "planner.reason.earliest-feasible"
+      ]
+    },
+    {
+      "id": "config.planner.preference.least-change",
+      "label": "Least change",
+      "category": "Configuration",
+      "definition": "Ranks the feasible start nearest the current scheduled time first.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "compareCandidates"
+        }
+      ],
+      "relatedIds": [
+        "config.planner.preference",
+        "planner.reason.least-change-feasible"
+      ]
+    },
+    {
+      "id": "config.planner.movableBehaviorRefs",
+      "label": "Movable Behaviors",
+      "category": "Configuration",
+      "definition": "Marks selected, in-scope Behaviors as eligible for hypothetical schedule options. No occurrence is changed. Empty selections still permit independent day-conflict and fit evidence; only move options require selection.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-pipeline.ts",
+          "symbol": "prepareBriefing"
+        }
+      ],
+      "relatedIds": [
+        "config.scope.behaviorRefs",
+        "planner.route.scheduling-options"
+      ]
+    },
+    {
+      "id": "config.planner.permittedWindows",
+      "label": "Permitted windows",
+      "category": "Configuration",
+      "definition": "Defines one through four ordered, non-overlapping local-day windows where options may be proposed.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-config.ts",
+          "symbol": "parseWindows"
+        }
+      ],
+      "relatedIds": [
+        "config.planner.permittedWindows.startMinute",
+        "config.planner.permittedWindows.endMinute"
+      ]
+    },
+    {
+      "id": "config.planner.permittedWindows.startMinute",
+      "label": "Window start minute",
+      "category": "Configuration",
+      "definition": "Sets a window's inclusive local minute from midnight, from 0 through 1439.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-config.ts",
+          "symbol": "parseWindows"
+        }
+      ],
+      "relatedIds": [
+        "config.planner.permittedWindows"
+      ]
+    },
+    {
+      "id": "config.planner.permittedWindows.endMinute",
+      "label": "Window end minute",
+      "category": "Configuration",
+      "definition": "Sets a window's later local minute, from 1 through 1440. Minute 1440 means the next local midnight.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-config.ts",
+          "symbol": "parseWindows"
+        }
+      ],
+      "relatedIds": [
+        "config.planner.permittedWindows"
+      ]
+    },
+    {
+      "id": "context.status",
+      "label": "Context status",
+      "category": "Context",
+      "definition": "Reports whether the captured day context is complete or partial.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorDayContextV1"
+        }
+      ],
+      "relatedIds": [
+        "context.status.complete",
+        "context.status.partial"
+      ]
+    },
+    {
+      "id": "context.status.complete",
+      "label": "Complete context",
+      "category": "Context",
+      "definition": "The requested day-context projection completed. Completion history can still be unknown; scheduling separately requires current, complete Calendar coverage.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/advisor-day-context.ts",
+          "symbol": "validateAdvisorDayContext"
+        }
+      ],
+      "relatedIds": [
+        "context.status",
+        "calendar.state.current"
+      ]
+    },
+    {
+      "id": "context.status.partial",
+      "label": "Partial context",
+      "category": "Context",
+      "definition": "At least one requested source is incomplete or unavailable, so scheduling options are withheld.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "context.status",
+        "planner.rejection.context-partial"
+      ]
+    },
+    {
+      "id": "context.authority",
+      "label": "Context authority",
+      "category": "Context",
+      "definition": "Declares the operations permitted by the context contract.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorDayContextV1"
+        }
+      ],
+      "relatedIds": [
+        "context.authority.read-only"
+      ]
+    },
+    {
+      "id": "context.authority.read-only",
+      "label": "Read only",
+      "category": "Context",
+      "definition": "The context supports a read-only forward-looking overview and deterministic suggestions but cannot authorize writes or schedule changes.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/advisor-day-context.ts",
+          "symbol": "validateAdvisorDayContext"
+        }
+      ],
+      "relatedIds": [
+        "context.authority"
+      ]
+    },
+    {
+      "id": "context.cadence.coverage",
+      "label": "Cadence coverage",
+      "category": "Context",
+      "definition": "Reports coverage of the selected hosted Cadence facts.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCadenceSource"
+        }
+      ],
+      "relatedIds": [
+        "context.cadence.coverage.complete"
+      ]
+    },
+    {
+      "id": "context.cadence.coverage.complete",
+      "label": "Complete Cadence coverage",
+      "category": "Context",
+      "definition": "The selected hosted Cadence occurrence projection completed. Local-only and unsynced desktop records remain outside it.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/advisor-day-context.ts",
+          "symbol": "projectAdvisorCadenceSource"
+        }
+      ],
+      "relatedIds": [
+        "context.cadence.coverage"
+      ]
+    },
+    {
+      "id": "calendar.state",
+      "label": "Calendar state",
+      "category": "Calendar",
+      "definition": "Reports the Calendar connector's current usability for the captured day.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCalendarConnector"
+        }
+      ],
+      "relatedIds": [
+        "calendar.state.current",
+        "calendar.state.incomplete",
+        "calendar.state.stale",
+        "calendar.state.unavailable",
+        "calendar.state.not-requested"
+      ]
+    },
+    {
+      "id": "calendar.state.current",
+      "label": "Current Calendar",
+      "category": "Calendar",
+      "definition": "Calendar data is fresh. Scheduling also requires complete day coverage and pagination.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/advisor-day-context.ts",
+          "symbol": "projectAdvisorCalendarConnector"
+        }
+      ],
+      "relatedIds": [
+        "calendar.state",
+        "calendar.coverage.paginationComplete"
+      ]
+    },
+    {
+      "id": "calendar.state.incomplete",
+      "label": "Incomplete Calendar",
+      "category": "Calendar",
+      "definition": "The provider read did not establish complete coverage, so absence of events cannot establish free time.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/advisor-day-context.ts",
+          "symbol": "projectAdvisorCalendarConnector"
+        }
+      ],
+      "relatedIds": [
+        "calendar.state",
+        "planner.rejection.calendar-not-current"
+      ]
+    },
+    {
+      "id": "calendar.state.stale",
+      "label": "Stale Calendar",
+      "category": "Calendar",
+      "definition": "Calendar data is older than the freshness contract and cannot establish current free time.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCalendarConnector"
+        }
+      ],
+      "relatedIds": [
+        "calendar.state",
+        "planner.rejection.calendar-not-current"
+      ]
+    },
+    {
+      "id": "calendar.state.unavailable",
+      "label": "Unavailable Calendar",
+      "category": "Calendar",
+      "definition": "The connector failed or could not be used. No Calendar events are exposed as scheduling facts.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/advisor-day-context.ts",
+          "symbol": "projectUnavailableAdvisorCalendar"
+        }
+      ],
+      "relatedIds": [
+        "calendar.state",
+        "planner.rejection.calendar-missing"
+      ]
+    },
+    {
+      "id": "calendar.state.not-requested",
+      "label": "Calendar not requested",
+      "category": "Calendar",
+      "definition": "Calendar context was excluded by consent or configuration. Missing Calendar facts do not imply free time.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCalendarNotRequested"
+        }
+      ],
+      "relatedIds": [
+        "calendar.state",
+        "config.scope.includeCalendar"
+      ]
+    },
+    {
+      "id": "calendar.complete",
+      "label": "Calendar complete flag",
+      "category": "Calendar",
+      "definition": "True only when the source snapshot is complete and current.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/advisor-day-context.ts",
+          "symbol": "projectAdvisorCalendarConnector"
+        }
+      ],
+      "relatedIds": [
+        "calendar.state.current",
+        "calendar.coverage.paginationComplete"
+      ]
+    },
+    {
+      "id": "calendar.fetchedAt",
+      "label": "Calendar fetched at",
+      "category": "Calendar",
+      "definition": "Records the instant used to verify Calendar freshness. Future or expired timestamps block scheduling.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "calendar.state.current",
+        "planner.rejection.calendar-not-current"
+      ]
+    },
+    {
+      "id": "calendar.coverage.paginationComplete",
+      "label": "Pagination complete",
+      "category": "Calendar",
+      "definition": "Confirms every selected Calendar page for the declared local-day range was read.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCalendarConnector"
+        }
+      ],
+      "relatedIds": [
+        "calendar.complete",
+        "calendar.state.current"
+      ]
+    },
+    {
+      "id": "calendar.interval",
+      "label": "Calendar interval precision",
+      "category": "Calendar",
+      "definition": "Distinguishes exact instants from local-date all-day spans.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCalendarInterval"
+        }
+      ],
+      "relatedIds": [
+        "calendar.interval.timed",
+        "calendar.interval.all-day"
+      ]
+    },
+    {
+      "id": "calendar.interval.timed",
+      "label": "Timed interval",
+      "category": "Calendar",
+      "definition": "Represents an event with start and end instants. Its duration may still be unknown when the provider omits an end.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCalendarInterval"
+        }
+      ],
+      "relatedIds": [
+        "calendar.interval",
+        "calendar.duration.unknown-end"
+      ]
+    },
+    {
+      "id": "calendar.interval.all-day",
+      "label": "All-day interval",
+      "category": "Calendar",
+      "definition": "Represents a half-open span of local dates, not a guessed clock-time interval.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCalendarInterval"
+        }
+      ],
+      "relatedIds": [
+        "calendar.interval",
+        "calendar.duration.calendar-days"
+      ]
+    },
+    {
+      "id": "calendar.duration",
+      "label": "Calendar duration",
+      "category": "Calendar",
+      "definition": "Reports duration precision for a Calendar interval.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCalendarInterval"
+        }
+      ],
+      "relatedIds": [
+        "calendar.duration.known",
+        "calendar.duration.unknown-end",
+        "calendar.duration.calendar-days"
+      ]
+    },
+    {
+      "id": "calendar.duration.known",
+      "label": "Known timed duration",
+      "category": "Calendar",
+      "definition": "The timed event has a validated duration in seconds.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCalendarInterval"
+        }
+      ],
+      "relatedIds": [
+        "calendar.duration"
+      ]
+    },
+    {
+      "id": "calendar.duration.unknown-end",
+      "label": "Unknown event end: end_unspecified",
+      "category": "Calendar",
+      "definition": "The provider did not specify a timed event end. The planner blocks through day end rather than inventing precision.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.duration",
+        "calendar.interval.timed"
+      ]
+    },
+    {
+      "id": "calendar.duration.calendar-days",
+      "label": "Calendar-day duration",
+      "category": "Calendar",
+      "definition": "An all-day event duration is counted in local calendar days, not fixed seconds.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCalendarInterval"
+        }
+      ],
+      "relatedIds": [
+        "calendar.duration",
+        "calendar.interval.all-day"
+      ]
+    },
+    {
+      "id": "history.completeness",
+      "label": "History completeness",
+      "category": "History",
+      "definition": "Reports whether all source records for the selected lookback were aggregated.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCompletionHistory"
+        }
+      ],
+      "relatedIds": [
+        "history.completeness.complete",
+        "history.completeness.unknown"
+      ]
+    },
+    {
+      "id": "history.completeness.complete",
+      "label": "Complete history",
+      "category": "History",
+      "definition": "The selected lookback was fully aggregated, so per-Behavior status counts are numeric.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/advisor-day-context.ts",
+          "symbol": "projectAdvisorCadenceSource"
+        }
+      ],
+      "relatedIds": [
+        "history.completeness"
+      ]
+    },
+    {
+      "id": "history.completeness.unknown",
+      "label": "Unknown history completeness",
+      "category": "History",
+      "definition": "The source limit prevented a complete aggregate. Counts stay null instead of becoming misleading partial totals.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/advisor-day-context.ts",
+          "symbol": "projectAdvisorCadenceSource"
+        }
+      ],
+      "relatedIds": [
+        "history.completeness",
+        "history.counts.unknown",
+        "history.reason.history-limit-exceeded"
+      ]
+    },
+    {
+      "id": "history.reason.history-limit-exceeded",
+      "label": "History limit exceeded",
+      "category": "History",
+      "definition": "The requested history crossed a bounded source-read limit, so completeness and dependent counts are unknown.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCompletionHistory"
+        }
+      ],
+      "relatedIds": [
+        "history.completeness.unknown",
+        "duration.reason.history-limit-exceeded"
+      ]
+    },
+    {
+      "id": "history.counts.unknown",
+      "label": "Unknown history counts",
+      "category": "History",
+      "definition": "Null completed, not completed, and unresolved counts mean unknown, never zero.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCompletionHistoryBehavior"
+        }
+      ],
+      "relatedIds": [
+        "history.completeness.unknown"
+      ]
+    },
+    {
+      "id": "duration.kind",
+      "label": "Behavior duration knowledge",
+      "category": "History",
+      "definition": "Reports whether an occurrence duration is known or unknown.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorDuration"
+        }
+      ],
+      "relatedIds": [
+        "duration.kind.known",
+        "duration.kind.unknown"
+      ]
+    },
+    {
+      "id": "duration.kind.known",
+      "label": "Known Behavior duration",
+      "category": "History",
+      "definition": "A duration is available from a configured Behavior default or an eligible historical average.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorDuration"
+        }
+      ],
+      "relatedIds": [
+        "duration.kind",
+        "duration.source.behavior-default",
+        "duration.source.completed-mean"
+      ]
+    },
+    {
+      "id": "duration.kind.unknown",
+      "label": "Unknown Behavior duration",
+      "category": "History",
+      "definition": "No defensible duration is available. Scheduling requires an explicit input assumption or rejects the occurrence.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "duration.kind",
+        "planner.rejection.duration-unknown"
+      ]
+    },
+    {
+      "id": "duration.source.behavior-default",
+      "label": "Behavior default duration",
+      "category": "History",
+      "definition": "The known duration comes from the Behavior's configured default.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorDuration"
+        }
+      ],
+      "relatedIds": [
+        "duration.kind.known"
+      ]
+    },
+    {
+      "id": "duration.source.completed-mean",
+      "label": "Completed-session mean: completed_stopped_occurrence_mean",
+      "category": "History",
+      "definition": "The known duration is an eligible historical average from completed, stopped tracking sessions in the bounded lookback.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorDuration"
+        }
+      ],
+      "relatedIds": [
+        "duration.kind.known"
+      ]
+    },
+    {
+      "id": "duration.reason.insufficient-samples",
+      "label": "Insufficient duration samples",
+      "category": "History",
+      "definition": "Fewer than three eligible completed, stopped samples exist in the preceding 90 complete local days, so duration remains unknown.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorDuration"
+        }
+      ],
+      "relatedIds": [
+        "duration.kind.unknown"
+      ]
+    },
+    {
+      "id": "duration.reason.history-limit-exceeded",
+      "label": "Duration history limit exceeded",
+      "category": "History",
+      "definition": "The duration source read hit its limit, so duration remains unknown rather than using a partial estimate.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorDuration"
+        }
+      ],
+      "relatedIds": [
+        "duration.kind.unknown",
+        "history.reason.history-limit-exceeded"
+      ]
+    },
+    {
+      "id": "occurrence.status",
+      "label": "Occurrence status",
+      "category": "Occurrence",
+      "definition": "The user-controlled stored state for one scheduled occurrence.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/database.ts",
+          "symbol": "OccurrenceStatus"
+        }
+      ],
+      "relatedIds": [
+        "occurrence.status.unresolved",
+        "occurrence.status.completed",
+        "occurrence.status.not-completed"
+      ]
+    },
+    {
+      "id": "occurrence.status.unresolved",
+      "label": "Unresolved",
+      "category": "Occurrence",
+      "definition": "The user has not manually decided whether the occurrence was completed. It is not a failure or missed status.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/database.ts",
+          "symbol": "OccurrenceStatus"
+        }
+      ],
+      "relatedIds": [
+        "occurrence.status"
+      ]
+    },
+    {
+      "id": "occurrence.status.completed",
+      "label": "Completed",
+      "category": "Occurrence",
+      "definition": "The user manually recorded that the occurrence was completed.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/database.ts",
+          "symbol": "OccurrenceStatus"
+        }
+      ],
+      "relatedIds": [
+        "occurrence.status"
+      ]
+    },
+    {
+      "id": "occurrence.status.not-completed",
+      "label": "Not Completed",
+      "category": "Occurrence",
+      "definition": "The user manually recorded that the occurrence was not completed.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/database.ts",
+          "symbol": "OccurrenceStatus"
+        }
+      ],
+      "relatedIds": [
+        "occurrence.status"
+      ]
+    },
+    {
+      "id": "planner.route",
+      "label": "Planner route",
+      "category": "Planner",
+      "definition": "Chooses the kind of response the model may produce from deterministic facts and enabled suggestion types. This route gates generated suggestion items, not independent day observations in the main briefing text.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanResult"
+        }
+      ],
+      "relatedIds": [
+        "planner.route.recap",
+        "planner.route.priority-suggestions",
+        "planner.route.scheduling-options",
+        "planner.route.insufficient-context"
+      ]
+    },
+    {
+      "id": "planner.route.recap",
+      "label": "Recap route",
+      "category": "Planner",
+      "definition": "Allows concise overview text with no suggestion items. The legacy route name remains for compatibility and does not authorize completion recaps, adherence summaries, or unresolved-work lists.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "planner.route",
+        "config.allowedSuggestionTypes.recap"
+      ]
+    },
+    {
+      "id": "planner.route.priority-suggestions",
+      "label": "Priority-suggestions route",
+      "category": "Planner",
+      "definition": "Allows non-timing suggestions about unresolved priorities. Suggestion option IDs must be null.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "planner.route",
+        "config.allowedSuggestionTypes.priority"
+      ]
+    },
+    {
+      "id": "planner.route.scheduling-options",
+      "label": "Scheduling-options route",
+      "category": "Planner",
+      "definition": "Allows suggestions only when each timing claim identifies a supplied deterministic planner option.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "planner.route",
+        "config.allowedSuggestionTypes.schedule"
+      ]
+    },
+    {
+      "id": "planner.route.insufficient-context",
+      "label": "Insufficient-context route",
+      "category": "Planner",
+      "definition": "Permits no generated suggestion items. Supported day observations may still inform the main text; detailed limitation diagnostics remain in the inspector.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "planner.route",
+        "planner.outcome.no-feasible-option"
+      ]
+    },
+    {
+      "id": "planner.outcome",
+      "label": "Planner outcome",
+      "category": "Planner",
+      "definition": "Summarizes whether move planning returned options, found no change, found no feasible option, or was not requested. Independent day evidence has its own findings and coverage.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanResult"
+        }
+      ],
+      "relatedIds": [
+        "planner.outcome.options",
+        "planner.outcome.no-change",
+        "planner.outcome.no-feasible-option",
+        "planner.outcome.not-requested"
+      ]
+    },
+    {
+      "id": "planner.outcome.options",
+      "label": "Options available",
+      "category": "Planner",
+      "definition": "One or more bounded deterministic scheduling options were produced.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "planner.outcome"
+      ]
+    },
+    {
+      "id": "planner.outcome.no-change",
+      "label": "No change needed",
+      "category": "Planner",
+      "definition": "No move option was produced because no occurrences were selected as movable, or all checked movable occurrences already fit. It does not prove that every schedule was checked.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "planner.outcome",
+        "planner.rejection.no-change-needed"
+      ]
+    },
+    {
+      "id": "planner.outcome.no-feasible-option",
+      "label": "No feasible option",
+      "category": "Planner",
+      "definition": "The planner could not produce a valid option from the available context and constraints.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "planner.outcome"
+      ]
+    },
+    {
+      "id": "planner.outcome.not-requested",
+      "label": "Planning not requested",
+      "category": "Planner",
+      "definition": "Scheduling is disabled and the policy supports a concise overview or non-timing priority route. No scheduling search was requested.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "planner.outcome",
+        "planner.route.recap"
+      ]
+    },
+    {
+      "id": "planner.rejection",
+      "label": "Planner rejection",
+      "category": "Planner",
+      "definition": "A machine-readable reason that the planner withheld an option or recorded no change for an occurrence.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanRejectionCode"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection.calendar-missing",
+        "planner.rejection.calendar-not-current",
+        "planner.rejection.candidate-limit-exceeded",
+        "planner.rejection.context-expired",
+        "planner.rejection.context-not-yet-valid",
+        "planner.rejection.context-partial",
+        "planner.rejection.duration-unknown",
+        "planner.rejection.fixed-commitments-incomplete",
+        "planner.rejection.no-allowed-suggestion",
+        "planner.rejection.no-change-needed",
+        "planner.rejection.no-feasible-window",
+        "planner.rejection.occurrence-not-found",
+        "planner.rejection.occurrence-not-unresolved"
+      ]
+    },
+    {
+      "id": "planner.rejection.calendar-missing",
+      "label": "Calendar missing",
+      "category": "Planner",
+      "definition": "Required Calendar coverage was absent or not requested, so scheduling options were unavailable.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanRejectionCode"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection",
+        "calendar.state.not-requested"
+      ]
+    },
+    {
+      "id": "planner.rejection.calendar-not-current",
+      "label": "Calendar not current",
+      "category": "Planner",
+      "definition": "Calendar freshness, completeness, pagination, or local-day coverage failed the scheduling contract.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanRejectionCode"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection",
+        "calendar.state.stale"
+      ]
+    },
+    {
+      "id": "planner.rejection.candidate-limit-exceeded",
+      "label": "Candidate limit exceeded",
+      "category": "Planner",
+      "definition": "A bounded candidate scan exceeded its contract limit, so the planner withheld that occurrence's option.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BRIEFING_PLAN_LIMITS"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection"
+      ]
+    },
+    {
+      "id": "planner.rejection.context-expired",
+      "label": "Context expired",
+      "category": "Planner",
+      "definition": "Planning ran at or after the captured context's expiry instant.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection",
+        "account.expiresAt"
+      ]
+    },
+    {
+      "id": "planner.rejection.context-not-yet-valid",
+      "label": "Context not yet valid",
+      "category": "Planner",
+      "definition": "The planning clock precedes the context capture instant.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection",
+        "account.capturedAt"
+      ]
+    },
+    {
+      "id": "planner.rejection.context-partial",
+      "label": "Context partial",
+      "category": "Planner",
+      "definition": "The day context is partial, so scheduling options are withheld.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanRejectionCode"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection",
+        "context.status.partial"
+      ]
+    },
+    {
+      "id": "planner.rejection.duration-unknown",
+      "label": "Duration unknown",
+      "category": "Planner",
+      "definition": "The occurrence has neither a known duration nor an explicit duration assumption.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanRejectionCode"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection",
+        "duration.kind.unknown"
+      ]
+    },
+    {
+      "id": "planner.rejection.fixed-commitments-incomplete",
+      "label": "Fixed commitments incomplete",
+      "category": "Planner",
+      "definition": "Behavior scoping omitted fixed occurrences, so the remaining facts cannot establish availability.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanRejectionCode"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection",
+        "config.scope.behaviorRefs"
+      ]
+    },
+    {
+      "id": "planner.rejection.no-allowed-suggestion",
+      "label": "No allowed suggestion",
+      "category": "Planner",
+      "definition": "Available facts support none of the enabled suggestion types.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanRejectionCode"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection",
+        "config.allowedSuggestionTypes"
+      ]
+    },
+    {
+      "id": "planner.rejection.no-change-needed",
+      "label": "No change needed rejection",
+      "category": "Planner",
+      "definition": "The current interval already satisfies the checked windows, buffers, and commitments.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanRejectionCode"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection",
+        "planner.outcome.no-change"
+      ]
+    },
+    {
+      "id": "planner.rejection.no-feasible-window",
+      "label": "No feasible window",
+      "category": "Planner",
+      "definition": "No permitted range can fit the duration, buffers, current time, and fixed commitments.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanRejectionCode"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection"
+      ]
+    },
+    {
+      "id": "planner.rejection.occurrence-not-found",
+      "label": "Occurrence not found",
+      "category": "Planner",
+      "definition": "A requested movable occurrence reference is absent from the scoped context.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanRejectionCode"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection"
+      ]
+    },
+    {
+      "id": "planner.rejection.occurrence-not-unresolved",
+      "label": "Occurrence already resolved",
+      "category": "Planner",
+      "definition": "Only unresolved occurrences may receive hypothetical move options.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanRejectionCode"
+        }
+      ],
+      "relatedIds": [
+        "planner.rejection",
+        "occurrence.status.unresolved"
+      ]
+    },
+    {
+      "id": "planner.assumption.duration",
+      "label": "Duration assumption",
+      "category": "Planner",
+      "definition": "Records the duration source, seconds, and reason used by one option. It is evidence metadata, not a write.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanOption"
+        }
+      ],
+      "relatedIds": [
+        "planner.assumption.source.context-estimate",
+        "planner.assumption.source.explicit-input"
+      ]
+    },
+    {
+      "id": "planner.assumption.source.context-estimate",
+      "label": "Context duration estimate",
+      "category": "Planner",
+      "definition": "The option uses the known duration already present in the captured context.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "planBriefing"
+        }
+      ],
+      "relatedIds": [
+        "planner.assumption.duration",
+        "duration.kind.known"
+      ]
+    },
+    {
+      "id": "planner.assumption.source.explicit-input",
+      "label": "Explicit duration input",
+      "category": "Planner",
+      "definition": "The option uses a caller-supplied duration assumption with an explicit reason.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanMovableOccurrence"
+        }
+      ],
+      "relatedIds": [
+        "planner.assumption.duration"
+      ]
+    },
+    {
+      "id": "planner.reason.current-interval-conflicts",
+      "label": "Current interval conflicts",
+      "category": "Planner",
+      "definition": "The current occurrence interval does not fit the checked constraints.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanOption"
+        }
+      ],
+      "relatedIds": [
+        "planner.route.scheduling-options"
+      ]
+    },
+    {
+      "id": "planner.reason.earliest-feasible",
+      "label": "Earliest feasible",
+      "category": "Planner",
+      "definition": "The option was selected by the earliest-start preference after constraints.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanOption"
+        }
+      ],
+      "relatedIds": [
+        "config.planner.preference.earliest"
+      ]
+    },
+    {
+      "id": "planner.reason.least-change-feasible",
+      "label": "Least-change feasible",
+      "category": "Planner",
+      "definition": "The option was selected by minimum distance from the current start after constraints.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanOption"
+        }
+      ],
+      "relatedIds": [
+        "config.planner.preference.least-change"
+      ]
+    },
+    {
+      "id": "reference.kind",
+      "label": "Reference kind",
+      "category": "References",
+      "definition": "Classifies the authority represented by a curated reference.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "BriefingReference"
+        }
+      ],
+      "relatedIds": [
+        "reference.kind.research-evidence",
+        "reference.kind.interpretation",
+        "reference.kind.editorial-guidance"
+      ]
+    },
+    {
+      "id": "reference.kind.research-evidence",
+      "label": "Research evidence",
+      "category": "References",
+      "definition": "A catalog summary of primary or reviewed research evidence. Inclusion does not prove a generated claim.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "BriefingReference"
+        }
+      ],
+      "relatedIds": [
+        "reference.kind"
+      ]
+    },
+    {
+      "id": "reference.kind.interpretation",
+      "label": "Interpretation",
+      "category": "References",
+      "definition": "An original interpretation of external guidance, bounded by its stated applicability and limitations.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "BriefingReference"
+        }
+      ],
+      "relatedIds": [
+        "reference.kind"
+      ]
+    },
+    {
+      "id": "reference.kind.editorial-guidance",
+      "label": "Editorial guidance",
+      "category": "References",
+      "definition": "A product wording or interpretation rule. It is not research evidence.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "BriefingReference"
+        }
+      ],
+      "relatedIds": [
+        "reference.kind"
+      ]
+    },
+    {
+      "id": "reference.fields",
+      "label": "Reference metadata",
+      "category": "References",
+      "definition": "Revision, title, HTTPS URL, publication and review dates, summary, applicability, and limitations make a catalog item inspectable.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "BriefingReference"
+        }
+      ],
+      "relatedIds": [
+        "reference.kind",
+        "reference.status"
+      ]
+    },
+    {
+      "id": "reference.status",
+      "label": "Reference status",
+      "category": "References",
+      "definition": "Controls whether a curated catalog item is eligible for selection output.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "BriefingReference"
+        }
+      ],
+      "relatedIds": [
+        "reference.status.active",
+        "reference.status.withdrawn"
+      ]
+    },
+    {
+      "id": "reference.status.active",
+      "label": "Active reference",
+      "category": "References",
+      "definition": "The catalog item may be included if its required fields and byte budget also pass.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "selectBriefingReferences"
+        }
+      ],
+      "relatedIds": [
+        "reference.status"
+      ]
+    },
+    {
+      "id": "reference.status.withdrawn",
+      "label": "Withdrawn reference",
+      "category": "References",
+      "definition": "The catalog item remains identifiable but is omitted from model input and returned sources.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "selectBriefingReferences"
+        }
+      ],
+      "relatedIds": [
+        "reference.status",
+        "reference.omission.withdrawn"
+      ]
+    },
+    {
+      "id": "reference.omission",
+      "label": "Reference omission",
+      "category": "References",
+      "definition": "Records why a selected catalog ID was not included.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "selectBriefingReferences"
+        }
+      ],
+      "relatedIds": [
+        "reference.omission.missing",
+        "reference.omission.withdrawn",
+        "reference.omission.unsuitable",
+        "reference.omission.byte-limit"
+      ]
+    },
+    {
+      "id": "reference.omission.missing",
+      "label": "Missing reference",
+      "category": "References",
+      "definition": "No catalog item matches the selected ID.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "selectBriefingReferences"
+        }
+      ],
+      "relatedIds": [
+        "reference.omission"
+      ]
+    },
+    {
+      "id": "reference.omission.withdrawn",
+      "label": "Reference withdrawn omission",
+      "category": "References",
+      "definition": "The selected catalog item has withdrawn status.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "selectBriefingReferences"
+        }
+      ],
+      "relatedIds": [
+        "reference.omission",
+        "reference.status.withdrawn"
+      ]
+    },
+    {
+      "id": "reference.omission.unsuitable",
+      "label": "Unsuitable reference",
+      "category": "References",
+      "definition": "Required summary, applicability, limitations, or HTTPS provenance is missing.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "selectBriefingReferences"
+        }
+      ],
+      "relatedIds": [
+        "reference.omission",
+        "reference.fields"
+      ]
+    },
+    {
+      "id": "reference.omission.byte-limit",
+      "label": "Reference byte limit",
+      "category": "References",
+      "definition": "The item or combined selection exceeds the bounded reference payload budget.",
+      "contracts": [
+        {
+          "path": "packages/core/src/services/briefing-references.ts",
+          "symbol": "selectBriefingReferences"
+        }
+      ],
+      "relatedIds": [
+        "reference.omission"
+      ]
+    },
+    {
+      "id": "workbench.mode",
+      "label": "Context source",
+      "category": "Workbench",
+      "definition": "Chooses synthetic fixtures or the signed-in account as the comparison source.",
+      "contracts": [
+        {
+          "path": "app/design-system/DailyBriefBench.tsx",
+          "symbol": "DailyBriefWorkbench"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic",
+        "workbench.mode.account"
+      ]
+    },
+    {
+      "id": "workbench.mode.synthetic",
+      "label": "Synthetic mode",
+      "category": "Workbench",
+      "definition": "Uses versioned, non-private fixtures and a frozen planning clock. Draft save and export are available.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode",
+        "workbench.fixtureVersion"
+      ]
+    },
+    {
+      "id": "workbench.mode.account",
+      "label": "My account mode",
+      "category": "Workbench",
+      "definition": "Uses one authorized hosted snapshot. Private results and Behavior selections stay in memory and clear on access changes.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-account-context.service.ts",
+          "symbol": "prepareAccountBriefingContexts"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode",
+        "account.enabled",
+        "account.includeCalendar"
+      ]
+    },
+    {
+      "id": "workbench.result",
+      "label": "Comparison result state",
+      "category": "Workbench",
+      "definition": "Each sequential attempt is ready when validated output is available or error when output is withheld.",
+      "contracts": [
+        {
+          "path": "app/design-system/DailyBriefBench.tsx",
+          "symbol": "Comparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.result.ready",
+        "workbench.result.error"
+      ]
+    },
+    {
+      "id": "workbench.result.ready",
+      "label": "Ready result",
+      "category": "Workbench",
+      "definition": "Generation and all output checks passed, so the briefing can be rendered.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.result",
+        "workbench.validation.passed"
+      ]
+    },
+    {
+      "id": "workbench.result.error",
+      "label": "Error result",
+      "category": "Workbench",
+      "definition": "Generation or validation failed. The workbench returns the error code and inspector but withholds briefing text.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.result",
+        "workbench.validation.withheld",
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.validation",
+      "label": "Validation state",
+      "category": "Workbench",
+      "definition": "Reports whether a generated attempt passed consumer validation or was withheld.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.validation.passed",
+        "workbench.validation.withheld"
+      ]
+    },
+    {
+      "id": "workbench.validation.passed",
+      "label": "Passed validation",
+      "category": "Workbench",
+      "definition": "The provider output satisfied structural shape, reference-ID, option-ID, word-count and URL checks. This does not certify factual accuracy or that a citation supports a claim.",
+      "contracts": [
+        {
+          "path": "lib/services/daily-brief-consumer.ts",
+          "symbol": "generateDailyBrief"
+        }
+      ],
+      "relatedIds": [
+        "workbench.validation",
+        "workbench.result.ready"
+      ]
+    },
+    {
+      "id": "workbench.validation.withheld",
+      "label": "Withheld output",
+      "category": "Workbench",
+      "definition": "No briefing is shown because generation or validation failed.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.validation",
+        "workbench.result.error"
+      ]
+    },
+    {
+      "id": "workbench.error",
+      "label": "Workbench error codes",
+      "category": "Workbench",
+      "definition": "An error code identifies why access, capture, generation or validation failed. Follow its linked definition; an error never marks an occurrence or applies a schedule.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        },
+        {
+          "path": "lib/services/daily-brief-consumer.ts",
+          "symbol": "DailyBriefError"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error.not-found",
+        "workbench.error.access-denied",
+        "workbench.error.unauthenticated",
+        "workbench.error.invalid-request",
+        "workbench.error.not-configured",
+        "workbench.error.calendar-unavailable",
+        "workbench.error.context-changed",
+        "workbench.error.context-expired",
+        "workbench.error.context-limit-exceeded",
+        "workbench.error.timeout",
+        "workbench.error.rate-limited",
+        "workbench.error.comparison-in-progress",
+        "workbench.error.comparison-limit",
+        "workbench.error.advisor-unavailable",
+        "workbench.error.generation-failed",
+        "workbench.error.invalid-or-cancelled-request",
+        "workbench.error.context-incomplete",
+        "workbench.error.same-account-required",
+        "workbench.error.account-unavailable",
+        "workbench.error.comparison-failed"
+      ]
+    },
+    {
+      "id": "workbench.draft",
+      "label": "Saved draft",
+      "category": "Workbench",
+      "definition": "A validated synthetic configuration stored in browser local storage for later comparison. It never activates production behavior.",
+      "contracts": [
+        {
+          "path": "app/design-system/DailyBriefBench.tsx",
+          "symbol": "DailyBriefWorkbench"
+        }
+      ],
+      "relatedIds": [
+        "workbench.repository-config"
+      ]
+    },
+    {
+      "id": "workbench.repository-config",
+      "label": "Repository configuration",
+      "category": "Workbench",
+      "definition": "The reviewed repository default selected by the production pipeline. Promotion requires a source change, not a browser draft.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-pipeline.ts",
+          "symbol": "activeBriefingConfig"
+        }
+      ],
+      "relatedIds": [
+        "workbench.draft",
+        "account.configurationRevision"
+      ]
+    },
+    {
+      "id": "workbench.comparison-budget",
+      "label": "Comparison budget",
+      "category": "Workbench",
+      "definition": "A comparison runs up to two sequential attempts. Both modes share one process-local limit: six comparison starts per server hour and one in flight. Restarting development resets it.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.daily-allowance"
+      ]
+    },
+    {
+      "id": "workbench.daily-allowance",
+      "label": "Daily allowance isolation",
+      "category": "Workbench",
+      "definition": "Workbench comparisons do not call daily begin or finish admission and do not consume the once-per-day briefing allowance.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.comparison-budget"
+      ]
+    },
+    {
+      "id": "workbench.model",
+      "label": "Model",
+      "category": "Provenance",
+      "definition": "Names the configured server-side model adapter used for the attempts.",
+      "contracts": [
+        {
+          "path": "lib/services/daily-brief-openai.ts",
+          "symbol": "DAILY_BRIEF_MODEL"
+        }
+      ],
+      "relatedIds": [
+        "workbench.usage"
+      ]
+    },
+    {
+      "id": "workbench.usage",
+      "label": "Usage telemetry",
+      "category": "Provenance",
+      "definition": "The current workbench reports unavailable because runtime token, effort, and cost telemetry are not exposed by its response contract.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.model"
+      ]
+    },
+    {
+      "id": "workbench.fixtureVersion",
+      "label": "Fixture version",
+      "category": "Provenance",
+      "definition": "Identifies the exact synthetic fixture revision used by a comparison. Account mode returns null.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "BRIEFING_FIXTURE_VERSION"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic"
+      ]
+    },
+    {
+      "id": "account.available",
+      "label": "Model available",
+      "category": "Account",
+      "definition": "Reports whether this server has the model provider configured. It does not report account opt-in.",
+      "contracts": [
+        {
+          "path": "lib/services/daily-brief.service.ts",
+          "symbol": "getDailyBriefSettings"
+        }
+      ],
+      "relatedIds": [
+        "account.enabled"
+      ]
+    },
+    {
+      "id": "account.enabled",
+      "label": "Daily Brief enabled",
+      "category": "Account",
+      "definition": "Reports the account's Daily Brief opt-in. Account comparisons require it to remain enabled.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/daily-brief.ts",
+          "symbol": "DailyBriefSettings"
+        }
+      ],
+      "relatedIds": [
+        "account.available",
+        "account.preferenceRevision"
+      ]
+    },
+    {
+      "id": "account.includeCalendar",
+      "label": "Calendar model-data consent",
+      "category": "Account",
+      "definition": "Reports account permission to include selected Calendar data in model input. A configuration may further exclude it.",
+      "contracts": [
+        {
+          "path": "lib/db/daily-brief.repo.ts",
+          "symbol": "DailyBriefPreferences"
+        }
+      ],
+      "relatedIds": [
+        "config.scope.includeCalendar",
+        "account.calendarConnectionGeneration",
+        "account.calendarSelectionRevision"
+      ]
+    },
+    {
+      "id": "account.preferenceRevision",
+      "label": "Preference revision",
+      "category": "Account",
+      "definition": "Fences account comparisons against Daily Brief enablement or Calendar-consent changes.",
+      "contracts": [
+        {
+          "path": "lib/db/daily-brief.repo.ts",
+          "symbol": "DailyBriefPreferences"
+        }
+      ],
+      "relatedIds": [
+        "account.enabled",
+        "account.includeCalendar"
+      ]
+    },
+    {
+      "id": "account.calendarConnectionGeneration",
+      "label": "Calendar connection generation",
+      "category": "Account",
+      "definition": "Fences captured Calendar facts to the exact connected-account generation authorized by preferences.",
+      "contracts": [
+        {
+          "path": "lib/db/daily-brief.repo.ts",
+          "symbol": "DailyBriefPreferences"
+        }
+      ],
+      "relatedIds": [
+        "account.includeCalendar",
+        "account.calendarSelectionRevision"
+      ]
+    },
+    {
+      "id": "account.calendarSelectionRevision",
+      "label": "Calendar selection revision",
+      "category": "Account",
+      "definition": "Fences captured Calendar facts to the exact selected-Calendar set authorized by preferences.",
+      "contracts": [
+        {
+          "path": "lib/db/daily-brief.repo.ts",
+          "symbol": "DailyBriefPreferences"
+        }
+      ],
+      "relatedIds": [
+        "account.includeCalendar",
+        "account.calendarConnectionGeneration"
+      ]
+    },
+    {
+      "id": "account.capturedAt",
+      "label": "Snapshot captured at",
+      "category": "Account",
+      "definition": "The instant the frozen comparison context was assembled. Both attempts use that same snapshot and planning clock.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorDayContextV1"
+        }
+      ],
+      "relatedIds": [
+        "account.expiresAt",
+        "planner.rejection.context-not-yet-valid"
+      ]
+    },
+    {
+      "id": "account.expiresAt",
+      "label": "Snapshot expires at",
+      "category": "Account",
+      "definition": "The exclusive expiry instant for the captured context. Expired account results are discarded.",
+      "contracts": [
+        {
+          "path": "lib/services/daily-brief-consumer.ts",
+          "symbol": "assertBriefContextFresh"
+        }
+      ],
+      "relatedIds": [
+        "account.capturedAt",
+        "planner.rejection.context-expired"
+      ]
+    },
+    {
+      "id": "account.configurationRevision",
+      "label": "Configuration revision",
+      "category": "Provenance",
+      "definition": "A hash over validated configuration, selected-reference result, planner version, and pipeline version. A change withdraws obsolete output.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-pipeline.ts",
+          "symbol": "briefingConfigurationRevision"
+        }
+      ],
+      "relatedIds": [
+        "config.version",
+        "workbench.repository-config",
+        "result.versions"
+      ]
+    },
+    {
+      "id": "result.versions",
+      "label": "Result versions",
+      "category": "Provenance",
+      "definition": "Records configuration, reference catalog, planner, pipeline, recipe, and output-policy versions used to produce a ready briefing.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/daily-brief.ts",
+          "symbol": "DailyBriefing"
+        }
+      ],
+      "relatedIds": [
+        "account.configurationRevision",
+        "workbench.fixtureVersion",
+        "config.recipe",
+        "policy.version",
+        "result.versions.recipe",
+        "result.versions.policy"
+      ]
+    },
+    {
+      "id": "result.versions.recipe",
+      "label": "Result recipe version",
+      "category": "Provenance",
+      "definition": "Records the recipe identifier and version used to produce the result, such as daily_brief@1.0.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/daily-brief.ts",
+          "symbol": "DailyBriefing"
+        }
+      ],
+      "relatedIds": [
+        "result.versions",
+        "config.recipe"
+      ]
+    },
+    {
+      "id": "result.versions.policy",
+      "label": "Result policy version",
+      "category": "Provenance",
+      "definition": "Records the Daily Brief output policy version that governed the generated text and suggestions.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/daily-brief.ts",
+          "symbol": "DailyBriefing"
+        }
+      ],
+      "relatedIds": [
+        "result.versions",
+        "policy.version"
+      ]
+    },
+    {
+      "id": "workbench.error.not-found",
+      "label": "not_found",
+      "category": "Workbench",
+      "definition": "The comparison route is unavailable outside development mode.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.access-denied",
+      "label": "access_denied",
+      "category": "Workbench",
+      "definition": "The request failed the development origin boundary, or the account lacks current briefing consent.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.unauthenticated",
+      "label": "unauthenticated",
+      "category": "Workbench",
+      "definition": "The request has no valid current signed-in session.",
+      "contracts": [
+        {
+          "path": "lib/services/daily-brief-request.ts",
+          "symbol": "runDailyBriefRequest"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.invalid-request",
+      "label": "invalid_request",
+      "category": "Workbench",
+      "definition": "The comparison body, configuration, expected owner metadata or selected Behavior handles failed validation.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.not-configured",
+      "label": "not_configured",
+      "category": "Workbench",
+      "definition": "The server has no configured model provider key.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.calendar-unavailable",
+      "label": "calendar_unavailable",
+      "category": "Workbench",
+      "definition": "The account Calendar connection could not supply the authorized context.",
+      "contracts": [
+        {
+          "path": "lib/services/daily-brief-request.ts",
+          "symbol": "runDailyBriefRequest"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.context-changed",
+      "label": "context_changed",
+      "category": "Workbench",
+      "definition": "Account consent, source facts, Calendar authorization, timezone or configuration changed. Obsolete output is withheld.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.context-expired",
+      "label": "context_expired",
+      "category": "Workbench",
+      "definition": "The live clock is before capture, at or after expiry, or outside the captured local day. The context cannot be used.",
+      "contracts": [
+        {
+          "path": "lib/services/daily-brief-consumer.ts",
+          "symbol": "assertBriefContextFresh"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.context-limit-exceeded",
+      "label": "context_limit_exceeded",
+      "category": "Workbench",
+      "definition": "A source read or model payload exceeded a bounded context size. No oversized context is sent.",
+      "contracts": [
+        {
+          "path": "lib/services/daily-brief-consumer.ts",
+          "symbol": "generateDailyBrief"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.timeout",
+      "label": "timeout",
+      "category": "Workbench",
+      "definition": "A request was aborted or exceeded its time limit. This code includes cancellation, not only elapsed-time failures.",
+      "contracts": [
+        {
+          "path": "lib/services/daily-brief-consumer.ts",
+          "symbol": "raceBriefAbort"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.rate-limited",
+      "label": "rate_limited",
+      "category": "Workbench",
+      "definition": "Account comparison or source-read admission reached a concurrency or attempt limit. Retry timing may be returned.",
+      "contracts": [
+        {
+          "path": "lib/services/daily-brief-request.ts",
+          "symbol": "runDailyBriefRequest"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.comparison-in-progress",
+      "label": "comparison_in_progress",
+      "category": "Workbench",
+      "definition": "Another comparison is running. Synthetic requests report this code; account requests use rate_limited.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.comparison-limit",
+      "label": "comparison_limit",
+      "category": "Workbench",
+      "definition": "The shared hourly comparison budget is exhausted. Synthetic requests report this code; account requests use rate_limited.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.advisor-unavailable",
+      "label": "advisor_unavailable",
+      "category": "Workbench",
+      "definition": "The account boundary, provider or output validator could not return a usable briefing. This includes rejected output shapes or references.",
+      "contracts": [
+        {
+          "path": "lib/services/daily-brief-request.ts",
+          "symbol": "runDailyBriefRequest"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.generation-failed",
+      "label": "generation_failed",
+      "category": "Workbench",
+      "definition": "An unrecognized generator error prevented a usable result for this attempt.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.invalid-or-cancelled-request",
+      "label": "invalid_or_cancelled_request",
+      "category": "Workbench",
+      "definition": "The outer comparison request failed with an unclassified error or cancellation.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-workbench.service.ts",
+          "symbol": "runBriefingComparison"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "result.coverage.complete",
+      "label": "Briefing coverage: complete",
+      "category": "Context",
+      "definition": "The scoped context projection was complete. This does not imply complete history or a feasible schedule.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/daily-brief.ts",
+          "symbol": "DailyBriefing"
+        },
+        {
+          "path": "lib/services/daily-brief-consumer.ts",
+          "symbol": "generateDailyBrief"
+        }
+      ],
+      "relatedIds": [
+        "context.status.complete"
+      ]
+    },
+    {
+      "id": "result.coverage.partial",
+      "label": "Briefing coverage: partial",
+      "category": "Context",
+      "definition": "The scoped context retains an incomplete requested source. Timing proposals cannot use it to prove free time.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/daily-brief.ts",
+          "symbol": "DailyBriefing"
+        },
+        {
+          "path": "lib/services/daily-brief-consumer.ts",
+          "symbol": "generateDailyBrief"
+        }
+      ],
+      "relatedIds": [
+        "context.status.partial"
+      ]
+    },
+    {
+      "id": "workbench.fixture.sparse",
+      "label": "Synthetic snapshot: sparse",
+      "category": "Workbench",
+      "definition": "The base synthetic day: one unresolved Behavior and a fixed Calendar interval.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic"
+      ]
+    },
+    {
+      "id": "workbench.fixture.dense",
+      "label": "Synthetic snapshot: dense",
+      "category": "Workbench",
+      "definition": "Twelve synthetic occurrences from 08:00 through 19:00 share the fixture Behavior. Use it to inspect crowded output.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic"
+      ]
+    },
+    {
+      "id": "workbench.fixture.incomplete-history",
+      "label": "Synthetic snapshot: incomplete_history",
+      "category": "Workbench",
+      "definition": "Synthetic history counts are null because completeness is unknown. It must not be described as zero activity.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic"
+      ]
+    },
+    {
+      "id": "workbench.fixture.calendar-absent",
+      "label": "Synthetic snapshot: calendar_absent",
+      "category": "Workbench",
+      "definition": "Calendar is not requested. No Calendar facts establish free time.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic"
+      ]
+    },
+    {
+      "id": "workbench.fixture.calendar-partial",
+      "label": "Synthetic snapshot: calendar_partial",
+      "category": "Workbench",
+      "definition": "Calendar pagination is incomplete, events are withheld and the day context is partial.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic"
+      ]
+    },
+    {
+      "id": "workbench.fixture.hostile",
+      "label": "Synthetic snapshot: hostile",
+      "category": "Workbench",
+      "definition": "A synthetic Behavior title contains instruction-like text. The model must treat it as untrusted data.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic"
+      ]
+    },
+    {
+      "id": "workbench.fixture.no-feasible",
+      "label": "Synthetic snapshot: no_feasible",
+      "category": "Workbench",
+      "definition": "A fixed all-day Calendar event covers the synthetic day, preventing schedule options when scheduling is requested.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic"
+      ]
+    },
+    {
+      "id": "workbench.fixture.overlap",
+      "label": "Synthetic snapshot: overlap",
+      "category": "Workbench",
+      "definition": "A remaining Behavior overlaps a fixed timed Calendar commitment. Report the supported overlap without granting permission to move either item.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic",
+        "config.recipe"
+      ]
+    },
+    {
+      "id": "workbench.fixture.tight-transition",
+      "label": "Synthetic snapshot: tight_transition",
+      "category": "Workbench",
+      "definition": "A remaining Behavior leaves less than the configured buffer before a fixed Calendar commitment. Report the supplied transition gap without inventing travel time.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic",
+        "config.recipe"
+      ]
+    },
+    {
+      "id": "workbench.fixture.supported-gap",
+      "label": "Synthetic snapshot: supported_gap",
+      "category": "Workbench",
+      "definition": "A remaining Behavior has a supported duration and complete Calendar coverage. The planner can supply an individual fit; that evidence is not permission to move its schedule.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic",
+        "config.recipe"
+      ]
+    },
+    {
+      "id": "workbench.fixture.missing-duration",
+      "label": "Synthetic snapshot: missing_duration",
+      "category": "Workbench",
+      "definition": "Neither configured nor historical duration supports a fit. Keep unknown feasibility in the inspector and avoid invented timing claims.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic",
+        "config.recipe"
+      ]
+    },
+    {
+      "id": "workbench.fixture.completed",
+      "label": "Synthetic snapshot: completed",
+      "category": "Workbench",
+      "definition": "Resolved synthetic work is excluded from remaining-work advice. Its stored status and history remain unchanged.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic",
+        "config.recipe"
+      ]
+    },
+    {
+      "id": "workbench.fixture.uneventful",
+      "label": "Synthetic snapshot: uneventful",
+      "category": "Workbench",
+      "definition": "An empty synthetic day with complete source coverage. No specific timing recommendation is required; this does not prove general availability.",
+      "contracts": [
+        {
+          "path": "lib/services/briefing-fixtures.ts",
+          "symbol": "briefingFixture"
+        }
+      ],
+      "relatedIds": [
+        "workbench.mode.synthetic",
+        "config.recipe"
+      ]
+    },
+    {
+      "id": "workbench.error.context-incomplete",
+      "label": "context_incomplete",
+      "category": "Workbench",
+      "definition": "Cadence cannot provide complete current-day occurrence coverage: synchronization is uncovered or stale, an archive is due, or an occurrence has an unsupported schedule kind. Capture fails before comparison. Open Timeline first when an archive is due. Timeline repairs occurrences but does not certify reminder coverage. In Settings, confirm the current timezone and choose Save timezone to retry full synchronization; no notifications are sent by the repair. Fresh synchronization certifies current Behavior configurations; deliberately preserved occurrence lineage is not incomplete coverage.",
+      "contracts": [
+        {
+          "path": "lib/services/advisor-day-context.service.ts",
+          "symbol": "readAdvisorDayContexts"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.same-account-required",
+      "label": "same_account_required",
+      "category": "Workbench",
+      "definition": "The Calendar connection's Google identity does not match the signed-in account, or the account lacks one unambiguous Google identity. Authorized account context cannot be captured.",
+      "contracts": [
+        {
+          "path": "lib/services/google-calendar.service.ts",
+          "symbol": "getCalendarConnection"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.account-unavailable",
+      "label": "account_unavailable",
+      "category": "Workbench",
+      "definition": "The browser could not load account access metadata and received no specific error code. It withholds account comparison controls until account access can be loaded.",
+      "contracts": [
+        {
+          "path": "app/design-system/DailyBriefBench.tsx",
+          "symbol": "fetchAccount"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "workbench.error.comparison-failed",
+      "label": "comparison_failed",
+      "category": "Workbench",
+      "definition": "The browser received a failed comparison response without a specific error code, or caught a failure without an Error message. It shows no comparison result.",
+      "contracts": [
+        {
+          "path": "app/design-system/DailyBriefBench.tsx",
+          "symbol": "DailyBriefWorkbench"
+        }
+      ],
+      "relatedIds": [
+        "workbench.error"
+      ]
+    },
+    {
+      "id": "calendar.event.state",
+      "label": "Calendar event state",
+      "category": "Calendar",
+      "definition": "The provider event state is separate from connector freshness and attendee response. The planner ignores cancelled events.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventState"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.state.confirmed",
+        "calendar.event.state.tentative",
+        "calendar.event.state.cancelled",
+        "calendar.event.state.unknown"
+      ]
+    },
+    {
+      "id": "calendar.event.state.confirmed",
+      "label": "Calendar event state: confirmed",
+      "category": "Calendar",
+      "definition": "The event is confirmed, or Google omitted its status and the adapter applied its confirmed default. It blocks time unless marked free or declined.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventState"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.state"
+      ]
+    },
+    {
+      "id": "calendar.event.state.tentative",
+      "label": "Calendar event state: tentative",
+      "category": "Calendar",
+      "definition": "The event itself is tentative. This is separate from an attendee tentative response. It still blocks time unless free or declined.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventState"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.state"
+      ]
+    },
+    {
+      "id": "calendar.event.state.cancelled",
+      "label": "Calendar event state: cancelled",
+      "category": "Calendar",
+      "definition": "The contract represents a cancelled event. The planner ignores it; the Google adapter normally removes cancellation tombstones before context projection.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventState"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.state"
+      ]
+    },
+    {
+      "id": "calendar.event.state.unknown",
+      "label": "Calendar event state: unknown",
+      "category": "Calendar",
+      "definition": "The provider supplied an unrecognized event state. This does not establish free time; the planner blocks it unless free or declined.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventState"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.state"
+      ]
+    },
+    {
+      "id": "calendar.event.availability",
+      "label": "Calendar event availability",
+      "category": "Calendar",
+      "definition": "Reports whether an event occupies time. Connector completeness must still be established before the planner can infer free intervals.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventAvailability"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.availability.busy",
+        "calendar.event.availability.free",
+        "calendar.event.availability.unknown"
+      ]
+    },
+    {
+      "id": "calendar.event.availability.busy",
+      "label": "Calendar event availability: busy",
+      "category": "Calendar",
+      "definition": "The event occupies time (Google opaque, or its default when transparency is absent). The planner blocks it unless cancelled or declined.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventAvailability"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.availability"
+      ]
+    },
+    {
+      "id": "calendar.event.availability.free",
+      "label": "Calendar event availability: free",
+      "category": "Calendar",
+      "definition": "The provider marks the event transparent. The planner does not treat this event as a busy interval; other commitments still apply.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventAvailability"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.availability"
+      ]
+    },
+    {
+      "id": "calendar.event.availability.unknown",
+      "label": "Calendar event availability: unknown",
+      "category": "Calendar",
+      "definition": "The provider availability value is unrecognized. The planner conservatively blocks the event unless it is cancelled or declined.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventAvailability"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.availability"
+      ]
+    },
+    {
+      "id": "calendar.event.response",
+      "label": "Current user response",
+      "category": "Calendar",
+      "definition": "The current user attendee response is separate from the event state. A null value means no self-attendee response was available.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventResponseStatus"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.response.needs-action",
+        "calendar.event.response.declined",
+        "calendar.event.response.tentative",
+        "calendar.event.response.accepted",
+        "calendar.event.response.unknown"
+      ]
+    },
+    {
+      "id": "calendar.event.response.needs-action",
+      "label": "Current user response: needs_action",
+      "category": "Calendar",
+      "definition": "The current user has not responded to the invitation. The planner still treats the event as blocking unless cancelled or free.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventResponseStatus"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.response"
+      ]
+    },
+    {
+      "id": "calendar.event.response.declined",
+      "label": "Current user response: declined",
+      "category": "Calendar",
+      "definition": "The current user declined the invitation. The planner ignores this event when computing busy intervals.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventResponseStatus"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.response"
+      ]
+    },
+    {
+      "id": "calendar.event.response.tentative",
+      "label": "Current user response: tentative",
+      "category": "Calendar",
+      "definition": "The current user responded tentatively. The event still blocks time unless cancelled or free.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventResponseStatus"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.response"
+      ]
+    },
+    {
+      "id": "calendar.event.response.accepted",
+      "label": "Current user response: accepted",
+      "category": "Calendar",
+      "definition": "The current user accepted the invitation. The event blocks time unless cancelled or free.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventResponseStatus"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.response"
+      ]
+    },
+    {
+      "id": "calendar.event.response.unknown",
+      "label": "Current user response: unknown",
+      "category": "Calendar",
+      "definition": "A self-attendee exists, but its response is missing or unrecognized. The planner does not infer availability from this uncertainty.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventResponseStatus"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.response"
+      ]
+    },
+    {
+      "id": "calendar.event.response-absent",
+      "label": "Current user response: null",
+      "category": "Calendar",
+      "definition": "No self-attendee response is available in the normalized event. Null is distinct from an unknown response and does not establish free time.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorCalendarEvent"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "calendarBlock"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.response"
+      ]
+    },
+    {
+      "id": "calendar.event.timezone-fallback",
+      "label": "Event timezone fallback",
+      "category": "Calendar",
+      "definition": "Records the origin of sourceTimezone. Event times remain represented by instants or local all-day dates; fallback does not change the account timezone.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventSourceTimezoneFallback"
+        },
+        {
+          "path": "lib/services/google-calendar-provider.ts",
+          "symbol": "sourceTimezone"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.timezone-fallback.none",
+        "calendar.event.timezone-fallback.calendar",
+        "calendar.event.timezone-fallback.request"
+      ]
+    },
+    {
+      "id": "calendar.event.timezone-fallback.none",
+      "label": "Event timezone fallback: none",
+      "category": "Calendar",
+      "definition": "The event supplied a timezone on its start or end. The adapter used that timezone rather than a fallback.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventSourceTimezoneFallback"
+        },
+        {
+          "path": "lib/services/google-calendar-provider.ts",
+          "symbol": "sourceTimezone"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.timezone-fallback"
+      ]
+    },
+    {
+      "id": "calendar.event.timezone-fallback.calendar",
+      "label": "Event timezone fallback: calendar",
+      "category": "Calendar",
+      "definition": "The event supplied no timezone, so the adapter used the Calendar timezone.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventSourceTimezoneFallback"
+        },
+        {
+          "path": "lib/services/google-calendar-provider.ts",
+          "symbol": "sourceTimezone"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.timezone-fallback"
+      ]
+    },
+    {
+      "id": "calendar.event.timezone-fallback.request",
+      "label": "Event timezone fallback: request",
+      "category": "Calendar",
+      "definition": "Neither the event nor Calendar supplied a timezone, so the adapter used the request timezone.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/day-progress.ts",
+          "symbol": "ExternalEventSourceTimezoneFallback"
+        },
+        {
+          "path": "lib/services/google-calendar-provider.ts",
+          "symbol": "sourceTimezone"
+        }
+      ],
+      "relatedIds": [
+        "calendar.event.timezone-fallback"
+      ]
+    },
+    {
+      "id": "occurrence.schedule",
+      "label": "Occurrence schedule kind",
+      "category": "Occurrence",
+      "definition": "Describes the captured occurrence timing contract. A configured permitted planner window is a separate constraint. Comparisons never change the stored schedule.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorOccurrence"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "fixedOccurrenceBlocks"
+        }
+      ],
+      "relatedIds": [
+        "occurrence.schedule.exact",
+        "occurrence.schedule.range"
+      ]
+    },
+    {
+      "id": "occurrence.schedule.exact",
+      "label": "Occurrence schedule kind: exact",
+      "category": "Occurrence",
+      "definition": "The occurrence has an exact local start time. Fixed-commitment blocking uses its known duration, or conservatively extends through day end when duration is unknown.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorOccurrence"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "fixedOccurrenceBlocks"
+        }
+      ],
+      "relatedIds": [
+        "occurrence.schedule"
+      ]
+    },
+    {
+      "id": "occurrence.schedule.range",
+      "label": "Occurrence schedule kind: range",
+      "category": "Occurrence",
+      "definition": "The occurrence has a local start and end time. Fixed-commitment blocking uses the entire range; an end at or before the start belongs to the following day.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorOccurrence"
+        },
+        {
+          "path": "packages/core/src/resolvers/briefing-plan.resolver.ts",
+          "symbol": "fixedOccurrenceBlocks"
+        }
+      ],
+      "relatedIds": [
+        "occurrence.schedule"
+      ]
+    },
+    {
+      "id": "calendar.failure",
+      "label": "Calendar source failure",
+      "category": "Calendar",
+      "definition": "A structured failure describes why requested Calendar context is unavailable or incomplete. retryable and retryAfterSeconds are separate recovery metadata, not permission to generate automatically.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorSourceFailureCode"
+        }
+      ],
+      "relatedIds": [
+        "calendar.failure.not-connected",
+        "calendar.failure.permission-denied",
+        "calendar.failure.reconnect-required",
+        "calendar.failure.rate-limited",
+        "calendar.failure.provider-unavailable",
+        "calendar.failure.timeout",
+        "calendar.failure.malformed-provider-response",
+        "calendar.failure.incomplete-pagination"
+      ]
+    },
+    {
+      "id": "calendar.failure.not-connected",
+      "label": "Calendar source failure: not_connected",
+      "category": "Calendar",
+      "definition": "No usable Calendar connection is available. Source projection cannot establish Calendar coverage or free time.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorSourceFailureCode"
+        }
+      ],
+      "relatedIds": [
+        "calendar.failure"
+      ]
+    },
+    {
+      "id": "calendar.failure.permission-denied",
+      "label": "Calendar source failure: permission_denied",
+      "category": "Calendar",
+      "definition": "Calendar access is denied for the requested source. Missing events must not be interpreted as free time.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorSourceFailureCode"
+        }
+      ],
+      "relatedIds": [
+        "calendar.failure"
+      ]
+    },
+    {
+      "id": "calendar.failure.reconnect-required",
+      "label": "Calendar source failure: reconnect_required",
+      "category": "Calendar",
+      "definition": "The Calendar credential or connection requires the user to reconnect. Retrying the same capture alone cannot restore authorization.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorSourceFailureCode"
+        }
+      ],
+      "relatedIds": [
+        "calendar.failure"
+      ]
+    },
+    {
+      "id": "calendar.failure.rate-limited",
+      "label": "Calendar source failure: rate_limited",
+      "category": "Calendar",
+      "definition": "Calendar admission or the provider rejected the read because of a request limit. Retry timing may be supplied separately.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorSourceFailureCode"
+        }
+      ],
+      "relatedIds": [
+        "calendar.failure"
+      ]
+    },
+    {
+      "id": "calendar.failure.provider-unavailable",
+      "label": "Calendar source failure: provider_unavailable",
+      "category": "Calendar",
+      "definition": "The Calendar provider or read path could not supply usable data. The context cannot establish complete Calendar coverage.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorSourceFailureCode"
+        }
+      ],
+      "relatedIds": [
+        "calendar.failure"
+      ]
+    },
+    {
+      "id": "calendar.failure.timeout",
+      "label": "Calendar source failure: timeout",
+      "category": "Calendar",
+      "definition": "The Calendar read exceeded its deadline or was aborted. The capture cannot claim complete Calendar coverage.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorSourceFailureCode"
+        }
+      ],
+      "relatedIds": [
+        "calendar.failure"
+      ]
+    },
+    {
+      "id": "calendar.failure.malformed-provider-response",
+      "label": "Calendar source failure: malformed_provider_response",
+      "category": "Calendar",
+      "definition": "Provider data failed the adapter contract. Unusable records do not become valid scheduling facts.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorSourceFailureCode"
+        }
+      ],
+      "relatedIds": [
+        "calendar.failure"
+      ]
+    },
+    {
+      "id": "calendar.failure.incomplete-pagination",
+      "label": "Calendar source failure: incomplete_pagination",
+      "category": "Calendar",
+      "definition": "The read did not finish all required Calendar pages. Returned events may be partial, and their absence cannot establish free time.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/advisor-day-context.ts",
+          "symbol": "AdvisorSourceFailureCode"
+        }
+      ],
+      "relatedIds": [
+        "calendar.failure"
+      ]
+    },
+    {
+      "id": "config.context.includeHistoricalCompletionTimes",
+      "label": "Historical completion times",
+      "category": "Configuration",
+      "definition": "Independently includes timing summaries of prior current Completed marks within History days. Uses status_marked_at, not actual finish time or elapsed duration. Today may remain unresolved. Disabled selection physically excludes timing facts from the model.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-config.ts",
+          "symbol": "BriefingContextConfig"
+        }
+      ],
+      "relatedIds": [
+        "config.scope.historyDays",
+        "context.historical-completion-times",
+        "config.context.finished-at"
+      ]
+    },
+    {
+      "id": "context.historical-completion-times",
+      "label": "Historical marking pattern and exclusions",
+      "category": "Context",
+      "definition": "One current completion mark per Occurrence, interpreted in the current account timezone. Unmarking or Not Completed removes a sample; re-completion replaces it; repeated taps retain it. Both occurrence date and mark date must fall in preceding complete local days. Delayed marks remain approximate evidence. At least three occurrences across three marking days within a circular three-hour span support a typical marking time (median); otherwise typicalMarkedTime is null. Counts and exclusion reasons remain inspectable, not routine prose.",
+      "contracts": [
+        {
+          "path": "packages/core/src/resolvers/completion-timing.resolver.ts",
+          "symbol": "resolveCompletionTiming"
+        },
+        {
+          "path": "packages/core/src/resolvers/completion-timing.resolver.ts",
+          "symbol": "CompletionTimingSummary"
+        }
+      ],
+      "relatedIds": [
+        "config.context.includeHistoricalCompletionTimes",
+        "policy.daily-brief",
+        "config.context.elapsed-duration"
+      ]
+    },
+    {
+      "id": "planner.day-evidence",
+      "label": "Day evidence",
+      "category": "Planner",
+      "definition": "Ranked deterministic observations are calculated independently of hypothetical move permission. Findings retain source references, assumptions and freshness. Full diagnostics remain in the inspector.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanResult"
+        }
+      ],
+      "relatedIds": [
+        "planner.day-evidence.known-overlap",
+        "planner.day-evidence.tight-transition",
+        "planner.day-evidence.feasible-opportunity",
+        "planner.day-evidence.unknown-feasibility"
+      ]
+    },
+    {
+      "id": "planner.day-evidence.known-overlap",
+      "label": "Known overlap",
+      "category": "Planner",
+      "definition": "Supported timed intervals intersect. Remaining Behaviors use the later of their estimated duration end and reserved range end. Evidence identifies reserved ranges separately from duration estimates. An overlap does not authorize a move or establish complete day coverage.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanResult"
+        }
+      ],
+      "relatedIds": [
+        "planner.day-evidence"
+      ]
+    },
+    {
+      "id": "planner.day-evidence.tight-transition",
+      "label": "Tight transition",
+      "category": "Planner",
+      "definition": "Supported timed commitments leave less separation than the configured buffer. This is a buffer comparison, not a travel-time estimate.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanResult"
+        }
+      ],
+      "relatedIds": [
+        "planner.day-evidence",
+        "config.planner.bufferMinutes"
+      ]
+    },
+    {
+      "id": "planner.day-evidence.feasible-opportunity",
+      "label": "Feasible opportunity",
+      "category": "Planner",
+      "definition": "One remaining activity fits an individually checked interval using a supported duration, complete relevant coverage, configured windows and buffers. This observation is neither a joint schedule nor permission to move a fixed Behavior.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanResult"
+        }
+      ],
+      "relatedIds": [
+        "planner.day-evidence",
+        "config.planner.movableBehaviorRefs"
+      ]
+    },
+    {
+      "id": "planner.day-evidence.unknown-feasibility",
+      "label": "Unknown feasibility",
+      "category": "Planner",
+      "definition": "The planner cannot establish a fit from the supplied duration, coverage or freshness. Inspector diagnostics explain the missing support; absence of a finding never proves free time.",
+      "contracts": [
+        {
+          "path": "packages/core/src/types/briefing-plan.ts",
+          "symbol": "BriefingPlanResult"
+        }
+      ],
+      "relatedIds": [
+        "planner.day-evidence",
+        "planner.rejection.duration-unknown"
+      ]
+    }
+  ]
+}

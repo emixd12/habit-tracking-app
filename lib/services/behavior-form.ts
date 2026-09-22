@@ -43,6 +43,7 @@ export function parseBehaviorFormData(
   const behaviorId = getOptionalString(formData, "behavior_id");
   const title = getOptionalString(formData, "title").trim();
   const description = getOptionalString(formData, "description").trim();
+  const locationText = getOptionalString(formData, "location_text").trim();
   const categoryId = getOptionalString(formData, "category_id").trim();
   const duration = getOptionalString(formData, "default_duration_minutes").trim();
   const defaultDurationMinutes = duration ? Number(duration) : null;
@@ -66,6 +67,9 @@ export function parseBehaviorFormData(
   if (description.length > 1000) {
     fieldErrors.description =
       "Keep the description to 1,000 characters or fewer.";
+  }
+  if (locationText.length > 500 || /[\u0000-\u001f\u007f]/u.test(locationText)) {
+    fieldErrors.location_text = "Keep the location to 500 characters and remove control characters.";
   }
 
   if (categoryId && !UUID_PATTERN.test(categoryId)) {
@@ -92,6 +96,7 @@ export function parseBehaviorFormData(
     endDate,
     title,
     description: description || null,
+    locationText: locationText || null,
     categoryId: categoryId || null,
     recurrenceRule,
     scheduledTime: scheduleSlots[0]?.startTime ?? "09:00",

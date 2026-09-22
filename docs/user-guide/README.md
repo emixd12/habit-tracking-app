@@ -76,6 +76,7 @@ available to every user.
 - [Browser notifications, email reminder intent, and timezone](reminders-and-timezone.md)
 - [Export, Markdown tools, BehaviorLog import, and restore](data-portability.md)
 - [Trust links, export-before-delete, and account deletion](privacy-and-account.md)
+- [Travel-routing limits and data boundaries](travel.md)
 - [Keyboard, zoom, focus, touch, and non-color operation](accessibility-and-mobile.md)
 - [Internal QA-only controls](internal-qa.md)
 

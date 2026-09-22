@@ -23,6 +23,7 @@ type TimelineProps = Readonly<{
   dayProgress?: DayProgressContext;
   onDayChange?: () => void;
   liveCalendar?: boolean;
+  travelAccountId?: string | null;
 }>;
 
 export function Timeline({
@@ -36,6 +37,7 @@ export function Timeline({
   dayProgress,
   onDayChange,
   liveCalendar = false,
+  travelAccountId,
 }: TimelineProps) {
   return (
     <MobileTimelinePullToRefresh>
@@ -90,6 +92,7 @@ export function Timeline({
           shortcutsByBehavior={shortcutsByBehavior}
           onDayChange={onDayChange}
           liveCalendar={liveCalendar}
+          travelAccountId={travelAccountId}
         />
 
         {timeline.nextFutureDays ? (

@@ -82,20 +82,19 @@ export async function updateCurrentUserTimezoneFromFormData(
 
   invalidateProfileData(userId);
   invalidateBehaviorData(userId);
-  const activeBehaviors = (await listUserBehaviors(supabase, userId)).filter(
-    (behavior) => behavior.active,
-  );
+  // The final sync fence checks the complete Behavior set, including archives.
+  const behaviors = await listUserBehaviors(supabase, userId);
   const now = Temporal.Instant.from(effectiveAt);
 
   await syncUserOccurrencesAndReminders(supabase, userId, {
-    behaviors: activeBehaviors,
+    behaviors,
     now,
     timezone,
   });
 
   return {
     timezone,
-    activeBehaviorCount: activeBehaviors.length,
+    activeBehaviorCount: behaviors.filter((behavior) => behavior.active).length,
     changed,
   };
 }

@@ -43,13 +43,13 @@ const MULTIPLE_TIMEZONES = "multiple";
 
 export function summarizeOccurrenceSyncPlans(input: {
   plans: OccurrenceGenerationPlan[];
+  /** Active schedules establish coverage; archived plans still contribute counts. */
+  coverageWindows?: OccurrenceGenerationWindow[];
   fallbackWindow: OccurrenceGenerationWindow;
   timezone?: string | null;
 }): OccurrenceSyncPlanSummary {
-  const windows =
-    input.plans.length > 0
-      ? input.plans.map((plan) => plan.generationWindow)
-      : [input.fallbackWindow];
+  const coverageWindows = input.coverageWindows ?? input.plans.map((plan) => plan.generationWindow);
+  const windows = coverageWindows.length > 0 ? coverageWindows : [input.fallbackWindow];
 
   return {
     timezone: resolveSummaryTimezone(windows),

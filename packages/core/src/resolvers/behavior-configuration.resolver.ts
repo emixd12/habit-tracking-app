@@ -80,6 +80,7 @@ export function normalizeBehaviorConfiguration(
 
   return {
     categoryId: normalizeOptionalId(configuration.categoryId),
+    locationText: configuration.locationText?.trim() || null,
     scheduleGraph: configuration.scheduleGraph
       .map(normalizeSchedule)
       .sort(compareSchedules),
@@ -129,6 +130,9 @@ function findChangedFields(
 
   if (previous.categoryId !== next.categoryId) {
     changedFields.push("category_id");
+  }
+  if (previous.locationText !== next.locationText) {
+    changedFields.push("location_text");
   }
   if (!jsonEqual(previous.scheduleGraph, next.scheduleGraph)) {
     changedFields.push("schedule_graph");

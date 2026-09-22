@@ -68,6 +68,8 @@ pub struct Behavior {
     pub email_reminder_enabled: bool,
     pub end_date: Option<String>,
     pub id: String,
+    #[serde(default)]
+    pub location_text: Option<String>,
     pub recurrence_rule: Value,
     pub reminder_offset_minutes: i64,
     pub scheduled_time: String,
@@ -84,6 +86,25 @@ impl StoredRow for Behavior {
         "browser_reminder_enabled",
         "email_reminder_enabled",
     ];
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TravelSettings {
+    pub base_location_text: Option<String>,
+    pub created_at: String,
+    pub enabled: bool,
+    pub mode: Option<String>,
+    pub navigation_preference: Option<String>,
+    pub onboarding_completed_at: Option<String>,
+    pub routing_consent_at: Option<String>,
+    pub updated_at: String,
+    pub user_id: String,
+}
+impl StoredRow for TravelSettings {
+    const TABLE: &'static str = "travel_settings";
+    const JSON_COLUMNS: &'static [&'static str] = &[];
+    const BOOL_COLUMNS: &'static [&'static str] = &["enabled"];
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

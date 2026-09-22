@@ -283,6 +283,7 @@ pure owner with paired tests; current runtime owners are listed below.
 |---|---|---|---|---|---|---|
 | Day-progress layout | `packages/core/src/resolvers/day-progress.resolver.ts` | Synthetic design bench, shared Timeline UI, web/desktop services, and resolver tests | UI calculating independent dot/span mappings, changing actual times for collision spacing, fixed 24-hour local days | `docs/UI_SPEC.md`, `docs/DATETIME_STRATEGY.md` | `tests/day-progress.resolver.test.ts` | Geometry and injected instants only; no DOM, clocks, providers, or writes |
 | Duration and external context | `packages/core/src/resolvers/timeline-context.resolver.ts` | Shared Timeline assembly, owner-scoped web/desktop services, synthetic fixtures, and resolver tests | Averaging sessions instead of Occurrences, treating unknown as zero, running samples, automatic decisions or schedule writes | `docs/PRODUCT_SPEC.md` | `tests/timeline-context.resolver.test.ts` | Positive stopped Completed totals, optional default duration, explicit unknown/freshness, half-open timed overlaps |
+| Travel itinerary and occupancy | `packages/core/src/resolvers/travel.resolver.ts` | Owner-scoped routing services, Timeline/advisor projections, synthetic fixtures, and resolver tests | Provider I/O, location reads, moving schedules, treating unknown travel as zero, or returning raw points in evidence | `docs/TICKETS.md`, `docs/plans/travel-departure-discovery.md` | `tests/travel.resolver.test.ts` | Injected instants, revision fences, exact route segments, half-open collisions, and timing-only model projection |
 
 - `packages/core/src/resolvers/timeline.resolver.ts` retains day selection,
   Needs decision, Occurrence status projection, and future-range ownership.
@@ -307,6 +308,18 @@ pure owner with paired tests; current runtime owners are listed below.
 Core wildcard exports expose these new contracts directly. Existing web resolver
 compatibility exports and current Timeline APIs remain unchanged. The new
 contracts do not establish provider, native, or production UI acceptance.
+
+## Travel contract ownership (Tickets 162–165)
+
+`packages/core/src/resolvers/travel.resolver.ts` owns immediate-origin precedence,
+journey-scoped corrections, direct itinerary legs, known occupancy segments and
+half-open collision evidence. Services resolve points and call providers. The
+resolver receives injected instants, source revisions and grant revisions.
+
+`TravelEvidenceResult` is safe for API and UI use. It excludes route requests,
+coordinates, place IDs and saved location text. Its optional model projection
+contains timing and collision facts only. Callers must keep that projection
+disabled until Ticket 165 clears provider/model use.
 
 ## Day-progress production consumers (Tickets 133–136)
 
@@ -353,4 +366,83 @@ IDs. `daily-brief-consumer.ts` validates facts/output through a provider-neutral
 callback; `daily-brief-openai.ts` owns the only model HTTP call. These modules cannot
 call tracking mutations. Shared `types/daily-brief.ts` contains no provider SDK types.
 Completion counts belong to the existing core context projection, with contract,
-service, repository/migration and model-adapter tests. UI clients render text only.
+service, repository/migration and model-adapter tests. UI clients render validated
+text, read-only suggestions and trusted source metadata.
+
+
+## Briefing configuration, references and planning (Tickets 151–155)
+
+Scope and acceptance remain in `docs/TICKETS.md`.
+
+`packages/core/src/services/briefing-config.ts` owns exact versioned configuration
+validation and authorized scope intersection. `briefing-presets.json` stores only
+repository configuration. Shorter history filters daily records before aggregation
+in the existing context service; duration estimation retains its labeled 90-day window.
+
+`packages/core/src/resolvers/briefing-plan.resolver.ts` owns deterministic, bounded,
+read-only proposals and evidence-based routing. Its paired test is
+`tests/briefing-plan.resolver.test.ts`. The allowed caller is
+`lib/services/briefing-pipeline.ts`; UI and API routes cannot calculate proposals.
+Calendar intervals remain fixed. Exact Behavior schedules require explicit
+hypothetical movability. Unknown duration and incomplete/stale coverage cannot
+establish available time. Every output carries source/configuration revisions and expiry.
+
+Ticket 159 separates day evidence from move options. The same planner detects
+supported overlaps and tight transitions without movable selections. Configured
+windows and selected durations support individual fit observations only with
+complete relevant coverage. Resolved work stays out of remaining-work evidence.
+Day evidence never grants move permission. The existing inspector retains full
+evidence and rejection details; the model explains ranked supported findings.
+No travel evidence enters this boundary until its separate release gates pass.
+
+`packages/core/src/data/briefing-references.json` stores the editable curated catalog.
+`packages/core/src/services/briefing-references.ts` validates its metadata and owns
+selection omissions and trusted source metadata. `daily-brief-consumer.ts` validates
+structured suggestions against supplied source and option IDs. The model has no
+retrieval or mutation capability. ID validation never establishes research support.
+
+`lib/services/briefing-workbench.service.ts` accepts two validated configurations and
+either one known synthetic fixture or an explicit authenticated My account request.
+Both modes require the development/loopback/same-origin boundary. Synthetic mode
+never reads account data. Account mode uses `briefing-account-context.service.ts`,
+which also owns production briefing authorization, source checks and expiry checks.
+`readAdvisorDayContexts` captures one raw snapshot and projects one or two history
+windows before aggregation. The single-context API remains a compatibility wrapper.
+Planning uses the frozen capture clock; a live clock still enforces expiry.
+The comparison path never calls daily generation begin/finish admission. Existing
+bounded read-admission metadata remains separate from tracking writes and the daily
+allowance. The bench retains private results and account selections only in memory.
+
+The workbench guide renders `docs/ontology/briefing-workbench.json` and the actual
+preset/reference documents. Ontology terms link back to owning contract symbols;
+they explain rules without calculating or overriding them. The paired ontology test
+checks links and contract coverage. Repository editing remains outside the browser;
+the guide exposes no filesystem write API or model-generation path.
+
+### Recipe projection and duration sources (Tickets 156–158)
+
+`resolveBehaviorDurationSources` in the existing timeline-context resolver exposes
+configured defaults, eligible historical means and stopped elapsed totals. Its
+compatibility wrapper preserves Timeline estimate behavior. The advisor service
+reuses this owner and opts into raw totals only when a configuration requests them.
+It never derives finish time from a status-update timestamp. Existing 90-day,
+three-sample, running-session exclusion and capped-history rules still apply.
+
+`projectBriefingContext` in `services/briefing-config.ts` owns the recipe's model
+projection. It removes resolved work/status fields, excluded sources and raw duration
+candidates. The internal planner uses selected duration sources with retained manual
+state. `prepareBriefing` returns selected facts and input decisions to the private
+inspector; it does not return internal context. `daily-brief-consumer.ts` serializes
+that same selected projection and owns Daily Brief policy 2.1 instructions.
+Recipe/policy versions contribute to the effective revision and result metadata.
+
+## Historical completion timing resolver
+
+`packages/core/src/resolvers/completion-timing.resolver.ts` owns sample eligibility,
+deduplication, local clock conversion, circular median and sufficiency. Allowed
+callers: `lib/services/advisor-day-context.service.ts`, synthetic
+`lib/services/briefing-fixtures.ts`, and tests. UI, repositories and model prompts
+must not recompute timing patterns. Paired tests:
+`tests/completion-timing.resolver.test.ts`, `tests/briefing-completion-timing.test.ts`.
+The strict context validator checks summary scope, counts, ranges and provenance;
+`projectBriefingContext` removes deselected Behavior and timing facts.

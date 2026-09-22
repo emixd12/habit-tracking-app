@@ -92,6 +92,11 @@ pub(super) const MIGRATIONS: &[(i64, &str, &str)] = &[
         "behavior_duration_and_scheduled_archive",
         include_str!("../../migrations/0015_behavior_duration_and_scheduled_archive.sql"),
     ),
+    (
+        16,
+        "travel_settings",
+        include_str!("../../migrations/0016_travel_settings.sql"),
+    ),
 ];
 
 pub fn open(path: &Path) -> Result<Connection> {

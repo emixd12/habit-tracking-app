@@ -61,7 +61,28 @@ there. Keep provider SDK types out of core rules, UI, and persisted contracts.
 No multi-agent runtime, provider registry, tool framework, or second provider is
 needed. A future adapter must satisfy the same input, output, and authority tests.
 
-## Model inputs
+## Recipe-scoped model inputs (Tickets 156–158)
+
+The table describes the shared authorized source contract. Daily Brief recipe 1.0
+selects a subset through configuration 1.2 and applies prose policy 2.1. Resolved
+work is excluded before model serialization; the shared ledger status remains intact.
+Independent controls omit completion counts, recorded elapsed totals, Calendar facts
+and duration sources. Actual finished-at timestamps remain unavailable: status
+updates do not establish finish time. Historical averages may derive from internal
+history even when raw elapsed totals and completion counts are excluded. Recipe
+selection never grants account, Calendar or model-data permissions.
+
+Daily Brief interprets practical constraints and supported opportunities. It does
+not narrate completion/adherence or raw availability diagnostics. Missing duration
+cannot prove a fit; partial Calendar coverage cannot prove free time. New conflict
+analysis remains in Ticket 159. Ticket 160 defines the accepted travel direction;
+Tickets 162–165 implement and verify proactive multimode routes, per-leg occupancy
+and existing Timeline presentation. A missing base suppresses only final-return
+advice; known outbound and event-to-event advice and collisions remain available.
+Current device position overrides a predicted immediate origin. Runtime travel
+guidance remains unavailable until those follow-ups supply verified evidence.
+
+## Shared source inputs
 
 | Information | Minimum projection and existing owner |
 |---|---|
@@ -73,7 +94,8 @@ needed. A future adapter must satisfy the same input, output, and authority test
 
 History is factual input for the model, not a manually approved daily summary.
 The existing 90-complete-local-day window is the maximum initial lookback;
-declare the actual interval. Do not expose raw historical rows, Notes, exact
+declare the actual interval. Selected recorded elapsed inputs contain stopped eligible totals and local dates,
+never exact session timestamps. Do not expose raw status-history rows, Notes, exact
 sessions, reminder logs, old definitions, emails, or account IDs. Calendar titles,
 descriptions, attendees, locations, URLs, attachments, and raw provider IDs remain
 excluded in this slice. More fields require an explicit need and updated disclosure.

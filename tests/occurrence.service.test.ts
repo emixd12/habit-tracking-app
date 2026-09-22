@@ -227,6 +227,7 @@ describe("syncUserOccurrences", () => {
     expect(markOccurrenceSyncFreshForPlans).toHaveBeenCalledWith(SUPABASE, {
       userId: "user-1",
       plans: expect.any(Array),
+      coverageWindows: expect.any(Array),
       fallbackWindow: expect.objectContaining({
         startLocalDate: "2026-06-08",
         endLocalDate: "2026-06-08",
@@ -246,6 +247,17 @@ describe("syncUserOccurrences", () => {
       ],
       expectedSyncState: null,
     });
+  });
+
+  it("fences archived Behaviors without using their old timezone for active coverage", async () => {
+    const active = buildBehavior({ id: "active", title: "Active", scheduledTime: "10:00:00" });
+    const archived = { ...buildBehavior({ id: "archived", title: "Archived", scheduledTime: "10:00:00" }), active: false, timezone: "America/Los_Angeles" };
+    vi.mocked(listBehaviorOccurrencesFrom).mockResolvedValue([]);
+    await syncUserOccurrences(SUPABASE, "user-1", { behaviors: [active, archived], now: NOW, horizonDays: 0, timezone: "America/New_York" });
+    const input = vi.mocked(markOccurrenceSyncFreshForPlans).mock.calls[0]![1];
+    expect(input.plans).toHaveLength(2);
+    expect(input.expectedBehaviorConfigurationEvents).toHaveLength(2);
+    expect(input.coverageWindows).toEqual([expect.objectContaining({ timezone: "America/New_York" })]);
   });
 
   it("threads occurrence notes and time-session presence into deletion planning", async () => {

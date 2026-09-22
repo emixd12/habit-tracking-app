@@ -1,6 +1,7 @@
 "use client";
 
 import { projectExternalEventSchedulingEvent } from "@cadence/core/services/external-event-projection";
+import type { TravelEvidenceResult, TravelMode, TravelNavigationPreference } from "@cadence/core/types/travel";
 import { Temporal } from "@js-temporal/polyfill";
 import { useRefresh } from "@cadence/ui/runtime";
 import {
@@ -22,11 +23,12 @@ import type {
   TimelineOccurrenceContext,
 } from "@cadence/core/types/day-progress";
 
-import { ExternalEventDetails, ExternalEventPreview } from "./ExternalEventDetails";
+import { ExternalEventDetails, ExternalEventPreview, renderTravelTiming } from "./ExternalEventDetails";
 import { OccurrenceRow } from "./OccurrenceRow";
 import { useDayProgressClock } from "./day-progress-clock";
 import styles from "./day-progress-timeline.module.css";
 import { useWebGoogleCalendarTimeline } from "@/lib/ui/google-calendar";
+import { useTravelContext, type TravelCorrection } from "@/lib/ui/travel";
 import type {
   OccurrenceFormAction,
   TimeTrackingFormAction,
@@ -39,6 +41,11 @@ export type DayProgressContext = Readonly<{
   freshness?: ExternalEventFreshness;
   now?: string;
   durationEstimates?: Readonly<Record<string, BehaviorDurationEstimate>>;
+  travel?: Omit<TravelEvidenceResult, "modelProjection"> | null;
+  travelMessage?: string | null;
+  travelMode?: TravelMode | null;
+  navigationPreference?: TravelNavigationPreference | null;
+  onTravelCorrection?: (correction: TravelCorrection) => void;
 }>;
 
 type DayProgressTimelineProps = Readonly<{
@@ -53,6 +60,7 @@ type DayProgressTimelineProps = Readonly<{
   onDayChange?: () => void;
   onOpenExternal?: (url: string) => void | Promise<void>;
   liveCalendar?: boolean;
+  travelAccountId?: string | null;
 }>;
 
 type MeasuredDay = Parameters<typeof resolveDayProgressLayout>[0]["days"][number] & Readonly<{
@@ -91,6 +99,7 @@ export function DayProgressTimeline({
   onDayChange,
   onOpenExternal,
   liveCalendar = false,
+  travelAccountId = null,
 }: DayProgressTimelineProps) {
   const runtimeRefresh = useRefresh();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -101,12 +110,19 @@ export function DayProgressTimeline({
   const [preview, setPreview] = useState<Preview | null>(null);
   const [detailEvent, setDetailEvent] = useState<NormalizedExternalEvent | null>(null);
   const [dismissedAllDay, setDismissedAllDay] = useState<string[]>([]);
+  const [corrections, setCorrections] = useState<readonly TravelCorrection[]>([]);
   const now = useDayProgressClock(context?.now, timeline.timezone, onDayChange ?? runtimeRefresh);
   const visibleSections = timeline.daySections;
   const live = useWebGoogleCalendarTimeline({ enabled: liveCalendar && !context, localDates: visibleSections.map((section) => section.localDate), timezone: timeline.timezone });
   const events = context?.events ?? live.snapshot?.events.filter((event) =>
     !live.hiddenCalendarIds.includes(event.calendarId) && (live.showAllDay || event.kind !== "all_day"),
   ) ?? EMPTY_EVENTS;
+  const travelSourceKey = JSON.stringify([events.map((event) => [event.id, event.revision, event.location,
+    event.kind === "timed" ? [event.startAt, event.endAt] : null]), timeline.daySections.map((section) => section.occurrences.map((occurrence) => [occurrence.id, occurrence.status, occurrence.scheduledFor])), timeline.durationEstimates]);
+  const currentCorrections = useMemo(() => corrections.filter((correction) => events.some((event) => event.id === correction.eventId && (event.revision.providerEtag ?? event.revision.providerUpdatedAt) === correction.revision)), [corrections, events]);
+  const liveTravel = useTravelContext({ enabled: liveCalendar && !context, accountId: travelAccountId,
+    localDate: timeline.todayLocalDate, sourceKey: travelSourceKey, corrections: currentCorrections });
+  const travel = context?.travel ?? liveTravel.view?.evidence;
 
   const layout = useMemo(() => {
     const days = visibleSections.flatMap((section) => measured[section.localDate] ? [measured[section.localDate]!] : []);
@@ -116,11 +132,12 @@ export function DayProgressTimeline({
       firstVisibleDate: visibleSections[0]?.localDate,
       days,
       events: [...events],
+      travelSegments: travel?.segments,
       now: Temporal.Instant.from(now),
       minIconSpacing: 44,
       maxIconLanes: 1,
     });
-  }, [events, measured, now, timeline.timezone, visibleSections]);
+  }, [travel, events, measured, now, timeline.timezone, visibleSections]);
 
   const activeIds = preview?.ids ?? EMPTY_IDS;
   const previewEvents = useMemo(() => activeIds.flatMap((id) => {
@@ -197,6 +214,7 @@ export function DayProgressTimeline({
     >
       {firstMeasured ? <div className={styles.spine} style={{ left: firstMeasured.axisX }} aria-hidden="true" /> : null}
       {calendarState ? <p className={styles.calendarState} data-calendar-state={liveCalendar && !context ? live.state : fresh.state}>{calendarState}</p> : null}
+      {context?.travelMessage || liveTravel.message ? <p className={styles.calendarState} role="status">{context?.travelMessage ?? liveTravel.message}</p> : null}
       {layout && firstMeasured ? <DayOverlay
         layout={layout}
         measured={measured}
@@ -213,7 +231,9 @@ export function DayProgressTimeline({
         events={events}
         dismissedAllDay={dismissedAllDay}
         activeIds={activeIds}
-        contexts={resolveContexts(section, events, fresh, now, context?.durationEstimates ?? timeline.durationEstimates)}
+        travel={travel}
+        timezone={timeline.timezone}
+        contexts={resolveContexts(section, events, fresh, now, context?.durationEstimates ?? timeline.durationEstimates, travel)}
         shortcutsByBehavior={shortcutsByBehavior}
         onMeasure={measureDays}
         registerMeasurement={registerMeasurement}
@@ -231,6 +251,7 @@ export function DayProgressTimeline({
         timezone={timeline.timezone}
         onDismiss={() => dismissPreview(true)}
         onOpen={openDetails}
+        travel={travel}
       /> : null}
       <ExternalEventDetails
         event={detailEvent}
@@ -241,6 +262,12 @@ export function DayProgressTimeline({
           closeDetails();
         }}
         onOpenExternal={onOpenExternal}
+        travel={travel}
+        navigationPreference={context?.navigationPreference ?? liveTravel.view?.navigationPreference}
+        travelMode={context?.travelMode ?? liveTravel.view?.mode}
+        onTravelCorrection={context?.onTravelCorrection ?? (liveTravel.view ? (correction) => {
+          setCorrections((previous) => [...previous.filter((item) => item.eventId !== correction.eventId).slice(-7), correction]);
+        } : undefined)}
       />
       {layout?.days.some((day) => day.movingDot) ? <p className="sr-only">Current time position updates while this timeline is visible.</p> : null}
     </div>
@@ -255,6 +282,8 @@ type DayProgressDayProps = Omit<DayProgressTimelineProps, "timeline" | "context"
   dismissedAllDay: readonly string[];
   activeIds: readonly string[];
   contexts: ReadonlyMap<string, TimelineOccurrenceContext>;
+  travel?: Omit<TravelEvidenceResult, "modelProjection"> | null;
+  timezone: string;
   onMeasure: () => void;
   registerMeasurement: (date: string, measure: () => MeasuredDay) => () => void;
   onPreview: (ids: string[], launcher: HTMLElement) => void;
@@ -269,6 +298,8 @@ function DayProgressDay({
   dismissedAllDay,
   activeIds,
   contexts,
+  travel,
+  timezone,
   onMeasure,
   registerMeasurement,
   onPreview,
@@ -385,12 +416,14 @@ function DayProgressDay({
                 key={occurrence.id}
                 ref={(node) => { if (node) rows.current.set(occurrence.id, node); else rows.current.delete(occurrence.id); }}
                 className={styles.row}
+                onFocus={(event) => { if (travel?.legs.some((item) => item.leg.destinationCommitmentRef === occurrence.id || item.leg.originCommitmentRef === occurrence.id)) onPreview([occurrence.id], event.target as HTMLElement); }}
                 data-event-highlight={highlighted ? "true" : undefined}
                 data-status-icons-only={iconsOnly[occurrence.id] ? "true" : "false"}
               >
                 <OccurrenceRow
                   occurrence={occurrence}
                   context={contexts.get(occurrence.id)}
+                  travelDetails={renderTravelTiming({ eventId: occurrence.id, travel, timezone })}
                   statusAction={statusAction}
                   noteAction={noteAction}
                   startTimeTrackingAction={startTimeTrackingAction}
@@ -432,6 +465,7 @@ function DayOverlay({
       <svg className="absolute inset-0 h-full w-full overflow-visible text-muted-readable" aria-hidden="true">
         {controls.map((control) => <line key={control.id} data-calendar-stem={control.id} x1={control.iconX} x2={control.axisX} y1={control.position} y2={control.position} stroke="currentColor" />)}
         {layout.days.flatMap((day) => day.timedEventSpans.filter((span) => activeIds.includes(span.eventId) && span.endPosition !== null).map((span) => <line key={`${day.localDate}-${span.eventId}`} data-event-duration={span.eventId} x1={measured[day.localDate]!.axisX + 0.5} x2={measured[day.localDate]!.axisX + 0.5} y1={span.continuesBefore && span.iconLane === null && !span.overflowGroupId ? day.top : span.iconPosition} y2={span.continuesAfter ? day.bottom : Math.min(day.bottom, span.iconPosition + Math.max(2, span.endPosition! - span.startPosition))} stroke="var(--calendar-overlap)" strokeWidth={1} />))}
+        {layout.days.flatMap((day) => day.travelSpans.filter((span) => span.sourceRefs.some((ref) => activeIds.includes(ref))).map((span) => <line key={`${day.localDate}-${span.segmentId}`} data-travel-duration={span.segmentId} x1={measured[day.localDate]!.axisX + 0.5} x2={measured[day.localDate]!.axisX + 0.5} y1={span.startPosition} y2={span.endPosition} stroke="var(--calendar-overlap)" strokeWidth={1} />))}
         {layout.days.flatMap((day) => day.movingDot ? [<circle key={day.localDate} className={styles.currentTime} data-current-time-marker cx={measured[day.localDate]!.axisX} cy={day.movingDot.displayPosition} r={5} fill="var(--primary)" stroke="var(--background)" strokeWidth={2} />] : [])}
       </svg>
       {controls.map((control) => {
@@ -452,15 +486,18 @@ function resolveContexts(
   freshness: ExternalEventFreshness,
   now: string,
   estimates: Readonly<Record<string, BehaviorDurationEstimate>> | undefined,
+  travel?: Omit<TravelEvidenceResult, "modelProjection"> | null,
 ): ReadonlyMap<string, TimelineOccurrenceContext> {
   const instant = Temporal.Instant.from(now);
   return new Map(section.occurrences.map((occurrence) => [occurrence.id, resolveTimelineOccurrenceContext({
     occurrenceId: occurrence.id,
+    occurrenceStatus: occurrence.status,
     scheduledFor: occurrence.scheduledFor,
     runningStartedAt: occurrence.timeTracking.runningStartedAt,
     estimate: estimates?.[occurrence.behaviorId] ?? NO_ESTIMATE,
     events: events.map(projectExternalEventSchedulingEvent),
     freshness,
+    travel,
     // A timing mutation can arrive between minute ticks. Its timestamp is the
     // earliest instant at which the returned running state can be assessed.
     now: occurrence.timeTracking.runningStartedAt && Temporal.Instant.compare(Temporal.Instant.from(occurrence.timeTracking.runningStartedAt), instant) > 0

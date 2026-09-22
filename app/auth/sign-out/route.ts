@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { authRequestUrl } from "@/lib/auth/redirects";
 import { deactivateCurrentUserPushSubscriptionByEndpoint } from "@/lib/db/pushSubscriptions.repo";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.redirect(
-      new URL("/login?signedout=1", request.url),
+      new URL("/login?signedout=1", authRequestUrl(request)),
       303,
     );
   } catch {

@@ -41,7 +41,8 @@ function toStoredConfigurationSnapshot(value: Json): Json {
   const schedules = snapshot.scheduleGraph;
   if (!Array.isArray(schedules)) throw new Error("Invalid native configuration schedule graph.");
   return {
-    category_id: snapshot.categoryId, browser_reminder_enabled: snapshot.browserReminderEnabled,
+    category_id: snapshot.categoryId, location_text: snapshot.locationText ?? null,
+    browser_reminder_enabled: snapshot.browserReminderEnabled,
     email_reminder_enabled: snapshot.emailReminderEnabled, reminder_offset_minutes: snapshot.reminderOffsetMinutes,
     active: snapshot.active, timezone: snapshot.timezone,
     schedule_graph: schedules.map((item) => {

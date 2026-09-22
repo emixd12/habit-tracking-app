@@ -13,6 +13,7 @@ mod reminder;
 mod repair_tests;
 pub mod rows;
 mod sync_apply;
+mod travel;
 #[cfg(test)]
 mod tests;
 
@@ -217,6 +218,18 @@ pub struct NativeDeliveryProof {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TravelSettingsMutation {
+    pub enabled: bool,
+    pub base_location_text: Option<String>,
+    pub mode: Option<String>,
+    pub navigation_preference: Option<String>,
+    pub routing_consent_at: Option<String>,
+    pub onboarding_completed_at: Option<String>,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(
     tag = "operation",
     rename_all = "camelCase",
@@ -228,6 +241,9 @@ pub enum Request {
         entities: Vec<sync_apply::AccountSyncEntity>,
     },
     ReadProfile {},
+    ReadTravelSettings {
+        profile_id: String,
+    },
     ReadCategories {
         profile_id: String,
     },
@@ -331,6 +347,13 @@ pub enum Request {
         expected_sync_version: i64,
         timezone: String,
         updates: Vec<TimezoneGraphUpdate>,
+    },
+    CommitTravelSettings {
+        profile_id: String,
+        mutation_id: String,
+        now: String,
+        expected_updated_at: String,
+        next: TravelSettingsMutation,
     },
     CommitNativeReminderPlan {
         profile_id: String,
@@ -605,6 +628,10 @@ pub fn execute(db: &mut Connection, request: Request) -> Result<Value> {
             Value::Null
         }
         Request::ReadProfile {} => json!(db::profile(&tx)?),
+        Request::ReadTravelSettings { profile_id } => {
+            db::owner(&tx, profile_id)?;
+            travel::read_value(&tx, profile_id)?
+        }
         Request::ReadCategories { profile_id } => {
             db::owner(&tx, profile_id)?;
             json!(db::read::<Category>(
@@ -722,6 +749,13 @@ fn apply(db: &Connection, request: &Request) -> Result<Value> {
         Request::ApplyBehaviorLogImport { .. } => import::apply(db, request),
         Request::ManageCategories { .. } => category::apply(db, request),
         Request::UpdateProfileTimezone { .. } => behavior::update_timezone(db, request),
+        Request::CommitTravelSettings {
+            profile_id,
+            now,
+            expected_updated_at,
+            next,
+            ..
+        } => travel::write(db, profile_id, now, expected_updated_at, next),
         Request::CommitNativeReminderPlan { .. } => reminder::plan(db, request),
         Request::RecordNativeReminderCoverage { .. } => reminder::record(db, request),
         Request::CreateBehaviorGraph {
@@ -849,6 +883,12 @@ impl Request {
                 ..
             }
             | Self::UpdateProfileTimezone {
+                profile_id,
+                mutation_id,
+                now,
+                ..
+            }
+            | Self::CommitTravelSettings {
                 profile_id,
                 mutation_id,
                 now,

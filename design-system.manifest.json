@@ -478,7 +478,7 @@
       "benchAnchor": "design-system#ds-module-daily-brief-bubble",
       "trackUsages": "required",
       "status": "active",
-      "notes": "Read-only Timeline horse bubble with a 44px dismiss control, polite ready-text announcement, and bounded long-text scrolling."
+      "notes": "Read-only Timeline horse bubble with forward-looking Daily Brief policy, validated suggestions, trusted source links, 44px dismiss control and bounded scrolling. Source diagnostics remain in the private workbench inspector. Configuration comparison: /design-system?preview=briefing-workbench."
     },
     {
       "id": "module.daily-brief-settings-panel",
@@ -535,6 +535,20 @@
       "trackUsages": "optional",
       "status": "active",
       "notes": "Persistent bottom preview with title-aligned close control and reserved rendered height."
+    },
+    {
+      "id": "module.travel-settings-panel",
+      "name": "TravelSettingsPanel",
+      "kind": "module",
+      "source": "components/settings/TravelSettingsPanel.tsx",
+      "exportName": "TravelSettingsPanel",
+      "usageNames": [
+        "TravelSettingsPanel"
+      ],
+      "benchAnchor": "design-system#ds-module-travel-settings-panel",
+      "trackUsages": "required",
+      "status": "active",
+      "notes": "Separate routing disclosure, optional saved base, selected mode and foreground location permission. Synthetic bench never reads location or contacts a provider."
     }
   ]
 }

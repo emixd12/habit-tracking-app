@@ -14,6 +14,7 @@ function dailyConfiguration(
 ): BehaviorConfigurationSnapshot {
   return {
     categoryId: "11111111-1111-4111-8111-111111111111",
+    locationText: null,
     scheduleGraph: [
       {
         recurrenceRule: { frequency: "daily", interval: 1 },
@@ -70,6 +71,7 @@ describe("planInitialBehaviorConfigurationEvent", () => {
       }),
       changedFields: [
         "category_id",
+        "location_text",
         "schedule_graph",
         "browser_reminder_enabled",
         "email_reminder_enabled",

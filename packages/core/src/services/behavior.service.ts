@@ -17,6 +17,7 @@ import {
 } from "../resolvers/archive-note.resolver";
 import type { Json } from "../types/json";
 import type { BehaviorScheduleInput } from "../types/schedule";
+import { normalizeUserAuthoredLocation } from "./travel-settings";
 
 export async function createBehavior(
   store: BehaviorDataStore,
@@ -32,6 +33,7 @@ export async function createBehavior(
     category_id: values.categoryId,
     title: values.title,
     description: values.description,
+    location_text: normalizeUserAuthoredLocation(values.locationText),
     recurrence_rule: values.recurrenceRule as Json,
     scheduled_time: values.scheduledTime,
     timezone: input.timezone,
@@ -99,6 +101,7 @@ export async function updateBehavior(
     category_id: values.categoryId,
     title: definitionEventPlan?.nextTitle ?? existing.title,
     description: definitionEventPlan ? definitionEventPlan.nextDescription : existing.description,
+    location_text: values.locationText === undefined ? existing.location_text ?? null : normalizeUserAuthoredLocation(values.locationText),
     recurrence_rule: values.recurrenceRule as Json,
     scheduled_time: values.scheduledTime,
     browser_reminder_enabled: values.browserReminderEnabled,
@@ -171,6 +174,7 @@ export async function setBehaviorActive(
     category_id: existing.category_id,
     title: existing.title,
     description: existing.description,
+    location_text: existing.location_text ?? null,
     recurrence_rule: existing.recurrence_rule,
     scheduled_time: existing.scheduled_time,
     timezone: existing.timezone,
@@ -231,6 +235,7 @@ export async function updateBehaviorArchiveNote(
     category_id: existing.category_id,
     title: existing.title,
     description: existing.description,
+    location_text: existing.location_text ?? null,
     recurrence_rule: existing.recurrence_rule,
     scheduled_time: existing.scheduled_time,
     timezone: existing.timezone,
@@ -301,6 +306,7 @@ export function toStoredBehaviorScheduleGraph(behavior: BehaviorGraphRecord): Be
 export function toBehaviorConfigurationSnapshot(behavior: BehaviorFields, schedules: BehaviorScheduleGraphMutation[]) {
   return {
     categoryId: behavior.category_id,
+    locationText: behavior.location_text?.trim() || null,
     scheduleGraph: schedules.map((schedule) => ({
       recurrenceRule: schedule.recurrence_rule,
       sortOrder: schedule.sort_order,

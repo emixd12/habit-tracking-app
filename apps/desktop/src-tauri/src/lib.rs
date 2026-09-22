@@ -2,6 +2,7 @@ mod auth;
 mod calendar_cache;
 mod files;
 mod local_store;
+mod location;
 mod notifications;
 mod storage;
 mod updates;
@@ -77,6 +78,7 @@ pub fn run() {
             calendar_cache::calendar_cache_clear,
             notifications::native_notifications,
             notifications::native_events,
+            location::foreground_location,
             local_store::local_store,
             files::save_export,
             files::local_database_info,

@@ -129,7 +129,17 @@ fn snapshot(graph: &GraphRows) -> Value {
             schedule.to_string(),
         )
     });
-    json!({"categoryId":behavior.category_id,"scheduleGraph":schedules,"browserReminderEnabled":behavior.browser_reminder_enabled,"emailReminderEnabled":behavior.email_reminder_enabled,"reminderOffsetMinutes":behavior.reminder_offset_minutes,"active":behavior.active,"timezone":behavior.timezone})
+    json!({"categoryId":behavior.category_id,"locationText":behavior.location_text,"scheduleGraph":schedules,"browserReminderEnabled":behavior.browser_reminder_enabled,"emailReminderEnabled":behavior.email_reminder_enabled,"reminderOffsetMinutes":behavior.reminder_offset_minutes,"active":behavior.active,"timezone":behavior.timezone})
+}
+
+fn normalize_configuration_snapshot(value: &Value) -> Value {
+    let mut normalized = value.clone();
+    if let Some(object) = normalized.as_object_mut() {
+        object
+            .entry("locationText".to_string())
+            .or_insert(Value::Null);
+    }
+    normalized
 }
 
 fn validate_history(
@@ -176,8 +186,9 @@ fn validate_history(
         let expected_previous = before.map(snapshot);
         if event.behavior_id != next.behavior.id
             || next.behavior.current_configuration_event_id.as_ref() != Some(&event.id)
-            || event.previous_configuration != expected_previous
-            || event.next_configuration != next_snapshot
+            || event.previous_configuration.as_ref().map(normalize_configuration_snapshot)
+                != expected_previous
+            || normalize_configuration_snapshot(&event.next_configuration) != next_snapshot
             || event.timezone != next.behavior.timezone
             || event.event_kind
                 != if before.is_none() {
@@ -197,6 +208,7 @@ fn validate_history(
             "browser_reminder_enabled",
             "email_reminder_enabled",
             "reminder_offset_minutes",
+            "location_text",
             "active",
             "timezone",
         ];
@@ -453,7 +465,8 @@ pub(super) fn write_import_graph(
         db::validate_row(profile_id, event)?;
         if event.behavior_id != next.behavior.id
             || event.source != "import"
-            || event.previous_configuration != previous
+            || event.previous_configuration.as_ref().map(normalize_configuration_snapshot)
+                != previous
             || event.event_kind
                 != if previous.is_none() {
                     "baseline"
@@ -467,7 +480,7 @@ pub(super) fn write_import_graph(
                 "Imported configuration history does not follow the locked prior graph.".into(),
             );
         }
-        previous = Some(event.next_configuration.clone());
+        previous = Some(normalize_configuration_snapshot(&event.next_configuration));
         pointer = Some(event.id.clone());
     }
     if previous != Some(snapshot(next)) || pointer != next.behavior.current_configuration_event_id {

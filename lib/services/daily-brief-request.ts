@@ -16,6 +16,7 @@ export async function runDailyBriefRequest(request: Request, run: (caller: Calen
       : recognized ? error.code : "advisor_unavailable";
     const retryAfterSeconds = error instanceof DailyBriefError || error instanceof AdvisorDayContextServiceError ? error.retryAfterSeconds : undefined;
     const status = code === "unauthenticated" ? 401 : code === "access_denied" ? 403 : code === "invalid_request" ? 400 : code === "rate_limited" ? 429 : code === "not_configured" || code === "advisor_unavailable" ? 503 : 409;
-    return calendarResponse(request, { error: code, ...(retryAfterSeconds ? { retryAfterSeconds } : {}) }, status);
+    const recovery = error instanceof AdvisorDayContextServiceError ? error.recovery : null;
+    return calendarResponse(request, { error: code, ...(recovery ? { recovery } : {}), ...(retryAfterSeconds ? { retryAfterSeconds } : {}) }, status);
   }
 }

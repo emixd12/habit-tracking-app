@@ -8,6 +8,7 @@ import { eventTimeLabel } from "@/components/timeline/ExternalEventDetails";
 import { validateExternalEventSnapshot } from "@cadence/core/services/external-event-validation";
 import snapshotFixture from "./fixtures/external-event-snapshot.valid.json";
 import { DayProgressTimeline } from "@/components/timeline/DayProgressTimeline";
+import { travelBenchEvidence } from "@/app/design-system/TravelBench";
 import type { TimelineView } from "@/lib/types/timeline";
 
 const action = vi.fn(async () => ({ status: "idle" as const, message: "" }));
@@ -61,6 +62,19 @@ function button(label: string) {
 }
 
 describe("DayProgressTimeline", () => {
+  it("shows travel timing when a located Behavior expands without Calendar events", async () => {
+    const input = props();
+    await act(() => root.render(<RefreshProvider onRefresh={() => {}}><DayProgressTimeline {...input}
+      context={{ ...input.context, events: [], travel: travelBenchEvidence("occurrence-1", true) }} /></RefreshProvider>));
+    const toggle = container.querySelector<HTMLElement>('article[data-occurrence-id="occurrence-1"] summary');
+    expect(toggle).not.toBeNull();
+    await act(() => toggle!.click());
+    const timing = container.querySelector('[aria-label="Travel timing"]');
+    expect(timing?.textContent).toContain("Outbound");
+    expect(timing?.textContent).toContain("Return to saved base");
+    expect(timing?.textContent).toContain("Available again");
+    expect(timing?.textContent).toContain("Google Maps");
+  });
   it("names untitled events in accessible previews and details", async () => {
     const input = props();
     input.context.events[0]!.title = "";

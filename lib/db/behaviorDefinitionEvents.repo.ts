@@ -332,6 +332,7 @@ function toBehaviorPayload(
     category_id: behavior.category_id ?? null,
     title: behavior.title,
     description: behavior.description ?? null,
+    location_text: behavior.location_text ?? null,
     recurrence_rule: behavior.recurrence_rule,
     scheduled_time: behavior.scheduled_time,
     timezone: "timezone" in behavior ? behavior.timezone : undefined,

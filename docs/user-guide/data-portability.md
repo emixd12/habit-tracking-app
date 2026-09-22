@@ -59,8 +59,9 @@ Your browser must allow downloads.
      marker (`=`, `+`, `-`, or `@`, including after leading whitespace) with
      an apostrophe so user-authored text stays inert when opened in a
      spreadsheet.
-   - **App JSON backup (.json)**: app-native categories, Behaviors,
-     Occurrences, status-event history, and Behavior definition history.
+   - **App JSON backup (.json)**: app-native categories, Behaviors, optional
+     saved Behavior locations, Occurrences, status-event history, and Behavior
+     definition and configuration history.
    - **BehaviorLog bundle (.behaviorlog.zip)**: interoperable BehaviorLog core
      records, authoritative status events, manifest, CSV views, and Cadence
      definition history.
@@ -84,7 +85,10 @@ available. Delete an unwanted local copy through the operating system.
 are not complete decision history. Use Full JSON `status_events` or BehaviorLog
 `data/status_events.jsonl` for corrections and chronology. Only a BehaviorLog
 bundle can be uploaded to the current import or restore controls; a full JSON
-backup is not a restore input. Any downloaded file can leave Cadence's account
+backup is not a restore input. Full JSON includes saved Behavior location text
+and its change history. JSONL, CSV, Markdown, and BehaviorLog omit that text.
+Travel settings and the saved base remain in native database backups and are
+not part of the hosted App JSON artifact. Any downloaded file can leave Cadence's account
 boundary when shared or synced. No Cadence export contains a Google Calendar
 credential, Calendar connection, Calendar preference, external event, or desktop
 Calendar cache. Export and restore cannot recreate a Calendar connection.

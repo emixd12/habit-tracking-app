@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import {
+  authRequestUrl,
   buildLoginPath,
   LOGIN_ROUTE,
   MISSING_CONFIG_ERROR,
@@ -21,7 +22,9 @@ function redirectWithSessionCookies(
   sessionResponse: NextResponse,
   path: string,
 ) {
-  const redirectResponse = NextResponse.redirect(new URL(path, request.url));
+  const redirectResponse = NextResponse.redirect(
+    new URL(path, authRequestUrl(request)),
+  );
 
   sessionResponse.cookies.getAll().forEach((cookie) => {
     redirectResponse.cookies.set(cookie);
@@ -105,7 +108,10 @@ export async function updateSession(request: NextRequest) {
   if (!config) {
     if (protectedRoute || pathname === "/") {
       return NextResponse.redirect(
-        new URL(buildLoginPath(pathname, MISSING_CONFIG_ERROR), request.url),
+        new URL(
+          buildLoginPath(pathname, MISSING_CONFIG_ERROR),
+          authRequestUrl(request),
+        ),
       );
     }
 
@@ -115,12 +121,17 @@ export async function updateSession(request: NextRequest) {
   if (!hasSupabaseAuthCookie(request)) {
     if (protectedRoute) {
       return NextResponse.redirect(
-        new URL(buildLoginPath(`${pathname}${search}`), request.url),
+        new URL(
+          buildLoginPath(`${pathname}${search}`),
+          authRequestUrl(request),
+        ),
       );
     }
 
     if (pathname === "/") {
-      return NextResponse.redirect(new URL(LOGIN_ROUTE, request.url));
+      return NextResponse.redirect(
+        new URL(LOGIN_ROUTE, authRequestUrl(request)),
+      );
     }
 
     return response;
@@ -157,7 +168,8 @@ export async function updateSession(request: NextRequest) {
       const subject = data?.claims?.sub;
 
       return {
-        authenticated: !error && typeof subject === "string" && subject.length > 0,
+        authenticated:
+          !error && typeof subject === "string" && subject.length > 0,
       };
     },
   );

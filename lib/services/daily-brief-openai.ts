@@ -17,8 +17,13 @@ export async function generateOpenAIDailyBrief(
       reasoning: { effort: "low" }, max_output_tokens: 2_000,
       instructions: input.instructions, input: input.facts,
       text: { format: { type: "json_schema", name: "cadence_daily_brief", strict: true,
-        schema: { type: "object", additionalProperties: false, required: ["text", "occurrenceRefs"], properties: {
+        schema: { type: "object", additionalProperties: false, required: ["text", "occurrenceRefs", "suggestions"], properties: {
           text: { type: "string" }, occurrenceRefs: { type: "array", items: { type: "string" } },
+          suggestions: { type: "array", items: { type: "object", additionalProperties: false,
+            required: ["text", "occurrenceRefs", "referenceIds", "optionId"], properties: {
+              text: { type: "string" }, occurrenceRefs: { type: "array", items: { type: "string" } },
+              referenceIds: { type: "array", items: { type: "string" } }, optionId: { type: ["string", "null"] },
+            } } },
         } },
       } },
     }),

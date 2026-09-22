@@ -23,6 +23,10 @@ facts change. Disable Daily Brief in Settings to stop generation.
 Linked, online desktop accounts use hosted information. Unsynchronized and
 local-only records are absent; offline tracking still works without Daily Brief.
 
+Daily Brief suggestions are read-only. Any displayed scheduling option is hypothetical.
+A source link opens trusted catalog provenance. Editorial guidance is labeled separately
+from research. A citation is not a guarantee that advice applies to you.
+
 ## Refresh Timeline
 
 At the top of Timeline, pull downward on mobile and release after **Release to

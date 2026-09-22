@@ -104,6 +104,14 @@ Historical definitions and configuration can contain sensitive context, so the
 Export & Import screen discloses this default before download. There is no
 separate history option.
 
+Full JSON also preserves optional user-authored `location_text` on each
+Behavior and in prior and next configuration snapshots. JSONL, CSV, Markdown,
+and BehaviorLog omit saved location text. The BehaviorLog raw Cadence
+configuration view removes `location_text` and location-only changed-field
+markers before writing. Travel settings and the saved base are preserved by
+the native SQLite backup. They are not part of the hosted App JSON artifact,
+which has no JSON restore input.
+
 ## JSONL
 
 One event per line.
@@ -250,8 +258,8 @@ history for included Behaviors. Each record contains `event_kind`, full
 `previous_configuration` and `next_configuration` snapshots, canonical
 `changed_fields`, `recorded_at`, `effective_at`, `effective_local_date`,
 timezone, source, and reason code. Configuration snapshots contain category,
-schedule graph, browser/email reminder settings, reminder offset, active state,
-and timezone.
+optional user-authored Behavior location, schedule graph, browser/email
+reminder settings, reminder offset, active state, and timezone.
 
 Configuration history follows archived-Behavior filtering but ignores the
 selected Occurrence date range. Events sort by `recorded_at`, then `id`.
@@ -272,6 +280,8 @@ remain the true artifact counts.
 Behavior records include `schedules[]` as the current app-native schedule
 structure. `recurrence_rule`, `scheduled_time`, and `schedule_slots` remain in
 app-native exports for backward compatibility with old records and older tools.
+Full JSON Behavior records include nullable `location_text`. Other export
+formats omit it.
 Occurrence `note` values are `null` unless the include-notes option is selected.
 
 ## BehaviorLog bundle
@@ -322,9 +332,10 @@ Core alignment rules:
   `rules.definition_history_policy: "event_sourced"`.
 - `raw/cadence/behavior_configuration_events.jsonl` is an optional, hashed
   Cadence-specific file. It contains the same deterministically sorted records
-  as Full JSON `behavior_configuration_events`, with `required: false` and no
-  core schema reference. The manifest extension declares its path, count,
-  `recorded_at`/`id` ordering, and `export_only` history-replay support.
+  as Full JSON `behavior_configuration_events` except saved Behavior locations
+  and location-only changed-field markers are removed. It has `required: false`
+  and no core schema reference. The manifest extension declares its path,
+  count, `recorded_at`/`id` ordering, and `export_only` history-replay support.
 - Core schedules are segmented only when `schedule_graph`, `timezone`, or
   `active` changes. Reminder-only and category-only revisions remain in the
   configuration history files and do not split schedule periods.
