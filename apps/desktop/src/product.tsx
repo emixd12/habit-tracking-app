@@ -6,6 +6,11 @@ import { DesktopApp, type DesktopScreen } from "./desktop-app";
 import { openCalendarSourceUrl } from "./calendar/google-calendar";
 import { GoogleCalendarPanel } from "@/components/settings/GoogleCalendarPanel";
 import { DailyBriefSettingsPanel } from "@/components/briefing/DailyBriefSettingsPanel";
+import { TravelSettingsPanel } from "@/components/settings/TravelSettingsPanel";
+import { useTravelContext, type TravelCorrection } from "@/lib/ui/travel";
+import { createDesktopTravelClient } from "./travel";
+import { createLocalTravelSettingsClient } from "./local-travel-settings.service";
+import { readMacForegroundLocation } from "./foreground-location";
 import { useDesktopGoogleCalendar } from "./calendar/use-google-calendar";
 import { createDesktopDailyBriefClient } from "./daily-brief";
 import { TimelineScreen } from "./timeline-screen";
@@ -81,6 +86,7 @@ export function Product() {
   const syncRetry = useRef(0);
   const syncRetryTimer = useRef<number | null>(null);
   const auth = useRef<DesktopAuth | null>(null);
+  const [travelCorrections, setTravelCorrections] = useState<{ accountId: string | null; items: readonly TravelCorrection[] }>({ accountId: null, items: [] });
   const [calendarClient, setCalendarClient] = useState<ReturnType<DesktopAuth["accountClient"]> | null>(null);
   const [notificationTarget, setNotificationTarget] = useState<NotificationTarget | null>(null);
   const [navigationRequest, setNavigationRequest] = useState<{ anchor?: string } | null>(null);
@@ -288,6 +294,15 @@ export function Product() {
   const profileId = profile?.id;
   const accountUserId = account.status === "linked" ? account.userId : null;
   const dailyBriefClient = useMemo(() => calendarClient && accountUserId ? createDesktopDailyBriefClient(calendarClient) : null, [calendarClient, accountUserId]);
+  const travelSettingsClient = useMemo(() => {
+    const local = createLocalTravelSettingsClient();
+    return { load: local.load, save: async (value: Parameters<typeof local.save>[0]) => {
+      const saved = await local.save(value);
+      setSyncRequest((previous) => previous + 1);
+      return saved;
+    } };
+  }, []);
+  const travelClient = useMemo(() => calendarClient && accountUserId ? createDesktopTravelClient(calendarClient) : null, [calendarClient, accountUserId]);
   const calendarRange = {
     startLocalDate: bundle?.timeline.timeline.todayLocalDate ?? "1970-01-01",
     endLocalDate: bundle?.timeline.timeline.daySections.at(-1)?.localDate ?? "1970-01-01",
@@ -298,7 +313,14 @@ export function Product() {
     accountId: accountUserId, timezone: profile?.timezone ?? "America/New_York", range: calendarRange,
     enabled: isTauri() && Boolean(bundle && accountUserId) && (activeScreen === "timeline" || activeScreen === "settings"),
   });
+  const currentTravelCorrections = useMemo(() => (travelCorrections.accountId === accountUserId ? travelCorrections.items : []).filter((correction) => calendar.snapshot?.events.some((event) => event.id === correction.eventId && (event.revision.providerEtag ?? event.revision.providerUpdatedAt) === correction.revision)), [travelCorrections, calendar.snapshot, accountUserId]);
+  const travel = useTravelContext({ enabled: activeScreen === "timeline" && syncReady && syncStatus.state === "current",
+    accountId: accountUserId, localDate: calendarRange.startLocalDate, client: travelClient, corrections: currentTravelCorrections,
+    sourceKey: JSON.stringify([calendar.snapshot?.fetchedAt, bundle?.timeline.timeline, syncStatus.state]) });
   const calendarContext = {
+    travelMessage: travel.message,
+    onTravelCorrection: travel.view ? (correction: TravelCorrection) => setTravelCorrections((previous) => ({ accountId: accountUserId, items: [...(previous.accountId === accountUserId ? previous.items : []).filter((item) => item.eventId !== correction.eventId).slice(-7), correction] })) : undefined,
+    travel: travel.view?.evidence, travelMode: travel.view?.mode, navigationPreference: travel.view?.navigationPreference,
     events: calendar.preferences?.visible ? calendar.snapshot?.events.filter((event) =>
       !calendar.preferences!.hiddenCalendarIds.includes(event.calendarId)
       && (calendar.preferences!.showAllDay || event.kind !== "all_day")) ?? [] : [],
@@ -397,6 +419,7 @@ export function Product() {
   const coverage = reminders ? reminderCoverageView(reminders.state) : null;
   const permission = reminders?.permission ?? "checking";
   const navigate = (screen: DesktopScreen, anchor?: string) => {
+    if (screen !== "timeline") setTravelCorrections({ accountId: null, items: [] });
     activation.current = null;
     setNotificationTarget(null);
     setActiveScreen(screen);
@@ -479,6 +502,7 @@ export function Product() {
         calendarControls={calendar.coordinator ? <GoogleCalendarPanel key={accountUserId ?? "local"} coordinator={calendar.coordinator} refreshRange={calendarRange} refreshVersion={calendar.panelVersion} wrongAccount={calendar.wrongAccount} openExternalUrl={openCalendarSourceUrl} />
           : <section className="py-4"><h2 className="text-xl">Google Calendar</h2><p className="mt-3 text-sm text-muted-readable">{calendar.label}</p></section>}
         dailyBriefControls={<DailyBriefSettingsPanel key={accountUserId ?? "local"} client={dailyBriefClient} desktop />}
+        travelControls={<TravelSettingsPanel key={`travel-${accountUserId ?? "local"}`} client={travelSettingsClient} readLocation={readMacForegroundLocation} desktop />}
         updates={<div id="app-updates" tabIndex={-1} className="scroll-mt-20"><DesktopUpdatePanel {...restartActions} /></div>}
         databaseControls={<LocalDatabaseControls onRestored={refresh} />}
         updateTimezoneAction={timezoneAction} permission={permission} coverage={coverage}

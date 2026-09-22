@@ -27,3 +27,15 @@ describe("advisor completion-history migration", () => {
     expect(migration).toContain("limit history_occurrence_limit + 1");
   });
 });
+
+
+it("extends the fenced private snapshot with existing mark times without adding capture fields", () => {
+  const current = readFileSync("supabase/migrations/20260922034223_advisor_historical_completion_times.sql", "utf8");
+  const previous = readFileSync("supabase/migrations/20260921003928_revise_advisor_completion_history.sql", "utf8");
+  const withoutComment = current.slice(current.indexOf("begin;"));
+  expect(withoutComment.replace(
+    "'status', occurrence.status,\n        'statusMarkedAt', occurrence.status_marked_at",
+    "'status', occurrence.status",
+  )).toBe(previous);
+  expect(current).not.toMatch(/alter table|add column|security definer/i);
+});

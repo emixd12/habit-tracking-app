@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { assembleExportBundle, type ExportAssemblyInput } from "@cadence/core/services/export-assembly";
+import { resolveBehaviorLogImportPreview } from "@cadence/core/resolvers/behaviorlog-import.resolver";
 import { USER_ID, storedBehavior, storedConfigurationEvent, storedExportOccurrence } from "./helpers/export-row-fixture";
 import { portabilityApplyRun } from "./helpers/portability-fixture";
 
@@ -36,6 +37,71 @@ function preservedExport(eventLists: Record<string, unknown>[][], originalLocalC
 }
 
 describe("BehaviorLog complete portable export", () => {
+  it("preserves saved Behavior locations only in the Cadence JSON backup", () => {
+    const locationText = "Private location marker 482";
+    const baseline = storedConfigurationEvent();
+    const baselineConfiguration = {
+      ...baseline.next_configuration,
+      location_text: null,
+    };
+    const revision = {
+      ...baseline,
+      id: "location-revision",
+      event_kind: "revision",
+      previous_configuration: baselineConfiguration,
+      next_configuration: {
+        ...baselineConfiguration,
+        location_text: locationText,
+      },
+      changed_fields: ["location_text"],
+      recorded_at: "2026-05-02T12:00:00Z",
+      effective_at: "2026-05-02T12:00:00Z",
+      effective_local_date: "2026-05-02",
+      source: "manual",
+      reason_code: "behavior_form_update",
+      created_at: "2026-05-02T12:00:00Z",
+    };
+    const bundle = assembleExportBundle({
+      ...input,
+      behaviors: [{
+        ...storedBehavior(),
+        location_text: locationText,
+        current_configuration_event_id: revision.id,
+        updated_at: revision.recorded_at,
+      }],
+      behaviorConfigurationEvents: [{
+        ...baseline,
+        next_configuration: baselineConfiguration,
+        changed_fields: [...baseline.changed_fields, "location_text"],
+      }, revision],
+    });
+
+    expect(bundle.jsonBackup.behaviors[0].location_text).toBe(locationText);
+    expect(
+      bundle.jsonBackup.behavior_configuration_events[1]
+        .next_configuration.location_text,
+    ).toBe(locationText);
+    expect(bundle.jsonl).not.toContain(locationText);
+    expect(bundle.behaviorLog.files.map(({ content }) => content).join("\n"))
+      .not.toContain(locationText);
+    expect(
+      records(bundle, "raw/cadence/behavior_configuration_events.jsonl")[1]
+        .next_configuration,
+    ).not.toHaveProperty("location_text");
+    const portableRevision = records(
+      bundle,
+      "data/behavior_configuration_events.jsonl",
+    )[1];
+    expect(portableRevision.changed_fields).toEqual([]);
+    expect(portableRevision.source.transformation_notes).toContain(
+      "location_text",
+    );
+    const preview = resolveBehaviorLogImportPreview({
+      files: bundle.behaviorLog.files,
+    });
+    expect(preview.valid, JSON.stringify(preview.errors, null, 2)).toBe(true);
+  });
+
   it("exports described category context and retains imported descriptions without changing CSV columns", () => {
     const described = assembleExportBundle({ ...input, categories: [{ id: "category", name: "Home", sort_order: 0, description: "Household routines", created_at: "2026-09-05T00:00:00Z", updated_at: "2026-09-05T00:00:00Z" }] });
     expect(described.jsonBackup.categories[0].description).toBe("Household routines");

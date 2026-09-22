@@ -9,6 +9,7 @@ export type BehaviorInput = {
   endDate?: string | null;
   title: string;
   description: string | null;
+  locationText?: string | null;
   categoryId: string | null;
   recurrenceRule: RecurrenceRule;
   scheduledTime: string;
@@ -26,6 +27,7 @@ export type BehaviorFields = {
   category_id: string | null;
   title: string;
   description: string | null;
+  location_text?: string | null;
   recurrence_rule: Json;
   scheduled_time: string;
   timezone: string;

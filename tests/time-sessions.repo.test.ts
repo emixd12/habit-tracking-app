@@ -113,6 +113,38 @@ describe("time sessions repository", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("bounds presence filter URLs and preserves matches across UUID batches", async () => {
+    const occurrenceIds = uuidList(501);
+    let batch: string[] = [];
+    inFilter.mockImplementation((_column: string, ids: string[]) => {
+      // PostgREST reflects its request URL in response headers; keep below 8 KiB.
+      const url = new URL(
+        "https://example.supabase.co/rest/v1/occurrence_time_sessions",
+      );
+      url.searchParams.set("occurrence_id", `in.(${ids.join(",")})`);
+      expect(url.href.length).toBeLessThan(8_192);
+      batch = ids;
+      return builder;
+    });
+    range.mockImplementation(async () => ({
+      data: batch.map((id) => ({ id, occurrence_id: id })),
+      error: null,
+    }));
+
+    await expect(
+      listOccurrenceIdsWithTimeSessions(repositorySupabase, {
+        userId: "user-1",
+        occurrenceIds,
+      }),
+    ).resolves.toEqual(occurrenceIds);
+    expect(inFilter.mock.calls.flatMap(([, ids]) => ids)).toEqual(
+      occurrenceIds,
+    );
+    expect(eq.mock.calls).toEqual(
+      inFilter.mock.calls.map(() => ["user_id", "user-1"]),
+    );
+  });
+
   it("paginates time-session presence so later occurrence IDs are not truncated", async () => {
     range
       .mockResolvedValueOnce({

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "../app/auth/callback/route";
 import { createClient } from "@/lib/supabase/server";
@@ -9,6 +9,34 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 describe("auth callback route", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it.each(["127.0.0.1", "localhost"])(
+    "keeps the %s session cookie host after code exchange",
+    async (host) => {
+      vi.stubEnv("NODE_ENV", "development");
+      const exchangeCodeForSession = vi.fn().mockResolvedValue({ error: null });
+      vi.mocked(createClient).mockResolvedValue({
+        auth: { exchangeCodeForSession },
+      } as never);
+
+      const response = await GET(
+        new NextRequest(
+          "http://localhost:4324/auth/callback?code=test-code&next=%2Fsettings",
+          { headers: { host: `${host}:4324` } },
+        ),
+      );
+
+      expect(exchangeCodeForSession).toHaveBeenCalledWith("test-code");
+      expect(response.headers.get("location")).toBe(
+        `http://${host}:4324/settings`,
+      );
+    },
+  );
+
   it("reports Supabase provider callback errors without trying code exchange", async () => {
     const response = await GET(
       new NextRequest(

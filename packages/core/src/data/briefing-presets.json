@@ -1,0 +1,109 @@
+[
+  {
+    "id": "cadence-default",
+    "label": "Cadence default",
+    "config": {
+      "version": "1.2",
+      "recipe": { "id": "daily_brief", "version": "1.0" },
+      "tone": "calm",
+      "directness": "balanced",
+      "encouragement": "moderate",
+      "length": {
+        "maxWords": 120
+      },
+      "priorities": [
+        "schedule_fit",
+        "today_status",
+        "needs_decision",
+        "completion_history"
+      ],
+      "allowedSuggestionTypes": [
+        "recap",
+        "priority",
+        "schedule"
+      ],
+      "alternatives": 1,
+      "scope": {
+        "behaviorRefs": "all",
+        "historyDays": 90,
+        "includeCalendar": true
+      },
+      "context": {
+        "includeCompletionHistory": false,
+        "includeHistoricalCompletionTimes": false,
+        "includeRecordedElapsedDurations": false,
+        "duration": {
+          "includeHistoricalAverage": true,
+          "includeConfiguredDefault": true,
+          "preference": "configured_default",
+          "fallback": "other_enabled_source"
+        }
+      },
+      "referenceIds": [],
+      "planner": {
+        "bufferMinutes": 10,
+        "preference": "least_change",
+        "movableBehaviorRefs": [],
+        "permittedWindows": [
+          {
+            "startMinute": 0,
+            "endMinute": 1440
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "warm-priorities",
+    "label": "Warm priorities",
+    "config": {
+      "version": "1.2",
+      "recipe": { "id": "daily_brief", "version": "1.0" },
+      "tone": "warm",
+      "directness": "gentle",
+      "encouragement": "moderate",
+      "length": {
+        "maxWords": 80
+      },
+      "priorities": [
+        "today_status",
+        "needs_decision",
+        "completion_history",
+        "schedule_fit"
+      ],
+      "allowedSuggestionTypes": [
+        "recap",
+        "priority"
+      ],
+      "alternatives": 1,
+      "scope": {
+        "behaviorRefs": "all",
+        "historyDays": 90,
+        "includeCalendar": true
+      },
+      "context": {
+        "includeCompletionHistory": false,
+        "includeHistoricalCompletionTimes": false,
+        "includeRecordedElapsedDurations": false,
+        "duration": {
+          "includeHistoricalAverage": true,
+          "includeConfiguredDefault": true,
+          "preference": "configured_default",
+          "fallback": "other_enabled_source"
+        }
+      },
+      "referenceIds": [],
+      "planner": {
+        "bufferMinutes": 10,
+        "preference": "least_change",
+        "movableBehaviorRefs": [],
+        "permittedWindows": [
+          {
+            "startMinute": 0,
+            "endMinute": 1440
+          }
+        ]
+      }
+    }
+  }
+]

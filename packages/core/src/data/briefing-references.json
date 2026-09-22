@@ -1,0 +1,31 @@
+{
+  "version": "2026-09-20.1",
+  "references": [
+    {
+      "id": "nice-ph49-planning",
+      "revision": "1",
+      "title": "NICE PH49: goals and planning",
+      "url": "https://www.nice.org.uk/guidance/ph49/chapter/Recommendations#recommendation-7-use-proven-behaviour-change-techniques-when-designing-interventions",
+      "publishedAt": "2014-01-02",
+      "reviewedAt": "2026-09-20",
+      "kind": "interpretation",
+      "summary": "NICE recommends agreeing behavior goals, specifying action plans, prioritizing actions, and considering coping plans. Plans should reflect individual needs.",
+      "applicability": "Explaining a user-controlled priority or hypothetical plan.",
+      "limitations": "Guidance for behavior-change interventions; it does not establish Cadence efficacy or prove that any proposed time is suitable. No medical advice.",
+      "status": "active"
+    },
+    {
+      "id": "cadence-manual-truth",
+      "revision": "1",
+      "title": "Cadence: manual truth",
+      "url": "https://github.com/emixd12/habit-tracking-app/blob/main/docs/PRODUCT_SPEC.md",
+      "publishedAt": null,
+      "reviewedAt": "2026-09-20",
+      "kind": "editorial_guidance",
+      "summary": "An unresolved occurrence records no decision. Invite a review without describing it as a failure. Suggestions never change the record.",
+      "applicability": "Recaps and priority suggestions.",
+      "limitations": "Product editorial guidance, not research evidence or a claim of effectiveness.",
+      "status": "active"
+    }
+  ]
+}

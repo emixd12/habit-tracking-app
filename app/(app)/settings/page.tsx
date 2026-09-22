@@ -17,6 +17,7 @@ import { CategoryPanel } from "@/components/settings/CategoryPanel";
 import { GlobalNoteShortcutControl } from "@/components/note-shortcuts/NoteShortcutControls";
 import { WebGoogleCalendarPanel } from "@/components/settings/WebGoogleCalendarPanel";
 import { DailyBriefSettingsPanel } from "@/components/briefing/DailyBriefSettingsPanel";
+import { TravelSettingsPanel } from "@/components/settings/TravelSettingsPanel";
 import { getNoteShortcutViewForCurrentUser } from "@/lib/services/note-shortcut.service";
 import { manageNoteShortcutAction } from "@/app/(app)/note-shortcuts/actions";
 import { getCategorySettings } from "@/lib/services/category.service";
@@ -65,6 +66,8 @@ async function SettingsContent() {
       />
 
       <WebGoogleCalendarPanel timezone={settings.timezone} />
+
+      <TravelSettingsPanel />
 
       <DailyBriefSettingsPanel />
 

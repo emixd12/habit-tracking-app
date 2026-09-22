@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { authRequestUrl } from "@/lib/auth/redirects";
 import type { Database } from "@/lib/db/database.types";
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
 import { createClient } from "@/lib/supabase/server";
@@ -10,7 +11,7 @@ const NATIVE_ORIGINS = new Set(["tauri://localhost", "http://tauri.localhost", "
 export async function authenticateCalendarRequest(request: Request): Promise<CalendarCaller> {
   const authorization = request.headers.get("authorization");
   const origin = request.headers.get("origin");
-  const sameOrigin = origin === new URL(request.url).origin;
+  const sameOrigin = origin === authRequestUrl(request).origin;
   let client: AppSupabaseClient;
   let token: string | undefined;
   if (authorization) {

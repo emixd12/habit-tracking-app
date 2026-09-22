@@ -2,6 +2,7 @@ import type { Json } from "./json";
 
 export const BEHAVIOR_CONFIGURATION_CHANGED_FIELDS = [
   "category_id",
+  "location_text",
   "schedule_graph",
   "browser_reminder_enabled",
   "email_reminder_enabled",
@@ -33,6 +34,7 @@ export type BehaviorConfigurationSchedule = {
 
 export type BehaviorConfigurationSnapshot = {
   categoryId: string | null;
+  locationText?: string | null;
   scheduleGraph: BehaviorConfigurationSchedule[];
   browserReminderEnabled: boolean;
   emailReminderEnabled: boolean;

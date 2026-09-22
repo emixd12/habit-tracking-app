@@ -5,7 +5,8 @@ export type Category = Tables<"categories">;
 type BehaviorPersistenceField =
   | "default_duration_minutes"
   | "end_date"
-  | "auto_archived_at";
+  | "auto_archived_at"
+  | "location_text";
 export type Behavior = Omit<Tables<"behaviors">, BehaviorPersistenceField> &
   Partial<Pick<Tables<"behaviors">, BehaviorPersistenceField>>;
 export type BehaviorDefinitionEvent = Tables<"behavior_definition_events">;
@@ -25,6 +26,7 @@ export type ImportedNote = Tables<"imported_notes">;
 export type ReminderDelivery = Tables<"reminder_deliveries">;
 export type PushSubscription = Tables<"push_subscriptions">;
 export type LaunchRateLimit = Tables<"launch_rate_limits">;
+export type TravelSettingsRow = Tables<"travel_settings">;
 
 export type NewCategory = TablesInsert<"categories">;
 export type NewBehavior = TablesInsert<"behaviors">;

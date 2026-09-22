@@ -293,6 +293,9 @@ export function BehaviorForm({
           defaultValue={behavior?.description ?? ""}
           error={fieldErrors.description}
         />
+        <TextField label="Location (optional)" name="location_text"
+          defaultValue={behavior?.locationText ?? ""} error={fieldErrors.location_text} />
+        <p className="text-sm text-muted-readable">Use a full address for travel planning. Clear the field to remove it. Saving a location does not enable routing.</p>
       </fieldset>
 
       <fieldset className="grid gap-3 border-0 p-0">

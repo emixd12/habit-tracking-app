@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
+import { useCallback, useId, useState, type ReactNode } from "react";
 import type { TimelineOccurrenceContext } from "@cadence/core/types/day-progress";
 import type { NoteShortcut } from "@cadence/core/types/note-shortcut";
 
@@ -32,6 +32,7 @@ type OccurrenceRowProps = Readonly<{
   shortcuts?: readonly NoteShortcut[];
   statusIconsOnly?: boolean;
   context?: TimelineOccurrenceContext;
+  travelDetails?: ReactNode;
 }>;
 
 type KeyedOptimisticStatusState = Readonly<{
@@ -73,6 +74,7 @@ export function OccurrenceRow({
   shortcuts,
   statusIconsOnly = false,
   context,
+  travelDetails,
 }: OccurrenceRowProps) {
   const serverStatusKey = [
     occurrence.id,
@@ -208,6 +210,8 @@ export function OccurrenceRow({
               <p>{context.overlapLabel}</p>
               {context.activitySignals.map((signal) => <p key={signal}>{signal === "scheduled_now" ? "Scheduled now" : signal === "estimated_window" ? "Estimated window" : "Tracking now"}</p>)}
             </div> : null}
+
+            {travelDetails}
 
             <TimeTracker
               occurrenceId={visibleOccurrence.id}

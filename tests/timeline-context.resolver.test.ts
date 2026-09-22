@@ -6,6 +6,7 @@ import {
   DURATION_ESTIMATE_LOOKBACK_DAYS,
   DURATION_ESTIMATE_MIN_SAMPLES,
   resolveBehaviorDurationEstimate,
+  resolveBehaviorDurationSources,
   resolveExternalEventFreshness,
   resolveTimelineOccurrenceContext,
 } from "../packages/core/src/resolvers/timeline-context.resolver";
@@ -76,6 +77,29 @@ describe("resolveBehaviorDurationEstimate", () => {
       requiredSampleCount: 3,
       lookbackDays: 90,
     });
+  });
+
+  it("keeps configured defaults, historical averages, and eligible raw elapsed samples distinct", () => {
+    const sources = resolveBehaviorDurationSources({
+      behaviorId: "behavior-1",
+      defaultDurationMinutes: 15,
+      now: NOW,
+      timezone: "America/New_York",
+      occurrences: [
+        history("one", "2026-09-15", [session("one", "a", 60)]),
+        history("two", "2026-09-14", [session("two", "b", 120)]),
+        history("three", "2026-09-13", [session("three", "c", 180)]),
+        history("unresolved", "2026-09-12", [session("unresolved", "d", 240)], "unresolved"),
+      ],
+    });
+
+    expect(sources.configuredDefault).toMatchObject({ seconds: 900, provenance: "behavior_default" });
+    expect(sources.historicalAverage).toMatchObject({ seconds: 120, sampleCount: 3, provenance: "completed_stopped_occurrence_mean" });
+    expect(sources.recordedElapsedDurations).toEqual([
+      { localDate: "2026-09-15", seconds: 60 },
+      { localDate: "2026-09-14", seconds: 120 },
+      { localDate: "2026-09-13", seconds: 180 },
+    ]);
   });
 
   it("rejects duplicate occurrences, duplicate sessions, and cross-occurrence sessions", () => {

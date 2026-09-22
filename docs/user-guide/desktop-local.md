@@ -24,6 +24,11 @@ false conflict choice. A failed operation leaves the saved baseline unchanged
 and can be retried. An irreconcilable preview waits for conflict review instead
 of silently choosing one copy.
 
+Saved travel preferences also trigger this choice. Import preserves the saved base,
+mode, consent, Behavior locations, and location history through account synchronization.
+Different saved preferences wait for conflict review. Ignore keeps them in the
+protected backup before replacing the working copy.
+
 ## Synchronize a linked account
 
 After the first account-link choice completes, Settings shows account

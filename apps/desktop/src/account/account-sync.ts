@@ -159,7 +159,20 @@ export async function synchronizeReviewedAccount(profileId: string, client: Supa
 }
 
 export function portabilityEntities(snapshot: AccountSyncPortabilitySnapshot): AccountSyncEntity[] {
-  const entities: AccountSyncEntity[] = [{ kind: "profile", id: "profile", value: { timezone: snapshot.profile.timezone } }];
+  const travel = snapshot.travelSettings ?? {
+    enabled: false, baseLocationText: null, mode: null, navigationPreference: null,
+    routingConsentAt: null, onboardingCompletedAt: null, updatedAt: snapshot.profile.created_at,
+  };
+  const entities: AccountSyncEntity[] = [{ kind: "profile", id: "profile", value: {
+    timezone: snapshot.profile.timezone,
+    travel_enabled: travel.enabled,
+    base_location_text: travel.baseLocationText,
+    travel_mode: travel.mode,
+    navigation_preference: travel.navigationPreference,
+    routing_consent_at: travel.routingConsentAt,
+    onboarding_completed_at: travel.onboardingCompletedAt,
+    updated_at: travel.updatedAt,
+  } }];
   add(entities, "category", snapshot.categories);
   for (const graph of snapshot.graphs) {
     add(entities, "behavior", [graph.behavior]);

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
+  authRequestUrl,
   buildLoginPath,
   MISSING_CONFIG_ERROR,
   normalizeRedirectPath,
@@ -11,7 +12,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url);
+  const requestUrl = authRequestUrl(request);
   const callbackError = requestUrl.searchParams.get("error");
   const code = requestUrl.searchParams.get("code");
   const nextPath = normalizeRedirectPath(requestUrl.searchParams.get("next"));
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
       context: routeContext(),
     });
     return NextResponse.redirect(
-      new URL(buildLoginPath(nextPath, "auth_callback_failed"), request.url),
+      new URL(buildLoginPath(nextPath, "auth_callback_failed"), requestUrl),
     );
   }
 
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       context: routeContext(),
     });
     return NextResponse.redirect(
-      new URL(buildLoginPath(nextPath, "missing_auth_code"), request.url),
+      new URL(buildLoginPath(nextPath, "missing_auth_code"), requestUrl),
     );
   }
 
@@ -49,17 +50,17 @@ export async function GET(request: NextRequest) {
         context: routeContext(),
       });
       return NextResponse.redirect(
-        new URL(buildLoginPath(nextPath, "auth_callback_failed"), request.url),
+        new URL(buildLoginPath(nextPath, "auth_callback_failed"), requestUrl),
       );
     }
   } catch (error) {
     reportMonitoringError("auth_callback_config_failed", error, routeContext());
     return NextResponse.redirect(
-      new URL(buildLoginPath(nextPath, MISSING_CONFIG_ERROR), request.url),
+      new URL(buildLoginPath(nextPath, MISSING_CONFIG_ERROR), requestUrl),
     );
   }
 
-  return NextResponse.redirect(new URL(nextPath, request.url));
+  return NextResponse.redirect(new URL(nextPath, requestUrl));
 }
 
 function routeContext() {

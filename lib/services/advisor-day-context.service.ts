@@ -1,3 +1,4 @@
+import { resolveCompletionTiming } from "@cadence/core/resolvers/completion-timing.resolver";
 import { createHmac } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
 import type { User } from "@supabase/supabase-js";
@@ -16,11 +17,12 @@ import {
   type AdvisorCalendarConnector,
   type AdvisorDayContextErrorCode,
   type AdvisorDayContextV1,
+  type AdvisorDuration,
   type AdvisorOpaqueRef,
   type AdvisorSourceFailureCode,
 } from "@cadence/core/types/advisor-day-context";
 import type { BehaviorDurationHistoryOccurrence } from "@cadence/core/types/day-progress";
-import { resolveBehaviorDurationEstimate } from "@cadence/core/resolvers/timeline-context.resolver";
+import { resolveBehaviorDurationSources } from "@cadence/core/resolvers/timeline-context.resolver";
 import { normalizeOccurrenceStatus } from "@cadence/core/services/occurrence.service";
 import {
   readAdvisorCadenceRevision,
@@ -71,32 +73,54 @@ export class AdvisorDayContextServiceError extends Error {
   }
 }
 
-export async function readAdvisorDayContext(input: Readonly<{
+type AdvisorDayContextReadInput = Readonly<{
   caller: AdvisorDayContextCaller;
   authorization: AdvisorAuthorizationFence;
   revalidateAuthorization: (signal?: AbortSignal) => Promise<AdvisorAuthorizationFence>;
   includeGoogleCalendar: boolean;
+  includeRecordedElapsedDurations?: boolean;
+    includeHistoricalCompletionTimes?: boolean;
   localDate?: string;
   now?: Temporal.Instant;
   clock?: () => Temporal.Instant;
   opaqueRefKey: string | Uint8Array;
   deadlineMs?: number;
+  signal?: AbortSignal;
+}>;
+
+export async function readAdvisorDayContext(input: AdvisorDayContextReadInput & Readonly<{
+  historyDays?: number;
 }>): Promise<AdvisorDayContextV1> {
+  const [context] = await readAdvisorDayContexts({
+    ...input,
+    historyDays: [input.historyDays ?? 90],
+  });
+  return context!;
+}
+
+export async function readAdvisorDayContexts(input: AdvisorDayContextReadInput & Readonly<{
+  historyDays: readonly number[];
+}>): Promise<AdvisorDayContextV1[]> {
   const clock = input.clock ?? (input.now ? () => input.now as Temporal.Instant : () => Temporal.Now.instant());
   const now = clock();
   const authorization = normalizeAuthorization(input.authorization, input.caller.user.id, now);
   if (input.includeGoogleCalendar && !authorization.calendar) throw new AdvisorDayContextServiceError("access_denied");
+  if (input.historyDays.length < 1 || input.historyDays.length > 2 ||
+      input.historyDays.some((days) => !Number.isInteger(days) || days < 1 || days > 90)) {
+    throw new AdvisorDayContextServiceError("invalid_request");
+  }
   const deadlineMs = input.deadlineMs ?? ADVISOR_DAY_CONTEXT_LIMITS.deadlineMs;
   if (!Number.isInteger(deadlineMs) || deadlineMs < 1 || deadlineMs > ADVISOR_DAY_CONTEXT_LIMITS.deadlineMs) {
     throw new AdvisorDayContextServiceError("invalid_request");
   }
+  if (input.signal?.aborted) throw new AdvisorDayContextServiceError("timeout", true);
   const controller = new AbortController();
   const work = (async () => {
     const admission = await acquireAdvisorDayContextRead(input.caller.client, authorization.clientId);
     if (!admission.allowed) throw new AdvisorDayContextServiceError("rate_limited", true, admission.retryAfterSeconds);
     try {
       if (controller.signal.aborted) throw new AdvisorDayContextServiceError("timeout", true);
-      return await assembleDayContext(input, authorization, now, clock, controller.signal);
+      return await assembleDayContexts(input, authorization, now, clock, controller.signal);
     } finally {
       // Cleanup cannot delay disclosure after its final authorization check.
       // The database lease expires if the host stops before this best-effort release.
@@ -105,6 +129,14 @@ export async function readAdvisorDayContext(input: Readonly<{
   })();
   let timedOut = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let rejectExternal: (() => void) | undefined;
+  const externalAbort = input.signal ? new Promise<never>((_, reject) => {
+    rejectExternal = () => {
+      controller.abort();
+      reject(new AdvisorDayContextServiceError("timeout", true));
+    };
+    input.signal?.addEventListener("abort", rejectExternal, { once: true });
+  }) : null;
   try {
     const result = await Promise.race([
       work,
@@ -115,6 +147,7 @@ export async function readAdvisorDayContext(input: Readonly<{
           reject(new AdvisorDayContextServiceError("timeout", true));
         }, deadlineMs);
       }),
+      ...(externalAbort ? [externalAbort] : []),
     ]);
     if (timer) clearTimeout(timer);
     return result;
@@ -122,14 +155,19 @@ export async function readAdvisorDayContext(input: Readonly<{
     if (timer) clearTimeout(timer);
     if (timedOut) void work.catch(() => undefined);
     throw error;
+  } finally {
+    if (rejectExternal) input.signal?.removeEventListener("abort", rejectExternal);
   }
 }
 
-async function assembleDayContext(
+async function assembleDayContexts(
   input: Readonly<{
     caller: AdvisorDayContextCaller;
     revalidateAuthorization: (signal?: AbortSignal) => Promise<AdvisorAuthorizationFence>;
     includeGoogleCalendar: boolean;
+    includeRecordedElapsedDurations?: boolean;
+    includeHistoricalCompletionTimes?: boolean;
+    historyDays: readonly number[];
     localDate?: string;
     opaqueRefKey: string | Uint8Array;
     deadlineMs?: number;
@@ -138,7 +176,7 @@ async function assembleDayContext(
   now: Temporal.Instant,
   clock: () => Temporal.Instant,
   signal: AbortSignal,
-): Promise<AdvisorDayContextV1> {
+): Promise<AdvisorDayContextV1[]> {
   const opaqueRef = createAdvisorOpaqueRef(input.opaqueRefKey, authorization);
   const timezone = await readAdvisorProfileTimezone(input.caller.client, authorization.userId);
   assertNotAborted(signal);
@@ -150,10 +188,11 @@ async function assembleDayContext(
   if (requestedDate.toString() !== localDate || Temporal.PlainDate.compare(requestedDate, today) !== 0) {
     throw new AdvisorDayContextServiceError("invalid_request");
   }
-  const historyStartLocalDate = requestedDate.subtract({ days: 90 }).toString();
+  // Keep the full duration-estimation horizon even when completion history is narrower.
+  const readHistoryStartLocalDate = requestedDate.subtract({ days: 90 }).toString();
   const cadenceSnapshot = await readAdvisorCadenceSnapshot(input.caller.client, {
     localDate,
-    historyStartLocalDate,
+    historyStartLocalDate: readHistoryStartLocalDate,
     behaviorIds: authorization.behaviorIds,
     signal,
   });
@@ -168,12 +207,14 @@ async function assembleDayContext(
     startLocalDate: localDate,
     endLocalDate: localDate,
   });
-  if (!coverage.covered || cadenceSnapshot.dueArchiveCount > 0 || cadenceSnapshot.staleConfigurationCount > 0) {
+  // A fresh sync fences current Behavior configurations. Preserved occurrences may
+  // legitimately retain older or null lineage (past times, notes, or time sessions).
+  if (!coverage.covered || cadenceSnapshot.dueArchiveCount > 0) {
     throw new AdvisorDayContextServiceError(
       "context_incomplete",
       true,
       null,
-      "Open Cadence and refresh the Timeline before requesting a new Daily Brief.",
+      `${cadenceSnapshot.dueArchiveCount > 0 ? "Open Timeline to reconcile due archives. Then open" : "Open"} Settings, confirm your current timezone, and choose Save timezone to retry schedule synchronization. Then return and try again.`,
     );
   }
 
@@ -181,51 +222,50 @@ async function assembleDayContext(
   const durationHistoryCapped = occurrenceHistoryCapped || cadenceSnapshot.historySessions.length > ADVISOR_DAY_CONTEXT_LIMITS.historySessions;
   const history = durationHistoryCapped ? [] : durationHistory(cadenceSnapshot, authorization.userId);
   const behaviorById = new Map(cadenceSnapshot.behaviors.map((behavior) => [behavior.id, behavior]));
-  const estimates = new Map(cadenceSnapshot.behaviors.map((behavior) => [behavior.id,
-    behavior.defaultDurationMinutes == null && durationHistoryCapped
-      ? { kind: "unknown" as const, reason: "history_limit_exceeded" as const, sampleCount: 0 as const, requiredSampleCount: 3 as const, lookbackDays: 90 as const }
-      : resolveBehaviorDurationEstimate({
-          behaviorId: behavior.id,
-          defaultDurationMinutes: behavior.defaultDurationMinutes,
-          occurrences: history,
-          now,
-          timezone: cadenceSnapshot.timezone,
-        }),
-  ]));
-  const cadence = projectAdvisorCadenceSource({
-    observedAt: cadenceSnapshot.observedAt,
-    revision: cadenceSnapshot.revision,
-    historyStartLocalDate,
-    historyEndLocalDateExclusive: localDate,
-    behaviors: cadenceSnapshot.behaviors,
-    historyOccurrences: occurrenceHistoryCapped ? [] : cadenceSnapshot.historyOccurrences.map((occurrence) => ({
+  const durationSources = new Map(cadenceSnapshot.behaviors.map((behavior) => {
+    const sources = resolveBehaviorDurationSources({
+      behaviorId: behavior.id,
+      defaultDurationMinutes: behavior.defaultDurationMinutes,
+      occurrences: history,
+      now,
+      timezone: cadenceSnapshot.timezone,
+    });
+    return [behavior.id, durationHistoryCapped ? {
+      ...sources,
+      historicalAverage: { kind: "unknown" as const, reason: "history_limit_exceeded" as const, sampleCount: 0 as const, requiredSampleCount: 3 as const, lookbackDays: 90 as const },
+      recordedElapsedDurations: [],
+    } : sources] as const;
+  }));
+  const occurrenceInputs = cadenceSnapshot.occurrences.map((occurrence) => {
+    const behavior = behaviorById.get(occurrence.behaviorId);
+    const sources = durationSources.get(occurrence.behaviorId);
+    if (!behavior || !sources) throw new AdvisorDayContextServiceError("context_changed", true);
+    const scheduleKind = occurrence.scheduleKind;
+    if (scheduleKind !== "exact" && scheduleKind !== "range") {
+      throw new AdvisorDayContextServiceError("context_incomplete", false);
+    }
+    return {
       id: occurrence.id,
       behaviorId: occurrence.behaviorId,
-      localDate: occurrence.localDate,
+      title: behavior.title,
       status: normalizeOccurrenceStatus(occurrence.status),
-    })),
-    historyComplete: !occurrenceHistoryCapped,
-    makeOpaqueRef: opaqueRef,
-    occurrences: cadenceSnapshot.occurrences.map((occurrence) => {
-      const behavior = behaviorById.get(occurrence.behaviorId);
-      const duration = estimates.get(occurrence.behaviorId);
-      if (!behavior || !duration) throw new AdvisorDayContextServiceError("context_changed", true);
-      if (occurrence.scheduleKind !== "exact" && occurrence.scheduleKind !== "range") {
-        throw new AdvisorDayContextServiceError("context_incomplete", false);
-      }
-      return {
-        id: occurrence.id,
-        behaviorId: occurrence.behaviorId,
-        title: behavior.title,
-        status: normalizeOccurrenceStatus(occurrence.status),
-        localDate: occurrence.localDate,
-        scheduledFor: occurrence.scheduledFor,
-        scheduleKind: occurrence.scheduleKind,
-        scheduleStartTime: occurrence.scheduleStartTime,
-        scheduleEndTime: occurrence.scheduleEndTime,
-        duration,
-      };
-    }),
+      localDate: occurrence.localDate,
+      scheduledFor: occurrence.scheduledFor,
+      scheduleKind: scheduleKind as "exact" | "range",
+      scheduleStartTime: occurrence.scheduleStartTime,
+      scheduleEndTime: occurrence.scheduleEndTime,
+      duration: sources.configuredDefault ?? sources.historicalAverage,
+      durationCandidates: {
+        configuredDefault: sources.configuredDefault ? {
+          kind: "known" as const,
+          seconds: sources.configuredDefault.seconds,
+          source: sources.configuredDefault.provenance,
+          sampleCount: sources.configuredDefault.sampleCount,
+          lookbackDays: 90 as const,
+        } : null,
+        historicalAverage: advisorDuration(sources.historicalAverage),
+      },
+    };
   });
 
   let connector: AdvisorCalendarConnector | { source: "google_calendar"; state: "not_requested" } = {
@@ -239,7 +279,7 @@ async function assembleDayContext(
 
   const currentRevision = await readAdvisorCadenceRevision(input.caller.client, {
     localDate,
-    historyStartLocalDate,
+    historyStartLocalDate: readHistoryStartLocalDate,
     behaviorIds: authorization.behaviorIds,
     signal,
   });
@@ -282,27 +322,79 @@ async function assembleDayContext(
     connector.state === "not_requested" ? null : [connector.connectionGeneration, connector.selectionRevision, connector.fetchedAt],
     finalNow.toString(),
   ]);
-  const context: AdvisorDayContextV1 = {
-    version: ADVISOR_DAY_CONTEXT_VERSION,
-    snapshotId: opaqueRef("snapshot", revisionMaterial),
-    accountRef: authorization.accountRef,
-    localDate,
-    timezone: cadenceSnapshot.timezone,
-    dayStartAt: dayStart.toInstant().toString(),
-    dayEndAt: dayEnd.toInstant().toString(),
-    capturedAt: finalNow.toString(),
-    expiresAt: expiresAt.toString(),
-    status: connector.state === "not_requested" || connector.complete ? "complete" : "partial",
-    authority: "read_only",
-    grantGeneration: authorization.grantGeneration,
-    cadence,
-    connectors: [connector],
-  };
-  const validated = validateAdvisorDayContext(context);
-  if (Buffer.byteLength(JSON.stringify(validated), "utf8") > ADVISOR_DAY_CONTEXT_LIMITS.responseBytes) {
-    throw new AdvisorDayContextServiceError("context_limit_exceeded");
-  }
-  return validated;
+  return input.historyDays.map((historyDays) => {
+    const historyStartLocalDate = requestedDate.subtract({ days: historyDays }).toString();
+    const cadence = projectAdvisorCadenceSource({
+      observedAt: cadenceSnapshot.observedAt,
+      revision: cadenceSnapshot.revision,
+      historyStartLocalDate,
+      historyEndLocalDateExclusive: localDate,
+      historyDays,
+      behaviors: cadenceSnapshot.behaviors,
+      historyOccurrences: occurrenceHistoryCapped ? [] : cadenceSnapshot.historyOccurrences.filter(
+        (occurrence) => occurrence.localDate >= historyStartLocalDate && occurrence.localDate < localDate,
+      ).map((occurrence) => ({
+        id: occurrence.id,
+        behaviorId: occurrence.behaviorId,
+        localDate: occurrence.localDate,
+        status: normalizeOccurrenceStatus(occurrence.status),
+      })),
+      historyComplete: !occurrenceHistoryCapped,
+      ...(input.includeRecordedElapsedDurations ? {
+        recordedElapsedDurations: [...durationSources.entries()].flatMap(([behaviorId, sources]) =>
+          sources.recordedElapsedDurations.map((sample) => ({ behaviorId, ...sample }))),
+      } : {}),
+      makeOpaqueRef: opaqueRef,
+      occurrences: occurrenceInputs,
+      ...(input.includeHistoricalCompletionTimes ? {
+        historicalCompletionTimes: {
+          semantics: "completion_mark" as const,
+          timezone: cadenceSnapshot.timezone,
+          lookbackDays: historyDays,
+          startLocalDate: historyStartLocalDate,
+          endLocalDateExclusive: localDate,
+          behaviors: cadenceSnapshot.behaviors.map(behavior => ({
+            behaviorRef: opaqueRef("behavior", behavior.id),
+            ...resolveCompletionTiming({ behaviorId: behavior.id, occurrences: cadenceSnapshot.historyOccurrences,
+              timezone: cadenceSnapshot.timezone, now, historyDays, complete: !occurrenceHistoryCapped,
+              sourceAvailable: cadenceSnapshot.historyOccurrences.every(item => "statusMarkedAt" in item) }),
+          })),
+        },
+      } : {}),
+    });
+    const validated = validateAdvisorDayContext({
+      version: ADVISOR_DAY_CONTEXT_VERSION,
+      snapshotId: opaqueRef("snapshot", revisionMaterial),
+      accountRef: authorization.accountRef,
+      localDate,
+      timezone: cadenceSnapshot.timezone,
+      dayStartAt: dayStart.toInstant().toString(),
+      dayEndAt: dayEnd.toInstant().toString(),
+      capturedAt: finalNow.toString(),
+      expiresAt: expiresAt.toString(),
+      status: connector.state === "not_requested" || connector.complete ? "complete" : "partial",
+      authority: "read_only",
+      grantGeneration: authorization.grantGeneration,
+      cadence,
+      connectors: [connector],
+    });
+    if (Buffer.byteLength(JSON.stringify(validated), "utf8") > ADVISOR_DAY_CONTEXT_LIMITS.responseBytes) {
+      throw new AdvisorDayContextServiceError("context_limit_exceeded");
+    }
+    return validated;
+  });
+}
+
+function advisorDuration(estimate: ReturnType<typeof resolveBehaviorDurationSources>["historicalAverage"] | Readonly<{
+  kind: "unknown";
+  reason: "history_limit_exceeded";
+  sampleCount: 0;
+  requiredSampleCount: 3;
+  lookbackDays: 90;
+}>): AdvisorDuration {
+  return estimate.kind === "known"
+    ? { kind: "known", seconds: estimate.seconds, source: estimate.provenance, sampleCount: estimate.sampleCount, lookbackDays: 90 }
+    : { kind: "unknown", reason: estimate.reason, sampleCount: estimate.sampleCount, lookbackDays: 90 };
 }
 
 async function readCalendar(

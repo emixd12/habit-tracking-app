@@ -1,5 +1,9 @@
 # Desktop data model
 
+Schema version 16 adds optional Behavior locations and the owner-authored travel
+settings singleton. Travel defaults to disabled. Migration 0016 stores no device
+sample, provider geocode or route result.
+
 Schema version 12 adds retained archive notes. See the Ticket 125 section below.
 
 Schema version 11 adds nullable category descriptions and owner-scoped normalized
@@ -78,6 +82,12 @@ The migration preserves existing rows, operational provenance links, domain
 revision, and outbox entries. It keeps foreign keys enabled throughout its
 transaction. Browser/email operational delivery constraints remain unchanged;
 imported Interventions never schedule native requests.
+Migration `0016_travel_settings.sql` adds nullable `behaviors.location_text`
+and `travel_settings`. It backfills one disabled row for the stable profile and
+adds a profile trigger for fresh databases. The row stores optional user-authored
+base text, mode, navigation preference, routing consent, onboarding time and CAS
+revision. Raw SQLite backup/restore includes these rows automatically. Migration
+validation upgrades older backups before use.
 
 Instants use UTC ISO strings ending in `Z`, with up to nine fractional digits.
 Native comparisons preserve nanoseconds. Local dates use `YYYY-MM-DD`.
@@ -129,7 +139,8 @@ The final app must obtain its own permission and reconcile actual OS readback.
 | Tables | Contract |
 |---|---|
 | `profiles`, `categories` | Stable local identity and current default category Rows |
-| `behaviors`, `behavior_schedules`, `behavior_schedule_slots` | Full current Behavior graph, compatibility fields, custom and preset ranges, retained IDs and creation instants |
+| `behaviors`, `behavior_schedules`, `behavior_schedule_slots` | Full current Behavior graph, optional user-authored location, compatibility fields, custom and preset ranges, retained IDs and creation instants |
+| `travel_settings` | Disabled-by-default routing preference, optional user-authored base, separate consent and CAS revision; no device or provider data |
 | `behavior_definition_events` | Definition history; updates cannot rewrite events |
 | `behavior_configuration_events` | Configuration snapshots and deferred current-event pointer ownership |
 | `occurrences` | Schedule snapshots, nullable configuration lineage, status snapshot, note, explicit local date |
@@ -167,6 +178,7 @@ result above 100,000 rows instead of returning a partial result.
 | Operation | Arguments after `operation` | Result |
 |---|---|---|
 | `readProfile` | none | `Profile` |
+| `readTravelSettings` | `profileId` | `TravelSettings` |
 | `readCategories` | `profileId` | `Category[]` |
 | `readBehaviorGraphs` | `profileId` | `{ behavior, schedules, slots, revision }[]` |
 | `readOccurrence` | `profileId`, `occurrenceId` | `Occurrence` or null |
@@ -196,6 +208,7 @@ returns its previous result. Reusing an ID with a different plan fails.
 | `resetTimeSessions` | `occurrenceId`, full `expectedSessions` Rows | `{ deletedIds }` |
 | `commitSyncState` | `expectedVersion`, full `state` Row | Saved state with native-incremented version |
 | `updateProfileTimezone` | `expectedTimezone`, `expectedSyncVersion`, `timezone`, full active-graph `updates` | Saved Profile |
+| `commitTravelSettings` | `expectedUpdatedAt`, full next owner-authored settings | Saved `TravelSettings` |
 | `commitNativeReminderPlan` | `expectedRevision`, full `reminders` Rows, `cancelIds` | `{ revision, reminders, coverage }` |
 | `recordNativeReminderCoverage` | `expectedRevision`, explicit `coverage`, `observed` results | `{ revision, reminders, coverage }` |
 | `prepareBehaviorLogImport` | `expectedRevision`, full `previewRun`, nullable typed `plan` | `{ previewRun, revision }` |

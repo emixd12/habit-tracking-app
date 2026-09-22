@@ -60,6 +60,28 @@ describe("advisor day-context contract", () => {
     })).toThrow("must be null");
   });
 
+  it("validates duration candidate provenance and authorized off-day elapsed samples", async () => {
+    const fixture = JSON.parse(await readFile(contextFixture, "utf8"));
+    const occurrence = fixture.cadence.occurrences[0];
+    occurrence.durationCandidates = {
+      configuredDefault: occurrence.duration,
+      historicalAverage: { kind: "unknown", reason: "insufficient_samples", sampleCount: 1, lookbackDays: 90 },
+    };
+    fixture.cadence.history.behaviors.push({
+      behaviorRef: "behavior_off_day",
+      completedCount: 1,
+      notCompletedCount: 0,
+      unresolvedCount: 0,
+    });
+    fixture.cadence.recordedElapsedDurations = [{ behaviorRef: "behavior_off_day", localDate: "2026-10-31", seconds: 600 }];
+    expect(validateAdvisorDayContext(fixture).cadence.recordedElapsedDurations).toHaveLength(1);
+
+    occurrence.durationCandidates.configuredDefault = {
+      kind: "known", seconds: 1200, source: "completed_stopped_occurrence_mean", sampleCount: 3, lookbackDays: 90,
+    };
+    expect(() => validateAdvisorDayContext(fixture)).toThrow("Configured default duration candidate");
+  });
+
   it("projects opaque scheduling facts while removing provider IDs and rich metadata", async () => {
     const snapshot = validateExternalEventSnapshot(JSON.parse(await readFile(calendarFixture, "utf8")));
     const connector = projectAdvisorCalendarConnector({

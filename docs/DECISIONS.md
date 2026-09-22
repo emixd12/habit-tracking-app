@@ -686,3 +686,38 @@ not change the active daily briefing until a reviewed configuration rollout.
 This records authorization to create the tickets. It does not mark implementation,
 UI acceptance, live-data transmission or deployment complete. Cross-platform impact
 and verification requirements are stated in each ticket.
+
+## 2026-09-21: Travel uses current location and complete-trip occupancy
+
+The owner corrected Ticket 160's initial manual-only, driving-only, per-request,
+advisor-only proposal. The accepted direction routes proactively from usable
+location pairs, with permitted current device position as the default immediate
+origin. Behaviors gain optional locations. Calendar locations remain event-owned;
+precedence depends on origin, destination and planned-leg roles.
+
+Later correction on the same date supersedes the earlier global saved-base rule.
+A missing base suppresses only the final return recommendation; return time stays
+unknown. Recommend current location → first event and plan A → B → C whenever
+the relevant locations, times and mode are usable. Recalculate affected legs when
+those inputs change. For the next immediate departure, current device position
+overrides where the schedule predicted the user would be.
+
+Use the saved base for the final return when one exists. Never insert a return to
+base between successive events automatically or substitute the outbound origin
+for a missing base. Known outbound and event-to-event travel remains in Timeline
+occupancy and collision detection. Unknown return time cannot establish complete-trip
+availability. Onboarding requests a base when the immediate origin is unavailable,
+without blocking otherwise usable event-to-event legs.
+
+Support multiple transport modes. Include departure, attendance, onward travel
+and return in derived occupancy and collision detection. Reuse existing magenta
+Timeline/collision presentation. Show Calendar locations with Google Maps or a
+supported preferred-navigation link. Saved locations persist until edited/removed;
+estimate expiry does not reintroduce per-trip origin approval.
+
+The revised brief is `plans/travel-departure-discovery.md`. Tickets 162–165 cover
+web and desktop implementation, shared rules, existing UI and release acceptance.
+Marketing claims need deployed evidence; native mobile remains deferred. This
+decision approves product direction. Discovery does not perform provider setup,
+location reads, private routing or deployment. Provider-use and model-disclosure
+requirements remain implementation/release work.

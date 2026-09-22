@@ -2,7 +2,7 @@ use super::{db, rows::*, AccountSyncWrite};
 use chrono::{DateTime, Duration, Timelike, Utc};
 use rusqlite::{params, Connection};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -48,12 +48,7 @@ pub fn validate_snapshot(profile: &str, entities: &[AccountSyncEntity]) -> db::R
         let value = owned_value(profile, &entity.value)?;
         match entity.kind {
             AccountSyncEntityKind::Profile => {
-                if entity.value.as_object().is_some_and(|row| row.keys().any(|key| key != "timezone")) {
-                    return Err("Update Cadence before synchronizing account data.".into());
-                }
-                if !entity.value["timezone"].is_string() {
-                    return Err("The synced profile timezone is invalid.".into());
-                }
+                validate_profile_value(&entity.value)?;
             }
             AccountSyncEntityKind::Category => { decode_row::<Category>(value)?; }
             AccountSyncEntityKind::Behavior => { decode_row::<Behavior>(value)?; }
@@ -346,7 +341,7 @@ fn validate_write(
                     .as_ref()
                     .and_then(Value::as_object)
                     .ok_or("An account sync upsert requires a value.")?;
-                if ["default_duration_minutes", "end_date", "auto_archived_at"]
+                if ["default_duration_minutes", "end_date", "auto_archived_at", "location_text"]
                     .iter()
                     .any(|field| !value.contains_key(*field))
                 {
@@ -621,26 +616,67 @@ fn profile_write(db: &Connection, profile: &str, write: &AccountSyncWrite) -> db
     if write.operation == AccountSyncOperation::Delete {
         return Err("Account sync cannot delete the local profile.".into());
     }
-    let current = db::profile(db)?;
-    let expected = write
-        .expected
-        .as_ref()
-        .and_then(|value| value.get("timezone"))
-        .and_then(Value::as_str);
+    let current = profile_value(db, profile)?;
+    if write.expected.as_ref() != Some(&current) && write.expected.is_some() {
+        return Err("A local record changed after sync planning.".into());
+    }
     let next = write
         .value
         .as_ref()
-        .and_then(|value| value.get("timezone"))
-        .and_then(Value::as_str)
-        .ok_or("The synced profile timezone is invalid.")?;
-    if expected != Some(current.timezone.as_str()) && !(write.expected.is_none()) {
-        return Err("A local record changed after sync planning.".into());
-    }
+        .ok_or("The synced profile value is missing.")?;
+    validate_profile_value(next)?;
     db.execute(
         "UPDATE profiles SET timezone=?2 WHERE id=?1",
-        params![profile, next],
+        params![profile, next["timezone"].as_str().unwrap()],
     )
     .map_err(db::error)?;
+    db.execute(
+        "UPDATE travel_settings SET enabled=?2,base_location_text=?3,mode=?4,navigation_preference=?5,routing_consent_at=?6,onboarding_completed_at=?7,updated_at=?8 WHERE user_id=?1",
+        params![profile, next["travel_enabled"].as_bool().unwrap(), next["base_location_text"].as_str(),
+            next["travel_mode"].as_str(), next["navigation_preference"].as_str(), next["routing_consent_at"].as_str(),
+            next["onboarding_completed_at"].as_str(), next["updated_at"].as_str().unwrap()],
+    ).map_err(db::error)?;
+    Ok(())
+}
+
+fn profile_value(db: &Connection, profile: &str) -> db::Result<Value> {
+    let row = db::owned::<TravelSettings>(db, profile)?.into_iter().next()
+        .ok_or("Travel settings are unavailable.")?;
+    Ok(json!({
+        "timezone": db::profile(db)?.timezone,
+        "travel_enabled": row.enabled,
+        "base_location_text": row.base_location_text,
+        "travel_mode": row.mode,
+        "navigation_preference": row.navigation_preference,
+        "routing_consent_at": row.routing_consent_at.as_deref().and_then(normalize_utc_instant),
+        "onboarding_completed_at": row.onboarding_completed_at.as_deref().and_then(normalize_utc_instant),
+        "updated_at": normalize_utc_instant(&row.updated_at).ok_or("Travel settings timestamp is invalid.")?,
+    }))
+}
+
+fn validate_profile_value(value: &Value) -> db::Result<()> {
+    let row = value.as_object().ok_or("The synced profile value is invalid.")?;
+    let expected = ["timezone", "travel_enabled", "base_location_text", "travel_mode", "navigation_preference",
+        "routing_consent_at", "onboarding_completed_at", "updated_at"];
+    if row.len() != expected.len() || expected.iter().any(|key| !row.contains_key(*key))
+        || !value["timezone"].is_string() || !value["travel_enabled"].is_boolean()
+        || !matches!(value["base_location_text"], Value::Null | Value::String(_))
+        || !matches!(value["travel_mode"], Value::Null | Value::String(_))
+        || !matches!(value["navigation_preference"], Value::Null | Value::String(_))
+        || !matches!(value["routing_consent_at"], Value::Null | Value::String(_))
+        || !matches!(value["onboarding_completed_at"], Value::Null | Value::String(_))
+        || !value["updated_at"].is_string()
+    {
+        return Err("Update Cadence before synchronizing account data.".into());
+    }
+    let mode = value["travel_mode"].as_str();
+    let navigation = value["navigation_preference"].as_str();
+    if mode.is_some_and(|item| !matches!(item, "walking" | "cycling" | "transit" | "driving"))
+        || navigation.is_some_and(|item| !matches!(item, "google_maps" | "apple_maps"))
+        || (value["travel_enabled"] == true && (mode.is_none() || value["routing_consent_at"].is_null()))
+    {
+        return Err("The synced travel settings are invalid.".into());
+    }
     Ok(())
 }
 
@@ -901,6 +937,7 @@ mod tests {
             category_id: Some(category.id.clone()),
             title: "Graph".into(),
             description: None,
+            location_text: None,
             active: true,
             archive_notes: vec![],
             archived_at: None,
@@ -1598,6 +1635,7 @@ mod tests {
             category_id: Some(category.id.clone()),
             title: "Graph behavior".into(),
             description: None,
+            location_text: None,
             active: false,
             archive_notes: vec![BehaviorArchiveNote {
                 id: "10000000-0000-4000-8000-000000000005".into(),

@@ -124,6 +124,15 @@ export async function listDailyBriefBehaviorIds(
   return (data ?? []).map(({ id }) => id);
 }
 
+/** Private workbench labels only; never sent to a model by this read. */
+export async function listBriefingWorkbenchBehaviors(client: AppSupabaseClient, userId: string) {
+  const { data, error } = await client.from("behaviors").select("id,title")
+    .eq("user_id", userId).eq("active", true).order("id", { ascending: true }).limit(101);
+  if (error) throw storageError(error);
+  if ((data?.length ?? 0) > 100) throw new DailyBriefStorageError("context_limit_exceeded");
+  return data ?? [];
+}
+
 function parsePreferences(value: unknown): DailyBriefPreferences {
   const record = asRecord(value, "preferences");
   if (

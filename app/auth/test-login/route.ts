@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { buildLoginPath, MISSING_CONFIG_ERROR } from "@/lib/auth/redirects";
+import {
+  authRequestUrl,
+  buildLoginPath,
+  MISSING_CONFIG_ERROR,
+} from "@/lib/auth/redirects";
 import {
   createTestLoginCredentials,
   releaseTestLoginCreation,
@@ -17,24 +21,30 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url);
+  const requestUrl = authRequestUrl(request);
   const gate = resolveTestLoginGate(requestUrl);
 
   if (!gate.allowed) {
     return NextResponse.redirect(
-      new URL(buildLoginPath(gate.nextPath, "test_login_unavailable"), request.url),
+      new URL(
+        buildLoginPath(gate.nextPath, "test_login_unavailable"),
+        requestUrl,
+      ),
     );
   }
 
   if (!readSupabaseRuntimeConfig()) {
     return NextResponse.redirect(
-      new URL(buildLoginPath(gate.nextPath, MISSING_CONFIG_ERROR), request.url),
+      new URL(buildLoginPath(gate.nextPath, MISSING_CONFIG_ERROR), requestUrl),
     );
   }
 
   if (!readSupabaseServiceRoleConfig()) {
     return NextResponse.redirect(
-      new URL(buildLoginPath(gate.nextPath, "test_login_unavailable"), request.url),
+      new URL(
+        buildLoginPath(gate.nextPath, "test_login_unavailable"),
+        requestUrl,
+      ),
     );
   }
 
@@ -42,7 +52,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(
       new URL(
         buildLoginPath(gate.nextPath, "test_login_quota_reached"),
-        request.url,
+        requestUrl,
       ),
     );
   }
@@ -55,7 +65,7 @@ export async function GET(request: NextRequest) {
   } catch {
     releaseTestLoginCreation();
     return NextResponse.redirect(
-      new URL(buildLoginPath(gate.nextPath, "test_login_failed"), request.url),
+      new URL(buildLoginPath(gate.nextPath, "test_login_failed"), requestUrl),
     );
   }
 
@@ -72,7 +82,7 @@ export async function GET(request: NextRequest) {
   if (createError || !createdUser.user) {
     releaseTestLoginCreation();
     return NextResponse.redirect(
-      new URL(buildLoginPath(gate.nextPath, "test_login_failed"), request.url),
+      new URL(buildLoginPath(gate.nextPath, "test_login_failed"), requestUrl),
     );
   }
 
@@ -101,9 +111,9 @@ export async function GET(request: NextRequest) {
       // Retain the quota reservation because the temporary user may remain.
     }
     return NextResponse.redirect(
-      new URL(buildLoginPath(gate.nextPath, "test_login_failed"), request.url),
+      new URL(buildLoginPath(gate.nextPath, "test_login_failed"), requestUrl),
     );
   }
 
-  return NextResponse.redirect(new URL(gate.nextPath, request.url));
+  return NextResponse.redirect(new URL(gate.nextPath, requestUrl));
 }

@@ -9,6 +9,8 @@ import {
   type AdvisorDayContextV1,
   type AdvisorDayContextRequestV1,
   type AdvisorDuration,
+  type AdvisorDurationCandidates,
+  type AdvisorHistoricalCompletionTimes,
   type AdvisorOpaqueRef,
   type AdvisorOccurrence,
   type AdvisorSourceFailureCode,
@@ -41,6 +43,7 @@ type AdvisorCadenceOccurrenceInput = Readonly<{
     requiredSampleCount: 3;
     lookbackDays: 90;
   }>;
+  durationCandidates?: AdvisorDurationCandidates;
 }>;
 
 type AdvisorHistoryOccurrenceInput = Readonly<{
@@ -72,18 +75,25 @@ export function projectAdvisorCadenceSource(input: Readonly<{
   revision: string;
   historyStartLocalDate: string;
   historyEndLocalDateExclusive: string;
+  historyDays: number;
   behaviors: readonly Readonly<{ id: string }>[];
   historyOccurrences: readonly AdvisorHistoryOccurrenceInput[];
   historyComplete: boolean;
   occurrences: readonly AdvisorCadenceOccurrenceInput[];
+  recordedElapsedDurations?: readonly Readonly<{
+    behaviorId: string;
+    localDate: string;
+    seconds: number;
+  }>[];
   makeOpaqueRef: AdvisorOpaqueRef;
+  historicalCompletionTimes?: AdvisorHistoricalCompletionTimes;
 }>): AdvisorCadenceSource {
   instant(input.observedAt, "cadence.observedAt");
   nonempty(input.revision, "cadence.revision");
   const historyStart = plainDate(input.historyStartLocalDate, "cadence.history.startLocalDate");
   const historyEnd = plainDate(input.historyEndLocalDateExclusive, "cadence.history.endLocalDateExclusive");
-  if (!historyStart.add({ days: 90 }).equals(historyEnd)) {
-    throw new AdvisorDayContextValidationError("Cadence history must cover 90 complete local days.");
+  if (!Number.isInteger(input.historyDays) || input.historyDays < 1 || input.historyDays > 90 || !historyStart.add({ days: input.historyDays }).equals(historyEnd)) {
+    throw new AdvisorDayContextValidationError("Cadence history must cover the declared 1 to 90 complete local days.");
   }
   if (input.behaviors.length > ADVISOR_DAY_CONTEXT_LIMITS.behaviors) {
     throw new AdvisorDayContextValidationError("Cadence Behavior limit exceeded.", "context_limit_exceeded");
@@ -151,6 +161,7 @@ export function projectAdvisorCadenceSource(input: Readonly<{
         endTime: occurrence.scheduleEndTime,
       },
       duration: projectDuration(occurrence.duration),
+      ...(occurrence.durationCandidates ? { durationCandidates: occurrence.durationCandidates } : {}),
     };
   });
 
@@ -160,7 +171,7 @@ export function projectAdvisorCadenceSource(input: Readonly<{
     coverage: "complete",
     occurrences,
     history: {
-      lookbackDays: 90,
+      lookbackDays: input.historyDays,
       startLocalDate: input.historyStartLocalDate,
       endLocalDateExclusive: input.historyEndLocalDateExclusive,
       completeness: input.historyComplete ? "complete" : "unknown",
@@ -176,6 +187,14 @@ export function projectAdvisorCadenceSource(input: Readonly<{
         };
       }),
     },
+    ...(input.historicalCompletionTimes ? { historicalCompletionTimes: input.historicalCompletionTimes } : {}),
+    ...(input.recordedElapsedDurations ? {
+      recordedElapsedDurations: input.recordedElapsedDurations.map((sample) => ({
+        behaviorRef: input.makeOpaqueRef("behavior", sample.behaviorId),
+        localDate: sample.localDate,
+        seconds: sample.seconds,
+      })),
+    } : {}),
   };
 }
 
@@ -295,7 +314,7 @@ export function validateAdvisorDayContext(value: unknown): AdvisorDayContextV1 {
   integer(root.grantGeneration, "context.grantGeneration", 0);
 
   const cadence = record(root.cadence, "context.cadence");
-  exactKeys(cadence, ["observedAt", "revision", "coverage", "occurrences", "history"], "context.cadence");
+  exactOptionalKeys(cadence, ["observedAt", "revision", "coverage", "occurrences", "history"], ["recordedElapsedDurations", "historicalCompletionTimes"], "context.cadence");
   const cadenceObservedAt = instant(cadence.observedAt, "context.cadence.observedAt");
   if (Temporal.Instant.compare(cadenceObservedAt, capturedAt) > 0 || Temporal.Instant.compare(expiresAt, cadenceObservedAt.add({ milliseconds: ADVISOR_DAY_CONTEXT_LIMITS.freshnessMs })) > 0) fail("Cadence observation bounds are invalid.");
   nonempty(cadence.revision, "context.cadence.revision");
@@ -311,7 +330,24 @@ export function validateAdvisorDayContext(value: unknown): AdvisorDayContextV1 {
     behaviorRefs.add(record(occurrence, "occurrence").behaviorRef as string);
   });
   if (behaviorRefs.size > ADVISOR_DAY_CONTEXT_LIMITS.behaviors) fail("Behavior ref limit exceeded.");
-  validateCompletionHistory(cadence.history, root.localDate as string, behaviorRefs);
+  const historyBehaviorRefs = validateCompletionHistory(cadence.history, root.localDate as string, behaviorRefs);
+  if ("historicalCompletionTimes" in cadence) {
+    validateHistoricalCompletionTimes(cadence.historicalCompletionTimes, cadence.history, root.timezone as string, historyBehaviorRefs);
+  }
+  if ("recordedElapsedDurations" in cadence) {
+    const durationStart = Temporal.PlainDate.from(root.localDate as string).subtract({ days: 90 });
+    array(cadence.recordedElapsedDurations, "context.cadence.recordedElapsedDurations", ADVISOR_DAY_CONTEXT_LIMITS.historyOccurrences).forEach((value, index) => {
+      const sample = record(value, `recordedElapsedDuration[${index}]`);
+      exactKeys(sample, ["behaviorRef", "localDate", "seconds"], `recordedElapsedDuration[${index}]`);
+      const behaviorRef = nonempty(sample.behaviorRef, "recordedElapsedDuration.behaviorRef");
+      if (!historyBehaviorRefs.has(behaviorRef)) fail("Recorded elapsed duration has no selected Behavior.");
+      const sampleDate = plainDate(sample.localDate, "recordedElapsedDuration.localDate");
+      if (Temporal.PlainDate.compare(sampleDate, durationStart) < 0 || Temporal.PlainDate.compare(sampleDate, root.localDate as string) >= 0) {
+        fail("Recorded elapsed duration falls outside the 90-day source window.");
+      }
+      positive(sample.seconds, "recordedElapsedDuration.seconds");
+    });
+  }
 
   const connectors = array(root.connectors, "context.connectors", 1);
   if (connectors.length !== 1) fail("context.connectors must contain the Google Calendar source state.");
@@ -325,13 +361,59 @@ export function validateAdvisorDayContext(value: unknown): AdvisorDayContextV1 {
   return value as AdvisorDayContextV1;
 }
 
-function validateCompletionHistory(value: unknown, localDate: string, occurrenceBehaviorRefs: Set<string>): void {
+function validateHistoricalCompletionTimes(value: unknown, historyValue: unknown, zone: string, refs: Set<string>): void {
+  const timing = record(value, "historicalCompletionTimes");
+  const history = record(historyValue, "history");
+  exactKeys(timing, ["semantics", "timezone", "lookbackDays", "startLocalDate", "endLocalDateExclusive", "behaviors"], "historicalCompletionTimes");
+  if (timing.semantics !== "completion_mark" || timing.timezone !== zone ||
+      ["lookbackDays", "startLocalDate", "endLocalDateExclusive"].some(key => timing[key] !== history[key])) {
+    fail("Historical completion timing scope is invalid.");
+  }
+  const seen = new Set<string>();
+  for (const value of array(timing.behaviors, "historicalCompletionTimes.behaviors", ADVISOR_DAY_CONTEXT_LIMITS.behaviors)) {
+    const row = record(value, "timing behavior");
+    exactKeys(row, ["behaviorRef", "sampleCount", "sampledDayCount", "delayedMarkCount", "typicalMarkedTime", "range", "reason", "exclusions"], "timing behavior");
+    const ref = nonempty(row.behaviorRef, "timing.behaviorRef");
+    if (!refs.has(ref) || seen.has(ref)) fail("Timing Behavior must be selected and unique.");
+    seen.add(ref);
+    const samples = integer(row.sampleCount, "timing.sampleCount", 0);
+    const days = integer(row.sampledDayCount, "timing.sampledDayCount", 0);
+    const delayed = integer(row.delayedMarkCount, "timing.delayedMarkCount", 0);
+    if (samples > ADVISOR_DAY_CONTEXT_LIMITS.historyOccurrences || days > samples || days > (timing.lookbackDays as number) || delayed > samples) fail("Timing counts are invalid.");
+    const reasons: unknown[] = [null, "insufficient_samples", "dispersed_times", "history_limit_exceeded", "source_unavailable"];
+    if (!reasons.includes(row.reason)) fail("Timing reason is invalid.");
+    if (row.reason === null) {
+      if (samples < 3 || days < 3 || !/^\d{2}:\d{2}$/.test(row.typicalMarkedTime as string)) fail("Timing evidence is insufficient.");
+      const typical = time(row.typicalMarkedTime, "typicalMarkedTime");
+      const range = record(row.range, "timing.range");
+      exactKeys(range, ["startTime", "endTime", "spansMidnight"], "timing.range");
+      const start = time(range.startTime, "timing.range.startTime");
+      const end = time(range.endTime, "timing.range.endTime");
+      const startMinute = start.hour * 60 + start.minute;
+      const endMinute = end.hour * 60 + end.minute;
+      const typicalMinute = typical.hour * 60 + typical.minute;
+      const span = (endMinute - startMinute + 1440) % 1440;
+      if (range.spansMidnight !== (endMinute < startMinute) || span > 180 || (typicalMinute - startMinute + 1440) % 1440 > span) fail("Timing range is invalid.");
+    } else if (row.typicalMarkedTime !== null || row.range !== null) fail("Unsupported timing cannot assert a typical time.");
+    if ((row.reason === "source_unavailable" || row.reason === "history_limit_exceeded") && samples !== 0) fail("Unavailable timing cannot expose samples.");
+    if (row.reason === "insufficient_samples" && samples >= 3 && days >= 3) fail("Timing insufficiency disagrees with counts.");
+    if (row.reason === "dispersed_times" && (samples < 3 || days < 3)) fail("Timing dispersion needs sufficient samples.");
+    const exclusions = record(row.exclusions, "timing.exclusions");
+    exactKeys(exclusions, ["notCompleted", "outsideWindow", "missingMark", "invalidMark", "futureMark", "duplicateOccurrence"], "timing.exclusions");
+    for (const count of Object.values(exclusions)) {
+      if (integer(count, "timing exclusion", 0) > ADVISOR_DAY_CONTEXT_LIMITS.historyOccurrences) fail("Timing exclusion exceeds bounds.");
+    }
+  }
+}
+
+function validateCompletionHistory(value: unknown, localDate: string, occurrenceBehaviorRefs: Set<string>): Set<string> {
   const history = record(value, "context.cadence.history");
   exactKeys(history, ["lookbackDays", "startLocalDate", "endLocalDateExclusive", "completeness", "reason", "behaviors"], "context.cadence.history");
-  if (history.lookbackDays !== 90) fail("context.cadence.history.lookbackDays is invalid.");
+  const lookbackDays = integer(history.lookbackDays, "context.cadence.history.lookbackDays", 1);
+  if (lookbackDays > 90) fail("context.cadence.history.lookbackDays is invalid.");
   const start = plainDate(history.startLocalDate, "context.cadence.history.startLocalDate");
   const end = plainDate(history.endLocalDateExclusive, "context.cadence.history.endLocalDateExclusive");
-  if (end.toString() !== localDate || !start.add({ days: 90 }).equals(end)) fail("context.cadence.history bounds are invalid.");
+  if (end.toString() !== localDate || !start.add({ days: lookbackDays }).equals(end)) fail("context.cadence.history bounds are invalid.");
   if (history.completeness !== "complete" && history.completeness !== "unknown") fail("context.cadence.history.completeness is invalid.");
   if ((history.completeness === "complete" && history.reason !== null) || (history.completeness === "unknown" && history.reason !== "history_limit_exceeded")) {
     fail("context.cadence.history completeness fields disagree.");
@@ -352,6 +434,7 @@ function validateCompletionHistory(value: unknown, localDate: string, occurrence
   for (const behaviorRef of occurrenceBehaviorRefs) {
     if (!behaviorRefs.has(behaviorRef)) fail("Occurrence behaviorRef has no history entry.");
   }
+  return behaviorRefs;
 }
 
 function projectDuration(estimate: AdvisorCadenceOccurrenceInput["duration"]): AdvisorDuration {
@@ -375,7 +458,7 @@ function projectDuration(estimate: AdvisorCadenceOccurrenceInput["duration"]): A
 
 function validateOccurrence(value: unknown, index: number, localDate: string): void {
   const occurrence = record(value, `occurrence[${index}]`);
-  exactKeys(occurrence, ["ref", "behaviorRef", "title", "status", "localDate", "scheduledFor", "schedule", "duration"], `occurrence[${index}]`);
+  exactOptionalKeys(occurrence, ["ref", "behaviorRef", "title", "status", "localDate", "scheduledFor", "schedule", "duration"], ["durationCandidates"], `occurrence[${index}]`);
   nonempty(occurrence.ref, "occurrence.ref");
   nonempty(occurrence.behaviorRef, "occurrence.behaviorRef");
   if (typeof occurrence.title !== "string" || occurrence.title.length > 200) fail("occurrence.title is invalid.");
@@ -390,6 +473,20 @@ function validateOccurrence(value: unknown, index: number, localDate: string): v
   if (schedule.kind === "exact" && schedule.endTime !== null) fail("Exact schedule end must be null.");
   if (schedule.kind === "range") time(schedule.endTime, "occurrence.schedule.endTime");
   validateDuration(occurrence.duration);
+  if ("durationCandidates" in occurrence) validateDurationCandidates(occurrence.durationCandidates);
+}
+
+function validateDurationCandidates(value: unknown): void {
+  const candidates = record(value, "occurrence.durationCandidates");
+  exactKeys(candidates, ["configuredDefault", "historicalAverage"], "occurrence.durationCandidates");
+  if (candidates.configuredDefault !== null) {
+    validateDuration(candidates.configuredDefault);
+    const configured = record(candidates.configuredDefault, "occurrence.durationCandidates.configuredDefault");
+    if (configured.kind !== "known" || configured.source !== "behavior_default") fail("Configured default duration candidate is invalid.");
+  }
+  validateDuration(candidates.historicalAverage);
+  const historical = record(candidates.historicalAverage, "occurrence.durationCandidates.historicalAverage");
+  if (historical.kind === "known" && historical.source !== "completed_stopped_occurrence_mean") fail("Historical average duration candidate is invalid.");
 }
 
 function validateDuration(value: unknown): void {
@@ -530,6 +627,12 @@ function array(value: unknown, label: string, max: number): unknown[] {
 }
 function exactKeys(value: Record<string, unknown>, keys: string[], label: string): void {
   if (Object.keys(value).length !== keys.length || keys.some((key) => !(key in value))) fail(`${label} must contain exactly the documented fields.`);
+}
+function exactOptionalKeys(value: Record<string, unknown>, required: string[], optional: string[], label: string): void {
+  const keys = Object.keys(value);
+  if (required.some((key) => !(key in value)) || keys.some((key) => !required.includes(key) && !optional.includes(key))) {
+    fail(`${label} must contain only the documented fields.`);
+  }
 }
 function nonempty(value: unknown, label: string): string {
   if (typeof value !== "string" || !value || value.length > 512) fail(`${label} is invalid.`);

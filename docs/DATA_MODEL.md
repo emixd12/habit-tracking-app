@@ -21,6 +21,61 @@ Schema operations are CLI-first. Use `docs/SUPABASE_WORKFLOW.md` for local stack
 
 After schema changes, regenerate TypeScript database types from Supabase CLI output and commit them with the migration.
 
+## Travel locations and preferences (Ticket 162)
+
+Ticket 160 establishes optional user-authored Behavior locations and saved base,
+transport mode and supported navigation preference. Base absence affects only
+the final return leg; known outbound and event-to-event legs remain usable for
+recommendations, occupancy and collisions. Return time remains unknown without
+a usable base. Do not make saved base a global routing or recommendation constraint.
+Calendar event locations remain Calendar-owned source data. Journey corrections
+are scoped to an instance/revision; they do not silently overwrite source locations.
+
+Migration `20260922010000_add_travel_settings.sql` adds nullable
+`behaviors.location_text` and one `travel_settings` row per profile. Both fields
+store only user-authored text. A location is trimmed, contains no control
+characters and has at most 500 characters. Removing a Behavior location or base
+sets that value to null. Account deletion removes both through existing cascades.
+
+`travel_settings` stores disabled-by-default routing state, optional base, mode,
+supported navigation preference, explicit routing-consent time, onboarding time
+and revision time. Enabling requires both a mode and consent. Disabling clears
+consent. Calendar, device and model permissions remain separate and never imply
+routing consent. Owner RLS permits authenticated select/update only; a profile
+trigger owns row creation.
+
+Account sync carries travel settings in its singleton profile entity and carries
+Behavior locations in Behavior rows. Behavior locations participate in existing
+configuration history. SQLite migration 0016 provides the same rows and checks.
+Older saved baselines and BehaviorLog imports normalize missing location fields
+to null and travel to disabled. Existing BehaviorLog formats remain unchanged.
+
+Device samples, provider geocodes and route results remain transient. Exclude them
+from account sync, exports, backups, logs and analytics. Shared resolvers derive
+travel occupancy and collisions without changing scheduled times or statuses.
+Each leg carries its own endpoints, timing, mode, provenance and freshness so one
+unknown leg does not discard known legs. Current device position overrides a
+predicted scheduled origin for the immediate departure. Input changes invalidate
+affected legs; no automatic base detour is inserted between successive events.
+See `plans/travel-departure-discovery.md` for retention and disclosure boundaries.
+
+Migration `20260922013000_add_travel_route_quota.sql` keeps owner-local-day and
+global UTC-day counters. Authenticated callers consume quota through one
+security-definer function; they cannot write counters or read global counters.
+A transaction lock serializes the lifetime global sum. The initial nonrenewing
+US$20 allowance admits at most 40 refreshes, reserving US$0.50 each before any
+provider call. Failed and partial refreshes retain their reservation. Existing
+six-per-owner-day and 100-per-global-day caps still apply. Never prune global
+rows or reset the allowance without explicit owner authorization.
+
+One refresh makes at most 19 non-retried geocodes and 18 route calls, including
+driving refinement and one batch retry. At verified September 22, 2026 USA list
+prices, their upper bound is US$0.365 before tax and without free credits.
+The US$0.50 reservation leaves US$0.135 per refresh for margin; it is not a
+measurement of billed cost. Recheck pricing and call bounds before changing
+the adapter or increasing the allowance. Cloud budget alerts provide an
+additional notification and do not enforce this limit.
+
 ## Tables
 
 ### `account_sync_apply_receipts`
@@ -115,6 +170,7 @@ create table behaviors (
 
   title text not null,
   description text,
+  location_text text,
 
   recurrence_rule jsonb not null,
   scheduled_time time not null,
@@ -131,6 +187,31 @@ create table behaviors (
   archived_at timestamptz
 );
 ```
+
+`location_text` is an optional user-authored routing destination. It is part of
+the Behavior configuration revision and account-sync row. It is not a provider
+geocode and never stores coordinates or place identifiers.
+
+### `travel_settings`
+
+```sql
+create table travel_settings (
+  user_id uuid primary key references profiles(id) on delete cascade,
+  enabled boolean not null default false,
+  base_location_text text,
+  mode text,
+  navigation_preference text,
+  routing_consent_at timestamptz,
+  onboarding_completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+Supported modes are walking, cycling, transit and driving. Supported navigation
+preferences are Google Maps and Apple Maps. The saved base is optional. Missing
+base suppresses final-return advice only. Device samples, provider geocodes,
+route results and Calendar/model grants never enter this table.
 
 `recurrence_rule` and `scheduled_time` store the first schedule's recurrence
 and first time-entry start for compatibility, sorting, and simple summaries.
@@ -551,6 +632,11 @@ graph and all occurrence and requested reminder-planning writes succeed. An
 empty or ambiguous persisted schedule graph raises a safe integrity error and
 best-effort records `stale_reason = 'sync_failed'`; it cannot be filtered out
 and then recorded as fresh.
+
+Full sync fences all Behaviors and counts every plan, including archived cleanup.
+Only active schedule windows establish the coverage timezone and dates. With no
+active schedules, the profile-timezone fallback window establishes empty coverage.
+Archived historical timezones must not turn fresh coverage into `multiple`.
 
 Every update increments `state_version` in a database trigger. Authenticated
 clients can write the existing freshness columns but cannot insert or update
@@ -1721,6 +1807,13 @@ one database snapshot. The companion revision detects changed source data.
 These reads use the authenticated owner's RLS context. They do not use a
 service-role fallback or perform tracking maintenance.
 
+Current-day completeness requires fresh sync coverage and no due archive.
+The fresh-write configuration/state-version fence certifies current Behavior
+configurations. The snapshot's `staleConfigurationCount` is diagnostic only:
+occurrence generation deliberately preserves older or null lineage for past
+occurrences and protected history. A lineage mismatch alone must not reject
+a freshly synchronized snapshot. Stale coverage still fails closed.
+
 The snapshot's internal duration history never leaves the web service. The
 consumer projection contains opaque references and aggregate duration estimates.
 The 10,000-Occurrence and 20,000-session history ceilings include an overflow
@@ -1777,3 +1870,19 @@ grants exclude anon and service-role callers. Cleanup removes old owner metadata
 on later calls; inactivity can retain rows until the next call or account deletion.
 This is not a guaranteed one-day deletion schedule. The first-party generation
 metadata policy is documented above and in `docs/OPERATIONS.md`.
+
+## Advisor historical completion-time projection
+
+The advisor snapshot now projects existing `occurrences.status_marked_at` as
+`historyOccurrences[].statusMarkedAt`. No table, capture field or status semantics
+change. Current Completed snapshots provide one mark per Occurrence; the separate
+status-event ledger remains audit history, not independent timing samples.
+No fallback uses note-update times or ambiguous historical event backfills.
+
+The private snapshot payload and its revision hash include the mark, so a changed
+completion mark invalidates pending contexts. Owner filters, RLS, selected active
+Behaviors and bounded history reads remain. The optional parser field supports
+unmigrated environments as `source_unavailable`, never invented finish-time data.
+Shared summaries use `docs/DATETIME_STRATEGY.md`; no raw private mark timestamps
+enter the model or inspector. The SQL function signature still returns JSON, so
+public generated database types have no new columns or RPC arguments.

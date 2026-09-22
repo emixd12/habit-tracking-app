@@ -1,5 +1,7 @@
 import type { ExternalEventSchedulingFact } from "../types/external-event";
 import { Temporal } from "@js-temporal/polyfill";
+import type { TravelEvidenceResult } from "../types/travel";
+import { resolveTravelCollisions } from "./travel.resolver";
 
 import type {
   BehaviorDurationEstimate,
@@ -84,11 +86,35 @@ export function resolveBehaviorDurationEstimate(input: Readonly<{
       durationLabel: formatRecordedDuration(input.defaultDurationMinutes * 60),
       sampleCount: 0, lookbackDays: DURATION_ESTIMATE_LOOKBACK_DAYS, provenance: "behavior_default" };
   }
+  const sources = resolveBehaviorDurationSources(input);
+  return sources.historicalAverage;
+}
+
+export function resolveBehaviorDurationSources(input: Readonly<{
+  behaviorId: string;
+  defaultDurationMinutes?: number | null;
+  occurrences: BehaviorDurationHistoryOccurrence[];
+  now: Temporal.Instant;
+  timezone: string;
+}>): Readonly<{
+  configuredDefault: Extract<BehaviorDurationEstimate, { kind: "known" }> | null;
+  historicalAverage: BehaviorDurationEstimate;
+  recordedElapsedDurations: readonly Readonly<{ localDate: string; seconds: number }>[];
+}> {
+  let configuredDefault: Extract<BehaviorDurationEstimate, { kind: "known" }> | null = null;
+  if (input.defaultDurationMinutes != null) {
+    if (!Number.isInteger(input.defaultDurationMinutes) || input.defaultDurationMinutes < 1 || input.defaultDurationMinutes > 1440) {
+      throw new Error("Default duration must be a whole number from 1 to 1,440 minutes.");
+    }
+    configuredDefault = { kind: "known", seconds: input.defaultDurationMinutes * 60,
+      durationLabel: formatRecordedDuration(input.defaultDurationMinutes * 60),
+      sampleCount: 0, lookbackDays: DURATION_ESTIMATE_LOOKBACK_DAYS, provenance: "behavior_default" };
+  }
   const today = input.now.toZonedDateTimeISO(input.timezone).toPlainDate();
   const start = today.subtract({ days: DURATION_ESTIMATE_LOOKBACK_DAYS });
   const occurrenceIds = new Set<string>();
   const sessionIds = new Set<string>();
-  const samples: number[] = [];
+  const samples: Array<{ localDate: string; seconds: number }> = [];
 
   for (const occurrence of input.occurrences) {
     if (!occurrence.id || occurrenceIds.has(occurrence.id)) {
@@ -129,38 +155,48 @@ export function resolveBehaviorDurationEstimate(input: Readonly<{
 
     const tracking = resolveOccurrenceTimeTracking([...occurrence.sessions]);
     if (tracking.recordedSeconds > 0) {
-      samples.push(tracking.recordedSeconds);
+      samples.push({ localDate: occurrence.localDate, seconds: tracking.recordedSeconds });
     }
   }
 
   if (samples.length < DURATION_ESTIMATE_MIN_SAMPLES) {
     return {
-      kind: "unknown",
-      reason: "insufficient_samples",
-      sampleCount: samples.length,
-      requiredSampleCount: DURATION_ESTIMATE_MIN_SAMPLES,
-      lookbackDays: DURATION_ESTIMATE_LOOKBACK_DAYS,
+      configuredDefault,
+      historicalAverage: {
+        kind: "unknown",
+        reason: "insufficient_samples",
+        sampleCount: samples.length,
+        requiredSampleCount: DURATION_ESTIMATE_MIN_SAMPLES,
+        lookbackDays: DURATION_ESTIMATE_LOOKBACK_DAYS,
+      },
+      recordedElapsedDurations: samples,
     };
   }
 
-  const seconds = samples.reduce((total, sample) => total + sample, 0) / samples.length;
+  const seconds = samples.reduce((total, sample) => total + sample.seconds, 0) / samples.length;
   return {
-    kind: "known",
-    seconds,
-    durationLabel: formatRecordedDuration(seconds),
-    sampleCount: samples.length,
-    lookbackDays: DURATION_ESTIMATE_LOOKBACK_DAYS,
-    provenance: "completed_stopped_occurrence_mean",
+    configuredDefault,
+    historicalAverage: {
+      kind: "known",
+      seconds,
+      durationLabel: formatRecordedDuration(seconds),
+      sampleCount: samples.length,
+      lookbackDays: DURATION_ESTIMATE_LOOKBACK_DAYS,
+      provenance: "completed_stopped_occurrence_mean",
+    },
+    recordedElapsedDurations: samples,
   };
 }
 
 export function resolveTimelineOccurrenceContext(input: Readonly<{
   occurrenceId: string;
+  occurrenceStatus?: "unresolved" | "completed" | "not_completed";
   scheduledFor: string;
   runningStartedAt: string | null;
   estimate: BehaviorDurationEstimate;
   events: readonly (NormalizedExternalEvent | ExternalEventSchedulingFact)[];
   freshness: ExternalEventFreshness;
+  travel?: Pick<TravelEvidenceResult, "segments" | "completeTrip"> | null;
   now: Temporal.Instant;
 }>): TimelineOccurrenceContext {
   const scheduledFor = parseInstant(input.scheduledFor, "Occurrence scheduled_for");
@@ -230,11 +266,18 @@ export function resolveTimelineOccurrenceContext(input: Readonly<{
           Temporal.Instant.compare(scheduledFor, eventEnd) < 0;
     if (overlaps) overlappingEventIds.push(event.id);
   }
+  const travelCollision = input.travel && (input.occurrenceStatus === undefined || input.occurrenceStatus === "unresolved") ? resolveTravelCollisions(input.travel.segments, [{
+    ref: input.occurrenceId, kind: "behavior", startAt: scheduledFor.toString(), endAt: estimatedEnd?.toString() ?? null,
+  }])[0] : null;
+  const travelSourceRefs = travelCollision ? input.travel!.segments
+    .filter((segment) => travelCollision.segmentIds.includes(segment.id))
+    .flatMap((segment) => segment.sourceRefs) : [];
+  for (const ref of travelSourceRefs) if (!overlappingEventIds.includes(ref)) overlappingEventIds.push(ref);
   overlappingEventIds.sort();
 
   const overlapAssessment = overlappingEventIds.length > 0
     ? "possible"
-    : estimatedEnd && !hasUncertainTimedEvent && input.freshness.canAssertNoOverlap
+    : estimatedEnd && !hasUncertainTimedEvent && input.freshness.canAssertNoOverlap && (!input.travel || input.travel.completeTrip)
       ? "none"
       : "unknown";
 
@@ -246,7 +289,9 @@ export function resolveTimelineOccurrenceContext(input: Readonly<{
     activitySignals,
     overlappingEventIds,
     overlapAssessment,
-    overlapLabel: overlapAssessment === "unknown" && hasUncertainTimedEvent
+    overlapLabel: travelCollision?.travelCreated ? "Possible travel overlap"
+      : overlapAssessment === "unknown" && input.travel && !input.travel.completeTrip ? "Travel timing incomplete"
+      : overlapAssessment === "unknown" && hasUncertainTimedEvent
       ? `Event end unknown · ${input.freshness.label}`
       : overlapLabel(overlapAssessment, input.freshness, estimatedEnd !== null),
     freshness: input.freshness,

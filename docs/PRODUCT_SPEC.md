@@ -565,13 +565,68 @@ Initial generation uses OpenAI `gpt-5.6-luna`. One server adapter maps provider
 requests/responses behind a provider-neutral facts/result contract. Shared core and
 UI must not depend on provider SDK types. No generic agent framework is required.
 
-Minimum model facts include today's Behavior titles, opaque references, manual
-statuses, schedule bounds, duration/unknown with provenance, bounded per-Behavior
-completion counts and their lookback/completeness, and Calendar scheduling facts.
-Keep Completed, Not Completed and Unresolved separate; unresolved history does not
-enter final adherence. Raw history, exact sessions, Notes, account identifiers,
-Calendar rich text, provider IDs and credentials remain excluded. Partial or stale
-Calendar context never proves free time. Source times and limits remain explicit.
+The shared authorized context retains manual statuses and bounded completion
+counts. The Daily Brief recipe filters resolved work internally and independently
+selects model inputs. Completion input selection does not permit completion or
+adherence recaps. Raw status-update times are not actual finish times. Notes,
+account identifiers, Calendar rich text, provider IDs and credentials stay excluded.
+Partial or stale Calendar coverage cannot prove free time. Missing duration cannot
+prove that an activity fits. The private inspector retains source diagnostics.
+
+Daily Brief policy 2.1 gives a forward-looking overview of practical constraints
+and supported opportunities. It prioritizes meaningful conflicts and tight
+transitions when evidence supports them. Recommendations stay read-only and must
+use validated planner options for timing. Prose omits routine ledger recaps,
+generic coaching and data-availability reports. Material uncertainty belongs in
+prose only through its practical consequence for a specific recommendation.
+Uneventful or unsupported cases stay short without claiming the day is free.
+New conflict evidence remains in Ticket 159. Ticket 160 records the accepted
+travel direction; Tickets 162–165 own implementation and release acceptance.
+
+### Travel context (Tickets 160, 162–165)
+
+Travel routes proactively after setup when two usable location points exist.
+Current device position is the default immediate origin when permission and a
+fresh sample are available; it overrides where the schedule predicted the user
+would be. Recommend current location → first event whenever both points are usable,
+with or without a saved base. A saved base supplies a fallback origin and final
+return destination. Without a usable base, only final-return advice is suppressed
+and return time stays unknown; never assume return to the outbound origin.
+
+Behaviors gain optional designated locations. Calendar events retain their own
+locations. Explicit journey corrections override the relevant endpoint; future
+legs can start at the preceding planned commitment. Device location never
+overwrites a destination. Support walking, cycling, transit and driving through
+a chosen mode, with no silent driving fallback. Missing or ambiguous locations
+remain unknown. Plan A → B → C directly from event locations, times and mode;
+recalculate affected legs when those inputs change. Never insert a return to base
+between successive events automatically. See `plans/travel-departure-discovery.md`
+for precedence and consent.
+
+Departure, attendance, onward travel and return define derived occupied time.
+For example, a 2:30–4:30 event may occupy 1:30–6:30. Timeline collisions and advisor
+findings use all known outbound and event-to-event intervals, plus return travel
+when known. Unknown return timing never removes known occupancy or collisions,
+and cannot establish complete-trip availability. Scheduled times and manual
+statuses remain unchanged. Reuse existing magenta Timeline/collision
+presentation. Show Calendar locations with Google Maps or a supported preferred
+navigation link. Users open navigation themselves.
+
+Onboarding explains automatic routing, recipients, device permission and optional
+base. If device location is unavailable, request a base for the immediate origin;
+an unknown immediate origin does not block known event-to-event legs. Route expiry
+invalidates estimates, not saved configuration. No continuous/background tracking,
+Calendar editing or automatic rescheduling follows from this feature.
+
+Web and linked online desktop share the routing and occupancy contract. Desktop
+keeps local saved locations and offline/account-free tracking. Tickets 162–164 own
+implementation and narrow mobile-web verification; Ticket 165 owns provider-use,
+deployed-web and installed-desktop acceptance plus public disclosures. Marketing
+gains no capability claim before release evidence. Native mobile remains deferred.
+The repository implements deterministic travel behind a disabled deployment gate.
+Provider review, credentials, live acceptance and model projection remain unapproved.
+See `qa/travel-release.md`. Route expiry clears evidence; the next meaningful
+foreground change can refresh within quota. It never polls or regenerates Daily Brief.
 
 `docs/plans/first-external-consumer.md` retains its filename but now defines this
 in-app contract, daily presentation default, first-party route, limits and data use.
@@ -590,16 +645,29 @@ deferred. Synthetic access to the selected model passed with the approved existi
 key. Hosted deployment, real-data acceptance and installed desktop checks remain
 open. Provider retention is disclosed separately from Cadence's no-content-storage policy.
 
-### Planned internal briefing workbench (Tickets 151–155)
+### Internal recipe workbench (Tickets 151–158)
 
 The owner requested tickets for an internal control surface to tune tone, scope,
 reference materials, suggestion options and planning logic. Extend the existing
 local design bench with saved provider-neutral configurations and comparisons
-against identical synthetic facts. This is planned work, not an implemented control.
+against one frozen synthetic or explicitly authorized account snapshot.
+Daily Brief is the only implemented recipe. Recipe identity never grants access.
 
 Start with curated research/guidance records and validated source references.
-A pure planner checks fixed commitments, explicitly movable activities, timing
-windows, durations and buffers. The model explains valid options; voice controls
+A pure planner checks day conflicts and individual feasible opportunities even
+when no Behaviors are movable. It combines remaining Behaviors, authorized Calendar
+commitments, selected duration estimates, configured windows and buffers. Known
+overlaps, tight transitions, supported fits and unknown feasibility remain distinct.
+Resolved work is excluded without changing its stored status or history.
+Only complete relevant coverage and supported duration can establish a fit.
+Range commitments reserve the later of their range end and estimated duration end.
+Evidence identifies reserved ranges separately from duration estimates.
+Source references, assumptions and freshness accompany the evidence. The model
+explains ranked findings; it never calculates intervals. Detailed rejections remain
+in the inspector. A fit observation does not grant permission to move an exact
+schedule; hypothetical move options still require explicit movability.
+No travel-time inference enters the briefing before travel release acceptance.
+The model explains valid options; voice controls
 cannot override scheduling constraints, data disclosure or read-only boundaries.
 No automatic schedule or Calendar change belongs to these tickets.
 
@@ -706,3 +774,18 @@ deferred and inherits this contract without implementation here.
 ## Behavior planning fields (Tickets 142–143)
 
 Behaviors optionally store a default duration in whole minutes (1–1,440) and an end date. The default supplies Timeline planning duration; measured time and averages remain independent. The end date is the first archived local day. Automatic archive preserves history and produces a durable in-app notification. Web processes due dates through its existing scheduled and foreground lifecycle. Desktop catches up on launch, resume, and day change without a background helper.
+
+## Historical completion times in Daily Brief
+
+The recipe can independently select historical completion marking patterns to
+inform relevant planning advice. These timestamps describe when the user marked
+prior Occurrences Completed, not when the Behavior actually finished. Delayed
+logging limits precision but does not disable this input. Today's unresolved
+Occurrence can benefit from past evidence, independently of average duration.
+
+Use the workbench History days setting and shared circular timing summary defined
+in `docs/DATETIME_STRATEGY.md`. Disabled selection omits all timing facts from the
+model. Selected summaries and exclusions appear in the inspector. Completion
+recaps and routine diagnostic prose remain prohibited. A marking pattern cannot
+prove availability or override Calendar evidence, duration or planner constraints.
+Consent, explicit comparison runs, read-only authority and duration controls remain.

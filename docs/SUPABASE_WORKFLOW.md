@@ -609,6 +609,32 @@ Do not commit `.env`, `.env.local`, Supabase access tokens, service-role keys, o
 
 `.env.example` contains names only. Real values belong in local env files, deployment secrets, or user-owned CLI auth storage.
 
+## Local Google sign-in callbacks — September 21, 2026
+
+The owner authorized fixing local Google sign-in. Hosted project
+`qjodzutjxtmtzczbloxa` now permits `/auth/callback` on `http://localhost` and
+`http://127.0.0.1`, for each port 4321–4330. Each origin has an exact callback
+entry and a callback entry ending `?next=**`. The wildcard applies only to the
+return-path query, not the host, port, or callback path. `supabase/config.toml`
+records these same 40 entries for the local stack's next startup.
+
+Management API readback confirmed all 40 additions, preservation of every
+previous redirect, and the unchanged Site URL `https://app.cadence-me.com`.
+No schema, Google scopes, provider credentials, or other auth settings changed.
+Rollback removes only these 40 entries from the current allowlist.
+
+`authRequestUrl()` in `lib/auth/redirects.ts` preserves the initiating local
+hostname across OAuth start, callback, sign-out, test-login, and proxy redirects.
+Calendar and Daily Brief request authentication also uses this helper for exact
+same-origin checks, preventing local writes from returning a false HTTP 401.
+Next.js normalizes loopback URLs and can substitute the server bind address.
+The helper recovers only an exact, same-port loopback Host header during
+development in the approved port pool. Production keeps its existing URL handling.
+Do not replace this bound with unrestricted Host or forwarded-header trust.
+
+Web local sign-in is affected. Desktop uses its existing native callback;
+marketing has no sign-in; future mobile implementation remains deferred.
+
 ## Hosted incident diagnostics through the existing CLI credential
 
 Use the configured CLI/API path before requesting dashboard access. Missing

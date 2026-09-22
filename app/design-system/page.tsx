@@ -1,5 +1,6 @@
 import { CalendarSettingsBench, CalendarDetailsBench, CalendarTimelineBench } from "./CalendarBench";
-import { DailyBriefBubbleBench, DailyBriefSettingsBench } from "./DailyBriefBench";
+import { TravelSettingsBench } from "./TravelBench";
+import { DailyBriefBubbleBench, DailyBriefSettingsBench, DailyBriefWorkbench } from "./DailyBriefBench";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -377,6 +378,8 @@ export default async function DesignSystemPage({
   const params = await searchParams;
   const selectedPreviewId = firstSearchParam(params?.preview);
   const selectedFixtureState = firstSearchParam(params?.state);
+
+  if (selectedPreviewId === "briefing-workbench") return <DailyBriefWorkbench repositoryRoot={process.cwd()} />;
 
   if (selectedPreviewId === "day-progress") {
     return (
@@ -1610,6 +1613,7 @@ const previewFactories: Record<
       </ProductPreview>
     ),
   "module.google-calendar-panel": () => <ProductPreview><CalendarSettingsBench /></ProductPreview>,
+  "module.travel-settings-panel": () => <ProductPreview><TravelSettingsBench /></ProductPreview>,
   "module.daily-brief-bubble": () => <ProductPreview><DailyBriefBubbleBench /></ProductPreview>,
   "module.daily-brief-settings-panel": () => <ProductPreview><DailyBriefSettingsBench /></ProductPreview>,
   "composite.external-event-details": () => <ProductPreview><CalendarDetailsBench /></ProductPreview>,

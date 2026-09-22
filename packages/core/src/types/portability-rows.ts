@@ -161,6 +161,7 @@ export type PortabilitySnapshot = {
   importedNotes: PortabilityNoteRow[];
   importedInterventions: PortabilityInterventionRow[];
   reminderDeliveries?: import("./json").Json[];
+  travelSettings?: import("./travel").TravelSettings;
 };
 export type PortabilityRowWrite<T> = { expected: T | null; next: T };
 export type LocalImportWritePlan = {

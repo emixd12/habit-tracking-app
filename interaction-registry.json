@@ -281,7 +281,10 @@
         "INT-BRIEF-001",
         "INT-BRIEF-002",
         "INT-BRIEF-003",
-        "INT-BRIEF-004"
+        "INT-BRIEF-004",
+        "INT-TRAVEL-001",
+        "INT-TRAVEL-002",
+        "INT-TRAVEL-003"
       ]
     },
     {
@@ -306,7 +309,8 @@
         "INT-TIMELINE-010",
         "INT-BRIEF-001",
         "INT-BRIEF-002",
-        "INT-BRIEF-003"
+        "INT-BRIEF-003",
+        "INT-BRIEF-005"
       ],
       "reason": "Product Timeline uses a local show-more callback. Full native workflow verification remains pending."
     },
@@ -750,34 +754,36 @@
     {
       "path": "components/timeline/ExternalEventDetails.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 14,
+      "interaction_marker_count": 21,
       "interaction_ids": [
         "INT-CALENDAR-005",
         "INT-CALENDAR-006",
-        "INT-CALENDAR-007"
+        "INT-CALENDAR-007",
+        "INT-TRAVEL-003"
       ]
     },
     {
       "path": "app/design-system/CalendarBench.tsx",
       "classification": "excluded",
-      "interaction_marker_count": 2,
+      "interaction_marker_count": 4,
       "interaction_ids": [],
       "reason": "Development-only synthetic Calendar bench; no provider or account access."
     },
     {
       "path": "app/design-system/DailyBriefBench.tsx",
       "classification": "excluded",
-      "interaction_marker_count": 2,
+      "interaction_marker_count": 77,
       "interaction_ids": [],
-      "reason": "Development-only Daily Brief fixture; no account, provider, or model access."
+      "reason": "Development-only Daily Brief recipe workbench: Ticket 161 adds overlap, tight-transition, supported-gap, missing-duration, completed-work and uneventful synthetic selections to the existing explicit-run control; recipe/version-bound drafts, independent input exclusions, opt-in historical completion marking times with the shared history window and inspector exclusions, duration source preference/fallback, Synthetic and authenticated My account sources, consent-gated explicit comparison, private Behavior selection, access refresh, cancellation, inspectors and memory-only results. Delivered results survive window focus changes and snapshot expiry with an inspection-only notice; hidden tabs and account/consent changes still clear private output. Save/export stays synthetic-only. Account captures reuse briefing and optional Calendar disclosure without daily admission. Excluded from product interaction counts."
     },
     {
       "path": "components/briefing/DailyBriefBubble.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 4,
+      "interaction_marker_count": 5,
       "interaction_ids": [
         "INT-BRIEF-002",
-        "INT-BRIEF-003"
+        "INT-BRIEF-003",
+        "INT-BRIEF-005"
       ]
     },
     {
@@ -786,6 +792,22 @@
       "interaction_marker_count": 5,
       "interaction_ids": [
         "INT-BRIEF-004"
+      ]
+    },
+    {
+      "path": "app/design-system/BriefingWorkbenchGuide.tsx",
+      "classification": "excluded",
+      "interaction_marker_count": 15,
+      "interaction_ids": [],
+      "reason": "Development-only glossary and canonical repository document previews. Search, contract/related-term links, editor links, copy paths, document downloads and original reference links; no account data, generation or filesystem-write API."
+    },
+    {
+      "path": "components/settings/TravelSettingsPanel.tsx",
+      "classification": "cataloged",
+      "interaction_marker_count": 14,
+      "interaction_ids": [
+        "INT-TRAVEL-001",
+        "INT-TRAVEL-002"
       ]
     }
   ],
@@ -4970,7 +4992,8 @@
       "user_guidance": {
         "audience": "user",
         "references": [
-          "docs/user-guide/behaviors-and-review.md#create-a-behavior"
+          "docs/user-guide/behaviors-and-review.md#create-a-behavior",
+          "docs/user-guide/travel.md#add-a-behavior-location"
         ]
       },
       "status": "implemented",
@@ -4984,7 +5007,7 @@
         "J05",
         "J06"
       ],
-      "intent": "Set a behavior title, optional description, and optional category in a create or edit draft.",
+      "intent": "Set a behavior title, optional description, and optional category in a create or edit draft. Optional user-authored location is saved or removed through the same form.",
       "triggers": [
         {
           "kind": "input",
@@ -6045,7 +6068,8 @@
       "user_guidance": {
         "audience": "user",
         "references": [
-          "docs/user-guide/behaviors-and-review.md#create-a-behavior"
+          "docs/user-guide/behaviors-and-review.md#create-a-behavior",
+          "docs/user-guide/travel.md#add-a-behavior-location"
         ]
       },
       "status": "implemented",
@@ -6058,7 +6082,7 @@
       "journeys": [
         "J05"
       ],
-      "intent": "Persist a new recurring behavior and its schedule graph.",
+      "intent": "Persist a new recurring behavior and its schedule graph. Optional user-authored location is saved or removed through the same form.",
       "triggers": [
         {
           "kind": "submit",
@@ -9530,7 +9554,7 @@
         }
       ],
       "availability": "Shown after authentication when the typed local snapshot contains recognized data.",
-      "success_result": "Commits the reviewed local bundle through the hosted atomic import RPC, hydrates the local merged copy, then saves one common baseline.",
+      "success_result": "Commits the reviewed local data atomically, hydrates the merged copy, then saves one common baseline. Snapshots containing private travel settings or location history use native account synchronization; other snapshots use the existing hosted import RPC.",
       "failure_result": "Leaves the hosted import atomic, does not advance the baseline, retries any completed hosted commit by deterministic identity, and routes divergent recovery into whole-plan conflict review.",
       "effects": [
         "database_write",
@@ -11827,7 +11851,8 @@
       "user_guidance": {
         "audience": "user",
         "references": [
-          "docs/user-guide/timeline.md#day-progress-and-optional-calendar-context"
+          "docs/user-guide/timeline.md#day-progress-and-optional-calendar-context",
+          "docs/user-guide/travel.md#open-navigation"
         ]
       },
       "status": "implemented",
@@ -11844,10 +11869,10 @@
       "triggers": [
         {
           "kind": "activate",
-          "control": "Open source event or attachment link"
+          "control": "Open source event, attachment, meeting or navigation link"
         }
       ],
-      "availability": "Available only for a safe source, conference, or attachment URL.",
+      "availability": "Available for a safe external URL or structured Google Maps/Apple Maps location link.",
       "success_result": "Opens the external source through the browser or desktop system-browser boundary.",
       "failure_result": "Unsafe or missing URLs are not actionable.",
       "effects": [
@@ -11856,12 +11881,14 @@
       "risk": "low",
       "confirmation": "none",
       "implementation": [
-        "components/timeline/ExternalEventDetails.tsx"
+        "components/timeline/ExternalEventDetails.tsx",
+        "packages/core/src/services/travel-navigation.ts"
       ],
       "test_coverage": {
         "level": "direct",
         "references": [
-          "tests/day-progress-timeline.dom.test.tsx"
+          "tests/day-progress-timeline.dom.test.tsx",
+          "tests/travel-navigation.test.ts"
         ],
         "notes": "Synthetic integration checks; live provider/native release acceptance remains in Ticket 137."
       },
@@ -12067,101 +12094,655 @@
     {
       "id": "INT-BRIEF-001",
       "name": "Start the Daily Brief on Timeline opening",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/timeline.md#daily-brief"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#daily-brief"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["timeline"],
-      "routes": ["/timeline"],
-      "journeys": ["J07"],
+      "surfaces": [
+        "timeline"
+      ],
+      "routes": [
+        "/timeline"
+      ],
+      "journeys": [
+        "J07"
+      ],
       "intent": "Request one read-only Daily Brief after the Timeline data is ready on the first opening of the local day.",
-      "triggers": [{ "kind": "activate", "control": "Open Timeline" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Open Timeline"
+        }
+      ],
       "availability": "Available only when the first-party feature is enabled and the hosted service is available; linked desktop also needs connectivity.",
       "success_result": "Shows validated model text in the existing horse bubble without changing tracking or Calendar records. Returning focus preserves the bubble when account, date, timezone, and settings remain current.",
       "failure_result": "Keeps Timeline usable and shows a nonblocking retry state after a failed request or pending generation.",
-      "effects": ["network_request", "database_read", "database_write", "sensitive_data_disclosure", "local_preference", "ui_state"],
+      "effects": [
+        "network_request",
+        "database_read",
+        "database_write",
+        "sensitive_data_disclosure",
+        "local_preference",
+        "ui_state"
+      ],
       "risk": "moderate",
       "confirmation": "none",
-      "implementation": ["components/briefing/DailyBriefLauncher.tsx#DailyBriefLauncher", "apps/desktop/src/timeline-screen.tsx#TimelineScreen"],
-      "test_coverage": { "level": "direct", "references": ["tests/daily-brief-ui.dom.test.tsx"], "notes": "DOM coverage verifies one automatic request, pending retry, and focus revalidation." },
+      "implementation": [
+        "components/briefing/DailyBriefLauncher.tsx#DailyBriefLauncher",
+        "apps/desktop/src/timeline-screen.tsx#TimelineScreen"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/daily-brief-ui.dom.test.tsx"
+        ],
+        "notes": "DOM coverage verifies one automatic request, pending retry, and focus revalidation."
+      },
       "platforms": {
-        "web": { "applicability": "applicable", "status": "implemented", "implementation": ["components/briefing/DailyBriefLauncher.tsx#DailyBriefLauncher"], "evidence": ["tests/daily-brief-ui.dom.test.tsx"] },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/timeline-screen.tsx#TimelineScreen"], "evidence": ["tests/daily-brief-ui.dom.test.tsx"], "reason": "The linked desktop Timeline uses the existing authenticated hosted client." },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing does not request account-specific briefings." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Native mobile implementation is deferred." }
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/briefing/DailyBriefLauncher.tsx#DailyBriefLauncher"
+          ],
+          "evidence": [
+            "tests/daily-brief-ui.dom.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/timeline-screen.tsx#TimelineScreen"
+          ],
+          "evidence": [
+            "tests/daily-brief-ui.dom.test.tsx"
+          ],
+          "reason": "The linked desktop Timeline uses the existing authenticated hosted client."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not request account-specific briefings."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Native mobile implementation is deferred."
+        }
       }
     },
     {
       "id": "INT-BRIEF-002",
       "name": "Dismiss the Daily Brief",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/timeline.md#daily-brief"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#daily-brief"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["timeline"],
-      "routes": ["/timeline"],
-      "journeys": ["J07"],
+      "surfaces": [
+        "timeline"
+      ],
+      "routes": [
+        "/timeline"
+      ],
+      "journeys": [
+        "J07"
+      ],
       "intent": "Hide the current Daily Brief for this account and local day.",
-      "triggers": [{ "kind": "activate", "control": "Close Daily Brief" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Close Daily Brief"
+        }
+      ],
       "availability": "Visible while the Daily Brief bubble is loading, ready, or failed.",
       "success_result": "Hides the bubble and prevents an in-flight result from reopening it.",
       "failure_result": "Does not alter Behaviors, Occurrences, Notes, or Calendar records.",
-      "effects": ["local_preference", "ui_state"],
+      "effects": [
+        "local_preference",
+        "ui_state"
+      ],
       "risk": "low",
       "confirmation": "none",
-      "implementation": ["components/briefing/DailyBriefBubble.tsx#DailyBriefBubble", "apps/desktop/src/timeline-screen.tsx#TimelineScreen"],
-      "test_coverage": { "level": "direct", "references": ["tests/daily-brief-ui.dom.test.tsx"], "notes": "DOM coverage verifies the 44px control and ignored in-flight result." },
+      "implementation": [
+        "components/briefing/DailyBriefBubble.tsx#DailyBriefBubble",
+        "apps/desktop/src/timeline-screen.tsx#TimelineScreen"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/daily-brief-ui.dom.test.tsx"
+        ],
+        "notes": "DOM coverage verifies the 44px control and ignored in-flight result."
+      },
       "platforms": {
-        "web": { "applicability": "applicable", "status": "implemented", "implementation": ["components/briefing/DailyBriefBubble.tsx#DailyBriefBubble"], "evidence": ["tests/daily-brief-ui.dom.test.tsx"] },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/timeline-screen.tsx#TimelineScreen"], "evidence": ["tests/daily-brief-ui.dom.test.tsx"], "reason": "The desktop screen renders the shared bubble." },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing has no account-specific bubble." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Native mobile implementation is deferred." }
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/briefing/DailyBriefBubble.tsx#DailyBriefBubble"
+          ],
+          "evidence": [
+            "tests/daily-brief-ui.dom.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/timeline-screen.tsx#TimelineScreen"
+          ],
+          "evidence": [
+            "tests/daily-brief-ui.dom.test.tsx"
+          ],
+          "reason": "The desktop screen renders the shared bubble."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing has no account-specific bubble."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Native mobile implementation is deferred."
+        }
       }
     },
     {
       "id": "INT-BRIEF-003",
       "name": "Retry a failed Daily Brief",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/timeline.md#daily-brief"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#daily-brief"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["timeline"],
-      "routes": ["/timeline"],
-      "journeys": ["J07"],
+      "surfaces": [
+        "timeline"
+      ],
+      "routes": [
+        "/timeline"
+      ],
+      "journeys": [
+        "J07"
+      ],
       "intent": "Deliberately retry a failed Daily Brief request without polling.",
-      "triggers": [{ "kind": "activate", "control": "Try again" }],
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Try again"
+        }
+      ],
       "availability": "Visible after a Daily Brief request fails or returns pending, and before dismissal.",
       "success_result": "Requests one retry and displays a ready result when the server returns one.",
       "failure_result": "Keeps retry available when generation is pending or fails, without automatic retries or tracking writes.",
-      "effects": ["network_request", "database_read", "database_write", "sensitive_data_disclosure", "local_preference", "ui_state"],
+      "effects": [
+        "network_request",
+        "database_read",
+        "database_write",
+        "sensitive_data_disclosure",
+        "local_preference",
+        "ui_state"
+      ],
       "risk": "low",
       "confirmation": "none",
-      "implementation": ["components/briefing/DailyBriefBubble.tsx#DailyBriefBubble", "apps/desktop/src/timeline-screen.tsx#TimelineScreen"],
-      "test_coverage": { "level": "direct", "references": ["tests/daily-brief-ui.dom.test.tsx"], "notes": "DOM coverage verifies retry occurs only after explicit activation." },
+      "implementation": [
+        "components/briefing/DailyBriefBubble.tsx#DailyBriefBubble",
+        "apps/desktop/src/timeline-screen.tsx#TimelineScreen"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/daily-brief-ui.dom.test.tsx"
+        ],
+        "notes": "DOM coverage verifies retry occurs only after explicit activation."
+      },
       "platforms": {
-        "web": { "applicability": "applicable", "status": "implemented", "implementation": ["components/briefing/DailyBriefBubble.tsx#DailyBriefBubble"], "evidence": ["tests/daily-brief-ui.dom.test.tsx"] },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/timeline-screen.tsx#TimelineScreen"], "evidence": ["tests/daily-brief-ui.dom.test.tsx"], "reason": "The desktop screen renders the shared retry control." },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing does not call the briefing service." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Native mobile implementation is deferred." }
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/briefing/DailyBriefBubble.tsx#DailyBriefBubble"
+          ],
+          "evidence": [
+            "tests/daily-brief-ui.dom.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/timeline-screen.tsx#TimelineScreen"
+          ],
+          "evidence": [
+            "tests/daily-brief-ui.dom.test.tsx"
+          ],
+          "reason": "The desktop screen renders the shared retry control."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing does not call the briefing service."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Native mobile implementation is deferred."
+        }
       }
     },
     {
       "id": "INT-BRIEF-004",
       "name": "Configure Daily Brief data use",
-      "user_guidance": { "audience": "user", "references": ["docs/user-guide/timeline.md#daily-brief"] },
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#daily-brief"
+        ]
+      },
       "status": "implemented",
-      "surfaces": ["settings"],
-      "routes": ["/settings"],
-      "journeys": ["J14"],
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings"
+      ],
+      "journeys": [
+        "J14"
+      ],
       "intent": "Enable or disable the Daily Brief and choose whether selected Calendar timing is included.",
-      "triggers": [{ "kind": "change", "control": "Enable Daily Brief or Include selected Google Calendar timing" }],
+      "triggers": [
+        {
+          "kind": "change",
+          "control": "Enable Daily Brief or Include selected Google Calendar timing"
+        }
+      ],
       "availability": "Available in Settings when the server reports the first-party feature is configured; desktop also needs a linked online account.",
       "success_result": "Saves the exact two preference fields and withdraws any current Daily Brief presentation.",
       "failure_result": "Shows an unavailable or save error state and keeps tracking available.",
-      "effects": ["network_request", "database_write", "local_preference", "ui_state"],
+      "effects": [
+        "network_request",
+        "database_write",
+        "local_preference",
+        "ui_state"
+      ],
       "risk": "moderate",
       "confirmation": "none",
-      "implementation": ["components/briefing/DailyBriefSettingsPanel.tsx#DailyBriefSettingsPanel", "apps/desktop/src/product.tsx#Product"],
-      "test_coverage": { "level": "direct", "references": ["tests/daily-brief-ui.dom.test.tsx"], "notes": "DOM coverage verifies exact preference fields and the retention disclosure link." },
+      "implementation": [
+        "components/briefing/DailyBriefSettingsPanel.tsx#DailyBriefSettingsPanel",
+        "apps/desktop/src/product.tsx#Product"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/daily-brief-ui.dom.test.tsx"
+        ],
+        "notes": "DOM coverage verifies exact preference fields and the retention disclosure link."
+      },
       "platforms": {
-        "web": { "applicability": "applicable", "status": "implemented", "implementation": ["components/briefing/DailyBriefSettingsPanel.tsx#DailyBriefSettingsPanel"], "evidence": ["tests/daily-brief-ui.dom.test.tsx"] },
-        "desktop": { "applicability": "applicable", "status": "implemented", "implementation": ["apps/desktop/src/product.tsx#Product"], "evidence": ["tests/daily-brief-ui.dom.test.tsx"], "reason": "The product passes its existing authenticated client into the shared Settings panel." },
-        "marketing": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Marketing cannot configure authenticated account data use." },
-        "mobile": { "applicability": "not_applicable", "status": "not_applicable", "reason": "Native mobile implementation is deferred." }
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/briefing/DailyBriefSettingsPanel.tsx#DailyBriefSettingsPanel"
+          ],
+          "evidence": [
+            "tests/daily-brief-ui.dom.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/product.tsx#Product"
+          ],
+          "evidence": [
+            "tests/daily-brief-ui.dom.test.tsx"
+          ],
+          "reason": "The product passes its existing authenticated client into the shared Settings panel."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing cannot configure authenticated account data use."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Native mobile implementation is deferred."
+        }
+      }
+    },
+    {
+      "id": "INT-BRIEF-005",
+      "name": "Inspect a Daily Brief source",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/timeline.md#daily-brief"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "timeline"
+      ],
+      "routes": [
+        "/timeline"
+      ],
+      "journeys": [
+        "J07"
+      ],
+      "intent": "Open trusted catalog provenance for a read-only suggestion.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Suggestion source link"
+        }
+      ],
+      "availability": "A validated suggestion cites a selected catalog source.",
+      "success_result": "Opens the catalog source URL without sending account facts or a referrer.",
+      "failure_result": "No source link renders for an invented citation ID.",
+      "effects": [
+        "navigation"
+      ],
+      "risk": "low",
+      "confirmation": "none",
+      "implementation": [
+        "components/briefing/DailyBriefBubble.tsx#DailyBriefBubble",
+        "apps/desktop/src/timeline-screen.tsx#TimelineScreen"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/daily-brief-ui.dom.test.tsx"
+        ],
+        "notes": "Shared bubble renders trusted catalog source links; consumer tests reject invented IDs."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/briefing/DailyBriefBubble.tsx#DailyBriefBubble"
+          ],
+          "evidence": [
+            "tests/daily-brief-ui.dom.test.tsx"
+          ]
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "apps/desktop/src/timeline-screen.tsx#TimelineScreen"
+          ],
+          "evidence": [
+            "tests/daily-brief-ui.dom.test.tsx"
+          ],
+          "reason": "Shared source links; installed linked desktop acceptance remains pending."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing has no account-specific bubble."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Native mobile implementation is deferred."
+        }
+      }
+    },
+    {
+      "id": "INT-TRAVEL-001",
+      "name": "Configure proactive travel",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/travel.md#set-up-travel"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings"
+      ],
+      "journeys": [
+        "J14"
+      ],
+      "intent": "Save user-authored optional base, selected mode, navigation preference and explicit routing consent.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Save travel settings"
+        }
+      ],
+      "availability": "Existing Settings; route estimates remain deployment-gated.",
+      "success_result": "Save user-authored optional base, selected mode, navigation preference and explicit routing consent.",
+      "failure_result": "Shows an unavailable state and preserves tracking data.",
+      "effects": [
+        "ui_state",
+        "network_request",
+        "local_preference",
+        "database_write"
+      ],
+      "risk": "moderate",
+      "confirmation": "none",
+      "implementation": [
+        "components/settings/TravelSettingsPanel.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/travel-settings.dom.test.tsx"
+        ],
+        "notes": "Provider-free tests. Installed permission and live provider acceptance remain open."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/TravelSettingsPanel.tsx"
+          ],
+          "evidence": [
+            "tests/travel-settings.dom.test.tsx"
+          ],
+          "reason": "Shared implementation; live provider and installed desktop acceptance remain open."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/TravelSettingsPanel.tsx",
+            "apps/desktop/src/product.tsx"
+          ],
+          "evidence": [
+            "tests/travel-settings.dom.test.tsx"
+          ],
+          "reason": "Shared implementation; live provider and installed desktop acceptance remain open."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing cannot configure authenticated account data use."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Native mobile implementation is deferred."
+        }
+      }
+    },
+    {
+      "id": "INT-TRAVEL-002",
+      "name": "Check foreground device location permission",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/travel.md#check-device-permission"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "settings"
+      ],
+      "routes": [
+        "/settings"
+      ],
+      "journeys": [
+        "J14"
+      ],
+      "intent": "Request one foreground position and report its usability without saving or transmitting it.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Check device location permission"
+        }
+      ],
+      "availability": "Existing Settings; route estimates remain deployment-gated.",
+      "success_result": "Request one foreground position and report its usability without saving or transmitting it.",
+      "failure_result": "Shows an unavailable state and preserves tracking data.",
+      "effects": [
+        "ui_state",
+        "permission_request"
+      ],
+      "risk": "moderate",
+      "confirmation": "none",
+      "implementation": [
+        "components/settings/TravelSettingsPanel.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/travel-navigation.test.ts"
+        ],
+        "notes": "Provider-free tests. Installed permission and live provider acceptance remain open."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/TravelSettingsPanel.tsx"
+          ],
+          "evidence": [
+            "tests/travel-navigation.test.ts"
+          ],
+          "reason": "Shared implementation; live provider and installed desktop acceptance remain open."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/settings/TravelSettingsPanel.tsx",
+            "apps/desktop/src/product.tsx"
+          ],
+          "evidence": [
+            "tests/travel-navigation.test.ts"
+          ],
+          "reason": "Shared implementation; live provider and installed desktop acceptance remain open."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing cannot configure authenticated account data use."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Native mobile implementation is deferred."
+        }
+      }
+    },
+    {
+      "id": "INT-TRAVEL-003",
+      "name": "Correct travel for an event instance",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/travel.md#inspect-travel-and-correct-a-journey"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "timeline"
+      ],
+      "routes": [
+        "/timeline"
+      ],
+      "journeys": [
+        "J14"
+      ],
+      "intent": "Use an explicit attendance and destination correction for one event revision while the Timeline stays open.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Use for this journey"
+        }
+      ],
+      "availability": "Versioned timed Calendar event details while routing context is available.",
+      "success_result": "Use an explicit attendance and destination correction for one event revision while the Timeline stays open.",
+      "failure_result": "Shows an unavailable state and preserves tracking data.",
+      "effects": [
+        "ui_state",
+        "network_request"
+      ],
+      "risk": "moderate",
+      "confirmation": "none",
+      "implementation": [
+        "components/timeline/ExternalEventDetails.tsx"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/travel-settings.dom.test.tsx"
+        ],
+        "notes": "Provider-free tests. Installed permission and live provider acceptance remain open."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/timeline/ExternalEventDetails.tsx"
+          ],
+          "evidence": [
+            "tests/travel-settings.dom.test.tsx"
+          ],
+          "reason": "Shared implementation; live provider and installed desktop acceptance remain open."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/timeline/ExternalEventDetails.tsx",
+            "apps/desktop/src/product.tsx"
+          ],
+          "evidence": [
+            "tests/travel-settings.dom.test.tsx"
+          ],
+          "reason": "Shared implementation; live provider and installed desktop acceptance remain open."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing cannot configure authenticated account data use."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Native mobile implementation is deferred."
+        }
       }
     }
   ]

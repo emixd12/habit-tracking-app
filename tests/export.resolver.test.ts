@@ -1360,7 +1360,10 @@ describe("resolveExportBundle", () => {
       }),
       effective_at: "2026-06-08T14:00:00Z",
     });
-    expect(rawHistory).toEqual(bundle.jsonBackup.behavior_configuration_events);
+    expect(rawHistory.map((event) => event.id)).toEqual(
+      bundle.jsonBackup.behavior_configuration_events.map((event) => event.id),
+    );
+    expect(JSON.stringify(rawHistory)).not.toContain('"location_text"');
     expect(manifest.extensions["app.cadence"].behavior_configuration_history).toEqual({
       path: "raw/cadence/behavior_configuration_events.jsonl",
       record_count: 3,

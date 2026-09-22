@@ -58,4 +58,33 @@ describe("auth Google route", () => {
       "http://localhost:3000/login?next=%2Fsettings&error=missing_supabase_config",
     );
   });
+
+  it.each(["127.0.0.1", "localhost"])(
+    "keeps the %s cookie host in the OAuth callback",
+    async (host) => {
+      vi.stubEnv("NODE_ENV", "development");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.example");
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+      const signInWithOAuth = vi.fn().mockResolvedValue({
+        data: { url: "https://accounts.example/authorize" },
+        error: null,
+      });
+      vi.mocked(createClient).mockResolvedValue({
+        auth: { signInWithOAuth },
+      } as never);
+
+      await GET(
+        new NextRequest("http://localhost:4324/auth/google?next=%2Fsettings", {
+          headers: { host: `${host}:4324` },
+        }),
+      );
+
+      expect(signInWithOAuth).toHaveBeenCalledWith({
+        provider: "google",
+        options: {
+          redirectTo: `http://${host}:4324/auth/callback?next=%2Fsettings`,
+        },
+      });
+    },
+  );
 });

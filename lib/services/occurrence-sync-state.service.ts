@@ -54,6 +54,7 @@ export async function markOccurrenceSyncFreshForPlans(
   input: {
     userId: string;
     plans: OccurrenceGenerationPlan[];
+    coverageWindows?: OccurrenceGenerationWindow[];
     fallbackWindow: OccurrenceGenerationWindow;
     syncedAt: string;
     timezone?: string | null;
@@ -69,6 +70,7 @@ export async function markOccurrenceSyncFreshForPlans(
     lastSuccessfulSyncAt: input.syncedAt,
     ...summarizeOccurrenceSyncPlans({
       plans: input.plans,
+      coverageWindows: input.coverageWindows,
       fallbackWindow: input.fallbackWindow,
       timezone: input.timezone,
     }),

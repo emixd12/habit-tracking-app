@@ -76,7 +76,7 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
         if (focusEpoch !== epoch.current || controller.signal.aborted) return;
         if (!settings.available || !settings.enabled || settings.accountRef !== previous.accountRef ||
             settings.localDate !== previous.localDate || settings.timezone !== previous.timezone ||
-            settings.revision !== previous.revision) hideForSettingsChange(new Event("focus"));
+            settings.revision !== previous.revision || settings.configurationRevision !== previous.configurationRevision) hideForSettingsChange(new Event("focus"));
       }).catch(() => {
         if (focusEpoch === epoch.current) hideForSettingsChange(new Event("focus"));
       });

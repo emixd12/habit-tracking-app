@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
-import { hasRecognizedLocalData } from "@cadence/core/services/first-account-link";
+import { firstLinkIncludesTravel, hasRecognizedLocalData, preparePrivateFirstLinkImport } from "@cadence/core/services/first-account-link";
 import { DEFAULT_CATEGORY_NAMES } from "@cadence/core/types/database";
 import { accountSyncFingerprint, type AccountSyncEntity, type AccountSyncSnapshot } from "@cadence/core/resolvers/account-sync.resolver";
 import type { PortabilitySnapshot } from "@cadence/core/types/portability-rows";
@@ -22,6 +22,54 @@ const graph = (entities: readonly AccountSyncEntity[] = []): AccountSyncSnapshot
 describe("first desktop account link", () => {
   it("does not mistake untouched seed rows for recognized local data", () => {
     expect(hasRecognizedLocalData(snapshot())).toBe(false);
+  });
+
+  it("offers the first-link choice for each saved travel preference", () => {
+    const defaults = { enabled: false, baseLocationText: null, mode: null, navigationPreference: null,
+      routingConsentAt: null, onboardingCompletedAt: null, updatedAt: "2026-09-22T00:00:00Z" } as const;
+    expect(hasRecognizedLocalData({ ...snapshot(), travelSettings: defaults })).toBe(false);
+    for (const preference of [{ enabled: true }, { baseLocationText: "Private base" }, { mode: "walking" as const },
+      { navigationPreference: "apple_maps" as const }, { routingConsentAt: defaults.updatedAt }, { onboardingCompletedAt: defaults.updatedAt }]) {
+      const local = { ...snapshot(), travelSettings: { ...defaults, ...preference } };
+      expect(hasRecognizedLocalData(local)).toBe(true);
+      expect(firstLinkIncludesTravel({ entities: portabilityEntities(local) })).toBe(true);
+    }
+  });
+
+  it("preserves private travel fields and history while matching existing category identities", () => {
+    const category = (id: string, created_at: string) => ({ kind: "category" as const, id,
+      value: { id, name: "Health", description: null, sort_order: 0, created_at, updated_at: created_at } });
+    const local: AccountSyncSnapshot = { entities: [
+      { kind: "profile", id: "profile", value: { timezone: "America/New_York", base_location_text: "Private base", travel_mode: "walking" } },
+      category("local-category", "2026-09-20T00:00:00Z"),
+      { kind: "behavior", id: "behavior", value: { id: "behavior", title: "Walk", category_id: "local-category", location_text: "Private destination", current_configuration_event_id: "history" } },
+      { kind: "configuration_event", id: "history", value: { id: "history", behavior_id: "behavior", event_kind: "baseline", previous_configuration: null,
+        next_configuration: { categoryId: "local-category", locationText: "Private destination", scheduleGraph: [], browserReminderEnabled: true,
+          emailReminderEnabled: false, reminderOffsetMinutes: 0, active: true, timezone: "America/New_York" } } },
+    ] };
+    const hosted = graph([category("hosted-category", "2026-09-21T00:00:00Z")]);
+    const prepared = preparePrivateFirstLinkImport(local, hosted);
+    const { plan } = planFirstLinkReconciliation({ ...prepared, hosted, accountLinkId: "hosted", choice: "import", localUnchanged: true, outboxHighWater: 0 });
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.mergedEntities.filter(({ kind }) => kind === "category")).toHaveLength(1);
+    expect(plan.mergedEntities.find(({ kind }) => kind === "profile")?.value).toMatchObject({ base_location_text: "Private base", travel_mode: "walking" });
+    expect(plan.mergedEntities.find(({ kind }) => kind === "behavior")?.value).toMatchObject({ location_text: "Private destination", category_id: "hosted-category" });
+    expect(plan.mergedEntities.find(({ kind }) => kind === "configuration_event")?.value).toMatchObject({ next_configuration: { location_text: "Private destination", category_id: "hosted-category" } });
+    const retry = preparePrivateFirstLinkImport(local, { entities: plan.mergedEntities });
+    const retried = planFirstLinkReconciliation({ ...retry, hosted: { entities: plan.mergedEntities }, accountLinkId: "hosted", choice: "import", localUnchanged: true, outboxHighWater: 0 }).plan;
+    expect(retried.conflicts).toEqual([]);
+    expect(retried.hostedWrites).toEqual([]);
+  });
+
+  it("reviews conflicting account travel preferences without picking a winner", () => {
+    const profile = (base: string): AccountSyncSnapshot => ({ entities: [{ kind: "profile", id: "profile", value: { timezone: "America/New_York", base_location_text: base } }] });
+    const hosted = profile("Account base");
+    const prepared = preparePrivateFirstLinkImport(profile("Local base"), hosted);
+    const { plan } = planFirstLinkReconciliation({ ...prepared, hosted, accountLinkId: "hosted", choice: "import", localUnchanged: true, outboxHighWater: 0 });
+    expect(plan.conflicts).toMatchObject([{ kind: "profile", reason: "concurrent_update" }]);
+    expect(plan.hostedWrites).toEqual([]);
+    const historyOnly = graph([{ kind: "configuration_event", id: "old-location", value: { previous_configuration: { location_text: "Removed address" }, next_configuration: { location_text: null } } }]);
+    expect(firstLinkIncludesTravel(historyOnly)).toBe(true);
   });
 
   it("offers the first-link choice when only a global shortcut preference exists", () => {

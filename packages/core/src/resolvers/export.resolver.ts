@@ -432,6 +432,7 @@ function toJsonBehavior(
     category: behavior.categoryName,
     title: behavior.title,
     description: behavior.description,
+    location_text: behavior.locationText ?? null,
     recurrence_rule: behavior.recurrenceRule,
     scheduled_time: behavior.scheduledTime,
     schedules: normalizeExportInputSchedules(behavior),
@@ -524,6 +525,7 @@ function toJsonBehaviorConfigurationSnapshot(
 ): ExportJsonBehaviorConfigurationSnapshot {
   return {
     category_id: snapshot.categoryId,
+    location_text: snapshot.locationText ?? null,
     schedule_graph: snapshot.scheduleGraph.map((schedule) => ({
       recurrence_rule: schedule.recurrenceRule,
       sort_order: schedule.sortOrder,
@@ -1033,7 +1035,9 @@ function toBehaviorLogBundle(input: ExportImportedHistory & {
     filesWithoutManifest.push({
       path: BEHAVIORLOG_CONFIGURATION_HISTORY_PATH,
       mediaType: "application/jsonl",
-      content: toJsonlRecords(input.behaviorConfigurationEvents),
+      content: toJsonlRecords(
+        input.behaviorConfigurationEvents.map(toBehaviorLogRawConfigurationEvent),
+      ),
     });
   }
 
@@ -1095,6 +1099,24 @@ function toBehaviorLogBundle(input: ExportImportedHistory & {
       },
       ...filesWithoutManifest,
     ],
+  };
+}
+
+function toBehaviorLogRawConfigurationEvent(
+  event: ExportJsonBehaviorConfigurationEvent,
+): Record<string, unknown> {
+  const withoutLocation = (snapshot: ExportJsonBehaviorConfigurationSnapshot) => {
+    const { location_text: _locationText, ...rest } = snapshot;
+    void _locationText;
+    return rest;
+  };
+  return {
+    ...event,
+    previous_configuration: event.previous_configuration
+      ? withoutLocation(event.previous_configuration)
+      : null,
+    next_configuration: withoutLocation(event.next_configuration),
+    changed_fields: event.changed_fields.filter((field) => field !== "location_text"),
   };
 }
 

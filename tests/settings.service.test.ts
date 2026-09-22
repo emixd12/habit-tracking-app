@@ -237,6 +237,18 @@ describe("updateCurrentUserTimezoneFromFormData", () => {
     );
   });
 
+  it("includes archived Behaviors in the sync fence without changing their timezone", async () => {
+    const active = { ...ACTIVE_BEHAVIOR, timezone: "America/New_York" };
+    const archived = { ...ACTIVE_BEHAVIOR, id: "archived", active: false, current_configuration_event_id: "archived-config" };
+    vi.mocked(listUserBehaviors).mockResolvedValue([active, archived]);
+    await expect(updateCurrentUserTimezoneFromFormData(timezoneForm("America/New_York")))
+      .resolves.toMatchObject({ changed: false, activeBehaviorCount: 1 });
+    expect(updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents).toHaveBeenCalledWith(SUPABASE,
+      expect.objectContaining({ behaviorChanges: [expect.objectContaining({ behaviorId: active.id })] }));
+    expect(syncUserOccurrencesAndReminders).toHaveBeenCalledWith(SUPABASE, "user-1",
+      expect.objectContaining({ behaviors: [active, archived] }));
+  });
+
   it("does not run follow-on synchronization when the atomic owner write fails", async () => {
     vi.mocked(
       updateProfileAndActiveBehaviorTimezonesWithConfigurationEvents,

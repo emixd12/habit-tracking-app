@@ -1052,6 +1052,11 @@ The scheduled signed-in Computer Use check opened Verification Center for
 verified.** Branding remains verified and shown to users. This is an observed
 provider decision; the exact approval timestamp was not exposed or inferred.
 
+September 21 and September 22 follow-ups checked the signed-in Verification Center. Branding and
+data access remain verified. No new actionable request appears. The check changed
+no configuration and did not read the inbox. Post-approval smoke checks remain
+outstanding. `git diff --check` passed for this evidence-only update.
+
 Data Access lists `calendar.events.readonly` with **This scope is verified**.
 The unchanged non-sensitive declarations are `calendar.calendarlist.readonly`
 and `openid`. The restricted-scope list is empty. Clients lists one web client,

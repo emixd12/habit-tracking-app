@@ -76,6 +76,7 @@ export type ExportBehaviorInput = {
   categoryName: string | null;
   title: string;
   description: string | null;
+  locationText?: string | null;
   recurrenceRule: RecurrenceRule;
   scheduledTime: string;
   schedules?: BehaviorScheduleView[];
@@ -125,6 +126,7 @@ export type ExportBehaviorConfigurationSchedule = {
 
 export type ExportBehaviorConfigurationSnapshot = {
   categoryId: string | null;
+  locationText?: string | null;
   scheduleGraph: ExportBehaviorConfigurationSchedule[];
   browserReminderEnabled: boolean;
   emailReminderEnabled: boolean;
@@ -277,6 +279,7 @@ export type ExportJsonBehavior = {
   category: string | null;
   title: string;
   description: string | null;
+  location_text: string | null;
   recurrence_rule: RecurrenceRule;
   scheduled_time: string;
   schedules: BehaviorScheduleView[];
@@ -359,6 +362,7 @@ export type ExportJsonBehaviorDefinitionEvent = {
 
 export type ExportJsonBehaviorConfigurationSnapshot = {
   category_id: string | null;
+  location_text: string | null;
   schedule_graph: Array<{
     recurrence_rule: RecurrenceRule;
     sort_order: number;

@@ -21,6 +21,47 @@ absent unsynced/local-only records; offline/account-free tracking remains usable
 The flow is implemented in source. `qa/in-app-daily-brief.md` records verification
 and the remaining hosted, real-data and installed-desktop release gates.
 
+## Travel setup and use (Tickets 162–165)
+
+Settings and deterministic Timeline integration are implemented behind the provider
+release gate. Live and installed acceptance remain open in `qa/travel-release.md`.
+
+1. Travel setup explains automatic route queries, location recipients and expanded
+   Timeline occupancy. The user chooses a transport mode and may save a base.
+2. The user may enable foreground device location for the current origin. If they
+   decline, Cadence requests a base for the immediate origin. With usable device
+   and event locations, outbound advice needs no base. Without a usable base,
+   only the final return recommendation is withheld and return time stays unknown.
+   Known event-to-event legs remain available even when the immediate origin is
+   unknown.
+3. The user may add a designated location in the existing Behavior form. Calendar
+   locations stay attached to their events. Missing/ambiguous points need correction;
+   Cadence does not infer a home address or in-person attendance for hybrid events.
+4. Opening relevant context or changing meaningful inputs computes usable route
+   pairs proactively. No per-trip approval is required. The itinerary includes
+   direct A → B → C legs using event locations, times and mode. Changes recompute
+   the bounded itinerary. Current device position overrides a predicted origin for the next
+   immediate departure. Never insert a base detour automatically. Add the final
+   return leg only when a usable saved base exists.
+5. Existing Timeline inspection shows departure, scheduled event time, return and
+   availability when known. Magenta spans and overlap borders include all known
+   outbound and event-to-event travel even when final return timing is unknown.
+   Calendar location text offers Google Maps or a supported preferred-navigation
+   link. Opening navigation remains the user's action.
+6. Current travel evidence supports advisor departure/return recommendations after
+   provider-use and model-disclosure requirements pass. Missing return evidence
+   cannot produce complete-trip availability, but preserves known-leg advice and
+   collisions. Expiry clears temporary evidence; foreground changes refresh within budget; it never erases saved locations or
+   silently regenerates the daily briefing.
+
+No route changes Calendar events, Occurrence statuses or scheduled times. Disabling
+travel stops queries and clears estimates. Removing device permission clears its
+sample and uses an available base for the immediate origin. Without one, that
+origin remains unknown; known event-to-event legs remain available. Saved locations
+remain until edited/removed. Web and linked online desktop share this flow;
+offline/account-free desktop tracking stays
+available. Native mobile is deferred. See `plans/travel-departure-discovery.md`.
+
 ## Day progress and optional Google Calendar context (Tickets 132–137)
 
 The production Timeline places forward Occurrences beside a continuous local-day
@@ -822,3 +863,11 @@ native update or recovery controls. Future mobile remains deferred.
 ## Set duration and scheduled archive (Tickets 142–143)
 
 Create or edit a Behavior, optionally enter Default duration (minutes) and End date, then Save behavior. Blank fields disable either option. Timeline uses the default ahead of its measured estimate. The Behavior stops generating Occurrences at the start of its end date in its timezone. Automatic archive uses existing archive history and reminder cancellation; a durable in-app notification explains the archive. Open Behaviors to review or restore it. Restoring clears an expired end date.
+
+## Compare historical completion timing
+
+Open the briefing workbench, select Historical completion times, and set History
+days. Optionally change duration controls independently. Select Run comparison
+explicitly. Inspect selected completion-mark summaries and exclusion reasons.
+The user alone runs private My account comparisons. Saving a synthetic draft does
+not promote it into the daily configuration. Legacy drafts load with timing disabled.

@@ -1,12 +1,42 @@
 import { describe, expect, it, vi } from "vitest";
+import { createClient } from "@supabase/supabase-js";
 
 import {
+  cancelPendingReminderDeliveriesForOccurrences,
   cancelUnclaimedPendingReminderDeliveriesById,
   claimPendingEmailReminderDelivery,
   listDuePendingEmailReminderDeliveries,
+  listReminderDeliveriesByOccurrenceIds,
   markReminderDeliverySent,
   reactivateCancelledReminderDeliveriesById,
 } from "@/lib/db/reminderDeliveries.repo";
+import type { ReminderDelivery } from "@/lib/types/database";
+
+function uuid(index: number): string {
+  return `${index.toString().padStart(8, "0")}-0000-4000-8000-000000000000`;
+}
+
+function reminderDelivery(
+  id: string,
+  occurrenceId: string,
+  scheduledSendAt: string,
+): ReminderDelivery {
+  return {
+    id,
+    user_id: uuid(999_999),
+    occurrence_id: occurrenceId,
+    channel: "browser_push",
+    scheduled_send_at: scheduledSendAt,
+    sent_at: null,
+    processing_started_at: null,
+    import_run_id: null,
+    imported_intervention_id: null,
+    status: "pending",
+    error: null,
+    created_at: "2026-06-08T00:00:00Z",
+    updated_at: "2026-06-08T00:00:00Z",
+  };
+}
 
 describe("reminder delivery reconciliation writes", () => {
   it("cancels only unclaimed pending rows owned by the user", async () => {
@@ -56,6 +86,145 @@ describe("reminder delivery reconciliation writes", () => {
     expect(userEq).toHaveBeenCalledWith("user_id", "user-1");
     expect(statusEq).toHaveBeenCalledWith("status", "cancelled");
     expect(inIds).toHaveBeenCalledWith("id", ["delivery-1", "delivery-2"]);
+  });
+
+  it("batches and deduplicates array-ID mutations", async () => {
+    const inIds = vi.fn().mockResolvedValue({ error: null });
+    const processingIsNull = vi.fn().mockReturnValue({ in: inIds });
+    const statusEq = vi.fn().mockReturnValue({ is: processingIsNull });
+    const userEq = vi.fn().mockReturnValue({ eq: statusEq });
+    const update = vi.fn().mockReturnValue({ eq: userEq });
+    const from = vi.fn().mockReturnValue({ update });
+    const ids = Array.from({ length: 205 }, (_, index) => uuid(index));
+
+    await cancelUnclaimedPendingReminderDeliveriesById(
+      { from } as never,
+      "user-1",
+      [...ids, ids[0]!],
+    );
+
+    expect(inIds.mock.calls.map((call) => call[1])).toEqual([
+      ids.slice(0, 100),
+      ids.slice(100, 200),
+      ids.slice(200),
+    ]);
+  });
+
+  it("stops batched mutations and preserves the repository error", async () => {
+    const failure = { code: "PGRST000", message: "request failed" };
+    const inIds = vi
+      .fn()
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: failure });
+    const statusEq = vi.fn().mockReturnValue({ in: inIds });
+    const userEq = vi.fn().mockReturnValue({ eq: statusEq });
+    const update = vi.fn().mockReturnValue({ eq: userEq });
+    const from = vi.fn().mockReturnValue({ update });
+    const ids = Array.from({ length: 205 }, (_, index) => uuid(index));
+
+    await expect(
+      cancelPendingReminderDeliveriesForOccurrences(
+        { from } as never,
+        "user-1",
+        ids,
+      ),
+    ).rejects.toBe(failure);
+
+    expect(inIds).toHaveBeenCalledTimes(2);
+    expect(inIds.mock.calls.map((call) => call[1])).toEqual([
+      ids.slice(0, 100),
+      ids.slice(100, 200),
+    ]);
+  });
+
+  it("keeps large occurrence filters below the failed request size", async () => {
+    const requestedUrls: URL[] = [];
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input
+            : input.url,
+      );
+      requestedUrls.push(url);
+      return new Response("[]", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const client = createClient("https://example.supabase.co", "anon-key", {
+      global: { fetch: fetcher },
+    });
+    const ids = Array.from({ length: 479 }, (_, index) => uuid(index));
+
+    await expect(
+      listReminderDeliveriesByOccurrenceIds(
+        client as never,
+        uuid(999_999),
+        [...ids, ids[0]!],
+      ),
+    ).resolves.toEqual([]);
+
+    expect(requestedUrls).toHaveLength(5);
+    expect(
+      requestedUrls.map((url) => url.searchParams.get("occurrence_id")),
+    ).toEqual([
+      ids.slice(0, 100),
+      ids.slice(100, 200),
+      ids.slice(200, 300),
+      ids.slice(300, 400),
+      ids.slice(400),
+    ].map((batch) => `in.(${batch.join(",")})`));
+    expect(Math.max(...requestedUrls.map((url) => url.toString().length))).toBeLessThan(5_000);
+  });
+
+  it("paginates each batch and restores global delivery ordering", async () => {
+    const firstOccurrenceId = uuid(1);
+    const secondOccurrenceId = uuid(101);
+    const pagedRows = Array.from({ length: 1_001 }, (_, index) =>
+      reminderDelivery(
+        `paged-${index.toString().padStart(4, "0")}`,
+        firstOccurrenceId,
+        "2026-06-09T14:00:00Z",
+      ),
+    );
+    let requestIndex = 0;
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input
+            : input.url,
+      );
+      const occurrenceFilter = url.searchParams.get("occurrence_id") ?? "";
+      const rows = occurrenceFilter.includes(secondOccurrenceId)
+        ? [reminderDelivery("earliest", secondOccurrenceId, "2026-06-08T14:00:00Z")]
+        : requestIndex === 1
+          ? pagedRows.slice(1_000)
+          : pagedRows.slice(0, 1_000);
+      requestIndex += 1;
+      return new Response(JSON.stringify(rows), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const client = createClient("https://example.supabase.co", "anon-key", {
+      global: { fetch: fetcher },
+    });
+    const occurrenceIds = Array.from({ length: 101 }, (_, index) => uuid(index + 1));
+
+    const deliveries = await listReminderDeliveriesByOccurrenceIds(
+      client as never,
+      uuid(999_999),
+      occurrenceIds,
+    );
+
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(deliveries).toHaveLength(1_002);
+    expect(deliveries[0]?.id).toBe("earliest");
+    expect(deliveries.at(-1)?.id).toBe("paged-1000");
   });
 
   it("uses the same stale-claim predicate for due selection and claim update", async () => {

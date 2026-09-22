@@ -1,4 +1,8 @@
 import type { AppSupabaseClient } from "@/lib/db/behaviors.repo";
+import {
+  readAllPostgrestRows,
+  USER_SCOPED_READ_ABSOLUTE_CEILING,
+} from "@/lib/db/paginated-read";
 import { measurePerformanceSpan } from "@/lib/services/performance-timing";
 import type {
   NewReminderDelivery,
@@ -7,6 +11,9 @@ import type {
 } from "@/lib/types/database";
 
 const MAX_ERROR_LENGTH = 2000;
+const REMINDER_ID_FILTER_BATCH_SIZE = 100;
+const REMINDER_DELIVERY_CEILING_ERROR =
+  "Reminder deliveries exceed Cadence's absolute read ceiling of 100,000 rows.";
 
 export async function createMissingReminderDeliveries(
   supabase: AppSupabaseClient,
@@ -97,19 +104,21 @@ export async function cancelUnclaimedPendingReminderDeliveriesById(
     return;
   }
 
-  const { error } = await supabase
-    .from("reminder_deliveries")
-    .update({
-      status: "cancelled",
-      error: null,
-    })
-    .eq("user_id", userId)
-    .eq("status", "pending")
-    .is("processing_started_at", null)
-    .in("id", deliveryIds);
+  for (const deliveryIdBatch of reminderIdBatches(deliveryIds)) {
+    const { error } = await supabase
+      .from("reminder_deliveries")
+      .update({
+        status: "cancelled",
+        error: null,
+      })
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .is("processing_started_at", null)
+      .in("id", deliveryIdBatch);
 
-  if (error) {
-    throw error;
+    if (error) {
+      throw error;
+    }
   }
 }
 
@@ -122,20 +131,22 @@ export async function reactivateCancelledReminderDeliveriesById(
     return;
   }
 
-  const { error } = await supabase
-    .from("reminder_deliveries")
-    .update({
-      status: "pending",
-      sent_at: null,
-      processing_started_at: null,
-      error: null,
-    })
-    .eq("user_id", userId)
-    .eq("status", "cancelled")
-    .in("id", deliveryIds);
+  for (const deliveryIdBatch of reminderIdBatches(deliveryIds)) {
+    const { error } = await supabase
+      .from("reminder_deliveries")
+      .update({
+        status: "pending",
+        sent_at: null,
+        processing_started_at: null,
+        error: null,
+      })
+      .eq("user_id", userId)
+      .eq("status", "cancelled")
+      .in("id", deliveryIdBatch);
 
-  if (error) {
-    throw error;
+    if (error) {
+      throw error;
+    }
   }
 }
 
@@ -194,7 +205,9 @@ export async function listReminderDeliveriesByOccurrenceIds(
   userId: string,
   occurrenceIds: string[],
 ): Promise<ReminderDelivery[]> {
-  if (occurrenceIds.length === 0) {
+  const occurrenceIdBatches = reminderIdBatches(occurrenceIds);
+
+  if (occurrenceIdBatches.length === 0) {
     return [];
   }
 
@@ -203,23 +216,36 @@ export async function listReminderDeliveriesByOccurrenceIds(
       span: "db.list_reminder_deliveries_by_occurrence_ids",
       counts: (deliveries) => ({
         reminders: deliveries.length,
-        occurrences: occurrenceIds.length,
+        occurrences: occurrenceIdBatches.reduce(
+          (count, batch) => count + batch.length,
+          0,
+        ),
       }),
     },
     async () => {
-      const { data, error } = await supabase
-        .from("reminder_deliveries")
-        .select("*")
-        .eq("user_id", userId)
-        .in("occurrence_id", occurrenceIds)
-        .order("scheduled_send_at", { ascending: true })
-        .order("id", { ascending: true });
+      const deliveries: ReminderDelivery[] = [];
 
-      if (error) {
-        throw error;
+      for (const occurrenceIdBatch of occurrenceIdBatches) {
+        deliveries.push(
+          ...(await readAllPostgrestRows<ReminderDelivery>({
+            label: "Reminder delivery rows",
+            absoluteCeiling:
+              USER_SCOPED_READ_ABSOLUTE_CEILING - deliveries.length,
+            absoluteCeilingError: REMINDER_DELIVERY_CEILING_ERROR,
+            getRowKey: (delivery) => delivery.id,
+            createQuery: () =>
+              supabase
+                .from("reminder_deliveries")
+                .select("*")
+                .eq("user_id", userId)
+                .in("occurrence_id", occurrenceIdBatch)
+                .order("scheduled_send_at", { ascending: true })
+                .order("id", { ascending: true }),
+          })),
+        );
       }
 
-      return data ?? [];
+      return deliveries.sort(compareReminderDeliveries);
     },
   );
 }
@@ -388,19 +414,46 @@ export async function cancelPendingReminderDeliveriesForOccurrences(
       },
     },
     async () => {
-      const { error } = await supabase
-        .from("reminder_deliveries")
-        .update({
-          status: "cancelled",
-          error: null,
-        })
-        .eq("user_id", userId)
-        .eq("status", "pending")
-        .in("occurrence_id", occurrenceIds);
+      for (const occurrenceIdBatch of reminderIdBatches(occurrenceIds)) {
+        const { error } = await supabase
+          .from("reminder_deliveries")
+          .update({
+            status: "cancelled",
+            error: null,
+          })
+          .eq("user_id", userId)
+          .eq("status", "pending")
+          .in("occurrence_id", occurrenceIdBatch);
 
-      if (error) {
-        throw error;
+        if (error) {
+          throw error;
+        }
       }
     },
   );
+}
+
+function reminderIdBatches(ids: string[]): string[][] {
+  const uniqueIds = [...new Set(ids)];
+  const batches: string[][] = [];
+
+  for (
+    let start = 0;
+    start < uniqueIds.length;
+    start += REMINDER_ID_FILTER_BATCH_SIZE
+  ) {
+    batches.push(uniqueIds.slice(start, start + REMINDER_ID_FILTER_BATCH_SIZE));
+  }
+
+  return batches;
+}
+
+function compareReminderDeliveries(
+  left: ReminderDelivery,
+  right: ReminderDelivery,
+): number {
+  const scheduledOrder =
+    Date.parse(left.scheduled_send_at) - Date.parse(right.scheduled_send_at);
+
+  return scheduledOrder || left.id.localeCompare(right.id);
 }

@@ -11,6 +11,8 @@ import type {
 } from "@/lib/types/database";
 
 const ARBITRARY_ID_BATCH_SIZE = 2_000;
+// GET filters must stay below HTTP header limits; RPC IDs travel in the POST body.
+const OCCURRENCE_ID_FILTER_BATCH_SIZE = 100;
 const ALL_TIME_START_LOCAL_DATE = "0001-01-01";
 const TIME_SESSION_CEILING_ERROR =
   "Time-session history exceeds Cadence's absolute read ceiling of 100,000 rows.";
@@ -53,11 +55,11 @@ export async function listOccurrenceIdsWithTimeSessions(
       for (
         let batchStart = 0;
         batchStart < occurrenceIds.length;
-        batchStart += ARBITRARY_ID_BATCH_SIZE
+        batchStart += OCCURRENCE_ID_FILTER_BATCH_SIZE
       ) {
         const occurrenceIdBatch = occurrenceIds.slice(
           batchStart,
-          batchStart + ARBITRARY_ID_BATCH_SIZE,
+          batchStart + OCCURRENCE_ID_FILTER_BATCH_SIZE,
         );
         batchCount += 1;
 

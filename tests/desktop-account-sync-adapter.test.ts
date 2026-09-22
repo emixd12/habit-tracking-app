@@ -83,7 +83,16 @@ describe("desktop account sync adapter", () => {
 
   it("normalizes a first-link portability snapshot before fingerprinting it", () => {
     const normalized = normalizeAccountSyncBaseline(emptyPortabilitySnapshot());
-    expect(normalized).toEqual({ entities: [{ kind: "profile", id: "profile", value: { timezone: "America/New_York" } }] });
+    expect(normalized).toEqual({ entities: [{ kind: "profile", id: "profile", value: {
+      timezone: "America/New_York",
+      travel_enabled: false,
+      base_location_text: null,
+      travel_mode: null,
+      navigation_preference: null,
+      routing_consent_at: null,
+      onboarding_completed_at: null,
+      updated_at: "2026-06-08T16:00:00Z",
+    } }] });
     expect(accountSyncFingerprint(normalized)).toBe(digest);
   });
 

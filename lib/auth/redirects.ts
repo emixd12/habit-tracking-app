@@ -6,6 +6,29 @@ export const MISSING_CONFIG_ERROR = "missing_supabase_config";
 
 type RedirectParam = string | string[] | null | undefined;
 
+export function authRequestUrl(request: {
+  url: string;
+  headers: Headers;
+}): URL {
+  const url = new URL(request.url);
+  const host = request.headers.get("host");
+
+  // Next.js normalizes loopback URLs and may substitute the server's bind address.
+  // Recover only the same-port, approved local origin; never trust arbitrary hosts.
+  if (
+    process.env.NODE_ENV === "development" &&
+    url.protocol === "http:" &&
+    ["localhost", "127.0.0.1"].includes(url.hostname) &&
+    host &&
+    /^(localhost|127\.0\.0\.1):43(2[1-9]|30)$/.test(host) &&
+    host.endsWith(`:${url.port}`)
+  ) {
+    url.host = host;
+  }
+
+  return url;
+}
+
 function firstParamValue(value: RedirectParam) {
   return Array.isArray(value) ? value[0] : value;
 }

@@ -40,6 +40,8 @@ export type AdvisorOccurrenceRow = Readonly<{
 }>;
 
 export type AdvisorHistoryOccurrenceRow = Readonly<{
+  /** Absent until the snapshot migration is deployed. Never substitute updatedAt. */
+  statusMarkedAt?: string | null;
   id: string;
   behaviorId: string;
   localDate: string;
@@ -160,6 +162,7 @@ function parseSnapshot(value: unknown): AdvisorCadenceSnapshot {
         behaviorId: string(occurrence.behaviorId, "historyOccurrence.behaviorId"),
         localDate: string(occurrence.localDate, "historyOccurrence.localDate"),
         status: string(occurrence.status, "historyOccurrence.status"),
+        ...("statusMarkedAt" in occurrence ? { statusMarkedAt: nullableString(occurrence.statusMarkedAt, "historyOccurrence.statusMarkedAt") } : {}),
       };
     }),
     historySessions: list(row.historySessions, "historySessions").map((item) => {

@@ -183,3 +183,37 @@ The old GET is retained as an explicitly disabled compatibility boundary.
 Ticket 148 invokes generation at Timeline opening and displays the horse bubble.
 Enablement, invocation, dismissal and retry are registered in the interaction catalog. The complete
 contract remains `docs/plans/first-external-consumer.md`.
+
+### Internal briefing comparisons (Tickets 151–155)
+
+`/design-system?preview=briefing-workbench` renders Synthetic and My account modes.
+`GET/POST /api/dev/briefing-comparison` call `briefing-workbench.service.ts`.
+Both require development mode, loopback ports 4321–4330 and same-origin Fetch
+Metadata. POST additionally requires matching Origin and JSON content type.
+Production returns 404. GET uses existing sign-in and returns current briefing
+access plus authorized Behavior labels only; it never captures context or generates.
+POST accepts either a known fixture ID plus two validated configurations, or exact
+fields `mode: "account"`, `accountRef`, `preferenceRevision` and two configurations.
+The expected account reference is a mismatch guard, never an owner selector.
+Account mode authenticates through the existing first-party request boundary and
+uses revocable briefing/Calendar consent. One capture supplies both history windows.
+Responses use no-store; credentials, raw database IDs and raw history stay server-side.
+Synthetic mode uses no account reads. Neither mode uses daily generation admission.
+
+## Travel routing boundary (Tickets 163 and 165)
+
+`GET /api/travel/routes` authenticates the current account and returns only whether
+the operator clearance and server credential are configured. Clients must check it
+before requesting a device location. `POST /api/travel/routes` is `no-store` and
+accepts a one- or two-local-day range, one bounded transient device sample, and up
+to eight corrected Calendar-event facts. The server derives the owner, settings,
+optional Calendar snapshot, Behavior occurrences, source revisions, selected mode,
+and endpoints. It rejects a
+clearance-disabled request before reading its body or any route source.
+
+The route never accepts an owner ID, API key, provider URL, raw route result, or
+chosen fallback mode. It returns the account-bound mode, navigation preference,
+settings revision, earliest expiry, and endpoint-free travel evidence. The service
+rechecks settings, Behavior and Occurrence revisions, and Calendar connection and
+event revisions before and after provider work. It makes no tracking, Calendar, Behavior, Occurrence, or
+Daily Brief mutation.

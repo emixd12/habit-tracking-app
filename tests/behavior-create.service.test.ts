@@ -101,6 +101,7 @@ describe("createBehaviorFromFormData", () => {
         behavior: expect.objectContaining({
           user_id: USER_ID,
           title: "Brush teeth",
+          location_text: null,
           category_id: CATEGORY_ID,
           scheduled_time: "07:30",
           timezone: "America/New_York",
@@ -119,6 +120,7 @@ describe("createBehaviorFromFormData", () => {
           eventKind: "baseline",
           changedFields: [
             "category_id",
+            "location_text",
             "schedule_graph",
             "browser_reminder_enabled",
             "email_reminder_enabled",

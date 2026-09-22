@@ -1,4 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
+import type { TravelOccupiedSegment } from "../types/travel";
 
 import type {
   DayProgressDayGeometry,
@@ -20,6 +21,7 @@ export function resolveDayProgressLayout(input: Readonly<{
   /** Shared range origin when days are measured in separate UI components. */
   firstVisibleDate?: string;
   events?: NormalizedExternalEvent[];
+  travelSegments?: readonly TravelOccupiedSegment[];
   now?: Temporal.Instant;
   minIconSpacing?: number;
   maxIconLanes?: 1 | 2;
@@ -81,6 +83,7 @@ export function resolveDayProgressLayout(input: Readonly<{
       input.now,
       minIconSpacing,
       day.localDate === firstVisibleDate,
+      input.travelSegments ?? [],
     );
   });
 
@@ -94,6 +97,7 @@ function resolveDay(
   now: Temporal.Instant | undefined,
   minIconSpacing: number,
   includeContinuingMarkers: boolean,
+  travelSegments: readonly TravelOccupiedSegment[],
 ): DayProgressDayLayout {
   validateGeometry(day);
   const date = parseDate(day.localDate, "Day-progress local date");
@@ -225,6 +229,15 @@ function resolveDay(
     sameTimeBrackets,
     movingDot,
     timedEventSpans: rawSpans.map((span) => markersById.get(span.eventId) ?? span),
+    travelSpans: travelSegments.flatMap((segment) => {
+      const start = parseInstant(segment.startAt, "Travel segment start");
+      const end = parseInstant(segment.endAt, "Travel segment end");
+      if (Temporal.Instant.compare(start, end) >= 0) throw new Error("Travel segments must have positive duration.");
+      if (Temporal.Instant.compare(start, dayEnd) >= 0 || Temporal.Instant.compare(end, dayStart) <= 0) return [];
+      return [{ segmentId: segment.id, sourceRefs: segment.sourceRefs,
+        startPosition: mapPosition(Temporal.Instant.compare(start, dayStart) < 0 ? dayStart : start),
+        endPosition: mapPosition(Temporal.Instant.compare(end, dayEnd) > 0 ? dayEnd : end) }];
+    }),
     requiredIconHeight,
     iconLayoutOverflow,
     allDayEventIds,

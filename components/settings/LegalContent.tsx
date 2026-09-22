@@ -38,7 +38,7 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
     title: "Privacy",
     summary:
       "Privacy policy for the Cadence marketing site and hosted personal behavior tracker.",
-    updated: "September 17, 2026",
+    updated: "September 21, 2026",
     sections: [
       {
         title: "Scope and operator",
@@ -78,6 +78,14 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
         paragraphs: [
           `Cadence provides ${exportFormats.join(", ")} exports. The user chooses when and where to download or share an export.`,
           "Cadence provides prepared prompts, but it does not send behavior data to an AI provider. If a user shares an export or prompt with an external AI service, that service's terms and privacy policy govern its processing.",
+        ],
+      },
+      {
+        title: "Travel routing",
+        paragraphs: [
+          "Travel routing is disabled in the current release. Cadence does not send locations to a routing provider while it is disabled. An explicit device-location permission check may read one foreground sample on this device and does not send that sample anywhere.",
+          "Before a future release can enable travel routing, Cadence must obtain separate routing consent. The feature would use a selected transport mode and a foreground current location only when permitted. An optional saved base would support final-return estimates. Cadence would send only route endpoints, selected mode, and route time to Google Maps. It would not send Calendar titles, notes, emails, account IDs, Calendar credentials, or raw Calendar payloads.",
+          "Cadence keeps current user-authored locations until the user edits or removes them. Behavior configuration history and existing backups can retain earlier locations. It would not store device samples, geocodes, or route responses in Cadence sync, exports, backups, analytics, or logs. Disabling routing would stop new requests and clear transient travel evidence. A routing provider may process requests under its own terms and retention policies.",
         ],
       },
       {
@@ -233,7 +241,7 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
     title: "Terms",
     summary:
       "Terms for the hosted Cadence personal behavior tracker.",
-    updated: "August 31, 2026",
+    updated: "September 21, 2026",
     sections: [
       {
         title: "Acceptance and operator",
@@ -270,6 +278,13 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPage>> = {
         paragraphs: [
           `Cadence provides ${exportFormats.join(", ")} exports. The user is responsible for safeguarding downloaded files and deciding whether to share them.`,
           "Cadence may provide prepared prompts. The user selects any external AI service and sends data independently. Cadence does not send behavior data to an AI provider, and external services operate under their own terms and privacy policies.",
+        ],
+      },
+      {
+        title: "Travel routing limits",
+        paragraphs: [
+          "Travel routing is disabled in the current release. If Cadence later enables it with separate consent, route estimates will be planning information only. They can be unavailable, late, incomplete, or wrong and do not promise a route, arrival time, transit connection, parking, accessibility, or safety.",
+          "A user must not rely on Cadence travel estimates for emergency response, safety-critical travel, medical care, legal deadlines, or navigation. The user remains responsible for choosing a route and checking current conditions.",
         ],
       },
       {

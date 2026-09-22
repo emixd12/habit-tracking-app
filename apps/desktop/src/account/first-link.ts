@@ -4,6 +4,7 @@ import { sha256 } from "@cadence/core/hash";
 import { resolveBehaviorLogImportMergePreview } from "@cadence/core/resolvers/behaviorlog-import.resolver";
 import { assembleBehaviorLogExistingRecords } from "@cadence/core/services/behaviorlog-existing";
 import { graphRecord } from "@cadence/core/services/behaviorlog-write-plan";
+import { firstLinkIncludesTravel, preparePrivateFirstLinkImport } from "@cadence/core/services/first-account-link";
 import type { BehaviorLogFile } from "@cadence/core/types/export";
 import type { BehaviorLogImportMergePreviewResult } from "@cadence/core/types/behaviorlog-import";
 import type { PortabilitySnapshot } from "@cadence/core/types/portability-rows";
@@ -83,12 +84,14 @@ export async function finishReviewedFirstAccountLink(input: { client: SupabaseCl
     localCommand("readImportSnapshot", { profileId: input.profileId }),
     readHostedSnapshot(input.client, input.reviewed.inputs.accountLinkId),
   ]);
-  const current: AccountSyncInputs = { ...input.reviewed.inputs, local: { entities: portabilityEntities(local) }, hosted: { fingerprint: hosted.fingerprint, entities: hosted.entities },
+  const rawLocal = { entities: portabilityEntities(local) };
+  const privateImport = input.reviewed.attempt.choice === "import" && firstLinkIncludesTravel(parseAccountSyncSnapshot(input.reviewed.attempt.preAttemptBaselineJson));
+  const current: AccountSyncInputs = { ...input.reviewed.inputs, local: privateImport ? preparePrivateFirstLinkImport(rawLocal, hosted).local : rawLocal, hosted: { fingerprint: hosted.fingerprint, entities: hosted.entities },
     hostedFingerprint: hosted.fingerprint, outboxHighWater: local.revision };
   const plan = resolveReviewedAccountSync({ ...current, firstLink: true, reviewedFingerprints: {
     baseline: accountSyncFingerprint(input.reviewed.inputs.baseline), local: accountSyncFingerprint(input.reviewed.inputs.local), hosted: input.reviewed.inputs.hostedFingerprint,
   }, decisions: input.decisions, noteShortcutExclusionPolicy: input.reviewed.attempt.choice === "import" ? "preserve" : "discard_local" });
-  const localReplacement = resolveFirstLinkReplacement({ ...current, hosted: { entities: plan.mergedEntities } });
+  const localReplacement = resolveFirstLinkReplacement({ ...current, local: rawLocal, hosted: { entities: plan.mergedEntities } });
   const reviewedPlan: AccountSyncPlan = { ...plan, localWrites: localReplacement.localWrites };
   const applied = await applyFirstLinkPlan(input.client, input.profileId, current, reviewedPlan, { hostedUserId: current.accountLinkId,
     choice: input.reviewed.attempt.choice, attemptId: input.reviewed.attempt.attemptId,
@@ -111,6 +114,7 @@ async function run({ client, profile, hostedUserId, choice, attemptId: requested
   assertFirstLinkLocalUnchanged(proposedLocalFingerprint, localFingerprint);
   return commitFirstLink(choice, {
     importHosted: async () => {
+      if (firstLinkIncludesTravel(parseAccountSyncSnapshot(savedPreAttemptBaselineJson))) return { conflictCount: 0 };
       const files = (await getLocalExportPageData(profile, { range: "all", includeArchived: true, includeNotes: true, includeTimeTracking: true })).behaviorLog.files;
       const preview = resolveBehaviorLogImportMergePreview({ files, existing: existingRecordsFromHostedEnvelope(initialHosted), reminderChannel: "browser_push" });
       const conflictCount = preview.mergePreview.conflictCount || preview.errors.length;
@@ -209,11 +213,15 @@ export async function reconcileLocalFromHosted(client: SupabaseClient, profileId
   attemptId: string, localFingerprint: string, hostedFingerprint: string, backupPath: string | null, preAttemptBaselineJson: string) {
   const localSnapshot: AccountSyncSnapshot = { entities: portabilityEntities(local) };
   const hostedSnapshot: AccountSyncSnapshot = { fingerprint: hosted.fingerprint, entities: hosted.entities };
-  const baseline = firstLinkAccountSyncBaseline(parseAccountSyncSnapshot(preAttemptBaselineJson), choice);
-  const { inputs, plan } = planFirstLinkReconciliation({ accountLinkId: hostedUserId, baseline, local: localSnapshot, hosted: hostedSnapshot, choice,
+  const original = parseAccountSyncSnapshot(preAttemptBaselineJson);
+  const privateImport = choice === "import" && firstLinkIncludesTravel(original);
+  const prepared = privateImport ? preparePrivateFirstLinkImport(localSnapshot, hostedSnapshot) : null;
+  const baseline = prepared?.baseline ?? firstLinkAccountSyncBaseline(original, choice);
+  const { inputs, plan } = planFirstLinkReconciliation({ accountLinkId: hostedUserId, baseline, local: prepared?.local ?? localSnapshot, hosted: hostedSnapshot, choice,
     localUnchanged: !localChangedSinceFirstLinkAttempt(local, localFingerprint), outboxHighWater: local.revision });
   if (plan.conflicts.length) return { inputs, conflicts: plan.conflicts };
-  const applied = await applyFirstLinkPlan(client, profileId, inputs, plan, { hostedUserId, choice, attemptId,
+  const localWrites = privateImport ? resolveFirstLinkReplacement({ ...inputs, local: localSnapshot, hosted: { entities: plan.mergedEntities } }).localWrites : plan.localWrites;
+  const applied = await applyFirstLinkPlan(client, profileId, inputs, { ...plan, localWrites }, { hostedUserId, choice, attemptId,
     localFingerprint, hostedFingerprint, expectedRevision: local.revision, backupPath });
   return { baseline: applied.snapshot };
 }

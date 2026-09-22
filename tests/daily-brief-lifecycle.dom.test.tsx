@@ -64,7 +64,7 @@ it("preserves pending and ready briefings when focus returns to an unchanged acc
   expect(container.textContent).toContain("Keep this briefing");
   expect(request).toHaveBeenCalledTimes(1);
 });
-it.each(["accountRef", "localDate", "timezone", "revision", "enabled", "unavailable"])("withdraws the briefing when focus detects a changed %s", async (field) => {
+it.each(["accountRef", "localDate", "timezone", "revision", "configurationRevision", "enabled", "unavailable"])("withdraws the briefing when focus detects a changed %s", async (field) => {
   const adapter = client("owner");
   const initial = await adapter.preferences();
   const preferences = vi.fn().mockResolvedValue(initial);
@@ -86,4 +86,37 @@ it("keeps explicit retry available after a pending lease without automatic polli
   await act(() => retry().click());
   expect(request).toHaveBeenCalledTimes(3);
   expect(container.textContent).toContain("Recovered briefing");
+});
+
+it.each([false, true])("preserves daily admission and dismissal across rollout and rollback (dismissed=%s)", async (dismissed) => {
+  const request = vi.fn(async () => ready("Reviewed briefing", 120_000));
+  const adapter = client("owner", request);
+  const settings = await adapter.preferences();
+  const preferences = vi.fn().mockResolvedValue({ ...settings, configurationRevision: "before" });
+  await act(() => root.render(<DailyBriefLauncher client={{ ...adapter, preferences }} />));
+  if (dismissed) await act(() => container.querySelector<HTMLButtonElement>('[aria-label="Dismiss Daily Brief"]')!.click());
+  const key = "cadence.daily-brief.presentation.v1:owner:2026-09-20";
+  const admission = localStorage.getItem(key);
+  expect(JSON.parse(admission!)).toMatchObject({ attempted: true, dismissed });
+  for (const configurationRevision of ["after", "before"]) {
+    preferences.mockResolvedValue({ ...settings, configurationRevision });
+    await act(() => window.dispatchEvent(new Event("focus")));
+    await act(() => root.render(null));
+    await act(() => root.render(<DailyBriefLauncher client={{ ...adapter, preferences }} />));
+    expect(container.textContent).toBe("");
+    expect(localStorage.getItem(key)).toBe(admission);
+    expect(request).toHaveBeenCalledTimes(1);
+  }
+});
+
+it("keeps offline desktop tracking free from generation attempts", async () => {
+  vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+  const preferences = vi.fn(), requestBrief = vi.fn();
+  try {
+    await act(() => root.render(<DailyBriefLauncher desktop client={{ ...client("owner"), preferences, requestBrief }} />));
+    expect(container.textContent).toBe("");
+    expect(preferences).not.toHaveBeenCalled();
+    expect(requestBrief).not.toHaveBeenCalled();
+    expect(localStorage.length).toBe(0);
+  } finally { vi.restoreAllMocks(); }
 });

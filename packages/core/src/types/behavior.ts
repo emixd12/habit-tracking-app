@@ -40,6 +40,7 @@ export type BehaviorView = {
   id: string;
   title: string;
   description: string;
+  locationText?: string | null;
   categoryId: string;
   categoryName: string;
   recurrenceSummary: string;
@@ -72,6 +73,7 @@ export const BEHAVIOR_FORM_FIELDS = [
   "behavior_id",
   "title",
   "description",
+  "location_text",
   "default_duration_minutes",
   "end_date",
   "category_id",

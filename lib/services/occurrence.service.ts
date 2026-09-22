@@ -347,6 +347,7 @@ export async function syncUserOccurrences(
         await markOccurrenceSyncFreshForPlans(supabase, {
           userId,
           plans,
+          coverageWindows: plans.flatMap((plan, index) => behaviors[index]!.active ? [plan.generationWindow] : []),
           fallbackWindow,
           syncedAt: now.toString(),
           timezone: syncTimezone,

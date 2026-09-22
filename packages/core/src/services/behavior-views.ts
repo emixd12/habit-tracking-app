@@ -33,6 +33,7 @@ export function toBehaviorView(behavior: BehaviorGraphRecord): BehaviorView {
     autoArchivedAt: behavior.auto_archived_at ?? null,
     title: behavior.title,
     description: behavior.description ?? "",
+    locationText: behavior.location_text ?? null,
     categoryId: behavior.category_id ?? "",
     categoryName: behavior.category?.name ?? "No category",
     recurrenceSummary:
