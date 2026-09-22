@@ -89,6 +89,14 @@ ran. Concurrent travel changes are preserved. Evidence and limits:
 
 ## Tickets 162–165 travel implementation — September 22, 2026
 
+Release candidate PR #58 (`codex/travel-release-2026-09-22`) now carries the full
+travel implementation, the preserved-lineage Daily Brief hotfix and the briefing
+workbench. On the branch: all seven required checks, 2,173 Vitest tests (29 existing
+skips), web production build, desktop typecheck/build and 108 native tests pass.
+Production travel environment is configured with routing clearance disabled. The PR
+is not merged; merge, hosted runtime, private-account and installed-macOS acceptance
+remain open.
+
 The normal Daily Brief retry now succeeds. Isolated deployment
 `dpl_6JTeeGQ7kZFdZ252AfoGMnHydu9L` contains released `362eb97e` plus the
 preserved-lineage context fix and regression only. Promotion completed September

@@ -11883,6 +11883,9 @@ Scope and acceptance:
 References: `docs/plans/travel-departure-discovery.md`, `docs/INTEGRATION_PLAYBOOK.md`,
 `docs/OPERATIONS.md`, `docs/qa/day-progress-release.md`, `docs/qa/in-app-daily-brief.md`.
 
+Release candidate: PR #58 on `codex/travel-release-2026-09-22` (September 22, 2026),
+unmerged; branch checks, builds and native tests pass.
+
 Implementation evidence and remaining gates: `docs/qa/travel-release.md`,
 `components/settings/LegalContent.tsx`, `docs/user-guide/travel.md` and the
 travel rollback section in `docs/OPERATIONS.md`. The owner authorized USA billing,
