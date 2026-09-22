@@ -100,6 +100,10 @@ designed. Acceptance exposed a geocode filter defect: precise rooftop venues typ
 exclusion replaces the whitelist; the stale Settings sentence is removed. Installed
 macOS travel acceptance still awaits the owner's signed preview.43 build.
 PR #59 (`049cbf0f`) shipped the geocode fix; production `cadence-m9a49eeqx` is Ready.
+Owner web use exhausted the six-per-day owner quota within minutes because every
+Timeline focus change refreshed; the client showed the generic unavailable message.
+Ticket 166 covers view reuse, zero-leg admission, a 24/day owner limit, per-code
+messages and in-click device-location onboarding.
 
 Release candidate PR #58 (`codex/travel-release-2026-09-22`) now carries the full
 travel implementation, the preserved-lineage Daily Brief hotfix and the briefing
