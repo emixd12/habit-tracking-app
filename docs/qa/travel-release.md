@@ -313,3 +313,32 @@ the routes endpoint still reports `configured: true`. A live venue-geocode
 re-check on production awaits the next owner local day because the owner
 counter is at its daily limit; unit tests and the local v3 probe confirm both
 venues resolve. Installed-macOS travel acceptance remains the only open gate.
+
+## Installed macOS acceptance — September 22, 2026
+
+Preview.43 was built from merged main with the owner's signing and updater
+environment, passed DMG, updater-archive and signature verification, and replaced
+the installed preview.42 after a fresh database backup (integrity and foreign-key
+checks pass) and a rollback zip of the previous app. The old preview.42 process was
+still running from the morning; it was quit cleanly before the first preview.43
+launch. Cold start applied local migration 16 and created the travel settings
+table. The account remained signed in and Calendar markers loaded.
+
+Defect: Settings showed `The account snapshot rewrites append-only history.` and
+account synchronization stopped. Cause: hosted migration
+`20260922010000_add_travel_settings.sql` canonicalized every existing
+`behavior_configuration_events` row (`location_text: null` in both configurations;
+`location_text` appended to baseline `changed_fields`), while the desktop copy and
+its saved sync baseline hold the pre-travel shape. The planner compares history
+entities exactly, so every configuration event looked rewritten. Fix: the planner
+canonicalizes configuration events before comparison, and local migration 0017
+applies the same canonicalization to SQLite. Fingerprints and write shapes are
+unchanged. Regression tests cover the false positive and a real rewrite.
+
+The installed Travel panel renders. `Check device location permission` returned
+`Location unavailable` without a macOS prompt; System Settings lists Cadence.app
+under Location Services switched off. Whether macOS reports denied or not
+determined for that state, and why no prompt appeared for the ad hoc signed
+preview, remains open. The panel shows `Saving…` on the Save link during the
+permission check; that copy is a follow-up. Owner re-acceptance continues after
+the toggle and the next preview build.

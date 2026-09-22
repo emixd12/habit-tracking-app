@@ -1497,6 +1497,8 @@ fn passive_intervention_migration_preserves_history_provenance_and_revision_afte
     }))
     .unwrap();
     db::insert(&fixture.db, &fixture.profile, &reminder).unwrap();
+    // Canonicalize configuration history up front; the full migrate below re-runs 0017 as a no-op.
+    fixture.db.execute_batch(db::MIGRATIONS[16].2).unwrap();
     let before = import::snapshot(&fixture.db, &fixture.profile).unwrap();
     let outbox = |db: &Connection| -> String {
         db.query_row("SELECT json_group_array(json_array(sequence,mutation_id,user_id,operation,request_json,result_json,created_at,synced_at)) FROM (SELECT * FROM mutation_outbox ORDER BY sequence)", [], |row| row.get(0)).unwrap()
@@ -1985,4 +1987,48 @@ fn category_upgrade_preserves_duplicate_ids_and_rejects_invalid_new_names() {
         db::by_id::<Category>(&reopened, &fixture.profile, &id(601)).unwrap(),
         category
     );
+}
+
+#[test]
+fn configuration_location_migration_canonicalizes_pre_travel_history() {
+    let mut fixture = Fixture::at_schema(db::MIGRATIONS.len() - 1);
+    fixture.create();
+    fixture
+        .db
+        .execute_batch(
+            "DROP TRIGGER behavior_configuration_events_append_only;
+             UPDATE behavior_configuration_events SET
+               next_configuration = json_remove(next_configuration, '$.location_text', '$.locationText'),
+               changed_fields = (SELECT json_group_array(value) FROM json_each(changed_fields) WHERE value NOT IN ('location_text'));
+             INSERT INTO behavior_configuration_events
+               SELECT behavior_id, '[\"active\"]', created_at, effective_at, effective_local_date, 'revision',
+                 'revision-event', next_configuration, json_set(next_configuration, '$.active', json('false')), reason_code, recorded_at, source, timezone, user_id
+               FROM behavior_configuration_events WHERE event_kind = 'baseline';
+             CREATE TRIGGER behavior_configuration_events_append_only BEFORE UPDATE ON behavior_configuration_events BEGIN SELECT RAISE(ABORT, 'History rows are append-only.'); END;",
+        )
+        .unwrap();
+    db::migrate(&mut fixture.db, db::MIGRATIONS).unwrap();
+    let rows: Vec<(String, Option<String>, String, String)> = fixture
+        .db
+        .prepare("SELECT event_kind, previous_configuration, next_configuration, changed_fields FROM behavior_configuration_events ORDER BY event_kind")
+        .unwrap()
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))
+        .unwrap()
+        .map(|row| row.unwrap())
+        .collect();
+    assert_eq!(rows.len(), 2);
+    for (kind, previous, next, fields) in rows {
+        let next: Value = serde_json::from_str(&next).unwrap();
+        assert_eq!(next["location_text"], Value::Null);
+        assert!(next.as_object().unwrap().contains_key("location_text"));
+        let fields: Vec<String> = serde_json::from_str(&fields).unwrap();
+        if kind == "baseline" {
+            assert_eq!(fields.last().map(String::as_str), Some("location_text"));
+            assert_eq!(fields.iter().filter(|field| *field == "location_text").count(), 1);
+        } else {
+            assert_eq!(fields, vec!["active".to_string()]);
+            let previous: Value = serde_json::from_str(&previous.unwrap()).unwrap();
+            assert!(previous.as_object().unwrap().contains_key("location_text"));
+        }
+    }
 }
