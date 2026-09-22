@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACCOUNT_SYNC_ROW_LIMIT, accountSyncFingerprint, resolveAccountSync, resolveFirstLinkReplacement, resolveReviewedAccountSync, type AccountSyncEntity, type AccountSyncSnapshot } from "@cadence/core/resolvers/account-sync.resolver";
+import type { Json } from "@cadence/core/types/json";
 
 const row = (id: string, title: string, user_id = "owner"): AccountSyncEntity => ({ kind: "behavior", id, value: { id, title, user_id } });
 const history = (id: string, occurrence: string, predecessor: string | null, status = "completed"): AccountSyncEntity => ({ kind: "status_event", id, value: { id, occurrence_id: occurrence, revises_event_id: predecessor, status, user_id: "owner" } });
@@ -709,5 +710,35 @@ describe("Behavior persistence fields in account synchronization", () => {
     { auto_archived_at: "2026-09-18T00:00:00Z", active: true, archived_at: null },
   ])("rejects invalid persistence values %#", (invalid) => {
     expect(() => plan(empty, behavior(invalid), empty)).toThrow(/Behavior|archive marker/);
+  });
+});
+
+describe("hosted travel canonicalization of configuration history (September 22, 2026)", () => {
+  const graph = [{ recurrenceRule: { frequency: "daily", interval: 1 }, sortOrder: 0 }];
+  const config = (active: boolean, schedule: unknown = graph): { [key: string]: Json } => ({ category_id: null, schedule_graph: schedule as Json, active, timezone: "UTC" });
+  const baselineEvent = (canonical: boolean): AccountSyncEntity => ({ kind: "configuration_event", id: "config-baseline", value: {
+    id: "config-baseline", behavior_id: "b", event_kind: "baseline", previous_configuration: null,
+    next_configuration: canonical ? { ...config(true), location_text: null } : config(true),
+    changed_fields: canonical ? ["category_id", "schedule_graph", "location_text"] : ["category_id", "schedule_graph"] } });
+  const revisionEvent = (canonical: boolean, schedule: unknown = graph): AccountSyncEntity => ({ kind: "configuration_event", id: "config-revision", value: {
+    id: "config-revision", behavior_id: "b", event_kind: "revision",
+    previous_configuration: canonical ? { ...config(true, schedule), location_text: null } : config(true, schedule),
+    next_configuration: canonical ? { ...config(false, schedule), location_text: null } : config(false, schedule),
+    changed_fields: ["active"] } });
+  const behaviorRow: AccountSyncEntity = { kind: "behavior", id: "b", value: { id: "b", title: "Behavior", status: "active" } };
+
+  it("accepts canonicalized hosted rows against pre-travel baseline and local rows without writes", () => {
+    const preTravel = snapshot([behaviorRow, baselineEvent(false), revisionEvent(false)]);
+    const hosted = snapshot([behaviorRow, baselineEvent(true), revisionEvent(true)]);
+    const result = plan(preTravel, preTravel, hosted);
+    expect(result.conflicts.filter((item) => item.reason === "history_rewrite")).toEqual([]);
+    const touched = [...result.localWrites, ...result.hostedWrites].filter((write) => write.kind === "configuration_event");
+    expect(touched).toEqual([]);
+  });
+
+  it("still rejects a hosted configuration event whose schedule_graph differs", () => {
+    const preTravel = snapshot([behaviorRow, baselineEvent(false), revisionEvent(false)]);
+    const hosted = snapshot([behaviorRow, baselineEvent(true), revisionEvent(true, [{ recurrenceRule: { frequency: "daily", interval: 2 }, sortOrder: 0 }])]);
+    expect(() => plan(preTravel, preTravel, hosted)).toThrow("The account snapshot rewrites append-only history.");
   });
 });

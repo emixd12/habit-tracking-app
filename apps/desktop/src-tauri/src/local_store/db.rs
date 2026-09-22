@@ -97,6 +97,11 @@ pub(super) const MIGRATIONS: &[(i64, &str, &str)] = &[
         "travel_settings",
         include_str!("../../migrations/0016_travel_settings.sql"),
     ),
+    (
+        17,
+        "canonicalize_configuration_location",
+        include_str!("../../migrations/0017_canonicalize_configuration_location.sql"),
+    ),
 ];
 
 pub fn open(path: &Path) -> Result<Connection> {

@@ -523,7 +523,22 @@ function field(value: Json, key: string): string | null {
   const candidate = value[key];
   return typeof candidate === "string" ? candidate : null;
 }
-function same(left: AccountSyncEntity | null, right: AccountSyncEntity | null): boolean { return left === right || (left !== null && right !== null && canonical(comparableValue(left.value)) === canonical(comparableValue(right.value))); }
+function same(left: AccountSyncEntity | null, right: AccountSyncEntity | null): boolean { return left === right || (left !== null && right !== null && canonical(comparableValue(sameShape(left))) === canonical(comparableValue(sameShape(right)))); }
+// The September 22, 2026 hosted travel migration canonicalized every configuration event:
+// configurations gained `location_text: null` and baseline changed_fields gained "location_text".
+// Compare pre-travel local/baseline rows in that canonical shape; fingerprints keep raw values.
+function sameShape(entity: AccountSyncEntity): Json {
+  const value = entity.value;
+  if (entity.kind !== "configuration_event" || !value || Array.isArray(value) || typeof value !== "object") return value;
+  const next: Record<string, Json | undefined> = { ...value };
+  for (const key of ["previous_configuration", "next_configuration"]) {
+    const configuration = next[key];
+    if (configuration && !Array.isArray(configuration) && typeof configuration === "object" && !("location_text" in configuration)) next[key] = { ...configuration, location_text: null };
+  }
+  const fields = next.changed_fields;
+  if (next.event_kind === "baseline" && Array.isArray(fields) && fields.every((item) => typeof item === "string") && !fields.includes("location_text")) next.changed_fields = [...fields, "location_text"];
+  return next as Json;
+}
 function writeFor(previous: AccountSyncEntity | null, next: AccountSyncEntity | null): AccountSyncWrite {
   const entity = next ?? previous;
   if (!entity) throw new Error("Account synchronization cannot write an unknown entity.");
