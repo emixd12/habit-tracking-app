@@ -11912,3 +11912,73 @@ Platform impact:
 Verification: required repository checks and applicable platform builds; reviewed
 provider/disclosure evidence; separately authorized live tests; spend/rollback checks.
 Filing this ticket does not create credentials, deploy, read location or transmit private data.
+
+## Ticket 166: Travel refresh quota, failure messages and device-location onboarding
+
+Status: planned. Filed September 22, 2026 from Ticket 165 owner acceptance.
+Dependencies: Tickets 162–165 shipped (PRs #58–#60); production routing is enabled.
+
+Goal: make travel usable on a real day without exhausting the owner quota, tell the
+user plainly why estimates are missing, and make granting foreground device location a
+one-step, in-context action on iPhone Safari and desktop browsers.
+
+Evidence: on September 22 the owner account consumed its six daily route refreshes in
+about fifteen minutes of ordinary use because every Timeline focus or visibility change
+issued a new `POST /api/travel/routes`. Requests with no routable legs still consumed a
+reservation. After the limit, the owner counter kept rising (11 by 3 PM Eastern) and the
+phone Timeline showed only `Travel estimates are unavailable. Tracking and Calendar
+still work.` The routing itself worked: the 429 `quota_exceeded` response was correct.
+
+Scope and acceptance:
+
+- Client reuse. The web and desktop travel hooks keep the last successful view for the
+  same account, local date, source key and corrections until its `expiresAt`. Focus,
+  visibility and BroadcastChannel refreshes reuse that view; a new request is sent only
+  when the view is missing, expired, or the source key or corrections changed. The
+  existing hidden/unfocused suppression and five-minute expiry stay unchanged.
+- Server admission. `refreshTravelRoutes` consumes the owner and global quota only after
+  the plan has at least one routable leg. A request that resolves to zero legs returns the
+  evidence without a reservation and without provider route calls. Geocoding calls remain
+  bounded by the existing per-request caps. The rejected-attempt counter must not grow
+  past the limit; store admissions, not attempts, or add a separate rejected count.
+- Limits. Raise the owner limit from 6 to 24 admissions per owner local day. Keep the
+  global limit at 100 per UTC day and the US$0.50 reservation accounting. Update the
+  quota migration through a new migration, the rollback-only SQL smoke, `docs/OPERATIONS.md`
+  and `docs/qa/travel-release.md`.
+- Failure messages. Replace the single generic message with one per failure code, exact copy:
+  - `quota_exceeded`: `Today’s travel refresh limit is reached. Estimates return tomorrow.`
+  - `provider_unavailable` and network errors: `Travel estimates are unavailable right now. Tracking and Calendar still work.`
+  - `provider_clearance_required` / not configured: keep `Travel estimates await this deployment’s provider review.`
+  - `context_changed`: retry once silently after 350 ms, then show the unavailable message.
+  Messages render in the existing Timeline status line; no new control.
+- Location onboarding. In the Travel settings panel, when the user saves with routing
+  consent newly checked, request the browser position inside that same click so the
+  browser prompt appears in context. Show a permission state line under the panel:
+  `Device location: allowed`, `Device location: not yet allowed`, or `Device location: blocked`.
+  When the state is `prompt` on iOS Safari, add: `To stop Safari asking, tap AA, then
+  Website Settings, then Location, then Allow.` When `denied`, add the platform path:
+  iOS `Settings › Privacy & Security › Location Services › Safari Websites`, macOS
+  desktop app `System Settings › Privacy & Security › Location Services › Cadence`.
+  Add-to-Home-Screen guidance is out of scope for this ticket.
+- Disclosures. No change to what is sent or stored. Update `docs/user-guide/travel.md`
+  for the daily limit wording and the permission line.
+
+References: `lib/ui/travel.ts`, `apps/desktop/src/travel.ts`, `lib/services/travel-route-refresh.service.ts`,
+`lib/db/travelRouteQuota.repo.ts`, `supabase/migrations/20260922013000_add_travel_route_quota.sql`,
+`components/settings/TravelSettingsPanel.tsx`, `lib/ui/foreground-location.ts`,
+`docs/qa/travel-release.md` (hosted acceptance section).
+
+Platform impact:
+
+| Platform | Implementation, follow-up, or not-applicable reason |
+|---|---|
+| Web | Hook reuse, failure copy, in-click permission request and permission state line; hosted admission change and migration. |
+| Desktop | Same shared hook and panel behavior; macOS permission path copy; installed re-acceptance on the next preview build. |
+| Marketing | Not applicable: no public capability claim changes; user guide wording only. |
+| Future mobile | Not applicable to native release; iPhone Safari guidance covers mobile web. |
+
+Verification: focused Vitest for hook reuse across focus changes, per-code messages,
+zero-leg admission and the 24 limit; rollback-only SQL smoke against local Postgres;
+DOM test for the permission state line; required repository checks; hosted migration
+through the reviewed workflow; owner re-acceptance on web and installed desktop.
+Filing this ticket changes no runtime behavior.
