@@ -17,7 +17,7 @@ fn request(request_permission: bool) -> Result<serde_json::Value, String> {
         fn free(value: *mut c_void);
     }
     let pointer = unsafe { cadence_location_request(request_permission) };
-    if pointer.is_null() { return Err("Location is unavailable.".into()); }
+    if pointer.is_null() { return Ok(serde_json::json!({ "state": "unavailable", "reason": "bridge" })); }
     let result = unsafe { serde_json::from_slice(CStr::from_ptr(pointer).to_bytes()) };
     unsafe { free(pointer.cast()) };
     result.map_err(|_| "Location is unavailable.".into())
@@ -25,5 +25,5 @@ fn request(request_permission: bool) -> Result<serde_json::Value, String> {
 
 #[cfg(not(target_os = "macos"))]
 fn request(_: bool) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "state": "unavailable" }))
+    Ok(serde_json::json!({ "state": "unavailable", "reason": "bridge" }))
 }

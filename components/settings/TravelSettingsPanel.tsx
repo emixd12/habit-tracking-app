@@ -20,6 +20,7 @@ export function TravelSettingsPanel({ client = webTravelSettingsClient, readLoca
   const [locating, setLocating] = useState(false);
   const [permission, setPermission] = useState<DeviceLocationPermission | null>(null);
   const sequence = useRef(0);
+  const [locationReason, setLocationReason] = useState<string | null>(null);
   const locationSequence = useRef(0);
   const permissionSequence = useRef(0);
   const refreshPermission = () => {
@@ -69,8 +70,8 @@ export function TravelSettingsPanel({ client = webTravelSettingsClient, readLoca
     setLocating(true);
     try {
       const result = await request;
-      if (current === locationSequence.current) setLocation(result.state);
-    } catch { if (current === locationSequence.current) setLocation("unavailable"); }
+      if (current === locationSequence.current) { setLocation(result.state); setLocationReason("reason" in result && result.reason ? result.reason : null); }
+    } catch { if (current === locationSequence.current) { setLocation("unavailable"); setLocationReason(null); } }
     finally { if (current === locationSequence.current) { setLocating(false); refreshPermission(); } }
   };
   const permissionHint = permission ? deviceLocationHint(permission, desktop) : null;
@@ -93,7 +94,7 @@ export function TravelSettingsPanel({ client = webTravelSettingsClient, readLoca
         <button type="button" onClick={save} disabled={settings.enabled && (!accepted || !settings.mode)} className="product-action product-action-primary min-h-11 w-fit">{pending ? "Saving…" : "Save travel settings"}</button>
         <div className="grid gap-2 border-t border-line pt-4"><p>A permitted foreground position supplies the immediate origin. Cadence does not track your location continuously or save it as your base.</p><button type="button" onClick={locate} disabled={locating} className="product-action product-action-secondary min-h-11 w-fit">{locating ? "Checking…" : "Check device location permission"}</button>{permission ? <p className="text-muted-readable">Device location: {permission}.{permissionHint ? ` ${permissionHint}` : ""}</p> : null}</div>
       </fieldset> : <p>Loading travel settings…</p>}
-      {location ? <p role="status">{location === "available" ? "A current position is available. This check did not save or send it." : `Location ${location}. Add a saved base for the immediate origin, or continue with known event-to-event routes.`}</p> : null}
+      {location ? <p role="status">{location === "available" ? "A current position is available. This check did not save or send it." : `Location ${location}. Add a saved base for the immediate origin, or continue with known event-to-event routes.${locationReason && (location === "unavailable" || location === "denied") ? ` Diagnostic: ${locationReason}.` : ""}`}</p> : null}
       {message ? <p role="status">{message}</p> : null}
     </div>
   </SettingsPanel>;

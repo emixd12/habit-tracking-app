@@ -89,6 +89,13 @@ ran. Concurrent travel changes are preserved. Evidence and limits:
 
 ## Tickets 162–165 travel implementation — September 22, 2026
 
+Ticket 165 has two installed-macOS gates left: native device location and native
+navigation handoff. Installed preview.44
+synced the account after the canonicalization fix; preview.45 preserved settings across
+restart and completed a hosted route request (`Travel as of 9:23 AM`). macOS never
+prompts an ad hoc signed build for location, so the device-origin path waits for
+Ticket 115 signing. Tickets 166 and 167 are merged and deployed.
+
 PR #58 merged as `b48654d1` and is deployed. The owner enabled production routing
 clearance; redeploy `cadence-drxrpk40n` applied it. Hosted acceptance passed on the
 owner account: workload identity exchange, v4 geocoding and one transit `ComputeRoutes`
@@ -744,7 +751,7 @@ Calendar data access and the sensitive `calendar.events.readonly` scope.
 The production broker client and the three declared scopes match the submission.
 Branding remains verified. Post-approval web/native consent smoke checks remain
 outstanding; public rollout gates remain unchanged.
-September 22 signed-in console check: branding and data access remain verified;
+September 23 signed-in console check: branding and data access remain verified;
 no new actionable request appears. Post-approval smoke checks remain outstanding.
 Unrelated working-tree changes were excluded from the isolated releases.
 
