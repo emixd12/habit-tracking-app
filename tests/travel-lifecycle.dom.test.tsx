@@ -2,23 +2,21 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { TravelClientError, travelClientErrorFromResponse, useTravelContext, type TravelClient, type TravelMarkerStorage, type TravelState, type TravelRoutesView } from "@/lib/ui/travel";
+import { TravelClientError, travelClientErrorFromResponse, resetTravelViewCacheForTest, useTravelContext, type TravelClient, type TravelState, type TravelRoutesView } from "@/lib/ui/travel";
 
 const settings = { enabled: true, mode: "walking" as const, baseLocationText: null, navigationPreference: "google_maps" as const,
   routingConsentAt: "2026-09-21T12:00:00Z", onboardingCompletedAt: null, updatedAt: "revision" };
 const view = (accountId: string): TravelRoutesView => ({ accountId, mode: "walking", navigationPreference: "google_maps", settingsRevision: "revision",
   expiresAt: new Date(Date.now() + 300_000).toISOString(), evidence: { version: "1.0", journeyRef: accountId,
     legs: [], segments: [], occupiedSpans: [], collisions: [], completeTrip: false, finalAvailabilityAt: null } });
-let storage: TravelMarkerStorage & { values: Map<string, string> };
 const capture = vi.fn<(state: TravelState) => void>();
 const latest = () => capture.mock.lastCall![0];
-function memoryStorage() { const values = new Map<string, string>(); return { values, read: (key: string) => values.get(key) ?? null, write: (key: string, value: string) => { values.set(key, value); } }; }
 function Probe({ client, accountId, sourceKey = "source" }: { client: TravelClient; accountId: string; sourceKey?: string }) {
-  const state = useTravelContext({ enabled: true, accountId, sourceKey, localDate: "2026-09-21", client, storage });
+  const state = useTravelContext({ enabled: true, accountId, sourceKey, localDate: "2026-09-21", client });
   capture(state);
   return <p>{state.view?.evidence?.journeyRef ?? state.message ?? "empty"}</p>;
 }
-beforeEach(() => { storage = memoryStorage(); });
+beforeEach(() => { resetTravelViewCacheForTest(); });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 it("gates device reads, shows provider review, and rejects late account responses", async () => {
   vi.useFakeTimers();
@@ -65,22 +63,25 @@ async function mount(routes: TravelClient["routes"]) {
   Object.defineProperty(document, "hidden", { configurable: true, value: false });
   const client: TravelClient = { settings: { load: async () => settings, save: async () => settings },
     configured: async () => true, readLocation: async () => ({ state: "denied" as const }), routes };
-  const host = document.createElement("div"); document.body.append(host); const root = createRoot(host);
+  const host = document.createElement("div"); document.body.append(host);
+  let root = createRoot(host);
   const render = (sourceKey = "source") => act(() => root.render(<Probe client={client} accountId="account-a" sourceKey={sourceKey} />));
   await render();
   await act(async () => vi.advanceTimersByTimeAsync(350));
-  return { host, render, unmount: async () => { await act(() => root.unmount()); host.remove(); } };
+  const remount = async () => {
+    await act(() => root.unmount()); root = createRoot(host);
+    await render(); await act(async () => vi.advanceTimersByTimeAsync(350));
+  };
+  return { host, render, remount, unmount: async () => { await act(() => root.unmount()); host.remove(); } };
 }
 const focusAndWait = (ms = 350) => act(async () => { window.dispatchEvent(new Event("focus")); await vi.advanceTimersByTimeAsync(ms); });
-const marker = "cadence.travel.autoRefresh.account-a";
 
-it("requests once on the first open of a day and not on focus", async () => {
+it("requests once on page load and not on focus", async () => {
   const routes = vi.fn(async () => view("account-a"));
   const { host, unmount } = await mount(routes);
   try {
     expect(routes).toHaveBeenCalledTimes(1);
     expect(host.textContent).toBe("account-a");
-    expect(storage.values.get(marker)).toBe("2026-09-21");
     await act(() => window.dispatchEvent(new Event("blur")));
     await focusAndWait();
     await act(async () => { document.dispatchEvent(new Event("visibilitychange")); window.dispatchEvent(new Event("online")); await vi.advanceTimersByTimeAsync(350); });
@@ -88,11 +89,38 @@ it("requests once on the first open of a day and not on focus", async () => {
   } finally { await unmount(); }
 });
 
-it("does not request when the day's marker is already written", async () => {
-  storage = memoryStorage(); storage.values.set(marker, "2026-09-21");
+it("reuses a fresh cached view on remount without a request", async () => {
   const routes = vi.fn(async () => view("account-a"));
-  const { host, unmount } = await mount(routes);
-  try { expect(routes).not.toHaveBeenCalled(); expect(host.textContent).toBe("empty"); } finally { await unmount(); }
+  const { host, remount, unmount } = await mount(routes);
+  try {
+    await remount();
+    expect(routes).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toBe("account-a");
+  } finally { await unmount(); }
+});
+
+it("shows a recent cached failure on remount without a request, and requests after 5 minutes", async () => {
+  const routes = vi.fn(async () => { throw new TravelClientError("provider_unavailable"); });
+  const { host, remount, unmount } = await mount(routes);
+  try {
+    await remount();
+    expect(routes).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain("unavailable");
+    await act(async () => vi.advanceTimersByTimeAsync(300_000));
+    await remount();
+    expect(routes).toHaveBeenCalledTimes(2);
+  } finally { await unmount(); }
+});
+
+it("clears the cache and requests on a settings change", async () => {
+  const routes = vi.fn(async () => view("account-a"));
+  const { remount, unmount } = await mount(routes);
+  try {
+    await act(async () => { window.dispatchEvent(new Event("cadence:travel-changed")); await vi.advanceTimersByTimeAsync(350); });
+    expect(routes).toHaveBeenCalledTimes(2);
+    await remount();
+    expect(routes).toHaveBeenCalledTimes(2);
+  } finally { await unmount(); }
 });
 
 it("requests when the sourceKey changes after a successful view", async () => {
@@ -137,7 +165,6 @@ it("shows the quota message for a 429", async () => {
   const { host, unmount } = await mount(vi.fn(async () => { throw error; }));
   try {
     expect(host.textContent).toBe("Today’s travel refresh limit is reached. Estimates return tomorrow.");
-    expect(storage.values.get(marker)).toBe("2026-09-21");
   } finally { await unmount(); }
 });
 

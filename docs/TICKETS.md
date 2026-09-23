@@ -11999,13 +11999,16 @@ changes, and reusing the saved base's geocode within provider policy.
 
 Scope and acceptance:
 
-- First open. The first Timeline open for an account on a local day refreshes travel
-  automatically, subject to the existing enabled, consent, mode and configured checks.
-  Record the local date of that automatic refresh per account and installation in the
-  existing local preference store; no server state.
-- Source-change refresh. After the first open, refresh automatically only when the
-  travel source key changes: event times, locations or revisions, corrections, located
-  Behavior occurrences, duration estimates or travel settings. Focus, visibility, online
+- First open. Opening the Timeline refreshes travel automatically when this page session
+  holds no fresh view for the account, local date, source key and corrections. Views and
+  failures live in an in-memory, per-page-session cache (no storage), so Settings round
+  trips and remounts reuse them, a failure is not retried automatically for five minutes,
+  and a page reload triggers exactly one request. Review of the first implementation
+  replaced a persisted per-day marker with this rule: a reload after the day's first
+  refresh otherwise left the Timeline with no view and no automatic request.
+- Source-change refresh. After that, refresh automatically only when the travel source
+  key changes: event times, locations or revisions, corrections, located Behavior
+  occurrences and their Behavior location revisions, duration estimates or travel settings. Focus, visibility, online
   and BroadcastChannel events reuse the current view and never send a request by themselves.
 - Manual refresh. The Timeline travel status line shows `Travel as of 2:52 PM` using the
   view's `observedAt` in the account timezone, followed by a `Refresh travel` text link

@@ -78,17 +78,29 @@ export const webTravelClient: TravelClient = {
   readLocation: readBrowserForegroundLocation,
 };
 
-/** Travel inputs only: visible events, occurrence schedule/status and duration estimates. */
-export function travelSourceKey(events: readonly NormalizedExternalEvent[], timeline: Pick<TimelineView, "daySections" | "durationEstimates">): string {
+export type TravelBehaviorRevision = Readonly<{ id: string; locationText: string | null; updatedAt: string }>;
+/** Travel inputs only: visible events, occurrence schedule/status, owning Behavior location revisions and duration estimates. */
+export function travelSourceKey(events: readonly NormalizedExternalEvent[], timeline: Pick<TimelineView, "daySections" | "durationEstimates">, behaviors: readonly TravelBehaviorRevision[] = []): string {
+  const byId = new Map(behaviors.map((behavior) => [behavior.id, [behavior.locationText, behavior.updatedAt]]));
   return JSON.stringify([events.map((event) => [event.id, event.revision, event.location,
-    event.kind === "timed" ? [event.startAt, event.endAt] : null]), timeline.daySections.map((section) => section.occurrences.map((occurrence) => [occurrence.id, occurrence.status, occurrence.scheduledFor])), timeline.durationEstimates]);
+    event.kind === "timed" ? [event.startAt, event.endAt] : null]), timeline.daySections.map((section) => section.occurrences.map((occurrence) => [occurrence.id, occurrence.status, occurrence.scheduledFor, byId.get(occurrence.behaviorId) ?? null])), timeline.durationEstimates]);
 }
 
-export type TravelMarkerStorage = Readonly<{ read(key: string): string | null; write(key: string, value: string): void }>;
-const browserMarkerStorage: TravelMarkerStorage = {
-  read: (key) => { try { return window.localStorage.getItem(key); } catch { return null; } },
-  write: (key, value) => { try { window.localStorage.setItem(key, value); } catch { /* Storage is optional. */ } },
-};
+type TravelCacheEntry = Readonly<{ view: TravelRoutesView | null; message: string | null; at: number }>;
+const TRAVEL_CACHE_CAP = 32;
+const FAILURE_REUSE_MS = 5 * 60 * 1000;
+/** Page-session memory only: survives Timeline remounts, never persisted. */
+const travelViewCache = new Map<string, TravelCacheEntry>();
+function cacheTravel(key: string, entry: TravelCacheEntry): void {
+  travelViewCache.delete(key);
+  travelViewCache.set(key, entry);
+  while (travelViewCache.size > TRAVEL_CACHE_CAP) travelViewCache.delete(travelViewCache.keys().next().value!);
+}
+function clearTravelCacheForAccount(accountId: string): void {
+  for (const key of [...travelViewCache.keys()]) if ((JSON.parse(key) as unknown[])[0] === accountId) travelViewCache.delete(key);
+}
+/** Test-only reset of the in-memory travel view cache. */
+export function resetTravelViewCacheForTest(): void { travelViewCache.clear(); }
 
 export type TravelState = Readonly<{
   view: TravelRoutesView | null; message: string | null;
@@ -109,23 +121,19 @@ function earliestObservedAt(view: TravelRoutesView, fallback: string): string {
 export function useTravelContext(input: Readonly<{
   enabled: boolean; accountId: string | null; localDate: string; sourceKey: string;
   client?: TravelClient | null; corrections?: readonly TravelCorrection[];
-  storage?: TravelMarkerStorage;
 }>): TravelState {
   const client = input.client === undefined ? webTravelClient : input.client;
-  const storage = input.storage ?? browserMarkerStorage;
   const correctionsKey = JSON.stringify(input.corrections ?? []);
   const stateKey = JSON.stringify([input.accountId, input.localDate, input.sourceKey, correctionsKey]);
   const empty: Omit<StoredTravel, "key"> = { view: null, message: null, stale: false, pending: false, observedAt: null };
   const [stored, setStored] = useState<StoredTravel>({ key: "", ...empty });
   const storedRef = useRef(stored);
-  const lastSuccessKey = useRef<string | null>(null);
   const manual = useRef<() => void>(() => undefined);
   const [refresh] = useState(() => () => manual.current());
   const state = stored.key === stateKey ? stored : { key: stateKey, ...empty };
   useEffect(() => {
     if (!input.enabled || !input.accountId || !client) return;
     const accountId = input.accountId;
-    const markerKey = `cadence.travel.autoRefresh.${accountId}`;
     const setState = (value: Omit<StoredTravel, "key">) => { const next = { ...value, key: stateKey }; storedRef.current = next; setStored(next); };
     const current = () => storedRef.current.key === stateKey ? storedRef.current : { key: stateKey, ...empty };
     const patch = (value: Partial<Omit<StoredTravel, "key">>) => setState({ ...current(), ...value });
@@ -139,6 +147,15 @@ export function useTravelContext(input: Readonly<{
     let permission: PermissionStatus | null = null;
     const foreground = () => !document.hidden && document.hasFocus() && navigator.onLine;
     const stop = () => { generation++; controller?.abort(); clearTimeout(timer); if (inFlight) { inFlight = false; patch({ pending: false }); } };
+    const showView = (view: TravelRoutesView, at: number, extra: Partial<Omit<StoredTravel, "key">> = {}) => {
+      const remaining = view.expiresAt ? Date.parse(view.expiresAt) - Date.now() : 0;
+      const stale = !!view.evidence && (!Number.isFinite(remaining) || remaining <= 0);
+      patch({ ...extra, view, message: null, stale, observedAt: view.evidence ? earliestObservedAt(view, new Date(at).toISOString()) : null });
+      clearTimeout(expiry);
+      if (view.evidence && !stale) expiry = setTimeout(() => {
+        if (active && storedRef.current.view === view) patch({ stale: true });
+      }, Math.min(remaining, 2_147_483_647));
+    };
     const request = () => {
       if (!active || inFlight) return;
       if (!foreground()) { deferred = true; return; }
@@ -156,7 +173,7 @@ export function useTravelContext(input: Readonly<{
           if (!settings.enabled || !settings.routingConsentAt || !settings.mode) { finish({ view: null, message: null, stale: false, observedAt: null }); return; }
           const configured = await client.configured(signal);
           if (!valid()) return;
-          if (!configured) { finish({ view: null, message: CLEARANCE_MESSAGE, stale: false, observedAt: null }); return; }
+          if (!configured) { cacheTravel(stateKey, { view: null, message: CLEARANCE_MESSAGE, at: Date.now() }); finish({ view: null, message: CLEARANCE_MESSAGE, stale: false, observedAt: null }); return; }
           // Device position is read only inside a request.
           const position = await client.readLocation(false);
           if (!valid()) return;
@@ -177,18 +194,12 @@ export function useTravelContext(input: Readonly<{
           }
           if (!valid()) return;
           if (view.accountId !== accountId || view.settingsRevision !== settings.updatedAt) { finish({}); return; }
-          storage.write(markerKey, input.localDate);
-          lastSuccessKey.current = stateKey;
-          const remaining = view.expiresAt ? Date.parse(view.expiresAt) - Date.now() : 0;
-          const stale = !!view.evidence && (!Number.isFinite(remaining) || remaining <= 0);
-          finish({ view, message: null, stale, observedAt: view.evidence ? earliestObservedAt(view, new Date().toISOString()) : null });
-          clearTimeout(expiry);
-          if (view.evidence && !stale) expiry = setTimeout(() => {
-            if (active && storedRef.current.view === view) patch({ stale: true });
-          }, Math.min(remaining, 2_147_483_647));
+          cacheTravel(stateKey, { view, message: null, at: Date.now() });
+          inFlight = false;
+          showView(view, Date.now(), { pending: false });
         } catch (error) {
           if (!valid()) return;
-          if (error instanceof TravelClientError && error.code === "quota_exceeded") storage.write(markerKey, input.localDate);
+          cacheTravel(stateKey, { view: null, message: travelErrorMessage(error), at: Date.now() });
           finish({ view: null, message: travelErrorMessage(error), stale: false, observedAt: null });
         }
       }, 350);
@@ -213,16 +224,18 @@ export function useTravelContext(input: Readonly<{
       }).catch(() => undefined);
     }
     // Settings changes on this window always replace the view.
-    const changed = () => { stop(); clearTimeout(expiry); setState({ ...empty }); request(); };
+    const changed = () => { clearTravelCacheForAccount(accountId); stop(); clearTimeout(expiry); setState({ ...empty }); request(); };
     window.addEventListener("focus", resume);
     window.addEventListener("blur", suspend);
     window.addEventListener("online", resume);
     window.addEventListener("offline", suspend);
     window.addEventListener("cadence:travel-changed", changed);
     document.addEventListener("visibilitychange", visibility);
-    const firstOpenToday = storage.read(markerKey) !== input.localDate;
-    const changedSinceSuccess = lastSuccessKey.current !== null && lastSuccessKey.current !== stateKey;
-    if (firstOpenToday || changedSinceSuccess) request();
+    const cached = travelViewCache.get(stateKey);
+    const freshView = !!cached?.view && (!cached.view.evidence || (!!cached.view.expiresAt && Date.parse(cached.view.expiresAt) > Date.now()));
+    if (cached?.view && freshView) showView(cached.view, cached.at);
+    else if (cached && !cached.view && cached.message && Date.now() - cached.at < FAILURE_REUSE_MS) patch({ message: cached.message });
+    else request();
     return () => {
       channel?.close();
       active = false; generation++; controller?.abort(); clearTimeout(timer); clearTimeout(expiry);
@@ -233,7 +246,7 @@ export function useTravelContext(input: Readonly<{
       document.removeEventListener("visibilitychange", visibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- stateKey covers localDate, sourceKey and corrections.
-  }, [client, input.accountId, input.enabled, stateKey, storage]);
+  }, [client, input.accountId, input.enabled, stateKey]);
   const visible = input.enabled && (!state.view || state.view.accountId === input.accountId);
   return visible
     ? { view: state.view, message: state.message, stale: state.stale, pending: state.pending, observedAt: state.observedAt, refresh }

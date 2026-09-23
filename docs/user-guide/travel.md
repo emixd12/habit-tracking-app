@@ -54,9 +54,10 @@ journey corrections.
 
 ## Refresh travel estimates
 
-Cadence requests travel estimates on the first Timeline open each day and when your
-schedule, locations or travel settings change. Returning to the window does not
-request again. Select Refresh travel on the Timeline status line to request new
+Estimates refresh when you open the Timeline without a current estimate, when your
+schedule or locations change, or when you choose Refresh travel. Cadence keeps the
+latest estimate for this browser session only and marks it as possibly stale after
+five minutes. Returning to the window does not request again. Select Refresh travel on the Timeline status line to request new
 estimates. Device position is read only during a refresh.
 
 The status line shows Travel as of and the time the estimates were observed. After

@@ -112,8 +112,9 @@ migration and owner re-acceptance remain.
 PR #64 merged; the hosted quota function migration is applied (the pending advisor
 historical completion-time snapshot migration went with it). Owner web re-acceptance
 waits for the next owner local day.
-Ticket 167 is implemented: travel refreshes automatically only on the first Timeline
-open of a local day or when the schedule, locations, corrections or travel settings change;
+Ticket 167 is implemented: travel refreshes automatically only when the page session
+holds no fresh view for the current context or when the schedule, locations, corrections
+or travel settings change;
 focus and Calendar polls reuse the current view; the Timeline shows `Travel as of` with a
 `Refresh travel` link and keeps stale estimates visible; base geocode reuse is built but
 disabled pending the provider caching policy check.

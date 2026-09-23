@@ -77,4 +77,10 @@ describe("travel sourceKey", () => {
     expect(travelSourceKey(second.events as never, timeline)).toBe(travelSourceKey(first.events as never, timeline));
     expect(travelSourceKey([{ ...event, location: "2 St" }] as never, timeline)).not.toBe(travelSourceKey(first.events as never, timeline));
   });
+  it("changes when the owning Behavior location changes", () => {
+    const withBehavior = { daySections: [{ occurrences: [{ id: "o", behaviorId: "b", status: "unresolved", scheduledFor: "2026-09-21T15:00:00Z" }] }], durationEstimates: {} } as never;
+    const before = travelSourceKey([], withBehavior, [{ id: "b", locationText: "1 St", updatedAt: "t1" }]);
+    expect(travelSourceKey([], withBehavior, [{ id: "b", locationText: "1 St", updatedAt: "t1" }])).toBe(before);
+    expect(travelSourceKey([], withBehavior, [{ id: "b", locationText: "2 St", updatedAt: "t2" }])).not.toBe(before);
+  });
 });

@@ -319,7 +319,8 @@ export function Product() {
     && (calendar.preferences!.showAllDay || event.kind !== "all_day")) ?? [] : [];
   const travel = useTravelContext({ enabled: activeScreen === "timeline" && syncReady && syncStatus.state === "current",
     accountId: accountUserId, localDate: calendarRange.startLocalDate, client: travelClient, corrections: currentTravelCorrections,
-    sourceKey: travelSourceKey(visibleCalendarEvents, bundle?.timeline.timeline ?? { daySections: [], durationEstimates: {} }) });
+    sourceKey: travelSourceKey(visibleCalendarEvents, bundle?.timeline.timeline ?? { daySections: [], durationEstimates: {} },
+      bundle?.timeline.behaviors.map((behavior) => ({ id: behavior.id, locationText: behavior.location_text ?? null, updatedAt: behavior.updated_at })) ?? []) });
   const calendarContext = {
     travelMessage: travel.message,
     travelStatus: travel,
