@@ -10,11 +10,12 @@ const view = (accountId: string): TravelRoutesView => ({ accountId, mode: "walki
   expiresAt: new Date(Date.now() + 300_000).toISOString(), evidence: { version: "1.0", journeyRef: accountId,
     legs: [], segments: [], occupiedSpans: [], collisions: [], completeTrip: false, finalAvailabilityAt: null } });
 let storage: TravelMarkerStorage & { values: Map<string, string> };
-let latest: TravelState;
+const capture = vi.fn<(state: TravelState) => void>();
+const latest = () => capture.mock.lastCall![0];
 function memoryStorage() { const values = new Map<string, string>(); return { values, read: (key: string) => values.get(key) ?? null, write: (key: string, value: string) => { values.set(key, value); } }; }
 function Probe({ client, accountId, sourceKey = "source" }: { client: TravelClient; accountId: string; sourceKey?: string }) {
   const state = useTravelContext({ enabled: true, accountId, sourceKey, localDate: "2026-09-21", client, storage });
-  latest = state;
+  capture(state);
   return <p>{state.view?.evidence?.journeyRef ?? state.message ?? "empty"}</p>;
 }
 beforeEach(() => { storage = memoryStorage(); });
@@ -38,7 +39,7 @@ it("gates device reads, shows provider review, and rejects late account response
     expect(readLocation).not.toHaveBeenCalled();
     expect(host.textContent).toContain("provider review");
     configured.mockResolvedValue(true);
-    await act(async () => { latest.refresh(); await vi.advanceTimersByTimeAsync(350); });
+    await act(async () => { latest().refresh(); await vi.advanceTimersByTimeAsync(350); });
     expect(readLocation).toHaveBeenCalledWith(false);
     await act(() => root.render(<Probe client={client} accountId="account-b" />));
     await act(async () => { resolveOld(view("account-a")); await vi.advanceTimersByTimeAsync(350); });
@@ -108,11 +109,11 @@ it("refreshes manually once and ignores calls while pending", async () => {
   const routes = vi.fn(async () => view("account-a"));
   const { unmount } = await mount(routes);
   try {
-    await act(async () => { latest.refresh(); });
-    expect(latest.pending).toBe(true);
-    await act(async () => { latest.refresh(); latest.refresh(); await vi.advanceTimersByTimeAsync(350); });
+    await act(async () => { latest().refresh(); });
+    expect(latest().pending).toBe(true);
+    await act(async () => { latest().refresh(); latest().refresh(); await vi.advanceTimersByTimeAsync(350); });
     expect(routes).toHaveBeenCalledTimes(2);
-    expect(latest.pending).toBe(false);
+    expect(latest().pending).toBe(false);
   } finally { await unmount(); }
 });
 
@@ -120,11 +121,11 @@ it("keeps an expired view as stale evidence without requesting", async () => {
   const routes = vi.fn(async () => view("account-a"));
   const { host, unmount } = await mount(routes);
   try {
-    expect(latest.stale).toBe(false);
-    expect(latest.observedAt).not.toBeNull();
+    expect(latest().stale).toBe(false);
+    expect(latest().observedAt).not.toBeNull();
     await act(async () => vi.advanceTimersByTimeAsync(300_000));
     expect(host.textContent).toBe("account-a");
-    expect(latest.stale).toBe(true);
+    expect(latest().stale).toBe(true);
     await focusAndWait();
     expect(routes).toHaveBeenCalledTimes(1);
   } finally { await unmount(); }
