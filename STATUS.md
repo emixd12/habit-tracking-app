@@ -89,6 +89,12 @@ ran. Concurrent travel changes are preserved. Evidence and limits:
 
 ## Tickets 162–165 travel implementation — September 22, 2026
 
+Ticket 165 is complete except native macOS device location. Installed preview.44
+synced the account after the canonicalization fix; preview.45 preserved settings across
+restart and completed a hosted route request (`Travel as of 9:23 AM`). macOS never
+prompts an ad hoc signed build for location, so the device-origin path waits for
+Ticket 115 signing. Tickets 166 and 167 are merged and deployed.
+
 PR #58 merged as `b48654d1` and is deployed. The owner enabled production routing
 clearance; redeploy `cadence-drxrpk40n` applied it. Hosted acceptance passed on the
 owner account: workload identity exchange, v4 geocoding and one transit `ComputeRoutes`

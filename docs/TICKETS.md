@@ -11851,10 +11851,12 @@ preserved, and unchanged status/schedule/dismissal flows.
 
 ## Ticket 165: Travel provider and cross-platform release acceptance
 
-Status: in progress; repository, local database, public-landmark, deployed-web
-and private-account acceptance pass (PR #58 merged, hosted routing enabled
-September 22). A geocode venue-type filter fix follows in a second PR.
-Installed-desktop travel acceptance remains open. Billing and restricted local credentials are configured.
+Status: complete except one gate. Repository, local database, public-landmark,
+deployed-web, private-account and installed-desktop acceptance pass (PRs #58–#65,
+September 22–23). The only open item is native macOS device location on ad hoc
+signed previews: macOS never presents the authorization prompt for an unsigned
+identity, so the device-origin path waits for Apple-trusted signing (Ticket 115).
+Evidence: `docs/qa/travel-release.md`. Billing and restricted local credentials are configured.
 Filed September 21, 2026. Reviews begin alongside Tickets 162–164; release follows them.
 
 Goal: establish provider-use, disclosure and runtime evidence for the accepted travel feature.

@@ -356,3 +356,34 @@ smoke is text-checked in this release; run it against local Postgres before the 
 hosted quota change. Owner web re-acceptance resumes after the owner local day rolls
 over, because today's owner counter (11 attempts under the old function) stays above
 the earlier limit until then.
+
+## Installed macOS acceptance, continued — September 23, 2026
+
+Preview.44 (from `91d7c83c`, with the sync canonicalization fix) completed account
+synchronization on the installed app at 02:58 UTC after Keychain approval; local
+travel settings then matched the hosted account (enabled, saved base, transit,
+consent). Preview.45 (branch `codex/desktop-location-diagnostics`, adding a
+`reason` code to unavailable and denied location results) replaced it after a fresh
+integrity-checked backup and rollback zip. Cold start applied local migrations 16
+and 17 and preserved the synced travel settings across the quit and relaunch. The
+installed Timeline shows `Travel as of 9:23 AM` with the `Refresh travel` link, so
+the installed app completed a hosted route request under the Ticket 166 and 167
+policy. The owner's Chrome on production shows travel spans for the same day.
+
+Native device location remains unavailable on the installed preview. With Location
+Services on and `Cadence.app` switched on in System Settings, the adapter reports
+`Device location: not yet allowed` and the check ends with `Diagnostic: timeout`:
+macOS returns `notDetermined`, `requestWhenInUseAuthorization` shows no prompt on
+any of the three displays within twelve seconds, and `tccutil reset Location
+app.cadence.desktop` fails. The bundle is ad hoc signed (`TeamIdentifier=not set`),
+so every preview build is a new identity to macOS and the existing Location
+Services entry belongs to an earlier build. The travel code path is exercised
+through the saved base and located commitments; the device-origin path on macOS is
+blocked by the deferred Apple-trusted signing gate (Ticket 115), not by the adapter.
+Web device location on iPhone Safari returned a current position on September 22.
+
+Two follow-ups recorded for Ticket 166/167 owners: the browser pane inside the
+desktop host reports `document.hidden` while the user views another pane, so the
+hook correctly suspends and aborts in-flight requests, but an aborted request has
+already been admitted server-side and consumes one quota slot; and the Settings
+permission check shows `Checking…` on the check button as intended.
