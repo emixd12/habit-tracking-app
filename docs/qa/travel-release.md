@@ -399,8 +399,11 @@ usage descriptions) logged `servicesEnabled=1 status=0`, called
 received `kCLErrorDomain code=1` (denied) two seconds later with the status still
 `notDetermined` and no prompt on any of the three displays. Restarting `locationd`
 did not change the result; no configuration profile or MDM enrollment is present.
-The device-origin gate is therefore a machine-level Core Location condition on the
-owner's Mac, not a Cadence adapter or signing defect. Installed device-location
-acceptance needs a Mac where Core Location presents the prompt; Screen Time
-restrictions and a reboot are the next owner checks. The adapter's `reason` codes
+These experiments rule out ad hoc identity churn and the Cadence adapter, but not
+signing itself: both the preview and the probe used a local self-signed identity, and
+no Apple-trusted Developer ID certificate is available (Ticket 115). Two causes remain
+open: a machine-level Core Location condition on the owner's Mac, and a possible
+requirement for Apple-trusted signing before Core Location prompts. Next checks: Screen
+Time restrictions and a reboot on this Mac, a second Mac, and a Developer ID signed
+build once Ticket 115 provides one. The adapter's `reason` codes
 made this attribution possible.
