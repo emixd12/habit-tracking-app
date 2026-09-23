@@ -11855,9 +11855,10 @@ Status: in progress; two installed-macOS gates remain. Repository, local databas
 public-landmark, deployed-web and private-account acceptance pass (PRs #58–#65,
 September 22–23). Installed macOS passed cold start, account sync, restart
 preservation and a hosted route request on preview.45. Open: native device location
-(Core Location on the owner's Mac denies new clients without a prompt, including a
-self-signed probe app; open causes are a machine-level condition and a possible
-Apple-trusted signing requirement per Ticket 115) and native
+(Core Location on the owner's Mac silently refuses the ad hoc and self-signed
+Cadence builds as new clients while serving already-authorized Chrome; a machine-level
+condition and an Apple-trusted signing requirement both remain open until a second Mac
+or a Developer ID build under Ticket 115 discriminates them) and native
 navigation handoff (opening a route destination in the selected maps app from the
 installed app is not yet verified). Evidence: `docs/qa/travel-release.md`. Billing and restricted local credentials are configured.
 Filed September 21, 2026. Reviews begin alongside Tickets 162–164; release follows them.

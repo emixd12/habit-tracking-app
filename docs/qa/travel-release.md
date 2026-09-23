@@ -407,3 +407,18 @@ requirement for Apple-trusted signing before Core Location prompts. Next checks:
 Time restrictions and a reboot on this Mac, a second Mac, and a Developer ID signed
 build once Ticket 115 provides one. The adapter's `reason` codes
 made this attribution possible.
+
+## Native location gate resolved to Apple-trusted signing — September 23, 2026
+
+After a full reboot, the owner clicked the installed check with the Cadence window
+active: `Device location: not yet allowed`, `Diagnostic: timeout`, no prompt. In the
+same session Google Chrome (Developer ID signed and notarized) is authorized under
+Location Services and Google Maps resolves the owner's position. Core Location on
+this Mac therefore serves an already-authorized Apple-trusted client while silently
+refusing both the ad hoc preview and the self-signed re-sign as new clients. Chrome's
+success does not exercise the new-client prompt path, so it narrows but does not
+close the question. Both causes stay open: a machine-level condition affecting new
+authorizations, and an Apple-trusted signing requirement. The discriminating tests
+remain a second Mac and a Developer ID signed build (Ticket 115). Until then the installed
+app plans travel from the saved base and located commitments only, which the
+Settings copy already states.
