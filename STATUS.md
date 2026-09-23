@@ -744,7 +744,7 @@ Calendar data access and the sensitive `calendar.events.readonly` scope.
 The production broker client and the three declared scopes match the submission.
 Branding remains verified. Post-approval web/native consent smoke checks remain
 outstanding; public rollout gates remain unchanged.
-September 22 signed-in console check: branding and data access remain verified;
+September 23 signed-in console check: branding and data access remain verified;
 no new actionable request appears. Post-approval smoke checks remain outstanding.
 Unrelated working-tree changes were excluded from the isolated releases.
 

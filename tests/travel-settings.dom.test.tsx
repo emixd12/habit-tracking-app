@@ -51,7 +51,7 @@ it("keeps journey corrections transient and builds a source-location search link
   } finally { await act(() => root.unmount()); container.remove(); }
 });
 
-async function renderPanel(options: { readLocation: (requestPermission: boolean) => Promise<{ state: "available"; latitude: number; longitude: number; accuracyMeters: number; sampledAt: number } | { state: "prompt" | "denied" | "unavailable" }>; desktop?: boolean; save?: () => Promise<TravelSettings>; settings?: TravelSettings }) {
+async function renderPanel(options: { readLocation: (requestPermission: boolean) => Promise<{ state: "available"; latitude: number; longitude: number; accuracyMeters: number; sampledAt: number } | { state: "prompt" | "denied" | "unavailable"; reason?: string }>; desktop?: boolean; save?: () => Promise<TravelSettings>; settings?: TravelSettings }) {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const settings: TravelSettings = options.settings ?? { enabled: false, baseLocationText: null, mode: "walking", navigationPreference: "google_maps", routingConsentAt: null, onboardingCompletedAt: null, updatedAt: "2026-09-21T12:00:00Z" };
   const container = document.createElement("div"); document.body.append(container);
@@ -122,4 +122,21 @@ it("requests permission inside the consent save click without showing Saving…"
     await act(async () => { finishLocate(); });
     expect(container.textContent).toContain("known event-to-event routes");
   } finally { await unmount(); }
+});
+
+it("shows a diagnostic reason only when the check returns one", async () => {
+  mockPermissions(null);
+  const withReason = await renderPanel({ readLocation: vi.fn(async () => ({ state: "unavailable" as const, reason: "timeout" })) });
+  try {
+    const button = [...withReason.container.querySelectorAll("button")].find((item) => item.textContent === "Check device location permission")!;
+    await act(async () => button.click());
+    expect(withReason.container.textContent).toContain("Location unavailable. Add a saved base for the immediate origin, or continue with known event-to-event routes. Diagnostic: timeout.");
+  } finally { await withReason.unmount(); }
+  const without = await renderPanel({ readLocation: vi.fn(async () => ({ state: "denied" as const })) });
+  try {
+    const button = [...without.container.querySelectorAll("button")].find((item) => item.textContent === "Check device location permission")!;
+    await act(async () => button.click());
+    expect(without.container.textContent).toContain("Location denied.");
+    expect(without.container.textContent).not.toContain("Diagnostic:");
+  } finally { await without.unmount(); }
 });
