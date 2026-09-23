@@ -94,8 +94,9 @@ navigation handoff. Installed preview.44
 synced the account after the canonicalization fix; preview.45 preserved settings across
 restart and completed a hosted route request (`Travel as of 9:23 AM`). Core Location on the
 owner's Mac denies new clients without a prompt, including a stably signed probe app,
-while Chrome is authorized and works, so the device-origin path waits on a Developer ID
-signed build (Ticket 115); the adapter and the machine are ruled out. Tickets 166 and 167 are merged and deployed.
+while already-authorized Chrome works; a machine-level new-client condition and an
+Apple-trusted signing requirement (Ticket 115) both remain open until a second Mac or a
+Developer ID build discriminates them. The adapter is ruled out. Tickets 166 and 167 are merged and deployed.
 
 PR #58 merged as `b48654d1` and is deployed. The owner enabled production routing
 clearance; redeploy `cadence-drxrpk40n` applied it. Hosted acceptance passed on the
