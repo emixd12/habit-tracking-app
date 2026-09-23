@@ -11851,12 +11851,14 @@ preserved, and unchanged status/schedule/dismissal flows.
 
 ## Ticket 165: Travel provider and cross-platform release acceptance
 
-Status: complete except one gate. Repository, local database, public-landmark,
-deployed-web, private-account and installed-desktop acceptance pass (PRs #58–#65,
-September 22–23). The only open item is native macOS device location on ad hoc
-signed previews: macOS never presents the authorization prompt for an unsigned
-identity, so the device-origin path waits for Apple-trusted signing (Ticket 115).
-Evidence: `docs/qa/travel-release.md`. Billing and restricted local credentials are configured.
+Status: in progress; two installed-macOS gates remain. Repository, local database,
+public-landmark, deployed-web and private-account acceptance pass (PRs #58–#65,
+September 22–23). Installed macOS passed cold start, account sync, restart
+preservation and a hosted route request on preview.45. Open: native device location
+(macOS never presents the authorization prompt for the ad hoc signed preview; the
+device-origin path waits for a stable signing identity or Ticket 115) and native
+navigation handoff (opening a route destination in the selected maps app from the
+installed app is not yet verified). Evidence: `docs/qa/travel-release.md`. Billing and restricted local credentials are configured.
 Filed September 21, 2026. Reviews begin alongside Tickets 162–164; release follows them.
 
 Goal: establish provider-use, disclosure and runtime evidence for the accepted travel feature.
@@ -11886,8 +11888,10 @@ Scope and acceptance:
 References: `docs/plans/travel-departure-discovery.md`, `docs/INTEGRATION_PLAYBOOK.md`,
 `docs/OPERATIONS.md`, `docs/qa/day-progress-release.md`, `docs/qa/in-app-daily-brief.md`.
 
-Release candidate: PR #58 on `codex/travel-release-2026-09-22` (September 22, 2026),
-unmerged; branch checks, builds and native tests pass.
+Release history: PR #58 (travel implementation) merged September 22, 2026; PR #59
+(geocode venue types), #63 (desktop sync canonicalization), #64 (Ticket 166), #65
+(Ticket 167) and the location diagnostics PR followed. Production deployments carry
+each merge; installed previews .43–.45 carry the desktop side.
 
 Implementation evidence and remaining gates: `docs/qa/travel-release.md`,
 `components/settings/LegalContent.tsx`, `docs/user-guide/travel.md` and the
@@ -11896,7 +11900,8 @@ a nonrenewing initial US$20 allowance, restricted credentials and live testing.
 The local key and quotas are verified; 40 atomic US$0.50 reservations bound calls.
 One reservation covers public-landmark tests. The hosted travel migrations now
 preserve that reservation. Production-only workload identity replaces the hosted
-egress requirement; runtime and installed-macOS travel acceptance remain open. The separate advisor update installed
+egress requirement; hosted runtime acceptance passed September 22 and installed-macOS
+acceptance is recorded above with its two open gates. The separate advisor update installed
 released preview.42. Its missing build-time broker address is corrected. Installed
 Settings confirms advisor enablement and Calendar access. The first automatic
 briefing returned HTTP 409. The isolated preserved-lineage hotfix is now deployed;
@@ -11906,8 +11911,8 @@ Platform impact:
 
 | Platform | Implementation, follow-up, or not-applicable reason |
 |---|---|
-| Web | `docs/qa/travel-release.md` records synthetic checks and open deployed-web/provider gates; Daily Brief stays independent. |
-| Desktop | `docs/qa/travel-release.md` records native compilation/storage checks; installed permission/restart/navigation gates remain open. |
+| Web | `docs/qa/travel-release.md` records synthetic, hosted runtime and private-account acceptance; Daily Brief stays independent. |
+| Desktop | `docs/qa/travel-release.md` records installed sync, restart and route acceptance on preview.45; native device location and navigation handoff remain open. |
 | Marketing | `components/settings/LegalContent.tsx` and `docs/user-guide/travel.md` disclose the disabled rollout; public claims need deployed evidence. |
 | Future mobile | Not applicable to native release: native app remains deferred. Mobile-web evidence belongs to web acceptance. |
 
