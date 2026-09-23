@@ -104,6 +104,11 @@ Owner web use exhausted the six-per-day owner quota within minutes because every
 Timeline focus change refreshed; the client showed the generic unavailable message.
 Ticket 166 covers view reuse, zero-leg admission, a 24/day owner limit, per-code
 messages and in-click device-location onboarding.
+Ticket 166 is implemented: the client reuses a fresh view across focus changes, the
+server admits quota only before the first geocode, the quota function counts admissions
+with a 24/day owner limit, failures show per-code messages, and Settings requests device
+location inside the consent save with a permission state line. The hosted quota function
+migration and owner re-acceptance remain.
 
 Release candidate PR #58 (`codex/travel-release-2026-09-22`) now carries the full
 travel implementation, the preserved-lineage Daily Brief hotfix and the briefing

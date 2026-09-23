@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { TravelClient, TravelRoutesView } from "@/lib/ui/travel";
+import { TravelClientError, travelRouteFetch, type TravelClient, type TravelRoutesView } from "@/lib/ui/travel";
 import { readMacForegroundLocation } from "./foreground-location";
 import { createLocalTravelSettingsClient } from "./local-travel-settings.service";
 import { readDesktopCalendarBrokerOrigin } from "./calendar/google-calendar";
@@ -8,12 +8,10 @@ export function createDesktopTravelClient(client: SupabaseClient, origin = readD
   if (!origin) return null;
   const request = async (signal: AbortSignal, init: RequestInit = {}) => {
     const session = (await client.auth.getSession()).data.session;
-    if (!session) throw new Error("Sign in to use travel estimates.");
-    const response = await fetch(`${origin}/api/travel/routes`, { ...init, cache: "no-store", redirect: "error",
+    if (!session) throw new TravelClientError("unauthenticated");
+    return await travelRouteFetch(`${origin}/api/travel/routes`, { ...init, cache: "no-store", redirect: "error",
       signal: AbortSignal.any([signal, AbortSignal.timeout(50_000)]),
-      headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" } });
-    if (!response.ok) throw new Error("Travel estimates unavailable.");
-    return response.json();
+      headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" } }) as { configured?: boolean };
   };
   return {
     settings: createLocalTravelSettingsClient(),

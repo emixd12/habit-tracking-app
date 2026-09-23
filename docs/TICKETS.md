@@ -11915,7 +11915,8 @@ Filing this ticket does not create credentials, deploy, read location or transmi
 
 ## Ticket 166: Travel refresh quota, failure messages and device-location onboarding
 
-Status: planned. Filed September 22, 2026 from Ticket 165 owner acceptance.
+Status: implemented in repository September 22, 2026; hosted quota function deployment
+and owner re-acceptance follow. Filed September 22, 2026 from Ticket 165 owner acceptance.
 Dependencies: Tickets 162–165 shipped (PRs #58–#60); production routing is enabled.
 
 Goal: make travel usable on a real day without exhausting the owner quota, tell the
@@ -11936,9 +11937,10 @@ Scope and acceptance:
   visibility and BroadcastChannel refreshes reuse that view; a new request is sent only
   when the view is missing, expired, or the source key or corrections changed. The
   existing hidden/unfocused suppression and five-minute expiry stay unchanged.
-- Server admission. `refreshTravelRoutes` consumes the owner and global quota only after
-  the plan has at least one routable leg. A request that resolves to zero legs returns the
-  evidence without a reservation and without provider route calls. Geocoding calls remain
+- Server admission. `refreshTravelRoutes` consumes the owner and global quota only when
+  the first provider call (a geocode) is about to happen, since geocoding is billable and
+  precedes leg planning. A request with no geocodable text returns the zero-leg evidence
+  without a reservation and without provider calls. Geocoding calls remain
   bounded by the existing per-request caps. The rejected-attempt counter must not grow
   past the limit; store admissions, not attempts, or add a separate rejected count.
 - Limits. Raise the owner limit from 6 to 24 admissions per owner local day. Keep the

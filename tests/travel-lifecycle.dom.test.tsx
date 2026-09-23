@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import { useTravelContext, type TravelClient, type TravelRoutesView } from "@/lib/ui/travel";
+import { TravelClientError, travelClientErrorFromResponse, useTravelContext, type TravelClient, type TravelRoutesView } from "@/lib/ui/travel";
 
 const settings = { enabled: true, mode: "walking" as const, baseLocationText: null, navigationPreference: "google_maps" as const,
   routingConsentAt: "2026-09-21T12:00:00Z", onboardingCompletedAt: null, updatedAt: "revision" };
@@ -50,4 +50,62 @@ it("coalesces foreground changes, gates device reads, and rejects late account r
     await act(async () => vi.advanceTimersByTimeAsync(350));
     expect(readLocation).toHaveBeenCalledTimes(readsBeforeBlur);
   } finally { await act(() => root.unmount()); host.remove(); }
+});
+
+async function mount(routes: TravelClient["routes"]) {
+  vi.useFakeTimers();
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+  const client: TravelClient = { settings: { load: async () => settings, save: async () => settings },
+    configured: async () => true, readLocation: async () => ({ state: "denied" as const }), routes };
+  const host = document.createElement("div"); document.body.append(host); const root = createRoot(host);
+  await act(() => root.render(<Probe client={client} accountId="account-a" />));
+  await act(async () => vi.advanceTimersByTimeAsync(350));
+  return { host, unmount: async () => { await act(() => root.unmount()); host.remove(); } };
+}
+const focusAndWait = (ms = 350) => act(async () => { window.dispatchEvent(new Event("focus")); await vi.advanceTimersByTimeAsync(ms); });
+
+it("reuses a fresh view on focus and re-requests after expiry", async () => {
+  const routes = vi.fn(async () => view("account-a"));
+  const { host, unmount } = await mount(routes);
+  try {
+    expect(routes).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toBe("account-a");
+    await act(() => window.dispatchEvent(new Event("blur")));
+    await focusAndWait();
+    expect(routes).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toBe("account-a");
+    await act(async () => vi.advanceTimersByTimeAsync(300_000));
+    expect(host.textContent).toContain("expired");
+    await focusAndWait();
+    expect(routes).toHaveBeenCalledTimes(2);
+  } finally { await unmount(); }
+});
+
+it("shows the quota message for a 429", async () => {
+  const error = await travelClientErrorFromResponse(new Response(JSON.stringify({ error: "quota_exceeded", retryAfterSeconds: 60 }), { status: 429 }));
+  expect(error).toMatchObject({ code: "quota_exceeded", retryAfterSeconds: 60 });
+  const { host, unmount } = await mount(vi.fn(async () => { throw error; }));
+  try { expect(host.textContent).toBe("Today’s travel refresh limit is reached. Estimates return tomorrow."); } finally { await unmount(); }
+});
+
+it("retries one context change and shows the view", async () => {
+  const routes = vi.fn().mockRejectedValueOnce(new TravelClientError("context_changed")).mockImplementation(async () => view("account-a"));
+  const { host, unmount } = await mount(routes);
+  try {
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+    expect(routes).toHaveBeenCalledTimes(2);
+    expect(host.textContent).toBe("account-a");
+  } finally { await unmount(); }
+});
+
+it("shows the unavailable message after two context changes", async () => {
+  const routes = vi.fn(async () => { throw await travelClientErrorFromResponse(new Response(JSON.stringify({ error: "context_changed" }), { status: 409 })); });
+  const { host, unmount } = await mount(routes);
+  try {
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+    expect(routes).toHaveBeenCalledTimes(2);
+    expect(host.textContent).toBe("Travel estimates are unavailable right now. Tracking and Calendar still work.");
+  } finally { await unmount(); }
 });

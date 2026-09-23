@@ -50,3 +50,76 @@ it("keeps journey corrections transient and builds a source-location search link
     expect(corrected).toHaveBeenCalledWith({ eventId: event.id, revision: "revision-1", attendance: "remote", locationText: "User source address" });
   } finally { await act(() => root.unmount()); container.remove(); }
 });
+
+async function renderPanel(options: { readLocation: (requestPermission: boolean) => Promise<{ state: "available"; latitude: number; longitude: number; accuracyMeters: number; sampledAt: number } | { state: "prompt" | "denied" | "unavailable" }>; desktop?: boolean; save?: () => Promise<TravelSettings>; settings?: TravelSettings }) {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const settings: TravelSettings = options.settings ?? { enabled: false, baseLocationText: null, mode: "walking", navigationPreference: "google_maps", routingConsentAt: null, onboardingCompletedAt: null, updatedAt: "2026-09-21T12:00:00Z" };
+  const container = document.createElement("div"); document.body.append(container);
+  const root = createRoot(container);
+  await act(async () => root.render(<TravelSettingsPanel client={{ load: async () => settings, save: options.save ?? (async () => settings) }} readLocation={options.readLocation} desktop={options.desktop} />));
+  return { container, unmount: async () => { await act(() => root.unmount()); container.remove(); } };
+}
+function mockPermissions(state: PermissionState | null, userAgent = "Mozilla/5.0 (Macintosh) Chrome/140") {
+  Object.defineProperty(navigator, "userAgent", { configurable: true, value: userAgent });
+  Object.defineProperty(navigator, "permissions", { configurable: true, value: state ? { query: async () => ({ state }) } : undefined });
+}
+
+it.each([
+  ["granted", "Device location: allowed."],
+  ["prompt", "Device location: not yet allowed."],
+  ["denied", "Device location: blocked. Allow location for this site in your browser’s site settings."],
+] as const)("shows the web state line for %s", async (state, copy) => {
+  mockPermissions(state);
+  const { container, unmount } = await renderPanel({ readLocation: vi.fn(async () => ({ state: "prompt" as const })) });
+  try { expect(container.textContent).toContain(copy); } finally { await unmount(); }
+});
+
+it("omits the web state line without the Permissions API", async () => {
+  mockPermissions(null);
+  const { container, unmount } = await renderPanel({ readLocation: vi.fn(async () => ({ state: "prompt" as const })) });
+  try { expect(container.textContent).not.toContain("Device location:"); } finally { await unmount(); }
+});
+
+it("shows iOS Safari hints", async () => {
+  mockPermissions("prompt", "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1");
+  const first = await renderPanel({ readLocation: vi.fn(async () => ({ state: "prompt" as const })) });
+  try { expect(first.container.textContent).toContain("Device location: not yet allowed. To stop Safari asking, tap AA, then Website Settings, then Location, then Allow."); } finally { await first.unmount(); }
+  mockPermissions("denied", "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1");
+  const second = await renderPanel({ readLocation: vi.fn(async () => ({ state: "prompt" as const })) });
+  try { expect(second.container.textContent).toContain("Allow it in Settings › Privacy & Security › Location Services › Safari Websites."); } finally { await second.unmount(); }
+});
+
+it("maps desktop states from readLocation(false)", async () => {
+  mockPermissions(null);
+  const readLocation = vi.fn(async () => ({ state: "denied" as const }));
+  const { container, unmount } = await renderPanel({ readLocation, desktop: true });
+  try {
+    expect(readLocation).toHaveBeenCalledWith(false);
+    expect(container.textContent).toContain("Device location: blocked. Allow it in System Settings › Privacy & Security › Location Services › Cadence.");
+  } finally { await unmount(); }
+});
+
+it("requests permission inside the consent save click without showing Saving…", async () => {
+  mockPermissions("prompt");
+  let finishLocate!: () => void;
+  const readLocation = vi.fn((requestPermission: boolean) => requestPermission
+    ? new Promise<{ state: "denied" }>((resolve) => { finishLocate = () => resolve({ state: "denied" }); })
+    : Promise.resolve({ state: "prompt" as const }));
+  let finishSave!: () => void;
+  const settings: TravelSettings = { enabled: false, baseLocationText: null, mode: "walking", navigationPreference: "google_maps", routingConsentAt: null, onboardingCompletedAt: null, updatedAt: "2026-09-21T12:00:00Z" };
+  const save = vi.fn(() => new Promise<TravelSettings>((resolve) => { finishSave = () => resolve({ ...settings, routingConsentAt: "2026-09-22T00:00:00Z" }); }));
+  const { container, unmount } = await renderPanel({ readLocation, save, settings });
+  try {
+    const checkboxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+    await act(() => checkboxes[1]!.click());
+    const saveButton = [...container.querySelectorAll("button")].find((button) => button.textContent === "Save travel settings")!;
+    act(() => saveButton.click());
+    expect(readLocation).toHaveBeenCalledWith(true);
+    expect(readLocation.mock.invocationCallOrder.at(-1)!).toBeLessThan(save.mock.invocationCallOrder[0]!);
+    await act(async () => { finishSave(); });
+    expect(container.textContent).toContain("Checking…");
+    expect(container.textContent).not.toContain("Saving…");
+    await act(async () => { finishLocate(); });
+    expect(container.textContent).toContain("known event-to-event routes");
+  } finally { await unmount(); }
+});

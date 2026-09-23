@@ -17,14 +17,24 @@ set local role authenticated;
 do $$
 declare i integer; j integer; admitted boolean; admitted_count integer := 0;
 begin
-  for i in 1..8 loop
+  -- One owner reaches the 24-admission owner cap; the 25th attempt changes nothing.
+  perform set_config('request.jwt.claim.sub', '16500000-0000-4000-8000-000000000001', true);
+  for j in 1..25 loop
+    select allowed into admitted from public.consume_travel_route_quota();
+    if admitted then
+      admitted_count := admitted_count + 1;
+      if j > 24 then raise exception 'Owner daily cap exceeded'; end if;
+    elsif j <= 24 then raise exception 'Owner admission % rejected below the cap', j;
+    end if;
+  end loop;
+  if (select attempt_count from public.travel_route_owner_quota where user_id = '16500000-0000-4000-8000-000000000001') <> 24 then
+    raise exception 'A rejected attempt changed the owner count';
+  end if;
+  for i in 2..8 loop
     perform set_config('request.jwt.claim.sub', '16500000-0000-4000-8000-' || lpad(i::text, 12, '0'), true);
     for j in 1..7 loop
       select allowed into admitted from public.consume_travel_route_quota();
-      if admitted then
-        admitted_count := admitted_count + 1;
-        if j > 6 then raise exception 'Owner daily cap exceeded'; end if;
-      end if;
+      if admitted then admitted_count := admitted_count + 1; end if;
     end loop;
   end loop;
   if admitted_count <> 39 then

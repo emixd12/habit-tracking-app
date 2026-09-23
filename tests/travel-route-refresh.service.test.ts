@@ -64,9 +64,43 @@ describe("refreshTravelRoutes", () => {
     expect(mocks.quota.mock.invocationCallOrder[0]).toBeLessThan(mocks.geocode.mock.invocationCallOrder[0]!);
   });
 
-  it("makes no provider call when the initial allowance is exhausted", async () => {
-    mocks.source.mockResolvedValue(source);
+  const located = () => {
     mocks.calendar.mockResolvedValue({ status: "disconnected", generation: 0, selectionRevision: 0 });
+    mocks.timezone.mockResolvedValue("America/New_York");
+    mocks.historySessions.mockResolvedValue([]);
+    mocks.behaviors.mockResolvedValue([{ id: "behavior-1", default_duration_minutes: 30 }]);
+    mocks.occurrences.mockImplementation(async (_client: unknown, _userId: unknown, start: string) => start === "2026-09-22"
+      ? [{ id: "occurrence-1", behavior_id: "behavior-1", local_date: "2026-09-22", scheduled_for: "2026-09-22T10:00:00Z", schedule_kind: "exact", schedule_end_time: null, updated_at: "2026-09-20T00:00:00Z", status: "unresolved" }]
+      : []);
+    mocks.geocode.mockResolvedValue({ kind: "resolved", point: { kind: "place_id", placeId: "place" } });
+    mocks.route.mockResolvedValue([]);
+  };
+
+  it("does not consume quota or call the provider when nothing is geocodable", async () => {
+    located();
+    mocks.source.mockResolvedValue({ ...source, settings: { ...source.settings, baseLocationText: null }, behaviors: [{ id: "behavior-1", locationText: null, updatedAt: "2026-09-20T00:00:00Z" }] });
+    const result = await refreshTravelRoutes({ client: {} as never, user: { id: "owner" } as never },
+      { startLocalDate: "2026-09-22", endLocalDate: "2026-09-22" }, { cleared: true, apiKey: "key" }, now);
+    expect(result.evidence).not.toBeNull();
+    expect(mocks.quota).not.toHaveBeenCalled();
+    expect(mocks.geocode).not.toHaveBeenCalled();
+    expect(mocks.route).not.toHaveBeenCalled();
+  });
+
+  it("consumes exactly one admission across multiple geocodes", async () => {
+    located();
+    mocks.source.mockResolvedValue(source);
+    mocks.quota.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
+    await refreshTravelRoutes({ client: {} as never, user: { id: "owner" } as never },
+      { startLocalDate: "2026-09-22", endLocalDate: "2026-09-22" }, { cleared: true, apiKey: "key" }, now);
+    expect(mocks.geocode).toHaveBeenCalledTimes(2);
+    expect(mocks.quota).toHaveBeenCalledOnce();
+    expect(mocks.route.mock.calls[0]?.[0].quotaAlreadyConsumed).toBe(true);
+  });
+
+  it("makes no provider call when the initial allowance is exhausted", async () => {
+    located();
+    mocks.source.mockResolvedValue(source);
     mocks.quota.mockResolvedValue({ allowed: false, retryAfterSeconds: 86400 });
     await expect(refreshTravelRoutes({ client: {} as never, user: { id: "owner" } as never },
       { startLocalDate: "2026-09-22", endLocalDate: "2026-09-22" }, { cleared: true, apiKey: "key" }, now))
