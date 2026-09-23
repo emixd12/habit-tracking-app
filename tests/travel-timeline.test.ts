@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { resolveDayProgressLayout } from "@cadence/core/resolvers/day-progress.resolver";
 import { resolveTimelineOccurrenceContext } from "@cadence/core/resolvers/timeline-context.resolver";
 import type { TravelEvidenceResult, TravelOccupiedSegment } from "@cadence/core/types/travel";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { TravelStatusLine } from "@/components/timeline/DayProgressTimeline";
+import { TRAVEL_CLEARANCE_MESSAGE, travelSourceKey, type TravelRoutesView, type TravelState } from "@/lib/ui/travel";
 
 const segments: TravelOccupiedSegment[] = [
   { id: "out", kind: "route", startAt: "2026-09-21T13:30:00Z", endAt: "2026-09-21T14:30:00Z", sourceRefs: ["event"], legId: "out" },
@@ -31,5 +35,46 @@ describe("shared Timeline travel occupancy", () => {
     ], travelSegments: [{ ...segments[0]!, startAt: "2026-11-01T03:30:00Z", endAt: "2026-11-01T06:30:00Z" }] });
     expect(layout.days[0]!.travelSpans[0]!.endPosition).toBe(240);
     expect(layout.days[1]!.travelSpans[0]).toMatchObject({ startPosition: 240, endPosition: 265 });
+  });
+});
+
+describe("Timeline travel status line", () => {
+  const routesView: TravelRoutesView = { accountId: "a", mode: "walking", navigationPreference: "google_maps", settingsRevision: "r", expiresAt: null, evidence: { ...travel, modelProjection: undefined } as never };
+  const status = (value: Partial<TravelState>): TravelState => ({ view: null, message: null, stale: false, pending: false, observedAt: null, refresh: () => undefined, ...value });
+  const render = (value: TravelState | null) => renderToStaticMarkup(createElement(TravelStatusLine, { status: value, timezone: "America/New_York" }));
+  it("shows the observation time with a refresh link", () => {
+    const html = render(status({ view: routesView, observedAt: "2026-09-21T18:52:30Z" }));
+    expect(html).toContain("Travel as of 2:52 PM");
+    expect(html).toContain(">Refresh travel</button>");
+    expect(html).toContain("class=\"text-link\"");
+  });
+  it("marks an expired view as stale", () => {
+    expect(render(status({ view: routesView, observedAt: "2026-09-21T18:52:00Z", stale: true }))).toContain("Travel estimates from 2:52 PM may be stale.");
+  });
+  it("disables the link while pending", () => {
+    expect(render(status({ view: routesView, observedAt: "2026-09-21T18:52:00Z", pending: true }))).toContain("disabled");
+  });
+  it("shows a failure message with the link, and hides the link for provider review", () => {
+    const quota = render(status({ message: "Today’s travel refresh limit is reached. Estimates return tomorrow." }));
+    expect(quota).toContain("limit is reached");
+    expect(quota).toContain("Refresh travel");
+    const review = render(status({ message: TRAVEL_CLEARANCE_MESSAGE }));
+    expect(review).toContain("provider review");
+    expect(review).not.toContain("Refresh travel");
+  });
+  it("renders nothing without a view or message", () => {
+    expect(render(status({}))).toBe("");
+    expect(render(null)).toBe("");
+  });
+});
+
+describe("travel sourceKey", () => {
+  const event = { id: "e", revision: { providerEtag: "1", providerUpdatedAt: null }, location: "1 St", kind: "timed", startAt: "2026-09-21T13:00:00Z", endAt: "2026-09-21T14:00:00Z" };
+  const timeline = { daySections: [{ occurrences: [{ id: "o", status: "unresolved", scheduledFor: "2026-09-21T15:00:00Z" }] }], durationEstimates: {} } as never;
+  it("is unchanged by a new Calendar fetch with the same events", () => {
+    const first = { fetchedAt: "2026-09-21T12:00:00Z", events: [event] };
+    const second = { fetchedAt: "2026-09-21T12:05:00Z", events: [{ ...event, calendarId: "c", title: "refetched" }] };
+    expect(travelSourceKey(second.events as never, timeline)).toBe(travelSourceKey(first.events as never, timeline));
+    expect(travelSourceKey([{ ...event, location: "2 St" }] as never, timeline)).not.toBe(travelSourceKey(first.events as never, timeline));
   });
 });

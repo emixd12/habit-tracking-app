@@ -109,6 +109,14 @@ server admits quota only before the first geocode, the quota function counts adm
 with a 24/day owner limit, failures show per-code messages, and Settings requests device
 location inside the consent save with a permission state line. The hosted quota function
 migration and owner re-acceptance remain.
+PR #64 merged; the hosted quota function migration is applied (the pending advisor
+historical completion-time snapshot migration went with it). Owner web re-acceptance
+waits for the next owner local day.
+Ticket 167 is implemented: travel refreshes automatically only on the first Timeline
+open of a local day or when the schedule, locations, corrections or travel settings change;
+focus and Calendar polls reuse the current view; the Timeline shows `Travel as of` with a
+`Refresh travel` link and keeps stale estimates visible; base geocode reuse is built but
+disabled pending the provider caching policy check.
 
 Release candidate PR #58 (`codex/travel-release-2026-09-22`) now carries the full
 travel implementation, the preserved-lineage Daily Brief hotfix and the briefing

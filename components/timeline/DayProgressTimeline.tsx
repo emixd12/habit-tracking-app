@@ -28,7 +28,7 @@ import { OccurrenceRow } from "./OccurrenceRow";
 import { useDayProgressClock } from "./day-progress-clock";
 import styles from "./day-progress-timeline.module.css";
 import { useWebGoogleCalendarTimeline } from "@/lib/ui/google-calendar";
-import { useTravelContext, type TravelCorrection } from "@/lib/ui/travel";
+import { TRAVEL_CLEARANCE_MESSAGE, travelSourceKey as buildTravelSourceKey, useTravelContext, type TravelCorrection, type TravelState } from "@/lib/ui/travel";
 import type {
   OccurrenceFormAction,
   TimeTrackingFormAction,
@@ -43,6 +43,7 @@ export type DayProgressContext = Readonly<{
   durationEstimates?: Readonly<Record<string, BehaviorDurationEstimate>>;
   travel?: Omit<TravelEvidenceResult, "modelProjection"> | null;
   travelMessage?: string | null;
+  travelStatus?: TravelState | null;
   travelMode?: TravelMode | null;
   navigationPreference?: TravelNavigationPreference | null;
   onTravelCorrection?: (correction: TravelCorrection) => void;
@@ -117,8 +118,7 @@ export function DayProgressTimeline({
   const events = context?.events ?? live.snapshot?.events.filter((event) =>
     !live.hiddenCalendarIds.includes(event.calendarId) && (live.showAllDay || event.kind !== "all_day"),
   ) ?? EMPTY_EVENTS;
-  const travelSourceKey = JSON.stringify([events.map((event) => [event.id, event.revision, event.location,
-    event.kind === "timed" ? [event.startAt, event.endAt] : null]), timeline.daySections.map((section) => section.occurrences.map((occurrence) => [occurrence.id, occurrence.status, occurrence.scheduledFor])), timeline.durationEstimates]);
+  const travelSourceKey = buildTravelSourceKey(events, timeline);
   const currentCorrections = useMemo(() => corrections.filter((correction) => events.some((event) => event.id === correction.eventId && (event.revision.providerEtag ?? event.revision.providerUpdatedAt) === correction.revision)), [corrections, events]);
   const liveTravel = useTravelContext({ enabled: liveCalendar && !context, accountId: travelAccountId,
     localDate: timeline.todayLocalDate, sourceKey: travelSourceKey, corrections: currentCorrections });
@@ -214,7 +214,7 @@ export function DayProgressTimeline({
     >
       {firstMeasured ? <div className={styles.spine} style={{ left: firstMeasured.axisX }} aria-hidden="true" /> : null}
       {calendarState ? <p className={styles.calendarState} data-calendar-state={liveCalendar && !context ? live.state : fresh.state}>{calendarState}</p> : null}
-      {context?.travelMessage || liveTravel.message ? <p className={styles.calendarState} role="status">{context?.travelMessage ?? liveTravel.message}</p> : null}
+      <TravelStatusLine status={context ? context.travelStatus ?? null : liveTravel} message={context?.travelMessage ?? null} timezone={timeline.timezone} />
       {layout && firstMeasured ? <DayOverlay
         layout={layout}
         measured={measured}
@@ -540,4 +540,27 @@ function calendarFreshnessLabel(freshness: ExternalEventFreshness, timezone: str
   } catch {
     return freshness.label;
   }
+}
+
+/** One status line for travel: observation time or failure copy, plus a manual refresh link. */
+export function TravelStatusLine({ status, message, timezone }: Readonly<{ status: TravelState | null; message?: string | null; timezone: string }>) {
+  const text = travelStatusText(status, message ?? null, timezone);
+  if (!text) return null;
+  const showRefresh = !!status && (!!status.view?.evidence || (!!status.message && status.message !== TRAVEL_CLEARANCE_MESSAGE));
+  return (
+    <p className={styles.calendarState} role="status">
+      {text}
+      {showRefresh ? <>{" "}<button type="button" className="text-link" disabled={status.pending} onClick={status.refresh}>Refresh travel</button></> : null}
+    </p>
+  );
+}
+
+export function travelStatusText(status: TravelState | null, fallbackMessage: string | null, timezone: string): string | null {
+  if (!status) return fallbackMessage;
+  if (status.view?.evidence && status.observedAt) {
+    const time = Temporal.Instant.from(status.observedAt).toZonedDateTimeISO(timezone).toLocaleString("en-US", { hour: "numeric", minute: "2-digit" });
+    const prefix = status.stale ? `Travel estimates from ${time} may be stale.` : `Travel as of ${time}`;
+    return status.message ? `${prefix} ${status.message}` : prefix;
+  }
+  return status.message;
 }

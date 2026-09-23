@@ -52,6 +52,17 @@ changes temporary routing only. It does not edit Calendar or a saved location.
 Changes to a source withdraw old evidence. Leave and reopen the Timeline to discard
 journey corrections.
 
+## Refresh travel estimates
+
+Cadence requests travel estimates on the first Timeline open each day and when your
+schedule, locations or travel settings change. Returning to the window does not
+request again. Select Refresh travel on the Timeline status line to request new
+estimates. Device position is read only during a refresh.
+
+The status line shows Travel as of and the time the estimates were observed. After
+the estimates expire, the line says they may be stale and keeps them visible until
+you refresh. When a refresh fails, the line shows the reason instead.
+
 ## Open navigation
 
 Event details show available Calendar location text and a Search in maps link.

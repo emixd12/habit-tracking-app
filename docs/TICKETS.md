@@ -11987,7 +11987,9 @@ Filing this ticket changes no runtime behavior.
 
 ## Ticket 167: Travel refresh policy — first daily open, then manual, with base geocode reuse
 
-Status: planned. Filed September 22, 2026 from Ticket 165 owner acceptance.
+Status: implemented in repository September 22, 2026; base geocode reuse ships disabled
+behind a constant until the Geocoding caching policy check is recorded; owner
+re-acceptance follows. Filed September 22, 2026 from Ticket 165 owner acceptance.
 Dependencies: Ticket 166 (view reuse, per-code messages, admission change). Coordinate
 the two so the hook is changed once.
 

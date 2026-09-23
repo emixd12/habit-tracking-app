@@ -78,7 +78,8 @@ export function TravelSettingsPanel({ client = webTravelSettingsClient, readLoca
     <div className="grid max-w-2xl gap-4 text-sm leading-6">
       <p>After setup, Cadence can send route endpoints, your chosen mode and travel times to Google Maps automatically while you use the app. Google processes requests under its own retention terms.</p>
       <p>Calendar permission stays separate. Device location needs a separate browser or macOS permission. Travel locations and route results are not sent to the Daily Brief model.</p>
-      <p>Cadence saves only the locations you enter. Device positions and route results stay temporary and never enter tracking exports or synced backups. Turning travel off clears temporary results and preserves your saved locations.</p>
+      <p>Cadence saves only the locations you enter. Device positions and route results stay temporary and never enter tracking exports or synced backups. Turning travel off clears temporary results and preserves your saved locations. Estimates refresh on the first Timeline open each day, when your schedule or locations change, or when you choose Refresh travel.</p>
+      <p>Travel estimates are separate from today’s Daily Brief. Changes do not regenerate the briefing.</p>
       {desktop ? <p>Saved locations work offline. Route estimates require a linked account, a synchronized working copy and an internet connection.</p> : null}
       {settings ? <fieldset disabled={pending} className="grid min-w-0 gap-4">
         <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={settings.enabled} onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })} />Enable proactive travel estimates</label>
