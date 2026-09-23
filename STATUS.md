@@ -92,9 +92,9 @@ ran. Concurrent travel changes are preserved. Evidence and limits:
 Ticket 165 has two installed-macOS gates left: native device location and native
 navigation handoff. Installed preview.44
 synced the account after the canonicalization fix; preview.45 preserved settings across
-restart and completed a hosted route request (`Travel as of 9:23 AM`). macOS never
-prompts an ad hoc signed build for location, so the device-origin path waits for
-Ticket 115 signing. Tickets 166 and 167 are merged and deployed.
+restart and completed a hosted route request (`Travel as of 9:23 AM`). Core Location on the
+owner's Mac denies new clients without a prompt, including a stably signed probe app,
+so the device-origin path needs a Mac where the prompt appears; signing is not the cause. Tickets 166 and 167 are merged and deployed.
 
 PR #58 merged as `b48654d1` and is deployed. The owner enabled production routing
 clearance; redeploy `cadence-drxrpk40n` applied it. Hosted acceptance passed on the

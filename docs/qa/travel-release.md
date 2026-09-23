@@ -387,3 +387,20 @@ desktop host reports `document.hidden` while the user views another pane, so the
 hook correctly suspends and aborts in-flight requests, but an aborted request has
 already been admitted server-side and consumes one quota slot; and the Settings
 permission check shows `Checking…` on the check button as intended.
+
+## Native location gate re-attributed — September 23, 2026
+
+The ad hoc signing explanation recorded above was tested and refuted. The installed
+preview.45 re-signed with a stable local identity ("Hermes Local Code Signing") and
+run with its window active still reported `Diagnostic: timeout`. A standalone AppKit
+probe with its own bundle identifier (`app.cadence.locationprobe`, stably signed, with
+usage descriptions) logged `servicesEnabled=1 status=0`, called
+`requestWhenInUseAuthorization`, `startUpdatingLocation` and `requestLocation`, and
+received `kCLErrorDomain code=1` (denied) two seconds later with the status still
+`notDetermined` and no prompt on any of the three displays. Restarting `locationd`
+did not change the result; no configuration profile or MDM enrollment is present.
+The device-origin gate is therefore a machine-level Core Location condition on the
+owner's Mac, not a Cadence adapter or signing defect. Installed device-location
+acceptance needs a Mac where Core Location presents the prompt; Screen Time
+restrictions and a reboot are the next owner checks. The adapter's `reason` codes
+made this attribution possible.
