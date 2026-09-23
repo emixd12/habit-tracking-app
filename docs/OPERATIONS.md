@@ -1707,7 +1707,7 @@ Apply both tracked travel migrations and deploy matching web/desktop sync contra
 as one reviewed rollout. Older desktop clients must update before account sync.
 No release version or hosted rollout has been verified for this work.
 
-The repository bounds admission to six owner-local-day and 100 UTC-day recomputations.
+The repository bounds admission to 24 owner-local-day admissions and 100 UTC-day recomputations. Rejected attempts do not count.
 Each request covers at most eight route legs, two concurrent route calls, one transient
 retry and 45 seconds of provider work. Geocoding and driving refinement also consume
 provider billable calls; the request counter is not a monetary spending cap.

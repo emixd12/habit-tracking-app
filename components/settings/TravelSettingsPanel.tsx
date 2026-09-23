@@ -17,7 +17,24 @@ export function TravelSettingsPanel({ client = webTravelSettingsClient, readLoca
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [location, setLocation] = useState<ForegroundLocation["state"] | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [permission, setPermission] = useState<DeviceLocationPermission | null>(null);
   const sequence = useRef(0);
+  const locationSequence = useRef(0);
+  const permissionSequence = useRef(0);
+  const refreshPermission = () => {
+    const current = ++permissionSequence.current;
+    void queryDeviceLocationPermission(desktop, readLocation).then((value) => {
+      if (current === permissionSequence.current) setPermission(value);
+    });
+  };
+  useEffect(() => {
+    refreshPermission();
+    // Mount-only query; later queries follow each check and save. Cleanup invalidates pending results.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { permissionSequence.current++; locationSequence.current++; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     const current = ++sequence.current;
     void client.load().then((value) => {
@@ -30,6 +47,8 @@ export function TravelSettingsPanel({ client = webTravelSettingsClient, readLoca
   }, [client]);
   const save = async () => {
     if (!settings) return;
+    // Request permission inside the click, before any await, so the browser keeps the user gesture.
+    if (accepted && !settings.routingConsentAt) void locate();
     const current = ++sequence.current;
     setPending(true); setMessage("");
     try {
@@ -37,21 +56,24 @@ export function TravelSettingsPanel({ client = webTravelSettingsClient, readLoca
         mode: settings.mode, navigationPreference: settings.navigationPreference,
         expectedUpdatedAt: settings.updatedAt, acceptRoutingDisclosure: accepted });
       if (current !== sequence.current) return;
-      setSettings(saved); setAccepted(Boolean(saved.routingConsentAt)); setLocation(null);
+      setSettings(saved); setAccepted(Boolean(saved.routingConsentAt));
       setMessage("Travel settings saved.");
       notifyTravelSettingsChanged();
     } catch { if (current === sequence.current) setMessage("Travel settings could not save. Reload settings if another device changed them."); }
-    finally { if (current === sequence.current) setPending(false); }
+    finally { if (current === sequence.current) { setPending(false); refreshPermission(); } }
   };
   const locate = async () => {
-    const current = ++sequence.current;
-    setPending(true);
+    const current = ++locationSequence.current;
+    let request: Promise<ForegroundLocation>;
+    try { request = readLocation(true); } catch { request = Promise.resolve({ state: "unavailable" }); }
+    setLocating(true);
     try {
-      const result = await readLocation(true);
-      if (current === sequence.current) setLocation(result.state);
-    } catch { if (current === sequence.current) setLocation("unavailable"); }
-    finally { if (current === sequence.current) setPending(false); }
+      const result = await request;
+      if (current === locationSequence.current) setLocation(result.state);
+    } catch { if (current === locationSequence.current) setLocation("unavailable"); }
+    finally { if (current === locationSequence.current) { setLocating(false); refreshPermission(); } }
   };
+  const permissionHint = permission ? deviceLocationHint(permission, desktop) : null;
   return <SettingsPanel title="Travel" description="Plan travel between located commitments without changing their schedules or statuses.">
     <div className="grid max-w-2xl gap-4 text-sm leading-6">
       <p>After setup, Cadence can send route endpoints, your chosen mode and travel times to Google Maps automatically while you use the app. Google processes requests under its own retention terms.</p>
@@ -68,10 +90,38 @@ export function TravelSettingsPanel({ client = webTravelSettingsClient, readLoca
         </div>
         <p className="text-muted-readable">A navigation link sends that location to the selected app only when you open it. Search links do not verify timing.</p>
         <button type="button" onClick={save} disabled={settings.enabled && (!accepted || !settings.mode)} className="product-action product-action-primary min-h-11 w-fit">{pending ? "Saving…" : "Save travel settings"}</button>
-        <div className="grid gap-2 border-t border-line pt-4"><p>A permitted foreground position supplies the immediate origin. Cadence does not track your location continuously or save it as your base.</p><button type="button" onClick={locate} className="product-action product-action-secondary min-h-11 w-fit">Check device location permission</button></div>
+        <div className="grid gap-2 border-t border-line pt-4"><p>A permitted foreground position supplies the immediate origin. Cadence does not track your location continuously or save it as your base.</p><button type="button" onClick={locate} disabled={locating} className="product-action product-action-secondary min-h-11 w-fit">{locating ? "Checking…" : "Check device location permission"}</button>{permission ? <p className="text-muted-readable">Device location: {permission}.{permissionHint ? ` ${permissionHint}` : ""}</p> : null}</div>
       </fieldset> : <p>Loading travel settings…</p>}
       {location ? <p role="status">{location === "available" ? "A current position is available. This check did not save or send it." : `Location ${location}. Add a saved base for the immediate origin, or continue with known event-to-event routes.`}</p> : null}
       {message ? <p role="status">{message}</p> : null}
     </div>
   </SettingsPanel>;
+}
+
+type DeviceLocationPermission = "allowed" | "not yet allowed" | "blocked";
+
+async function queryDeviceLocationPermission(desktop: boolean, readLocation: (requestPermission: boolean) => Promise<ForegroundLocation>): Promise<DeviceLocationPermission | null> {
+  try {
+    if (desktop) {
+      const { state } = await readLocation(false);
+      return state === "available" ? "allowed" : state === "prompt" ? "not yet allowed" : state === "denied" ? "blocked" : null;
+    }
+    if (typeof navigator === "undefined" || typeof navigator.permissions?.query !== "function") return null;
+    const { state } = await navigator.permissions.query({ name: "geolocation" });
+    return state === "granted" ? "allowed" : state === "prompt" ? "not yet allowed" : state === "denied" ? "blocked" : null;
+  } catch { return null; }
+}
+
+function isIosSafari(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const agent = navigator.userAgent;
+  return /iP(hone|ad|od)/.test(agent) && /Safari/.test(agent) && !/CriOS|FxiOS|EdgiOS/.test(agent);
+}
+
+function deviceLocationHint(permission: DeviceLocationPermission, desktop: boolean): string | null {
+  if (permission === "not yet allowed") return !desktop && isIosSafari() ? "To stop Safari asking, tap AA, then Website Settings, then Location, then Allow." : null;
+  if (permission !== "blocked") return null;
+  if (desktop) return "Allow it in System Settings › Privacy & Security › Location Services › Cadence.";
+  if (isIosSafari()) return "Allow it in Settings › Privacy & Security › Location Services › Safari Websites.";
+  return "Allow location for this site in your browser’s site settings.";
 }

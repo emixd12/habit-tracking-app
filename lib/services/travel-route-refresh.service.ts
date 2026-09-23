@@ -34,8 +34,14 @@ export async function refreshTravelRoutes(
   const snapshot = calendar.status === "connected"
     ? await getCalendarEvents(caller, request.startLocalDate, request.endLocalDate)
     : null;
-  const admission = await consumeTravelRouteQuota(caller.client);
-  if (!admission.allowed) throw new TravelRoutingError({ code: "quota_exceeded", retryable: true, retryAfterSeconds: admission.retryAfterSeconds || 1 });
+  let admitted = false;
+  let admitting: Promise<void> | null = null;
+  // Admit only when a provider call is about to happen; later calls reuse the first admission.
+  const ensureAdmitted = () => admitting ??= (async () => {
+    const admission = await consumeTravelRouteQuota(caller.client);
+    if (!admission.allowed) throw new TravelRoutingError({ code: "quota_exceeded", retryable: true, retryAfterSeconds: admission.retryAfterSeconds || 1 });
+    admitted = true;
+  })();
   const [behaviorOccurrences, behaviors, timezone] = await Promise.all([
     listOccurrencesBetweenLocalDates(caller.client, caller.user.id, request.startLocalDate, request.endLocalDate),
     listUserBehaviors(caller.client, caller.user.id),
@@ -76,13 +82,13 @@ export async function refreshTravelRoutes(
     if (signal.aborted) throw new TravelRoutingError({ code: "context_changed", retryable: true, retryAfterSeconds: null });
   };
   await assertCurrent(deadline);
-  const calendarCommitmentsValue = await calendarCommitments(snapshot?.events ?? [], request, source.settingsRevision, config, now, assertCurrent, deadline);
-  const behaviorCommitmentsValue = await behaviorCommitments(behaviorOccurrences, source.behaviors, durationEstimates, timezone, config, now, assertCurrent, deadline);
+  const calendarCommitmentsValue = await calendarCommitments(snapshot?.events ?? [], request, source.settingsRevision, config, now, assertCurrent, ensureAdmitted, deadline);
+  const behaviorCommitmentsValue = await behaviorCommitments(behaviorOccurrences, source.behaviors, durationEstimates, timezone, config, now, assertCurrent, ensureAdmitted, deadline);
   const behaviorOccupancy = behaviorOccupancyCandidates(behaviorOccurrences, source.behaviors, durationEstimates, timezone, now);
   const allCommitments = [...calendarCommitmentsValue, ...behaviorCommitmentsValue].sort((left, right) => compareInstants(left.startAt, right.startAt));
   // Keep one unrouteable boundary commitment when the bounded source window truncates.
   const commitments = allCommitments.length > 9 ? [...allCommitments.slice(0, 8), { ...allCommitments[8]!, endpoint: null, attendance: "unknown" as const }] : allCommitments;
-  const base = commitments.length ? await endpointForText(source.settings.baseLocationText, "base", "saved_base", source.settingsRevision, config, now, assertCurrent, deadline) : null;
+  const base = commitments.length ? await endpointForText(source.settings.baseLocationText, "base", "saved_base", source.settingsRevision, config, now, assertCurrent, ensureAdmitted, deadline) : null;
   const device = request.device ? endpointForDevice(request.device, source.settingsRevision) : null;
   const journeyRevision = revision(source.settingsRevision, calendar.generation, calendar.selectionRevision, commitments, request.corrections);
   const plan = resolveTravelPlan({
@@ -107,7 +113,7 @@ export async function refreshTravelRoutes(
     routes: plan.legs.map((leg) => ({ id: leg.id, request: leg.request })),
     provider: config,
     quota: { consume: () => consumeTravelRouteQuota(caller.client) },
-    quotaAlreadyConsumed: true,
+    quotaAlreadyConsumed: admitted,
     assertCurrent,
     now,
     signal: deadline,
@@ -134,6 +140,7 @@ async function calendarCommitments(
   config: TravelProviderConfig,
   now: Temporal.Instant,
   assertCurrent: (signal: AbortSignal) => Promise<void>,
+  ensureAdmitted: () => Promise<void>,
   signal: AbortSignal,
 ): Promise<TravelCommitment[]> {
   const correctionById = new Map(request.corrections.map((correction) => [correction.eventId, correction]));
@@ -160,7 +167,7 @@ async function calendarCommitments(
       endAt: event.endUnspecified ? null : event.endAt,
       attendance,
       endpoint: attendance === "physical"
-        ? await endpointForText(locationText, event.id, correction ? "correction" : "calendar", correction?.revision ?? eventRevision(event), config, now, assertCurrent, signal)
+        ? await endpointForText(locationText, event.id, correction ? "correction" : "calendar", correction?.revision ?? eventRevision(event), config, now, assertCurrent, ensureAdmitted, signal)
         : null,
       mode: null,
       excluded: event.state === "cancelled" || event.currentUserResponse === "declined",
@@ -177,6 +184,7 @@ async function behaviorCommitments(
   config: TravelProviderConfig,
   now: Temporal.Instant,
   assertCurrent: (signal: AbortSignal) => Promise<void>,
+  ensureAdmitted: () => Promise<void>,
   signal: AbortSignal,
 ): Promise<TravelCommitment[]> {
   const behaviorById = new Map(behaviors.map((behavior) => [behavior.id, behavior]));
@@ -192,7 +200,7 @@ async function behaviorCommitments(
     const isExcluded = false;
     const overflow = prospective.length > 9 && index === 8;
     const endpoint = !overflow
-      ? await endpointForText(behavior.locationText, occurrence.id, "behavior", `${behavior.updatedAt}:${occurrence.updated_at}`, config, now, assertCurrent, signal)
+      ? await endpointForText(behavior.locationText, occurrence.id, "behavior", `${behavior.updatedAt}:${occurrence.updated_at}`, config, now, assertCurrent, ensureAdmitted, signal)
       : null;
     commitments.push({
       ref: occurrence.id,
@@ -243,9 +251,10 @@ function behaviorEndAt(
   return null;
 }
 
-async function endpointForText(text: string | null, ref: string, source: TravelEndpoint["source"], sourceRevision: string, config: TravelProviderConfig, now: Temporal.Instant, assertCurrent: (signal: AbortSignal) => Promise<void>, signal: AbortSignal): Promise<TravelEndpoint | null> {
+async function endpointForText(text: string | null, ref: string, source: TravelEndpoint["source"], sourceRevision: string, config: TravelProviderConfig, now: Temporal.Instant, assertCurrent: (signal: AbortSignal) => Promise<void>, ensureAdmitted: () => Promise<void>, signal: AbortSignal): Promise<TravelEndpoint | null> {
   if (!text) return null;
   await assertCurrent(signal);
+  await ensureAdmitted();
   const result = await geocodeGoogleAddress(text, { config, signal, maxRetries: 0 });
   await assertCurrent(signal);
   return result.kind === "resolved" ? { ref, point: result.point, source, sourceRevision, observedAt: now.toString() } : null;
