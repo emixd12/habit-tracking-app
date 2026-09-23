@@ -11987,7 +11987,9 @@ Filing this ticket changes no runtime behavior.
 
 ## Ticket 167: Travel refresh policy — first daily open, then manual, with base geocode reuse
 
-Status: planned. Filed September 22, 2026 from Ticket 165 owner acceptance.
+Status: implemented in repository September 22, 2026; base geocode reuse ships disabled
+behind a constant until the Geocoding caching policy check is recorded; owner
+re-acceptance follows. Filed September 22, 2026 from Ticket 165 owner acceptance.
 Dependencies: Ticket 166 (view reuse, per-code messages, admission change). Coordinate
 the two so the hook is changed once.
 
@@ -11997,13 +11999,16 @@ changes, and reusing the saved base's geocode within provider policy.
 
 Scope and acceptance:
 
-- First open. The first Timeline open for an account on a local day refreshes travel
-  automatically, subject to the existing enabled, consent, mode and configured checks.
-  Record the local date of that automatic refresh per account and installation in the
-  existing local preference store; no server state.
-- Source-change refresh. After the first open, refresh automatically only when the
-  travel source key changes: event times, locations or revisions, corrections, located
-  Behavior occurrences, duration estimates or travel settings. Focus, visibility, online
+- First open. Opening the Timeline refreshes travel automatically when this page session
+  holds no fresh view for the account, local date, source key and corrections. Views and
+  failures live in an in-memory, per-page-session cache (no storage), so Settings round
+  trips and remounts reuse them, a failure is not retried automatically for five minutes,
+  and a page reload triggers exactly one request. Review of the first implementation
+  replaced a persisted per-day marker with this rule: a reload after the day's first
+  refresh otherwise left the Timeline with no view and no automatic request.
+- Source-change refresh. After that, refresh automatically only when the travel source
+  key changes: event times, locations or revisions, corrections, located Behavior
+  occurrences and their Behavior location revisions, duration estimates or travel settings. Focus, visibility, online
   and BroadcastChannel events reuse the current view and never send a request by themselves.
 - Manual refresh. The Timeline travel status line shows `Travel as of 2:52 PM` using the
   view's `observedAt` in the account timezone, followed by a `Refresh travel` text link

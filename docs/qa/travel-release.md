@@ -342,3 +342,17 @@ determined for that state, and why no prompt appeared for the ad hoc signed
 preview, remains open. The panel shows `Saving…` on the Save link during the
 permission check; that copy is a follow-up. Owner re-acceptance continues after
 the toggle and the next preview build.
+
+## Quota admissions deployed — September 22, 2026
+
+PR #64 (`bdd6bd2f`) shipped Ticket 166. The authorized hosted push applied
+`20260922200000_travel_route_quota_admissions.sql`; the same push also applied the
+pending `20260922034223_advisor_historical_completion_times.sql`, which replaces the
+private advisor snapshot function and is additive. Hosted migration list readback shows
+both applied with no drift. The quota function now checks the 40-refresh lifetime
+budget, a 24 per owner-local-day limit and the 100 per UTC-day limit before
+incrementing; rejected attempts leave counters unchanged. The rewritten local budget
+smoke is text-checked in this release; run it against local Postgres before the next
+hosted quota change. Owner web re-acceptance resumes after the owner local day rolls
+over, because today's owner counter (11 attempts under the old function) stays above
+the earlier limit until then.

@@ -18,6 +18,20 @@ import { readTravelRouteSource } from "@/lib/services/travel-settings.service";
 
 const ZERO_BUFFERS = { arrivalSeconds: 0, exitSeconds: 0, settlingSeconds: 0 } as const;
 
+// Pending the Geocoding policy caching allowance check recorded in docs/qa/travel-release.md.
+const BASE_GEOCODE_REUSE_ENABLED = false;
+const BASE_GEOCODE_REUSE_MS = 30 * 24 * 60 * 60 * 1000;
+const BASE_GEOCODE_REUSE_CAP = 500;
+let baseGeocodeReuseEnabled = BASE_GEOCODE_REUSE_ENABLED;
+/** Per-instance, in-memory only: place-id points for a saved base, never coordinates or text. */
+const baseGeocodeReuse = new Map<string, { point: TravelEndpoint["point"]; expiresAt: number }>();
+
+/** Test-only toggle for the base geocode reuse branch. */
+export function setBaseGeocodeReuseForTest(enabled: boolean): void {
+  baseGeocodeReuseEnabled = enabled;
+  baseGeocodeReuse.clear();
+}
+
 export async function refreshTravelRoutes(
   caller: CalendarCaller,
   raw: unknown,
@@ -88,7 +102,7 @@ export async function refreshTravelRoutes(
   const allCommitments = [...calendarCommitmentsValue, ...behaviorCommitmentsValue].sort((left, right) => compareInstants(left.startAt, right.startAt));
   // Keep one unrouteable boundary commitment when the bounded source window truncates.
   const commitments = allCommitments.length > 9 ? [...allCommitments.slice(0, 8), { ...allCommitments[8]!, endpoint: null, attendance: "unknown" as const }] : allCommitments;
-  const base = commitments.length ? await endpointForText(source.settings.baseLocationText, "base", "saved_base", source.settingsRevision, config, now, assertCurrent, ensureAdmitted, deadline) : null;
+  const base = commitments.length ? await baseEndpoint(caller.user.id, source.settings.baseLocationText, source.settingsRevision, config, now, assertCurrent, ensureAdmitted, deadline) : null;
   const device = request.device ? endpointForDevice(request.device, source.settingsRevision) : null;
   const journeyRevision = revision(source.settingsRevision, calendar.generation, calendar.selectionRevision, commitments, request.corrections);
   const plan = resolveTravelPlan({
@@ -249,6 +263,23 @@ function behaviorEndAt(
     if (occurrence.schedule_kind === "exact" && estimate?.kind === "known") return Temporal.Instant.from(occurrence.scheduled_for).add({ seconds: estimate.seconds }).toString();
   } catch { return null; }
   return null;
+}
+
+async function baseEndpoint(userId: string, text: string | null, settingsRevision: string, config: TravelProviderConfig, now: Temporal.Instant, assertCurrent: (signal: AbortSignal) => Promise<void>, ensureAdmitted: () => Promise<void>, signal: AbortSignal): Promise<TravelEndpoint | null> {
+  if (!baseGeocodeReuseEnabled || !text) return endpointForText(text, "base", "saved_base", settingsRevision, config, now, assertCurrent, ensureAdmitted, signal);
+  const key = `${userId}:${settingsRevision}`;
+  const hit = baseGeocodeReuse.get(key);
+  if (hit && hit.expiresAt > now.epochMilliseconds) {
+    await assertCurrent(signal);
+    return { ref: "base", point: hit.point, source: "saved_base", sourceRevision: settingsRevision, observedAt: now.toString() };
+  }
+  baseGeocodeReuse.delete(key);
+  const endpoint = await endpointForText(text, "base", "saved_base", settingsRevision, config, now, assertCurrent, ensureAdmitted, signal);
+  if (endpoint && endpoint.point.kind === "place_id") {
+    baseGeocodeReuse.set(key, { point: endpoint.point, expiresAt: now.epochMilliseconds + BASE_GEOCODE_REUSE_MS });
+    while (baseGeocodeReuse.size > BASE_GEOCODE_REUSE_CAP) baseGeocodeReuse.delete(baseGeocodeReuse.keys().next().value!);
+  }
+  return endpoint;
 }
 
 async function endpointForText(text: string | null, ref: string, source: TravelEndpoint["source"], sourceRevision: string, config: TravelProviderConfig, now: Temporal.Instant, assertCurrent: (signal: AbortSignal) => Promise<void>, ensureAdmitted: () => Promise<void>, signal: AbortSignal): Promise<TravelEndpoint | null> {

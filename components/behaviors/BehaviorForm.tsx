@@ -108,6 +108,7 @@ export function BehaviorForm({
   const formRef = useRef<HTMLFormElement>(null);
   const draftRevisionRef = useRef(0);
   const submittedRevisionRef = useRef<number | null>(null);
+  const submittedLocationRef = useRef<string | null>(null);
 
   const markDraftDirty = useCallback(() => {
     draftRevisionRef.current += 1;
@@ -119,9 +120,15 @@ export function BehaviorForm({
       if (submittedRevisionRef.current === draftRevisionRef.current) {
         setDraftDirty(false);
       }
+      // A changed saved location withdraws cached travel estimates (web and desktop hooks listen).
+      const submitted = submittedLocationRef.current;
+      submittedLocationRef.current = null;
+      if (submitted !== null && submitted !== (behavior?.locationText ?? "").trim() && typeof window !== "undefined") {
+        window.dispatchEvent(new Event("cadence:travel-changed"));
+      }
       onSuccess?.(state);
     }
-  }, [onSuccess, state]);
+  }, [behavior?.locationText, onSuccess, state]);
 
   function addScheduleRow() {
     if (scheduleRows.length >= MAX_SCHEDULE_ROWS) {
@@ -238,8 +245,10 @@ export function BehaviorForm({
       action={formAction}
       onChangeCapture={markDraftDirty}
       onReset={resetFormDraft}
-      onSubmitCapture={() => {
+      onSubmitCapture={(event) => {
         submittedRevisionRef.current = draftRevisionRef.current;
+        const location = new FormData(event.currentTarget).get("location_text");
+        submittedLocationRef.current = typeof location === "string" ? location.trim() : null;
       }}
       className="grid gap-6"
     >

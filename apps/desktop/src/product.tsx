@@ -7,7 +7,7 @@ import { openCalendarSourceUrl } from "./calendar/google-calendar";
 import { GoogleCalendarPanel } from "@/components/settings/GoogleCalendarPanel";
 import { DailyBriefSettingsPanel } from "@/components/briefing/DailyBriefSettingsPanel";
 import { TravelSettingsPanel } from "@/components/settings/TravelSettingsPanel";
-import { useTravelContext, type TravelCorrection } from "@/lib/ui/travel";
+import { travelSourceKey, useTravelContext, type TravelCorrection } from "@/lib/ui/travel";
 import { createDesktopTravelClient } from "./travel";
 import { createLocalTravelSettingsClient } from "./local-travel-settings.service";
 import { readMacForegroundLocation } from "./foreground-location";
@@ -314,16 +314,19 @@ export function Product() {
     enabled: isTauri() && Boolean(bundle && accountUserId) && (activeScreen === "timeline" || activeScreen === "settings"),
   });
   const currentTravelCorrections = useMemo(() => (travelCorrections.accountId === accountUserId ? travelCorrections.items : []).filter((correction) => calendar.snapshot?.events.some((event) => event.id === correction.eventId && (event.revision.providerEtag ?? event.revision.providerUpdatedAt) === correction.revision)), [travelCorrections, calendar.snapshot, accountUserId]);
+  const visibleCalendarEvents = calendar.preferences?.visible ? calendar.snapshot?.events.filter((event) =>
+    !calendar.preferences!.hiddenCalendarIds.includes(event.calendarId)
+    && (calendar.preferences!.showAllDay || event.kind !== "all_day")) ?? [] : [];
   const travel = useTravelContext({ enabled: activeScreen === "timeline" && syncReady && syncStatus.state === "current",
     accountId: accountUserId, localDate: calendarRange.startLocalDate, client: travelClient, corrections: currentTravelCorrections,
-    sourceKey: JSON.stringify([calendar.snapshot?.fetchedAt, bundle?.timeline.timeline, syncStatus.state]) });
+    sourceKey: travelSourceKey(visibleCalendarEvents, bundle?.timeline.timeline ?? { daySections: [], durationEstimates: {} },
+      bundle?.timeline.behaviors.map((behavior) => ({ id: behavior.id, locationText: behavior.location_text ?? null, updatedAt: behavior.updated_at })) ?? []) });
   const calendarContext = {
     travelMessage: travel.message,
+    travelStatus: travel,
     onTravelCorrection: travel.view ? (correction: TravelCorrection) => setTravelCorrections((previous) => ({ accountId: accountUserId, items: [...(previous.accountId === accountUserId ? previous.items : []).filter((item) => item.eventId !== correction.eventId).slice(-7), correction] })) : undefined,
     travel: travel.view?.evidence, travelMode: travel.view?.mode, navigationPreference: travel.view?.navigationPreference,
-    events: calendar.preferences?.visible ? calendar.snapshot?.events.filter((event) =>
-      !calendar.preferences!.hiddenCalendarIds.includes(event.calendarId)
-      && (calendar.preferences!.showAllDay || event.kind !== "all_day")) ?? [] : [],
+    events: visibleCalendarEvents,
     freshness: calendar.snapshot ? { ...calendar.snapshot.freshness, label: calendar.label,
       ...(calendar.stale ? { state: "stale" as const, canAssertNoOverlap: false } : {}) }
       : { state: "unavailable" as const, refreshedAt: null, label: calendar.label, canAssertNoOverlap: false },

@@ -22,7 +22,7 @@ vi.mock("@/lib/services/travel-routing.service", async (load) => ({
   routeTravelLegs: mocks.route,
 }));
 
-import { refreshTravelRoutes } from "@/lib/services/travel-route-refresh.service";
+import { refreshTravelRoutes, setBaseGeocodeReuseForTest } from "@/lib/services/travel-route-refresh.service";
 
 const now = Temporal.Instant.from("2026-09-22T08:00:00Z");
 const source = {
@@ -171,5 +171,35 @@ describe("refreshTravelRoutes", () => {
     await refreshTravelRoutes({ client: {} as never, user: { id: "owner" } as never }, { startLocalDate: "2026-09-22", endLocalDate: "2026-09-22", device: { latitude: 40, longitude: -74, accuracyMeters: 10, sampledAt: "2026-09-22T08:00:00Z" } }, { cleared: true, apiKey: "key" }, now);
 
     expect(mocks.route.mock.calls.at(-1)![0].routes.some((route: { request: { timing: { at: string } } }) => route.request.timing.at === "2026-09-22T10:10:00Z")).toBe(true);
+  });
+
+  describe("saved base geocode reuse", () => {
+    const baseCalls = () => mocks.geocode.mock.calls.filter(([text]) => text === "1 Base St").length;
+    const run = () => refreshTravelRoutes({ client: {} as never, user: { id: "owner" } as never },
+      { startLocalDate: "2026-09-22", endLocalDate: "2026-09-22" }, { cleared: true, apiKey: "key" }, now);
+
+    it("geocodes the base on every refresh while reuse is disabled", async () => {
+      setBaseGeocodeReuseForTest(false);
+      located();
+      mocks.source.mockResolvedValue(source);
+      mocks.quota.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
+      await run(); await run();
+      expect(baseCalls()).toBe(2);
+      expect(mocks.geocode).toHaveBeenCalledTimes(4);
+    });
+
+    it("skips admission and geocode on a reuse hit when enabled", async () => {
+      setBaseGeocodeReuseForTest(true);
+      try {
+        located();
+        mocks.source.mockResolvedValue(source);
+        mocks.quota.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
+        await run();
+        expect(baseCalls()).toBe(1);
+        await run();
+        expect(baseCalls()).toBe(1);
+        expect(mocks.geocode).toHaveBeenCalledTimes(3);
+      } finally { setBaseGeocodeReuseForTest(false); }
+    });
   });
 });

@@ -1447,6 +1447,11 @@
       "id": "INT-TRAVEL-003",
       "classification": "external_provider",
       "reason": "Transient correction can trigger a reviewed route provider request."
+    },
+    {
+      "id": "INT-TRAVEL-004",
+      "classification": "external_provider",
+      "reason": "Manual travel refresh can trigger a reviewed route provider request."
     }
   ]
 }

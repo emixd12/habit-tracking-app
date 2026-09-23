@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { TravelEvidenceResult, TravelMode, TravelNavigationPreference } from "@cadence/core/types/travel";
+import type { NormalizedExternalEvent } from "@cadence/core/types/day-progress";
+import type { TimelineView } from "@/lib/types/timeline";
 import type { TravelSettingsClient } from "./travel-settings";
 import { webTravelSettingsClient } from "./travel-settings";
 import { readBrowserForegroundLocation, type ForegroundLocation } from "./foreground-location";
@@ -61,7 +63,8 @@ async function routeRequest(init: RequestInit): Promise<unknown> {
 
 const QUOTA_MESSAGE = "Today’s travel refresh limit is reached. Estimates return tomorrow.";
 const UNAVAILABLE_MESSAGE = "Travel estimates are unavailable right now. Tracking and Calendar still work.";
-const CLEARANCE_MESSAGE = "Travel estimates await this deployment’s provider review.";
+export const TRAVEL_CLEARANCE_MESSAGE = "Travel estimates await this deployment’s provider review.";
+const CLEARANCE_MESSAGE = TRAVEL_CLEARANCE_MESSAGE;
 function travelErrorMessage(error: unknown): string {
   const code = error instanceof TravelClientError ? error.code : "unknown";
   if (code === "quota_exceeded") return QUOTA_MESSAGE;
@@ -75,9 +78,46 @@ export const webTravelClient: TravelClient = {
   readLocation: readBrowserForegroundLocation,
 };
 
-type TravelState = Readonly<{ view: TravelRoutesView | null; message: string | null }>;
+export type TravelBehaviorRevision = Readonly<{ id: string; locationText: string | null; updatedAt: string }>;
+/** Travel inputs only: visible events, occurrence schedule/status, owning Behavior location revisions and duration estimates. */
+export function travelSourceKey(events: readonly NormalizedExternalEvent[], timeline: Pick<TimelineView, "daySections" | "durationEstimates">, behaviors: readonly TravelBehaviorRevision[] = []): string {
+  const byId = new Map(behaviors.map((behavior) => [behavior.id, [behavior.locationText, behavior.updatedAt]]));
+  return JSON.stringify([events.map((event) => [event.id, event.revision, event.location,
+    event.kind === "timed" ? [event.startAt, event.endAt] : null]), timeline.daySections.map((section) => section.occurrences.map((occurrence) => [occurrence.id, occurrence.status, occurrence.scheduledFor, byId.get(occurrence.behaviorId) ?? null])), timeline.durationEstimates]);
+}
 
-/** Foreground changes coalesce. A deadline clears evidence; it never schedules a polling loop. */
+type TravelCacheEntry = Readonly<{ view: TravelRoutesView | null; message: string | null; at: number }>;
+const TRAVEL_CACHE_CAP = 32;
+const FAILURE_REUSE_MS = 5 * 60 * 1000;
+/** Page-session memory only: survives Timeline remounts, never persisted. */
+const travelViewCache = new Map<string, TravelCacheEntry>();
+function cacheTravel(key: string, entry: TravelCacheEntry): void {
+  travelViewCache.delete(key);
+  travelViewCache.set(key, entry);
+  while (travelViewCache.size > TRAVEL_CACHE_CAP) travelViewCache.delete(travelViewCache.keys().next().value!);
+}
+function clearTravelCacheForAccount(accountId: string): void {
+  for (const key of [...travelViewCache.keys()]) if ((JSON.parse(key) as unknown[])[0] === accountId) travelViewCache.delete(key);
+}
+/** Test-only reset of the in-memory travel view cache. */
+export function resetTravelViewCacheForTest(): void { travelViewCache.clear(); }
+
+export type TravelState = Readonly<{
+  view: TravelRoutesView | null; message: string | null;
+  stale: boolean; pending: boolean; observedAt: string | null;
+  refresh: () => void;
+}>;
+type StoredTravel = Readonly<{ key: string; view: TravelRoutesView | null; message: string | null; stale: boolean; pending: boolean; observedAt: string | null }>;
+
+function earliestObservedAt(view: TravelRoutesView, fallback: string): string {
+  const times = (view.evidence?.legs ?? []).flatMap((item) => item.estimate?.observedAt ? [item.estimate.observedAt] : []);
+  return times.length ? times.reduce((left, right) => Date.parse(left) <= Date.parse(right) ? left : right) : fallback;
+}
+
+/**
+ * Requests automatically only on the first Timeline open of a local date, or when the
+ * travel inputs or settings change. Focus and visibility never request; refresh() does.
+ */
 export function useTravelContext(input: Readonly<{
   enabled: boolean; accountId: string | null; localDate: string; sourceKey: string;
   client?: TravelClient | null; corrections?: readonly TravelCorrection[];
@@ -85,45 +125,56 @@ export function useTravelContext(input: Readonly<{
   const client = input.client === undefined ? webTravelClient : input.client;
   const correctionsKey = JSON.stringify(input.corrections ?? []);
   const stateKey = JSON.stringify([input.accountId, input.localDate, input.sourceKey, correctionsKey]);
-  const [stored, setStored] = useState<TravelState & { key: string }>({ key: "", view: null, message: null });
+  const empty: Omit<StoredTravel, "key"> = { view: null, message: null, stale: false, pending: false, observedAt: null };
+  const [stored, setStored] = useState<StoredTravel>({ key: "", ...empty });
   const storedRef = useRef(stored);
-  const state: TravelState = stored.key === stateKey ? stored : { view: null, message: null };
+  const manual = useRef<() => void>(() => undefined);
+  const [refresh] = useState(() => () => manual.current());
+  const state = stored.key === stateKey ? stored : { key: stateKey, ...empty };
   useEffect(() => {
     if (!input.enabled || !input.accountId || !client) return;
-    const setState = (value: TravelState) => { const next = { ...value, key: stateKey }; storedRef.current = next; setStored(next); };
-    /** A fresh view for this exact key is reused until it expires. */
-    const reusable = () => {
-      const current = storedRef.current;
-      return current.key === stateKey && !!current.view?.evidence && !!current.view.expiresAt && Date.parse(current.view.expiresAt) > Date.now();
-    };
+    const accountId = input.accountId;
+    const setState = (value: Omit<StoredTravel, "key">) => { const next = { ...value, key: stateKey }; storedRef.current = next; setStored(next); };
+    const current = () => storedRef.current.key === stateKey ? storedRef.current : { key: stateKey, ...empty };
+    const patch = (value: Partial<Omit<StoredTravel, "key">>) => setState({ ...current(), ...value });
     let generation = 0;
     let active = true;
+    let inFlight = false;
+    let deferred = false;
     let controller: AbortController | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let expiry: ReturnType<typeof setTimeout> | undefined;
     let permission: PermissionStatus | null = null;
-    const invalidate = () => {
-      generation++; controller?.abort(); clearTimeout(timer); clearTimeout(expiry);
-      setState({ view: null, message: null });
+    const foreground = () => !document.hidden && document.hasFocus() && navigator.onLine;
+    const stop = () => { generation++; controller?.abort(); clearTimeout(timer); if (inFlight) { inFlight = false; patch({ pending: false }); } };
+    const showView = (view: TravelRoutesView, at: number, extra: Partial<Omit<StoredTravel, "key">> = {}) => {
+      const remaining = view.expiresAt ? Date.parse(view.expiresAt) - Date.now() : 0;
+      const stale = !!view.evidence && (!Number.isFinite(remaining) || remaining <= 0);
+      patch({ ...extra, view, message: null, stale, observedAt: view.evidence ? earliestObservedAt(view, new Date(at).toISOString()) : null });
+      clearTimeout(expiry);
+      if (view.evidence && !stale) expiry = setTimeout(() => {
+        if (active && storedRef.current.view === view) patch({ stale: true });
+      }, Math.min(remaining, 2_147_483_647));
     };
-    // Losing focus or visibility stops in-flight work but keeps a fresh view for reuse on return.
-    const suspend = () => { if (reusable()) { generation++; controller?.abort(); clearTimeout(timer); } else invalidate(); };
-    const refresh = () => {
-      if (reusable()) return;
-      invalidate();
-      if (!active || document.hidden || !document.hasFocus() || !navigator.onLine) return;
-      const current = generation;
+    const request = () => {
+      if (!active || inFlight) return;
+      if (!foreground()) { deferred = true; return; }
+      deferred = false; inFlight = true; generation++;
+      patch({ pending: true });
+      const run = generation;
       timer = setTimeout(async () => {
         controller = new AbortController();
         const signal = controller.signal;
-        const valid = () => active && current === generation && !signal.aborted && !document.hidden && document.hasFocus();
+        const valid = () => active && run === generation && !signal.aborted && !document.hidden && document.hasFocus();
+        const finish = (value: Partial<Omit<StoredTravel, "key">>) => { inFlight = false; patch({ ...value, pending: false }); };
         try {
           const settings = await client.settings.load();
           if (!valid()) return;
-          if (!settings.enabled || !settings.routingConsentAt || !settings.mode) return;
+          if (!settings.enabled || !settings.routingConsentAt || !settings.mode) { finish({ view: null, message: null, stale: false, observedAt: null }); return; }
           const configured = await client.configured(signal);
           if (!valid()) return;
-          if (!configured) { setState({ view: null, message: CLEARANCE_MESSAGE }); return; }
+          if (!configured) { cacheTravel(stateKey, { view: null, message: CLEARANCE_MESSAGE, at: Date.now() }); finish({ view: null, message: CLEARANCE_MESSAGE, stale: false, observedAt: null }); return; }
+          // Device position is read only inside a request.
           const position = await client.readLocation(false);
           if (!valid()) return;
           const device = position.state === "available" ? { latitude: position.latitude, longitude: position.longitude,
@@ -141,46 +192,63 @@ export function useTravelContext(input: Readonly<{
               throw retryError instanceof TravelClientError && retryError.code === "context_changed" ? new TravelClientError("provider_unavailable") : retryError;
             }
           }
-          if (!valid() || view.accountId !== input.accountId || view.settingsRevision !== settings.updatedAt) return;
-          const remaining = view.expiresAt ? Date.parse(view.expiresAt) - Date.now() : 0;
-          if (view.evidence && (!Number.isFinite(remaining) || remaining <= 0)) return;
-          setState({ view, message: view.evidence ? "Travel estimates are separate from today’s Daily Brief. Changes do not regenerate the briefing." : null });
-          if (view.evidence) expiry = setTimeout(() => {
-            if (active && storedRef.current.view === view) setState({ view: null, message: "Travel estimates expired. Return to this window to refresh them." });
-          }, Math.min(remaining, 2_147_483_647));
+          if (!valid()) return;
+          if (view.accountId !== accountId || view.settingsRevision !== settings.updatedAt) { finish({}); return; }
+          cacheTravel(stateKey, { view, message: null, at: Date.now() });
+          inFlight = false;
+          showView(view, Date.now(), { pending: false });
         } catch (error) {
-          if (valid()) setState({ view: null, message: travelErrorMessage(error) });
+          if (!valid()) return;
+          cacheTravel(stateKey, { view: null, message: travelErrorMessage(error), at: Date.now() });
+          finish({ view: null, message: travelErrorMessage(error), stale: false, observedAt: null });
         }
       }, 350);
     };
+    manual.current = () => {
+      if (!active || inFlight) return;
+      if (!navigator.onLine) { patch({ message: UNAVAILABLE_MESSAGE }); return; }
+      if (document.hidden || !document.hasFocus()) return;
+      request();
+    };
+    // Returning to the window resumes only an automatic request that could not start.
+    const resume = () => { if (deferred) request(); else setStored((value) => ({ ...value })); };
+    const suspend = () => { if (inFlight) { stop(); deferred = true; } };
     const channel = typeof window.BroadcastChannel === "function" ? new BroadcastChannel("cadence-travel") : null;
-    if (channel) channel.onmessage = refresh;
-    const visibility = () => { if (document.hidden) suspend(); else refresh(); };
-    const revoked = () => { if (permission?.state !== "granted") { invalidate(); refresh(); } };
+    if (channel) channel.onmessage = () => setStored((value) => ({ ...value }));
+    const visibility = () => { if (document.hidden) suspend(); else resume(); };
+    const revoked = () => { if (permission?.state !== "granted") { stop(); clearTimeout(expiry); setState({ ...empty }); } };
     if (typeof navigator.permissions?.query === "function") {
       void navigator.permissions.query({ name: "geolocation" }).then((value) => {
         if (!active) return;
         permission = value; permission.addEventListener("change", revoked);
       }).catch(() => undefined);
     }
-    window.addEventListener("focus", refresh);
-    window.addEventListener("blur", suspend);
-    window.addEventListener("online", refresh);
-    window.addEventListener("offline", invalidate);
     // Settings changes on this window always replace the view.
-    const changed = () => { invalidate(); refresh(); };
+    const changed = () => { clearTravelCacheForAccount(accountId); stop(); clearTimeout(expiry); setState({ ...empty }); request(); };
+    window.addEventListener("focus", resume);
+    window.addEventListener("blur", suspend);
+    window.addEventListener("online", resume);
+    window.addEventListener("offline", suspend);
     window.addEventListener("cadence:travel-changed", changed);
     document.addEventListener("visibilitychange", visibility);
-    refresh();
+    const cached = travelViewCache.get(stateKey);
+    const freshView = !!cached?.view && (!cached.view.evidence || (!!cached.view.expiresAt && Date.parse(cached.view.expiresAt) > Date.now()));
+    if (cached?.view && freshView) showView(cached.view, cached.at);
+    else if (cached && !cached.view && cached.message && Date.now() - cached.at < FAILURE_REUSE_MS) patch({ message: cached.message });
+    else request();
     return () => {
       channel?.close();
       active = false; generation++; controller?.abort(); clearTimeout(timer); clearTimeout(expiry);
+      manual.current = () => undefined;
       permission?.removeEventListener("change", revoked);
-      window.removeEventListener("focus", refresh); window.removeEventListener("blur", suspend); window.removeEventListener("online", refresh);
-      window.removeEventListener("offline", invalidate); window.removeEventListener("cadence:travel-changed", changed);
+      window.removeEventListener("focus", resume); window.removeEventListener("blur", suspend); window.removeEventListener("online", resume);
+      window.removeEventListener("offline", suspend); window.removeEventListener("cadence:travel-changed", changed);
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [client, input.accountId, input.enabled, input.localDate, input.sourceKey, correctionsKey, stateKey]);
-  return input.enabled && state.view?.accountId === input.accountId ? state
-    : { view: null, message: input.enabled && !state.view ? state.message : null };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stateKey covers localDate, sourceKey and corrections.
+  }, [client, input.accountId, input.enabled, stateKey]);
+  const visible = input.enabled && (!state.view || state.view.accountId === input.accountId);
+  return visible
+    ? { view: state.view, message: state.message, stale: state.stale, pending: state.pending, observedAt: state.observedAt, refresh }
+    : { view: null, message: null, stale: false, pending: false, observedAt: null, refresh };
 }

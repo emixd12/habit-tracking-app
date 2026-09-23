@@ -284,7 +284,8 @@
         "INT-BRIEF-004",
         "INT-TRAVEL-001",
         "INT-TRAVEL-002",
-        "INT-TRAVEL-003"
+        "INT-TRAVEL-003",
+        "INT-TRAVEL-004"
       ]
     },
     {
@@ -744,11 +745,12 @@
     {
       "path": "components/timeline/DayProgressTimeline.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 6,
+      "interaction_marker_count": 8,
       "interaction_ids": [
         "INT-TIMELINE-001",
         "INT-CALENDAR-005",
-        "INT-CALENDAR-006"
+        "INT-CALENDAR-006",
+        "INT-TRAVEL-004"
       ]
     },
     {
@@ -12730,6 +12732,89 @@
           ],
           "evidence": [
             "tests/travel-settings.dom.test.tsx"
+          ],
+          "reason": "Shared implementation; live provider and installed desktop acceptance remain open."
+        },
+        "marketing": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Marketing cannot configure authenticated account data use."
+        },
+        "mobile": {
+          "applicability": "not_applicable",
+          "status": "not_applicable",
+          "reason": "Native mobile implementation is deferred."
+        }
+      }
+    },
+    {
+      "id": "INT-TRAVEL-004",
+      "name": "Refresh travel estimates",
+      "user_guidance": {
+        "audience": "user",
+        "references": [
+          "docs/user-guide/travel.md#refresh-travel-estimates"
+        ]
+      },
+      "status": "implemented",
+      "surfaces": [
+        "timeline"
+      ],
+      "routes": [
+        "/timeline"
+      ],
+      "journeys": [
+        "J14"
+      ],
+      "intent": "Request new travel estimates for today from the Timeline status line.",
+      "triggers": [
+        {
+          "kind": "activate",
+          "control": "Refresh travel"
+        }
+      ],
+      "availability": "Timeline status line while travel is enabled and a view or a retryable failure message is shown; disabled while a request is in flight.",
+      "success_result": "Replaces the travel estimates and shows the observation time.",
+      "failure_result": "Shows the quota or unavailable message and preserves tracking data; offline desktop shows the unavailable message without a request.",
+      "effects": [
+        "network_request",
+        "ui_state"
+      ],
+      "risk": "moderate",
+      "confirmation": "none",
+      "implementation": [
+        "components/timeline/DayProgressTimeline.tsx",
+        "lib/ui/travel.ts"
+      ],
+      "test_coverage": {
+        "level": "direct",
+        "references": [
+          "tests/travel-lifecycle.dom.test.tsx"
+        ],
+        "notes": "Provider-free tests. Live provider acceptance remains open."
+      },
+      "platforms": {
+        "web": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/timeline/DayProgressTimeline.tsx",
+            "lib/ui/travel.ts"
+          ],
+          "evidence": [
+            "tests/travel-lifecycle.dom.test.tsx"
+          ],
+          "reason": "Shared implementation; live provider and installed desktop acceptance remain open."
+        },
+        "desktop": {
+          "applicability": "applicable",
+          "status": "implemented",
+          "implementation": [
+            "components/timeline/DayProgressTimeline.tsx",
+            "apps/desktop/src/product.tsx"
+          ],
+          "evidence": [
+            "tests/travel-lifecycle.dom.test.tsx"
           ],
           "reason": "Shared implementation; live provider and installed desktop acceptance remain open."
         },
