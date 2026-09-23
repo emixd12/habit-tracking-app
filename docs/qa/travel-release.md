@@ -387,3 +387,23 @@ desktop host reports `document.hidden` while the user views another pane, so the
 hook correctly suspends and aborts in-flight requests, but an aborted request has
 already been admitted server-side and consumes one quota slot; and the Settings
 permission check shows `Checking…` on the check button as intended.
+
+## Native location gate re-attributed — September 23, 2026
+
+The ad hoc signing explanation recorded above was tested and refuted. The installed
+preview.45 re-signed with a stable local identity ("Hermes Local Code Signing") and
+run with its window active still reported `Diagnostic: timeout`. A standalone AppKit
+probe with its own bundle identifier (`app.cadence.locationprobe`, stably signed, with
+usage descriptions) logged `servicesEnabled=1 status=0`, called
+`requestWhenInUseAuthorization`, `startUpdatingLocation` and `requestLocation`, and
+received `kCLErrorDomain code=1` (denied) two seconds later with the status still
+`notDetermined` and no prompt on any of the three displays. Restarting `locationd`
+did not change the result; no configuration profile or MDM enrollment is present.
+These experiments rule out ad hoc identity churn and the Cadence adapter, but not
+signing itself: both the preview and the probe used a local self-signed identity, and
+no Apple-trusted Developer ID certificate is available (Ticket 115). Two causes remain
+open: a machine-level Core Location condition on the owner's Mac, and a possible
+requirement for Apple-trusted signing before Core Location prompts. Next checks: Screen
+Time restrictions and a reboot on this Mac, a second Mac, and a Developer ID signed
+build once Ticket 115 provides one. The adapter's `reason` codes
+made this attribution possible.
