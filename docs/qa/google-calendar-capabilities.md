@@ -1057,6 +1057,13 @@ Branding and data access remain verified. No new actionable request appears. The
 no configuration and did not read the inbox. Post-approval smoke checks remain
 outstanding. `git diff --check` passed for this evidence-only update.
 
+September 24 follow-up could not access the Identity Scaffolding Chrome session;
+Computer Use reported that the instance was unavailable. Today's provider status
+is not verified. The last successful check remains September 23. Resuming the
+check requires the signed-in Identity Scaffolding profile to be available.
+No project configuration changed, no inbox was read, and no correspondence was
+sent. This session failure provides no evidence that Google changed its approval.
+
 Data Access lists `calendar.events.readonly` with **This scope is verified**.
 The unchanged non-sensitive declarations are `calendar.calendarlist.readonly`
 and `openid`. The restricted-scope list is empty. Clients lists one web client,
