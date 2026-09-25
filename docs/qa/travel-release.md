@@ -422,3 +422,22 @@ authorizations, and an Apple-trusted signing requirement. The discriminating tes
 remain a second Mac and a Developer ID signed build (Ticket 115). Until then the installed
 app plans travel from the saved base and located commitments only, which the
 Settings copy already states.
+
+## Base geocode reuse policy check — September 24, 2026
+
+Google's Geocoding API policies state that the place ID is exempt from the
+caching restrictions in the Maps Platform Service Terms and may be stored
+indefinitely, while other Geocoding content stays subject to those
+restrictions. Source, read September 24, 2026:
+https://developers.google.com/maps/documentation/geocoding/policies
+
+Cadence's base geocode reuse stores only place-ID endpoints. The reuse branch in
+`lib/services/travel-route-refresh.service.ts` caches an endpoint only when its
+point kind is `place_id`, keyed by owner and travel settings revision, in server
+memory for at most 30 days with a 500-entry cap. It stores no coordinates,
+formatted addresses, base text, route content or device samples, and nothing is
+persisted. A reuse hit skips the base geocode; every other endpoint still
+geocodes, so quota admission continues to happen before the first provider call
+of a refresh. The check passes and `BASE_GEOCODE_REUSE_ENABLED` is now `true`.
+Owner re-acceptance on web and installed desktop, with Cloud Monitoring geocode
+counts before and after, remains open under Ticket 167.

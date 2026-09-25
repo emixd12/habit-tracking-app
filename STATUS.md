@@ -20,6 +20,23 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Ticket 167 base geocode reuse enabled — September 24, 2026
+
+The Geocoding policy check is recorded in `docs/qa/travel-release.md`: Google
+exempts place IDs from its caching restrictions and permits indefinite storage.
+The reuse branch stores only place-ID endpoints in server memory, keyed by owner
+and settings revision and bounded to 30 days and 500 entries, so
+`BASE_GEOCODE_REUSE_ENABLED` is now `true`. The service tests reset reuse state
+before each case and keep explicit disabled and enabled coverage. No schema,
+provider configuration, interaction, dependency or user-facing copy changed.
+Owner re-acceptance on web and installed desktop with Cloud Monitoring geocode
+counts remains open; the next installed desktop preview inherits the change
+through the hosted route.
+
+Verification: focused travel tests, agents, interactions, resolvers checks, lint
+(zero warnings), TypeScript, the full Vitest suite (2,213 tests, 29 skips) and the
+web production build pass.
+
 ## Ticket 157 follow-up ledger correction — September 24, 2026
 
 The hosted migration list confirms `20260922034223_advisor_historical_completion_times.sql`
