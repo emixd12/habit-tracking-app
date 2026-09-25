@@ -441,3 +441,21 @@ geocodes, so quota admission continues to happen before the first provider call
 of a refresh. The check passes and `BASE_GEOCODE_REUSE_ENABLED` is now `true`.
 Owner re-acceptance on web and installed desktop, with Cloud Monitoring geocode
 counts before and after, remains open under Ticket 167.
+
+## Admitted requests finish while hidden — September 24, 2026
+
+The September 23 installed acceptance recorded that the desktop host reports
+`document.hidden` while the user views another pane, and that the hook then
+aborted an in-flight routes request the server had already admitted, so the
+quota slot was spent without a view. The shared hook now cancels a request only
+before its routes call. Once that call has started, the request finishes even if
+the window blurs, hides or unmounts; the view or failure is cached for the page
+session and shown on return without a second request, and an immediate remount
+joins the routes call still in flight instead of starting another. Settings and
+Behavior location saves invalidate cached and in-flight travel at module level,
+even when no Timeline is mounted, so requests started earlier neither share nor
+cache their results and the next Timeline open requests fresh estimates; before
+this, a view cached before a settings save stayed visible until it expired.
+Settings changes, revoked location permission and going offline still cancel as
+before. DOM tests cover the hidden, pre-commit and unmount cases. Installed
+desktop re-acceptance remains open with the other Ticket 166 and 167 gates.
