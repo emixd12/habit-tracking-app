@@ -20,6 +20,18 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Workbench expiry test timing — September 24, 2026
+
+The briefing workbench DOM test that retains delivered results after snapshot
+expiry mocked a comparison expiring 100 ms after delivery. The bench rejects a
+response whose snapshot has already expired when it arrives, so slow CI runners
+failed the test on two of three runs while local runs passed. The mocked expiry
+is now one second with a matching wait. No product behavior changed.
+
+Verification: the test file passes three consecutive local runs; lint (zero
+warnings), TypeScript, agents check and the full Vitest suite (2,216 tests, 29
+skips) pass.
+
 ## Ticket 166 follow-up: admitted requests finish while hidden — September 24, 2026
 
 The shared travel hook cancels an automatic or manual request only before its
