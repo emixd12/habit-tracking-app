@@ -259,3 +259,31 @@ it("caches an admitted request's view across unmount and reuses it on remount", 
     expect(host.textContent).toBe("account-a");
   } finally { await act(() => root.unmount()); host.remove(); }
 });
+
+it("joins an in-flight routes call on immediate remount instead of requesting again", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+  let resolveRoutes!: (value: TravelRoutesView) => void;
+  const routes = vi.fn(() => new Promise<TravelRoutesView>((resolve) => { resolveRoutes = resolve; }));
+  const client: TravelClient = { settings: { load: async () => settings, save: async () => settings }, configured: async () => true, readLocation: async () => ({ state: "denied" as const }), routes };
+  const host = document.createElement("div"); document.body.append(host);
+  let root = createRoot(host);
+  try {
+    await act(() => root.render(<Probe client={client} accountId="account-a" />));
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+    expect(routes).toHaveBeenCalledTimes(1);
+    await act(() => root.unmount());
+    root = createRoot(host);
+    await act(() => root.render(<Probe client={client} accountId="account-a" />));
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+    expect(routes).toHaveBeenCalledTimes(1);
+    expect(latest().pending).toBe(true);
+    await act(async () => { resolveRoutes(view("account-a")); await vi.advanceTimersByTimeAsync(0); });
+    expect(host.textContent).toBe("account-a");
+    expect(latest().pending).toBe(false);
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+    expect(routes).toHaveBeenCalledTimes(1);
+  } finally { await act(() => root.unmount()); host.remove(); }
+});

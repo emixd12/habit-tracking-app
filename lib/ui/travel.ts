@@ -91,6 +91,8 @@ const TRAVEL_CACHE_CAP = 32;
 const FAILURE_REUSE_MS = 5 * 60 * 1000;
 /** Page-session memory only: survives Timeline remounts, never persisted. */
 const travelViewCache = new Map<string, TravelCacheEntry>();
+/** Page-session memory only: routes calls in flight by state key, so an immediate remount joins them instead of spending another quota slot. */
+const travelInFlight = new Map<string, Promise<TravelRoutesView>>();
 function cacheTravel(key: string, entry: TravelCacheEntry): void {
   travelViewCache.delete(key);
   travelViewCache.set(key, entry);
@@ -100,7 +102,7 @@ function clearTravelCacheForAccount(accountId: string): void {
   for (const key of [...travelViewCache.keys()]) if ((JSON.parse(key) as unknown[])[0] === accountId) travelViewCache.delete(key);
 }
 /** Test-only reset of the in-memory travel view cache. */
-export function resetTravelViewCacheForTest(): void { travelViewCache.clear(); }
+export function resetTravelViewCacheForTest(): void { travelViewCache.clear(); travelInFlight.clear(); }
 
 export type TravelState = Readonly<{
   view: TravelRoutesView | null; message: string | null;
@@ -188,13 +190,22 @@ export function useTravelContext(input: Readonly<{
           const routesInput = { startLocalDate: input.localDate, endLocalDate: input.localDate,
             device, corrections: JSON.parse(correctionsKey) as TravelCorrection[] };
           committed = true;
+          // Join a routes call already in flight for this key (an immediate remount); otherwise start one and register it.
+          const callRoutes = (): Promise<TravelRoutesView> => {
+            const shared = travelInFlight.get(stateKey);
+            if (shared) return shared;
+            const own = client.routes(routesInput, signal);
+            travelInFlight.set(stateKey, own);
+            void own.finally(() => { if (travelInFlight.get(stateKey) === own) travelInFlight.delete(stateKey); }).catch(() => undefined);
+            return own;
+          };
           let view: TravelRoutesView;
-          try { view = await client.routes(routesInput, signal); }
+          try { view = await callRoutes(); }
           catch (error) {
             if (!(error instanceof TravelClientError && error.code === "context_changed") || !live()) throw error;
             await new Promise((resolve) => setTimeout(resolve, 350));
             if (!live()) return;
-            try { view = await client.routes(routesInput, signal); }
+            try { view = await callRoutes(); }
             catch (retryError) {
               throw retryError instanceof TravelClientError && retryError.code === "context_changed" ? new TravelClientError("provider_unavailable") : retryError;
             }
