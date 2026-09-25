@@ -287,3 +287,39 @@ it("joins an in-flight routes call on immediate remount instead of requesting ag
     expect(routes).toHaveBeenCalledTimes(1);
   } finally { await act(() => root.unmount()); host.remove(); }
 });
+
+it("does not join or cache a routes call started before a settings change", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+  const resolvers: ((value: TravelRoutesView) => void)[] = [];
+  const routes = vi.fn(() => new Promise<TravelRoutesView>((resolve) => { resolvers.push(resolve); }));
+  const client: TravelClient = { settings: { load: async () => settings, save: async () => settings }, configured: async () => true, readLocation: async () => ({ state: "denied" as const }), routes };
+  const host = document.createElement("div"); document.body.append(host);
+  let root = createRoot(host);
+  try {
+    await act(() => root.render(<Probe client={client} accountId="account-a" />));
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+    expect(routes).toHaveBeenCalledTimes(1);
+    await act(() => root.unmount());
+    root = createRoot(host);
+    await act(() => root.render(<Probe client={client} accountId="account-a" />));
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+    expect(routes).toHaveBeenCalledTimes(1);
+    await act(async () => { window.dispatchEvent(new Event("cadence:travel-changed")); await vi.advanceTimersByTimeAsync(350); });
+    expect(routes).toHaveBeenCalledTimes(2);
+    await act(async () => { resolvers[0]!(view("account-a")); await vi.advanceTimersByTimeAsync(0); });
+    expect(latest().view).toBeNull();
+    expect(latest().pending).toBe(true);
+    await act(async () => { resolvers[1]!(view("account-a")); await vi.advanceTimersByTimeAsync(0); });
+    expect(host.textContent).toBe("account-a");
+    expect(latest().pending).toBe(false);
+    await act(() => root.unmount());
+    root = createRoot(host);
+    await act(() => root.render(<Probe client={client} accountId="account-a" />));
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+    expect(routes).toHaveBeenCalledTimes(2);
+    expect(host.textContent).toBe("account-a");
+  } finally { await act(() => root.unmount()); host.remove(); }
+});

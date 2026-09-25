@@ -93,16 +93,21 @@ const FAILURE_REUSE_MS = 5 * 60 * 1000;
 const travelViewCache = new Map<string, TravelCacheEntry>();
 /** Page-session memory only: routes calls in flight by state key, so an immediate remount joins them instead of spending another quota slot. */
 const travelInFlight = new Map<string, Promise<TravelRoutesView>>();
+/** Per-account invalidation counter; a settings change advances it so requests started earlier neither cache nor share their results. */
+const travelEpochs = new Map<string, number>();
+const travelEpoch = (accountId: string): number => travelEpochs.get(accountId) ?? 0;
 function cacheTravel(key: string, entry: TravelCacheEntry): void {
   travelViewCache.delete(key);
   travelViewCache.set(key, entry);
   while (travelViewCache.size > TRAVEL_CACHE_CAP) travelViewCache.delete(travelViewCache.keys().next().value!);
 }
 function clearTravelCacheForAccount(accountId: string): void {
+  travelEpochs.set(accountId, travelEpoch(accountId) + 1);
   for (const key of [...travelViewCache.keys()]) if ((JSON.parse(key) as unknown[])[0] === accountId) travelViewCache.delete(key);
+  for (const key of [...travelInFlight.keys()]) if ((JSON.parse(key) as unknown[])[0] === accountId) travelInFlight.delete(key);
 }
 /** Test-only reset of the in-memory travel view cache. */
-export function resetTravelViewCacheForTest(): void { travelViewCache.clear(); travelInFlight.clear(); }
+export function resetTravelViewCacheForTest(): void { travelViewCache.clear(); travelInFlight.clear(); travelEpochs.clear(); }
 
 export type TravelState = Readonly<{
   view: TravelRoutesView | null; message: string | null;
@@ -169,6 +174,8 @@ export function useTravelContext(input: Readonly<{
       patch({ pending: true });
       const run = generation;
       timer = setTimeout(async () => {
+        const epoch = travelEpoch(accountId);
+        const current = () => travelEpoch(accountId) === epoch;
         controller = new AbortController();
         const signal = controller.signal;
         const valid = () => active && run === generation && !signal.aborted && !document.hidden && document.hasFocus();
@@ -181,7 +188,7 @@ export function useTravelContext(input: Readonly<{
           if (!settings.enabled || !settings.routingConsentAt || !settings.mode) { settle({ view: null, message: null, stale: false, observedAt: null }); return; }
           const configured = await client.configured(signal);
           if (!valid()) return;
-          if (!configured) { cacheTravel(stateKey, { view: null, message: CLEARANCE_MESSAGE, at: Date.now() }); settle({ view: null, message: CLEARANCE_MESSAGE, stale: false, observedAt: null }); return; }
+          if (!configured) { if (current()) cacheTravel(stateKey, { view: null, message: CLEARANCE_MESSAGE, at: Date.now() }); settle({ view: null, message: CLEARANCE_MESSAGE, stale: false, observedAt: null }); return; }
           // Device position is read only inside a request.
           const position = await client.readLocation(false);
           if (!valid()) return;
@@ -212,12 +219,12 @@ export function useTravelContext(input: Readonly<{
           }
           if (!live()) return;
           if (view.accountId !== accountId || view.settingsRevision !== settings.updatedAt) { settle({}); return; }
-          cacheTravel(stateKey, { view, message: null, at: Date.now() });
+          if (current()) cacheTravel(stateKey, { view, message: null, at: Date.now() });
           inFlight = false; committed = false;
           if (active) showView(view, Date.now(), { pending: false });
         } catch (error) {
           if (committed ? !live() : !valid()) return;
-          cacheTravel(stateKey, { view: null, message: travelErrorMessage(error), at: Date.now() });
+          if (current()) cacheTravel(stateKey, { view: null, message: travelErrorMessage(error), at: Date.now() });
           settle({ view: null, message: travelErrorMessage(error), stale: false, observedAt: null });
         }
       }, 350);
