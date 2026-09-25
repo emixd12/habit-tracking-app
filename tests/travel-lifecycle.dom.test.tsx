@@ -323,3 +323,38 @@ it("does not join or cache a routes call started before a settings change", asyn
     expect(host.textContent).toBe("account-a");
   } finally { await act(() => root.unmount()); host.remove(); }
 });
+
+it("invalidates cached and in-flight travel when settings change while no Timeline is mounted", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+  const resolvers: ((value: TravelRoutesView) => void)[] = [];
+  const routes = vi.fn(() => new Promise<TravelRoutesView>((resolve) => { resolvers.push(resolve); }));
+  const client: TravelClient = { settings: { load: async () => settings, save: async () => settings }, configured: async () => true, readLocation: async () => ({ state: "denied" as const }), routes };
+  const host = document.createElement("div"); document.body.append(host);
+  let root = createRoot(host);
+  const remount = async () => {
+    root = createRoot(host);
+    await act(() => root.render(<Probe client={client} accountId="account-a" />));
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+  };
+  try {
+    await remount();
+    expect(routes).toHaveBeenCalledTimes(1);
+    await act(() => root.unmount());
+    window.dispatchEvent(new Event("cadence:travel-changed"));
+    await remount();
+    expect(routes).toHaveBeenCalledTimes(2);
+    await act(async () => { resolvers[0]!(view("account-a")); await vi.advanceTimersByTimeAsync(0); });
+    expect(latest().view).toBeNull();
+    expect(latest().pending).toBe(true);
+    await act(async () => { resolvers[1]!(view("account-a")); await vi.advanceTimersByTimeAsync(0); });
+    expect(host.textContent).toBe("account-a");
+    await act(() => root.unmount());
+    window.dispatchEvent(new Event("cadence:travel-changed"));
+    await remount();
+    expect(routes).toHaveBeenCalledTimes(3);
+    expect(latest().pending).toBe(true);
+  } finally { await act(() => root.unmount()); host.remove(); }
+});

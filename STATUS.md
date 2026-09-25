@@ -27,18 +27,21 @@ routes call. Once the routes call has started, the server may already have
 admitted quota, so the request now finishes when the window blurs, hides or
 unmounts; its view or failure is cached for the page session and shown on return
 without a second request, and an immediate remount joins the routes call still
-in flight instead of starting another. A settings change advances a per-account
-counter, so requests started earlier neither share nor cache their results.
-Settings changes, revoked location permission and going offline still cancel as
-before. This closes the aborted-request follow-up recorded in
-`docs/qa/travel-release.md` on September 23. Web and desktop share the hook;
-marketing is unchanged; future mobile web inherits the behavior. No interaction,
-schema, provider configuration or copy changed. Installed desktop re-acceptance
-remains open with the Ticket 166 and 167 gates.
+in flight instead of starting another. Settings and Behavior location saves
+invalidate cached and in-flight travel at module level, even when no Timeline is
+mounted, so requests started earlier neither share nor cache their results and
+the next Timeline open requests fresh estimates; before this, a view cached
+before a settings save stayed visible until it expired. Settings changes,
+revoked location permission and going offline still cancel as before. This
+closes the aborted-request follow-up recorded in `docs/qa/travel-release.md` on
+September 23. Web and desktop share the hook; marketing is unchanged; future
+mobile web inherits the behavior. No interaction, schema, provider configuration
+or copy changed. Installed desktop re-acceptance remains open with the
+Ticket 166 and 167 gates.
 
 Verification: travel DOM tests (the hidden and unmount cases fail before the
 change and pass after), agents, interactions, resolvers checks, lint (zero
-warnings), TypeScript, desktop TypeScript, the full Vitest suite (2,218 tests, 29
+warnings), TypeScript, desktop TypeScript, the full Vitest suite (2,219 tests, 29
 skips) and the web production build pass.
 
 ## Ticket 167 base geocode reuse enabled — September 24, 2026
