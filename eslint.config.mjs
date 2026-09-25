@@ -20,6 +20,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored upstream BehaviorLog validator; pinned by SHA-256 in tests/fixtures/behaviorlog-reference/SNAPSHOT.md.
+    "tests/fixtures/behaviorlog-reference/validate.mjs",
   ]),
 ]);
 

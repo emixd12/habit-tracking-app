@@ -11424,8 +11424,10 @@ Any schema change discovered during implementation requires normal migrations an
 ### Ticket 157 follow-up: historical completion marking context
 
 Owner-authorized September 22, 2026; source implementation and local QA complete.
-Database verification is blocked by the Supabase CLI launch failure; hosted migration
-and owner-run private comparison remain pending. See `docs/qa/briefing-workbench.md`.
+Hosted migration `20260922034223_advisor_historical_completion_times.sql` is applied;
+the hosted migration list confirmed it on September 24, 2026. A clean local replay
+through the documented loopback procedure and the owner-run private comparison
+remain pending. See `docs/qa/briefing-workbench.md`.
 Replace the
 unsupported finish-time placeholder with Historical completion times. Reuse
 existing current mark snapshots, a 1–90-day window and shared circular summaries.
@@ -11924,8 +11926,11 @@ Filing this ticket does not create credentials, deploy, read location or transmi
 
 ## Ticket 166: Travel refresh quota, failure messages and device-location onboarding
 
-Status: implemented in repository September 22, 2026; hosted quota function deployment
-and owner re-acceptance follow. Filed September 22, 2026 from Ticket 165 owner acceptance.
+Status: implemented in repository September 22, 2026; the hosted quota function
+migration is applied (PR #64, September 23, 2026) and owner re-acceptance follows.
+September 24, 2026 follow-up: a request that has reached the routes call now
+finishes when the window blurs, hides or unmounts, so an admitted quota slot is
+not wasted. Filed September 22, 2026 from Ticket 165 owner acceptance.
 Dependencies: Tickets 162–165 shipped (PRs #58–#60); production routing is enabled.
 
 Goal: make travel usable on a real day without exhausting the owner quota, tell the
@@ -11996,9 +12001,9 @@ Filing this ticket changes no runtime behavior.
 
 ## Ticket 167: Travel refresh policy — first daily open, then manual, with base geocode reuse
 
-Status: implemented in repository September 22, 2026; base geocode reuse ships disabled
-behind a constant until the Geocoding caching policy check is recorded; owner
-re-acceptance follows. Filed September 22, 2026 from Ticket 165 owner acceptance.
+Status: implemented in repository September 22, 2026; base geocode reuse enabled
+September 24, 2026 after the Geocoding policy check recorded in
+`docs/qa/travel-release.md`; owner re-acceptance follows. Filed September 22, 2026 from Ticket 165 owner acceptance.
 Dependencies: Ticket 166 (view reuse, per-code messages, admission change). Coordinate
 the two so the hook is changed once.
 

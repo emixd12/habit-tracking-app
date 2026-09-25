@@ -7,14 +7,13 @@ import {
   fstatSync,
   lstatSync,
   openSync,
-  readFileSync,
   readSync,
   readdirSync,
   realpathSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { delimiter, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { delimiter, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);

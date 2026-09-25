@@ -20,6 +20,86 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Workbench expiry test timing — September 24, 2026
+
+The briefing workbench DOM test that retains delivered results after snapshot
+expiry mocked a comparison expiring 100 ms after delivery. The bench rejects a
+response whose snapshot has already expired when it arrives, so slow CI runners
+failed the test on two of three runs while local runs passed. The mocked expiry
+is now one second with a matching wait. No product behavior changed.
+
+Verification: the test file passes three consecutive local runs; lint (zero
+warnings), TypeScript, agents check and the full Vitest suite (2,216 tests, 29
+skips) pass.
+
+## Ticket 166 follow-up: admitted requests finish while hidden — September 24, 2026
+
+The shared travel hook cancels an automatic or manual request only before its
+routes call. Once the routes call has started, the server may already have
+admitted quota, so the request now finishes when the window blurs, hides or
+unmounts; its view or failure is cached for the page session and shown on return
+without a second request, and an immediate remount joins the routes call still
+in flight instead of starting another. Settings and Behavior location saves
+invalidate cached and in-flight travel at module level, even when no Timeline is
+mounted, so requests started earlier neither share nor cache their results and
+the next Timeline open requests fresh estimates; before this, a view cached
+before a settings save stayed visible until it expired. Settings changes,
+revoked location permission and going offline still cancel as before. This
+closes the aborted-request follow-up recorded in `docs/qa/travel-release.md` on
+September 23. Web and desktop share the hook; marketing is unchanged; future
+mobile web inherits the behavior. No interaction, schema, provider configuration
+or copy changed. Installed desktop re-acceptance remains open with the
+Ticket 166 and 167 gates.
+
+Verification: travel DOM tests (the hidden and unmount cases fail before the
+change and pass after), agents, interactions, resolvers checks, lint (zero
+warnings), TypeScript, desktop TypeScript, the full Vitest suite (2,219 tests, 29
+skips) and the web production build pass.
+
+## Ticket 167 base geocode reuse enabled — September 24, 2026
+
+The Geocoding policy check is recorded in `docs/qa/travel-release.md`: Google
+exempts place IDs from its caching restrictions and permits indefinite storage.
+The reuse branch stores only place-ID endpoints in server memory, keyed by owner
+and settings revision and bounded to 30 days and 500 entries, so
+`BASE_GEOCODE_REUSE_ENABLED` is now `true`. The service tests reset reuse state
+before each case and keep explicit disabled and enabled coverage. No schema,
+provider configuration, interaction, dependency or user-facing copy changed.
+Owner re-acceptance on web and installed desktop with Cloud Monitoring geocode
+counts remains open; the next installed desktop preview inherits the change
+through the hosted route.
+
+Verification: focused travel tests, agents, interactions, resolvers checks, lint
+(zero warnings), TypeScript, the full Vitest suite (2,213 tests, 29 skips) and the
+web production build pass.
+
+## Ticket 157 follow-up ledger correction — September 24, 2026
+
+The hosted migration list confirms `20260922034223_advisor_historical_completion_times.sql`
+is applied; it shipped with the Ticket 166 quota migration in PR #64. The Ticket 157
+follow-up entry in `docs/TICKETS.md` no longer reports that migration as pending.
+A clean local replay was attempted with CLI 2.109.1 through
+`SUPABASE_CLI_BINARY_OVERRIDE`: `supabase start --network-id cadence-local`
+published Postgres on all interfaces despite the loopback network, a watchdog
+stopped the container within a second, and the reviewed Docker create proxy from
+earlier resets no longer exists under `/private/tmp`. No migration ran locally and
+no data changed. The local replay and the owner-run private comparison remain open.
+Evidence: `docs/qa/briefing-workbench.md`.
+
+## Lint warning cleanup — September 24, 2026
+
+`npm run lint` now reports zero warnings. The seven warnings in the vendored
+BehaviorLog validator snapshot are excluded through `eslint.config.mjs`
+because `tests/fixtures/behaviorlog-reference/SNAPSHOT.md` pins that file by
+SHA-256; the file itself is unchanged. Two unused imports in
+`.agentic/scripts/check-service-operations.mjs` and one unused mock parameter
+in `tests/desktop-calendar-hook.dom.test.tsx` are removed. Earlier ledger
+entries that cite ten existing warnings describe the state before this change.
+No product behavior, interaction or schema changed.
+
+Verification: lint (zero warnings), TypeScript, agents, interactions and
+resolvers checks pass; the full Vitest suite passes with 2,213 tests and 29 skips.
+
 ## Ticket 161 — September 22, 2026
 
 Provider-free evaluation is implemented and verified. Thirteen synthetic scenarios
@@ -755,6 +835,10 @@ Branding remains verified. Post-approval web/native consent smoke checks remain
 outstanding; public rollout gates remain unchanged.
 September 23 signed-in console check: branding and data access remain verified;
 no new actionable request appears. Post-approval smoke checks remain outstanding.
+September 24 follow-up could not access the Identity Scaffolding Chrome session.
+Today's provider status is not verified. September 23 remains the last successful
+check. Open that signed-in profile to resume checks; Ticket 141 and rollout gates
+remain unchanged.
 Unrelated working-tree changes were excluded from the isolated releases.
 
 Ticket 138: Cloudflare's initially empty `cadence-me.com` zone now has two

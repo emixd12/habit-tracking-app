@@ -91,16 +91,25 @@ const TRAVEL_CACHE_CAP = 32;
 const FAILURE_REUSE_MS = 5 * 60 * 1000;
 /** Page-session memory only: survives Timeline remounts, never persisted. */
 const travelViewCache = new Map<string, TravelCacheEntry>();
+/** Page-session memory only: routes calls in flight by state key, so an immediate remount joins them instead of spending another quota slot. */
+const travelInFlight = new Map<string, Promise<TravelRoutesView>>();
+/** Advances on every travel settings or Behavior location change, so requests started earlier neither cache nor share their results. */
+let travelEpoch = 0;
 function cacheTravel(key: string, entry: TravelCacheEntry): void {
   travelViewCache.delete(key);
   travelViewCache.set(key, entry);
   while (travelViewCache.size > TRAVEL_CACHE_CAP) travelViewCache.delete(travelViewCache.keys().next().value!);
 }
 function clearTravelCacheForAccount(accountId: string): void {
+  travelEpoch++;
   for (const key of [...travelViewCache.keys()]) if ((JSON.parse(key) as unknown[])[0] === accountId) travelViewCache.delete(key);
+  for (const key of [...travelInFlight.keys()]) if ((JSON.parse(key) as unknown[])[0] === accountId) travelInFlight.delete(key);
 }
+/** Settings and Behavior location saves fire this event from screens where no Timeline is mounted, so invalidate at module level too. */
+function invalidateAllTravel(): void { travelEpoch++; travelViewCache.clear(); travelInFlight.clear(); }
+if (typeof window !== "undefined") window.addEventListener("cadence:travel-changed", invalidateAllTravel);
 /** Test-only reset of the in-memory travel view cache. */
-export function resetTravelViewCacheForTest(): void { travelViewCache.clear(); }
+export function resetTravelViewCacheForTest(): void { travelViewCache.clear(); travelInFlight.clear(); }
 
 export type TravelState = Readonly<{
   view: TravelRoutesView | null; message: string | null;
@@ -117,6 +126,9 @@ function earliestObservedAt(view: TravelRoutesView, fallback: string): string {
 /**
  * Requests automatically only on the first Timeline open of a local date, or when the
  * travel inputs or settings change. Focus and visibility never request; refresh() does.
+ * Leaving the foreground cancels a request only before its routes call. Once that call
+ * has started the server may have admitted quota, so the request finishes even if the
+ * window blurs, hides or unmounts, and its result is cached for the page session.
  */
 export function useTravelContext(input: Readonly<{
   enabled: boolean; accountId: string | null; localDate: string; sourceKey: string;
@@ -141,12 +153,13 @@ export function useTravelContext(input: Readonly<{
     let active = true;
     let inFlight = false;
     let deferred = false;
+    let committed = false; // A routes call has started; the server may already have admitted quota.
     let controller: AbortController | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let expiry: ReturnType<typeof setTimeout> | undefined;
     let permission: PermissionStatus | null = null;
     const foreground = () => !document.hidden && document.hasFocus() && navigator.onLine;
-    const stop = () => { generation++; controller?.abort(); clearTimeout(timer); if (inFlight) { inFlight = false; patch({ pending: false }); } };
+    const stop = () => { generation++; committed = false; controller?.abort(); clearTimeout(timer); if (inFlight) { inFlight = false; patch({ pending: false }); } };
     const showView = (view: TravelRoutesView, at: number, extra: Partial<Omit<StoredTravel, "key">> = {}) => {
       const remaining = view.expiresAt ? Date.parse(view.expiresAt) - Date.now() : 0;
       const stale = !!view.evidence && (!Number.isFinite(remaining) || remaining <= 0);
@@ -163,17 +176,21 @@ export function useTravelContext(input: Readonly<{
       patch({ pending: true });
       const run = generation;
       timer = setTimeout(async () => {
+        const epoch = travelEpoch;
+        const sameEpoch = () => travelEpoch === epoch;
         controller = new AbortController();
         const signal = controller.signal;
         const valid = () => active && run === generation && !signal.aborted && !document.hidden && document.hasFocus();
-        const finish = (value: Partial<Omit<StoredTravel, "key">>) => { inFlight = false; patch({ ...value, pending: false }); };
+        // After the routes call only explicit invalidation (settings change, revoked permission, offline) stops the request.
+        const live = () => run === generation && !signal.aborted;
+        const settle = (value: Partial<Omit<StoredTravel, "key">>) => { inFlight = false; committed = false; if (active) patch({ ...value, pending: false }); };
         try {
           const settings = await client.settings.load();
           if (!valid()) return;
-          if (!settings.enabled || !settings.routingConsentAt || !settings.mode) { finish({ view: null, message: null, stale: false, observedAt: null }); return; }
+          if (!settings.enabled || !settings.routingConsentAt || !settings.mode) { settle({ view: null, message: null, stale: false, observedAt: null }); return; }
           const configured = await client.configured(signal);
           if (!valid()) return;
-          if (!configured) { cacheTravel(stateKey, { view: null, message: CLEARANCE_MESSAGE, at: Date.now() }); finish({ view: null, message: CLEARANCE_MESSAGE, stale: false, observedAt: null }); return; }
+          if (!configured) { if (sameEpoch()) cacheTravel(stateKey, { view: null, message: CLEARANCE_MESSAGE, at: Date.now() }); settle({ view: null, message: CLEARANCE_MESSAGE, stale: false, observedAt: null }); return; }
           // Device position is read only inside a request.
           const position = await client.readLocation(false);
           if (!valid()) return;
@@ -181,26 +198,36 @@ export function useTravelContext(input: Readonly<{
             accuracyMeters: position.accuracyMeters, sampledAt: new Date(position.sampledAt).toISOString() } : null;
           const routesInput = { startLocalDate: input.localDate, endLocalDate: input.localDate,
             device, corrections: JSON.parse(correctionsKey) as TravelCorrection[] };
+          committed = true;
+          // Join a routes call already in flight for this key (an immediate remount); otherwise start one and register it.
+          const callRoutes = (): Promise<TravelRoutesView> => {
+            const shared = travelInFlight.get(stateKey);
+            if (shared) return shared;
+            const own = client.routes(routesInput, signal);
+            travelInFlight.set(stateKey, own);
+            void own.finally(() => { if (travelInFlight.get(stateKey) === own) travelInFlight.delete(stateKey); }).catch(() => undefined);
+            return own;
+          };
           let view: TravelRoutesView;
-          try { view = await client.routes(routesInput, signal); }
+          try { view = await callRoutes(); }
           catch (error) {
-            if (!(error instanceof TravelClientError && error.code === "context_changed") || !valid()) throw error;
+            if (!(error instanceof TravelClientError && error.code === "context_changed") || !live()) throw error;
             await new Promise((resolve) => setTimeout(resolve, 350));
-            if (!valid()) return;
-            try { view = await client.routes(routesInput, signal); }
+            if (!live()) return;
+            try { view = await callRoutes(); }
             catch (retryError) {
               throw retryError instanceof TravelClientError && retryError.code === "context_changed" ? new TravelClientError("provider_unavailable") : retryError;
             }
           }
-          if (!valid()) return;
-          if (view.accountId !== accountId || view.settingsRevision !== settings.updatedAt) { finish({}); return; }
-          cacheTravel(stateKey, { view, message: null, at: Date.now() });
-          inFlight = false;
-          showView(view, Date.now(), { pending: false });
+          if (!live()) return;
+          if (view.accountId !== accountId || view.settingsRevision !== settings.updatedAt) { settle({}); return; }
+          if (sameEpoch()) cacheTravel(stateKey, { view, message: null, at: Date.now() });
+          inFlight = false; committed = false;
+          if (active) showView(view, Date.now(), { pending: false });
         } catch (error) {
-          if (!valid()) return;
-          cacheTravel(stateKey, { view: null, message: travelErrorMessage(error), at: Date.now() });
-          finish({ view: null, message: travelErrorMessage(error), stale: false, observedAt: null });
+          if (committed ? !live() : !valid()) return;
+          if (sameEpoch()) cacheTravel(stateKey, { view: null, message: travelErrorMessage(error), at: Date.now() });
+          settle({ view: null, message: travelErrorMessage(error), stale: false, observedAt: null });
         }
       }, 350);
     };
@@ -212,7 +239,9 @@ export function useTravelContext(input: Readonly<{
     };
     // Returning to the window resumes only an automatic request that could not start.
     const resume = () => { if (deferred) request(); else setStored((value) => ({ ...value })); };
-    const suspend = () => { if (inFlight) { stop(); deferred = true; } };
+    // Leaving the foreground cancels a request only before its routes call; an admitted request finishes and is cached.
+    const suspend = () => { if (inFlight && !committed) { stop(); deferred = true; } };
+    const offline = () => { if (inFlight) { stop(); deferred = true; } };
     const channel = typeof window.BroadcastChannel === "function" ? new BroadcastChannel("cadence-travel") : null;
     if (channel) channel.onmessage = () => setStored((value) => ({ ...value }));
     const visibility = () => { if (document.hidden) suspend(); else resume(); };
@@ -228,7 +257,7 @@ export function useTravelContext(input: Readonly<{
     window.addEventListener("focus", resume);
     window.addEventListener("blur", suspend);
     window.addEventListener("online", resume);
-    window.addEventListener("offline", suspend);
+    window.addEventListener("offline", offline);
     window.addEventListener("cadence:travel-changed", changed);
     document.addEventListener("visibilitychange", visibility);
     const cached = travelViewCache.get(stateKey);
@@ -238,11 +267,14 @@ export function useTravelContext(input: Readonly<{
     else request();
     return () => {
       channel?.close();
-      active = false; generation++; controller?.abort(); clearTimeout(timer); clearTimeout(expiry);
+      active = false;
+      // A committed request finishes and caches its result for remount; anything earlier is cancelled.
+      if (!committed) { generation++; controller?.abort(); }
+      clearTimeout(timer); clearTimeout(expiry);
       manual.current = () => undefined;
       permission?.removeEventListener("change", revoked);
       window.removeEventListener("focus", resume); window.removeEventListener("blur", suspend); window.removeEventListener("online", resume);
-      window.removeEventListener("offline", suspend); window.removeEventListener("cadence:travel-changed", changed);
+      window.removeEventListener("offline", offline); window.removeEventListener("cadence:travel-changed", changed);
       document.removeEventListener("visibilitychange", visibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- stateKey covers localDate, sourceKey and corrections.
