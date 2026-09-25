@@ -259,10 +259,11 @@ it('discards a late private comparison on mode change but retains delivered resu
   expect(container.textContent).not.toContain('PRIVATE_ACCOUNT_RESULT');
   expect(container.textContent).not.toContain('PRIVATE_ACCOUNT_BEHAVIOR');
 
-  fetcher.mockImplementation(async (_url, init) => Response.json(init?.method === 'POST' ? { ...accountComparison(), expiresAt: new Date(Date.now() + 100).toISOString() } : accountMetadata()));
+  // The bench rejects a response whose snapshot already expired at delivery, so keep a margin for slow CI runners.
+  fetcher.mockImplementation(async (_url, init) => Response.json(init?.method === 'POST' ? { ...accountComparison(), expiresAt: new Date(Date.now() + 1_000).toISOString() } : accountMetadata()));
   await selectAccount(); await act(() => button('Run comparison').click());
   expect(container.textContent).toContain('PRIVATE_ACCOUNT_RESULT');
-  await act(() => new Promise(resolve => setTimeout(resolve, 150)));
+  await act(() => new Promise(resolve => setTimeout(resolve, 1_100)));
   expect(container.textContent).toContain('PRIVATE_ACCOUNT_RESULT');
   expect(container.textContent).toContain('FACTS_STAY_IN_MEMORY');
   expect(container.textContent).toContain('Snapshot expired. These results remain available for inspection.');
