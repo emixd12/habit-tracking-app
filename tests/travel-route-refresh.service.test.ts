@@ -24,6 +24,8 @@ vi.mock("@/lib/services/travel-routing.service", async (load) => ({
 
 import { refreshTravelRoutes, setBaseGeocodeReuseForTest } from "@/lib/services/travel-route-refresh.service";
 
+beforeEach(() => setBaseGeocodeReuseForTest(true));
+
 const now = Temporal.Instant.from("2026-09-22T08:00:00Z");
 const source = {
   settings: { enabled: true, mode: "walking" as const, routingConsentAt: "2026-09-20T00:00:00Z", baseLocationText: "1 Base St", navigationPreference: "google_maps" as const },
@@ -199,7 +201,7 @@ describe("refreshTravelRoutes", () => {
         await run();
         expect(baseCalls()).toBe(1);
         expect(mocks.geocode).toHaveBeenCalledTimes(3);
-      } finally { setBaseGeocodeReuseForTest(false); }
+      } finally { setBaseGeocodeReuseForTest(true); }
     });
   });
 });

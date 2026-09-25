@@ -18,8 +18,8 @@ import { readTravelRouteSource } from "@/lib/services/travel-settings.service";
 
 const ZERO_BUFFERS = { arrivalSeconds: 0, exitSeconds: 0, settlingSeconds: 0 } as const;
 
-// Pending the Geocoding policy caching allowance check recorded in docs/qa/travel-release.md.
-const BASE_GEOCODE_REUSE_ENABLED = false;
+// Enabled September 24, 2026 after the Geocoding policy check in docs/qa/travel-release.md; only place-ID endpoints are reused.
+const BASE_GEOCODE_REUSE_ENABLED = true;
 const BASE_GEOCODE_REUSE_MS = 30 * 24 * 60 * 60 * 1000;
 const BASE_GEOCODE_REUSE_CAP = 500;
 let baseGeocodeReuseEnabled = BASE_GEOCODE_REUSE_ENABLED;
