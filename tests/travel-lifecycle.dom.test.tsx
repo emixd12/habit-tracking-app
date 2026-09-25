@@ -187,3 +187,75 @@ it("shows the unavailable message after two context changes", async () => {
     expect(host.textContent).toBe("Travel estimates are unavailable right now. Tracking and Calendar still work.");
   } finally { await unmount(); }
 });
+
+it("finishes an admitted request while hidden and does not request again on return", async () => {
+  let resolveRoutes!: (value: TravelRoutesView) => void;
+  const routes = vi.fn(() => new Promise<TravelRoutesView>((resolve) => { resolveRoutes = resolve; }));
+  const { host, unmount } = await mount(routes);
+  try {
+    expect(routes).toHaveBeenCalledTimes(1);
+    expect(latest().pending).toBe(true);
+    Object.defineProperty(document, "hidden", { configurable: true, value: true });
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    await act(async () => { window.dispatchEvent(new Event("blur")); document.dispatchEvent(new Event("visibilitychange")); await vi.advanceTimersByTimeAsync(0); });
+    expect(latest().pending).toBe(true);
+    await act(async () => { resolveRoutes(view("account-a")); await vi.advanceTimersByTimeAsync(0); });
+    expect(host.textContent).toBe("account-a");
+    expect(latest().pending).toBe(false);
+    Object.defineProperty(document, "hidden", { configurable: true, value: false });
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); window.dispatchEvent(new Event("focus")); await vi.advanceTimersByTimeAsync(350); });
+    expect(routes).toHaveBeenCalledTimes(1);
+  } finally { await unmount(); }
+});
+
+it("cancels a request that has not reached the routes call when hidden, and restarts it on return", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+  let resolveConfigured!: (value: boolean) => void;
+  const configured = vi.fn(() => new Promise<boolean>((resolve) => { resolveConfigured = resolve; }));
+  const routes = vi.fn(async () => view("account-a"));
+  const client: TravelClient = { settings: { load: async () => settings, save: async () => settings }, configured, readLocation: async () => ({ state: "denied" as const }), routes };
+  const host = document.createElement("div"); document.body.append(host); const root = createRoot(host);
+  try {
+    await act(() => root.render(<Probe client={client} accountId="account-a" />));
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+    expect(configured).toHaveBeenCalledTimes(1);
+    Object.defineProperty(document, "hidden", { configurable: true, value: true });
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); await vi.advanceTimersByTimeAsync(0); });
+    expect(latest().pending).toBe(false);
+    await act(async () => { resolveConfigured(true); await vi.advanceTimersByTimeAsync(350); });
+    expect(routes).not.toHaveBeenCalled();
+    Object.defineProperty(document, "hidden", { configurable: true, value: false });
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); await vi.advanceTimersByTimeAsync(350); });
+    expect(configured).toHaveBeenCalledTimes(2);
+    await act(async () => { resolveConfigured(true); await vi.advanceTimersByTimeAsync(350); });
+    expect(routes).toHaveBeenCalledTimes(1);
+  } finally { await act(() => root.unmount()); host.remove(); }
+});
+
+it("caches an admitted request's view across unmount and reuses it on remount", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+  let resolveRoutes!: (value: TravelRoutesView) => void;
+  const routes = vi.fn(() => new Promise<TravelRoutesView>((resolve) => { resolveRoutes = resolve; }));
+  const client: TravelClient = { settings: { load: async () => settings, save: async () => settings }, configured: async () => true, readLocation: async () => ({ state: "denied" as const }), routes };
+  const host = document.createElement("div"); document.body.append(host);
+  let root = createRoot(host);
+  try {
+    await act(() => root.render(<Probe client={client} accountId="account-a" />));
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+    expect(routes).toHaveBeenCalledTimes(1);
+    await act(() => root.unmount());
+    await act(async () => { resolveRoutes(view("account-a")); await vi.advanceTimersByTimeAsync(0); });
+    root = createRoot(host);
+    await act(() => root.render(<Probe client={client} accountId="account-a" />));
+    await act(async () => vi.advanceTimersByTimeAsync(350));
+    expect(routes).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toBe("account-a");
+  } finally { await act(() => root.unmount()); host.remove(); }
+});

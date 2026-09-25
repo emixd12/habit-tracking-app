@@ -11926,8 +11926,11 @@ Filing this ticket does not create credentials, deploy, read location or transmi
 
 ## Ticket 166: Travel refresh quota, failure messages and device-location onboarding
 
-Status: implemented in repository September 22, 2026; hosted quota function deployment
-and owner re-acceptance follow. Filed September 22, 2026 from Ticket 165 owner acceptance.
+Status: implemented in repository September 22, 2026; the hosted quota function
+migration is applied (PR #64, September 23, 2026) and owner re-acceptance follows.
+September 24, 2026 follow-up: a request that has reached the routes call now
+finishes when the window blurs, hides or unmounts, so an admitted quota slot is
+not wasted. Filed September 22, 2026 from Ticket 165 owner acceptance.
 Dependencies: Tickets 162–165 shipped (PRs #58–#60); production routing is enabled.
 
 Goal: make travel usable on a real day without exhausting the owner quota, tell the
