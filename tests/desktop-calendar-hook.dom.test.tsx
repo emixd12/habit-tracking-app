@@ -14,7 +14,7 @@ const broker = vi.hoisted(() => ({ connection: vi.fn(), updatePreferences: vi.fn
 vi.mock("../apps/desktop/src/calendar/google-calendar", async (importOriginal) => ({
   ...await importOriginal<object>(), createDesktopCalendarBroker: () => broker,
 }));
-const deepLink = vi.hoisted(() => ({ onOpenUrl: vi.fn(async (_handler: (urls: string[]) => void) => () => undefined), getCurrent: async () => [] }));
+const deepLink = vi.hoisted(() => ({ onOpenUrl: vi.fn<(handler: (urls: string[]) => void) => Promise<() => undefined>>(async () => () => undefined), getCurrent: async () => [] }));
 vi.mock("@tauri-apps/plugin-deep-link", () => deepLink);
 afterEach(() => vi.restoreAllMocks());
 

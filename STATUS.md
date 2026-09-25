@@ -20,6 +20,33 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Ticket 157 follow-up ledger correction — September 24, 2026
+
+The hosted migration list confirms `20260922034223_advisor_historical_completion_times.sql`
+is applied; it shipped with the Ticket 166 quota migration in PR #64. The Ticket 157
+follow-up entry in `docs/TICKETS.md` no longer reports that migration as pending.
+A clean local replay was attempted with CLI 2.109.1 through
+`SUPABASE_CLI_BINARY_OVERRIDE`: `supabase start --network-id cadence-local`
+published Postgres on all interfaces despite the loopback network, a watchdog
+stopped the container within a second, and the reviewed Docker create proxy from
+earlier resets no longer exists under `/private/tmp`. No migration ran locally and
+no data changed. The local replay and the owner-run private comparison remain open.
+Evidence: `docs/qa/briefing-workbench.md`.
+
+## Lint warning cleanup — September 24, 2026
+
+`npm run lint` now reports zero warnings. The seven warnings in the vendored
+BehaviorLog validator snapshot are excluded through `eslint.config.mjs`
+because `tests/fixtures/behaviorlog-reference/SNAPSHOT.md` pins that file by
+SHA-256; the file itself is unchanged. Two unused imports in
+`.agentic/scripts/check-service-operations.mjs` and one unused mock parameter
+in `tests/desktop-calendar-hook.dom.test.tsx` are removed. Earlier ledger
+entries that cite ten existing warnings describe the state before this change.
+No product behavior, interaction or schema changed.
+
+Verification: lint (zero warnings), TypeScript, agents, interactions and
+resolvers checks pass; the full Vitest suite passes with 2,213 tests and 29 skips.
+
 ## Ticket 161 — September 22, 2026
 
 Provider-free evaluation is implemented and verified. Thirteen synthetic scenarios
@@ -755,6 +782,10 @@ Branding remains verified. Post-approval web/native consent smoke checks remain
 outstanding; public rollout gates remain unchanged.
 September 23 signed-in console check: branding and data access remain verified;
 no new actionable request appears. Post-approval smoke checks remain outstanding.
+September 24 follow-up could not access the Identity Scaffolding Chrome session.
+Today's provider status is not verified. September 23 remains the last successful
+check. Open that signed-in profile to resume checks; Ticket 141 and rollout gates
+remain unchanged.
 Unrelated working-tree changes were excluded from the isolated releases.
 
 Ticket 138: Cloudflare's initially empty `cadence-me.com` zone now has two
