@@ -342,6 +342,16 @@ migration requires separate hosted authorization; actual private data remains
 untested.
 
 
+September 24, 2026 follow-up: the hosted migration list confirms `20260922034223`
+is applied; it shipped with the Ticket 166 quota migration in PR #64. A local clean
+replay was attempted with the installed CLI 2.109.1 through
+`SUPABASE_CLI_BINARY_OVERRIDE`. `supabase start --network-id cadence-local`
+published Postgres on all interfaces despite the loopback network; a watchdog
+stopped the container within a second, and the reviewed Docker create proxy used
+by earlier resets no longer exists under `/private/tmp`. No migration ran locally
+and no data changed. The local replay stays open until that proxy is recreated
+under operator review.
+
 ## Comparison inspection retention — September 22, 2026
 
 Window blur previously cleared comparisons, and focus cleared them again before

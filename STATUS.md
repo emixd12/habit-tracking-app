@@ -20,6 +20,19 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Ticket 157 follow-up ledger correction — September 24, 2026
+
+The hosted migration list confirms `20260922034223_advisor_historical_completion_times.sql`
+is applied; it shipped with the Ticket 166 quota migration in PR #64. The Ticket 157
+follow-up entry in `docs/TICKETS.md` no longer reports that migration as pending.
+A clean local replay was attempted with CLI 2.109.1 through
+`SUPABASE_CLI_BINARY_OVERRIDE`: `supabase start --network-id cadence-local`
+published Postgres on all interfaces despite the loopback network, a watchdog
+stopped the container within a second, and the reviewed Docker create proxy from
+earlier resets no longer exists under `/private/tmp`. No migration ran locally and
+no data changed. The local replay and the owner-run private comparison remain open.
+Evidence: `docs/qa/briefing-workbench.md`.
+
 ## Lint warning cleanup — September 24, 2026
 
 `npm run lint` now reports zero warnings. The seven warnings in the vendored

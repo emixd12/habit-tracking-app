@@ -11424,8 +11424,10 @@ Any schema change discovered during implementation requires normal migrations an
 ### Ticket 157 follow-up: historical completion marking context
 
 Owner-authorized September 22, 2026; source implementation and local QA complete.
-Database verification is blocked by the Supabase CLI launch failure; hosted migration
-and owner-run private comparison remain pending. See `docs/qa/briefing-workbench.md`.
+Hosted migration `20260922034223_advisor_historical_completion_times.sql` is applied;
+the hosted migration list confirmed it on September 24, 2026. A clean local replay
+through the documented loopback procedure and the owner-run private comparison
+remain pending. See `docs/qa/briefing-workbench.md`.
 Replace the
 unsupported finish-time placeholder with Historical completion times. Reuse
 existing current mark snapshots, a 1–90-day window and shared circular summaries.
