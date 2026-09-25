@@ -1063,6 +1063,13 @@ is not verified. The last successful check remains September 23. Resuming the
 check requires the signed-in Identity Scaffolding profile to be available.
 No project configuration changed, no inbox was read, and no correspondence was
 sent. This session failure provides no evidence that Google changed its approval.
+September 25 follow-up: Computer Use could not access the Identity Scaffolding
+Chrome session. The available-browser inventory contained no matching profile.
+Today's provider status is not verified; September 23 remains the last successful
+check. The September 24 request to open that signed-in profile remains outstanding.
+This unchanged session blocker provides no evidence of a Google decision change.
+No configuration, scopes, callbacks, or rollout gates changed. No inbox was read
+and no correspondence was sent.
 
 Data Access lists `calendar.events.readonly` with **This scope is verified**.
 The unchanged non-sensitive declarations are `calendar.calendarlist.readonly`

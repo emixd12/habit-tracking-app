@@ -839,6 +839,10 @@ September 24 follow-up could not access the Identity Scaffolding Chrome session.
 Today's provider status is not verified. September 23 remains the last successful
 check. Open that signed-in profile to resume checks; Ticket 141 and rollout gates
 remain unchanged.
+September 25 follow-up: the Identity Scaffolding Chrome session remains unavailable.
+Today's provider status is not verified; September 23 remains the last successful
+check. The September 24 request to open that signed-in profile remains outstanding.
+Ticket 141 and public rollout gates remain unchanged.
 Unrelated working-tree changes were excluded from the isolated releases.
 
 Ticket 138: Cloudflare's initially empty `cadence-me.com` zone now has two
