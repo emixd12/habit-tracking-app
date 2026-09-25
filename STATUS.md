@@ -20,6 +20,20 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Lint warning cleanup — September 24, 2026
+
+`npm run lint` now reports zero warnings. The seven warnings in the vendored
+BehaviorLog validator snapshot are excluded through `eslint.config.mjs`
+because `tests/fixtures/behaviorlog-reference/SNAPSHOT.md` pins that file by
+SHA-256; the file itself is unchanged. Two unused imports in
+`.agentic/scripts/check-service-operations.mjs` and one unused mock parameter
+in `tests/desktop-calendar-hook.dom.test.tsx` are removed. Earlier ledger
+entries that cite ten existing warnings describe the state before this change.
+No product behavior, interaction or schema changed.
+
+Verification: lint (zero warnings), TypeScript, agents, interactions and
+resolvers checks pass; the full Vitest suite passes with 2,213 tests and 29 skips.
+
 ## Ticket 161 — September 22, 2026
 
 Provider-free evaluation is implemented and verified. Thirteen synthetic scenarios
