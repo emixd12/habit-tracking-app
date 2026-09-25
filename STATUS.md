@@ -755,6 +755,10 @@ Branding remains verified. Post-approval web/native consent smoke checks remain
 outstanding; public rollout gates remain unchanged.
 September 23 signed-in console check: branding and data access remain verified;
 no new actionable request appears. Post-approval smoke checks remain outstanding.
+September 24 follow-up could not access the Identity Scaffolding Chrome session.
+Today's provider status is not verified. September 23 remains the last successful
+check. Open that signed-in profile to resume checks; Ticket 141 and rollout gates
+remain unchanged.
 Unrelated working-tree changes were excluded from the isolated releases.
 
 Ticket 138: Cloudflare's initially empty `cadence-me.com` zone now has two
