@@ -49,6 +49,9 @@ function hostedConfig(overrides: Record<string, unknown> = {}) {
   } as const;
 }
 
+/** Exact hostname of a mocked fetch input; CodeQL rejects substring checks on the whole URL. */
+const hostOf = (input: RequestInfo | URL): string => new URL(String(input)).hostname;
+
 function authResponses() {
   return [
     Response.json({ access_token: "federated-token", token_type: "Bearer", expires_in: 3_600 }),
@@ -179,17 +182,17 @@ describe("travel provider", () => {
     const [sts, iam] = authResponses();
     const fetch = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       void _init;
-      const url = String(input);
-      if (url.includes("sts.googleapis.com")) return sts;
-      if (url.includes("iamcredentials.googleapis.com")) return iam;
-      if (url.includes("geocode.googleapis.com")) return Response.json({ results: [{ placeId: "exact", granularity: "ROOFTOP", types: ["street_address"] }] });
+      const host = hostOf(input);
+      if (host === "sts.googleapis.com") return sts;
+      if (host === "iamcredentials.googleapis.com") return iam;
+      if (host === "geocode.googleapis.com") return Response.json({ results: [{ placeId: "exact", granularity: "ROOFTOP", types: ["street_address"] }] });
       return Response.json({ routes: [{ duration: "600s" }] });
     });
     await geocodeGoogleAddress("One Main St", { config, fetch });
     await computeGoogleRoute(REQUEST, { config, now: NOW, fetch });
-    expect(fetch.mock.calls.filter(([input]) => String(input).includes("sts.googleapis.com"))).toHaveLength(1);
-    expect(fetch.mock.calls.filter(([input]) => String(input).includes("iamcredentials.googleapis.com"))).toHaveLength(1);
-    const routeCall = fetch.mock.calls.find(([input]) => String(input).includes("routes.googleapis.com"));
+    expect(fetch.mock.calls.filter(([input]) => hostOf(input) === "sts.googleapis.com")).toHaveLength(1);
+    expect(fetch.mock.calls.filter(([input]) => hostOf(input) === "iamcredentials.googleapis.com")).toHaveLength(1);
+    const routeCall = fetch.mock.calls.find(([input]) => hostOf(input) === "routes.googleapis.com");
     expect(routeCall?.[1]?.headers).toMatchObject({
       Authorization: "Bearer google-access-token",
       "X-Goog-User-Project": "habit-tracker-498717",

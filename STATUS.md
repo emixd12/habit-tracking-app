@@ -20,6 +20,20 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Public Trust code-scanning cleanup — September 26, 2026
+
+The scheduled Public Trust evidence workflow failed on September 23, 24 and 25
+because CodeQL reported six incomplete-URL-substring alerts in
+`tests/travel-provider.test.ts`, where a fetch mock and its assertions matched
+Google hosts with substring checks on the whole URL. The test now compares the
+exact hostname through a small helper; its coverage of the workload identity
+exchange, credential reuse and route headers is unchanged. The alerts close
+when CodeQL rescans `main`, and the next scheduled Trust run should report the
+code-scanning check as passed. No product code changed.
+
+Verification: `tests/travel-provider.test.ts` passes; lint (zero warnings),
+TypeScript and the agents check pass.
+
 ## Workbench expiry test timing — September 24, 2026
 
 The briefing workbench DOM test that retains delivered results after snapshot
