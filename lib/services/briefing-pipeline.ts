@@ -28,6 +28,7 @@ export type PreparedBriefingAnalysis = Readonly<{
   tip: BriefingFinding | null;
   modelTip: BriefingModelTipFinding | null;
   fingerprint: string | null;
+  recordFingerprints: readonly string[];
 }>;
 // Promotion is a reviewed repository change. Browser drafts never reach this selector.
 export function activeBriefingConfig() { return parseBriefingConfig(DEFAULT_BRIEFING_CONFIG); }
@@ -86,5 +87,6 @@ function prepareAnalysis(config: BriefingConfig, context: AdvisorDayContextV1, i
     tip: selection.tip,
     modelTip: selection.tip ? projectBriefingTipForModel(selection.tip, source) : null,
     fingerprint: selection.fingerprint,
+    recordFingerprints: selection.recordFingerprints,
   };
 }

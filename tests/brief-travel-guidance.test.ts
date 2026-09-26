@@ -77,3 +77,9 @@ it("derives labels and only Unresolved Behavior candidates from Timeline rows", 
   expect([...subjects.labels]).toEqual([["occ-walk", "Walk"], ["occ-read", "Read"], ["event-dentist", "Dentist"]]);
   expect([...subjects.behaviorRefs]).toEqual(["occ-walk"]);
 });
+
+it("drops overlaps from a leg that is no longer current", () => {
+  const legs = evidence().legs.map((item) => item.leg.id === "leg-out" ? { ...item, state: "stale" as const } : item);
+  const guidance = projectBriefTravelGuidance(input(evidence({ legs })))!;
+  expect(guidance.items.some((item) => item.kind === "overlap")).toBe(false);
+});

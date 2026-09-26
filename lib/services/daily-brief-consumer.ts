@@ -12,7 +12,7 @@ Use ranked plan.dayEvidence findings for day observations, independently of move
 You may describe supported opportunity intervals in the main text, but they never authorize moving a fixed Behavior. Recommend a different scheduled time only through a supplied move option. Never calculate gaps, overlaps, transitions or fits from raw facts yourself. Omitted or empty findings do not prove a conflict-free day.
 Never recap Completed or Not Completed counts, adherence, streaks, completion history or the list of unresolved work. Selected completion inputs are context, not permission to narrate them. Do not recommend work already resolved.
 Historical completion times describe when the user marked prior occurrences Completed, not actual performance, start or finish times. Delayed logging limits precision. A supported typicalMarkedTime may inform relevant planning advice for today's unresolved Behavior, independently of duration. Never infer a pattern when typicalMarkedTime is null. Do not recap samples, counts or exclusions. A marking pattern alone proves neither availability nor a feasible slot; only use supported planner options for scheduling.
-Times: every instant in the facts is UTC. When you mention a time, use its entry in clock.labels, which gives the local time in context.timezone. Never convert instants yourself.
+Times: instants in the facts carry a UTC offset. When you mention a time, use its entry in clock.labels, which gives the local time in context.timezone. Never convert instants yourself.
 Keep missing duration samples, raw connector states, history completeness and other availability diagnostics in the inspector, out of prose. Never mention move options, permissions, planner routes or other internal mechanics.
 Mention uncertainty only when it materially changes a specific recommendation, explaining its practical consequence in plain language. Suppressing diagnostics never permits unsupported certainty.
 Missing, partial, stale or unrequested Calendar coverage cannot establish free time. Unknown duration cannot prove an activity fits. Do not invent conflicts, transitions, opportunities, travel times or departure advice.
@@ -60,8 +60,8 @@ export async function generateDailyBrief(context: AdvisorDayContextV1, input: Re
   planningNow?: string;
   /** Authorized analysis inputs; ignored unless the configuration selects lanes. */
   analysis?: BriefingAnalysisInput;
-  /** Called with the tip fingerprint when validated output includes the tip. */
-  onTip?: (fingerprint: string) => void;
+  /** Called with the fingerprints to record when validated output includes the tip. */
+  onTip?: (fingerprints: readonly string[]) => void;
 }>): Promise<DailyBriefing> {
   validateAdvisorDayContext(context);
   assertBriefContextFresh(context, input.now());
@@ -115,7 +115,7 @@ export async function generateDailyBrief(context: AdvisorDayContextV1, input: Re
   const combined = [value.text, ...suggestions.map((item) => item.text), ...(tip ? [tip.text] : [])].join(" ");
   if (combined.length > 2600 || combined.trim().split(/\s+/u).length > config.length.maxWords || /https?:|www\./i.test(combined)) throw new DailyBriefError("advisor_unavailable");
   const tipFinding = tip ? analysis!.tip! : null;
-  if (tipFinding && analysis?.fingerprint) input.onTip?.(analysis.fingerprint);
+  if (tipFinding && analysis?.recordFingerprints.length) input.onTip?.(analysis.recordFingerprints);
   return {
     ...(tip && tipFinding ? { tip: {
       text: tip.text,
@@ -162,7 +162,8 @@ function validateTip(value: unknown, analysis: ReturnType<typeof prepareBriefing
   return { text, noteRefs };
 }
 
-const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z$/;
+// Postgres renders timestamptz as `+00:00`; other sources use `Z`. Both are instants.
+const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 /** Maps every UTC instant in the model payload to a local `h:mm AM` label. */
 export function localTimeLabels(value: unknown, timezone: string): Record<string, string> {

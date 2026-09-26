@@ -74,8 +74,11 @@ export function projectBriefTravelGuidance(input: Readonly<{
   const segmentById = new Map(evidence.segments.map((segment) => [segment.id, segment]));
   const label = (ref: string | null | undefined) => (ref ? input.labels.get(ref) : undefined) ?? "your next stop";
 
+  const currentLegIds = new Set(current.map((item) => item.leg.id));
+  // Only overlaps created by a current, unexpired leg are shown.
   const overlaps: BriefTravelGuidanceItem[] = evidence.collisions
-    .filter((collision) => collision.travelCreated && input.behaviorRefs.has(collision.candidateRef))
+    .filter((collision) => collision.travelCreated && input.behaviorRefs.has(collision.candidateRef) &&
+      collision.segmentIds.some((id) => { const legId = segmentById.get(id)?.legId; return !!legId && currentLegIds.has(legId); }))
     .map((collision) => {
       const leg = collision.segmentIds.map((id) => segmentById.get(id)?.legId).find(Boolean);
       const destination = leg ? legById.get(leg)?.destinationCommitmentRef : null;
@@ -87,7 +90,7 @@ export function projectBriefTravelGuidance(input: Readonly<{
     .slice(0, 2)
     .map((item) => ({ kind: "departure" as const, at: item.estimate!.departureAt, label: label(item.leg.destinationCommitmentRef), mode: item.leg.mode }));
   const hasReturnLeg = evidence.legs.some((item) => item.leg.role === "return");
-  // Without a usable base only the final return is withheld; known legs stay.
+  // Without a return leg (no base, leg limit or unknown timing) only the return is withheld; known legs stay.
   const back: BriefTravelGuidanceItem[] = evidence.completeTrip && evidence.finalAvailabilityAt
     ? [{ kind: "return", at: evidence.finalAvailabilityAt }]
     : hasReturnLeg ? [] : [{ kind: "return_unknown" }];

@@ -91,7 +91,7 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
       }));
       const context = prepared.contexts[0]!;
       const shown = configuration.analysis.maxTips ? await phase("tip_history", () => readDailyBriefTipHistory(caller.client, signal)) : [];
-      let tipFingerprint: string | null = null;
+      let tipFingerprints: readonly string[] = [];
       const assertCurrent = async () => {
         if (briefingConfigurationRevision() !== configurationRevision) throw new DailyBriefError("context_changed");
         await prepared.assertCurrent();
@@ -100,7 +100,7 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
       const modelSignal = AbortSignal.any([signal, AbortSignal.timeout(30_000)]);
       const briefing = await phase("model", () => raceAbort(generateDailyBrief(context, { config: configuration, now: clock, signal: modelSignal,
         analysis: { source: prepared.analysisSource, shown, fingerprintOf: prepared.tipFingerprint },
-        onTip: (fingerprint) => { tipFingerprint = fingerprint; },
+        onTip: (fingerprints) => { tipFingerprints = fingerprints; },
         generate: options.generate ?? ((input) => generateOpenAIDailyBrief(input, { apiKey })) }), modelSignal));
       // The lease must still belong to this attempt. A superseded attempt never returns text.
       const finished = await phase("finish", () => finishDailyBrief(caller.client, { installationId, leaseToken, success: true, expectedRevision: preferences.revision }, signal));
@@ -108,9 +108,12 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
       await assertCurrent();
       successful = true;
       // Only a completed, still-current attempt consumes the tip. A lost record may repeat the tip; it never hides text.
-      if (tipFingerprint) {
-        await phase("tip_record", () => recordDailyBriefTip(caller.client, { installationId, leaseToken, expectedRevision: preferences.revision, fingerprint: tipFingerprint! }, signal))
-          .catch(() => undefined);
+      if (tipFingerprints.length) {
+        await phase("tip_record", async () => {
+          for (const fingerprint of tipFingerprints) {
+            await recordDailyBriefTip(caller.client, { installationId, leaseToken, expectedRevision: preferences.revision, fingerprint }, signal);
+          }
+        }).catch(() => undefined);
       }
       return { state: "ready", briefing };
     } finally {

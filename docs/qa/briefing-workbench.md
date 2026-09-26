@@ -619,7 +619,21 @@ days) or be removed by disabling Daily Brief. Rollback never touches tracking,
 Calendar or consent records, and it stops new optional-source transmissions because
 no selected lane requests them.
 
+### Independent review fixes
+
+A read-only review returned `ship-with-fixes`; all findings were fixed with tests:
+local-time labels now cover Postgres `+00:00` instants, not only `Z`; the reminder lane
+counts cancelled-before-send deliveries as planned reminders, removing a bias against
+early completions; marks inside a reserved range count as on time and outside marks
+measure from the nearer bound; a shown tip records adjacent evidence bands so edge
+values cannot bypass the cooldown; cross-lane ranking divides materiality by each
+lane's threshold; the unknown-return line no longer blames a missing base, and only
+current legs contribute overlaps; the Notes disclosure names the actual send condition.
+
 ### Remaining gates
+
+- Live check that the strict schema's always-present `tip` field returns `null` for the
+  default preset; a non-null tip there rejects the brief as `advisor_unavailable`.
 
 - Owner-clicked `My account` comparisons of `advisor-analysis` on real days.
 - Hosted migration of `20260926150000` and `20260926170000` under deployment authority.

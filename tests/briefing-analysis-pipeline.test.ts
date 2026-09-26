@@ -68,7 +68,7 @@ describe("pattern tips", () => {
       basis: "Walk: 6 of 15 past occurrences are still Unresolved; the oldest is 15 days old.",
       limitation: null,
     });
-    expect(onTip).toHaveBeenCalledExactlyOnceWith("a".repeat(64));
+    expect(onTip).toHaveBeenCalledExactlyOnceWith(["a".repeat(64)]);
   });
 
   it("accepts no tip and does not consume one", async () => {

@@ -343,11 +343,12 @@ describe("occasional tip selection across days", () => {
 
   it("simulates two weeks: one tip, same-day repeat, cooldown, spacing, then a changed-evidence tip", () => {
     const shown: { fingerprint: string; lastShownLocalDate: string }[] = [];
-    const record = (fingerprint: string | null, date: string) => { if (fingerprint) shown.push({ fingerprint, lastShownLocalDate: date }); };
+    const record = (fingerprints: readonly string[], date: string) => { for (const fingerprint of fingerprints) shown.push({ fingerprint, lastShownLocalDate: date }); };
     const a = finding("a"), b = finding("b");
     // Day 1: A is the top relevant finding.
     const day1 = pick("2026-09-01", [a, b], shown);
-    expect(day1.tip?.id).toBe("a"); record(day1.fingerprint, "2026-09-01");
+    expect(day1.tip?.id).toBe("a"); record(day1.recordFingerprints, "2026-09-01");
+    expect(day1.recordFingerprints).toEqual(["a|share:3", "a|share:4", "a|share:5"]);
     // A retry on day 1 shows the same tip, even with B ranked first.
     expect(pick("2026-09-01", [b, a], shown).tip?.id).toBe("a");
     // Day 2: A is cooling down and B is blocked because a different tip ran yesterday.
@@ -356,10 +357,12 @@ describe("occasional tip selection across days", () => {
     expect(day2.decisions).toEqual([{ findingId: "a", decision: "cooldown" }, { findingId: "b", decision: "spacing" }]);
     // Day 3: B may appear.
     const day3 = pick("2026-09-03", [a, b], shown);
-    expect(day3.tip?.id).toBe("b"); record(day3.fingerprint, "2026-09-03");
+    expect(day3.tip?.id).toBe("b"); record(day3.recordFingerprints, "2026-09-03");
     // Day 10: both cooling down.
     expect(pick("2026-09-10", [a, b], shown).tip).toBeNull();
-    // Day 10 with A's evidence materially changed: new fingerprint, allowed.
+    // Day 10: evidence hovering one band away stays in cooldown.
+    expect(pick("2026-09-10", [finding("a", true, "share:5")], shown).tip).toBeNull();
+    // Day 10 with A's evidence changed by two or more bands: allowed.
     expect(pick("2026-09-10", [finding("a", true, "share:7")], shown).tip?.id).toBe("a");
     // Day 15: A's cooldown has passed.
     expect(pick("2026-09-15", [a], shown).tip?.id).toBe("a");
@@ -368,5 +371,36 @@ describe("occasional tip selection across days", () => {
   it("requires relevance to today and honors a zero ceiling", () => {
     expect(pick("2026-09-01", [finding("a", false)], []).decisions).toEqual([{ findingId: "a", decision: "not_relevant" }]);
     expect(selectBriefingTip({ findings: [finding("a")], maxTips: 0, cooldownDays: 14, localDate: "2026-09-01", shown: [], fingerprintOf }).tip).toBeNull();
+  });
+});
+
+describe("review fixes", () => {
+  it("keeps early completions that cancelled their reminder in the reminded group", () => {
+    // Reminders off Jul 1 – Aug 9: 20 of 40 Completed. On from Aug 10: 42 days, every one Completed;
+    // 30 completed before the send time (cancelled record), 12 after it (sent record).
+    const off = dates("2026-07-01", "2026-08-10").map((date, index) => occurrence("behavior_w", date, index % 2 ? "not_completed" : "completed"));
+    const on = dates("2026-08-10", TODAY).map((date) => occurrence("behavior_w", date, "completed"));
+    const reminders: BriefingAnalysisReminderDelivery[] = on.map((row, index) => ({ occurrenceRef: row.ref, channel: "browser_push", status: index < 30 ? "cancelled" : "sent", scheduledSendAt: row.scheduledFor }));
+    const result = analyze(source({ occurrences: [...off, ...on], periods: [period("behavior_w", "2026-07-01"), period("behavior_w", "2026-08-10", false, { browser: true })], reminders }), ["reminder-effectiveness"]);
+    expect(result.findings[0]).toMatchObject({ counts: { remindedCompleted: 42, remindedResolved: 42, offCompleted: 20, offResolved: 40, unknownDelivery: 0 }, proposal: { detail: { direction: "reminded_higher" } } });
+  });
+
+  it("treats marks inside a reserved range as on time and measures outside marks from the nearer bound", () => {
+    // 09:00–13:00 range. Six marks at 09:30 are inside the range: no finding.
+    const inside = dates("2026-09-10", "2026-09-16").map((date) => occurrence("behavior_x", date, "completed", { kind: "range", endTime: "13:00", startTime: "09:00", markedAt: `${date}T09:30:00-04:00` }));
+    expect(analyze(source({ occurrences: inside, periods: [period("behavior_x", "2026-09-01")] }), ["realistic-timing"], 30).findings).toEqual([]);
+    // Six marks at 16:00: three hours after the range ends.
+    const after = dates("2026-09-10", "2026-09-16").map((date) => occurrence("behavior_y", date, "completed", { kind: "range", endTime: "13:00", startTime: "09:00", markedAt: `${date}T16:00:00-04:00` }));
+    expect(analyze(source({ occurrences: after, periods: [period("behavior_y", "2026-09-01")] }), ["realistic-timing"], 30).findings[0]).toMatchObject({
+      counts: { medianOffsetMinutes: 180 }, proposal: { detail: { direction: "later", scheduledTime: "09:00", scheduledEndTime: "13:00" } },
+    });
+  });
+
+  it("ranks findings by strength relative to each lane's threshold, not raw units", () => {
+    // Timing: 2-hour offset (1.33× its 1.5-hour threshold). Weekday: 0.82 gap (2.7× its 0.3 threshold).
+    const timing = dates("2026-09-10", "2026-09-16").map((date) => occurrence("behavior_t1", date, "completed", { markedAt: `${date}T09:00:00-04:00` }));
+    const dip = dates("2026-07-01", TODAY).map((date) => occurrence("behavior_t2", date, weekday(date) === 1 && date > "2026-07-13" ? "not_completed" : "completed"));
+    const result = analyze(source({ occurrences: [...timing, ...dip], periods: [period("behavior_t1", "2026-07-01"), period("behavior_t2", "2026-07-01")] }), ["weekday-time-dips", "realistic-timing"]);
+    expect(result.findings.map((item) => item.laneId)).toEqual(["weekday-time-dips", "realistic-timing"]);
   });
 });

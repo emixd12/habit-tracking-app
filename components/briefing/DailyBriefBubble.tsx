@@ -85,7 +85,7 @@ function travelLine(item: BriefTravelGuidanceItem, timezone: string): string {
     case "overlap": return `Travel to ${item.travelLabel} overlaps ${item.behaviorLabel}.`;
     case "departure": return `Leave by ${formatBriefTime(item.at, timezone)} for ${item.label} (${item.mode}).`;
     case "return": return `Back around ${formatBriefTime(item.at, timezone)}.`;
-    case "return_unknown": return "Return time is unknown without a saved base.";
+    case "return_unknown": return "Return time is unknown.";
   }
 }
 

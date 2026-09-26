@@ -107,11 +107,11 @@ export const BRIEFING_ANALYSIS_LANES: readonly BriefingAnalysisLaneContract[] = 
   },
   {
     id: "reminder-effectiveness",
-    question: "Within one schedule period, do occurrences with a delivered reminder differ from occurrences while that channel was off?",
+    question: "Within one schedule period, do occurrences with a planned reminder differ from occurrences while that channel was off?",
     requiredInputs: ["history_occurrences", "configuration_periods", "reminder_deliveries"],
     optionalSource: "reminders",
     lookback: { minDays: 28, maxDays: 90 },
-    sufficiency: `Each group ≥${T.reminders.minTotalPerGroup} occurrences and ≥${T.reminders.minResolvedPerGroup} resolved; completion-rate gap ≥${T.reminders.minGap * 100} points. Enabled periods without a sent record are unknown and excluded.`,
+    sufficiency: `Each group ≥${T.reminders.minTotalPerGroup} occurrences and ≥${T.reminders.minResolvedPerGroup} resolved; completion-rate gap ≥${T.reminders.minGap * 100} points. Planned reminders include those cancelled because the occurrence was resolved first; enabled occurrences without a sent or cancelled record are unknown and excluded.`,
     permittedProposals: ["reminder_adjustment"],
     unsupportedInput: "unavailable",
   },
@@ -189,10 +189,26 @@ export function resolveBriefingAnalysis(input: ResolveBriefingAnalysisInput): Br
   const laneOrder = new Map(BRIEFING_ANALYSIS_LANE_IDS.map((id, index) => [id, index]));
   findings.sort((left, right) =>
     Number(right.relevantToday) - Number(left.relevantToday) ||
-    right.materiality - left.materiality ||
+    strength(right) - strength(left) ||
     laneOrder.get(left.laneId)! - laneOrder.get(right.laneId)! ||
     (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
   return { version: BRIEFING_ANALYSIS_VERSION, lanes, findings };
+}
+
+/** Materiality divided by the lane's own threshold, so hours and rate points compare fairly. */
+const MATERIALITY_SCALE: Record<BriefingAnalysisLaneId, number> = {
+  "weekday-time-dips": T.weekday.minGap,
+  "realistic-timing": T.timing.minMedianLagMinutes / 60,
+  "schedule-load": T.load.minWeightedGap,
+  "cross-source-context": 1,
+  "decision-debt": T.decisionDebt.minUnresolvedShare,
+  "logging-chronology": T.chronology.minLateShare,
+  "correction-patterns": T.corrections.minCorrectedShare,
+  "reminder-effectiveness": T.reminders.minGap,
+  "notes-failure-themes": 0.5,
+};
+function strength(finding: BriefingFinding): number {
+  return finding.materiality / MATERIALITY_SCALE[finding.laneId];
 }
 
 type LaneContext = Readonly<{
@@ -285,9 +301,12 @@ function realisticTiming(context: LaneContext): LaneOutput {
       const marked = Temporal.Instant.from(row.statusMarkedAt).toZonedDateTimeISO(timezone);
       // A mark on a later day measures logging delay, which logging-chronology covers.
       if (marked.toPlainDate().toString() !== row.localDate) return [];
-      const reference = minutes(row.scheduleKind === "range" && row.endTime ? row.endTime : row.startTime);
       const markedMinute = marked.hour * 60 + marked.minute;
-      return [{ row, lag: markedMinute - reference, markedMinute }];
+      const start = minutes(row.startTime);
+      const end = row.scheduleKind === "range" && row.endTime ? minutes(row.endTime) : start;
+      // A mark inside a reserved range is on time; outside, measure from the nearer bound.
+      const lag = markedMinute < start ? markedMinute - start : markedMinute > end ? markedMinute - end : 0;
+      return [{ row, lag, markedMinute }];
     });
     if (samples.length < T.timing.minSamples || new Set(samples.map(({ row }) => row.localDate)).size < T.timing.minDistinctDates) continue;
     candidates += 1;
@@ -295,7 +314,8 @@ function realisticTiming(context: LaneContext): LaneOutput {
     if (Math.abs(lag) < T.timing.minMedianLagMinutes) continue;
     const sameWay = samples.filter((sample) => lag > 0 ? sample.lag >= T.timing.consistentLagMinutes : sample.lag <= -T.timing.consistentLagMinutes).length;
     if (sameWay / samples.length < T.timing.minConsistentShare) continue;
-    const scheduled = mode(samples.map(({ row }) => row.startTime));
+    const scheduled = mode(samples.map(({ row }) => `${row.startTime}|${row.scheduleKind === "range" && row.endTime ? row.endTime : ""}`));
+    const [scheduledStart, scheduledEnd] = scheduled.split("|") as [string, string];
     findings.push(finding(context, {
       laneId: "realistic-timing", behaviorRef, key: `mark:${lag > 0 ? "later" : "earlier"}`,
       evidenceBand: `hours:${Math.floor(Math.abs(lag) / 60)}`,
@@ -308,7 +328,8 @@ function realisticTiming(context: LaneContext): LaneOutput {
       proposal: { kind: "timing_experiment", detail: {
         direction: lag > 0 ? "later" : "earlier",
         typicalMarkedTime: clock(median(samples.map((sample) => sample.markedMinute))),
-        scheduledTime: scheduled.slice(0, 5),
+        scheduledTime: scheduledStart.slice(0, 5),
+        ...(scheduledEnd ? { scheduledEndTime: scheduledEnd.slice(0, 5) } : {}),
       } },
       limitations: ["marking_time_not_performance_time"],
       evidenceRefs: samples.map(({ row }) => row.ref),
@@ -474,7 +495,10 @@ function reminderEffectiveness(context: LaneContext): LaneOutput {
   const { reminders, configurationPeriods } = context.input.source;
   if (reminders.state !== "available") return unavailable(reminders);
   if (configurationPeriods.state !== "available" || !context.periods) return unavailable(configurationPeriods);
-  const sent = new Set(reminders.records.filter((item) => item.status === "sent").map((item) => `${item.occurrenceRef}\0${item.channel}`));
+  // A cancelled delivery means the reminder was planned and the occurrence was resolved
+  // before it sent. Counting it keeps early completions in the reminded group, which
+  // would otherwise bias the comparison against reminders.
+  const planned = new Set(reminders.records.filter((item) => item.status === "sent" || item.status === "cancelled").map((item) => `${item.occurrenceRef}\0${item.channel}`));
   const findings: BriefingFinding[] = [];
   let candidates = 0;
   for (const [behaviorRef, all] of byBehavior(context.occurrences)) {
@@ -489,9 +513,9 @@ function reminderEffectiveness(context: LaneContext): LaneOutput {
         const setting = [...settings].reverse().find((period) => period.effectiveAt <= row.scheduledFor);
         if (!setting) { unknown += 1; continue; }
         const enabled = channel === "browser_push" ? setting.browserReminderEnabled : setting.emailReminderEnabled;
-        if (sent.has(`${row.ref}\0${channel}`)) reminded.push(row);
+        if (enabled && planned.has(`${row.ref}\0${channel}`)) reminded.push(row);
         else if (!enabled) off.push(row);
-        // Enabled without a sent record: delivery unknown or cancelled after resolution; excluded.
+        // Enabled without a sent or cancelled record: delivery unknown or failed; excluded.
         else unknown += 1;
       }
       const r = tally(reminded), o = tally(off);
@@ -693,6 +717,12 @@ export type BriefingTipDecision = "selected" | "not_relevant" | "cooldown" | "sp
 export type BriefingTipSelection = Readonly<{
   tip: BriefingFinding | null;
   fingerprint: string | null;
+  /**
+   * Fingerprints to record when the tip is shown: its own band and the adjacent
+   * bands. Evidence hovering at a band edge therefore stays in cooldown; only a
+   * change of two or more bands counts as changed evidence.
+   */
+  recordFingerprints: readonly string[];
   decisions: readonly Readonly<{ findingId: string; decision: BriefingTipDecision }>[];
 }>;
 
@@ -711,7 +741,7 @@ export function selectBriefingTip(input: Readonly<{
   fingerprintOf: (finding: BriefingFinding) => string;
 }>): BriefingTipSelection {
   if (input.maxTips === 0) {
-    return { tip: null, fingerprint: null, decisions: input.findings.map((finding) => ({ findingId: finding.id, decision: "disabled" as const })) };
+    return { tip: null, fingerprint: null, recordFingerprints: [], decisions: input.findings.map((finding) => ({ findingId: finding.id, decision: "disabled" as const })) };
   }
   const today = Temporal.PlainDate.from(input.localDate);
   const age = (date: string) => Temporal.PlainDate.from(date).until(today).days;
@@ -740,5 +770,18 @@ export function selectBriefingTip(input: Readonly<{
     return { findingId: finding.id, decision: "selected" as const };
   });
   const selected = tip as BriefingFinding | null;
-  return { tip: selected, fingerprint: selected ? fingerprints.get(selected.id)! : null, decisions };
+  return {
+    tip: selected,
+    fingerprint: selected ? fingerprints.get(selected.id)! : null,
+    recordFingerprints: selected ? [...new Set(adjacentBands(selected.evidenceBand).map((evidenceBand) => input.fingerprintOf({ ...selected, evidenceBand })))] : [],
+    decisions,
+  };
+}
+
+/** A band `name:n` and its neighbors `name:n-1` and `name:n+1`. */
+export function adjacentBands(band: string): string[] {
+  const match = /^(.*):(-?\d+)$/.exec(band);
+  if (!match) return [band];
+  const step = Number(match[2]);
+  return [step - 1, step, step + 1].map((value) => `${match[1]}:${value}`);
 }

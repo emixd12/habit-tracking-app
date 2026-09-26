@@ -147,4 +147,7 @@ it("labels every UTC instant with its local time so the model never converts it"
   expect(payload.clock.labels[context.cadence.occurrences[0].scheduledFor]).toBe("12:30 PM");
   expect(payload.clock.labels["2026-11-01T12:00:00Z"]).toBe("7:00 AM");
   expect(generate.mock.calls[0][0].instructions).toContain("use its entry in clock.labels");
+  // Postgres timestamptz JSON uses +00:00 rather than Z.
+  const { localTimeLabels } = await import("@/lib/services/daily-brief-consumer");
+  expect(localTimeLabels({ scheduledFor: "2026-11-01T17:30:00+00:00", other: "2026-11-01", text: "12:30" }, "America/New_York")).toEqual({ "2026-11-01T17:30:00+00:00": "12:30 PM" });
 });

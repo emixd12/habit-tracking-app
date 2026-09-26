@@ -1879,7 +1879,8 @@ Migration `20260926170000_daily_brief_analysis_sources.sql` (Tickets 169, 172, 1
   returns only that hash.
 - `daily_brief_tip_deliveries` stores `(user_id, fingerprint, last_shown_local_date)`.
   The fingerprint is a server SHA-256 of lane, Behavior, subject and evidence band;
-  no finding or generated text is stored. `record_daily_brief_tip` writes only for
+  no finding or generated text is stored. A shown tip records its own band and the
+  two adjacent bands, so evidence at a band edge stays in cooldown. `record_daily_brief_tip` writes only for
   the caller's completed attempt with the same lease and preference revision within
   two minutes of completion. Rows older than 30 days and beyond 64 per owner are
   pruned. Disabling Daily Brief deletes them; account deletion cascades.

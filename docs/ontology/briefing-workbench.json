@@ -4174,7 +4174,7 @@
       "id": "analysis.tip-fingerprint",
       "label": "Tip fingerprint",
       "category": "Analysis",
-      "definition": "A one-way server hash of lane, Behavior, subject and evidence band. Only completed in-app attempts record it with a last-shown date; workbench runs never do. Changed evidence yields a new fingerprint.",
+      "definition": "A one-way server hash of lane, Behavior, subject and evidence band. Only completed in-app attempts record it, with its adjacent bands and a last-shown date; workbench runs never do. Evidence two or more bands away yields a fingerprint outside the cooldown.",
       "contracts": [
         {
           "path": "packages/core/src/resolvers/briefing-analysis.resolver.ts",

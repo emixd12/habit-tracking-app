@@ -56,7 +56,13 @@ export function describeBriefingFinding(finding: BriefingFinding, input: Readonl
         ? `${lead}${finding.key.slice(5)} slot completed ${c.slotCompleted} of ${c.slotResolved} resolved times; other slots ${c.baselineCompleted} of ${c.baselineResolved}${unresolved(c.slotUnresolved)}.`
         : `${lead}${String(finding.proposal.detail.weekday)}s completed ${c.weekdayCompleted} of ${c.weekdayResolved} resolved times; other days ${c.baselineCompleted} of ${c.baselineResolved}${unresolved(c.weekdayUnresolved)}.`;
     case "realistic-timing":
-      return `${lead}Completed usually marked around ${formatClock(String(finding.proposal.detail.typicalMarkedTime))} for a ${formatClock(String(finding.proposal.detail.scheduledTime))} slot (${c.samples} same-day marks).`;
+    {
+      const detail = finding.proposal.detail;
+      const slot = detail.scheduledEndTime
+        ? `${formatClock(String(detail.scheduledTime))}–${formatClock(String(detail.scheduledEndTime))}`
+        : formatClock(String(detail.scheduledTime));
+      return `${lead}Completed usually marked around ${formatClock(String(detail.typicalMarkedTime))} for a ${slot} slot (${c.samples} same-day marks).`;
+    }
     case "schedule-load":
       return `Days with ${c.heavyThreshold}+ scheduled completed ${c.heavyCompleted} of ${c.heavyResolved} resolved; lighter days on the same weekdays ${c.lightCompleted} of ${c.lightResolved}.`;
     case "decision-debt":
@@ -67,7 +73,7 @@ export function describeBriefingFinding(finding: BriefingFinding, input: Readonl
       return `${lead}${c.corrected} of ${c.resolved} recorded decisions were changed later.`;
     case "reminder-effectiveness": {
       const channel = finding.proposal.detail.channel === "email" ? "email" : "browser";
-      return `${lead}With a delivered ${channel} reminder, completed ${c.remindedCompleted} of ${c.remindedResolved} resolved; while ${channel} reminders were off, ${c.offCompleted} of ${c.offResolved}.`;
+      return `${lead}With ${channel} reminders on, completed ${c.remindedCompleted} of ${c.remindedResolved} resolved; while they were off, ${c.offCompleted} of ${c.offResolved}.`;
     }
     case "notes-failure-themes":
       return `${lead}Based on ${input.citedNotes ?? c.notes} of your Notes on Not Completed occurrences.`;
