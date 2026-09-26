@@ -12068,7 +12068,8 @@ Filing this ticket changes no runtime behavior.
 ## Advisor recovery and useful recommendations: Tickets 168–174
 
 Filed September 26, 2026 after the owner approved the advisor analysis and requested
-implementation tickets. All seven tickets are planned; implementation has not started.
+implementation tickets. Implementation began the same day; each ticket's status line
+records what shipped in source and which release gates remain open.
 The owner clarified that routing includes both travel timing and fitting Behaviors
 around Calendar events. Occasional adherence tips should use defined analysis lanes
 inspired by `packages/core/src/export-prompts.ts`.
@@ -12172,7 +12173,8 @@ parallel tabs, account/consent changes and unchanged dismissal. Apply shared che
 
 ## Ticket 169: Advisor analysis evidence contract and bounded history
 
-Status: planned. Filed September 26, 2026.
+Status: implemented in source September 26, 2026; hosted migration and real-account
+evidence remain open under Ticket 174. Filed September 26, 2026.
 Dependencies: existing Tickets 146, 156–157 implementation. Enables Tickets 170–173.
 
 Goal: supply small, validated findings to the advisor through explicit analysis lanes.
@@ -12227,7 +12229,9 @@ revision races, two-owner isolation and excluded-field absence. Apply shared che
 
 ## Ticket 170: Calendar travel timing and Behavior scheduling advice
 
-Status: planned. Filed September 26, 2026.
+Status: deterministic display implemented in source September 26, 2026. Model
+projection of travel remains disabled pending provider-use clearance and revised
+disclosure; native and live gates stay with Tickets 165 and 174. Filed September 26, 2026.
 Dependencies: 169 and existing 159, 162–167 implementation. Coordinate with 165 and 174.
 
 Goal: explain departure, onward travel and return constraints alongside feasible
@@ -12277,7 +12281,8 @@ when clearance is absent. Apply shared checks and keep live provider gates expli
 
 ## Ticket 171: Adherence timing, load and Calendar-context analysis
 
-Status: planned. Filed September 26, 2026.
+Status: implemented in source September 26, 2026. The historical Calendar lane
+reports unavailable; no historical Calendar read was added. Filed September 26, 2026.
 Dependencies: 169; concrete timing suggestions also require 170's feasibility checks.
 
 Goal: identify repeatable adherence difficulties and suggest one supported scheduling
@@ -12330,7 +12335,8 @@ Expected findings must derive from hand-checked data, not the implementation. Ap
 
 ## Ticket 172: Recurring obstacles and decision-recording analysis
 
-Status: planned. Filed September 26, 2026.
+Status: implemented in source September 26, 2026; hosted migration and real-account
+evidence remain open under Ticket 174. Filed September 26, 2026.
 Dependencies: 169. Optional sources need their implemented disclosure before model use.
 
 Goal: suggest specific ways to reduce recurring obstacles or make decisions easier
@@ -12385,7 +12391,9 @@ revision chains, batching, source revocation and zero source writes. Apply share
 
 ## Ticket 173: Actionable Daily Brief prose and occasional tips
 
-Status: planned. Filed September 26, 2026.
+Status: implemented in source September 26, 2026 behind the `advisor-analysis`
+candidate preset. The production default is unchanged until reviewed promotion
+under Ticket 174. Filed September 26, 2026.
 Dependencies: 169–172 for evidence; 168 for reliable delivery. Evaluate through 174.
 
 Goal: explain what matters today, what to consider doing, and why, with occasional
@@ -12442,7 +12450,9 @@ Human wording review remains required under 174. Apply shared checks.
 
 ## Ticket 174: Advisor workbench evaluation and staged release acceptance
 
-Status: planned. Filed September 26, 2026.
+Status: in progress September 26, 2026. Deterministic fixtures, workbench controls
+and synthetic evidence are recorded; owner-clicked comparisons, hosted, deployed-web
+and installed-desktop acceptance remain open. Filed September 26, 2026.
 Dependencies: review begins alongside 168–173; release acceptance follows delivered slices.
 Carry forward open evidence from 147–148, 155 and 161; coordinate travel gates with 165.
 

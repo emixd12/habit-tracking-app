@@ -20,6 +20,40 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Tickets 169–174 advisor analysis, tips and travel — September 26, 2026
+
+Tickets 169–173 are implemented in source; Ticket 174 is in progress. The production
+default brief selects no analysis lanes, so deployed behavior changes only through the
+recovery work (168), the local-time labels, and policy 3.0's output field.
+
+- 169: `read_advisor_analysis_snapshot` (migration `20260926170000`) returns bounded,
+  owner-filtered history, status events, configuration events and optional reminder
+  deliveries and Notes. The database refuses undisclosed optional sources. The account
+  context projects opaque records and fences the analysis revision before delivery.
+  Configuration 1.3 adds `analysis` (lanes, one-tip ceiling, 7–30 day cooldown).
+- 171–172: `briefing-analysis.resolver.ts` implements nine lanes with stated thresholds.
+  Load compares within weekdays; periods split only at schedule, timezone or active
+  changes; historical Calendar reports unavailable.
+- 173: one relevant finding may become a tip, subject to cooldown and one-day spacing.
+  The bubble shows the model's tip with a deterministic evidence line. Quoted or thinly
+  cited Note themes are dropped. Only completed, current attempts record the content-
+  free tip fingerprint (`daily_brief_tip_deliveries`).
+- 170: the bubble shows travel lines projected from existing Timeline travel evidence.
+  Travel stays out of model input.
+- 172 Settings: reminder-history and Note disclosures with exact wording, offered when
+  the server's recipe uses them or in development. Disabling Daily Brief revokes both.
+- 174: 14 synthetic analysis scenarios, workbench lane controls and an analysis
+  summary. Five synthetic model comparisons found and fixed a pre-existing UTC time
+  defect and jargon in tips.
+
+Verification and remaining gates: `docs/qa/briefing-workbench.md`,
+`docs/qa/travel-release.md`. A port-less local Postgres container applied all three new
+migrations; SQL smoke checks confirmed disclosure refusal, owner isolation, revision
+matching, older-client revocation, lease-bound tip records and deletion on disable. A
+full `supabase db reset` did not run. Hosted migrations, owner-clicked account
+comparisons, promotion of `advisor-analysis`, deployed-web and installed-desktop
+acceptance remain open.
+
 ## Ticket 168 recoverable Daily Brief loading — September 26, 2026
 
 Implemented in source. Regression tests reproduce four loss paths against the
