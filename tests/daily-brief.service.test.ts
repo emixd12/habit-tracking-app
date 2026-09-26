@@ -58,6 +58,10 @@ describe("first-party daily briefing service", () => {
     expect(await requestInAppDailyBrief(caller, input, { generate, now })).toEqual({ state });
     expect(generate).not.toHaveBeenCalled();
   });
+  it("returns the server's pending retry timing", async () => {
+    mocks.begin.mockResolvedValue({ state: "pending", retryAfterSeconds: 42 });
+    expect(await requestInAppDailyBrief(caller, input, { generate, now })).toEqual({ state: "pending", retryAfterSeconds: 42 });
+  });
   it("reports an exhausted retry allowance without generating", async () => {
     mocks.begin.mockResolvedValue({ state: "retry_exhausted" });
     await expect(requestInAppDailyBrief(caller, { ...input, retry: true }, { generate, now })).rejects.toMatchObject({ code: "retry_exhausted" });

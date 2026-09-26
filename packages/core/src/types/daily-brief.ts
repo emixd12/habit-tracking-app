@@ -30,4 +30,5 @@ export type DailyBriefSettings = Readonly<{
 
 export type DailyBriefResponse =
   | Readonly<{ state: "ready"; briefing: DailyBriefing }>
-  | Readonly<{ state: "pending" | "already_attempted" }>;
+  | Readonly<{ state: "pending"; retryAfterSeconds?: number }>
+  | Readonly<{ state: "already_attempted" }>;

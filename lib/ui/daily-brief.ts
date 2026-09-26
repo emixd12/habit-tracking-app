@@ -79,12 +79,13 @@ export function withDailyBriefDeadline<T>(
   return new Promise<T>((resolve, reject) => {
     const stop = (error: DailyBriefRequestError) => {
       if (controller.signal.aborted) return;
+      cleanup();
       controller.abort(error);
       reject(error);
     };
     const cancel = () => stop(new DailyBriefRequestError("cancelled"));
     const timer = setTimeout(() => stop(new DailyBriefRequestError("timeout")), deadlineMs);
-    const cleanup = () => { clearTimeout(timer); signal?.removeEventListener("abort", cancel); };
+    function cleanup() { clearTimeout(timer); signal?.removeEventListener("abort", cancel); }
     if (signal?.aborted) { cleanup(); cancel(); return; }
     signal?.addEventListener("abort", cancel, { once: true });
     let running: Promise<T>;

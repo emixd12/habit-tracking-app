@@ -55,7 +55,7 @@ export function startDailyBriefAttempt(
   const promise = Promise.resolve().then(() => input.run(controller.signal)).then((response): DailyBriefOutcome => {
     if (response.state === "ready") return { kind: "ready", briefing: response.briefing };
     if (response.state === "already_attempted") return { kind: "already_attempted" };
-    return { kind: "failed", code: "pending", settledAt: Date.now() };
+    return { kind: "failed", code: "pending", ...(response.retryAfterSeconds ? { retryAfterSeconds: response.retryAfterSeconds } : {}), settledAt: Date.now() };
   }, (error: unknown): DailyBriefOutcome => ({
     kind: "failed",
     code: error instanceof DailyBriefRequestError ? error.code : "advisor_unavailable",

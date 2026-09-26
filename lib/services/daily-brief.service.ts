@@ -56,6 +56,7 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
     const admission = await phase("admission", () => beginDailyBrief(caller.client, { installationId, retry: value.retry as boolean, expectedRevision: preferences.revision }, signal));
     if (admission.state === "rate_limited") throw new DailyBriefError("rate_limited", admission.retryAfterSeconds);
     if (admission.state === "retry_exhausted") throw new DailyBriefError("retry_exhausted");
+    if (admission.state === "pending") return admission.retryAfterSeconds ? { state: "pending", retryAfterSeconds: admission.retryAfterSeconds } : { state: "pending" };
     if (admission.state !== "acquired") return { state: admission.state };
     const leaseToken = admission.leaseToken;
     let successful = false;

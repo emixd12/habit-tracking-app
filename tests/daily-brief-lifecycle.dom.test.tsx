@@ -184,7 +184,7 @@ it("treats a server-completed but undelivered attempt as recoverable", async () 
   const request = vi.fn<DailyBriefClient["requestBrief"]>().mockResolvedValueOnce({ state: "already_attempted" })
     .mockResolvedValueOnce(ready("Delivered on retry", 120_000));
   await act(() => root.render(<DailyBriefLauncher client={client("owner", request)} />));
-  expect(container.textContent).toContain("prepared but not shown here");
+  expect(container.textContent).toContain("already started but not shown here");
   await act(() => buttonNamed("Try again")!.click());
   expect(container.textContent).toContain("Delivered on retry");
 });
@@ -228,7 +228,7 @@ it.each([
   ["offline", "appear to be offline", true],
   ["unauthenticated", "Sign in again", false],
   ["context_changed", "changed while the brief was prepared", true],
-  ["retry_exhausted", "retry limit is reached", false],
+  ["retry_exhausted", "retry limit has been reached", false],
 ])("distinguishes the %s outcome", async (code, message, retryable) => {
   await act(() => root.render(<DailyBriefLauncher client={client("owner", async () => { throw new DailyBriefRequestError(code); })} />));
   expect(container.textContent).toContain(message);
@@ -312,4 +312,31 @@ it("bounds a stalled installation lock", async () => {
   } finally {
     Reflect.deleteProperty(navigator, "locks");
   }
+});
+
+it("makes the next day's automatic start on a launcher left mounted overnight", async () => {
+  const adapter = client("owner");
+  const settings = await adapter.preferences();
+  const preferences = vi.fn<DailyBriefClient["preferences"]>().mockResolvedValue(settings);
+  const request = vi.fn(async () => ready("Today's advice", 120_000));
+  await act(() => root.render(<DailyBriefLauncher client={{ ...adapter, preferences, requestBrief: request }} />));
+  expect(request).toHaveBeenCalledTimes(1);
+  preferences.mockResolvedValue({ ...settings, localDate: "2026-09-21" });
+  await act(() => window.dispatchEvent(new Event("focus")));
+  expect(container.textContent).toBe("");
+  await act(() => window.dispatchEvent(new Event("focus")));
+  expect(request).toHaveBeenCalledTimes(2);
+  expect(request).toHaveBeenLastCalledWith(expect.objectContaining({ retry: false }), expect.any(AbortSignal));
+});
+
+it("keeps another tab's newer claim when this tab's attempt settles", async () => {
+  let complete!: (value: DailyBriefResponse) => void;
+  const request = vi.fn(() => new Promise<DailyBriefResponse>((resolve) => { complete = resolve; }));
+  await act(() => root.render(<DailyBriefLauncher client={client("owner", request)} />));
+  const otherClaim = instant + 500_000;
+  localStorage.setItem(markerKey, JSON.stringify({ attempted: true, delivered: false, dismissed: false, pendingUntil: otherClaim }));
+  await act(() => complete({ state: "pending", retryAfterSeconds: 40 }));
+  expect(JSON.parse(localStorage.getItem(markerKey)!).pendingUntil).toBe(otherClaim);
+  expect(container.textContent).toContain("Try again in about 40 seconds");
+  expect(buttonNamed("Try again")!.disabled).toBe(true);
 });

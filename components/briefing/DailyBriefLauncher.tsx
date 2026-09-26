@@ -54,9 +54,9 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
     // A view from another session stays hidden by the session check in render.
     if (!resolvedClient) return;
     const briefClient = resolvedClient;
-    const mountEpoch = ++epoch.current;
+    let generation = ++epoch.current;
     const mounted = { current: true };
-    const live = () => mounted.current && mountEpoch === epoch.current;
+    const live = () => mounted.current && generation === epoch.current;
     const pendingTimers = new Set<number>();
     const later = (callback: () => void, at: number) => {
       const timer = window.setTimeout(() => { pendingTimers.delete(timer); if (live()) callback(); },
@@ -92,7 +92,7 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
         return;
       }
       if (outcome.kind === "already_attempted") {
-        show(marker.delivered ? HIDDEN : { kind: "notice", message: "Today’s Daily Brief was prepared but not shown here.", retryLabel: TRY_AGAIN });
+        show(marker.delivered ? HIDDEN : { kind: "notice", message: "Today’s Daily Brief was already started but not shown here.", retryLabel: TRY_AGAIN });
         return;
       }
       const notice = failureNotice(outcome);
@@ -107,15 +107,18 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
     };
 
     const start = (settings: DailyBriefSettings, retry: boolean) => {
-      mark(settings, { attempted: true, pendingUntil: Date.now() + DAILY_BRIEF_CLIENT_DEADLINES.installationMs + DAILY_BRIEF_CLIENT_DEADLINES.briefMs });
+      const claim = Date.now() + DAILY_BRIEF_CLIENT_DEADLINES.installationMs + DAILY_BRIEF_CLIENT_DEADLINES.briefMs;
+      mark(settings, { attempted: true, pendingUntil: claim });
       const attempt = startDailyBriefAttempt(briefClient, settings, {
         sourceKey: sourceKeyRef.current,
         retry,
         run: async (signal) => briefClient.requestBrief({ installationId: await dailyBriefInstallationId(window.localStorage, signal), retry }, signal),
       });
-      // Clear the cross-tab claim when the attempt settles, even if this launcher unmounted.
+      // Clear this tab's cross-tab claim when the attempt settles, even if this launcher
+      // unmounted. Another tab's newer claim stays in place.
       void attempt.promise.then(() => {
-        if (isRememberedDailyBriefAttempt(briefClient, attempt)) mark(settings, {});
+        if (isRememberedDailyBriefAttempt(briefClient, attempt) &&
+            readDailyBriefPresentation(settings.accountRef, settings.localDate).pendingUntil === claim) mark(settings, {});
       });
       follow(settings, attempt);
     };
@@ -146,7 +149,12 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
     const withdraw = () => {
       discardDailyBriefAttempt(briefClient);
       settingsRef.current = null;
-      epoch.current += 1;
+      for (const timer of pendingTimers) window.clearTimeout(timer);
+      pendingTimers.clear();
+      // Late work from the withdrawn settings is ignored, but this mount stays live:
+      // a later read (for example the next local day) may make that day's automatic start.
+      evaluated = false;
+      generation = ++epoch.current;
       setView(HIDDEN);
     };
 
@@ -256,7 +264,7 @@ function failureNotice(outcome: Extract<DailyBriefOutcome, { kind: "failed" }>):
     case "pending":
       return { kind: "notice", message: `Daily Brief is still being prepared.${wait}`, retryLabel: TRY_AGAIN, retryAt };
     case "rate_limited":
-      return { kind: "notice", message: `Daily Brief is busy.${wait}`, retryLabel: TRY_AGAIN, retryAt };
+      return { kind: "notice", message: `Daily Brief reached its request limit.${wait}`, retryLabel: TRY_AGAIN, retryAt };
     case "timeout":
       return { kind: "notice", message: "Daily Brief took too long to load. Tracking is unaffected.", retryLabel: TRY_AGAIN };
     case "offline":
@@ -267,7 +275,7 @@ function failureNotice(outcome: Extract<DailyBriefOutcome, { kind: "failed" }>):
     case "context_expired":
       return { kind: "notice", message: "Your Timeline or settings changed while the brief was prepared.", retryLabel: "Get a current brief" };
     case "retry_exhausted":
-      return { kind: "notice", message: "Today’s Daily Brief retry limit is reached. Tracking is unaffected." };
+      return { kind: "notice", message: "Today’s Daily Brief retry limit has been reached. Tracking is unaffected." };
     case "access_denied":
     case "not_configured":
       return { kind: "notice", message: "Daily Brief is turned off or unavailable. Check Settings." };
