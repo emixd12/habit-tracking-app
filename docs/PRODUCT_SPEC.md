@@ -567,8 +567,8 @@ UI must not depend on provider SDK types. No generic agent framework is required
 
 The shared authorized context retains manual statuses and bounded completion
 counts. The Daily Brief recipe filters resolved work internally and independently
-selects model inputs. Completion input selection does not permit completion or
-adherence recaps. Raw status-update times are not actual finish times. Notes,
+selects model inputs. The current policy does not permit completion or adherence
+recaps. Raw status-update times are not actual finish times. Notes,
 account identifiers, Calendar rich text, provider IDs and credentials stay excluded.
 Partial or stale Calendar coverage cannot prove free time. Missing duration cannot
 prove that an activity fits. The private inspector retains source diagnostics.
@@ -644,6 +644,41 @@ local-only AI is deferred. Marketing gains no new claim. Native mobile remains
 deferred. Synthetic access to the selected model passed with the approved existing
 key. Hosted deployment, real-data acceptance and installed desktop checks remain
 open. Provider retention is disclosed separately from Cadence's no-content-storage policy.
+
+### Planned advisor improvements (Tickets 168–174)
+
+The owner approved ticketing this direction on September 26, 2026. Implementation
+is pending. The advisor should prioritize both travel/departure timing and fitting
+Behaviors around Calendar events, with occasional evidence-backed adherence tips.
+The existing Daily Brief recipe and horse bubble remain the delivery surface.
+
+Ticket 168 repairs bounded loading, delivery recovery and retry across navigation.
+An attempted request is not proof that the user received advice. Dismissal remains
+separate, and stale timing cannot remain presented as current.
+
+Tickets 169–172 define analysis lanes from the export prompt library: weekday/slot
+dips, realistic timing, schedule load, Calendar context, recurring Note obstacles,
+reminder associations and decision-recording patterns. Each lane declares required
+sources, lookback, sample sufficiency, provenance, limitations and allowed advice.
+Unresolved remains missing decision data. Correlations do not establish causes.
+Current-day Calendar facts cannot establish historical Calendar associations.
+
+Ticket 173 permits a short historical comparison when it explains a concrete tip;
+routine ledger recaps and generic coaching remain excluded. Tips are occasional,
+relevant and subject to repetition suppression. Future connectors may supply facts
+to these lanes; adding connectors is outside this sequence.
+
+Optional Note/reminder/history inputs require explicit field selection and appropriate
+model-data disclosure before use. Existing enablement grants no new source access.
+Travel-to-model projection requires its separate provider-use and disclosure gates.
+Until those pass, use the reviewed deterministic travel-display boundary alongside
+the brief. No source changes, automatic schedule moves or model tools are authorized.
+
+Ticket 174 verifies useful wording, supported timing and reliable delivery on web
+and linked desktop. It preserves existing live/private/native release gates. Native
+mobile and marketing implementation remain out of scope. The detailed sequence and
+acceptance criteria live in `docs/TICKETS.md`; current behavior remains as documented
+above until those tickets ship.
 
 ### Internal recipe workbench (Tickets 151–158)
 

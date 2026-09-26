@@ -20,6 +20,31 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Advisor implementation tickets filed — September 26, 2026
+
+Tickets 168–174 are planned; implementation has not started. The owner approved
+ticketing reliable recovery, travel timing and Behavior scheduling, structured
+adherence analysis, occasional actionable tips, and workbench/release evaluation.
+
+- 168: bounded loading, delivery recovery and retry across navigation.
+- 169: explicit analysis lanes and bounded, authorized evidence projection.
+- 170: travel timing and Behavior fits using existing deterministic evidence.
+- 171: adherence timing, schedule load and Calendar-context patterns.
+- 172: recurring obstacles, reminders and decision-recording patterns.
+- 173: useful prose, occasional tips and repetition suppression.
+- 174: frozen-fact workbench evaluation and staged web/desktop acceptance.
+
+`docs/TICKETS.md` records dependencies, platform impact, source paths and acceptance.
+The product spec, existing briefing plan, resolver ownership and decision log record
+the planned boundary. Ticket 168 can ship independently. Existing Tickets 147–148,
+155, 161 and 165 retain their unverified release gates. Travel model projection and
+optional private sources remain gated; no consent or runtime configuration changed.
+
+The loading diagnosis remains based on source inspection, not a new live reproduction.
+This task changes documentation only. Verification: `agents:check`,
+`interactions:check`, `resolvers:check` and `git diff --check` pass. Runtime tests,
+builds, provider requests and deployments were not run for this ticket-filing task.
+
 ## Security alert triage — September 26, 2026
 
 After PR #80 merged, CodeQL rescanned `main` and reports zero open
