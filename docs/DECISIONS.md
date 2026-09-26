@@ -744,3 +744,24 @@ This authorizes filing the implementation scope, not executing it. No code,
 consent, provider configuration or deployed behavior changes. Optional sources
 and travel-to-model use retain their explicit disclosure/provider gates. Existing
 release evidence remains open where unverified; Ticket 174 coordinates it.
+
+## 2026-09-26: Implement advisor analysis behind a candidate preset
+
+Tickets 168–173 are implemented in source; Ticket 174 evaluation is in progress.
+Implementation decisions, recorded for owner review:
+
+- Recovery allows one automatic start plus three deliberate retries per installation,
+  local day and disclosure revision, including after server completion. A Timeline
+  change or expiry withdraws delivered text and offers a refresh instead of keeping
+  possibly outdated advice on screen.
+- Analysis lanes are deterministic and threshold-based. The model receives at most one
+  selected finding, never internal records. Reminder history and Notes need separate,
+  revocable disclosures, enforced in the database. Older clients' saves revoke them.
+- The production default selects no lanes. `advisor-analysis` is a candidate preset;
+  promotion is a reviewed repository change after owner wording review.
+- Travel stays out of model input. The bubble shows travel lines calculated from
+  existing evidence, labeled as not written by the model.
+- The model payload now carries deterministic local-time labels. Synthetic runs showed
+  that the model stated UTC instants as local times, a defect that predates these tickets.
+- Historical Calendar associations report unavailable; no historical Calendar read
+  was added.

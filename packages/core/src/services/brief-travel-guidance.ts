@@ -36,6 +36,18 @@ export function overlapsTravelSpans(
 
 export type BriefTravelEvidence = Omit<TravelEvidenceResult, "modelProjection">;
 
+/** Labels and Behavior candidates from today's Timeline rows and Calendar events. */
+export function briefTravelSubjects(
+  occurrences: readonly Readonly<{ id: string; title: string; status: string }>[],
+  events: readonly Readonly<{ id: string; title: string }>[],
+): Readonly<{ labels: ReadonlyMap<string, string>; behaviorRefs: ReadonlySet<string> }> {
+  return {
+    labels: new Map([...occurrences.map((item) => [item.id, item.title] as const), ...events.map((event) => [event.id, event.title] as const)]),
+    // Resolved work is not crowded by travel; only Unresolved rows are candidates.
+    behaviorRefs: new Set(occurrences.filter((item) => item.status === "unresolved").map((item) => item.id)),
+  };
+}
+
 const MAX_ITEMS = 4;
 
 export function projectBriefTravelGuidance(input: Readonly<{

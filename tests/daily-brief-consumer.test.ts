@@ -137,3 +137,14 @@ it("withholds model advice referencing completed work while retaining internal l
   expect(JSON.parse(generate.mock.calls[0][0].facts).context.cadence.occurrences).toEqual([]);
   expect(completed.cadence.occurrences[0].status).toBe("completed");
 });
+
+it("labels every UTC instant with its local time so the model never converts it", async () => {
+  const generate = vi.fn().mockResolvedValue(advice);
+  await generateDailyBrief(context, { generate, now, signal: new AbortController().signal });
+  const payload = JSON.parse(generate.mock.calls[0][0].facts);
+  // 2026-11-01 is the first day of standard time in New York (UTC−5).
+  expect(payload.clock.timezone).toBe("America/New_York");
+  expect(payload.clock.labels[context.cadence.occurrences[0].scheduledFor]).toBe("12:30 PM");
+  expect(payload.clock.labels["2026-11-01T12:00:00Z"]).toBe("7:00 AM");
+  expect(generate.mock.calls[0][0].instructions).toContain("use its entry in clock.labels");
+});

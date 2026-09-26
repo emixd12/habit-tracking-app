@@ -448,32 +448,37 @@ must not recompute timing patterns. Paired tests:
 The strict context validator checks summary scope, counts, ranges and provenance;
 `projectBriefingContext` removes deselected Behavior and timing facts.
 
-## Planned advisor analysis ownership (Tickets 168–174)
+## Advisor analysis ownership (Tickets 168–174)
 
-These are planned boundaries, not implemented capabilities. Preserve the existing
-Daily Brief recipe, provider adapter and workbench. `docs/TICKETS.md` owns acceptance.
+Implemented in source September 26, 2026. `docs/TICKETS.md` owns acceptance.
 
-- Ticket 168 extends the shared launcher/client and `daily-brief.service.ts` for
-  deadlines and recovery. `daily-brief.repo.ts` retains admission ownership; UI
-  presentation markers cannot override server quotas or disclosure fences.
-- Ticket 169 extends `advisor-context.repo.ts` snapshot/revision reads and
-  `advisor-day-context.service.ts` composition. Core context/configuration modules
-  own exact validation and model projection. Optional inputs remain excluded until
-  their source disclosure is implemented.
-- Ticket 170 reuses `travel.resolver.ts` and `briefing-plan.resolver.ts` for route
-  occupancy, conflicts and fits. The model never recomputes intervals. Travel's
-  model projection remains gated independently of deterministic display.
-- Tickets 171–172 add pure analysis with injected time, reusing analytics, status,
-  configuration-history and completion-timing semantics. Proposed owner:
-  `packages/core/src/resolvers/briefing-analysis.resolver.ts`, paired with
-  `tests/briefing-analysis.resolver.test.ts`. Register actual modules and allowed
-  callers during implementation. No duplicate analysis in components, API routes,
-  provider adapters or prompts.
-- Ticket 173 uses `briefing-pipeline.ts` for finding selection and
-  `daily-brief-consumer.ts` for supported prose. Services/repositories own bounded
-  repetition metadata; workbench runs cannot record production tip delivery.
-- Ticket 174 extends existing fixtures and QA records. Neither snapshot capture
-  nor analysis may call Timeline/export maintenance or mutate source records.
+- Ticket 168: `components/briefing/DailyBriefLauncher.tsx` and
+  `lib/ui/daily-brief-session.ts` own presentation state and page-session reuse;
+  `lib/ui/daily-brief.ts` owns bounded transport for web and desktop.
+  `daily-brief.repo.ts` keeps admission ownership; presentation markers cannot
+  override server quotas or disclosure fences.
+- Ticket 169: `lib/db/advisor-analysis.repo.ts` reads the revision-fenced analysis
+  snapshot. `lib/services/briefing-analysis-source.ts` projects it into opaque lane
+  records; `briefing-account-context.service.ts` composes the read, disclosure
+  gating, revision fence and tip fingerprints. Configuration selection never grants
+  a source; the database enforces optional-source disclosure.
+- Tickets 171–172: `packages/core/src/resolvers/briefing-analysis.resolver.ts` owns
+  lane contracts, finding calculations and `selectBriefingTip`, paired with
+  `tests/briefing-analysis.resolver.test.ts`. Allowed caller:
+  `lib/services/briefing-pipeline.ts` (and the workbench through it).
+  `packages/core/src/services/briefing-analysis.ts` owns the model projection of the
+  one selected finding and the deterministic evidence line.
+- Ticket 170: `packages/core/src/services/brief-travel-guidance.ts` projects existing
+  `travel.resolver.ts` evidence for display beside the brief, paired with
+  `tests/brief-travel-guidance.test.ts`. It never routes or estimates. Travel stays
+  out of model input; the model never recomputes intervals.
+- Ticket 173: `briefing-pipeline.ts` selects findings; `daily-brief-consumer.ts`
+  validates the tip and drops quoted or unsupported Note themes;
+  `daily-brief.service.ts` records a tip only after a completed, current attempt.
+  Workbench runs never read or record tip history.
+- Ticket 174: `lib/services/briefing-analysis-fixtures.ts` supplies synthetic
+  scenarios. Neither snapshot capture nor analysis calls Timeline/export
+  maintenance or mutates source records.
 
-Future connectors can supply explicitly authorized evidence to these same lanes.
-These tickets add no connector registry, new connector or general agent runtime.
+No component, API route, provider adapter or prompt computes rates, fits or travel
+intervals. These tickets add no connector registry, new connector or agent runtime.

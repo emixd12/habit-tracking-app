@@ -29,7 +29,7 @@ import { useDayProgressClock } from "./day-progress-clock";
 import styles from "./day-progress-timeline.module.css";
 import { useWebGoogleCalendarTimeline } from "@/lib/ui/google-calendar";
 import { publishBriefTravel } from "@/lib/ui/brief-travel";
-import { projectBriefTravelGuidance } from "@cadence/core/services/brief-travel-guidance";
+import { briefTravelSubjects, projectBriefTravelGuidance } from "@cadence/core/services/brief-travel-guidance";
 import { TRAVEL_CLEARANCE_MESSAGE, travelSourceKey as buildTravelSourceKey, useTravelContext, type TravelCorrection, type TravelState } from "@/lib/ui/travel";
 import type {
   OccurrenceFormAction,
@@ -128,11 +128,9 @@ export function DayProgressTimeline({
   // Ticket 170: the Daily Brief bubble shows this deterministic projection; no extra route request.
   const briefTravel = useMemo(() => {
     const today = timeline.daySections.find((section) => section.localDate === timeline.todayLocalDate);
-    const occurrences = today?.occurrences ?? [];
     return projectBriefTravelGuidance({
       evidence: travel, localDate: timeline.todayLocalDate, now,
-      labels: new Map([...occurrences.map((item) => [item.id, item.title] as const), ...events.map((event) => [event.id, event.title] as const)]),
-      behaviorRefs: new Set(occurrences.filter((item) => item.status === "unresolved").map((item) => item.id)),
+      ...briefTravelSubjects(today?.occurrences ?? [], events),
     });
   }, [travel, events, now, timeline.daySections, timeline.todayLocalDate]);
   useEffect(() => { publishBriefTravel(briefTravel); }, [briefTravel]);

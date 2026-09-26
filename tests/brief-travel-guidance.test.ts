@@ -70,3 +70,10 @@ describe("brief travel guidance", () => {
     expect(projectBriefTravelGuidance(input(evidence(), "2026-09-21T14:40:00Z"))!.items.some((item) => item.kind === "departure")).toBe(false);
   });
 });
+
+it("derives labels and only Unresolved Behavior candidates from Timeline rows", async () => {
+  const { briefTravelSubjects } = await import("@cadence/core/services/brief-travel-guidance");
+  const subjects = briefTravelSubjects([{ id: "occ-walk", title: "Walk", status: "unresolved" }, { id: "occ-read", title: "Read", status: "completed" }], [{ id: "event-dentist", title: "Dentist" }]);
+  expect([...subjects.labels]).toEqual([["occ-walk", "Walk"], ["occ-read", "Read"], ["event-dentist", "Dentist"]]);
+  expect([...subjects.behaviorRefs]).toEqual(["occ-walk"]);
+});
