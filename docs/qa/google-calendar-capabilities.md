@@ -1071,6 +1071,22 @@ This unchanged session blocker provides no evidence of a Google decision change.
 No configuration, scopes, callbacks, or rollout gates changed. No inbox was read
 and no correspondence was sent.
 
+September 26 follow-up: the owner signed the Claude browser pane (not Chrome)
+into info@identityscaffolding.com, and the check ran there. The pane holds
+emibache@gmail.com as `authuser=0` and Identity Scaffolding as `authuser=1`,
+so the console URLs need `authuser=info@identityscaffolding.com` or
+`authuser=1`; the default account shows "You need additional access". The
+Verification Center reports branding verified and shown to users and data
+access verified. Data Access still declares `calendar.calendarlist.readonly`
+and `openid` as non-sensitive, `calendar.events.readonly` as the only
+sensitive scope, and no restricted scopes. No actionable reviewer request
+appears. No configuration changed, no inbox was read, and no correspondence
+was sent. Google exposes no public API for verification status (the console's
+`oauthconfig` and `clientauthconfig` services refuse discovery), so the pane
+session or a Claude in Chrome connection in the Identity Scaffolding profile
+remains the way to repeat this check; the local gcloud CLI is signed in as
+info@identityscaffolding.com for every API-backed operation.
+
 Data Access lists `calendar.events.readonly` with **This scope is verified**.
 The unchanged non-sensitive declarations are `calendar.calendarlist.readonly`
 and `openid`. The restricted-scope list is empty. Clients lists one web client,

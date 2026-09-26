@@ -20,6 +20,18 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Security alert triage — September 26, 2026
+
+After PR #80 merged, CodeQL rescanned `main` and reports zero open
+code-scanning alerts. The one open Dependabot alert (glib 0.18.5,
+GHSA-wrw7-89jp-8q8g, unsound `VariantStrIter` iterators, fixed in 0.20.0) was
+dismissed with owner authorization as vulnerable code not used: glib enters
+only through Tauri's Linux GTK stack, is absent from the macOS dependency
+tree, Cadence ships no Linux builds, and the desktop source never uses it.
+Revisit when Tauri adopts gtk-rs 0.20. Dependabot covers only npm and GitHub
+Actions here, so Cargo advisories surface as alerts without pull requests. The
+repository has no open security alerts of either kind.
+
 ## Public Trust code-scanning cleanup — September 26, 2026
 
 The scheduled Public Trust evidence workflow failed on September 23, 24 and 25
@@ -857,6 +869,12 @@ September 25 follow-up: the Identity Scaffolding Chrome session remains unavaila
 Today's provider status is not verified; September 23 remains the last successful
 check. The September 24 request to open that signed-in profile remains outstanding.
 Ticket 141 and public rollout gates remain unchanged.
+September 26 check: the owner signed the Claude browser pane into
+info@identityscaffolding.com, and the Verification Center for
+`cadence-calendar-498717` loaded under `authuser=1` there. Branding remains
+verified and shown to users; data access remains verified; no reviewer request
+appears; the three declared scopes are unchanged. Post-approval smoke checks
+remain outstanding. Ticket 141 and rollout gates remain unchanged.
 Unrelated working-tree changes were excluded from the isolated releases.
 
 Ticket 138: Cloudflare's initially empty `cadence-me.com` zone now has two
