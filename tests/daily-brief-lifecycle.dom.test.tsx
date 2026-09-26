@@ -65,14 +65,19 @@ it("preserves pending and ready briefings when focus returns to an unchanged acc
   expect(request).toHaveBeenCalledTimes(1);
 });
 it.each(["accountRef", "localDate", "timezone", "revision", "configurationRevision", "enabled", "unavailable"])("withdraws the briefing when focus detects a changed %s", async (field) => {
-  const adapter = client("owner");
+  const request = vi.fn(async () => ready("Original advice", 120_000));
+  const adapter = client("owner", request);
   const initial = await adapter.preferences();
   const preferences = vi.fn().mockResolvedValue(initial);
   await act(() => root.render(<DailyBriefLauncher client={{ ...adapter, preferences }} />));
+  expect(container.textContent).toContain("Original advice");
   if (field === "unavailable") preferences.mockRejectedValue(new Error("revoked"));
   else preferences.mockResolvedValue({ ...initial, [field]: field === "enabled" ? false : field === "revision" ? 2 : "changed" });
-  await act(() => window.dispatchEvent(new Event("focus")));
-  expect(container.textContent).toBe("");
+  request.mockImplementation(() => new Promise(() => {}));
+  await act(async () => { window.dispatchEvent(new Event("focus")); });
+  expect(container.textContent).not.toContain("Original advice");
+  // A new local day or account has its own automatic start; other changes stay hidden.
+  expect(request).toHaveBeenCalledTimes(field === "localDate" || field === "accountRef" ? 2 : 1);
 });
 it("keeps explicit retry available after a pending lease without automatic polling", async () => {
   const request = vi.fn().mockRejectedValueOnce(new Error("offline"))
@@ -322,9 +327,9 @@ it("makes the next day's automatic start on a launcher left mounted overnight", 
   await act(() => root.render(<DailyBriefLauncher client={{ ...adapter, preferences, requestBrief: request }} />));
   expect(request).toHaveBeenCalledTimes(1);
   preferences.mockResolvedValue({ ...settings, localDate: "2026-09-21" });
-  await act(() => window.dispatchEvent(new Event("focus")));
-  expect(container.textContent).toBe("");
-  await act(() => window.dispatchEvent(new Event("focus")));
+  await act(async () => { window.dispatchEvent(new Event("focus")); });
+  expect(request).toHaveBeenCalledTimes(2);
+  await act(async () => { window.dispatchEvent(new Event("focus")); });
   expect(request).toHaveBeenCalledTimes(2);
   expect(request).toHaveBeenLastCalledWith(expect.objectContaining({ retry: false }), expect.any(AbortSignal));
 });
@@ -339,4 +344,20 @@ it("keeps another tab's newer claim when this tab's attempt settles", async () =
   expect(JSON.parse(localStorage.getItem(markerKey)!).pendingUntil).toBe(otherClaim);
   expect(container.textContent).toContain("Try again in about 40 seconds");
   expect(buttonNamed("Try again")!.disabled).toBe(true);
+});
+
+it("cancels the previous account's in-flight attempt when the client changes", async () => {
+  let firstSignal: AbortSignal | undefined;
+  const first = client("first", (_input, signal) => { firstSignal = signal; return new Promise(() => {}); });
+  await act(() => root.render(<DailyBriefLauncher client={first} sessionKey="first" />));
+  expect(firstSignal?.aborted).toBe(false);
+  await act(() => root.render(<DailyBriefLauncher client={client("second", () => new Promise(() => {}))} sessionKey="second" />));
+  expect(firstSignal?.aborted).toBe(true);
+});
+
+it("cancels an in-flight attempt on sign-out", async () => {
+  let signal: AbortSignal | undefined;
+  await act(() => root.render(<DailyBriefLauncher client={client("owner", (_input, value) => { signal = value; return new Promise(() => {}); })} />));
+  await act(() => root.render(<DailyBriefLauncher client={null} sessionKey="local" />));
+  expect(signal?.aborted).toBe(true);
 });

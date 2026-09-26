@@ -84,6 +84,18 @@ export function discardDailyBriefAttempt(client: DailyBriefClient) {
   attempt.controller.abort();
 }
 
+let activeClient: DailyBriefClient | null = null;
+
+/**
+ * Records the client the launcher now uses. A different client means a changed
+ * account or sign-out, so the previous client's attempt is cancelled rather than
+ * left consuming an admission for an identity no longer shown.
+ */
+export function activateDailyBriefClient(client: DailyBriefClient | null) {
+  if (activeClient && activeClient !== client) discardDailyBriefAttempt(activeClient);
+  activeClient = client;
+}
+
 export function isRememberedDailyBriefAttempt(client: DailyBriefClient, attempt: DailyBriefAttempt): boolean {
   return attemptsByClient.get(client) === attempt;
 }

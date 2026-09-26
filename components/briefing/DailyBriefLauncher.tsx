@@ -13,6 +13,7 @@ import {
   type DailyBriefClient,
 } from "@/lib/ui/daily-brief";
 import {
+  activateDailyBriefClient,
   currentDailyBriefAttempt,
   dailyBriefFence,
   discardDailyBriefAttempt,
@@ -51,6 +52,7 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
 
   useEffect(() => {
     settingsRef.current = null;
+    activateDailyBriefClient(resolvedClient);
     // A view from another session stays hidden by the session check in render.
     if (!resolvedClient) return;
     const briefClient = resolvedClient;
@@ -165,7 +167,14 @@ export function DailyBriefLauncher({ client, desktop = false, sessionKey = "curr
         if (!mounted.current || loadEpoch !== epoch.current) return;
         if (!settings.available || !settings.enabled) { withdraw(); return; }
         const previous = settingsRef.current;
-        if (previous && dailyBriefFence(previous) !== dailyBriefFence(settings)) { withdraw(); return; }
+        if (previous && dailyBriefFence(previous) !== dailyBriefFence(settings)) {
+          // A new local day (or another device's settings change) replaces the old
+          // attempt; evaluate the new settings now so a new day's start is not delayed.
+          withdraw();
+          settingsRef.current = settings;
+          evaluate(settings, true);
+          return;
+        }
         settingsRef.current = settings;
         if (!previous) evaluate(settings, allowStart);
       }).catch(() => {
