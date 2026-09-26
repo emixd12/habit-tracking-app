@@ -446,3 +446,33 @@ must not recompute timing patterns. Paired tests:
 `tests/completion-timing.resolver.test.ts`, `tests/briefing-completion-timing.test.ts`.
 The strict context validator checks summary scope, counts, ranges and provenance;
 `projectBriefingContext` removes deselected Behavior and timing facts.
+
+## Planned advisor analysis ownership (Tickets 168–174)
+
+These are planned boundaries, not implemented capabilities. Preserve the existing
+Daily Brief recipe, provider adapter and workbench. `docs/TICKETS.md` owns acceptance.
+
+- Ticket 168 extends the shared launcher/client and `daily-brief.service.ts` for
+  deadlines and recovery. `daily-brief.repo.ts` retains admission ownership; UI
+  presentation markers cannot override server quotas or disclosure fences.
+- Ticket 169 extends `advisor-context.repo.ts` snapshot/revision reads and
+  `advisor-day-context.service.ts` composition. Core context/configuration modules
+  own exact validation and model projection. Optional inputs remain excluded until
+  their source disclosure is implemented.
+- Ticket 170 reuses `travel.resolver.ts` and `briefing-plan.resolver.ts` for route
+  occupancy, conflicts and fits. The model never recomputes intervals. Travel's
+  model projection remains gated independently of deterministic display.
+- Tickets 171–172 add pure analysis with injected time, reusing analytics, status,
+  configuration-history and completion-timing semantics. Proposed owner:
+  `packages/core/src/resolvers/briefing-analysis.resolver.ts`, paired with
+  `tests/briefing-analysis.resolver.test.ts`. Register actual modules and allowed
+  callers during implementation. No duplicate analysis in components, API routes,
+  provider adapters or prompts.
+- Ticket 173 uses `briefing-pipeline.ts` for finding selection and
+  `daily-brief-consumer.ts` for supported prose. Services/repositories own bounded
+  repetition metadata; workbench runs cannot record production tip delivery.
+- Ticket 174 extends existing fixtures and QA records. Neither snapshot capture
+  nor analysis may call Timeline/export maintenance or mutate source records.
+
+Future connectors can supply explicitly authorized evidence to these same lanes.
+These tickets add no connector registry, new connector or general agent runtime.

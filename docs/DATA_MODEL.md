@@ -1848,6 +1848,15 @@ retry restarts a failed/expired attempt. A retry without a saved attempt follows
 normal initial admission. Completion tokens prevent late requests from finishing
 replacement leases; a delivery-fence failure can downgrade its own completion.
 
+Migration `20260926150000_daily_brief_bounded_recovery.sql` (Ticket 168) adds
+`daily_brief_runs.admissions` (1–4). Server completion does not prove that the
+user saw the brief, so an explicit retry may now replace a completed attempt as
+well as a failed or expired one. Admissions count per installation, local date and
+disclosure revision: one automatic start plus three deliberate retries. The fifth
+returns `retry_exhausted`. The one-active-generation rule and six starts/minute
+still apply first; no quota or admission record is cleared. A new local day or
+disclosure revision starts at one. The column stores no prompt or generated text.
+
 Preferences start disabled. Saving controls increments their revision and clears
 attempts. Calendar disclosure records the current selected-calendar revisions;
 a changed connection/selection requires renewed disclosure. Disabling clears

@@ -58,6 +58,34 @@ describe("first-party daily briefing service", () => {
     expect(await requestInAppDailyBrief(caller, input, { generate, now })).toEqual({ state });
     expect(generate).not.toHaveBeenCalled();
   });
+  it("returns the server's pending retry timing", async () => {
+    mocks.begin.mockResolvedValue({ state: "pending", retryAfterSeconds: 42 });
+    expect(await requestInAppDailyBrief(caller, input, { generate, now })).toEqual({ state: "pending", retryAfterSeconds: 42 });
+  });
+  it("reports an exhausted retry allowance without generating", async () => {
+    mocks.begin.mockResolvedValue({ state: "retry_exhausted" });
+    await expect(requestInAppDailyBrief(caller, { ...input, retry: true }, { generate, now })).rejects.toMatchObject({ code: "retry_exhausted" });
+    expect(generate).not.toHaveBeenCalled();
+    expect(mocks.finish).not.toHaveBeenCalled();
+  });
+  it("records phase diagnostics with codes but no prompt, facts or output", async () => {
+    vi.stubEnv("CADENCE_PERF_LOG", "1");
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    try {
+      generate.mockImplementation(() => new Promise(() => {}));
+      await expect(requestInAppDailyBrief(caller, input, { generate, now, deadlineMs: 10 })).rejects.toMatchObject({ code: "timeout" });
+      const events = info.mock.calls.map(([line]) => JSON.parse(String(line)) as Record<string, unknown>);
+      expect(events.map((event) => event.span)).toEqual(expect.arrayContaining([
+        "daily_brief.preferences", "daily_brief.admission", "daily_brief.context", "daily_brief.request",
+      ]));
+      expect(events.find((event) => event.span === "daily_brief.request")).toMatchObject({ status: "error", error_code: "timeout" });
+      const serialized = JSON.stringify(events);
+      expect(serialized).not.toContain("walk");
+      expect(serialized).not.toContain(fixture.cadence.occurrences[0].ref);
+    } finally {
+      info.mockRestore();
+    }
+  });
   it("requires server-owned enablement and current session before acquiring", async () => {
     mocks.read.mockResolvedValue({ ...prefs, enabled: false });
     await expect(requestInAppDailyBrief(caller, input, { generate, now })).rejects.toMatchObject({ code: "access_denied" });

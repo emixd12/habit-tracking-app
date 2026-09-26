@@ -8,6 +8,10 @@ import { generateOpenAIDailyBrief } from "./daily-brief-openai";
 import { getCalendarConnection, type CalendarCaller } from "./google-calendar.service";
 
 import { activeBriefingConfig, briefingConfigurationRevision } from "./briefing-pipeline";
+import { measurePerformanceSpan } from "./performance-timing";
+
+/** Phase diagnostics record span, duration and error code only; never prompts, facts or output. */
+const phase = <T,>(span: string, operation: () => Promise<T>) => measurePerformanceSpan({ span: `daily_brief.${span}` }, operation);
 
 export async function getDailyBriefSettings(caller: CalendarCaller): Promise<DailyBriefSettings> {
   const preferences = await readDailyBriefPreferences(caller.client);
@@ -46,17 +50,19 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
   const signal = AbortSignal.timeout(options.deadlineMs ?? 60_000);
   const installationId = value.installationId;
   const work = async (): Promise<DailyBriefResponse> => {
-    const preferences = await readDailyBriefPreferences(caller.client, signal);
+    const preferences = await phase("preferences", () => readDailyBriefPreferences(caller.client, signal));
     signal.throwIfAborted();
     if (!preferences.enabled) throw new DailyBriefError("access_denied");
-    const admission = await beginDailyBrief(caller.client, { installationId, retry: value.retry as boolean, expectedRevision: preferences.revision }, signal);
+    const admission = await phase("admission", () => beginDailyBrief(caller.client, { installationId, retry: value.retry as boolean, expectedRevision: preferences.revision }, signal));
     if (admission.state === "rate_limited") throw new DailyBriefError("rate_limited", admission.retryAfterSeconds);
+    if (admission.state === "retry_exhausted") throw new DailyBriefError("retry_exhausted");
+    if (admission.state === "pending") return admission.retryAfterSeconds ? { state: "pending", retryAfterSeconds: admission.retryAfterSeconds } : { state: "pending" };
     if (admission.state !== "acquired") return { state: admission.state };
     const leaseToken = admission.leaseToken;
     let successful = false;
     try {
       signal.throwIfAborted();
-      const prepared = await prepareAccountBriefingContexts(caller, {
+      const prepared = await phase("context", () => prepareAccountBriefingContexts(caller, {
         historyDays: [configuration.scope.historyDays],
         includeCalendar: configuration.scope.includeCalendar,
         includeRecordedElapsedDurations: configuration.context.includeRecordedElapsedDurations,
@@ -65,7 +71,7 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
         clock,
         preferences,
         localDate: admission.localDate,
-      });
+      }));
       const context = prepared.contexts[0]!;
       const assertCurrent = async () => {
         if (briefingConfigurationRevision() !== configurationRevision) throw new DailyBriefError("context_changed");
@@ -73,10 +79,10 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
       };
       await assertCurrent();
       const modelSignal = AbortSignal.any([signal, AbortSignal.timeout(30_000)]);
-      const briefing = await raceAbort(generateDailyBrief(context, { config: configuration, now: clock, signal: modelSignal,
-        generate: options.generate ?? ((input) => generateOpenAIDailyBrief(input, { apiKey })) }), modelSignal);
+      const briefing = await phase("model", () => raceAbort(generateDailyBrief(context, { config: configuration, now: clock, signal: modelSignal,
+        generate: options.generate ?? ((input) => generateOpenAIDailyBrief(input, { apiKey })) }), modelSignal));
       // The lease must still belong to this attempt. A superseded attempt never returns text.
-      const finished = await finishDailyBrief(caller.client, { installationId, leaseToken, success: true, expectedRevision: preferences.revision }, signal);
+      const finished = await phase("finish", () => finishDailyBrief(caller.client, { installationId, leaseToken, success: true, expectedRevision: preferences.revision }, signal));
       if (!finished) throw new DailyBriefError("context_changed");
       await assertCurrent();
       successful = true;
@@ -85,7 +91,7 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
       if (!successful) void finishDailyBrief(caller.client, { installationId, leaseToken, success: false, expectedRevision: preferences.revision }).catch(() => undefined);
     }
   };
-  return raceAbort(work(), signal);
+  return phase("request", () => raceAbort(work(), signal));
 }
 
 function record(value: unknown): value is Record<string, unknown> {

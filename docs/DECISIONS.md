@@ -721,3 +721,26 @@ Marketing claims need deployed evidence; native mobile remains deferred. This
 decision approves product direction. Discovery does not perform provider setup,
 location reads, private routing or deployment. Provider-use and model-disclosure
 requirements remain implementation/release work.
+
+## 2026-09-26: Ticket advisor recovery and structured recommendations
+
+The owner reported absent or stuck-loading advisor output and overly terse advice.
+They explicitly clarified that routing means both travel/departure timing and
+fitting Behaviors around Calendar events. They approved the proposed direction
+and requested implementation tickets after the source analysis.
+
+Tickets 168–174 record recovery first, bounded analysis evidence, combined day
+planning, adherence timing/load patterns, recurring obstacles/decision recording,
+useful prose with occasional tips, and workbench/release evaluation. The export
+prompt library seeds the analysis lanes. Each lane must state its source needs,
+coverage, sample sufficiency and limitations; future connectors may add evidence.
+
+Daily Brief remains read-only in the existing horse bubble. Permit concise
+historical evidence when it explains a practical tip, while retaining the ban on
+routine ledger recaps and generic coaching. Unresolved is not failure, correlations
+are not causes, and recorded marks do not prove actual performance times.
+
+This authorizes filing the implementation scope, not executing it. No code,
+consent, provider configuration or deployed behavior changes. Optional sources
+and travel-to-model use retain their explicit disclosure/provider gates. Existing
+release evidence remains open where unverified; Ticket 174 coordinates it.
