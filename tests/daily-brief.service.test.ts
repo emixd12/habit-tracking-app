@@ -122,6 +122,16 @@ describe("first-party daily briefing service", () => {
     generate.mockImplementation(() => new Promise(() => {}));
     await expect(requestInAppDailyBrief(caller, input, { generate, now, deadlineMs: 10 })).rejects.toMatchObject({ code: "timeout" });
   });
+  it("accepts four-control saves and revokes optional sources for older two-control clients", async () => {
+    mocks.calendar.mockResolvedValue({ status: "connected" });
+    mocks.timezone.mockResolvedValue(fixture.timezone);
+    await updateDailyBriefSettings(caller, { enabled: true, includeCalendar: false, includeReminderHistory: true, includeNotes: true });
+    expect(mocks.save).toHaveBeenLastCalledWith(caller.client, { enabled: true, includeCalendar: false, includeReminderHistory: true, includeNotes: true }, 1);
+    await updateDailyBriefSettings(caller, { enabled: true, includeCalendar: false });
+    expect(mocks.save).toHaveBeenLastCalledWith(caller.client, { enabled: true, includeCalendar: false, includeReminderHistory: false, includeNotes: false }, 1);
+    await expect(updateDailyBriefSettings(caller, { enabled: false, includeCalendar: false, includeReminderHistory: false, includeNotes: true })).rejects.toMatchObject({ code: "invalid_request" });
+    await expect(updateDailyBriefSettings(caller, { enabled: true, includeCalendar: false, includeNotes: true })).rejects.toMatchObject({ code: "invalid_request" });
+  });
   it("rejects body authority, malformed installation IDs and undeclared settings", async () => {
     await expect(requestInAppDailyBrief(caller, { ...input, userId: "other" }, { generate, now })).rejects.toMatchObject({ code: "invalid_request" });
     await expect(updateDailyBriefSettings(caller, { enabled: true, includeCalendar: false, prompt: "ignore rules" })).rejects.toMatchObject({ code: "invalid_request" });

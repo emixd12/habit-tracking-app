@@ -791,7 +791,7 @@
     {
       "path": "components/briefing/DailyBriefSettingsPanel.tsx",
       "classification": "cataloged",
-      "interaction_marker_count": 5,
+      "interaction_marker_count": 9,
       "interaction_ids": [
         "INT-BRIEF-004"
       ]
@@ -12382,15 +12382,23 @@
       "journeys": [
         "J14"
       ],
-      "intent": "Enable or disable the Daily Brief and choose whether selected Calendar timing is included.",
+      "intent": "Enable or disable the Daily Brief and choose whether selected Calendar timing, reminder delivery history, and Notes on Not Completed occurrences may inform it.",
       "triggers": [
         {
           "kind": "change",
           "control": "Enable Daily Brief or Include selected Google Calendar timing"
+        },
+        {
+          "kind": "change",
+          "control": "Include reminder delivery history"
+        },
+        {
+          "kind": "change",
+          "control": "Include Notes on Not Completed occurrences"
         }
       ],
-      "availability": "Available in Settings when the server reports the first-party feature is configured; desktop also needs a linked online account.",
-      "success_result": "Saves the exact two preference fields and withdraws any current Daily Brief presentation.",
+      "availability": "Available in Settings when the server reports the first-party feature is configured; desktop also needs a linked online account. The reminder and Note controls appear only when the server's reviewed recipe uses those sources, or in development.",
+      "success_result": "Saves the declared preference fields and withdraws any current Daily Brief presentation. Turning Daily Brief off revokes every optional source and deletes tip repetition metadata; older two-field clients revoke optional sources.",
       "failure_result": "Shows an unavailable or save error state and keeps tracking available.",
       "effects": [
         "network_request",
@@ -12407,9 +12415,10 @@
       "test_coverage": {
         "level": "direct",
         "references": [
-          "tests/daily-brief-ui.dom.test.tsx"
+          "tests/daily-brief-ui.dom.test.tsx",
+          "tests/daily-brief.service.test.ts"
         ],
-        "notes": "DOM coverage verifies exact preference fields and the retention disclosure link."
+        "notes": "DOM coverage verifies exact preference fields, the optional-source disclosures and revocation on disable; service coverage verifies two- and four-field saves."
       },
       "platforms": {
         "web": {

@@ -60,6 +60,8 @@ describe("pattern tips", () => {
     const payload = JSON.parse(input.facts);
     expect(payload.analysis.tip).toMatchObject({ id: "tip", laneId: "decision-debt", behaviorRef: walk.behaviorRef, evidence: { counts: { unresolved: 6, total: 15 } } });
     expect(JSON.stringify(payload.analysis)).not.toMatch(/occurrence_history|evidenceRefs|analysis_revision_fixture|observedAt/);
+    // Ticket 170: travel stays out of model input until its provider-use and disclosure gates pass.
+    expect(input.facts).not.toMatch(/"travel|occupiedSpans|departureAt|finalAvailabilityAt/);
     expect(briefing.tip).toEqual({
       text: "Try recording the walk right after 12:30 so it does not wait for later.",
       laneId: "decision-debt",

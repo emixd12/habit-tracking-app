@@ -19,6 +19,7 @@ export async function getDailyBriefSettings(caller: CalendarCaller): Promise<Dai
   return { accountRef: briefingAccountRef(caller.user.id), available: !!process.env.OPENAI_API_KEY,
     configurationRevision: briefingConfigurationRevision(), enabled: preferences.enabled, includeCalendar: preferences.includeCalendar,
     includeReminderHistory: preferences.includeReminderHistory, includeNotes: preferences.includeNotes, revision: preferences.revision,
+    optionalSources: dailyBriefOptionalSources(),
     timezone, localDate: Temporal.Now.instant().toZonedDateTimeISO(timezone).toPlainDate().toString() };
 }
 
@@ -117,6 +118,19 @@ export async function requestInAppDailyBrief(caller: CalendarCaller, value: unkn
     }
   };
   return phase("request", () => raceAbort(work(), signal));
+}
+
+/**
+ * Offers optional-source controls only when the reviewed configuration uses the
+ * lane, or in development so the private workbench can evaluate candidates.
+ */
+function dailyBriefOptionalSources() {
+  const lanes = activeBriefingConfig().analysis.lanes;
+  const development = process.env.NODE_ENV === "development";
+  return {
+    reminders: development || lanes.includes("reminder-effectiveness"),
+    notes: development || lanes.includes("notes-failure-themes"),
+  };
 }
 
 function record(value: unknown): value is Record<string, unknown> {

@@ -27,6 +27,8 @@ export type DailyBriefSettings = Readonly<{
   /** Optional sources (Ticket 172); absent from older servers and treated as false. */
   includeReminderHistory?: boolean;
   includeNotes?: boolean;
+  /** Optional sources the server can use; Settings offers only these controls. */
+  optionalSources?: Readonly<{ reminders: boolean; notes: boolean }>;
   revision: number;
   configurationRevision?: string;
   localDate: string;
