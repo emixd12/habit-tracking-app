@@ -51,6 +51,14 @@ allow an explicit retry; they do not create an automatic retry loop. Account/dat
 changes reset the presentation scope. Ticket 148 verifies this policy alongside
 server deduplication and limits; no cross-device dismissal synchronization is implied.
 
+Ticket 168 separates the automatic start, delivery and dismissal. The browser
+records whether ready text reached it, never the text itself. A page-session
+memory lets a remounted Timeline reattach to the in-flight attempt or fresh
+result. An abandoned, failed or server-completed-but-undelivered attempt shows
+a recovery notice with an explicit retry. The server admits one automatic start
+plus three deliberate retries per installation, day and disclosure revision.
+A Timeline change or expiry withdraws delivered text and offers a refresh.
+
 ## Authority and provider boundary
 
 Read-only describes execution authority. The briefing may recommend priorities,

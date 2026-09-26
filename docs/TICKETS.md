@@ -12118,7 +12118,8 @@ when exercising those gates; do not substitute synthetic checks for live accepta
 
 ## Ticket 168: Recoverable Daily Brief loading and presentation
 
-Status: planned. Filed September 26, 2026.
+Status: implemented in source September 26, 2026; hosted migration, deployed-web and
+installed-desktop recovery evidence remain open under Ticket 174. Filed September 26, 2026.
 Dependencies: existing Tickets 147–148 implementation; release evidence in Ticket 174.
 
 Goal: make every enabled advisor request reach a visible result or actionable failure,

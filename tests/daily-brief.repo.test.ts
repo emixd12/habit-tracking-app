@@ -70,6 +70,15 @@ describe("Daily Brief repository", () => {
     expect(abortSignal).toHaveBeenCalledTimes(2);
   });
 
+  it("recognizes an exhausted daily retry allowance", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { state: "retry_exhausted" }, error: null });
+    await expect(beginDailyBrief({ rpc } as never, {
+      installationId: "14700000-0000-4000-8000-000000000001",
+      retry: true,
+      expectedRevision: 3,
+    })).resolves.toEqual({ state: "retry_exhausted" });
+  });
+
   it("returns active behavior IDs in stable order and rejects overflow", async () => {
     const limit = vi.fn().mockResolvedValue({
       data: [{ id: "a" }, { id: "b" }],

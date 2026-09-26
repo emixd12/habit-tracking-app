@@ -8,6 +8,9 @@ type DailyBriefBubbleProps = Readonly<{
   message?: string;
   onDismiss: () => void;
   onRetry?: () => void;
+  retryLabel?: string;
+  /** Keeps the control in place while the server's retry timing has not passed. */
+  retryDisabled?: boolean;
 }>;
 
 export function DailyBriefBubble({
@@ -16,6 +19,8 @@ export function DailyBriefBubble({
   message,
   onDismiss,
   onRetry,
+  retryLabel = "Try again",
+  retryDisabled = false,
 }: DailyBriefBubbleProps) {
   const ready = state === "ready" && briefing;
 
@@ -49,7 +54,7 @@ export function DailyBriefBubble({
           </> : null}
           {state === "error" ? <>
             <p role="status" aria-live="polite" className="mt-1 text-sm leading-6 text-muted-readable">{message ?? "Today’s Daily Brief is unavailable."}</p>
-            {onRetry ? <button type="button" onClick={onRetry} className="product-action product-action-secondary mt-3 min-h-11 py-2 text-sm">Try again</button> : null}
+            {onRetry ? <button type="button" onClick={onRetry} disabled={retryDisabled} className="product-action product-action-secondary mt-3 min-h-11 py-2 text-sm">{retryLabel}</button> : null}
           </> : null}
         </div>
         <button type="button" onClick={onDismiss} aria-label="Dismiss Daily Brief" className="product-action product-action-secondary min-h-11 min-w-11 self-start px-2 py-2 text-sm">Close</button>

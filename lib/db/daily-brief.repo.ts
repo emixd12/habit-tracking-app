@@ -11,7 +11,7 @@ export type DailyBriefPreferences = {
 export type DailyBriefBeginResult =
   | { state: "acquired"; leaseToken: string; localDate: string }
   | { state: "pending" | "rate_limited"; retryAfterSeconds?: number }
-  | { state: "already_attempted" };
+  | { state: "already_attempted" | "retry_exhausted" };
 
 type JsonRecord = Record<string, unknown>;
 
@@ -158,7 +158,7 @@ function parsePreferences(value: unknown): DailyBriefPreferences {
 
 function parseBeginResult(value: unknown): DailyBriefBeginResult {
   const record = asRecord(value, "admission");
-  if (record.state === "already_attempted") return { state: record.state };
+  if (record.state === "already_attempted" || record.state === "retry_exhausted") return { state: record.state };
   if (record.state === "acquired") {
     if (typeof record.lease_token !== "string" || typeof record.local_date !== "string") {
       throw new Error("Daily Brief admission returned an invalid result.");

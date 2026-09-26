@@ -15,10 +15,15 @@ On the first Timeline opening each day, the horse presents the generated briefin
 Ignore it to keep tracking, or choose **Close** to dismiss it for this account,
 day and installation. Tab to **Close** and press Enter or Space. A failed request
 can show **Try again**; retries happen only when you choose that action.
+Leaving Timeline while the brief loads does not lose it; it appears when you return.
+If loading was interrupted, the bubble says so and offers **Try again**. When
+Cadence gives a wait time, the button becomes available after it passes. Each
+installation gets up to three retries per day.
 
 The briefing can recommend changes but cannot apply them. Cadence stores no
-briefing history. Timing text disappears when its context expires or observed
-facts change. Disable Daily Brief in Settings to stop generation.
+briefing history. When its timing expires, the bubble offers **Get a fresh brief**.
+After you mark an occurrence or other Timeline facts change, it offers **Refresh brief**.
+Neither regenerates automatically. Disable Daily Brief in Settings to stop generation.
 
 Linked, online desktop accounts use hosted information. Unsynchronized and
 local-only records are absent; offline tracking still works without Daily Brief.

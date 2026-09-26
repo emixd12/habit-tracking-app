@@ -15,6 +15,11 @@ A dismissed pending result cannot reopen the bubble. An explicit retry follows a
 failure without automatic retry loops. The once-per-local-day/install dismissal
 policy is defined in `plans/first-external-consumer.md`.
 
+Navigation during loading keeps the attempt; returning to Timeline shows its result.
+An interrupted, failed or undelivered attempt shows a recovery notice with an
+explicit retry, bounded per installation and day. Marking an occurrence after
+delivery withdraws the brief and offers a refresh; expiry offers a fresh brief.
+
 Account, date, disclosure and source changes fence pending content. Stale/partial
 facts remain explicit. Linked desktop uses hosted account context and discloses
 absent unsynced/local-only records; offline/account-free tracking remains usable.

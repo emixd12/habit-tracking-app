@@ -20,6 +20,40 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Ticket 168 recoverable Daily Brief loading — September 26, 2026
+
+Implemented in source. Regression tests reproduce four loss paths against the
+previous launcher (18 new cases fail there): a Timeline-keyed remount aborted the
+request and the daily marker blocked another; navigation discarded the attempt;
+a server-completed but undelivered result could not be retried; and web had no
+client deadline while desktop lost its deadline when a signal was passed.
+
+- The launcher now takes Timeline facts as `sourceKey` and stays mounted. A
+  page-session memory per client (`lib/ui/daily-brief-session.ts`) reattaches
+  remounts to the in-flight attempt or fresh result. Changed facts or expiry
+  withdraw delivered text and offer an explicit refresh.
+- Composed client deadlines bound preferences (15 s), the installation lock (5 s),
+  session lookup, request and body decoding (75 s) on web and desktop.
+- Markers record `attempted`, `delivered`, `dismissed` and a bounded `pendingUntil`
+  claim for parallel tabs. Old markers count as delivered. No text is stored.
+- Migration `20260926150000_daily_brief_bounded_recovery.sql` adds
+  `daily_brief_runs.admissions`: one automatic start plus three deliberate retries
+  per installation, day and disclosure revision, including after completion.
+  The fifth returns `retry_exhausted` (HTTP 429). Quotas and records are not cleared.
+- Distinct notices cover pending, rate limit (retry disabled until the wait passes),
+  timeout, offline, sign-in, changed context, retry limit, interrupted, undelivered,
+  expired and outdated. Server phase spans log duration and error code only.
+
+Verification: agents, interactions, resolvers, lint (zero warnings), typecheck,
+full tests (2,247 passed, 29 skipped), web build, core, design-system, desktop
+typecheck and desktop build pass. A port-less local Postgres container applied both
+migrations over stubs and a smoke script confirmed admission, pending, retry-after-
+completion, `retry_exhausted`, owner isolation and denied table reads; a full
+`supabase db reset` did not run. Bench recovery states pass at desktop and 390px on
+`http://127.0.0.1:4321` without overflow. Hosted migration, deployed-web and
+installed-desktop recovery remain open under Ticket 174. Evidence:
+`docs/qa/in-app-daily-brief.md`.
+
 ## Advisor implementation tickets filed — September 26, 2026
 
 Tickets 168–174 are planned; implementation has not started. The owner approved
