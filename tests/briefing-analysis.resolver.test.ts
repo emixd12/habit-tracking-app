@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { describe, expect, it } from "vitest";
-import { BRIEFING_ANALYSIS_LANES, resolveBriefingAnalysis } from "@cadence/core/resolvers/briefing-analysis.resolver";
+import { BRIEFING_ANALYSIS_LANES, resolveBriefingAnalysis, selectBriefingTip } from "@cadence/core/resolvers/briefing-analysis.resolver";
 import type {
   BriefingAnalysisConfigurationPeriod,
   BriefingAnalysisLaneId,
@@ -9,6 +9,7 @@ import type {
   BriefingAnalysisReminderDelivery,
   BriefingAnalysisSource,
   BriefingAnalysisStatusEvent,
+  BriefingFinding,
 } from "@cadence/core/types/briefing-analysis";
 import { EXPORT_PROMPT_TEMPLATES } from "@cadence/core/export-prompts";
 
@@ -325,5 +326,47 @@ describe("shared lane behavior", () => {
     const debtStronger = dates("2026-09-06", TODAY).map((date, index) => occurrence("behavior_v", date, index % 5 < 4 ? "unresolved" : "completed"));
     const result = analyze(source({ occurrences: [...debt, ...debtStronger], today: { scheduledCount: 1, unresolved: [{ ref: "today", behaviorRef: "behavior_u", startTime: "07:00" }] } }), ["decision-debt"]);
     expect(result.findings.map((finding) => finding.behaviorRef)).toEqual(["behavior_u", "behavior_v"]);
+  });
+});
+
+describe("occasional tip selection across days", () => {
+  const finding = (id: string, relevantToday = true, band = "share:4"): BriefingFinding => ({
+    id, laneId: "decision-debt", behaviorRef: `behavior_${id}`, key: "unresolved", evidenceBand: band,
+    scope: { startLocalDate: "2026-06-23", endLocalDateExclusive: TODAY, days: 90 }, counts: {}, rates: {},
+    coverage: { resolved: 1, unresolved: 1, total: 2 }, sufficiency: { rule: "rule", met: true }, materiality: 0.4,
+    relevantToday, proposal: { kind: "decision_moment", detail: {} }, limitations: [], evidenceRefs: [],
+    observedAt: "2026-09-21T12:00:00Z", revision: "r", expiresAt: "2026-09-21T12:05:00Z",
+  });
+  const fingerprintOf = (item: BriefingFinding) => `${item.id}|${item.evidenceBand}`;
+  const pick = (localDate: string, findings: BriefingFinding[], shown: { fingerprint: string; lastShownLocalDate: string }[], cooldownDays = 14) =>
+    selectBriefingTip({ findings, maxTips: 1, cooldownDays, localDate, shown, fingerprintOf });
+
+  it("simulates two weeks: one tip, same-day repeat, cooldown, spacing, then a changed-evidence tip", () => {
+    const shown: { fingerprint: string; lastShownLocalDate: string }[] = [];
+    const record = (fingerprint: string | null, date: string) => { if (fingerprint) shown.push({ fingerprint, lastShownLocalDate: date }); };
+    const a = finding("a"), b = finding("b");
+    // Day 1: A is the top relevant finding.
+    const day1 = pick("2026-09-01", [a, b], shown);
+    expect(day1.tip?.id).toBe("a"); record(day1.fingerprint, "2026-09-01");
+    // A retry on day 1 shows the same tip, even with B ranked first.
+    expect(pick("2026-09-01", [b, a], shown).tip?.id).toBe("a");
+    // Day 2: A is cooling down and B is blocked because a different tip ran yesterday.
+    const day2 = pick("2026-09-02", [a, b], shown);
+    expect(day2.tip).toBeNull();
+    expect(day2.decisions).toEqual([{ findingId: "a", decision: "cooldown" }, { findingId: "b", decision: "spacing" }]);
+    // Day 3: B may appear.
+    const day3 = pick("2026-09-03", [a, b], shown);
+    expect(day3.tip?.id).toBe("b"); record(day3.fingerprint, "2026-09-03");
+    // Day 10: both cooling down.
+    expect(pick("2026-09-10", [a, b], shown).tip).toBeNull();
+    // Day 10 with A's evidence materially changed: new fingerprint, allowed.
+    expect(pick("2026-09-10", [finding("a", true, "share:7")], shown).tip?.id).toBe("a");
+    // Day 15: A's cooldown has passed.
+    expect(pick("2026-09-15", [a], shown).tip?.id).toBe("a");
+  });
+
+  it("requires relevance to today and honors a zero ceiling", () => {
+    expect(pick("2026-09-01", [finding("a", false)], []).decisions).toEqual([{ findingId: "a", decision: "not_relevant" }]);
+    expect(selectBriefingTip({ findings: [finding("a")], maxTips: 0, cooldownDays: 14, localDate: "2026-09-01", shown: [], fingerprintOf }).tip).toBeNull();
   });
 });

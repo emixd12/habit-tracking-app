@@ -60,7 +60,7 @@ describe("briefing workbench boundary", () => {
     expect(body).toMatchObject({ mode: "synthetic", fixtureId, fixtureVersion: BRIEFING_FIXTURE_VERSION, usage: "unavailable" });
     for (const [index, result] of body.results.entries()) {
       expect(result).toMatchObject({ state: "ready", validation: "passed", inspector: {
-        recipe: { id: "daily_brief", version: "1.0" }, policyVersion: "2.2", pipelineVersion: "2.2",
+        recipe: { id: "daily_brief", version: "1.0" }, policyVersion: "3.0", pipelineVersion: "3.0",
       } });
       expect(result.inspector.facts).toEqual(payloads[index].context);
       expect(result.briefing.versions).toEqual({

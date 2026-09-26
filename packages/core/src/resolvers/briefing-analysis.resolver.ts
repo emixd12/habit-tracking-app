@@ -687,3 +687,58 @@ function mode(values: readonly string[]): string {
 function round(value: number): number { return Math.round(value * 100) / 100; }
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
+
+export type BriefingTipDecision = "selected" | "not_relevant" | "cooldown" | "spacing" | "not_ranked" | "disabled";
+
+export type BriefingTipSelection = Readonly<{
+  tip: BriefingFinding | null;
+  fingerprint: string | null;
+  decisions: readonly Readonly<{ findingId: string; decision: BriefingTipDecision }>[];
+}>;
+
+/**
+ * Chooses at most one occasional pattern tip. A tip must bear on today, its
+ * fingerprint must be outside the cooldown, and no different tip may have been
+ * shown on the previous local day. A tip already shown today may be shown again,
+ * so a deliberate retry or refresh keeps the same advice. Findings arrive ranked.
+ */
+export function selectBriefingTip(input: Readonly<{
+  findings: readonly BriefingFinding[];
+  maxTips: 0 | 1;
+  cooldownDays: number;
+  localDate: string;
+  shown: readonly Readonly<{ fingerprint: string; lastShownLocalDate: string }>[];
+  fingerprintOf: (finding: BriefingFinding) => string;
+}>): BriefingTipSelection {
+  if (input.maxTips === 0) {
+    return { tip: null, fingerprint: null, decisions: input.findings.map((finding) => ({ findingId: finding.id, decision: "disabled" as const })) };
+  }
+  const today = Temporal.PlainDate.from(input.localDate);
+  const age = (date: string) => Temporal.PlainDate.from(date).until(today).days;
+  const shown = new Map(input.shown.map((item) => [item.fingerprint, item.lastShownLocalDate]));
+  const shownToday = new Set(input.shown.filter((item) => age(item.lastShownLocalDate) === 0).map((item) => item.fingerprint));
+  const shownYesterday = input.shown.filter((item) => age(item.lastShownLocalDate) === 1).map((item) => item.fingerprint);
+  const fingerprints = new Map(input.findings.map((finding) => [finding.id, input.fingerprintOf(finding)]));
+  const eligible = (finding: BriefingFinding): BriefingTipDecision | null => {
+    const fingerprint = fingerprints.get(finding.id)!;
+    if (!finding.relevantToday) return "not_relevant";
+    if (shownToday.has(fingerprint)) return null;
+    const last = shown.get(fingerprint);
+    if (last && age(last) > 0 && age(last) < input.cooldownDays) return "cooldown";
+    if (shownToday.size > 0 || shownYesterday.some((other) => other !== fingerprint)) return "spacing";
+    return null;
+  };
+  // Prefer the tip already shown today so retries stay consistent.
+  const ordered = [...input.findings].sort((left, right) =>
+    Number(shownToday.has(fingerprints.get(right.id)!)) - Number(shownToday.has(fingerprints.get(left.id)!)));
+  let tip: BriefingFinding | null = null;
+  const decisions = ordered.map((finding) => {
+    const blocked = eligible(finding);
+    if (blocked) return { findingId: finding.id, decision: blocked };
+    if (tip) return { findingId: finding.id, decision: "not_ranked" as const };
+    tip = finding;
+    return { findingId: finding.id, decision: "selected" as const };
+  });
+  const selected = tip as BriefingFinding | null;
+  return { tip: selected, fingerprint: selected ? fingerprints.get(selected.id)! : null, decisions };
+}

@@ -121,7 +121,7 @@ it("invalidates pending output when selected source content changes", async () =
 it("binds the forward-looking recipe policy and keeps diagnostics out of delivered warnings", async () => {
   const generate = vi.fn().mockResolvedValue({ text: "No specific timing recommendation today.", occurrenceRefs: [], suggestions: [] });
   const result = await generateDailyBrief(context, { generate, now, signal: new AbortController().signal });
-  expect(result.versions).toMatchObject({ recipe: "daily_brief@1.0", policy: "2.2", pipeline: "2.2" });
+  expect(result.versions).toMatchObject({ recipe: "daily_brief@1.0", policy: "3.0", pipeline: "3.0" });
   expect(result.warnings).toEqual(["Suggestions only. No changes were applied."]);
   expect(DAILY_BRIEF_INSTRUCTIONS).toContain("Never recap Completed or Not Completed counts");
   expect(DAILY_BRIEF_INSTRUCTIONS).toContain("Unknown duration cannot prove an activity fits");
