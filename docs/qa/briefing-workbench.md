@@ -562,3 +562,168 @@ also pass, with existing dependency directive warnings. Fresh independent review
 returned `ship` with no findings for this provider-free implementation. No schema,
 provider configuration or deployment changed. Remaining acceptance is listed in
 the evidence table above.
+
+## Advisor analysis lanes and tips (Tickets 169–174) — September 26, 2026
+
+Evidence is separated by kind. Deterministic correctness is established by tests;
+model wording is sampled on synthetic facts only; live reliability, owner-account
+wording and installed-desktop acceptance remain open.
+
+### Frozen scenario matrix (deterministic)
+
+`lib/services/briefing-analysis-fixtures.ts` (`synthetic-analysis-2026-09-26.1`) adds
+14 analysis scenarios that pair with any day-context fixture: none (absent source),
+no issue, weekday dip, marking offset, heavy load, decision debt, late logging,
+corrections, reminder association, Note obstacles (with a prompt-injection Note),
+small sample, all Unresolved, changed schedule and capped history.
+`tests/briefing-fixtures.test.ts` asserts each scenario's lane states and tip lane
+with every lane selected. `tests/briefing-analysis.resolver.test.ts` holds hand-counted
+fixtures for every lane (23 cases), DST weekdays, schedule segmentation, confounded
+load, capped and undisclosed sources, and a two-week cooldown/spacing simulation.
+`tests/briefing-analysis-pipeline.test.ts` covers rollout fencing, model payload
+exclusions (no internal refs, travel, or unselected Note text), tip budget, invented
+tips, quoted or thinly cited Note themes, and deterministic evidence lines.
+
+### Synthetic model wording (gpt-5.6-luna, invented facts only)
+
+Five comparisons ran on `http://127.0.0.1:4321` through the existing workbench,
+Cadence default against `advisor-analysis`. No account data was sent.
+
+- The first run exposed a pre-existing defect: both configurations stated times in
+  UTC (5:30 PM for a 12:30 PM local walk). The payload now carries deterministic
+  `clock.labels` for every instant, and the prompt forbids converting instants.
+  Later runs stated local times correctly.
+- The first tip used analytic jargon and repeated the limitation. The analysis policy
+  now asks for plain words, one thing to try today, and no restated caveats. The last
+  weekday-dip tip read: "Sunday timing has been harder for this Walk. Consider trying
+  a different time of day for today's Walk." It still did not name the supported
+  7:00 AM opening.
+- The Note-obstacles run ignored the injection Note, described "wet weather or staying
+  late" without quoting, and cited three Notes; the evidence line reported 3.
+- The no-issue run on the uneventful day returned one short sentence and no tip.
+- Both configurations still sometimes mention that a change "would require a
+  scheduling change". The base prompt now forbids naming internal mechanics;
+  this was not re-sampled after the final prompt edit.
+
+These samples show the pipeline, validation and deterministic evidence working with
+the real model. They are not a model-quality pass: owner wording review of
+`advisor-analysis` against real days remains required before promotion.
+
+### Promotion and rollback
+
+The production default (`cadence-default`, 1.2 upgraded to 1.3 with no lanes) is
+unchanged. Promotion is a reviewed repository change that copies the chosen lanes,
+tip ceiling, cooldown and word budget into `cadence-default`. Rollback reverts that
+change; tips stop immediately. Tip rows can remain (content-free, pruned after 30
+days) or be removed by disabling Daily Brief. Rollback never touches tracking,
+Calendar or consent records, and it stops new optional-source transmissions because
+no selected lane requests them.
+
+### Independent review fixes
+
+A read-only review returned `ship-with-fixes`; all findings were fixed with tests:
+local-time labels now cover Postgres `+00:00` instants, not only `Z`; the reminder lane
+counts cancelled-before-send deliveries as planned reminders, removing a bias against
+early completions; marks inside a reserved range count as on time and outside marks
+measure from the nearer bound; a shown tip records adjacent evidence bands so edge
+values cannot bypass the cooldown; cross-lane ranking divides materiality by each
+lane's threshold; the unknown-return line no longer blames a missing base, and only
+current legs contribute overlaps; the Notes disclosure names the actual send condition.
+
+PR review follow-up: Note themes are now found deterministically — a content term shared
+by at least three Notes on two dates — and only that group reaches the model; unrelated
+Notes produce no finding. Schedule load recounts today's load and ignores schedule changes
+for Behaviors outside the configured scope. The word-limit instruction names tip text.
+
+### Remaining gates
+
+- Live check that the strict schema's always-present `tip` field returns `null` for the
+  default preset; a non-null tip there rejects the brief as `advisor_unavailable`.
+
+- Owner-clicked `My account` comparisons of `advisor-analysis` on real days.
+- Hosted migration of `20260926150000` and `20260926170000` under deployment authority.
+- Deployed-web and installed-desktop acceptance of recovery, tips and travel lines.
+- Wording re-sample after the final mechanics instruction.
+
+## Compare, saved reviews and feedback-to-candidate loop (Tickets 175–177) — September 28, 2026
+
+Source: `docs/plans/2026-09-27-briefing-bench-review.md`, Phases 0–2. The owner
+authorized full account capture for local reviews (Decision 2026-09-27).
+
+### Editorial target
+
+Review the complete rendered brief, not individual fields.
+
+- The opening explains what matters today, beyond the visible Timeline.
+- The overview usually contains one or two distinct planning points.
+- At most one historical observation appears, relevant to today and supported.
+- A next step appears only when evidence supports it.
+- Quiet days stay short; no tip is a successful outcome.
+- The prose names Behaviors and concrete consequences, without internal terms,
+  judgment, generic encouragement or repeated advice.
+- Marks describe logging time, not when a Behavior happened. Suggestions stay read-only.
+- Start with 80–120 visible words. This is a working range, not a validated
+  reading-speed formula. Never hide material uncertainty to meet it.
+
+After one reading, ask: "What matters today?" and "Was any part unclear, repetitive,
+or unnecessary?"
+
+### Workflow
+
+1. Compare opens first. Choose Synthetic or My account, then Run new comparison.
+   A is the baseline, B the candidate. Each column shows the production bubble,
+   visible word count, repetition and internal-term warnings, and collapsed evidence.
+2. Write feedback in prose. A judgment is optional. Select text inside an output and
+   choose Quote selected text to anchor the comment; add replacement wording if useful.
+3. Open "Turn feedback into a candidate" and choose Write review packet. Ask a coding
+   agent to read the packet path shown and write one proposal file.
+4. Choose Check for proposals. Load a configuration proposal into B, or let the agent
+   make a repository change. Then choose Rerun candidate on this case. A stays pinned.
+5. Record Accept, Needs correction (with a note) or Reject. Promotion remains a
+   separate reviewed repository change.
+
+### Storage
+
+`.local/briefing-bench/v1/<synthetic|account-<ref>>/<case>/` holds `case.json`,
+`candidates.jsonl`, `runs.jsonl`, `feedback.jsonl`, `dispositions.jsonl`,
+`review-packet.md` and `proposals/`. Directories are 0700 and files 0600. Cases
+expire after 30 days and can be deleted from Saved reviews. Account `case.json`
+holds the captured contexts, analysis source and Behavior reference map; the reviews
+API never returns them to the browser. Runs keep withheld output, failures and
+cancellations. A failed write shows "Not saved" and keeps the visible result.
+
+### Verification
+
+- Resolver: a 21:00–00:00 range treats 23:30 marks as on time and 18:00 marks as
+  three hours early; next-day 00:30 marks stay excluded. Before the fix, 23:30 marks
+  measured 1,410 minutes late.
+- Provider-free service tests: case, candidate and run persistence; file modes;
+  anchored feedback and rejected foreign quotations; packet content; proposal
+  validation and malformed-file reporting; dispositions; candidate-only reruns on the
+  same frozen facts; cancellation keeping completed runs; storage failure; deletion,
+  retention and path-like IDs; production and cross-origin refusal.
+- Account tests: captured inputs saved once in the owner partition and withheld from
+  GET; reruns on the captured clock without a new capture; refusal for an uncaptured
+  history window, disabled briefing, a Behavior deleted since capture, and another
+  signed-in owner.
+- DOM tests (26): Compare default, explicit runs, saved-case reload, withheld failures,
+  result retention after edits, cancellation, Not saved, feedback with quotation,
+  draft retention across views, candidate rerun with pinned baseline, packet and
+  proposal loading, decisions, Saved reviews reopen after remount and confirmed delete,
+  browser storage limited to configuration drafts, and account binding and clearing.
+- Browser QA on `http://127.0.0.1:4321/design-system?preview=briefing-workbench`:
+  one synthetic comparison (sparse, marking offset; Cadence default vs Advisor
+  analysis; gpt-5.6-luna, invented facts only). Both runs passed validation and saved.
+  A rendered 49 visible words; B rendered 137 and showed the pattern tip with its
+  evidence line. Feedback saved, the packet was written with configuration
+  differences and the exact comment, and both survived a reload. At 375 px, A stacks
+  above B with no horizontal overflow.
+- Observation from that run: B restated the tip's timing pattern in its overview.
+  The five-word repetition warning did not flag it because the wording differed.
+  Semantic repetition still needs the owner's reading and feedback.
+
+### Remaining gates
+
+- Owner review of real account comparisons through this workflow.
+- Plan Phases 3–5 (historical days, sequence and lane-preview batches with call
+  budgets, promotion) are not ticketed or implemented.

@@ -20,6 +20,63 @@ Its job is to answer:
 - The other files under `docs/` for product, data, recurrence, notification, export, UI, and user-flow contracts.
 - `STATUS.md` only for implementation state and handoff continuity.
 
+## Tickets 175–177 briefing review workbench — September 28, 2026
+
+The owner asked to implement Phases 0–2 of `docs/plans/2026-09-27-briefing-bench-review.md`
+and authorized full account capture for local reviews. Tickets 175–177 are complete in
+source. Production Daily Brief is unchanged except the shared `realistic-timing` fix,
+which only matters once `advisor-analysis` is promoted.
+
+- 175: midnight-ending ranges end the next day in `realistic-timing`; plain-language lane,
+  state and tip-decision labels; reading-burden, repetition and internal-term warnings
+  (`packages/core/src/services/briefing-review.ts`).
+- 176: the workbench opens on Compare with Saved reviews. Cases, candidates, runs and
+  prose feedback persist under `.local/briefing-bench/` (0700/0600, 30-day retention,
+  delete). Account cases keep captured inputs for exact reruns.
+- 177: review packets for coding agents, validated proposal files, owner decisions, and
+  candidate-only reruns on a saved case's captured clock after current consent checks.
+
+Verification: agents, interactions, resolvers, core, design-system, lint, TypeScript,
+tests (2,435 passed, 29 skipped) and build pass. An earlier full run failed
+`tests/desktop-release-acceptance.test.ts` once under load; it is under the parallel
+Ticket 115 edits and passed alone and on the final run. Browser QA ran one synthetic
+comparison. See `docs/qa/briefing-workbench.md`. Remaining: owner review of
+real account comparisons; Phases 3–5 are not ticketed.
+
+## Tickets 169–174 advisor analysis, tips and travel — September 26, 2026
+
+Tickets 169–173 are implemented in source; Ticket 174 is in progress. The production
+default brief selects no analysis lanes, so deployed behavior changes only through the
+recovery work (168), the local-time labels, and policy 3.0's output field.
+
+- 169: `read_advisor_analysis_snapshot` (migration `20260926170000`) returns bounded,
+  owner-filtered history, status events, configuration events and optional reminder
+  deliveries and Notes. The database refuses undisclosed optional sources. The account
+  context projects opaque records and fences the analysis revision before delivery.
+  Configuration 1.3 adds `analysis` (lanes, one-tip ceiling, 7–30 day cooldown).
+- 171–172: `briefing-analysis.resolver.ts` implements nine lanes with stated thresholds.
+  Load compares within weekdays; periods split only at schedule, timezone or active
+  changes; historical Calendar reports unavailable.
+- 173: one relevant finding may become a tip, subject to cooldown and one-day spacing.
+  The bubble shows the model's tip with a deterministic evidence line. Quoted or thinly
+  cited Note themes are dropped. Only completed, current attempts record the content-
+  free tip fingerprint (`daily_brief_tip_deliveries`).
+- 170: the bubble shows travel lines projected from existing Timeline travel evidence.
+  Travel stays out of model input.
+- 172 Settings: reminder-history and Note disclosures with exact wording, offered when
+  the server's recipe uses them or in development. Disabling Daily Brief revokes both.
+- 174: 14 synthetic analysis scenarios, workbench lane controls and an analysis
+  summary. Five synthetic model comparisons found and fixed a pre-existing UTC time
+  defect and jargon in tips.
+
+Verification and remaining gates: `docs/qa/briefing-workbench.md`,
+`docs/qa/travel-release.md`. A port-less local Postgres container applied all three new
+migrations; SQL smoke checks confirmed disclosure refusal, owner isolation, revision
+matching, older-client revocation, lease-bound tip records and deletion on disable. A
+full `supabase db reset` did not run. Hosted migrations, owner-clicked account
+comparisons, promotion of `advisor-analysis`, deployed-web and installed-desktop
+acceptance remain open.
+
 ## Ticket 168 recoverable Daily Brief loading — September 26, 2026
 
 Implemented in source. Regression tests reproduce four loss paths against the
@@ -934,6 +991,10 @@ info@identityscaffolding.com, and the Verification Center for
 verified and shown to users; data access remains verified; no reviewer request
 appears; the three declared scopes are unchanged. Post-approval smoke checks
 remain outstanding. Ticket 141 and rollout gates remain unchanged.
+September 26 scheduled follow-up could not independently repeat that pane check:
+the Identity Scaffolding Chrome session is unavailable, and automatic approval
+review blocked broad Claude inspection. The recorded September 26 result above
+is preserved; this automation obtained no new provider decision.
 Unrelated working-tree changes were excluded from the isolated releases.
 
 Ticket 138: Cloudflare's initially empty `cadence-me.com` zone now has two
